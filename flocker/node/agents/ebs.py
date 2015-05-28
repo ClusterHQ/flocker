@@ -24,7 +24,7 @@ from eliot import Field, MessageType
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume
+    UnattachedVolume, get_blockdevice_volume,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -343,6 +343,13 @@ class EBSBlockDeviceAPI(object):
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
 
+    def allocation_unit(self):
+        """
+        Return a fixed allocation_unit for now; one which we observe
+        to work on AWS.
+        """
+        return int(GiB(1).to_Byte().value)
+
     def compute_instance_id(self):
         """
         Look up the EC2 instance ID for this node.
@@ -402,12 +409,6 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        # There could be difference between user-requested and
-        # created volume sizes due to several reasons:
-        # 1) Round off from converting user-supplied 'size' to 'GiB' int.
-        # 2) EBS-specific size constraints.
-        # XXX: Address size mistach (see
-        # (https://clusterhq.atlassian.net/browse/FLOC-1874).
         requested_volume = self.connection.create_volume(
             size=int(Byte(size).to_GiB().value), zone=self.zone)
 

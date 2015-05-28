@@ -5,11 +5,12 @@ Tests for ``flocker.node.agents.blockdevice``.
 """
 
 from errno import ENOTDIR
+from functools import partial
 from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
-from bitmath import MB, Byte
+from bitmath import Byte, MB, MiB, GB, GiB
 
 import psutil
 
@@ -51,6 +52,10 @@ from ..blockdevice import (
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
     DatasetWithoutVolume,
+    allocated_size,
+    check_allocatable_size,
+    get_blockdevice_volume,
+    _backing_file_name,
 )
 
 from ... import run_state_change, in_parallel
@@ -65,7 +70,11 @@ from ....control import (
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
-LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
+LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
+# Enough space for the Ext4 journal
+# And enough space for predictable inode counts after resize in
+# ResizeFilesystemTests.test_shrink
+LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -102,7 +111,7 @@ def get_size_info(api, volume):
         reported size of the backing file for the given volume.
     """
     backing_file = api._root_path.descendant(
-        ['unattached', volume.blockdevice_id]
+        ['unattached', _backing_file_name(volume)]
     )
     # Get actual number of 512 byte blocks used by the file.  See
     # http://stackoverflow.com/a/3212102
@@ -350,7 +359,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unmounted = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             unmounted.blockdevice_id,
@@ -359,7 +368,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -376,7 +385,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unexpected = self.api.create_volume(
             dataset_id=uuid4(),
-            size=LOOPBACK_BLOCKDEVICE_SIZE,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         self.api.attach_volume(
@@ -396,7 +405,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size LOOPBACK_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unexpected.dataset_id],
             expected_devices={
                 unexpected.dataset_id: device,
@@ -410,7 +419,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         the discovered state for the node.
         """
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
@@ -467,11 +476,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unrelated_device = FilePath(self.mktemp())
         with unrelated_device.open("w") as unrelated_file:
-            unrelated_file.truncate(LOOPBACK_BLOCKDEVICE_SIZE)
+            unrelated_file.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
 
         unmounted = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         mountpoint = self.deployer.mountroot.child(bytes(unmounted.dataset_id))
         mountpoint.makedirs()
@@ -486,7 +495,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -503,7 +512,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -516,7 +525,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(device, mountpoint)
         expected_dataset = Dataset(
             dataset_id=dataset_id,
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True
@@ -537,7 +546,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -556,11 +565,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         dataset_id = uuid4()
         self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[dataset_id],
         )
 
@@ -793,7 +802,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=self.DATASET_ID, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(volume.blockdevice_id, self.NODE)
 
@@ -1330,36 +1339,54 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
-    def _assert_volume_size(self, volume, size):
+    def _verify_volume_size(self, requested_size, expected_volume_size):
         """
-        Assert that volume size is consistent across EBS, OS, IBlockDeviceAPI.
+        Assert the implementation of
+        ``IBlockDeviceAPI.list_volumes`` returns ``BlockDeviceVolume``s
+        with the ``expected_volume_size`` and that
+        ``IBlockDeviceAPI.create_volume`` creates devices with an
+        ``expected_device_size`` (expected_volume_size plus platform
+        specific over allocation).
 
-        :param BlockDeviceVolume volume: Volume we are interested in.
-        :param int size: Expected size of input volume.
+        A device is created and attached, then ``lsblk`` is used to
+        measure the size of the block device, as reported by the
+        kernel of the machine to which the device is attached.
+
+        :param int requested_size: Requested size of created volume.
+        :param int expected_size: Expected size of created device.
         """
-        volume_size = volume.size
+        dataset_id = uuid4()
+        # Create a new volume.
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=requested_size,
+        )
+        # Attach it, so that we can measure its size, as reported by
+        # the kernel of the machine to which it's attached.
+        self.api.attach_volume(
+            volume.blockdevice_id, attach_to=self.this_node,
+        )
+        # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
+        # case the implementation hasn't verified that the requested
+        # size has actually been stored.
+        volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
+
         device_path = self.api.get_device_path(volume.blockdevice_id).path
-        device = device_path.encode("ascii")
 
         command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-                   b"--output", b"SIZE", device]
+                   b"--output", b"SIZE", device_path.encode("ascii")]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
-
-        # Check 1: Assert that size reported in BlockDeviceVolume
-        # matches device size reported by `lsblk`.
-        self.assertEqual(device_size, volume_size)
-
-        # Check 2: Assert that device size reported by `lsblk` matches
-        # user input size at volume creation time.
-        # Rounding up to GiB before comparing is not ideal,
-        # but due to storage backend size constraints, requested
-        # size in Bytes might not exactly match with created
-        # volume size. See
-        # https://clusterhq.atlassian.net/browse/FLOC-1874
-        device_size_GiB = int(Byte(device_size).to_GiB().value)
-        size_GiB = int(Byte(size).to_GiB().value)
-        self.assertEqual(device_size_GiB, size_GiB)
+        if self.device_allocation_unit is None:
+            expected_device_size = expected_volume_size
+        else:
+            expected_device_size = allocated_size(
+                self.device_allocation_unit, expected_volume_size
+            )
+        self.assertEqual(
+            (expected_volume_size, expected_device_size),
+            (volume.size, device_size)
+        )
 
     def test_interface(self):
         """
@@ -1396,31 +1423,26 @@ class IBlockDeviceAPITestsMixin(object):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=self.minimum_allocatable_size)
         self.assertIn(new_volume, self.api.list_volumes())
 
     def test_listed_volume_attributes(self):
         """
-        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the same
-        dataset_id and size as was passed to ``create_volume``.
+        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the
+        same dataset_id and (maybe over-allocated size) as was passed
+        to ``create_volume``.
         """
         expected_dataset_id = uuid4()
+
         self.api.create_volume(
             dataset_id=expected_dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size,
         )
         [listed_volume] = self.api.list_volumes()
 
-        # Rounding up to GiB before comparing is not ideal,
-        # but due to storage backend size constraints, requested
-        # size in Bytes might not exactly match with created
-        # volume size. See
-        # https://clusterhq.atlassian.net/browse/FLOC-1874
-        volume_size_GiB = int(Byte(listed_volume.size).to_GiB().value)
-        create_size_GiB = int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value)
         self.assertEqual(
-            (expected_dataset_id, create_size_GiB),
-            (listed_volume.dataset_id, volume_size_GiB)
+            (expected_dataset_id, self.minimum_allocatable_size),
+            (listed_volume.dataset_id, listed_volume.size)
         )
 
     def test_created_volume_attributes(self):
@@ -1429,21 +1451,15 @@ class IBlockDeviceAPITestsMixin(object):
         and a size.
         """
         expected_dataset_id = uuid4()
+
         new_volume = self.api.create_volume(
             dataset_id=expected_dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size,
         )
 
-        # Rounding up to GiB before comparing is not ideal,
-        # but due to storage backend size constraints, requested
-        # size in Bytes might not exactly match with created
-        # volume size. See
-        # https://clusterhq.atlassian.net/browse/FLOC-1874
-        volume_size_GiB = int(Byte(new_volume.size).to_GiB().value)
-        create_size_GiB = int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value)
         self.assertEqual(
-            (expected_dataset_id, create_size_GiB),
-            (new_volume.dataset_id, volume_size_GiB)
+            (expected_dataset_id, self.minimum_allocatable_size),
+            (new_volume.dataset_id, new_volume.size)
         )
 
     def test_attach_unknown_volume(self):
@@ -1458,22 +1474,15 @@ class IBlockDeviceAPITestsMixin(object):
             attach_to=self.this_node,
         )
 
-    def test_attach_volume_validate_size(self):
+    def test_device_size(self):
         """
-        Validate that attached volume size reported from EBS, OS,
-        and IBlockDeviceAPI layers is consistent.
+        ``attach_volume`` results in a device with the expected size.
         """
-        dataset_id = uuid4()
-
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = self.minimum_allocatable_size
+        self._verify_volume_size(
+            requested_size=requested_size,
+            expected_volume_size=requested_size
         )
-        attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id, attach_to=self.this_node,
-        )
-
-        self._assert_volume_size(attached_volume, REALISTIC_BLOCKDEVICE_SIZE)
 
     def test_attach_attached_volume(self):
         """
@@ -1484,7 +1493,7 @@ class IBlockDeviceAPITestsMixin(object):
 
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id, attach_to=self.this_node,
@@ -1508,7 +1517,7 @@ class IBlockDeviceAPITestsMixin(object):
 
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -1529,7 +1538,7 @@ class IBlockDeviceAPITestsMixin(object):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
@@ -1550,7 +1559,7 @@ class IBlockDeviceAPITestsMixin(object):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
@@ -1571,11 +1580,11 @@ class IBlockDeviceAPITestsMixin(object):
         """
         new_volume1 = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         new_volume2 = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         attached_volume = self.api.attach_volume(
             blockdevice_id=new_volume2.blockdevice_id,
@@ -1592,11 +1601,11 @@ class IBlockDeviceAPITestsMixin(object):
         """
         volume1 = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         volume2 = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         attached_volume1 = self.api.attach_volume(
             volume1.blockdevice_id, attach_to=self.this_node,
@@ -1630,7 +1639,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         exception = self.assertRaises(
             UnattachedVolume,
@@ -1646,7 +1655,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -1665,7 +1674,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.minimum_allocatable_size
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -1684,7 +1693,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.api.destroy_volume(volume.blockdevice_id)
         exception = self.assertRaises(
@@ -1699,11 +1708,11 @@ class IBlockDeviceAPITestsMixin(object):
         """
         unrelated = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.api.destroy_volume(volume.blockdevice_id)
         self.assertEqual([unrelated], self.api.list_volumes())
@@ -1714,7 +1723,7 @@ class IBlockDeviceAPITestsMixin(object):
             destroyed.
         """
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         self.api.destroy_volume(volume.blockdevice_id)
         return volume
@@ -1750,7 +1759,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``blockdevice_id`` is not attached to a host.
         """
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         exception = self.assertRaises(
             UnattachedVolume,
@@ -1777,7 +1786,7 @@ class IBlockDeviceAPITestsMixin(object):
 
         # Create an unrelated, attached volume that should be undisturbed.
         unrelated = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         unrelated = self.api.attach_volume(
             unrelated.blockdevice_id, attach_to=self.this_node
@@ -1785,7 +1794,7 @@ class IBlockDeviceAPITestsMixin(object):
 
         # Create the volume we'll detach.
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         volume = self.api.attach_volume(
             volume.blockdevice_id, attach_to=self.this_node
@@ -1819,7 +1828,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         # Create the volume we'll detach.
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         attached_volume = self.api.attach_volume(
             volume.blockdevice_id, attach_to=self.this_node
@@ -1856,7 +1865,7 @@ class IBlockDeviceAPITestsMixin(object):
             UnknownVolume,
             self.api.resize_volume,
             blockdevice_id=blockdevice_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE * 10,
+            size=self.minimum_allocatable_size * 10,
         )
         self.assertEqual(exception.args, (blockdevice_id,))
 
@@ -1868,13 +1877,13 @@ class IBlockDeviceAPITestsMixin(object):
         """
         unrelated_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         original_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
-        new_size = REALISTIC_BLOCKDEVICE_SIZE * 8
+        new_size = self.minimum_allocatable_size * 8
         self.api.resize_volume(original_volume.blockdevice_id, new_size)
         larger_volume = original_volume.set(size=new_size)
 
@@ -1894,7 +1903,7 @@ class IBlockDeviceAPITestsMixin(object):
             UnknownVolume,
             self.api.resize_volume,
             blockdevice_id=volume.blockdevice_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
@@ -1914,14 +1923,36 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertNotIn(flocker_volume, self.api.list_volumes())
 
 
-def make_iblockdeviceapi_tests(blockdevice_api_factory):
+def make_iblockdeviceapi_tests(
+        blockdevice_api_factory,
+        minimum_allocatable_size,
+        device_allocation_unit
+):
     """
+    :param blockdevice_api_factory: A factory which will be called
+        with the generated ``TestCase`` during the ``setUp`` for each
+        test and which should return an implementation of
+        ``IBlockDeviceAPI`` to be tested.
+    :param int minimum_allocatable_size: The minumum block device size
+        (in bytes) supported on the platform under test. This must be
+        a multiple ``IBlockDeviceAPI.allocation_unit()``.
+    :param int device_allocation_unit: A size interval (in ``bytes``)
+        which the storage system is expected to allocate eg Cinder
+        allows sizes to be supplied in GiB, but certain Cinder storage
+        drivers may be constrained to create sizes with 8GiB
+        intervals.
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
+            check_allocatable_size(
+                self.api.allocation_unit(),
+                minimum_allocatable_size
+            )
+            self.minimum_allocatable_size = minimum_allocatable_size
+            self.device_allocation_unit = device_allocation_unit
             self.this_node = self.api.compute_instance_id()
 
     return Tests
@@ -1998,7 +2029,7 @@ def losetup_detach_all(root_path):
             losetup_detach(device_file)
 
 
-def loopbackblockdeviceapi_for_test(test_case):
+def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
         created for the supplied ``test_case``.
@@ -2015,6 +2046,7 @@ def loopbackblockdeviceapi_for_test(test_case):
     loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
         root_path=root_path,
         compute_instance_id=random_name(test_case),
+        allocation_unit=allocation_unit,
     )
     test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
     return loopback_blockdevice_api
@@ -2022,7 +2054,12 @@ def loopbackblockdeviceapi_for_test(test_case):
 
 class LoopbackBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
-            blockdevice_api_factory=loopbackblockdeviceapi_for_test
+            blockdevice_api_factory=partial(
+                loopbackblockdeviceapi_for_test,
+                allocation_unit=LOOPBACK_ALLOCATION_UNIT
+            ),
+            minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            device_allocation_unit=None,
         )
 ):
     """
@@ -2057,7 +2094,11 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
 
     def setUp(self):
-        self.api = loopbackblockdeviceapi_for_test(test_case=self)
+        self.api = loopbackblockdeviceapi_for_test(
+            test_case=self,
+            allocation_unit=LOOPBACK_ALLOCATION_UNIT,
+        )
+        self.minimum_allocatable_size = LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 
     def test_initialise_directories(self):
         """
@@ -2093,34 +2134,68 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         ``create_volume`` creates sparse files.
         """
-        # 1GB
-        apparent_size = REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = self.minimum_allocatable_size
         volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=apparent_size
+            size=requested_size,
         )
+        allocated_size = volume.size
         size = get_size_info(self.api, volume)
 
         self.assertEqual(
-            (0, apparent_size),
+            (0, allocated_size),
             (size.actual, size.reported)
+        )
+
+    def test_create_with_non_allocation_unit(self):
+        """
+        ``create_volume`` raises ``ValueError`` unless the supplied
+        ``size`` is a multiple of
+        ``IBlockDeviceAPI.allocated_unit()``.
+        """
+        self.assertRaises(
+            ValueError,
+            self.api.create_volume,
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size + 1,
         )
 
     def test_resize_grow_sparse(self):
         """
         ``resize_volume`` extends backing files sparsely.
         """
+        requested_size = self.minimum_allocatable_size
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=requested_size
         )
-        apparent_size = volume.size * 2
+
+        larger_size = requested_size * 2
         self.api.resize_volume(
-            volume.blockdevice_id, apparent_size,
+            volume.blockdevice_id, larger_size,
         )
+        [volume] = self.api.list_volumes()
+        allocated_size_2 = volume.size
         size = get_size_info(self.api, volume)
         self.assertEqual(
-            (0, apparent_size),
+            (0, allocated_size_2),
             (size.actual, size.reported)
+        )
+
+    def test_resize_with_non_allocation_unit(self):
+        """
+        ``resize_volume`` raises ``ValueError`` unless the supplied
+        ``size`` is a multiple of
+        ``IBlockDeviceAPI.allocated_unit()``.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.api.resize_volume,
+            blockdevice_id=volume.blockdevice_id,
+            size=self.minimum_allocatable_size + 1,
         )
 
     def test_resize_data_preserved(self):
@@ -2128,11 +2203,11 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``resize_volume`` does not modify the data contained inside the backing
         file.
         """
-        start_size = 1024 * 64
+        start_size = self.minimum_allocatable_size
         end_size = start_size * 2
         volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
         backing_file = self.api._root_path.descendant(
-            ['unattached', volume.blockdevice_id]
+            ['unattached', _backing_file_name(volume)]
         )
         # Make up a bit pattern that seems kind of interesting.  Not being
         # particularly rigorous here.  Assuming any failures will be pretty
@@ -2147,7 +2222,11 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             fObj.write(expected_data)
 
         self.api.resize_volume(volume.blockdevice_id, end_size)
+        [volume] = self.api.list_volumes()
 
+        backing_file = self.api._root_path.descendant(
+            ['unattached', _backing_file_name(volume)]
+        )
         with backing_file.open("r") as fObj:
             data_after_resize = fObj.read(start_size)
 
@@ -2158,7 +2237,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``list_volumes`` returns a ``BlockVolume`` for each unattached volume
         file.
         """
-        expected_size = REALISTIC_BLOCKDEVICE_SIZE
+        expected_size = self.minimum_allocatable_size
         expected_dataset_id = uuid4()
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
@@ -2166,7 +2245,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
         with (self.api._root_path
               .child('unattached')
-              .child(blockdevice_volume.blockdevice_id.encode('ascii'))
+              .child(_backing_file_name(blockdevice_volume))
               .open('wb')) as f:
             f.truncate(expected_size)
         self.assertEqual([blockdevice_volume], self.api.list_volumes())
@@ -2176,7 +2255,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``list_volumes`` returns a ``BlockVolume`` for each attached volume
         file.
         """
-        expected_size = REALISTIC_BLOCKDEVICE_SIZE
+        expected_size = self.minimum_allocatable_size
         expected_dataset_id = uuid4()
         this_node = self.api.compute_instance_id()
 
@@ -2190,7 +2269,8 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             b'attached', this_node.encode("utf-8")
         ])
         host_dir.makedirs()
-        with host_dir.child(blockdevice_volume.blockdevice_id).open('wb') as f:
+        filename = _backing_file_name(blockdevice_volume)
+        with host_dir.child(filename).open('wb') as f:
             f.truncate(expected_size)
 
         self.assertEqual([blockdevice_volume], self.api.list_volumes())
@@ -2203,13 +2283,13 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         this_node = self.api.compute_instance_id()
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         unattached = self.api._root_path.descendant([
-            b"unattached", volume.blockdevice_id,
+            b"unattached", _backing_file_name(volume),
         ])
         attached = self.api._root_path.descendant([
-            b"attached", this_node.encode("utf-8"), volume.blockdevice_id,
+            b"attached", this_node.encode("utf-8"), _backing_file_name(volume),
         ])
         attached.parent().makedirs()
         unattached.moveTo(attached)
@@ -2415,7 +2495,7 @@ class DestroyBlockDeviceDatasetTests(
         api = deployer.block_device_api
 
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         volume = api.attach_volume(volume.blockdevice_id, node)
         device = api.get_device_path(volume.blockdevice_id)
@@ -2546,7 +2626,7 @@ class _MountScenario(PRecord):
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(case)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         api.attach_volume(volume.blockdevice_id, host)
 
@@ -2694,7 +2774,7 @@ class UnmountBlockDeviceTests(
         deployer = create_blockdevicedeployer(self, hostname=node)
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         volume = api.attach_volume(volume.blockdevice_id, node)
         device = api.get_device_path(volume.blockdevice_id)
@@ -2747,7 +2827,7 @@ class DetachVolumeTests(
         deployer = create_blockdevicedeployer(self, hostname=u"192.0.2.1")
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
             volume.blockdevice_id,
@@ -2792,7 +2872,7 @@ class DestroyVolumeTests(
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
         deployer = BlockDeviceDeployer(
@@ -2822,7 +2902,7 @@ class CreateBlockDeviceDatasetInitTests(
     """
 
 
-class CreateBlockDeviceDatasetTests(
+class CreateBlockDeviceDatasetInterfaceTests(
     make_istatechange_tests(
         CreateBlockDeviceDataset,
         lambda _uuid=uuid4(): dict(
@@ -2836,9 +2916,17 @@ class CreateBlockDeviceDatasetTests(
     )
 ):
     """
-    Tests for ``CreateBlockDeviceDataset``.
+    ``CreateBlockDeviceDataset`` interface adherance tests.
     """
-    def _create_blockdevice_dataset(self, dataset_id, maximum_size):
+
+
+class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
+    """
+    ``CreateBlockDeviceDataset`` implementation tests.
+    """
+    def _create_blockdevice_dataset(self,
+                                    dataset_id, maximum_size,
+                                    allocation_unit=LOOPBACK_ALLOCATION_UNIT):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -2851,7 +2939,8 @@ class CreateBlockDeviceDatasetTests(
             * The ``FilePath`` of the device where the volume is attached.
             * The ``FilePath`` where the volume is expected to be mounted.
         """
-        api = loopbackblockdeviceapi_for_test(self)
+        api = loopbackblockdeviceapi_for_test(
+            self, allocation_unit=allocation_unit)
         mountroot = mountroot_for_test(self)
         expected_mountpoint = mountroot.child(
             unicode(dataset_id).encode("ascii")
@@ -2887,21 +2976,40 @@ class CreateBlockDeviceDatasetTests(
         to create a new volume.
         """
         dataset_id = uuid4()
-        maximum_size = REALISTIC_BLOCKDEVICE_SIZE
-        # Return the cloud_instance_id here
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=maximum_size
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, attached_to=compute_instance_id,
-            size=maximum_size,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
+        self.assertEqual(expected_volume, volume)
+
+    def test_run_create_round_up(self):
+        """
+        ``CreateBlockDeviceDataset.run`` rounds up the size if the
+        requested size is less than ``allocation_unit``.
+        """
+        dataset_id = uuid4()
+        (volume,
+         device_path,
+         expected_mountpoint,
+         compute_instance_id) = self._create_blockdevice_dataset(
+            dataset_id=dataset_id,
+            # Request a size which will force over allocation.
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + 1,
+            allocation_unit=LOOPBACK_ALLOCATION_UNIT,
+        )
+        expected_volume = _blockdevicevolume_from_dataset_id(
+            dataset_id=dataset_id, attached_to=compute_instance_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + LOOPBACK_ALLOCATION_UNIT,
+        )
         self.assertEqual(expected_volume, volume)
 
     def test_run_mkfs_and_mount(self):
@@ -2910,14 +3018,12 @@ class CreateBlockDeviceDatasetTests(
         with an ext4 filesystem and mounts it.
         """
         dataset_id = uuid4()
-        maximum_size = REALISTIC_BLOCKDEVICE_SIZE
-
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=maximum_size
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         self.assertIn(
@@ -3031,11 +3137,11 @@ class ResizeBlockDeviceDatasetTests(
         dataset_id = uuid4()
         deployer = create_blockdevicedeployer(self, hostname=node)
         api = deployer.block_device_api
-        new_size = int(REALISTIC_BLOCKDEVICE_SIZE * size_factor)
+        new_size = int(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * size_factor)
 
         dataset = Dataset(
             dataset_id=dataset_id,
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         creating = run_state_change(
             CreateBlockDeviceDataset(
@@ -3122,7 +3228,7 @@ class ResizeVolumeTests(
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         deployer = BlockDeviceDeployer(
             node_uuid=uuid4(),
@@ -3131,11 +3237,13 @@ class ResizeVolumeTests(
             mountroot=mountroot_for_test(self),
         )
         change = ResizeVolume(
-            volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
+            volume=volume, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2
         )
         self.successResultOf(change.run(deployer))
 
-        expected_volume = volume.set(size=REALISTIC_BLOCKDEVICE_SIZE * 2)
+        expected_volume = volume.set(
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2
+        )
         self.assertEqual([expected_volume], api.list_volumes())
 
 
@@ -3170,7 +3278,7 @@ class AttachVolumeTests(
         deployer = create_blockdevicedeployer(self, hostname=host)
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         change = AttachVolume(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
@@ -3281,16 +3389,16 @@ class ResizeFilesystemTests(
 
         filesystem = u"ext4"
 
-        original_size = REALISTIC_BLOCKDEVICE_SIZE
-        new_size = int(original_size * size_factor)
-
         deployer = create_blockdevicedeployer(self)
         api = deployer.block_device_api
         this_node = api.compute_instance_id()
 
         volume = api.create_volume(
-            dataset_id=dataset_id, size=original_size,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
+        original_size = volume.size
+        new_size = int(original_size * size_factor)
+        new_allocated_size = allocated_size(api.allocation_unit(), new_size)
         api.attach_volume(
             volume.blockdevice_id, attach_to=this_node,
         )
@@ -3311,7 +3419,7 @@ class ResizeFilesystemTests(
 
         # Test the state change.
         self.successResultOf(run_state_change(
-            ResizeFilesystem(volume=volume, size=new_size),
+            ResizeFilesystem(volume=volume, size=new_allocated_size),
             deployer
         ))
 
@@ -3356,3 +3464,106 @@ class ResizeFilesystemTests(
         size of the filesystem.
         """
         self._resize_test(0.5)
+
+
+class AllocatedSizeTypeTests(SynchronousTestCase):
+    """
+    Tests for type coercion of parameters supplied to
+    ``allocated_size``.
+    """
+    def test_allocation_unit_float(self):
+        """
+        ``allocated_size`` returns ``int`` if the supplied
+        ``allocation_unit`` is of type ``float``.
+        """
+        self.assertIsInstance(
+            allocated_size(
+                allocation_unit=10.0,
+                requested_size=1
+            ),
+            int,
+        )
+
+    def test_requested_size_float(self):
+        """
+        ``allocated_size`` returns ``int`` if the supplied
+        ``requested_size`` is of type ``float``.
+        """
+        self.assertIsInstance(
+            allocated_size(
+                allocation_unit=10,
+                requested_size=1.0,
+            ),
+            int,
+        )
+
+
+class AllocatedSizeTestsMixin(object):
+    """
+    Tests for ``allocated_size``.
+    """
+    def test_size_is_allocation_unit(self):
+        """
+        ``allocated_size`` returns the ``requested_size`` when it
+        exactly matches the ``allocation_unit``.
+        """
+        requested_size = self.allocation_unit
+        expected_size = requested_size
+        self.assertEqual(
+            expected_size,
+            allocated_size(self.allocation_unit, requested_size)
+        )
+
+    def test_size_is_multiple_of_allocation_unit(self):
+        """
+        ``allocated_size`` returns the ``requested_size`` when it
+        is a multiple of the ``allocation_unit``.
+        """
+        requested_size = self.allocation_unit * 10
+        expected_size = requested_size
+        self.assertEqual(
+            expected_size,
+            allocated_size(self.allocation_unit, requested_size)
+        )
+
+    def test_round_up(self):
+        """
+        ``allocated_size`` returns next multiple of
+        ``allocation_unit`` if ``requested_size`` is not a multiple of
+        ``allocation_unit``.
+        """
+        requested_size = self.allocation_unit + 1
+        expected_size = self.allocation_unit * 2
+        self.assertEqual(
+            expected_size,
+            allocated_size(self.allocation_unit, requested_size)
+        )
+
+
+def make_allocated_size_tests(allocation_unit):
+    """
+    :param Bitmath allocation_unit: The allocation_unit.
+    :return: A ``TestCase`` to run ``AllocatedSizeTestsMixin`` tests
+        against the supplied ``allocation_unit``. The name of the test
+        contains the classname of ``allocation_unit``.
+    """
+    class Tests(AllocatedSizeTestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.allocation_unit = int(allocation_unit.to_Byte().value)
+
+    Tests.__name__ = (
+        'AllocatedSize' + allocation_unit.__class__.__name__ + 'Tests'
+    )
+    return Tests
+
+
+def _make_allocated_size_testcases():
+    """
+    Build test cases for some common allocation_units.
+    """
+    for unit in (Byte, MB, MiB, GB, GiB):
+        for size in (1, 2, 4, 8):
+            test_case = make_allocated_size_tests(unit(size))
+            globals()[test_case.__name__] = test_case
+_make_allocated_size_testcases()
+del _make_allocated_size_testcases

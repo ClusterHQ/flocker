@@ -17,15 +17,13 @@ from eliot.testing import LoggedMessage, capture_logging
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
                    BOTO_EC2RESPONSE_ERROR, UnattachedVolume,
                    CODE, MESSAGE, REQUEST_ID)
-from ....testtools import skip_except
-from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests,
-    REALISTIC_BLOCKDEVICE_SIZE
-)
+
+from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup,
+    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
+    get_minimum_allocatable_size,
 )
 
 
@@ -36,57 +34,31 @@ def ebsblockdeviceapi_for_test(test_case):
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.aws)
 
 
-# ``EBSBlockDeviceAPI`` only implements the ``create``, ``list``,
-# and ``destroy`` parts of ``IBlockDeviceAPI``.
-@skip_except(
-    supported_tests=[
-        'test_attach_attached_volume',
-        'test_interface',
-        'test_created_is_listed',
-        'test_created_volume_attributes',
-        'test_list_volume_empty',
-        'test_listed_volume_attributes',
-        'test_foreign_cluster_volume',
-        'test_foreign_volume',
-        'test_destroy_unknown_volume',
-        'test_destroy_volume',
-        'test_destroy_destroyed_volume',
-        'test_attach_attached_volume',
-        'test_attach_unknown_volume',
-        'test_attach_elsewhere_attached_volume',
-        'test_attach_unattached_volume',
-        'test_attach_destroyed_volume',
-        'test_attached_volume_listed',
-        'test_list_attached_and_unattached',
-        'test_detach_detached_volume',
-        'test_detach_unknown_volume',
-        'test_reattach_detached_volume',
-        'test_multiple_volumes_attached_to_host',
-        'test_compute_instance_id_nonempty',
-        'test_compute_instance_id_unicode',
-        'test_get_device_path_device',
-        'test_get_device_path_device_repeatable_results',
-        'test_get_device_path_unattached_volume',
-        'test_get_device_path_unknown_volume',
-        'test_detach_volume',
-        'test_attach_volume_validate_size',
-        'test_attached_volume_missing_device_tag',
-        'test_boto_ec2response_error',
-    ]
-)
 class EBSBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=(
                 lambda test_case: ebsblockdeviceapi_for_test(
                     test_case=test_case,
                 )
-            )
+            ),
+            minimum_allocatable_size=get_minimum_allocatable_size(),
+            device_allocation_unit=get_device_allocation_unit(),
         )
 ):
 
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    # We haven't implemented resize functionality yet.
+    def test_resize_destroyed_volume(self):
+        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
+
+    def test_resize_unknown_volume(self):
+        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
+
+    def test_resize_volume_listed(self):
+        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
+
     def test_foreign_volume(self):
         """
         Test that ``list_volumes`` lists only those volumes
@@ -98,7 +70,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
-            int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value),
+            int(Byte(self.minimum_allocatable_size).to_GiB().value),
             ec2_client.zone)
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
@@ -117,7 +89,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.assert_foreign_volume(flocker_volume)
 
@@ -129,7 +101,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.api.attach_volume(
             volume.blockdevice_id,
@@ -159,8 +131,12 @@ class EBSBlockDeviceAPIInterfaceTests(
         # Test 2: Set EC2 connection zone to an invalid string.
         # Raises: EC2ResponseError
         self.api.zone = u'invalid_zone'
-        self.assertRaises(EC2ResponseError, self.api.create_volume,
-                          dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,)
+        self.assertRaises(
+            EC2ResponseError,
+            self.api.create_volume,
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size,
+        )
 
         # Validate decorated method for exception logging
         # actually logged to ``Eliot`` logger.

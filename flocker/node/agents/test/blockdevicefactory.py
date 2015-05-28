@@ -23,6 +23,7 @@ from uuid import uuid4
 from functools import partial
 
 from yaml import safe_load
+from bitmath import GiB
 
 from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
@@ -266,3 +267,53 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
         raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
     return api
+
+
+DEVICE_ALLOCATION_UNITS = {
+    # Our redhat-openstack test platform uses a ScaleIO backend which
+    # allocates devices in 8GiB intervals
+    'redhat-openstack': GiB(8),
+}
+
+
+def get_device_allocation_unit():
+    """
+    Return a provider specific device allocation unit.
+
+    This is mostly OpenStack / Cinder specific and represents the
+    interval that will be used by Cinder storage provider i.e
+    You ask Cinder for a 1GiB or 7GiB volume.
+    The Cinder driver creates an 8GiB block device.
+    The operating system sees an 8GiB device when it is attached.
+    Cinder API reports a 1GiB or 7GiB volume.
+
+    :returns: An ``int`` allocation size in bytes for a
+        particular platform. Default to ``None``.
+    """
+    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if cloud_provider is not None:
+        device_allocation_unit = DEVICE_ALLOCATION_UNITS.get(cloud_provider)
+        if device_allocation_unit is not None:
+            return int(device_allocation_unit.to_Byte().value)
+
+
+MINIMUM_ALLOCATABLE_SIZES = {
+    # This really means Rackspace
+    'openstack': GiB(100),
+    'redhat-openstack': GiB(1),
+    'aws': GiB(1),
+}
+
+
+def get_minimum_allocatable_size():
+    """
+    Return a provider specific minimum_allocatable_size.
+
+    :returns: An ``int`` minimum_allocatable_size in bytes for a
+        particular platform. Default to ``1``.
+    """
+    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if cloud_provider is None:
+        return 1
+    else:
+        return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
