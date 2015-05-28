@@ -210,6 +210,14 @@ Getting started with Flocker
       You should have the Flocker client installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
       Now you can try our simple tutorial: a Python web application and a Redis server.
 
+      .. container:: hidden
+
+         .. Create the files to be downloaded with curl, but don't show download links for them
+
+         :download:`fig.yml`
+         :download:`deployment-node1.yml`
+         :download:`deployment-node2.yml`
+
       .. version-code-block:: console
 
          you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/fig.yml
@@ -219,19 +227,11 @@ Getting started with Flocker
       fig.yml
       -------
 
-      .. container:: hidden
-
-         :download:`fig.yml`
-
       .. literalinclude:: fig.yml
          :language: yaml
 
       deployment-node1.yml
       --------------------
-
-      .. container:: hidden
-
-         :download:`deployment-node1.yml`
 
       .. literalinclude:: deployment-node1.yml
          :language: yaml
@@ -264,10 +264,6 @@ Getting started with Flocker
 
       deployment-node2.yml
       --------------------
-
-      .. container:: hidden
-
-         :download:`deployment-node2.yml`
 
       .. literalinclude:: deployment-node2.yml
          :language: yaml
