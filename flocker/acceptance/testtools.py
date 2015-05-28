@@ -10,6 +10,7 @@ from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
+from contextlib import closing
 
 from yaml import safe_dump
 
@@ -306,7 +307,7 @@ def get_clean_nodes(test_case, num_nodes):
     reachable_nodes = set()
 
     for node in nodes:
-        with socket() as sock:
+        with closing(socket()) as sock:
             try:
                 can_connect = not sock.connect_ex((node, 22))
             except gaierror:

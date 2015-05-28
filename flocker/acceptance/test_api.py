@@ -5,7 +5,7 @@ Tests for the control service REST API.
 """
 
 import socket
-
+from contextlib import closing
 from uuid import uuid4
 
 from twisted.trial.unittest import TestCase
@@ -31,7 +31,7 @@ def verify_socket(host, port):
     :return Deferred: Firing when connection is possible.
     """
     def can_connect():
-        with socket.socket() as s:
+        with closing(socket.socket()) as s:
             conn = s.connect_ex((host, port))
             return conn == 0
 
