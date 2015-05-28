@@ -48,6 +48,10 @@ CLUSTERHQ_REPO = {
                 'ubuntu-testing/14.04/$(ARCH)'.format(
                     archive_bucket=ARCHIVE_BUCKET
                     ),
+    'ubuntu-15.04': 'https://{archive_bucket}.s3.amazonaws.com/'
+                'ubuntu-testing/15.04/$(ARCH)'.format(
+                    archive_bucket=ARCHIVE_BUCKET
+                    ),
 }
 
 
