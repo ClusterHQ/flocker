@@ -21,9 +21,9 @@ from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
 from twisted.python.constants import Names, NamedConstant
 
-from ..volume.script import flocker_volume_options
 from ..volume.filesystems import zfs
-from ..volume.service import VolumeService
+from ..volume.service import (
+    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL)
 
 from ..common.script import (
     ICommandLineScript,
@@ -180,10 +180,16 @@ def validate_configuration(configuration):
                             "pool": {
                                 "type": "string",
                             },
+                            "mount_root": {
+                                "type": "string"
+                            },
+                            "volume_config_path": {
+                                "type": "string"
+                            },
                         }
                     },
                     {
-                        "required": ["backend", "root_path"],
+                        "required": ["backend"],
                         "properties": {
                             "backend": {
                                 "type": "string",
@@ -208,7 +214,6 @@ def validate_configuration(configuration):
 
 
 @flocker_standard_options
-@flocker_volume_options
 class _AgentOptions(Options):
     """
     Command line options for agents.
@@ -218,7 +223,7 @@ class _AgentOptions(Options):
 
     optParameters = [
         ["agent-config", "c", "/etc/flocker/agent.yml",
-         "The configuration file to set the control service."],
+         "The configuration file to set the node service."],
     ]
 
     def postOptions(self):
@@ -250,9 +255,6 @@ class ContainerAgentOptions(_AgentOptions):
 @implementer(ICommandLineScript)
 class AgentScript(PRecord):
     """
-    XXX This is temporarily not used for the ``flocker-dataset-agent`` script.
-    See FLOC-1924.
-
     Implement top-level logic for the ``flocker-dataset-agent`` and
     ``flocker-container-agent`` scripts.
 
@@ -354,11 +356,12 @@ def get_configuration(options):
     return configuration
 
 
-def _zfs_storagepool(reactor, name, mount_root, volume_config_path):
+def _zfs_storagepool(
+        reactor, pool=FLOCKER_POOL, mount_root=None, volume_config_path=None):
     """
     Create a ``VolumeService`` with a ``zfs.StoragePool``.
 
-    :param name: The name of the ZFS storage pool to use.
+    :param pool: The name of the ZFS storage pool to use.
     :param bytes mount_root: The path to the directory where ZFS filesystems
         will be mounted.
     :param bytes volume_config_path: The path to the volume service's
@@ -366,11 +369,20 @@ def _zfs_storagepool(reactor, name, mount_root, volume_config_path):
 
     :return: The ``VolumeService``, started.
     """
+    if mount_root is None:
+        mount_root = FLOCKER_MOUNTPOINT
+    else:
+        mount_root = FilePath(mount_root)
+    if volume_config_path is None:
+        config_path = DEFAULT_CONFIG_PATH
+    else:
+        config_path = FilePath(volume_config_path)
+
     pool = zfs.StoragePool(
-        reactor=reactor, name=name, mount_root=FilePath(mount_root),
+        reactor=reactor, name=pool, mount_root=mount_root,
     )
     api = VolumeService(
-        config_path=FilePath(volume_config_path),
+        config_path=config_path,
         pool=pool,
         reactor=reactor,
     )

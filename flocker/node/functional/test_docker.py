@@ -23,6 +23,8 @@ from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
+from pyrsistent import pvector
+
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
     random_name)
@@ -726,13 +728,15 @@ CMD sh -c "trap \"\" 2; sleep 3"
         name = random_name(self)
         d = self.start_container(
             name, image_name=u"busybox",
-            command_line=[u"sh", u"-c", u"""\
+            # Pass in pvector since this likely to be what caller actually
+            # passes in:
+            command_line=pvector([u"sh", u"-c", u"""\
 echo -n '#!/bin/sh
 echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
 ' > /tmp/script.sh;
 chmod +x /tmp/script.sh;
 nc -ll -p 8080 -e /tmp/script.sh
-"""],
+"""]),
             ports=[PortMap(internal_port=8080,
                            external_port=external_port)])
 

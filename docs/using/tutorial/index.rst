@@ -1,3 +1,5 @@
+.. _tutmongo:
+
 =========================================
 Tutorial: Deploying and Migrating MongoDB
 =========================================

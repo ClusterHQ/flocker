@@ -17,7 +17,6 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 
-from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 from ...common import get_all_ips
 
@@ -64,8 +63,6 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
             u"dataset": {
                 u"backend": u"zfs",
                 u"name": name,
-                # XXX Can't put FilePath in a yaml file (well you can but
-                # .... :/)
                 u"mount_root": scratch_directory.child(b"mount_root").path,
                 u"volume_config_path": scratch_directory.child(
                     b"volume_config.json"
@@ -726,8 +723,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_zfs_pool_optional(self):
         """
-        No exception is raised when validating a ZFS backend is specified but
-        a ZFS pool is not.
+        No exception is raised when validating a ZFS backend but a ZFS
+        pool is not specified.
         """
         self.configuration['dataset'] = {
             u"backend": u"zfs",
@@ -737,12 +734,23 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_loopback_compute_instance_id_optional(self):
         """
-        No exception is raised when validating a loopback backend is specified
-        but a loopback pool is not.
+        No exception is raised when validating a loopback backend but a
+        compute_instance_id is not specified.
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
             u"root_path": u"/tmp",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_loopback_root_path_optional(self):
+        """
+        No exception is raised when validating a loopback backend but a
+        root_path is not specified.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
         }
         # Nothing is raised
         validate_configuration(self.configuration)
@@ -857,13 +865,4 @@ class ContainerAgentOptionsTests(
 ):
     """
     Tests for ``ContainerAgentOptions``.
-    """
-
-
-class DatasetAgentVolumeTests(make_volume_options_tests(
-        DatasetAgentOptions, [])):
-    """
-    Tests for the volume configuration arguments of ``DatasetAgentOptions``.
-
-    XXX This should be removed as part of FLOC-1924.
     """

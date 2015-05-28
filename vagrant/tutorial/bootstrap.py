@@ -1,112 +1,47 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-# This script builds the base flocker-dev box.
+# This script performs the steps to build the base flocker-tutorial box until
+# the box must be rebooted.
 
-import sys
-import os
-from subprocess import check_call, check_output
-from textwrap import dedent
-from urlparse import urljoin
+from subprocess import check_output
 
-if len(sys.argv) != 4:
-    print "Wrong number of arguments."
-    raise SystemExit(1)
-
-rpm_version = sys.argv[1]
-branch = sys.argv[2]
-build_server = sys.argv[3] or 'http://build.clusterhq.com/'
-
-# Make it possible to install flocker-node
-rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
-zfs_repo_url = (
-    'https://s3.amazonaws.com/'
-    'archive.zfsonlinux.org/'
-    'fedora/zfs-release%s.noarch.rpm') % (rpm_dist,)
-check_call(['yum', 'install', '-y',  zfs_repo_url])
-
-clusterhq_repo_url = (
-    'https://s3.amazonaws.com/'
-    'clusterhq-archive/'
-    'fedora/clusterhq-release%s.noarch.rpm') % (rpm_dist,)
-check_call(['yum', 'install', '-y', clusterhq_repo_url])
-
-if branch:
-    # If a branch is specified, add a repo pointing at the
-    # buildserver repository corresponding to that branch.
-    # This repo will be disabled by default.
-    with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
-        result_path = os.path.join('/results/omnibus', branch,
-                                   'fedora-$releasever')
-        base_url = urljoin(build_server, result_path)
-        repo.write(dedent(b"""
-            [clusterhq-build]
-            name=clusterhq-build
-            baseurl=%s
-            gpgcheck=0
-            enabled=0
-            """) % (base_url,))
-    branch_opt = ['--enablerepo=clusterhq-build']
-else:
-    branch_opt = []
-
-# If a version is specifed, install that version.
-# Otherwise install whatever yum decides.
-if rpm_version:
-    # The buildserver doesn't build dirty versions,
-    # so strip that.
-    if rpm_version.endswith('.dirty'):
-        rpm_version = rpm_version[:-len('.dirty')]
-    package = 'clusterhq-flocker-node-%s' % (rpm_version,)
-else:
-    package = 'clusterhq-flocker-node'
-
-# Install flocker-node
-check_call(['yum', 'install', '-y'] + branch_opt + [package])
-
-# Install ZFS.
-check_call(['yum', 'install', '-y', 'zfs'])
-
-# Enable docker.
-# We don't need to start it, since when the box is packaged,
-# the machine will be reset.
-check_call(['systemctl', 'enable', 'docker'])
+ZFS_REPO_PKG = (
+    "https://s3.amazonaws.com/archive.zfsonlinux.org/epel/"
+    "zfs-release{dist}.noarch.rpm"
+)
 
 
-# Enable firewalld
-# Typical deployments will have a firewall enabled, so enable it on vagrant to
-# make the environment more realistic.
-# We need to unmask it, since the base box has it masked.
-check_call(['systemctl', 'unmask', 'firewalld'])
-check_call(['systemctl', 'enable', 'firewalld'])
-check_call(['systemctl', 'start', 'firewalld'])
-# We need to open the firewall for the flocker-control
-for service in ['flocker-control-api', 'flocker-control-agent']:
-    check_call(['firewall-cmd', '--permanent', '--add-service', service])
+def yum_install(*packages):
+    check_output(["yum", "install", "-y"] + list(packages))
 
-# Make it easy to authenticate as root
-check_call(['mkdir', '-p', '/root/.ssh'])
-check_call(
-    ['cp', os.path.expanduser('~vagrant/.ssh/authorized_keys'), '/root/.ssh'])
 
-# Configure GRUB2 to boot kernel with elevator=noop to workaround
-# https://clusterhq.atlassian.net/browse/FLOC-235
-with open('/etc/default/grub', 'a') as f:
-    f.write('GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} elevator=noop"\n')
+def main():
+    check_output(["yum", "update", "-y"])
 
-check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
+    # Install a repository which has ZFS packages.
+    dist = check_output(["rpm", "-E", "%dist"]).strip()
+    yum_install(ZFS_REPO_PKG.format(dist=dist))
 
-# Create a ZFS storage pool backed by a normal filesystem file.  This
-# is a bad way to configure ZFS for production use but it is
-# convenient for a demo in a VM.
-check_call(['mkdir', '-p', '/var/opt/flocker'])
-check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
-check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])
+    # Update the kernel and install some development tools necessary for
+    # building the ZFS kernel module.
+    yum_install("kernel-devel", "kernel", "dkms", "gcc", "make")
 
-# Move SSH private key into place so ZFS agent can use it until we remove
-# SSH completely in FLOC-1665. The Vagrantfile copied it over, and it's
-# the same one we already have in root's authorized_keys (see above).
-check_call(['mkdir', '/etc/flocker'])
-check_call(['chmod', 'u=rwx,g=,o=', '/etc/flocker'])
-check_call(["ssh-keygen", "-N", "", "-f", "/etc/flocker/id_rsa_flocker"])
-with file("/root/.ssh/authorized_keys", "a") as f:
-    f.write(file("/etc/flocker/id_rsa_flocker.pub").read())
+    # Install a repository that provides epel packages/updates.
+    yum_install("epel-release")
+
+    # The kernel was just upgraded which means the existing VirtualBox Guest
+    # Additions will no longer work.  Build them again against the new version
+    # of the kernel.
+    check_output(["/etc/init.d/vboxadd", "setup"])
+
+    # Create the 'docker' group.  The Vagrant feature for pulling Docker images
+    # (used in the Vagrant file) wants to be able to add the `vagrant` user to
+    # the `docker` group (so that it can use the `docker` CLI, presumably).
+    # You might think the Docker package would create this group.  Maybe it
+    # does, I don't know (the script fails if this group isn't added here,
+    # though).
+    check_output(["groupadd", "docker"])
+
+
+if __name__ == '__main__':
+    main()

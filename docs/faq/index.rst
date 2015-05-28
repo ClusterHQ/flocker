@@ -8,8 +8,6 @@ FAQ
     :backlinks: none
 
 Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.
-You can find these questions in the Future Functionality section below.
-You can also view :doc:`ideas for future versions of Flocker</roadmap/index>`.
 
 If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel ``#clusterhq`` or `the Flocker Google group`_.
 
@@ -32,8 +30,8 @@ We are also rigorously testing ZFS on Linux to make sure it is stable.
 ZFS is production quality code.
 
 
-Current Functionality
-~~~~~~~~~~~~~~~~~~~~~
+Functionality
+~~~~~~~~~~~~~
 
 Which operating systems are supported?
 **************************************
@@ -41,10 +39,6 @@ Which operating systems are supported?
 Flocker manages Docker applications and Docker runs on Linux, so Flocker runs on Linux.
 However, you do not need to be running Linux on your development machine in order to manage Docker containers with the ``flocker-cli``.
 See :ref:`installing-flocker-cli` for installation instructions for various operating systems.
-
-
-Future Functionality
-~~~~~~~~~~~~~~~~~~~~
 
 How does Flocker integrate with Kubernetes / Mesos / Deis / CoreOS / my favorite orchestration framework?
 *********************************************************************************************************

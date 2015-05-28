@@ -1,3 +1,5 @@
+.. _clustering:
+
 ========================
 Data-Oriented Clustering
 ========================
@@ -5,7 +7,7 @@ Data-Oriented Clustering
 Minimal Downtime Volume Migration
 =================================
 
-Flocker's cluster management logic uses the volume manager (see :doc:`./volume/index`) to efficiently move containers' data between nodes.
+Flocker's cluster management logic uses the volume manager (see :ref:`volume`) to efficiently move containers' data between nodes.
 
 Consider a MongoDB application with a 20GB volume being moved from node A to node B.
 The naive implementation would be:

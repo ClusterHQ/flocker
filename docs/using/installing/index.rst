@@ -1,3 +1,5 @@
+.. _installflocker:
+
 ==================
 Installing Flocker
 ==================
@@ -9,9 +11,9 @@ This should be installed on a machine with SSH credentials to control the cluste
 There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
 It contains the services that need to run on each node.
 
-.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
 .. _installing-flocker-cli:
 
@@ -139,7 +141,7 @@ It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.
 Vagrant
 -------
 
-The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
 .. warning:: These instructions describe the installation of ``clusterhq-flocker-node`` on a Fedora 20 operating system.
@@ -314,7 +316,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 Once you have installed the ``flocker-node`` package, you will need to generate:
 
-- A control service certificate and key file, to be copied over to the machine running your :doc:`control service <../advanced/architecture>`.
+- A control service certificate and key file, to be copied over to the machine running your :ref:`control service <architecture>`.
 - A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
 
 Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
@@ -376,7 +378,9 @@ Copy the generated files to ``/etc/flocker/`` on the target node and name them `
 Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
 The ``/etc/flocker/`` directory should be set to ``chmod 700``.
 
-You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
+You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+
+.. _post-installation-configuration:
 
 Post installation configuration
 -------------------------------
@@ -477,7 +481,8 @@ To enable the Flocker agent service
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to:
+The optional ``port`` variable is the port on the control node to connect to.
+The ZFS ``pool`` variable should match the pool name created in the ZFS section.
 
 .. code-block:: yaml
 
@@ -488,6 +493,9 @@ The optional ``port`` variable is the port on the control node to connect to:
    "dataset":
       "backend": "zfs"
       "pool": "flocker"
+
+.. The following is put in to demonstrate how to format alternative backends.
+   Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
 
 For a ``loopback`` device, change the ``dataset`` clause to:
 
@@ -518,8 +526,8 @@ What to do next
 
 You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>`, to ensure that your nodes are correctly configured.
-Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
+Next you may want to perform the steps in :ref:`the tutorial <movingapps>`, to ensure that your nodes are correctly configured.
+Replace the IP addresses in the ``deployment.yml`` files with the IP addresses of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
 
 
