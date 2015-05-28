@@ -37,13 +37,14 @@ On Fedora 20 you can install these by running:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
+   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
 
 On Ubuntu or Debian you can run:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
+   alice@mercury:~$ sudo apt-get update
+   alice@mercury:~$ sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
 
 Then run the following script to install ``flocker-cli``:
 
