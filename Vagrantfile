@@ -19,7 +19,7 @@ SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-dev"
-  config.vm.box_url = "https://clusterhq-archive-testing.s3.amazonaws.com/vagrant/flocker-dev.json"
+  config.vm.box_url = "https://clusterhq-archive.s3.amazonaws.com/vagrant/flocker-dev.json"
   config.vm.box_version = "> 0.3.2.1714"
 
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
