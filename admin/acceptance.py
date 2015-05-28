@@ -461,10 +461,11 @@ def main(reactor, args, base_path, top_level):
     try:
         nodes = yield runner.start_nodes(reactor)
 
-        ca_directory = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(ca_directory.path))
-        certificates = Certificates.generate(ca_directory, nodes[0].address,
-                                             len(nodes))
+        if options['provider'] != 'vagrant':
+            ca_directory = FilePath(mkdtemp())
+            print("Generating certificates in: {}".format(ca_directory.path))
+            certificates = Certificates.generate(ca_directory, nodes[0].address,
+                                                len(nodes))
 
         if not options["no-pull"]:
             yield perform(
@@ -481,11 +482,12 @@ def main(reactor, args, base_path, top_level):
         control_node = nodes[0]
         dataset_backend = options.dataset_backend
 
-        yield perform(
-            make_dispatcher(reactor),
-            configure_cluster(control_node=control_node, agent_nodes=nodes,
-                              certificates=certificates,
-                              dataset_backend=dataset_backend))
+        if options['provider'] != 'vagrant':
+            yield perform(
+                make_dispatcher(reactor),
+                configure_cluster(control_node=control_node, agent_nodes=nodes,
+                                  certificates=certificates,
+                                  dataset_backend=dataset_backend))
 
         result = yield run_tests(
             reactor=reactor,
