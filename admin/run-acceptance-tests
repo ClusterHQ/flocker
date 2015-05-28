@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Run the acceptance tests.
+Run the cluster acceptance tests.
 """
 
 from _preamble import TOPLEVEL, BASEPATH

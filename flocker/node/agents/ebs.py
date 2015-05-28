@@ -16,8 +16,11 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
+from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
+from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
+from eliot import Field, MessageType
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -29,6 +32,41 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
+
+# Set Boto debug level to ``1``, requesting basic debug messages from Boto
+# to be printed.
+# See https://code.google.com/p/boto/wiki/BotoConfig#Boto
+# for available debug levels.
+# Warning: BotoConfig is a Boto global option, so, all Boto clients from
+# from this process will have their log levels modified. See
+# https://clusterhq.atlassian.net/browse/FLOC-1962
+# to track evaluation of impact of log level change.
+BOTO_DEBUG_LEVEL = u'1'
+
+# Begin: Scaffolding for logging Boto client and server exceptions
+# via Eliot.
+CODE = Field.for_types(
+    "code", [bytes, unicode],
+    u"The error response code.")
+MESSAGE = Field.for_types(
+    "message", [bytes, unicode],
+    u"A human-readable error message given by the response.",
+)
+REQUEST_ID = Field.for_types(
+    "request_id", [bytes, unicode],
+    u"The unique identifier assigned by the server for this request.",
+)
+
+# Log boto.exception.BotoEC2ResponseError, covering all errors from AWS:
+# server operation rate limit exceeded, invalid server request parameters, etc.
+BOTO_EC2RESPONSE_ERROR = MessageType(
+    u"boto:boto_ec2response_error", [
+        CODE,
+        MESSAGE,
+        REQUEST_ID,
+    ],
+)
+# End: Scaffolding for logging Boto errors.
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -45,11 +83,11 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     """
 
     # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
-    # 1. `num_retries`:
+    # 1. ``num_retries``:
     # Request automatic exponential backoff and retry
     # attempts by Boto if an EC2 API call fails with
-    # `RequestLimitExceeded` due to system load.
-    # 2. `metadata_service_num_attempts`:
+    # ``RequestLimitExceeded`` due to system load.
+    # 2. ``metadata_service_num_attempts``:
     # Request for retry attempts by Boto to
     # retrieve data from Metadata Service used to retrieve
     # credentials for IAM roles on EC2 instances.
@@ -58,11 +96,81 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
 
+    # Set Boto debug level to BOTO_DEBUG_LEVEL:
+    # ``1``: log basic debug messages
+    config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
+
+    # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
+    connection = ec2.connect_to_region(region,
+                                       aws_access_key_id=access_key_id,
+                                       aws_secret_access_key=secret_access_key)
     return _EC2(zone=zone,
-                connection=ec2.connect_to_region(
-                    region,
-                    aws_access_key_id=access_key_id,
-                    aws_secret_access_key=secret_access_key))
+                connection=_LoggedBotoConnection(connection=connection))
+
+
+def _boto_logged_method(method_name, original_name):
+    """
+    Run a boto.ec2.connection.EC2Connection method and
+    log additional information about any exceptions that are raised.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        """
+        Run given boto.ec2.connection.EC2Connection method with exception
+        logging for ``EC2ResponseError``.
+        """
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+        try:
+            return method(*args, **kwargs)
+        except EC2ResponseError as e:
+            BOTO_EC2RESPONSE_ERROR(
+                code=e.code,
+                message=e.message,
+                request_id=e.request_id,
+            ).write()
+            raise
+    return _run_with_logging
+
+
+def boto_logger(*args, **kwargs):
+    """
+    Decorator to log all callable boto.ec2.connection.EC2Connection
+    methods.
+
+    :return: A function that will decorate all methods of the given
+        class with Boto exception logging.
+    """
+    def _class_decorator(cls):
+        for attr in EC2Connection.__dict__:
+            # Log wrap all callable methods except `__init__`.
+            if attr != '__init__':
+                attribute = getattr(EC2Connection, attr)
+                if callable(attribute):
+                    setattr(cls, attr,
+                            _boto_logged_method(attr, *args, **kwargs))
+        return cls
+    return _class_decorator
+
+
+@boto_logger("connection")
+class _LoggedBotoConnection(PRecord):
+    """
+    Wrapper ``PRecord`` around ``boto.ec2.connection.EC2Connection``
+    to facilitate logging of exceptions from Boto APIs.
+
+    :ivar boto.ec2.connection.EC2Connection connection: Object
+        representing connection to an EC2 instance with logged
+        ``EC2ConnectionError``.
+    """
+    connection = field(mandatory=True)
 
 
 class _EC2(PRecord):

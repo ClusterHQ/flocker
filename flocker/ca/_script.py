@@ -215,6 +215,9 @@ class NodeCertificateOptions(PrettyOptions):
 class ControlCertificateOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca create-control-certificate``.
+
+    Might want to support more than one domain name:
+    https://clusterhq.atlassian.net/browse/FLOC-1977
     """
 
     helptext = """Create a new certificate for the control service.

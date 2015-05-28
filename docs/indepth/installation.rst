@@ -18,8 +18,17 @@ It contains the services that need to run on each node.
 Installing ``flocker-cli``
 ==========================
 
-Linux
------
+Ubuntu 14.04
+------------
+
+On Ubuntu, the Flocker CLI can be installed from the ClusterHQ repository:
+
+.. task:: install_cli ubuntu-14.04
+   :prompt: alice@mercury:~$
+
+
+Other Linux Distributions
+-------------------------
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 On Fedora 20 you can install these by running:
@@ -368,6 +377,8 @@ Perform the same ``chmod 600`` commands on ``node.key`` as you did for the contr
 The ``/etc/flocker/`` directory should be set to ``chmod 700``.
 
 You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
+
+.. _post-installation-configuration:
 
 Post installation configuration
 -------------------------------

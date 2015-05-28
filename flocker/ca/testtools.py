@@ -35,12 +35,12 @@ def assert_has_extension(test, credential, name, value):
     """
     expected = X509Extension(name, False, value)
     x509 = credential.certificate.original
+    values = []
     for i in range(x509.get_extension_count()):
         extension = x509.get_extension(i)
         if extension.get_short_name() == name:
-            test.assertEqual(extension.get_data(), expected.get_data())
-            return
-    test.fail("Couldn't find extension {}.".format(name))
+            values.append(extension.get_data())
+    test.assertIn(expected.get_data(), values)
 
 
 class CredentialSet(PRecord):
@@ -49,13 +49,17 @@ class CredentialSet(PRecord):
 
     :ivar FilePath path: Directory where credentials reside.
     :ivar RootCredential root: The CA root credential.
-    :ivar ControlCredential control: A control service credential.
+    :ivar ControlCredential control: A control service credential using an
+        IP for hostname.
+    :ivar ControlCredential control_dns: A control service credential using a
+        DNS name for hostname.
     :ivar UserCredential user: A user credential.
     :ivar NodeCredential node: A CA root credentials.
     """
     path = field()
     root = field()
     control = field()
+    control_dns = field()
     user = field()
     node = field()
 
@@ -70,8 +74,11 @@ class CredentialSet(PRecord):
         user = UserCredential.initialize(directory, root, u"allison")
         node = NodeCredential.initialize(directory, root)
         control = ControlCredential.initialize(directory, root, b"127.0.0.1")
+        control_dns = ControlCredential.initialize(
+            directory, root, b"localhost")
         return CredentialSet(path=directory,
-                             root=root, user=user, node=node, control=control)
+                             root=root, user=user, node=node, control=control,
+                             control_dns=control_dns)
 
     def copy_to(self, directory, control=False, user=False, node=False):
         """
@@ -88,9 +95,9 @@ class CredentialSet(PRecord):
         """
         self.path.child(b"cluster.crt").copyTo(directory.child(b"cluster.crt"))
         if control:
-            self.path.globChildren(b"control-*.crt")[0].copyTo(
+            self.path.child(b"control-127.0.0.1.crt").copyTo(
                 directory.child(b"control-service.crt"))
-            self.path.globChildren(b"control-*.key")[0].copyTo(
+            self.path.child(b"control-127.0.0.1.key").copyTo(
                 directory.child(b"control-service.key"))
         if user:
             self.path.child(b"allison.crt").copyTo(
