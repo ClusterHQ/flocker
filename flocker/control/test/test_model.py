@@ -1376,9 +1376,10 @@ class LinkTests(SynchronousTestCase):
     """
     Tests for ``Link``.
     """
-    def test_uppercase(self):
+    def test_case_insensitive(self):
         """
-        Link aliases are upper-cased before object creation.
+        Link aliases are case insensitive as far as comparison goes.
         """
-        link = Link(alias=u'myLINK', local_port=8080, remote_port=8081)
-        self.assertEqual(link.alias, u"MYLINK")
+        link = Link(alias=u'myLINK', local_port=1, remote_port=1)
+        link2 = link.set('alias', u'MYlink')
+        self.assertEqual(link, link2)

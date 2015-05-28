@@ -201,9 +201,10 @@ class Link(PRecord):
     an application, and the corresponding external port of a possibly remote
     application.
 
-    The alias is always upper-cased since it converts into an upper-cased
-    environment variable inside container, so lower-case ought to be
-    equivalent to upper-case.
+    The alias is always lower-cased since the resulting environment
+    variables don't care about initial case of alias; upper and lower case
+    versions result in same environment variable. We therefore want ``Link``
+    comparison to be case-insensitive as far as aliases go.
 
     :ivar int local_port: The port the local application expects to access.
         This is used to determine the environment variables to populate in the
@@ -215,7 +216,7 @@ class Link(PRecord):
     """
     local_port = field(mandatory=True, type=int)
     remote_port = field(mandatory=True, type=int)
-    alias = field(mandatory=True, factory=lambda s: s.upper(),
+    alias = field(mandatory=True, factory=lambda s: s.lower(),
                   invariant=lambda s: (
                       (re.match(u"[a-zA-Z0-9]*$", s) is not None,
                        "Link aliases must be alphanumeric.")))
