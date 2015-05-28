@@ -22,7 +22,7 @@ The three applications are connected as follows:
 Create the Virtual Machines
 ===========================
 
-You can reuse the Virtual Machines defined in the Vagrant configuration for :doc:`the MongoDB tutorial <../tutorial/index>`.
+You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutmongo>`.
 If you have since shutdown or destroyed those VMs, boot them up again:
 
 .. code-block:: console
@@ -148,6 +148,6 @@ And is no longer running on the original host:
 Now if you refresh the ``Kibana`` web interface, you should see the log messages that were logged earlier.
 
 This concludes the ``Elasticsearch-Logstash-Kibana`` example.
-Read more about linking containers in our :doc:`Configuring Flocker <../../advanced/configuration>` documentation.
+Read more about linking containers in our :ref:`Configuring Flocker <configuration>` documentation.
 
 .. _`Docker Container Linking`: http://docs.docker.com/userguide/dockerlinks/
