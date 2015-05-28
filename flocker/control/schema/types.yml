@@ -238,7 +238,6 @@ definitions:
       store, as an integer number of bytes.
     type:
       - "number"
-      - "null"
     # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
     # on what this can be set to for the ZFS backend.  Could probably be
     # considered more carefully.
@@ -280,4 +279,3 @@ definitions:
       primary:
         '$ref': '#/definitions/primary'
     additionalProperties: false
-

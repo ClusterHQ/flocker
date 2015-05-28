@@ -527,6 +527,10 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
      u"metadata":
          dict.fromkeys((unicode(i) for i in range(257)), u"value")},
 
+    # maximum_size can not be null
+    {u"primary": a_uuid,
+     u"maximum_size": None},
+
     # wrong type for maximum size
     {u"primary": a_uuid, u"maximum_size": u"123"},
 
@@ -584,10 +588,6 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = [
      u"deleted": False},
     # maximum_size is an integer of at least 64MiB
     {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
-
-    # maximum_size may be null, which means no size limit
-    {u"primary": a_uuid,
-     u"maximum_size": None},
 
     # All of them can be combined.
     {u"primary": a_uuid,
