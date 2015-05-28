@@ -566,33 +566,38 @@ CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
     {u"primary": a_uuid},
 ]
 
-CONFIGURATION_DATASETS_PASSING_INSTANCES = (
-    CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES + [
-        # metadata is an object with a handful of short string key/values
-        {u"primary": a_uuid,
-         u"metadata":
-             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
+CONFIGURATION_DATASETS_PASSING_INSTANCES = [
+    # metadata is an object with a handful of short string key/values
+    {u"primary": a_uuid,
+     u"maximum_size": 1024 * 1024 * 1024,
+     u"metadata":
+         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
-        # dataset_id is a string of 36 characters
-        {u"primary": a_uuid, u"dataset_id": u"x" * 36},
+    # dataset_id is a string of 36 characters
+    {u"primary": a_uuid,
+     u"maximum_size": 1024 * 1024 * 1024,
+     u"dataset_id": u"x" * 36},
 
-        # deleted is a boolean
-        {u"primary": a_uuid, u"deleted": False},
-        # maximum_size is an integer of at least 64MiB
-        {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
+    # deleted is a boolean
+    {u"primary": a_uuid,
+     u"maximum_size": 1024 * 1024 * 1024,
+     u"deleted": False},
+    # maximum_size is an integer of at least 64MiB
+    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
 
-        # maximum_size may be null, which means no size limit
-        {u"primary": a_uuid, u"maximum_size": None},
+    # maximum_size may be null, which means no size limit
+    {u"primary": a_uuid,
+     u"maximum_size": None},
 
-        # All of them can be combined.
-        {u"primary": a_uuid,
-         u"metadata":
-             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
-         u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": u"x" * 36,
-         u"deleted": True},
-    ]
-)
+    # All of them can be combined.
+    {u"primary": a_uuid,
+     u"metadata":
+         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
+     u"maximum_size": 1024 * 1024 * 64,
+     u"dataset_id": u"x" * 36,
+     u"deleted": True},
+]
+
 
 ConfigurationDatasetsSchemaTests = build_schema_test(
     name="ConfigurationDatasetsSchemaTests",
