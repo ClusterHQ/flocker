@@ -70,10 +70,11 @@ from ....control import (
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
-LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 # Enough space for the Ext4 journal
-LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(4).to_Byte().value)
+# And enough space for predictable inode counts after resize in
+# ResizeFilesystemTests.test_shrink
+LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -358,7 +359,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unmounted = self.api.create_volume(
             dataset_id=uuid4(),
-            size=self.api.allocation_unit(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             unmounted.blockdevice_id,
@@ -367,7 +368,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -384,7 +385,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unexpected = self.api.create_volume(
             dataset_id=uuid4(),
-            size=self.api.allocation_unit(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         self.api.attach_volume(
@@ -404,7 +405,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size LOOPBACK_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unexpected.dataset_id],
             expected_devices={
                 unexpected.dataset_id: device,
@@ -418,7 +419,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         the discovered state for the node.
         """
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
@@ -475,11 +476,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unrelated_device = FilePath(self.mktemp())
         with unrelated_device.open("w") as unrelated_file:
-            unrelated_file.truncate(LOOPBACK_BLOCKDEVICE_SIZE)
+            unrelated_file.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
 
         unmounted = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         mountpoint = self.deployer.mountroot.child(bytes(unmounted.dataset_id))
         mountpoint.makedirs()
@@ -494,7 +495,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -509,12 +510,10 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         and the volume's filesystem is mounted in the right place.
         """
         dataset_id = uuid4()
-        requested_size = self.api.allocation_unit()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=requested_size,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        allocated_size = new_volume.size
         self.api.attach_volume(
             new_volume.blockdevice_id,
             attach_to=self.this_node,
@@ -526,7 +525,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(device, mountpoint)
         expected_dataset = Dataset(
             dataset_id=dataset_id,
-            maximum_size=allocated_size,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True
@@ -547,7 +546,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=self.api.allocation_unit()
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -566,11 +565,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         dataset_id = uuid4()
         self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[dataset_id],
         )
 
@@ -803,7 +802,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=self.DATASET_ID, size=api.allocation_unit()
+            dataset_id=self.DATASET_ID, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(volume.blockdevice_id, self.NODE)
 
@@ -2499,7 +2498,7 @@ class DestroyBlockDeviceDatasetTests(
         api = deployer.block_device_api
 
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         volume = api.attach_volume(volume.blockdevice_id, node)
         device = api.get_device_path(volume.blockdevice_id)
@@ -2630,7 +2629,7 @@ class _MountScenario(PRecord):
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(case)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         api.attach_volume(volume.blockdevice_id, host)
 
@@ -2778,7 +2777,7 @@ class UnmountBlockDeviceTests(
         deployer = create_blockdevicedeployer(self, hostname=node)
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         volume = api.attach_volume(volume.blockdevice_id, node)
         device = api.get_device_path(volume.blockdevice_id)
@@ -2831,7 +2830,7 @@ class DetachVolumeTests(
         deployer = create_blockdevicedeployer(self, hostname=u"192.0.2.1")
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
             volume.blockdevice_id,
@@ -2876,7 +2875,7 @@ class DestroyVolumeTests(
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
         deployer = BlockDeviceDeployer(
@@ -3141,11 +3140,11 @@ class ResizeBlockDeviceDatasetTests(
         dataset_id = uuid4()
         deployer = create_blockdevicedeployer(self, hostname=node)
         api = deployer.block_device_api
-        new_size = int(REALISTIC_BLOCKDEVICE_SIZE * size_factor)
+        new_size = int(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * size_factor)
 
         dataset = Dataset(
             dataset_id=dataset_id,
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         creating = run_state_change(
             CreateBlockDeviceDataset(
@@ -3232,7 +3231,7 @@ class ResizeVolumeTests(
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         deployer = BlockDeviceDeployer(
             node_uuid=uuid4(),
@@ -3241,11 +3240,11 @@ class ResizeVolumeTests(
             mountroot=mountroot_for_test(self),
         )
         change = ResizeVolume(
-            volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
+            volume=volume, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2
         )
         self.successResultOf(change.run(deployer))
 
-        expected_volume = volume.set(size=REALISTIC_BLOCKDEVICE_SIZE * 2)
+        expected_volume = volume.set(size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2)
         self.assertEqual([expected_volume], api.list_volumes())
 
 
@@ -3280,7 +3279,7 @@ class AttachVolumeTests(
         deployer = create_blockdevicedeployer(self, hostname=host)
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=api.allocation_unit()
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         change = AttachVolume(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
@@ -3396,7 +3395,7 @@ class ResizeFilesystemTests(
         this_node = api.compute_instance_id()
 
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         original_size = volume.size
         new_size = int(original_size * size_factor)
