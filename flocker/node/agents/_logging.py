@@ -78,7 +78,7 @@ NO_NEW_DEVICE_IN_OS = MessageType(
     u"No new block device manifested in the OS in given time.",)
 
 VOLUME_ID = Field.forTypes(
-    u"volume_id", [unicode],
+    u"volume_id", [bytes, unicode],
     u"The identifier of volume of interest.")
 STATUS = Field.forTypes(
     u"status", [bytes, unicode],
