@@ -270,10 +270,9 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
 
 
 DEVICE_ALLOCATION_UNITS = {
-    # This really means Rackspace
-    'openstack': GiB(0),
+    # Our redhat-openstack test platform uses a ScaleIO backend which
+    # allocates devices in 8GiB intervals
     'redhat-openstack': GiB(8),
-    'aws': GiB(0),
 }
 
 
@@ -289,13 +288,13 @@ def get_device_allocation_unit():
     Cinder API reports a 1GiB or 7GiB volume.
 
     :returns: An ``int`` allocation size in bytes for a
-        particular platform. Default to ``0``.
+        particular platform. Default to ``None``.
     """
     cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if cloud_provider is None:
-        return 0
-    else:
-        return int(DEVICE_ALLOCATION_UNITS[cloud_provider].to_Byte().value)
+    if cloud_provider is not None:
+        device_allocation_unit = DEVICE_ALLOCATION_UNITS.get(cloud_provider)
+        if device_allocation_unit is not None:
+            return int(device_allocation_unit.to_Byte().value)
 
 
 MINIMUM_ALLOCATABLE_SIZES = {

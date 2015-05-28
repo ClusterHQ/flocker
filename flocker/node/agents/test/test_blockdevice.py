@@ -1377,9 +1377,12 @@ class IBlockDeviceAPITestsMixin(object):
                    b"--output", b"SIZE", device_path.encode("ascii")]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
-        expected_device_size = allocated_size(
-            self.device_allocation_unit, expected_volume_size
-        )
+        if self.device_allocation_unit is None:
+            expected_device_size = expected_volume_size
+        else:
+            expected_device_size = allocated_size(
+                self.device_allocation_unit, expected_volume_size
+            )
         self.assertEqual(
             (expected_volume_size, expected_device_size),
             (volume.size, device_size)
@@ -2056,7 +2059,7 @@ class LoopbackBlockDeviceAPITests(
                 allocation_unit=LOOPBACK_ALLOCATION_UNIT
             ),
             minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-            device_allocation_unit=LOOPBACK_ALLOCATION_UNIT,
+            device_allocation_unit=None,
         )
 ):
     """
