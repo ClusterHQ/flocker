@@ -1,7 +1,9 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-# Helper module to provide macros for logging support
-# for storage drivers (AWS, Cinder).
+"""
+Helper module to provide macros for logging support
+for storage drivers (AWS, Cinder).
+"""
 
 from eliot import Field, ActionType, MessageType
 

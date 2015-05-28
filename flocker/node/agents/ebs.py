@@ -35,6 +35,7 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
+VOLUME_STATE_CHANGE_TIMEOUT = 300
 
 # Set Boto debug level to ``1``, requesting basic debug messages from Boto
 # to be printed.
@@ -201,23 +202,39 @@ def _wait_for_volume(volume,
     :raises Exception: When input volume failed to reach
         expected destination status.
     """
-    volume.update()
-    while (volume.status != end_status and
-           volume.status in [start_status, transient_status]):
-        time.sleep(0.1)
+    start_time = time.time()
+    elapsed_time = time.time() - start_time
+
+    # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
+    # volume status to transition from
+    # start_status -> transient_status -> end_status.
+    while elapsed_time - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
         volume.update()
-    if volume.status != end_status:
-        raise Exception(
-            'Timed out while waiting for volume to change state. '
-            'Volume: {!r}, '
-            'Start Status: {!r}, '
-            'Transient Status: {!r}, '
-            'Expected End Status: {!r}, '
-            'Discovered End Status: {!r}.'.format(
-                volume, start_status, transient_status, end_status,
-                volume.status,
-                )
+        if volume.status == end_status:
+            return
+        elif volume.status not in [start_status, transient_status]:
+            break
+        time.sleep(1.0)
+        elapsed_time = time.time() - start_time
+
+    # We either:
+    # 1) Timed out waiting to reach ``end_status``, or,
+    # 2) Reached an unexpected status (state change did not
+    #    start, or failed).
+    # Raise an ``Exception`` in both cases.
+    raise Exception(
+        'Volume state transition failed. '
+        'Volume: {!r}, '
+        'Start Status: {!r}, '
+        'Transient Status: {!r}, '
+        'Expected End Status: {!r}, '
+        'Discovered End Status: {!r},'
+        'Wait time: {!r},'
+        'Time limit: {!r}.'.format(
+            volume, start_status, transient_status, end_status,
+            volume.status, elapsed_time, VOLUME_STATE_CHANGE_TIMEOUT
             )
+        )
 
 
 def _get_device_size(device):
