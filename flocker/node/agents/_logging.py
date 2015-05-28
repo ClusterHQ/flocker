@@ -92,5 +92,5 @@ WAIT_TIME = Field.forTypes(
 WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
     u"flocker:node:agents:blockdevice:aws:volume_status_change_wait",
     [VOLUME_ID, STATUS, TARGET_STATUS, WAIT_TIME],
-    u"Waiting for volume to reach target status.",)
+    u"Waiting for a volume to reach target status.",)
 # End: Helper datastructures used by AWS storage driver.
