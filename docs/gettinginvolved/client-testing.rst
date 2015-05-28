@@ -1,7 +1,10 @@
+.. _cli-testing:
+
 Client Testing
 ==============
 
-There are automated acceptance tests for the Flocker CLI on some platforms XXX Link.
+There are automated acceptance tests for the Flocker CLI on some platforms.
+See :ref:`client-acceptance-tests`.
 
 Sometimes it is useful to manually test CLIs and their installation instructions on various platforms.
 
