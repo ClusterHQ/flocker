@@ -360,7 +360,7 @@ def get_clean_nodes(test_case, num_nodes):
         get_items.addCallback(delete_items)
         get_items.addCallback(
             lambda ignored: loop_until(
-                state_method(cluster).addCallback(
+                lambda: state_method(cluster).addCallback(
                     lambda result: [] == result
                 )
             )
