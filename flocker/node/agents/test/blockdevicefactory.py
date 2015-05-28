@@ -20,7 +20,7 @@ See `acceptance testing <acceptance-testing>`_ for details.
 
 from os import environ
 from uuid import uuid4
-from functools import partial, wraps
+from functools import partial
 
 from yaml import safe_load
 from bitmath import GiB
