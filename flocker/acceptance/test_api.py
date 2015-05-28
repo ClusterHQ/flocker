@@ -291,17 +291,18 @@ class ContainerAPITests(TestCase):
     @require_cluster(1)
     def test_non_root_container_can_access_dataset(self, cluster):
         """
-        A container running as a user that is not root can still write to a
+        A container running as a user that is not root can write to a
         dataset attached as a volume.
         """
         _, port = find_free_port()
+        node = cluster.nodes[0]
         creating_dataset = create_dataset(self)
 
         def created_dataset(result):
             cluster, dataset = result
             container = {
                 u"name": random_name(self),
-                u"node_uuid": cluster.nodes[0].uuid,
+                u"node_uuid": node.uuid,
                 u"image": u"busybox",
                 u"ports": [{u"internal": 8080, u"external": port}],
                 u'restart_policy': {u'name': u'never'},
@@ -334,7 +335,7 @@ nc -ll -p 8080 -e /data/script.sh
             return req
 
         def checked(cluster):
-            host = cluster.nodes[0].address
+            host = node.address
             d = verify_socket(host, port)
             d.addCallback(lambda _: query(host))
             return d
