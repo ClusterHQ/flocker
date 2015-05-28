@@ -8,7 +8,7 @@ devices.
 """
 
 from errno import EEXIST
-from uuid import UUID
+from uuid import UUID, uuid4
 from subprocess import check_output
 
 from eliot import MessageType, ActionType, Field, Logger
@@ -1203,6 +1203,9 @@ def get_blockdevice_volume(api, blockdevice_id):
     raise UnknownVolume(blockdevice_id)
 
 
+DEFAULT_LOOPBACK_PATH = '/var/lib/flocker/loopback'
+
+
 def _backing_file_name(volume):
     """
     :param BlockDeviceVolume: The volume for which to generate a
@@ -1241,15 +1244,23 @@ class LoopbackBlockDeviceAPI(object):
         self._allocation_unit = allocation_unit
 
     @classmethod
-    def from_path(cls, root_path, compute_instance_id, allocation_unit=None):
+    def from_path(
+            cls, root_path=DEFAULT_LOOPBACK_PATH, compute_instance_id=None,
+            allocation_unit=None):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
             not already exist.
-        :param compute_instance_id: See ``__init__``
+        :param compute_instance_id: See ``__init__``.  Additionally, if not
+            given, a new random id will be generated.
+        :param int allocation_unit: The size (in bytes) that will be
+            reported by ``allocation_unit``. Default is ``1``.
 
         :returns: A ``LoopbackBlockDeviceAPI`` with the supplied ``root_path``.
         """
+        if compute_instance_id is None:
+            # If no compute_instance_id provided, invent one.
+            compute_instance_id = unicode(uuid4())
         api = cls(
             root_path=FilePath(root_path),
             compute_instance_id=compute_instance_id,
