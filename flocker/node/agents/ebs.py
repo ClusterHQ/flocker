@@ -27,7 +27,7 @@ from .blockdevice import (
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
-    NO_NEW_DEVICE_IN_OS
+    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -214,6 +214,11 @@ def _wait_for_volume(volume,
         elif volume.status not in [start_status, transient_status]:
             break
         time.sleep(1.0)
+
+        WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
+                                         status=volume.status,
+                                         target_status=end_status,
+                                         wait_time=(time.time() - start_time))
 
     # We either:
     # 1) Timed out waiting to reach ``end_status``, or,

@@ -77,4 +77,20 @@ NO_NEW_DEVICE_IN_OS = MessageType(
     [NEW_DEVICES, NEW_DEVICES_SIZE, SIZE, TIME_LIMIT],
     u"No new block device manifested in the OS in given time.",)
 
+VOLUME_ID = Field.forTypes(
+    u"volume_id", [unicode],
+    u"The identifier of volume of interest.")
+STATUS = Field.forTypes(
+    u"status", [bytes, unicode],
+    u"Current status of the volume.")
+TARGET_STATUS = Field.forTypes(
+    u"target_status", [bytes, unicode],
+    u"Target status of a volume, as a result of an AWS API call.")
+WAIT_TIME = Field.forTypes(
+    u"wait_time", [int],
+    u"Time, in seconds, system waited for volume to reach target status.")
+WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
+    u"flocker:node:agents:blockdevice:aws:volume_status_change_wait",
+    [VOLUME_ID, STATUS, TARGET_STATUS, WAIT_TIME],
+    u"Waiting for volume to reach target status.",)
 # End: Helper datastructures used by AWS storage driver.
