@@ -10,7 +10,9 @@ Certificates are used for both client and server authentication, entirely replac
 Therefore to grant a user access to your cluster's REST API, you will need to use the ``flocker-ca`` tool, installed as part of the ``flocker-cli`` package, to generate a certificate and private key that is then given to the API end user.
 To give a user access to a cluster's REST API, use the ``flocker-ca`` tool to generate a certificate and private key for the user.
 The ``flocker-ca`` tool is installed as part of the flocker-cli package.
-If you have not already followed these steps, see the :doc:`flocker-node installation instructions <../../indepth/installation>`.
+If you have not already followed these steps, see the :ref:`flocker-node installation instructions <installflocker>`.
+
+.. _generate-api:
 
 Generate an API user certificate
 ================================
@@ -38,6 +40,7 @@ The following is an example of an authenticated request to create a new containe
 
 .. code-block:: console
 
-   $ curl -H "Content-Type: application/json" -X POST -d '{"host": "172.255.250.251", "name": "webserver", "image": "nginx:latest"}' --cacert cluster.crt --cert alice.crt --key alice.key https://172.16.255.250/v1/configuration/containers
+   $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
+          https://172.16.255.250:4523/v1/configuration/containers
    
-You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../security>`.
+You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
