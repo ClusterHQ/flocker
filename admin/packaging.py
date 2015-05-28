@@ -199,8 +199,8 @@ class Dependency(object):
             raise ValueError("Unknown package type.")
 
 
-# The minimum required versions of Docker and ZFS. The package names vary
-# between operating systems and are supplied later.
+# The minimum required version of Docker. The package names vary between
+# operating systems and are supplied later.
 DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
 # This ensures that servers with the broken docker-io-1.4.1 package get
 # upgraded when Flocker is installed.
