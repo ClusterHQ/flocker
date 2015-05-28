@@ -35,7 +35,7 @@ On Fedora 20 you can install these by running:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
+   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
 
 On Ubuntu or Debian you can run:
 
