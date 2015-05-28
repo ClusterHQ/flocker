@@ -85,10 +85,10 @@ STATUS = Field.forTypes(
     u"Current status of the volume.")
 TARGET_STATUS = Field.forTypes(
     u"target_status", [bytes, unicode],
-    u"Target status of a volume, as a result of an AWS API call.")
+    u"Expected target status of the volume, as a result of an AWS API call.")
 WAIT_TIME = Field.forTypes(
     u"wait_time", [int],
-    u"Time, in seconds, system waited for volume to reach target status.")
+    u"Time, in seconds, system waited for the volume to reach target status.")
 WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
     u"flocker:node:agents:blockdevice:aws:volume_status_change_wait",
     [VOLUME_ID, STATUS, TARGET_STATUS, WAIT_TIME],
