@@ -466,6 +466,22 @@ def main(reactor, args, base_path, top_level):
             print("Generating certificates in: {}".format(ca_directory.path))
             certificates = Certificates.generate(ca_directory, nodes[0].address,
                                                 len(nodes))
+        else:
+            ca_directory = options.top_level
+            user_crt = ca_directory.child(b"user.crt")
+            cluster_crt = ca_directory.child(b"cluster.crt")
+            if not user_crt.isfile():
+                print(
+                    b"User credential file " + user_crt.path +
+                    b" could not be found."
+                )
+                raise SystemExit(1)
+            if not cluster_crt.isfile():
+                print(
+                    b"Cluster certificate file " + cluster_crt.path +
+                    b" could not be found."
+                )
+                raise SystemExit(1)
 
         if not options["no-pull"]:
             yield perform(
