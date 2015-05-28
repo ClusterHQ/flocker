@@ -20,6 +20,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client,
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
+- Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
@@ -372,7 +373,7 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   OS X and Ubuntu 14.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
+   OS X, Ubuntu 14.04, and Ubuntu 15.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
 
    Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
