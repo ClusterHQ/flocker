@@ -22,6 +22,7 @@ from characteristic import attributes, with_cmp
 import psutil
 from bitmath import Byte
 
+from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
 
@@ -268,6 +269,21 @@ RESIZE_BLOCK_DEVICE_DATASET = ActionType(
     [DATASET_ID],
     [],
     u"A block-device-backed dataset is being resized.",
+)
+
+INVALID_DEVICE_PATH_VALUE = Field(
+    u"invalid_value",
+    lambda value: safe_repr(value),
+    u"A value returned from IBlockDeviceAPI.get_device_path which could not "
+    u"possibly be correct.  This likely indicates a bug in the "
+    "IBlockDeviceAPI implementation.",
+)
+
+INVALID_DEVICE_PATH = MessageType(
+    u"agent:blockdevice:discover_state:invalid_device_path",
+    [DATASET_ID, INVALID_DEVICE_PATH_VALUE],
+    u"The device path given by the IBlockDeviceAPI implementation was "
+    u"invalid.",
 )
 
 
@@ -1217,6 +1233,17 @@ class LoopbackBlockDeviceAPI(object):
         )
         volume_path.remove()
 
+    def _allocate_device(self, backing_file_path):
+        """
+        Create a loopback device backed by the file at the given path.
+
+        :param FilePath backing_file_path: The path of the file that is the
+            backing store for the new device.
+        """
+        # The --find option allocates the next available /dev/loopX device
+        # name to the device.
+        check_output(["losetup", "--find", backing_file_path.path])
+
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Move an existing ``unattached`` file into a per-node directory and
@@ -1244,9 +1271,7 @@ class LoopbackBlockDeviceAPI(object):
                 pass
             new_path = host_directory.child(blockdevice_id)
             old_path.moveTo(new_path)
-            # The --find option allocates the next available /dev/loopX device
-            # name to the device.
-            check_output(["losetup", "--find", new_path.path])
+            self._allocate_device(new_path)
             attached_volume = volume.set(attached_to=attach_to)
             return attached_volume
 
@@ -1339,7 +1364,17 @@ class LoopbackBlockDeviceAPI(object):
              volume.blockdevice_id.encode("ascii")]
         )
         # May be None if the file hasn't been used for a loop device.
-        return _device_for_path(volume_path)
+        path = _device_for_path(volume_path)
+        if path is None:
+            # It was supposed to be attached (the backing file was stored in a
+            # child of the "attached" directory, so someone had called
+            # `attach_volume` and not `detach_volume` for it) but it has no
+            # loopback device.  So its actual state is only partially attached.
+            # Fix it so it's all-the-way attached.  This might happen because
+            # the node OS was rebooted, for example.
+            self._allocate_device(volume_path)
+            path = _device_for_path(volume_path)
+        return path
 
 
 def _manifestation_from_volume(volume):
@@ -1441,21 +1476,32 @@ class BlockDeviceDeployer(PRecord):
         volumes = api.list_volumes()
         manifestations = {}
         nonmanifest = {}
-        devices = {
-            volume.dataset_id: api.get_device_path(volume.blockdevice_id)
-            for volume
-            in volumes
-            if volume.attached_to == compute_instance_id
-        }
 
+        def is_existing_block_device(dataset_id, path):
+            if isinstance(path, FilePath) and path.isBlockDevice():
+                return True
+            INVALID_DEVICE_PATH(
+                dataset_id=dataset_id, invalid_value=path
+            ).write(_logger)
+            return False
+
+        # Find the devices for any manifestations on this node.  Build up a
+        # collection of non-manifest dataset as well.  Anything that looks like
+        # it could be a manifestation on this node but that has some kind of
+        # inconsistent state is left out altogether.
+        devices = {}
         for volume in volumes:
-            dataset_id = unicode(volume.dataset_id)
+            dataset_id = volume.dataset_id
+            u_dataset_id = unicode(dataset_id)
             if volume.attached_to == compute_instance_id:
-                manifestations[dataset_id] = _manifestation_from_volume(
-                    volume
-                )
+                device_path = api.get_device_path(volume.blockdevice_id)
+                if is_existing_block_device(dataset_id, device_path):
+                    devices[dataset_id] = device_path
+                    manifestations[u_dataset_id] = _manifestation_from_volume(
+                        volume
+                    )
             elif volume.attached_to is None:
-                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
+                nonmanifest[u_dataset_id] = Dataset(dataset_id=dataset_id)
 
         system_mounts = self._get_system_mounts(volumes, compute_instance_id)
 
