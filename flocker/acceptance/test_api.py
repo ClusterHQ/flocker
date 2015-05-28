@@ -14,6 +14,8 @@ from twisted.internet import reactor
 
 from treq import get, json_content
 
+from eliot import Message
+
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client, get_test_cluster,
