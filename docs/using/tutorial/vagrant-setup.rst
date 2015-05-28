@@ -1,3 +1,5 @@
+.. _tutvagrant:
+
 ================
 Before You Begin
 ================

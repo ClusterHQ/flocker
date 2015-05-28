@@ -64,7 +64,7 @@ We can also connect to the other node where it isn't running and the traffic wil
    { "_id" : ObjectId("53c958e8e571d2046d9b9df9"), "flocker" : "tested" }
 
 Since the application is transparently accessible from both nodes you can configure a DNS record that points at both IPs and access the application regardless of its location.
-See :doc:`../../advanced/routing/index` for more details.
+See :ref:`routing` for more details.
 
 At this point you have successfully deployed a MongoDB server and communicated with it.
 You've also seen how external users don't need to worry about applications' location within the cluster.
