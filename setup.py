@@ -70,7 +70,7 @@ dev_requirements = [
     "apache-libcloud==0.16.0",
 
     # Packages are downloaded from Buildbot
-    "requests==2.4.3",
+    "requests==2.7.0",
     "requests-file==1.0",
 
     "wheel==0.24.0",
@@ -102,7 +102,7 @@ install_requirements = [
     "psutil == 2.1.2",
     "netifaces >= 0.8",
     "ipaddr == 2.1.11",
-    "docker-py == 0.7.1",
+    "docker-py == 1.2.2",
     "jsonschema == 2.4.0",
     "klein == 0.2.3",
     "pyrsistent == 0.9.2",
@@ -202,7 +202,7 @@ setup(
             "tl.eggdeps==0.4",
             "boto==2.38.0",
             # Packages are downloaded from Buildbot
-            "requests==2.4.3",
+            "requests==2.7.0",
             "requests-file==1.0",
             ],
         },
