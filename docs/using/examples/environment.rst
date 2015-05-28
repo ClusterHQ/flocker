@@ -7,13 +7,13 @@ Using Environment Variables
 MySQL Example
 =============
 
-Flocker supports passing environment variables to a container via its :doc:`Application Configuration <../../advanced/configuration>`.
+Flocker supports passing environment variables to a container via its :ref:`Application Configuration <configuration>`.
 This example will use a configured environment variable to set the root user password for a MySQL service running inside a container.
 
 Create the Virtual Machines
 ===========================
 
-You can reuse the Virtual Machines defined in the Vagrant configuration for :doc:`the MongoDB tutorial <../tutorial/index>`.
+You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutmongo>`.
 If you have since shutdown or destroyed those VMs, boot them up again:
 
 .. code-block:: console

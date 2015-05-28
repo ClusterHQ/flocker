@@ -9,3 +9,4 @@ Getting Involved
    acceptance-testing
    client-testing
    infrastructure/index
+   authors
