@@ -6,10 +6,17 @@ Release Notes
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
-v0.5
-====
+Next Release
+============
 
 * ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
+* It is now necessary to specify a dataset backend for each agent node.
+  See :ref:`post-installation-configuration`.
+* Flocker-initiated communication is secured with TLS.
+  See :ref:`authentication`.
+* Docker restart policies are adhered to.
+* New API endpoint: List the hosts currently in the cluster.
+  See :ref:`api`.
 
 v0.4
 ====

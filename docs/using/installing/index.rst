@@ -380,6 +380,8 @@ The ``/etc/flocker/`` directory should be set to ``chmod 700``.
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
+.. _post-installation-configuration:
+
 Post installation configuration
 -------------------------------
 
