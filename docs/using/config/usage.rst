@@ -7,7 +7,7 @@ It also manages network configuration for these containers (between them and bet
 And Flocker also creates and replicates volumes.
 All of this functionality is available via a simple invocation of the ``flocker-deploy`` program.
 This program is included in the ``flocker-cli`` package.
-If you haven't :doc:`installed that package <../indepth/installation>` yet, you may want to do so now.
+If you haven't :ref:`installed that package <installflocker>` yet, you may want to do so now.
 
 Command Line Arguments
 ======================
@@ -40,7 +40,7 @@ Before ``flocker-deploy`` can do this it needs to be able to authenticate itself
 
 Flocker uses TLS mutual authentication to communicate with the control service you specify as the first command line argument.
 
-To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API user certificate, which you can :doc:`generate <./api/authentication>` using the ``flocker-ca`` tool.
+To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API user certificate, which you can :ref:`generate <generate-api>` using the ``flocker-ca`` tool.
 
 For ``flocker-deploy``, your API user certificate and key should be in files named ``user.crt`` and ``user.key`` and the cluster certificate in file ``cluster.crt``.
 

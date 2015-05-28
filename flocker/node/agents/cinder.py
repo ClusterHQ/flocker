@@ -249,6 +249,19 @@ class CinderBlockDeviceAPI(object):
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
 
+    def allocation_unit(self):
+        """
+        1GiB is the minimum allocation unit described by the OpenStack
+        Cinder API documentation.
+         * http://developer.openstack.org/api-ref-blockstorage-v2.html#createVolume # noqa
+
+        Some Cinder storage drivers may actually allocate more than
+        this, but as long as the requested size is a multiple of this
+        unit, the Cinder API will always report the size that was
+        requested.
+        """
+        return int(GiB(1).to_Byte().value)
+
     def compute_instance_id(self):
         """
         Find the Nova API server with a subset of the IPv4 and IPv6
@@ -283,14 +296,8 @@ class CinderBlockDeviceAPI(object):
         }
         action_type = u"blockdevice:cinder:create_volume"
         with start_action(action_type=action_type):
-            # There could be difference between user-requested and
-            # Cinder-created volume sizes due to several reasons:
-            # 1) Round off from converting user-supplied 'size' to 'GiB' int.
-            # 2) Cinder-specific size constraints.
-            # XXX: Address size mistach (see
-            # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
-                size=Byte(size).to_GiB().value,
+                size=int(Byte(size).to_GiB().value),
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()

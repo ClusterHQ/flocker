@@ -1,0 +1,11 @@
+web:
+  image: clusterhq/flask
+  links:
+   - "redis:redis"
+  ports:
+   - "80:80"
+redis:
+  image: dockerfile/redis
+  ports:
+   - "6379:6379"
+  volumes: ["/data"]
