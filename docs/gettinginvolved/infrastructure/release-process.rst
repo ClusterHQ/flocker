@@ -98,7 +98,9 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       vagrant up
-      vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
+      vagrant scp default:/home/vagrant/.bashrc vagrant_bashrc
+      echo export VERSION=${VERSION} >> vagrant_bashrc
+      vagrant scp vagrant_bashrc /home/vagrant/.bashrc
       if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
       vagrant ssh -- -A
 
@@ -111,7 +113,6 @@ Preparing For a Release
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
       admin/create-release-branch --flocker-version="${VERSION}"
-      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -125,7 +126,7 @@ Preparing For a Release
 
       .. prompt:: bash [vagrant@localhost]$
 
-          # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+          # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
           git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
@@ -139,7 +140,7 @@ Preparing For a Release
    - (optional) Add a version heading.
      If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
      If this is a weekly development release, add a "Next Release" heading instead.
-   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product Development > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
+   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
    - and add links (where appropriate) to documentation that has been added for those features.
 
@@ -163,7 +164,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure all the required tests pass on BuildBot:
 
@@ -274,9 +275,8 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. If it is not running in to the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`:
-
-   From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
+#. The following steps should be done in the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`.
+   If this is not running, start it again from the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
 
@@ -296,12 +296,12 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
-             Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
+   .. note:: We force a build on the tag as well as the branch because the packages built before pushing the tag won't have the right version.
+             Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
 
-#. Build Python and RPM packages and upload them to Amazon S3,
+#. Build packages and upload them to Amazon S3,
    and copy the tutorial box to the final location:
 
    .. prompt:: bash [vagrant@localhost]$
