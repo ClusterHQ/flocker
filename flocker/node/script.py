@@ -431,7 +431,7 @@ def cinder_from_configuration(**config):
     return cinder_api(
         cinder_client=cinder_client,
         nova_client=nova_client,
-        cluster_id=cinder_api
+        cluster_id=config['cluster_id']
     )
 
 from flocker.node.agents.ebs import EBSBlockDeviceAPI, ec2_client
