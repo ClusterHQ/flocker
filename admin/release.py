@@ -486,7 +486,6 @@ def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
                    keys=['flocker-tutorial-{}.box'.format(version)]))
 
 
-
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
