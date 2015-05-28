@@ -441,7 +441,7 @@ Post-Release Review Process
 
    Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
-   XXX: This step should be documented, see :issue:`1622`.
+   To create a testing environment for a supported platform, see :ref:`cli-testing`.
 
    XXX: This step should be automated, see :issue:`1039`.
 
