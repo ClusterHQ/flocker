@@ -81,25 +81,19 @@ Getting started with Flocker
 
          Install the Flocker client on your Mac (requires Homebrew):
 
-         .. version-code-block:: console
-
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-|latest-installable|
+         .. task:: test_homebrew flocker-|latest-installable|
+            :prompt: you@laptop:~$
 
       .. noscript-content::
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
-         .. version-code-block:: console
+         .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
 
-            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://clusterhq-archive.s3.amazonaws.com/python/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
          Fedora 20
          ^^^^^^^^^
@@ -121,23 +115,16 @@ Getting started with Flocker
 
          Install the Flocker client on your Mac (requires Homebrew):
 
-         .. version-code-block:: console
+         .. task:: test_homebrew flocker-|latest-installable|
+            :prompt: you@laptop:~$
 
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-|latest-installable|
-
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
-         .. version-code-block:: console
-
-            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://clusterhq-archive.s3.amazonaws.com/python/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
+         .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
 
          Fedora 20
          ^^^^^^^^^
@@ -169,11 +156,9 @@ Getting started with Flocker
 
          Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
-            you@laptop:~$ git clone \
-              https://github.com/clusterhq/vagrant-flocker && \
-              cd vagrant-flocker && \
+            you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key
@@ -190,11 +175,9 @@ Getting started with Flocker
 
          Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
-            you@laptop:~$ git clone \
-              https://github.com/clusterhq/vagrant-flocker && \
-              cd vagrant-flocker && \
+            you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key
@@ -217,39 +200,31 @@ Getting started with Flocker
       You should have the Flocker client installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
       Now you can try our simple tutorial: a Python web application and a Redis server.
 
-      .. code-block:: console
+      .. container:: hidden
 
-         you@laptop:~$ git clone https://github.com/clusterhq/flocker-quickstart
-         you@laptop:~$ cd flocker-quickstart
+         .. Create the files to be downloaded with curl, but don't show download links for them
+
+         :download:`fig.yml`
+         :download:`deployment-node1.yml`
+         :download:`deployment-node2.yml`
+
+      .. version-code-block:: console
+
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/fig.yml
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/deployment-node1.yml
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/deployment-node2.yml
 
       fig.yml
       -------
 
-      .. code-block:: yaml
-
-         web:
-           image: clusterhq/flask
-           links:
-            - "redis:redis"
-           ports:
-            - "80:80"
-         redis:
-           image: redis
-           ports:
-            - "6379:6379"
-           volumes: ["/data"]
-
+      .. literalinclude:: fig.yml
+         :language: yaml
 
       deployment-node1.yml
       --------------------
 
-      .. code-block:: yaml
-
-         "version": 1
-         "nodes":
-           "172.16.255.250": ["web", "redis"]
-           "172.16.255.251": []
-
+      .. literalinclude:: deployment-node1.yml
+         :language: yaml
 
       The ``fig.yml`` file describes your distributed application.
       The ``deployment-node1.yml`` file describes which containers to deploy where.
@@ -280,12 +255,8 @@ Getting started with Flocker
       deployment-node2.yml
       --------------------
 
-      .. code-block:: yaml
-
-         "version": 1
-         "nodes":
-           "172.16.255.250": ["web"]
-           "172.16.255.251": ["redis"]
+      .. literalinclude:: deployment-node2.yml
+         :language: yaml
 
       .. code-block:: console
 

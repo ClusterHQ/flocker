@@ -1,5 +1,4 @@
 Vagrant
-=======
 
 There is a :file:`Vagrantfile` in the base of the repository,
 that is pre-installed with all of the dependencies required to run flocker.
@@ -12,27 +11,32 @@ Boxes
 There are several vagrant boxes.
 
 Development Box (:file:`vagrant/dev`)
-   The box is initialized with the yum repositories for ZFS and for dependencies not available in CentOS and installs all the dependencies.
+   This CentOS box is initialized with the yum repositories for ZFS.
    This is the box the :file:`Vagrantfile` in the root of the repository is based on.
 
 Tutorial Box (:file:`vagrant/tutorial`)
-   This box is initialized with the yum repositories for ZFS and Flocker, and has Flocker pre-installed.
+   This CentOS box is initialized with the yum repositories for ZFS and Flocker, and has Flocker pre-installed.
    This is the box the :ref:`tutorial <vagrant-setup>` is based on.
 
 
 Building
 ^^^^^^^^
 
-BuildBot builds a tutorial box for each branch, and a development box for each change to ``master``.
+Buildbot's `flocker-vagrant-tutorial-box` builder builds the tutorial box.
+The `flocker-vagrant-dev-box` builder builds the development box on some branches but not others.
+The `flocker-vagrant-dev-box` builder can be forced on any branch.
 
-To build one of the above boxes locally, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory.
-
-To build the development box, install the necessary Vagrant plugins as follows:
+To build one of the above boxes locally,
+upgrade VirtualBox and Vagrant to the latest versions,
+install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory:
 
 .. code-block:: sh
 
    vagrant plugin install vagrant-reload
    vagrant plugin install vagrant-vbguest
+   ./build [Flocker version selection options]
+
+If an error occurs similar to ``/sbin/mount.vboxsf: mounting failed with the error: No such device`` try using the known working versions Vagrant 1.7.2 and VirtualBox 4.3.24r98716.
 
 This will generate a :file:`flocker-<box>-<version>.box` file.
 

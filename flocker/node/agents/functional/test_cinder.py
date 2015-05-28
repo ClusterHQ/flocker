@@ -26,9 +26,9 @@ from ..test.test_blockdevice import (
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup,
+    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
+    get_minimum_allocatable_size,
 )
-from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
 
 from ..cinder import wait_for_volume
 
@@ -54,7 +54,9 @@ class CinderBlockDeviceAPIInterfaceTests(
                 lambda test_case: cinderblockdeviceapi_for_test(
                     test_case=test_case,
                 )
-            )
+            ),
+            minimum_allocatable_size=get_minimum_allocatable_size(),
+            device_allocation_unit=get_device_allocation_unit(),
         )
 ):
     """
@@ -79,16 +81,16 @@ class CinderBlockDeviceAPIInterfaceTests(
             cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        cinder_volumes = kwargs["cinder_volume_manager"]
-        requested_volume = cinder_volumes.create(
-            size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
+        cinder_client = kwargs["cinder_client"]
+        requested_volume = cinder_client.volumes.create(
+            size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
         self.addCleanup(
-            cinder_volumes.delete,
+            cinder_client.volumes.delete,
             requested_volume.id,
         )
         wait_for_volume(
-            volume_manager=cinder_volumes,
+            volume_manager=cinder_client.volumes,
             expected_volume=requested_volume
         )
         self.assertEqual([], self.api.list_volumes())
@@ -103,6 +105,6 @@ class CinderBlockDeviceAPIInterfaceTests(
             )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)
