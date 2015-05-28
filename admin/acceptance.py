@@ -70,7 +70,7 @@ def get_trial_environment(cluster):
         'FLOCKER_ACCEPTANCE_AGENT_NODES':
             ':'.join(node.address for node in cluster.agent_nodes),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
-        'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': cluster.ca_directory.path,
+        'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': cluster.certificates_path.path,
     }
 
 
