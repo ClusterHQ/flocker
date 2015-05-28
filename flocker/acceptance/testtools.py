@@ -379,11 +379,13 @@ def get_clean_nodes(test_case, num_nodes):
         return api_clean_state(
             cluster,
             lambda cluster: cluster.configured_datasets(),
-            lambda cluster: list(
-                dataset
-                for dataset
-                in cluster.datasets_state()
-                if not dataset[u"deleted"]
+            lambda cluster: cluster.datasets_state().addCallback(
+                lambda datasets: list(
+                    dataset
+                    for dataset
+                    in datasets
+                    if not dataset[u"deleted"]
+                )
             ),
             lambda cluster, item: cluster.delete_dataset(item[u"dataset_id"]),
         )
