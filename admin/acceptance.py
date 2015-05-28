@@ -463,13 +463,11 @@ def capture_journal(reactor, host, output_file):
     :param file output_file: File to write to.
     """
     ran = run(reactor, [
-        "ssh",
+        b"ssh",
         b"-C",  # compress traffic
         b"-q",  # suppress warnings
         b"-l", 'root',
-        # We're ok with unknown hosts; we'll be switching away from
-        # SSH by the time Flocker is production-ready and security is
-        # a concern.
+        # We're ok with unknown hosts.
         b"-o", b"StrictHostKeyChecking=no",
         # The tests hang if ControlMaster is set, since OpenSSH won't
         # ever close the connection to the test server.
@@ -477,22 +475,18 @@ def capture_journal(reactor, host, output_file):
         # Some systems (notably Ubuntu) enable GSSAPI authentication which
         # involves a slow DNS operation before failing and moving on to a
         # working mechanism.  The expectation is that key-based auth will
-        # be in use so just jump straight to that.  An alternate solution,
-        # explicitly disabling GSSAPI, has cross-version platform and
-        # cross-version difficulties (the options aren't always recognized
-        # and result in an immediate failure).  As mentioned above, we'll
-        # switch away from SSH soon.
+        # be in use so just jump straight to that.
         b"-o", b"PreferredAuthentications=publickey",
         host,
         ' '.join(map(shell_quote, [
-            'journalctl',
-            '--lines', '0',
-            '--follow',
+            b'journalctl',
+            b'--lines', b'0',
+            b'--follow',
             # Only bother with units we care about:
-            '-u', 'docker',
-            '-u', 'flocker-control',
-            '-u', 'flocker-dataset-agent',
-            '-u', 'flocker-container-agent',
+            b'-u', b'docker',
+            b'-u', b'flocker-control',
+            b'-u', b'flocker-dataset-agent',
+            b'-u', b'flocker-container-agent',
         ])),
     ], handle_line=lambda line: output_file.write(line + b'\n'))
     ran.addErrback(writeFailure)
