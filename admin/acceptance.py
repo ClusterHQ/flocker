@@ -6,11 +6,12 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
+from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination
+from eliot import add_destination, writeFailure
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
@@ -452,6 +453,45 @@ def eliot_output(message):
     sys.stdout.flush()
 
 
+def capture_journal(reactor, host, output_file):
+    """
+    SSH into given machine and capture relevant logs, writing them to
+    output file.
+
+    :param reactor: The reactor.
+    :param bytes host: Machine to SSH into.
+    :param file output_file: File to write to.
+    """
+    ran = run(reactor, [
+        b"ssh",
+        b"-C",  # compress traffic
+        b"-q",  # suppress warnings
+        b"-l", 'root',
+        # We're ok with unknown hosts.
+        b"-o", b"StrictHostKeyChecking=no",
+        # The tests hang if ControlMaster is set, since OpenSSH won't
+        # ever close the connection to the test server.
+        b"-o", b"ControlMaster=no",
+        # Some systems (notably Ubuntu) enable GSSAPI authentication which
+        # involves a slow DNS operation before failing and moving on to a
+        # working mechanism.  The expectation is that key-based auth will
+        # be in use so just jump straight to that.
+        b"-o", b"PreferredAuthentications=publickey",
+        host,
+        ' '.join(map(shell_quote, [
+            b'journalctl',
+            b'--lines', b'0',
+            b'--follow',
+            # Only bother with units we care about:
+            b'-u', b'docker',
+            b'-u', b'flocker-control',
+            b'-u', b'flocker-dataset-agent',
+            b'-u', b'flocker-container-agent',
+        ])),
+    ], handle_line=lambda line: output_file.write(line + b'\n'))
+    ran.addErrback(writeFailure)
+
+
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
@@ -483,6 +523,10 @@ def main(reactor, args, base_path, top_level):
 
     try:
         nodes = yield runner.start_nodes(reactor)
+        if options['distribution'] in ('fedora-20', 'centos-7'):
+            remote_logs_file = open("remote_logs.log", "a")
+            for node in nodes:
+                capture_journal(reactor, node.address, remote_logs_file)
 
         ca_directory = FilePath(mkdtemp())
         print("Generating certificates in: {}".format(ca_directory.path))
