@@ -1,3 +1,5 @@
+.. _installflocker:
+
 ==================
 Installing Flocker
 ==================
@@ -9,9 +11,9 @@ This should be installed on a machine with SSH credentials to control the cluste
 There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
 It contains the services that need to run on each node.
 
-.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
 .. _installing-flocker-cli:
 
@@ -35,13 +37,14 @@ On Fedora 20 you can install these by running:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
+   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
 
 On Ubuntu or Debian you can run:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
+   alice@mercury:~$ sudo apt-get update
+   alice@mercury:~$ sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
 
 Then run the following script to install ``flocker-cli``:
 
@@ -139,7 +142,7 @@ It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.
 Vagrant
 -------
 
-The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
 .. warning:: These instructions describe the installation of ``clusterhq-flocker-node`` on a Fedora 20 operating system.
@@ -314,7 +317,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 Once you have installed the ``flocker-node`` package, you will need to generate:
 
-- A control service certificate and key file, to be copied over to the machine running your :doc:`control service <../advanced/architecture>`.
+- A control service certificate and key file, to be copied over to the machine running your :ref:`control service <architecture>`.
 - A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
 
 Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
@@ -376,7 +379,9 @@ Copy the generated files to ``/etc/flocker/`` on the target node and name them `
 Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
 The ``/etc/flocker/`` directory should be set to ``chmod 700``.
 
-You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
+You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+
+.. _post-installation-configuration:
 
 Post installation configuration
 -------------------------------
@@ -387,80 +392,6 @@ Your firewall will need to allow access to the ports your applications are expos
 
    Keep in mind the consequences of exposing unsecured services to the Internet.
    Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
-
-To enable the Flocker control service on Fedora / CentOS
---------------------------------------------------------
-
-.. task:: enable_flocker_control fedora-20
-   :prompt: [root@control-node]#
-
-The control service needs to accessible remotely.
-To configure FirewallD to allow access to the control service REST API, and for agent connections:
-
-.. task:: open_control_firewall fedora-20
-   :prompt: [root@control-node]#
-
-For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
-
-On AWS, an external firewall is used instead, which will need to be configured similarly.
-
-To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
-This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to:
-
-.. code-block:: yaml
-
-   "version": 1
-   "control-service":
-      "hostname": "${CONTROL_NODE}"
-      "port": 4524
-	"dataset":
-	  "backend": "zfs"
-
-.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
-   :prompt: [root@agent-node]#
-
-To enable the Flocker control service on Ubuntu
------------------------------------------------
-
-.. task:: enable_flocker_control ubuntu-14.04
-   :prompt: [root@control-node]#
-
-The control service needs to accessible remotely.
-To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
-
-.. task:: open_control_firewall ubuntu-14.04
-   :prompt: [root@control-node]#
-
-For more details on configuring the firewall, see Ubuntu's `UFW documentation <https://help.ubuntu.com/community/UFW>`_.
-
-On AWS, an external firewall is used instead, which will need to be configured similarly.
-
-To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
-This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to:
-
-.. code-block:: yaml
-
-   "version": 1
-   "control-service":
-      "hostname": "${CONTROL_NODE}"
-      "port": 4524
-  	"dataset":
-  	  "backend": "zfs"
-
-.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
-   :prompt: [root@agent-node]#
-
-What to do next
----------------
-
-You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
-
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>`, to ensure that your nodes are correctly configured.
-Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
-Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
-
 
 ZFS Backend Configuration
 -------------------------
@@ -480,7 +411,7 @@ the easiest way to get appropriate headers is to upgrade the kernel and install 
 
 You will need to reboot the node after updating the kernel.
 
-.. prompt:: bash [root@aws]#
+.. prompt:: bash [root@centos-7]#
 
    shutdown -r now
 
@@ -497,12 +428,12 @@ Installing ZFS on Ubuntu 14.04
    :prompt: [root@ubuntu-14.04]#
 
 
-Creating a ZFS pool
+Creating a ZFS Pool
 ...................
 
-Flocker requires a ZFS pool named ``flocker``.
-The following commands will create a 10 gigabyte ZFS pool backed by a file.
-Paste them into a root console:
+Flocker requires a ZFS pool.
+The pool is typically named named ``flocker`` but this is not required.
+The following commands will create a 10 gigabyte ZFS pool backed by a file:
 
 .. task:: create_flocker_pool_file
    :prompt: [root@node]#
@@ -513,3 +444,91 @@ Paste them into a root console:
 
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
+
+To enable the Flocker control service on Fedora / CentOS
+--------------------------------------------------------
+
+.. task:: enable_flocker_control fedora-20
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure FirewallD to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall fedora-20
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+To enable the Flocker control service on Ubuntu
+-----------------------------------------------
+
+.. task:: enable_flocker_control ubuntu-14.04
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall ubuntu-14.04
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Ubuntu's `UFW documentation <https://help.ubuntu.com/community/UFW>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+To enable the Flocker agent service
+-----------------------------------
+
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
+This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to.
+The ZFS ``pool`` variable should match the pool name created in the ZFS section.
+
+.. code-block:: yaml
+
+   "version": 1
+   "control-service":
+      "hostname": "${CONTROL_NODE}"
+      "port": 4524
+   "dataset":
+      "backend": "zfs"
+      "pool": "flocker"
+
+.. The following is put in to demonstrate how to format alternative backends.
+   Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
+
+For a ``loopback`` device, change the ``dataset`` clause to:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "loopback"
+      "root_path": "/var/lib/flocker/loopback"
+
+Fedora / CentOS
+...............
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+Ubuntu
+......
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+What to do next
+---------------
+
+You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
+
+Next you may want to perform the steps in :ref:`the tutorial <movingapps>`, to ensure that your nodes are correctly configured.
+Replace the IP addresses in the ``deployment.yml`` files with the IP addresses of your own nodes.
+Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+
+

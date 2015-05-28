@@ -1,3 +1,17 @@
+Flocker 0.4.1dev1 (2015-05-25)
+==============================
+
+- It is now necessary to specify a dataset backend for each agent node. (FLOC-1420)
+- Flocker-initiated communication is secured with TLS. (FLOC-1441)
+- ``flocker-deploy`` now takes the IP address of the control node as a parameter. (FLOC-1644)
+- Flocker now waits for containers to stop before attempting to remove them. (FLOC-1317)
+- Most new artifacts will be hosted on Amazon S3 instead of Google Cloud Storage. (FLOC-1718)
+- Docker restart policies are adhered to. (FLOC-1803)
+- New API endpoint: List the hosts currently in the cluster. (FLOC-1415)
+- There are new systemd units: ``flocker-zfs-agent`` is now ``flocker-container-agent`` and ``flocker-dataset-agent``. (FLOC-1554)
+- ``flocker-reportstate`` and ``flocker-changestate`` have been removed. (FLOC-1663)
+- Updated to Twisted 15.1. (FLOC-1707)
+
 Flocker 0.4.0 (2015-04-07)
 ==========================
 
