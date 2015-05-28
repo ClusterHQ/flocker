@@ -431,10 +431,16 @@ class DockerClient(object):
                 port_bindings=port_bindings,
                 restart_policy=restart_policy_dict,
             )
+            # We're likely to get e.g. pvector, so make sure we're passing
+            # in something JSON serializable:
+            command_line_values = command_line
+            if command_line_values is not None:
+                command_line_values = list(command_line_values)
+
             self._client.create_container(
                 name=container_name,
                 image=image_name,
-                command=command_line,
+                command=command_line_values,
                 environment=environment,
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
