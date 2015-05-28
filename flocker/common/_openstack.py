@@ -14,7 +14,6 @@ from keystoneclient.openstack.common.apiclient.exceptions import (
 )
 
 from ._thread import _interface_decorator
-from ..node.agents._logging import OPENSTACK_ACTION
 
 
 CODE = Field.for_types("code", [int], u"The HTTP response code.")
@@ -72,30 +71,29 @@ def _openstack_logged_method(method_name, original_name):
     def _run_with_logging(self, *args, **kwargs):
         original = getattr(self, original_name)
         method = getattr(original, method_name)
-        with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
-            try:
-                return method(*args, **kwargs)
-            except NovaClientException as e:
-                NOVA_CLIENT_EXCEPTION(
-                    code=e.code,
-                    message=e.message,
-                    details=e.details,
-                    request_id=e.request_id,
-                    url=e.url,
-                    method=e.method,
-                ).write()
-                raise
-            except KeystoneHttpError as e:
-                KEYSTONE_HTTP_ERROR(
-                    code=e.http_status,
-                    message=e.message,
-                    details=e.details,
-                    request_id=e.request_id,
-                    url=e.url,
-                    method=e.method,
-                    response=e.response.text,
-                ).write()
-                raise
+        try:
+            return method(*args, **kwargs)
+        except NovaClientException as e:
+            NOVA_CLIENT_EXCEPTION(
+                code=e.code,
+                message=e.message,
+                details=e.details,
+                request_id=e.request_id,
+                url=e.url,
+                method=e.method,
+            ).write()
+            raise
+        except KeystoneHttpError as e:
+            KEYSTONE_HTTP_ERROR(
+                code=e.http_status,
+                message=e.message,
+                details=e.details,
+                request_id=e.request_id,
+                url=e.url,
+                method=e.method,
+                response=e.response.text,
+            ).write()
+            raise
     return _run_with_logging
 
 

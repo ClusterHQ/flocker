@@ -76,16 +76,3 @@ NO_NEW_DEVICE_IN_OS = MessageType(
     u"No new block device manifested in the OS in given time.",)
 
 # End: Helper datastructures used by AWS storage driver.
-
-# Begin: Helper datastructures used by OpenStack storage driver
-# to log IBlockDeviceAPI calls using Eliot.
-
-# ActionType used by OpenStack storage driver.
-OPENSTACK_ACTION = ActionType(
-    u"flocker:node:agents:blockdevice:openstack",
-    [OPERATION],
-    [],
-    u"An IBlockDeviceAPI operation is executing using OpenStack"
-    u"storage driver.")
-
-# End: Helper logging datastructures used by OpenStack.
