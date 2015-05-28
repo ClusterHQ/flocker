@@ -1377,7 +1377,9 @@ class IBlockDeviceAPITestsMixin(object):
                    b"--output", b"SIZE", device_path.encode("ascii")]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
-        expected_device_size = expected_volume_size + self.over_allocation
+        expected_device_size = allocated_size(
+            self.device_allocation_unit, expected_volume_size
+        )
         self.assertEqual(
             (expected_volume_size, expected_device_size),
             (volume.size, device_size)
@@ -1919,7 +1921,10 @@ class IBlockDeviceAPITestsMixin(object):
 
 
 def make_iblockdeviceapi_tests(
-        blockdevice_api_factory, minimum_allocatable_size, over_allocation):
+        blockdevice_api_factory,
+        minimum_allocatable_size,
+        device_allocation_unit
+):
     """
     :param blockdevice_api_factory: A factory which will be called
         with the generated ``TestCase`` during the ``setUp`` for each
@@ -1928,11 +1933,11 @@ def make_iblockdeviceapi_tests(
     :param int minimum_allocatable_size: The minumum block device size
         (in bytes) supported on the platform under test. This must be
         a multiple ``IBlockDeviceAPI.allocation_unit()``.
-    :param int over_allocation: A size (in ``bytes``) by which the
-        storage system is expected to over allocate eg Cinder allows
-        sizes to be supplied in GiB, but certain Cinder storage
-        drivers may create devices 4GiB larger than the requested
-        size.
+    :param int device_allocation_unit: A size interval (in ``bytes``)
+        which the storage system is expected to allocate eg Cinder
+        allows sizes to be supplied in GiB, but certain Cinder storage
+        drivers may be constrained to create sizes with 8GiB
+        intervals.
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
@@ -1944,7 +1949,7 @@ def make_iblockdeviceapi_tests(
                 minimum_allocatable_size
             )
             self.minimum_allocatable_size = minimum_allocatable_size
-            self.over_allocation = over_allocation
+            self.device_allocation_unit = device_allocation_unit
             self.this_node = self.api.compute_instance_id()
 
     return Tests
@@ -2051,7 +2056,7 @@ class LoopbackBlockDeviceAPITests(
                 allocation_unit=LOOPBACK_ALLOCATION_UNIT
             ),
             minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-            over_allocation=0,
+            device_allocation_unit=LOOPBACK_ALLOCATION_UNIT,
         )
 ):
     """

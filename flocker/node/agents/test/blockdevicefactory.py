@@ -269,26 +269,33 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     return api
 
 
-OVER_ALLOCATION_UNITS = {
+DEVICE_ALLOCATION_UNITS = {
     # This really means Rackspace
     'openstack': GiB(0),
-    'redhat-openstack': GiB(4),
+    'redhat-openstack': GiB(8),
     'aws': GiB(0),
 }
 
 
-def get_over_allocation():
+def get_device_allocation_unit():
     """
-    Return a provider specific device over allocation unit.
+    Return a provider specific device allocation unit.
 
-    :returns: An ``int`` over allocation size in bytes for a
+    This is mostly OpenStack / Cinder specific and represents the
+    interval that will be used by Cinder storage provider i.e
+    You ask Cinder for a 1GiB or 7GiB volume.
+    The Cinder driver creates an 8GiB block device.
+    The operating system sees an 8GiB device when it is attached.
+    Cinder API reports a 1GiB or 7GiB volume.
+
+    :returns: An ``int`` allocation size in bytes for a
         particular platform. Default to ``0``.
     """
     cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
     if cloud_provider is None:
         return 0
     else:
-        return int(OVER_ALLOCATION_UNITS[cloud_provider].to_Byte().value)
+        return int(DEVICE_ALLOCATION_UNITS[cloud_provider].to_Byte().value)
 
 
 MINIMUM_ALLOCATABLE_SIZES = {

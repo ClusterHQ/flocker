@@ -22,7 +22,7 @@ from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup, get_over_allocation,
+    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size,
 )
 
@@ -42,7 +42,7 @@ class EBSBlockDeviceAPIInterfaceTests(
                 )
             ),
             minimum_allocatable_size=get_minimum_allocatable_size(),
-            over_allocation=get_over_allocation(),
+            device_allocation_unit=get_device_allocation_unit(),
         )
 ):
 
