@@ -20,7 +20,7 @@ from pyrsistent import PRecord, field
 from characteristic import attributes, with_cmp
 
 import psutil
-from bitmath import Byte, MiB
+from bitmath import Byte
 
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults

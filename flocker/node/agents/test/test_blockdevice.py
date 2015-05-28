@@ -3244,7 +3244,9 @@ class ResizeVolumeTests(
         )
         self.successResultOf(change.run(deployer))
 
-        expected_volume = volume.set(size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2)
+        expected_volume = volume.set(
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2
+        )
         self.assertEqual([expected_volume], api.list_volumes())
 
 
