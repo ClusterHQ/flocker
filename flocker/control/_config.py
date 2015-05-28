@@ -685,11 +685,19 @@ class FigConfiguration(object):
                 for target_ports_object in target_application_ports:
                     local_port = target_ports_object.internal_port
                     remote_port = target_ports_object.external_port
-                    app_links.append(
-                        Link(local_port=local_port,
-                             remote_port=remote_port,
-                             alias=link_definition['alias'])
-                    )
+                    try:
+                        app_links.append(
+                            Link(local_port=local_port,
+                                 remote_port=remote_port,
+                                 alias=link_definition['alias'])
+                        )
+                    except InvariantException:
+                        raise ConfigurationError(
+                            ("Application '{application}' has a config "
+                             "error. 'links' alias names must be "
+                             "alphanumeric.").format(
+                                 application=application_name)
+                        )
             application = self._applications[application_name]
             self._applications[application_name] = application.set(
                 "links", app_links)
@@ -1014,9 +1022,15 @@ class FlockerConfiguration(object):
                     raise ValueError(
                         "Unrecognised keys: {keys}.".format(
                             keys=', '.join(sorted(link))))
-                links.append(Link(local_port=local_port,
-                                  remote_port=remote_port,
-                                  alias=alias))
+                try:
+                    links.append(Link(local_port=local_port,
+                                      remote_port=remote_port,
+                                      alias=alias))
+                except InvariantException:
+                    # We've already verified types of Link parameters, so
+                    # that just leaves the alias naming limits as the
+                    # source of error.
+                    raise ValueError("Alias must be alphanumeric.")
         except ValueError as e:
             raise ConfigurationError(
                 ("Application '{application_name}' has a config error. "
