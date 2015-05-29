@@ -60,6 +60,7 @@ CLUSTERHQ_REPO = {
                     ),
 }
 
+
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):
     """
