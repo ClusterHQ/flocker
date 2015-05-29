@@ -15,9 +15,9 @@ from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
-                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume,
-                   CODE, MESSAGE, REQUEST_ID)
+                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume)
 
+from .._logging import (AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID)
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
@@ -75,7 +75,10 @@ class EBSBlockDeviceAPIInterfaceTests(
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
 
-        _wait_for_volume(requested_volume)
+        _wait_for_volume(requested_volume,
+                         u'',
+                         u'creating',
+                         u'available')
 
         self.assertEqual(self.api.list_volumes(), [])
 
@@ -140,7 +143,8 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         # Validate decorated method for exception logging
         # actually logged to ``Eliot`` logger.
-        expected_message_keys = {CODE.key, MESSAGE.key, REQUEST_ID.key}
+        expected_message_keys = {AWS_CODE.key, AWS_MESSAGE.key,
+                                 AWS_REQUEST_ID.key}
         for logged in LoggedMessage.of_type(logger.messages,
                                             BOTO_EC2RESPONSE_ERROR,):
             key_subset = set(key for key in expected_message_keys
