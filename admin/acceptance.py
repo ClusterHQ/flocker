@@ -321,6 +321,8 @@ class RunOptions(Options):
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
+        ['certificate-directory', None, None,
+         'Directory containing TLS certificates (if using vagrant)'],
     ]
 
     optFlags = [
@@ -352,6 +354,8 @@ class RunOptions(Options):
         self['trial-args'] = trial_args
 
     def postOptions(self):
+        if self['certificate-directory'] is None:
+            self['certificate-directory'] = self.top_level.child("credentials")
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
@@ -534,21 +538,7 @@ def main(reactor, args, base_path, top_level):
             certificates = Certificates.generate(ca_directory, nodes[0].address,
                                                 len(nodes))
         else:
-            ca_directory = options.top_level
-            user_crt = ca_directory.child(b"user.crt")
-            cluster_crt = ca_directory.child(b"cluster.crt")
-            if not user_crt.isfile():
-                print(
-                    b"User credential file " + user_crt.path +
-                    b" could not be found."
-                )
-                raise SystemExit(1)
-            if not cluster_crt.isfile():
-                print(
-                    b"Cluster certificate file " + cluster_crt.path +
-                    b" could not be found."
-                )
-                raise SystemExit(1)
+            ca_directory = options['certificate-directory']
 
         if not options["no-pull"]:
             yield perform(
