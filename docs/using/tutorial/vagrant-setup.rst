@@ -116,6 +116,13 @@ Note that you will need to make the same substitution in commands used throughou
       Vagrantfile
       alice@mercury:~/flocker-tutorial$
 
+#. Download the cluster and user credentials by right clicking on the link below.
+   Save these to the *flocker-tutorial* directory too, also preserving the filenames.
+   
+   :download:`cluster.crt`
+   :download:`user.crt`
+   :download:`user.key`
+
 #. Use ``vagrant up`` to start and provision the VMs:
 
    .. code-block:: console
