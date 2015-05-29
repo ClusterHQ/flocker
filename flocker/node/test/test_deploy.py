@@ -493,20 +493,19 @@ class LinkEnviromentTests(SynchronousTestCase):
         ``<alias>_PORT_<local_port>_<protocol>`` and the broken out variants
         ``_ADDR``, ``_PORT`` and ``_PROTO``.
         """
-
         environment = _link_environment(
-            protocol="udp",
-            alias="dash-alias",
+            protocol="tcp",
+            alias="somealias",
             local_port=80,
             hostname=u"the-host",
             remote_port=8080)
         self.assertEqual(
             environment,
             {
-                u'DASH_ALIAS_PORT_80_UDP': u'udp://the-host:8080',
-                u'DASH_ALIAS_PORT_80_UDP_PROTO': u'udp',
-                u'DASH_ALIAS_PORT_80_UDP_ADDR': u'the-host',
-                u'DASH_ALIAS_PORT_80_UDP_PORT': u'8080',
+                u'SOMEALIAS_PORT_80_TCP': u'tcp://the-host:8080',
+                u'SOMEALIAS_PORT_80_TCP_PROTO': u'tcp',
+                u'SOMEALIAS_PORT_80_TCP_ADDR': u'the-host',
+                u'SOMEALIAS_PORT_80_TCP_PORT': u'8080',
             })
 
 
