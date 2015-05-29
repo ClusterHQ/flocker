@@ -4,16 +4,24 @@
 Installing Flocker
 ==================
 
-As a user of Flocker you will need to install the ``flocker-cli`` package which provides command line tools to control the cluster.
-This should be installed on a machine with SSH credentials to control the cluster nodes
-(e.g., if you use our Vagrant setup then the machine which is running Vagrant).
+The following diagram illustrates the architecture of the cluster you are about to install:
 
-There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
-It contains the services that need to run on each node.
+.. image:: images/installintro.png
+   :width: 75%
+   :alt: Diagram illustrating the Flocker CLI and control service and agents.
 
-.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
+The CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster.
+
+The Flocker agents are installed on each of the hosts (or nodes) in the cluster where your containers will run.
+The agent software is included in the ``clusterhq-flocker-node`` package.
+
+There is also a Flocker control service which you install on either one of the agent hosts, or on a separate machine. The control service is also included in the ``clusterhq-flocker-node`` package, but activated separately later in these installation instructions.
+
+.. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
+
+This document will describe how to install the CLI locally and install the agents and control service on Vagrant or cloud infrastructure.
 
 .. _installing-flocker-cli:
 
@@ -121,7 +129,7 @@ Installing ``clusterhq-flocker-node``
 
 There are a number of ways to install Flocker.
 
-These easiest way to get Flocker going is to use our vagrant configuration.
+These easiest way to get Flocker going is to use our Vagrant configuration.
 
 - :ref:`Vagrant <vagrant-install>`
 
