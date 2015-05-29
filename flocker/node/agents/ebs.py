@@ -20,11 +20,14 @@ from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
-from eliot import Field, MessageType
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
+)
+from ._logging import (
+    AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
+    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -32,6 +35,7 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
+VOLUME_STATE_CHANGE_TIMEOUT = 300
 
 # Set Boto debug level to ``1``, requesting basic debug messages from Boto
 # to be printed.
@@ -42,31 +46,6 @@ BOTO_NUM_RETRIES = u'10'
 # https://clusterhq.atlassian.net/browse/FLOC-1962
 # to track evaluation of impact of log level change.
 BOTO_DEBUG_LEVEL = u'1'
-
-# Begin: Scaffolding for logging Boto client and server exceptions
-# via Eliot.
-CODE = Field.for_types(
-    "code", [bytes, unicode],
-    u"The error response code.")
-MESSAGE = Field.for_types(
-    "message", [bytes, unicode],
-    u"A human-readable error message given by the response.",
-)
-REQUEST_ID = Field.for_types(
-    "request_id", [bytes, unicode],
-    u"The unique identifier assigned by the server for this request.",
-)
-
-# Log boto.exception.BotoEC2ResponseError, covering all errors from AWS:
-# server operation rate limit exceeded, invalid server request parameters, etc.
-BOTO_EC2RESPONSE_ERROR = MessageType(
-    u"boto:boto_ec2response_error", [
-        CODE,
-        MESSAGE,
-        REQUEST_ID,
-    ],
-)
-# End: Scaffolding for logging Boto errors.
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -128,15 +107,18 @@ def _boto_logged_method(method_name, original_name):
         """
         original = getattr(self, original_name)
         method = getattr(original, method_name)
-        try:
-            return method(*args, **kwargs)
-        except EC2ResponseError as e:
-            BOTO_EC2RESPONSE_ERROR(
-                code=e.code,
-                message=e.message,
-                request_id=e.request_id,
-            ).write()
-            raise
+
+        # Trace IBlockDeviceAPI ``method`` as Eliot Action.
+        with AWS_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except EC2ResponseError as e:
+                BOTO_EC2RESPONSE_ERROR(
+                    aws_code=e.code,
+                    aws_message=e.message,
+                    aws_request_id=e.request_id,
+                ).write()
+                raise
     return _run_with_logging
 
 
@@ -201,55 +183,72 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
-def _wait_for_volume(expected_volume,
-                     expected_status=u'available',
-                     time_limit=60):
+def _wait_for_volume(volume,
+                     start_status,
+                     transient_status,
+                     end_status):
     """
-    Helper function to wait for up to 60s for given volume
-    to be in 'available' state.
+    Helper function to wait for a given volume to change state
+    from ``start_status`` via ``transient_status`` to ``end_status``.
 
-    :param boto.ec2.volume expected_volume: Volume to check
+    :param boto.ec2.volume volume: Volume to check
         status for.
-    :param str expected_status: Target state of the input
-        volume. Default target state is ''available''.
-    :param int time_limit: Upper bound of wait time for input
-        volume to reach expected state. Defaults to 60 seconds.
+    :param unicode start_status: Volume status at starting point.
+    :param unicode transient_status: Allowed transient state for
+        volume to be in, on the way to ``end_status``.
+    :param unicode end_status: Expected destination status for
+        the input volume.
 
-    :raises Exception: When input volume did not reach
-        expected state within time limit.
+    :raises Exception: When input volume failed to reach
+        expected destination status.
     """
+
+    # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
+    # volume status to transition from
+    # start_status -> transient_status -> end_status.
     start_time = time.time()
-    expected_volume.update()
-    while expected_volume.status != expected_status:
-        elapsed_time = time.time() - start_time
-        if elapsed_time < time_limit:
-            time.sleep(0.1)
-            expected_volume.update()
-        else:
-            raise Exception(
-                'Timed out while waiting for volume. '
-                'Expected Volume: {!r}, '
-                'Expected Status: {!r}, '
-                'Actual Status: {!r}, '
-                'Elapsed Time: {!r}, '
-                'Time Limit: {!r}.'.format(
-                    expected_volume, expected_status,
-                    expected_volume.status, elapsed_time,
-                    time_limit
-                )
+    while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
+        volume.update()
+        if volume.status == end_status:
+            return
+        elif volume.status not in [start_status, transient_status]:
+            break
+        time.sleep(1.0)
+
+        WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
+                                         status=volume.status,
+                                         target_status=end_status,
+                                         wait_time=(time.time() - start_time))
+
+    # We either:
+    # 1) Timed out waiting to reach ``end_status``, or,
+    # 2) Reached an unexpected status (state change did not
+    #    start, or failed).
+    # Raise an ``Exception`` in both cases.
+    raise Exception(
+        'Volume state transition failed. '
+        'Volume: {!r}, '
+        'Start Status: {!r}, '
+        'Transient Status: {!r}, '
+        'Expected End Status: {!r}, '
+        'Discovered End Status: {!r},'
+        'Wait time: {!r},'
+        'Time limit: {!r}.'.format(
+            volume, start_status, transient_status, end_status,
+            volume.status, time.time() - start_time,
+            VOLUME_STATE_CHANGE_TIMEOUT
             )
+        )
 
 
-def _check_blockdevice_size(device, size):
+def _get_device_size(device):
     """
-    Helper function to check if the size of block device with given
-    suffix matches the input size.
+    Helper function to fetch the size of given block device.
 
-    :param unicode device: Name of the block device to check for size.
-    :param int size: Size, in SI metric bytes, of device we are interested in.
+    :param unicode device: Name of the block device to fetch size for.
 
-    :returns: True if a block device with given name has given size.
-        False otherwise.
+    :returns: Size, in SI metric bytes, of device we are interested in.
+    :rtype: int
     """
     device_name = b"/dev/" + device.encode("ascii")
 
@@ -268,7 +267,7 @@ def _check_blockdevice_size(device, size):
     command_output = check_output(command).split(b'\n')[0]
     device_size = int(command_output.strip().decode("ascii"))
 
-    return size == device_size
+    return device_size
 
 
 def _wait_for_new_device(base, size, time_limit=60):
@@ -295,11 +294,21 @@ def _wait_for_new_device(base, size, time_limit=60):
                            set(base)):
             device_name = FilePath.basename(device)
             if (device_name.startswith((b"sd", b"xvd")) and
-                    _check_blockdevice_size(device_name, size)):
+                    _get_device_size(device_name) == size):
                 new_device = u'/dev/' + device_name.decode("ascii")
                 return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
+
+    # If we failed to find a new device of expected size,
+    # log sizes of all new devices on this compute instance,
+    # for debuggability.
+    new_devices = list(set(FilePath(b"/sys/block").children()) - set(base))
+    new_devices_size = [_get_device_size(device) for device in new_devices]
+    NO_NEW_DEVICE_IN_OS(new_devices=new_devices,
+                        new_devices_size=new_devices_size,
+                        expected_size=size,
+                        time_limit=time_limit).write()
     return None
 
 
@@ -400,6 +409,10 @@ class EBSBlockDeviceAPI(object):
             file_name = u'/dev/sd' + suffix
             if file_name not in devices:
                 return file_name
+
+        # Could not find any suitable device that is available
+        # for attachment. Log to Eliot before giving up.
+        NO_AVAILABLE_DEVICE(devices=devices).write()
         return None
 
     def create_volume(self, dataset_id, size):
@@ -422,7 +435,10 @@ class EBSBlockDeviceAPI(object):
                                     metadata)
 
         # Wait for created volume to reach 'available' state.
-        _wait_for_volume(requested_volume)
+        _wait_for_volume(requested_volume,
+                         start_status=u'',
+                         transient_status=u'creating',
+                         end_status=u'available')
 
         # Return created volume in BlockDeviceVolume format.
         return _blockdevicevolume_from_ebs_volume(requested_volume)
@@ -459,7 +475,9 @@ class EBSBlockDeviceAPI(object):
             to a device.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
-        if volume.attached_to is not None:
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        if (volume.attached_to is not None or
+                ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         with self.lock:
@@ -491,13 +509,15 @@ class EBSBlockDeviceAPI(object):
         # If OS fails to see new block device in 60 seconds,
         # `new_device` is `None`, indicating the volume failed
         # to attach to the compute instance.
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
         metadata = {
             ATTACHED_DEVICE_LABEL: unicode(new_device),
         }
         if new_device is not None:
             self.connection.create_tags([ebs_volume.id], metadata)
-        _wait_for_volume(ebs_volume, expected_status=u'in-use')
+        _wait_for_volume(ebs_volume,
+                         start_status=u'available',
+                         transient_status=u'attaching',
+                         end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
         return attached_volume
@@ -514,13 +534,17 @@ class EBSBlockDeviceAPI(object):
             blockdevice_id is not currently 'in-use'.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
-        if volume.attached_to is None:
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        if (volume.attached_to is None or
+                ebs_volume.status != 'in-use'):
             raise UnattachedVolume(blockdevice_id)
 
         self.connection.detach_volume(blockdevice_id)
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        _wait_for_volume(ebs_volume, expected_status=u'available',
-                         time_limit=180)
+
+        _wait_for_volume(ebs_volume,
+                         start_status=u'in-use',
+                         transient_status=u'detaching',
+                         end_status=u'available')
 
         # Delete attached device metadata from EBS Volume
         self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
