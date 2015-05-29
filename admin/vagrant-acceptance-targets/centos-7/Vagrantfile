@@ -62,13 +62,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   config.vm.define "node1" do |node1|
-    node1.vm.network :private_network, :ip => "172.16.255.240"
+    node1.vm.network :private_network, :ip => "172.16.255.250"
     node1.vm.hostname = "node1"
     node1.vm.provision "shell", inline: $bootstrapnode1, privileged: true    
   end
 
   config.vm.define "node2" do |node2|
-    node2.vm.network :private_network, :ip => "172.16.255.241"
+    node2.vm.network :private_network, :ip => "172.16.255.251"
     node2.vm.hostname = "node2"
     node2.vm.provision "shell", inline: $bootstrapnode2, privileged: true    
   end
