@@ -356,6 +356,9 @@ class RunOptions(Options):
     def postOptions(self):
         if self['certificate-directory'] is None:
             self['certificate-directory'] = self.top_level.child("credentials")
+        else:
+            self['certificate-directory'] = FilePath(
+                self['certificate-directory'])
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
