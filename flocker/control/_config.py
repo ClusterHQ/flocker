@@ -1027,11 +1027,11 @@ class FlockerConfiguration(object):
                     links.append(Link(local_port=local_port,
                                       remote_port=remote_port,
                                       alias=alias))
-                except InvariantException:
+                except InvariantException as e:
                     # We've already verified types of Link parameters, so
                     # that just leaves the alias naming limits as the
                     # source of error.
-                    raise ValueError("Alias must be alphanumeric.")
+                    raise ValueError(" ".join(e.invariant_errors))
         except ValueError as e:
             raise ConfigurationError(
                 ("Application '{application_name}' has a config error. "

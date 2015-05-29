@@ -1871,7 +1871,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'postgres' has a config error. "
-            "Invalid links specification. Alias must be alphanumeric.",
+            "Invalid links specification. Link aliases must be alphanumeric.",
             exception.message
         )
 
