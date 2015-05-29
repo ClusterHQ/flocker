@@ -219,11 +219,11 @@ Using Rackspace
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
-#. Create a new Cloud Server running Fedora 20
+#. Create a new Cloud Server
 
    * Visit https://mycloud.rackspace.com
    * Click "Create Server".
-   * Choose the Fedora 20 Linux distribution as your image.
+   * Choose a supported Linux distribution as your image (for example, Ubuntu 14.04 or CentOS 7).
    * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
    * Add your SSH key
 
@@ -235,31 +235,7 @@ You'll probably want to setup at least two nodes.
 
       ssh root@203.0.113.109
 
-#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
-
-.. _fedora-20-install:
-
-Installing on Fedora 20
------------------------
-
-.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
-
-Now install the ``clusterhq-flocker-node`` package.
-To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
-The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
-Paste them into a root console on the target node:
-
-.. task:: install_flocker fedora-20
-   :prompt: [root@node]#
-   
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
-To enable and start Docker, run the following commands in a root console:
-
-.. task:: enable_docker fedora-20
-   :prompt: [root@fedora]#
-
-Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+#. Follow the installation instructions for your chosen distribution below.
 
 .. _centos-7-install:
 
