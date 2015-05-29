@@ -14,7 +14,6 @@ There are different categories of classes:
 3. Configuration-specific classes, none implemented yet.
 """
 
-import re
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
@@ -216,10 +215,12 @@ class Link(PRecord):
     """
     local_port = field(mandatory=True, type=int)
     remote_port = field(mandatory=True, type=int)
-    alias = field(mandatory=True, factory=lambda s: s.lower(),
-                  invariant=lambda s: (
-                      (re.match(u"[a-zA-Z0-9]*$", s) is not None,
-                       "Link aliases must be alphanumeric.")))
+    alias = field(
+        mandatory=True, factory=lambda s: s.lower(),
+        invariant=lambda s: (
+            s.isalnum(), "Link aliases must be alphanumeric."
+        )
+    )
 
 
 class IRestartPolicy(Interface):
