@@ -10,12 +10,14 @@ The following diagram illustrates the architecture of the cluster you are about 
    :width: 75%
    :alt: Diagram illustrating the Flocker CLI and control service and agents.
 
-The CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster. This package also includes the ``flocker-ca`` tool, which you must use to generate certificates for all the Flocker components.
+The CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster. 
+This package also includes the ``flocker-ca`` tool, which you must use to generate certificates for all the Flocker components.
 
 The Flocker agents are installed on any number of hosts (or nodes) in the cluster where your containers will run.
 The agent software is included in the ``clusterhq-flocker-node`` package.
 
-There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
+There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. 
+The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
 
 .. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 
