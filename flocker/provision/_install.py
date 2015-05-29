@@ -36,17 +36,19 @@ ARCHIVE_BUCKET = 'clusterhq-archive'
 
 CLUSTERHQ_REPO = {
     'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
-                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                 "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                      archive_bucket=ARCHIVE_BUCKET,
+                     key='fedora',
                  ),
     'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
-                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                     archive_bucket=ARCHIVE_BUCKET,
+                    key='centos',
                     ),
-    # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
     'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                'ubuntu-testing/14.04/$(ARCH)'.format(
+                '{key}/14.04/$(ARCH)'.format(
                     archive_bucket=ARCHIVE_BUCKET
+                    key='ubuntu',
                     ),
 }
 
