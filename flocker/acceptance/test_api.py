@@ -26,6 +26,19 @@ from .testtools import (
     require_moving_backend,
 )
 
+# A command that will run an "HTTP" in a Busybox container.  The server
+# responds "hi" to any request.
+BUSYBOX_HTTP = [
+    u"sh", u"-c",
+    u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 8080 -e /tmp/script.sh
+"""
+]
+
 
 def verify_socket(host, port):
     """
@@ -313,15 +326,8 @@ class ContainerAPITests(TestCase):
             u"name": random_name(self),
             u"node_uuid": destination.uuid,
             u"ports": [{u"internal": 8080, u"external": destination_port}],
-            u"command_line": [
-                u"sh", u"-c",
-                u"""\
-echo -n '#!/bin/sh
-echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
-' > /tmp/script.sh;
-chmod +x /tmp/script.sh;
-nc -ll -p 8080 -e /tmp/script.sh
-                """]})
+            u"command_line": BUSYBOX_HTTP,
+        })
         self.addCleanup(
             cluster.remove_container, destination_container[u"name"]
         )
