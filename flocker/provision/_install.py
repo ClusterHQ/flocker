@@ -38,7 +38,7 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
-DISTRO_SUFFIX = get_package_key_suffix(
+DISTRO_KEY_SUFFIX = get_package_key_suffix(
     get_installable_version(version)
 )
 
@@ -46,17 +46,17 @@ CLUSTERHQ_REPO = {
     'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
                  "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                      archive_bucket=ARCHIVE_BUCKET,
-                     key='fedora' + DISTRO_SUFFIX,
+                     key='fedora' + DISTRO_KEY_SUFFIX,
                  ),
     'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
                 "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                     archive_bucket=ARCHIVE_BUCKET,
-                    key='centos' + DISTRO_SUFFIX,
+                    key='centos' + DISTRO_KEY_SUFFIX,
                     ),
     'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
                 '{key}/14.04/$(ARCH)'.format(
                     archive_bucket=ARCHIVE_BUCKET,
-                    key='ubuntu' + DISTRO_SUFFIX,
+                    key='ubuntu' + DISTRO_KEY_SUFFIX,
                     ),
 }
 
