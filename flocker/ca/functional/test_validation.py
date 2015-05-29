@@ -9,6 +9,7 @@ from __future__ import print_function
 import requests
 from OpenSSL.SSL import Context, TLSv1_METHOD, Error as SSLError
 
+from twisted.python.threadpool import ThreadPool
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 from twisted.internet.endpoints import (
@@ -17,7 +18,7 @@ from twisted.internet.endpoints import (
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, gatherResults
 from twisted.internet.protocol import Protocol, ServerFactory
-from twisted.internet.threads import deferToThread
+from twisted.internet.threads import deferToThreadPool
 
 from ...testtools import find_free_port
 from .._validation import (
@@ -359,10 +360,15 @@ class RequestsTests(TestCase):
         def req():
             return requests.get(
                 "https://{}:{}/".format(hostname, port),
+                headers={"connection": "close"},
+                stream=False,
                 cert=(certs.child(b"user.crt").path,
                       certs.child(b"user.key").path),
                 verify=certs.child(b"cluster.crt").path).content
-        d = deferToThread(req)
+        pool = ThreadPool()
+        pool.start()
+        self.addCleanup(pool.stop)
+        d = deferToThreadPool(reactor, pool, req)
         d.addCallback(self.assertEqual, EXPECTED_STRING)
         return d
 
@@ -372,6 +378,10 @@ class RequestsTests(TestCase):
         the REST API when it is accessed via an IP address.
         """
         return self.assert_requests_validates(b"127.0.0.1", "control")
+    test_requests_ip.skip = (
+        "This is a actually an expected failure, see "
+        "https://bugs.python.org/msg138405, "
+        "but the failing test is resulting in a deadlock somewhere.")
 
     def test_requests_dns(self):
         """
