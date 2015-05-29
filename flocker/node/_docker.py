@@ -283,7 +283,6 @@ class FakeDockerClient(object):
 
 # Basic namespace for Flocker containers:
 BASE_NAMESPACE = u"flocker--"
-BASE_DOCKER_API_URL = u'unix://var/run/docker.sock'
 
 
 @implementer(IDockerClient)
@@ -299,7 +298,7 @@ class DockerClient(object):
         so we don't clobber other applications interacting with Docker.
     """
     def __init__(self, namespace=BASE_NAMESPACE,
-                 base_url=BASE_DOCKER_API_URL):
+                 base_url=None):
         self.namespace = namespace
         self._client = Client(version="1.15", base_url=base_url)
 
@@ -712,7 +711,7 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
     containers in ``/flocker/`` and this class would look at containers in
     in ``/flocker/<namespace>/``.
     """
-    def __init__(self, namespace, base_url=BASE_DOCKER_API_URL):
+    def __init__(self, namespace, base_url=None):
         """
         :param unicode namespace: Namespace to restrict containers to.
         """
