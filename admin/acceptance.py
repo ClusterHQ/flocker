@@ -321,8 +321,6 @@ class RunOptions(Options):
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
-        ['certificate-directory', None, None,
-         'Directory containing TLS certificates (if using vagrant)'],
     ]
 
     optFlags = [
@@ -354,11 +352,6 @@ class RunOptions(Options):
         self['trial-args'] = trial_args
 
     def postOptions(self):
-        if self['certificate-directory'] is None:
-            self['certificate-directory'] = self.top_level.child("credentials")
-        else:
-            self['certificate-directory'] = FilePath(
-                self['certificate-directory'])
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
@@ -538,10 +531,11 @@ def main(reactor, args, base_path, top_level):
         if options['provider'] != 'vagrant':
             ca_directory = FilePath(mkdtemp())
             print("Generating certificates in: {}".format(ca_directory.path))
-            certificates = Certificates.generate(ca_directory, nodes[0].address,
-                                                len(nodes))
+            certificates = Certificates.generate(
+                ca_directory, nodes[0].address, len(nodes))
         else:
-            ca_directory = options['certificate-directory']
+            ca_directory = top_level.descendant([
+                'vagrant', 'tutorial', 'credentials'])
 
         if not options["no-pull"]:
             yield perform(
