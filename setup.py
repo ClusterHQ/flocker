@@ -70,7 +70,7 @@ dev_requirements = [
     "apache-libcloud==0.16.0",
 
     # Packages are downloaded from Buildbot
-    "requests==2.5.2",
+    "requests==2.4.3",
     "requests-file==1.0",
 
     "wheel==0.24.0",
@@ -202,7 +202,7 @@ setup(
             "tl.eggdeps==0.4",
             "boto==2.38.0",
             # Packages are downloaded from Buildbot
-            "requests==2.5.2",
+            "requests==2.4.3",
             "requests-file==1.0",
             # TLS SNI Support is needed to test link redirects
             "ndg-httpsclient==0.4.0",
