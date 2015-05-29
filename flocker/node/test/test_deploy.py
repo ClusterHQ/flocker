@@ -494,18 +494,18 @@ class LinkEnviromentTests(SynchronousTestCase):
         ``_ADDR``, ``_PORT`` and ``_PROTO``.
         """
         environment = _link_environment(
-            protocol="udp",
-            alias="dashalias",
+            protocol="tcp",
+            alias="somealias",
             local_port=80,
             hostname=u"the-host",
             remote_port=8080)
         self.assertEqual(
             environment,
             {
-                u'DASHALIAS_PORT_80_UDP': u'udp://the-host:8080',
-                u'DASHALIAS_PORT_80_UDP_PROTO': u'udp',
-                u'DASHALIAS_PORT_80_UDP_ADDR': u'the-host',
-                u'DASHALIAS_PORT_80_UDP_PORT': u'8080',
+                u'SOMEALIAS_PORT_80_TCP': u'tcp://the-host:8080',
+                u'SOMEALIAS_PORT_80_TCP_PROTO': u'tcp',
+                u'SOMEALIAS_PORT_80_TCP_ADDR': u'the-host',
+                u'SOMEALIAS_PORT_80_TCP_PORT': u'8080',
             })
 
 
