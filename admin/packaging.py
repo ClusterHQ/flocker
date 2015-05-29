@@ -1138,8 +1138,7 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. '
-         'One of fedora-20, centos-7, or ubuntu-14.04.'],
+         'The target distribution. One of {}'],
     ]
 
     longdesc = dedent("""\
