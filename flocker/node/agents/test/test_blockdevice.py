@@ -1068,7 +1068,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         """
         uuid = uuid4()
         dataset_id = unicode(uuid4())
-        dataset = Dataset(dataset_id=dataset_id)
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
         manifestation = Manifestation(
             dataset=dataset, primary=True
         )
