@@ -156,8 +156,10 @@ You will need a ssh agent running with access to the corresponding private key.
   admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
 
 
+.. _client-acceptance-tests:
+
 Client Testing
-==================
+==============
 
 Flocker includes client installation tests and a tool for running them.
 It is called like this:

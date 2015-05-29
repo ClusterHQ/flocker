@@ -37,13 +37,13 @@ RUN_OUTPUT_MESSAGE = MessageType(
 
 # LineOnlyReceiver is mutable, so can't use pyrsistent
 @attributes([
-    "action",
+    "handle_line",
 ])
 class _LineParser(LineOnlyReceiver, object):
     """
     Parser that breaks input into lines, and writes it to ouput.
 
-    :ivar Action action: For logging.
+    :ivar handle_line: Callable to call with parsed lines.
     """
     delimiter = b'\n'
 
@@ -52,14 +52,12 @@ class _LineParser(LineOnlyReceiver, object):
         self.transport.disconnecting = False
 
     def lineReceived(self, line):
-        RUN_OUTPUT_MESSAGE(
-            line=line,
-        ).write(action=self.action)
+        self.handle_line(line)
 
 
 @attributes([
     "deferred",
-    "action",
+    "handle_line",
 ])
 class CommandProtocol(ProcessProtocol, object):
     """
@@ -68,12 +66,13 @@ class CommandProtocol(ProcessProtocol, object):
     :ivar Deferred deferred: Deferred to fire when the command finishes
         If the command finished successfully, will fire with ``None``.
         Otherwise, errbacks with the reason.
-    :ivar Action action: For logging.
+    :ivar handle_line: Callable to call with parsed lines.
 
     :ivar defaultdict _fds: Mapping from file descriptors to `_LineParsers`.
     """
     def __init__(self):
-        self._fds = defaultdict(lambda: _LineParser(action=self.action))
+        self._fds = defaultdict(
+            lambda: _LineParser(handle_line=self.handle_line))
 
     def childDataReceived(self, childFD, data):
         self._fds[childFD].dataReceived(data)
@@ -85,12 +84,14 @@ class CommandProtocol(ProcessProtocol, object):
             self.deferred.errback(reason)
 
 
-def run(reactor, command, **kwargs):
+def run(reactor, command, handle_line=None, **kwargs):
     """
     Run a process and kill it if the reactor stops.
 
     :param reactor: Reactor to use.
     :param list command: The command to run.
+    :param handle_line: Callable that will be called with lines parsed
+        from the command output. By default logs an Eliot message.
 
     :return Deferred: Deferred that fires when the process is ended.
     """
@@ -99,8 +100,14 @@ def run(reactor, command, **kwargs):
 
     action = RUN_ACTION(command=command)
 
+    if handle_line is None:
+        def handle_line(line):
+            RUN_OUTPUT_MESSAGE(
+                line=line,
+            ).write(action=action)
+
     protocol_done = Deferred()
-    protocol = CommandProtocol(deferred=protocol_done, action=action)
+    protocol = CommandProtocol(deferred=protocol_done, handle_line=handle_line)
 
     with action.context():
         protocol_done = DeferredContext(protocol_done)

@@ -759,6 +759,45 @@ class DestroyVolume(PRecord):
         return succeed(None)
 
 
+def allocated_size(allocation_unit, requested_size):
+    """
+    Round ``requested_size`` up to the nearest ``allocation_unit``.
+
+    :param int allocation_unit: The interval in ``bytes`` to which
+        ``requested_size`` will be rounded up.
+    :param int requested_size: The size in ``bytes`` that is required.
+    :return: The ``allocated_size`` in ``bytes``.
+    """
+    allocation_unit = int(allocation_unit)
+    requested_size = int(requested_size)
+
+    previous_interval_size = (
+        (requested_size // allocation_unit)
+        * allocation_unit
+    )
+    if previous_interval_size < requested_size:
+        return previous_interval_size + allocation_unit
+    else:
+        return requested_size
+
+
+def check_allocatable_size(allocation_unit, requested_size):
+    """
+    :param int allocation_unit: The interval in ``bytes`` to which
+        ``requested_size`` will be rounded up.
+    :param int requested_size: The size in ``bytes`` that is required.
+    :raises: ``ValueError`` unless ``requested_size`` is exactly
+        divisible by ``allocation_unit``.
+    """
+    actual_size = allocated_size(allocation_unit, requested_size)
+    if requested_size != actual_size:
+        raise ValueError(
+            'Requested size {!r} is not divisible by {!r}'.format(
+                requested_size, allocation_unit
+            )
+        )
+
+
 # Get rid of this in favor of calculating each individual operation in
 # BlockDeviceDeployer.calculate_changes.  FLOC-1771
 @implementer(IStateChange)
@@ -793,9 +832,13 @@ class CreateBlockDeviceDataset(PRecord):
         :returns: An already fired ``Deferred`` with result ``None``.
         """
         api = deployer.block_device_api
+
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
-            size=self.dataset.maximum_size,
+            size=allocated_size(
+                allocation_unit=api.allocation_unit(),
+                requested_size=self.dataset.maximum_size,
+            ),
         )
 
         # This duplicates AttachVolume now.
@@ -827,6 +870,14 @@ class IBlockDeviceAsyncAPI(Interface):
     Common operations provided by all block device backends, exposed via
     asynchronous methods.
     """
+    def allocation_unit():
+        """
+        See ``IBlockDeviceAPI.allocation_unit``.
+
+        :returns: A ``Deferred`` that fires with ``int`` size of the
+            allocation_unit.
+        """
+
     def compute_instance_id():
         """
         See ``IBlockDeviceAPI.compute_instance_id``.
@@ -897,6 +948,14 @@ class IBlockDeviceAPI(Interface):
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
     """
+    def allocation_unit():
+        """
+        The size, in bytes up to which ``IDeployer`` will round volume
+        sizes before calling ``IBlockDeviceAPI.create_volume``.
+
+        :rtype: ``int``
+        """
+
     def compute_instance_id():
         """
         Get an identifier for this node.
@@ -913,8 +972,9 @@ class IBlockDeviceAPI(Interface):
         """
         Create a new volume.
 
-        XXX: Probably needs to be some checking of valid sizes for different
-        backends. Perhaps the allowed sizes should be defined as constants?
+        When called by ``IDeployer``, the supplied size will be
+        rounded up to the nearest
+        ``IBlockDeviceAPI.allocation_unit()``
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
@@ -1146,6 +1206,16 @@ def get_blockdevice_volume(api, blockdevice_id):
 DEFAULT_LOOPBACK_PATH = '/var/lib/flocker/loopback'
 
 
+def _backing_file_name(volume):
+    """
+    :param BlockDeviceVolume: The volume for which to generate a
+        loopback file name.
+    :returns: A filename containing the encoded
+        ``volume.blockdevic_id`` and ``volume.size``.
+    """
+    return volume.blockdevice_id.encode('ascii') + '_' + bytes(volume.size)
+
+
 @implementer(IBlockDeviceAPI)
 class LoopbackBlockDeviceAPI(object):
     """
@@ -1155,7 +1225,7 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
-    def __init__(self, root_path, compute_instance_id):
+    def __init__(self, root_path, compute_instance_id, allocation_unit=None):
         """
         :param FilePath root_path: The path beneath which all loopback backing
             files and their organising directories will be created.
@@ -1164,19 +1234,27 @@ class LoopbackBlockDeviceAPI(object):
             storage area.  Instances which are meant to behave as though they
             are running on a separate node from each other should have
             different ``compute_instance_id``.
+        :param int allocation_unit: The size (in bytes) that will be
+            reported by ``allocation_unit``. Default is ``1``.
         """
         self._root_path = root_path
         self._compute_instance_id = compute_instance_id
+        if allocation_unit is None:
+            allocation_unit = 1
+        self._allocation_unit = allocation_unit
 
     @classmethod
     def from_path(
-            cls, root_path=DEFAULT_LOOPBACK_PATH, compute_instance_id=None):
+            cls, root_path=DEFAULT_LOOPBACK_PATH, compute_instance_id=None,
+            allocation_unit=None):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
             not already exist.
         :param compute_instance_id: See ``__init__``.  Additionally, if not
             given, a new random id will be generated.
+        :param int allocation_unit: The size (in bytes) that will be
+            reported by ``allocation_unit``. Default is ``1``.
 
         :returns: A ``LoopbackBlockDeviceAPI`` with the supplied ``root_path``.
         """
@@ -1186,6 +1264,7 @@ class LoopbackBlockDeviceAPI(object):
         api = cls(
             root_path=FilePath(root_path),
             compute_instance_id=compute_instance_id,
+            allocation_unit=allocation_unit,
         )
         api._initialise_directories()
         return api
@@ -1211,8 +1290,21 @@ class LoopbackBlockDeviceAPI(object):
         except OSError:
             pass
 
+    def allocation_unit(self):
+        return self._allocation_unit
+
     def compute_instance_id(self):
         return self._compute_instance_id
+
+    def _parse_backing_file_name(self, filename):
+        """
+        :param unicode filename: The backing file name to decode.
+        :returns: A 2-tuple of ``unicode`` blockdevice_id, and ``int``
+            size.
+        """
+        blockdevice_id, size = filename.rsplit('_', 1)
+        size = int(size)
+        return blockdevice_id, size
 
     def create_volume(self, dataset_id, size):
         """
@@ -1222,11 +1314,12 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.create_volume`` for parameter and return type
         documentation.
         """
+        check_allocatable_size(self.allocation_unit(), size)
         volume = _blockdevicevolume_from_dataset_id(
             size=size, dataset_id=dataset_id,
         )
         with self._unattached_directory.child(
-            volume.blockdevice_id.encode('ascii')
+            _backing_file_name(volume)
         ).open('wb') as f:
             f.truncate(size)
         return volume
@@ -1237,7 +1330,7 @@ class LoopbackBlockDeviceAPI(object):
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
         volume_path = self._unattached_directory.child(
-            volume.blockdevice_id.encode("ascii")
+            _backing_file_name(volume)
         )
         volume_path.remove()
 
@@ -1268,8 +1361,9 @@ class LoopbackBlockDeviceAPI(object):
         documentation.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
+        filename = _backing_file_name(volume)
         if volume.attached_to is None:
-            old_path = self._unattached_directory.child(blockdevice_id)
+            old_path = self._unattached_directory.child(filename)
             host_directory = self._attached_directory.child(
                 attach_to.encode("ascii"),
             )
@@ -1277,7 +1371,7 @@ class LoopbackBlockDeviceAPI(object):
                 host_directory.makedirs()
             except OSError:
                 pass
-            new_path = host_directory.child(blockdevice_id)
+            new_path = host_directory.child(filename)
             old_path.moveTo(new_path)
             self._allocate_device(new_path)
             attached_volume = volume.set(attached_to=attach_to)
@@ -1301,12 +1395,13 @@ class LoopbackBlockDeviceAPI(object):
                 self.get_device_path(blockdevice_id).path
             ])
 
+        filename = _backing_file_name(volume)
         volume_path = self._attached_directory.descendant([
             volume.attached_to.encode("ascii"),
-            volume.blockdevice_id.encode("ascii"),
+            filename,
         ])
         new_path = self._unattached_directory.child(
-            volume.blockdevice_id.encode("ascii")
+            filename
         )
         volume_path.moveTo(new_path)
 
@@ -1319,9 +1414,10 @@ class LoopbackBlockDeviceAPI(object):
         This implementation is limited to being able to resize volumes only if
         they are unattached.
         """
-        backing_path = self._unattached_directory.child(
-            blockdevice_id.encode("ascii")
-        )
+        check_allocatable_size(self.allocation_unit(), size)
+        volume = get_blockdevice_volume(self, blockdevice_id)
+        filename = _backing_file_name(volume)
+        backing_path = self._unattached_directory.child(filename)
         try:
             backing_file = backing_path.open("r+")
         except IOError:
@@ -1331,6 +1427,9 @@ class LoopbackBlockDeviceAPI(object):
                 backing_file.truncate(size)
             finally:
                 backing_file.close()
+        resized_volume = volume.set('size', size)
+        resized_filename = _backing_file_name(resized_volume)
+        backing_path.moveTo(backing_path.sibling(resized_filename))
 
     def list_volumes(self):
         """
@@ -1342,20 +1441,24 @@ class LoopbackBlockDeviceAPI(object):
         """
         volumes = []
         for child in self._root_path.child('unattached').children():
-            blockdevice_id = child.basename().decode('ascii')
+            blockdevice_id, size = self._parse_backing_file_name(
+                child.basename().decode('ascii')
+            )
             volume = _blockdevicevolume_from_blockdevice_id(
                 blockdevice_id=blockdevice_id,
-                size=child.getsize(),
+                size=size,
             )
             volumes.append(volume)
 
         for host_directory in self._root_path.child('attached').children():
             compute_instance_id = host_directory.basename().decode('ascii')
             for child in host_directory.children():
-                blockdevice_id = child.basename().decode('ascii')
+                blockdevice_id, size = self._parse_backing_file_name(
+                    child.basename().decode('ascii')
+                )
                 volume = _blockdevicevolume_from_blockdevice_id(
                     blockdevice_id=blockdevice_id,
-                    size=child.getsize(),
+                    size=size,
                     attached_to=compute_instance_id,
                 )
                 volumes.append(volume)
@@ -1369,7 +1472,7 @@ class LoopbackBlockDeviceAPI(object):
 
         volume_path = self._attached_directory.descendant(
             [volume.attached_to.encode("ascii"),
-             volume.blockdevice_id.encode("ascii")]
+             _backing_file_name(volume)]
         )
         # May be None if the file hasn't been used for a loop device.
         path = _device_for_path(volume_path)
@@ -1509,6 +1612,10 @@ class BlockDeviceDeployer(PRecord):
                         volume
                     )
             elif volume.attached_to is None:
+                # XXX: Looks like we don't attempt to report the size
+                # of non-manifest datasets.
+                # Why not? The size is available from the volume.
+                # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[u_dataset_id] = Dataset(dataset_id=dataset_id)
 
         system_mounts = self._get_system_mounts(volumes, compute_instance_id)
@@ -1538,6 +1645,13 @@ class BlockDeviceDeployer(PRecord):
                 del manifestations[dataset_id]
                 # FLOC-1806 Populate the Dataset's size information from the
                 # volume object.
+                # XXX: Here again, it we mark the dataset as
+                # `nonmanifest`` unless it's actually mounted but we
+                # don't attempt to report the size.
+                # Why not? The size is available from the volume.
+                # It seems like state reporting bug and separate from
+                # (although blocking) FLOC-1806.
+                # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         state = (
@@ -1639,6 +1753,11 @@ class BlockDeviceDeployer(PRecord):
             local_state.devices, local_state.paths, configured_manifestations,
         ))
         deletes = self._calculate_deletes(configured_manifestations)
+
+        # FLOC-1484 Support resize for block storage backends. Teach
+        # resize about allocation_unit() when we re-introduce this.
+        # For now the REST API does not accept resize requests. See
+        # FLOC-1875.
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
         ))
