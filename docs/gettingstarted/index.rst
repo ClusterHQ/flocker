@@ -159,6 +159,8 @@ Getting started with Flocker
          .. version-code-block:: console
 
             you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.crt && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.key && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key
