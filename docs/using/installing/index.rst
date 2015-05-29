@@ -340,13 +340,15 @@ The file ``cluster.key`` should be kept only by the cluster administrator; it do
 
 You are now able to generate authentication certificates for the control service and each of your nodes.
 To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
-Replace ``example.org`` with the hostname of your control service node; this hostname should match the one you will give to REST API clients.
+Replace ``example.org`` with the hostname of your control service node; this hostname should match the hostname you will give to REST API clients.
+It should be a valid DNS name that HTTPS clients can resolve, since they will use it as part of TLS validation.
+Using an IP address is not recommended as it may break some HTTPS clients.
 
 .. code-block:: console
 
    $ flocker-ca create-control-certificate example.org
    Created control-example.org.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
-   
+
 You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
 You should also copy the cluster's public certificate, the `cluster.crt` file.
 On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
