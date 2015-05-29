@@ -7,9 +7,10 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
-from errno import EEXIST
 from uuid import UUID, uuid4
 from subprocess import check_output
+from stat import S_IRWXU, S_IRWXG, S_IRWXO
+from os import umask
 
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
@@ -574,6 +575,29 @@ class ResizeBlockDeviceDataset(PRecord):
         return run_state_change(sequentially(changes=changes), deployer)
 
 
+def _create_mount_directory(mountpoint):
+    """
+    Create the directory where a device will be mounted.
+
+    The directory's parent's permissions will be set to only allow access
+    by owner, to limit access. The directory's permissions will be set to
+    world writeable/readable/executable since we can't predict what user a
+    container will run as when it accesses the mounted filesystem.
+    """
+    original_umask = umask(0)
+    try:
+        mountroot = mountpoint.parent()
+        if not mountroot.exists():
+            mountroot.makedirs()
+        mountroot.chmod(S_IRWXU)
+        if not mountpoint.exists():
+            mountpoint.makedirs()
+        mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
+        mountpoint.restat()
+    finally:
+        umask(original_umask)
+
+
 @implementer(IStateChange)
 class MountBlockDevice(PRecord):
     """
@@ -607,10 +631,9 @@ class MountBlockDevice(PRecord):
         ).write(_logger)
 
         try:
-            self.mountpoint.makedirs()
-        except OSError as e:
-            if EEXIST != e.errno:
-                return fail()
+            _create_mount_directory(self.mountpoint)
+        except OSError:
+            return fail()
         # This should be asynchronous.  FLOC-1797
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
@@ -852,7 +875,7 @@ class CreateBlockDeviceDataset(PRecord):
         check_output(["mkfs", "-t", "ext4", device.path])
 
         # This duplicates MountBlockDevice now.
-        self.mountpoint.makedirs()
+        _create_mount_directory(self.mountpoint)
         check_output(["mount", device.path, self.mountpoint.path])
 
         BLOCK_DEVICE_DATASET_CREATED(
