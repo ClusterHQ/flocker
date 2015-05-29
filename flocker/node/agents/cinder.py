@@ -223,6 +223,9 @@ def _extract_nova_server_addresses(addresses):
     return all_addresses
 
 
+# FLOC-1925 Maybe make this a PRecord with a unicode typed field for
+# cluster_id. Would catch errors such as:
+# https://github.com/ClusterHQ/flocker/commit/bc5d4c61317241c9779d4bbe07c744c6dd297ac5
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
