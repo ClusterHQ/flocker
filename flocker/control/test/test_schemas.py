@@ -243,6 +243,28 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'remote_port': 54320
             }]
         },
+        # Links given but alias has hyphen
+        {
+            'node_uuid': a_uuid,
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'xxx-yyy',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but alias has underscore
+        {
+            'node_uuid': a_uuid,
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'xxx_yyy',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
         # Links given but local port missing
         {
             'node_uuid': a_uuid,

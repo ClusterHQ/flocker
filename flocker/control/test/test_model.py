@@ -24,6 +24,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
+    Link,
 )
 
 
@@ -1369,3 +1370,16 @@ class NonManifestDatasetsWipingTests(SynchronousTestCase):
         # "Wiping" this information has no effect:
         updated = self.WIPE.update_cluster_state(cluster_state)
         self.assertEqual(updated, cluster_state)
+
+
+class LinkTests(SynchronousTestCase):
+    """
+    Tests for ``Link``.
+    """
+    def test_case_insensitive(self):
+        """
+        Link aliases are case insensitive as far as comparison goes.
+        """
+        link = Link(alias=u'myLINK', local_port=1, remote_port=1)
+        link2 = link.set('alias', u'MYlink')
+        self.assertEqual(link, link2)
