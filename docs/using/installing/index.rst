@@ -15,7 +15,7 @@ The CLI is installed on your local machine via the ``flocker-cli`` package which
 The Flocker agents are installed on any number of hosts (or nodes) in the cluster where your containers will run.
 The agent software is included in the ``clusterhq-flocker-node`` package.
 
-There is also a Flocker control service which you install on any of the agent hosts, or on a separate machine. The control service is also included in the ``clusterhq-flocker-node`` package, but activated separately later in these installation instructions.
+There is also a Flocker control service which you install on one of the agent hosts, or on a separate machine. The control service is also included in the ``clusterhq-flocker-node`` package, but activated separately later in these installation instructions.
 
 .. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 
