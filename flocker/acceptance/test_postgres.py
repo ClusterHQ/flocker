@@ -16,8 +16,9 @@ from flocker.control import (
     )
 from flocker.testtools import loop_until
 
-from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli, require_moving_backend)
+from .testtools import (assert_expected_deployment, flocker_deploy,
+                        get_clean_nodes, require_flocker_cli,
+                        require_moving_backend)
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE
 
@@ -63,7 +64,7 @@ class PostgresTests(TestCase):
         """
         Deploy PostgreSQL to a node.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        getting_nodes = get_clean_nodes(self, num_nodes=2)
 
         def deploy_postgres(node_ips):
             self.node_1, self.node_2 = node_ips

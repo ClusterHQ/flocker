@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 
 from pyrsistent import thaw, freeze
 
-from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
+from .testtools import (flocker_deploy, get_mongo_client, get_clean_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
                         require_mongo, require_moving_backend)
 
@@ -26,7 +26,7 @@ class MovingDataTests(TestCase):
         and then the application is moved to another node, the data remains
         available.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        getting_nodes = get_clean_nodes(self, num_nodes=2)
 
         volume_application = {
             u"version": 1,
