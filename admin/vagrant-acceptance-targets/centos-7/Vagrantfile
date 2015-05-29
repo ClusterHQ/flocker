@@ -20,12 +20,12 @@ node1key = File.read("../../credentials/node1/node1.key")
 node2crt = File.read("../../credentials/node2/node2.crt")
 node2key = File.read("../../credentials/node2/node2.key")
 $bootstrapnode1 = <<EOL
-echo "#{clustercrt}" >> /etc/flocker/cluster.crt
-echo "#{controlcrt}" >> /etc/flocker/control-service.crt
-echo "#{controlkey}" >> /etc/flocker/control-service.key
-echo "#{node1crt}" >> /etc/flocker/node.crt
-echo "#{node1key}" >> /etc/flocker/node.key
-echo "control-service: {hostname: 172.16.255.240, port: 4524}
+echo -n "#{clustercrt}" >> /etc/flocker/cluster.crt
+echo -n "#{controlcrt}" >> /etc/flocker/control-service.crt
+echo -n "#{controlkey}" >> /etc/flocker/control-service.key
+echo -n "#{node1crt}" >> /etc/flocker/node.crt
+echo -n "#{node1key}" >> /etc/flocker/node.key
+echo "control-service: {hostname: 172.16.255.240}
 dataset: {backend: zfs}
 version: 1" >> /etc/flocker/agent.yml
 systemctl enable flocker-control
@@ -37,10 +37,10 @@ systemctl start flocker-container-agent
 EOL
 
 $bootstrapnode2 = <<EOL
-echo "#{clustercrt}" >> /etc/flocker/cluster.crt
-echo "#{node2crt}" >> /etc/flocker/node.crt
-echo "#{node2key}" >> /etc/flocker/node.key
-echo "control-service: {hostname: 172.16.255.240, port: 4524}
+echo -n "#{clustercrt}" >> /etc/flocker/cluster.crt
+echo -n "#{node2crt}" >> /etc/flocker/node.crt
+echo -n "#{node2key}" >> /etc/flocker/node.key
+echo "control-service: {hostname: 172.16.255.240}
 dataset: {backend: zfs}
 version: 1" >> /etc/flocker/agent.yml
 systemctl enable flocker-dataset-agent
