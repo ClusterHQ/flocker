@@ -1180,6 +1180,66 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
         self.assertEqual(expected_changes, actual_changes)
 
+    def test_dataset_without_maximum_size(self):
+        """
+        When supplied with a configuration containing a dataset with a null
+        size, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``CreateBlockDeviceDataset`` for a dataset with the default size
+        returned by ``BlockDeviceDeployer.minimum_allocatable_size``
+        """
+        node_id = uuid4()
+        node_address = u"192.0.2.1"
+        dataset_id = unicode(uuid4())
+
+        requested_dataset = Dataset(dataset_id=dataset_id, maximum_size=None)
+
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=node_id,
+                    manifestations={
+                        dataset_id: Manifestation(
+                            dataset=requested_dataset,
+                            primary=True
+                        )
+                    },
+                )
+            }
+        )
+        state = DeploymentState(
+            nodes=[
+                NodeState(
+                    uuid=node_id,
+                    hostname=node_address,
+                    applications=[],
+                    manifestations={},
+                    devices={},
+                    paths={},
+                    used_ports=[]
+                )
+            ]
+        )
+        deployer = create_blockdevicedeployer(
+            self,
+            hostname=node_address,
+            node_uuid=node_id,
+        )
+        changes = deployer.calculate_changes(configuration, state)
+        mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
+        expected_size = int(GiB(100).to_Byte().value)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset=requested_dataset.set(
+                            'maximum_size', expected_size
+                        ),
+                        mountpoint=mountpoint
+                    )
+                ]),
+            changes
+        )
+
 
 class BlockDeviceDeployerDetachCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
