@@ -332,36 +332,37 @@ class ContainerAPITests(TestCase):
         """
         _, port = find_free_port()
         node = cluster.nodes[0]
-        creating_dataset = create_dataset(self)
-
-        def created_dataset(result):
-            cluster, dataset = result
-            container = {
-                u"name": random_name(self),
-                u"node_uuid": node.uuid,
-                u"image": u"busybox",
-                u"ports": [{u"internal": 8080, u"external": port}],
-                u'restart_policy': {u'name': u'never'},
-                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
-                              u"mountpoint": u"/data"}],
-                u"command_line": [
-                    # Run as non-root user:
-                    u"su", u"-", u"nobody", u"-c", u"sh", u"-c",
-                    # Write something to volume we attached, and then
-                    # expose what we wrote as a web server:
-                    u"""\
+        container = {
+            u"name": random_name(self),
+            u"node_uuid": node.uuid,
+            u"image": u"busybox",
+            u"ports": [{u"internal": 8080, u"external": port}],
+            u'restart_policy': {u'name': u'never'},
+            u"volumes": [{u"dataset_id": None,
+                          u"mountpoint": u"/data"}],
+            u"command_line": [
+                # Run as non-root user:
+                u"su", u"-", u"nobody", u"-c", u"sh", u"-c",
+                # Write something to volume we attached, and then
+                # expose what we wrote as a web server:
+                u"""\
 echo -n '#!/bin/sh
 echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
 ' > /data/script.sh;
 chmod +x /data/script.sh;
 nc -ll -p 8080 -e /data/script.sh
-                    """]}
-            created = cluster.create_container(container)
-            created.addCallback(lambda _: self.addCleanup(
-                cluster.remove_container, container[u"name"]))
-            created.addCallback(lambda _: cluster)
-            return created
+            """]}
+
+        creating_dataset = create_dataset(self)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            container[u"volumes"][0][u"dataset_id"] = dataset[u"dataset_id"]
+            return cluster.create_container(container)
         creating_dataset.addCallback(created_dataset)
+
+        creating_dataset.addCallback(lambda _: self.addCleanup(
+            cluster.remove_container, container[u"name"]))
         creating_dataset.addCallback(
             lambda _: self.assert_busybox_http(node.address, port))
         return creating_dataset
