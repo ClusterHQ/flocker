@@ -66,6 +66,13 @@ def remove_known_host(reactor, hostname):
 
 
 def get_trial_environment(cluster):
+    """
+    Return a dictionary of environment varibles describing a cluster for
+    accetpance testing.
+
+    :param Cluster cluster: Description of the cluster to get environment
+        variables for.
+    """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
         'FLOCKER_ACCEPTANCE_AGENT_NODES':
