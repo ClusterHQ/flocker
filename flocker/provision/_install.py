@@ -468,6 +468,7 @@ def task_enable_flocker_agent(distribution, control_node,
                 },
                 "dataset": {
                     "backend": dataset_backend.name,
+                    # FLOC-1925 get backend configuration credentials here.
                 },
             },
         ),
@@ -784,6 +785,7 @@ def provision(distribution, package_source, variants):
 
 def configure_cluster(control_node, agent_nodes,
                       certificates, dataset_backend):
+    # FLOC-1925 Add a dataset_backend_configuration argument
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
@@ -819,6 +821,8 @@ def configure_cluster(control_node, agent_nodes,
                             distribution=node.distribution,
                             control_node=control_node.address,
                             dataset_backend=dataset_backend,
+                            # FLOC-1925 Supply backend config and
+                            # credentials here.
                         )]),
                     ),
             ]) for certnkey, node in zip(certificates.nodes, agent_nodes)

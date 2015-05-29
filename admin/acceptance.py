@@ -547,12 +547,19 @@ def main(reactor, args, base_path, top_level):
 
         control_node = nodes[0]
         dataset_backend = options.dataset_backend
+        # FLOC-1925 get the backend config and credentials from the
+        # supplied config.
+        # There will already be cloud credentials used for creating
+        # the acceptance nodes and I think those are the same
+        # credentials we'll want to use for dataset backend, right?
+        # dataset_backend_configuration = options['config']
 
         yield perform(
             make_dispatcher(reactor),
             configure_cluster(control_node=control_node, agent_nodes=nodes,
                               certificates=certificates,
                               dataset_backend=dataset_backend))
+                              # FLOC-1925 Supply dataset_backend_configuration
 
         result = yield run_tests(
             reactor=reactor,

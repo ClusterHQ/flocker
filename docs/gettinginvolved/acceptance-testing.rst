@@ -27,6 +27,7 @@ The :program:`admin/run-acceptance-tests` script has several options:
 .. option:: --dataset-backend <dataset-backend>
 
    Specifies what dataset backend to use for the cluster.
+   # FLOC-1925 Add a note about available backends.
 
 .. option:: --flocker-version <version>
 
@@ -119,6 +120,7 @@ The configuration file for the Rackspace provider looks like:
      username: <rackspace username>
      key: <access key>
      keyname: <ssh-key-name>
+     # FLOC-1925 Add auth_url, auth_plugin, provider
    metadata:
      creator: <your-name>
 
@@ -146,6 +148,8 @@ To run the acceptance tests on AWS, you need:
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
+     # FLOC-1925 looks like everything we need for dataset backend is
+     # already here.
    metadata:
      creator: <your-name>
 
@@ -231,6 +235,9 @@ The tests for the various cloud block device backends depend on access to creden
 The tests look for two environment variables:
 
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This points at a yaml file with the credentials.
+  # FLOC-1925 This is yet another configuration file.
+  # Buildbot  currently points this at the acceptance.yaml file.
+  # So perhaps we should add a link to the acceptance.yaml format here.
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This is the name of a top-level key in the configuration file.
 
 The credentials are read from the stanza specified by the ``CLOUD_PROVIDER`` environment variable.
