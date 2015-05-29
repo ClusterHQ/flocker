@@ -691,12 +691,13 @@ class FigConfiguration(object):
                                  remote_port=remote_port,
                                  alias=link_definition['alias'])
                         )
-                    except InvariantException:
+                    except InvariantException as e:
                         raise ConfigurationError(
-                            ("Application '{application}' has a config "
-                             "error. 'links' alias names must be "
-                             "alphanumeric.").format(
-                                 application=application_name)
+                            "Application '{application}' has a config "
+                            "error: {errors}".format(
+                                application=application_name,
+                                errors=" ".join(e.invariant_errors),
+                            )
                         )
             application = self._applications[application_name]
             self._applications[application_name] = application.set(

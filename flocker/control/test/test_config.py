@@ -682,8 +682,8 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
             parser.applications,
         )
         error_message = (
-            "Application 'postgres' has a config error. "
-            "'links' alias names must be alphanumeric."
+            "Application 'postgres' has a config error: "
+            "Link aliases must be alphanumeric."
         )
         self.assertEqual(exception.message, error_message)
 
