@@ -23,7 +23,9 @@ from ._ssh import (
 )
 from ._effect import sequence
 
+from flocker import __version__ as version
 from flocker.cli import configure_ssh
+from flocker.common.version import get_installable_version, get_package_key_suffix
 
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
@@ -34,24 +36,27 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
+DISTRO_SUFFIX = get_package_key_suffix(
+    get_installable_version(version)
+)
+
 CLUSTERHQ_REPO = {
     'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
                  "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                      archive_bucket=ARCHIVE_BUCKET,
-                     key='fedora',
+                     key='fedora' + DISTRO_SUFFIX,
                  ),
     'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
                 "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                     archive_bucket=ARCHIVE_BUCKET,
-                    key='centos',
+                    key='centos' + DISTRO_SUFFIX,
                     ),
     'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
                 '{key}/14.04/$(ARCH)'.format(
-                    archive_bucket=ARCHIVE_BUCKET
-                    key='ubuntu',
+                    archive_bucket=ARCHIVE_BUCKET,
+                    key='ubuntu' + DISTRO_SUFFIX,
                     ),
 }
-
 
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):
