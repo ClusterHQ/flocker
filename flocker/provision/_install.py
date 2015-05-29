@@ -45,7 +45,7 @@ CLUSTERHQ_REPO = {
                     ),
     # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
     'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/ubuntu-testing/'
-                    '$(lsb_release --release --short)/$(ARCH)'.format(
+                    '$(lsb_release --release --short)/\\$(ARCH)'.format(
                         archive_bucket=ARCHIVE_BUCKET
                     ),
 }
@@ -156,10 +156,8 @@ def install_cli_commands_ubuntu(distribution, package_source):
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
         # Add ClusterHQ repo for installation of Flocker packages.
-        sudo_from_args([
-            'add-apt-repository', '-y',
-            'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-            ])
+        sudo(command='add-apt-repository -y "deb {} /"'.format(
+            CLUSTERHQ_REPO[distribution])),
         ]
 
     if use_development_branch:
@@ -616,11 +614,9 @@ def task_install_flocker(
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
-            run_from_args([
-                'add-apt-repository', '-y',
-                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-                ])
-            ]
+            run(command='add-apt-repository -y "deb {} /"'.format(
+                CLUSTERHQ_REPO[distribution])),
+        ]
 
         if use_development_branch:
             # Add BuildBot repo for testing
