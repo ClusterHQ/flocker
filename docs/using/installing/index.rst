@@ -340,7 +340,10 @@ The file ``cluster.key`` should be kept only by the cluster administrator; it do
 
 You are now able to generate authentication certificates for the control service and each of your nodes.
 To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
-Replace ``example.org`` with the hostname of your control service node; this hostname should match the one you will give to REST API clients.
+
+If you have a domain name for your cluster, replace ``example.org`` with the hostname of your control service node.
+You can also use an IP address here.
+For TLS verification purposes this hostname must match the one you will give to REST API clients.
 
 .. code-block:: console
 
