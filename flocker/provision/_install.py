@@ -25,7 +25,9 @@ from ._effect import sequence
 
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
-from flocker.common.version import get_installable_version, get_package_key_suffix
+from flocker.common.version import (
+    get_installable_version, get_package_key_suffix,
+)
 
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
