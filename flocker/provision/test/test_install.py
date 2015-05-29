@@ -3,17 +3,82 @@
 """
 Tests for ``flocker.provision._install``.
 """
+import yaml
 
 from twisted.trial.unittest import SynchronousTestCase
 
+from pyrsistent import pmap, thaw, freeze
+
+from ...acceptance.testtools import DatasetBackend
 from .. import PackageSource
 from .._install import (
     task_install_flocker,
+    task_enable_flocker_agent,
     CLUSTERHQ_REPO,
     run, put,
 )
+from .._ssh._model import Put
 from .._effect import sequence
 
+
+THE_AGENT_YML_PATH = b"/etc/flocker/agent.yml"
+BASIC_AGENT_YML = freeze({
+    "version": 1,
+    "control-service": {
+        "hostname": "192.0.2.42",
+        "port": 4524,
+    },
+    "dataset": {
+        "backend": "zfs",
+    },
+})
+
+
+class ConfigureClusterTests(SynchronousTestCase):
+    """
+    Tests for ``configure_cluster``.
+    """
+
+
+class EnableFlockerAgentTests(SynchronousTestCase):
+    """
+    Tests for ``task_enable_flocker_agent``.
+    """
+    def test_agent_yml(self):
+        """
+        ```task_enable_flocker_agent`` writes a ``/etc/flocker/agent.yml`` file
+        which contains the backend configuration passed to it.
+        """
+        distribution = u"centos-7"
+        control_address = BASIC_AGENT_YML["control-service"]["hostname"]
+        expected_pool = u"some-test-pool"
+        expected_backend_configuration = dict(pool=expected_pool)
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+            control_node=control_address,
+            dataset_backend=DatasetBackend.lookupByName(
+                BASIC_AGENT_YML["dataset"]["backend"]
+            ),
+            dataset_backend_configuration=expected_backend_configuration,
+        )
+        [put_agent_yml] = list(
+            effect.intent
+            for effect in
+            commands.intent.effects
+            if isinstance(effect.intent, Put)
+        )
+        # Seems like transform should be usable here but I don't know how.
+        expected_agent_config = BASIC_AGENT_YML.set(
+            "dataset",
+            BASIC_AGENT_YML["dataset"].update(expected_backend_configuration)
+        )
+        self.assertEqual(
+            put(
+                content=yaml.safe_dump(thaw(expected_agent_config)),
+                path=THE_AGENT_YML_PATH,
+            ).intent,
+            put_agent_yml,
+        )
 
 class InstallFlockerTests(SynchronousTestCase):
     """

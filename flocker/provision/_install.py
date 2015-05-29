@@ -449,14 +449,22 @@ def task_open_control_firewall(distribution):
 
 
 def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs):
+                              dataset_backend=DatasetBackend.zfs,
+                              dataset_backend_configuration=dict(pool=u'flocker')):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with. (This has a default for use in the documentation).
+        configured with.  (This has a default for use in the documentation).
+    :param dict dataset_backend_configuration: The backend specific
+        configuration options.
     """
+    dataset_backend_configuration = dataset_backend_configuration.copy()
+    dataset_backend_configuration.update({
+        u"backend": dataset_backend.name,
+    })
+
     put_config_file = put(
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(
@@ -466,10 +474,7 @@ def task_enable_flocker_agent(distribution, control_node,
                     "hostname": control_node,
                     "port": 4524,
                 },
-                "dataset": {
-                    "backend": dataset_backend.name,
-                    # FLOC-1925 get backend configuration credentials here.
-                },
+                "dataset": dataset_backend_configuration,
             },
         ),
     )
