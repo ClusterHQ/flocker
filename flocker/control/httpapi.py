@@ -158,7 +158,6 @@ class ConfigurationAPIUserV1(object):
             u"create dataset",
             u"create dataset with dataset_id",
             u"create dataset with duplicate dataset_id",
-            u"create dataset with maximum_size",
             u"create dataset with metadata",
         ]
     )
@@ -172,24 +171,22 @@ class ConfigurationAPIUserV1(object):
             '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
-    def create_dataset_configuration(self, primary, dataset_id=None,
-                                     maximum_size=None, metadata=None):
+    def create_dataset_configuration(self, primary, maximum_size,
+                                     dataset_id=None, metadata=None):
         """
         Create a new dataset in the cluster configuration.
 
         :param unicode primary: The UUID of the node on which the primary
             manifestation of the dataset will be created.
 
+        :param maximum_size: The maximum number of bytes the dataset
+            will be capable of storing.
+
         :param unicode dataset_id: A unique identifier to assign to the
             dataset.  This is a string giving a UUID (per RFC 4122).  If no
             value is given, one will be generated and returned in the response.
             This is not for easy human use.  For human-friendly identifiers,
             use items in ``metadata``.
-
-        :param maximum_size: Either the maximum number of bytes the dataset
-            will be capable of storing or ``None`` to make the dataset size
-            unlimited. This may be optional or required depending on the
-            dataset backend.
 
         :param dict metadata: A small collection of unicode key/value pairs to
             associate with the dataset.  These items are not interpreted.  They

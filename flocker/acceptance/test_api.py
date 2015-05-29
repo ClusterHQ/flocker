@@ -363,6 +363,7 @@ class DatasetAPITests(TestCase):
                 u"primary": cluster.nodes[0].uuid,
                 u"dataset_id": unicode(uuid4()),
                 u"metadata": {u"name": u"my_volume"}
+                # FLOC-1956 Add maximum_size here
             }
 
             return cluster.create_dataset(requested_dataset)

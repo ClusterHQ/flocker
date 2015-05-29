@@ -45,6 +45,7 @@ from .._config import (
     FlockerConfiguration, FigConfiguration, model_from_configuration)
 from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
+from ...testtools import REALISTIC_BLOCKDEVICE_SIZE
 
 
 class APITestsMixin(object):
@@ -972,6 +973,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/datasets",
             {u"dataset_id": dataset_id,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
              u"primary": self.NODE_A}, CREATED)
         d.addCallback(lambda _: self.assertResponseCode(
             b"DELETE",
@@ -1001,6 +1003,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/datasets",
             {u"dataset_id": dataset_id,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
              u"primary": self.NODE_A}, CREATED)
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
@@ -1024,6 +1027,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/datasets",
             {u"dataset_id": dataset_id,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
              u"primary": self.NODE_A}, CREATED)
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
@@ -1058,7 +1062,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/datasets",
             {u"dataset_id": dataset_id,
-             u"primary": self.NODE_A}, CREATED)
+             u"primary": self.NODE_A,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE}, CREATED)
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
@@ -1076,7 +1081,10 @@ class CreateContainerTestsMixin(APITestsMixin):
                 list(config.applications())[0].volume,
                 AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=dataset_id),
+                        dataset=Dataset(
+                            dataset_id=dataset_id,
+                            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                        ),
                         primary=True),
                     mountpoint=FilePath(b"/db")))
         d.addCallback(check_config)
@@ -1099,6 +1107,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/datasets",
             {u"dataset_id": dataset_id,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
              u"primary": self.NODE_A}, CREATED)
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
@@ -1672,7 +1681,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         return self.assertResult(
             b"POST", b"/configuration/datasets",
-            {u"primary": self.NODE_A, u"junk": u"garbage"},
+            {u"primary": self.NODE_A,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+             u"junk": u"garbage"},
             BAD_REQUEST, {
                 u'description':
                     u"The provided JSON doesn't match the required schema.",
@@ -1691,12 +1702,30 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         return self.assertResult(
             b"POST", b"/configuration/datasets",
-            {},
+            {u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE},
             BAD_REQUEST, {
                 u'description':
                     u"The provided JSON doesn't match the required schema.",
                 u'errors': [
                     u"'primary' is a required property"
+                ]
+            }
+        )
+
+    def test_missing_maximum_size(self):
+        """
+        If a ``POST`` request made to the endpoint includes a body which
+        doesn't include a maximum_size, the response is an error indication
+        a validation failure.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/datasets",
+            {u"primary": self.NODE_A},
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"'maximum_size' is a required property"
                 ]
             }
         )
@@ -1715,7 +1744,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         :return: A ``Deferred`` that fires with the result of the test.
         """
         dataset_id = unicode(uuid4())
-        existing_dataset = Dataset(dataset_id=dataset_id)
+        existing_dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         existing_manifestation = Manifestation(
             dataset=existing_dataset, primary=True)
 
@@ -1734,6 +1766,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             return self.assertResult(
                 b"POST", b"/configuration/datasets",
                 {u"primary": unicode(primary),
+                 u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
                  u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
@@ -1789,7 +1822,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
         unchanged and an error response is returned to the client.
         """
         return self.assertResult(
-            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets",
+            {u"primary": self.NODE_A,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE},
             BAD_REQUEST, {
                 u"description":
                     u"The provided primary node is not part of the cluster."
@@ -1812,7 +1847,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
         client.
         """
         creating = self.assertResponseCode(
-            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets",
+            {u"primary": self.NODE_A,
+             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE},
             CREATED)
         creating.addCallback(readBody)
         creating.addCallback(loads)
@@ -1820,7 +1857,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def got_result(result):
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual(
-                {u"primary": self.NODE_A, u"metadata": {}, u"deleted": False},
+                {u"primary": self.NODE_A,
+                 u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+                 u"metadata": {},
+                 u"deleted": False},
                 result
             )
             deployment = self.persistence_service.get()
@@ -1842,7 +1882,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def saved(ignored):
             return self.assertResponseCode(
                 b"POST", b"/configuration/datasets",
-                {u"primary": self.NODE_B},
+                {u"primary": self.NODE_B,
+                 u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE},
                 CREATED
             )
         saving.addCallback(saved)
@@ -1871,12 +1912,14 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating = gatherResults([
             self.assertResponseCode(
                 b"POST", b"/configuration/datasets",
-                {u"primary": self.NODE_A},
+                {u"primary": self.NODE_A,
+                 u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE},
                 CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
                 b"POST", b"/configuration/datasets",
-                {u"primary": self.NODE_A},
+                {u"primary": self.NODE_A,
+                 u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE},
                 CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
@@ -1897,6 +1940,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         metadata = {u"foo": u"bar", u"baz": u"quux"}
         dataset = {
             u"primary": self.NODE_A,
+            u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
             u"dataset_id": dataset_id,
             u"metadata": metadata,
         }
@@ -1916,6 +1960,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
                             dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
+                                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
                                     metadata=pmap(metadata)
                                 ),
                                 primary=True
@@ -1958,48 +2003,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     maximum_size=maximum_size
-                                ),
-                                primary=True
-                            )
-                        }
-                    )
-                })),
-                deployment
-            )
-        creating.addCallback(created)
-        return creating
-
-    def test_create_with_maximum_size_null(self):
-        """
-        A maximum size of ``null`` included with the creation of a dataset
-        results in a persisted configuration which excludes the maximum_size
-        attribute.
-        """
-        dataset_id = unicode(uuid4())
-        maximum_size = None
-        dataset = {
-            u"primary": self.NODE_A,
-            u"dataset_id": dataset_id,
-            u"maximum_size": maximum_size,
-        }
-        response = dataset.copy()
-        response[u"metadata"] = {}
-        response[u"deleted"] = False
-        del response[u"maximum_size"]
-        creating = self.assertResult(
-            b"POST", b"/configuration/datasets", dataset, CREATED, response
-        )
-
-        def created(ignored):
-            deployment = self.persistence_service.get()
-            self.assertEqual(
-                Deployment(nodes=frozenset({
-                    Node(
-                        uuid=self.NODE_A_UUID,
-                        manifestations={
-                            dataset_id: Manifestation(
-                                dataset=Dataset(
-                                    dataset_id=dataset_id,
                                 ),
                                 primary=True
                             )

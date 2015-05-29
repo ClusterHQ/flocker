@@ -159,6 +159,7 @@ definitions:
       - "$ref": "types.json#/definitions/dataset_configuration"
       - required:
           - primary
+          - maximum_size
 
   configuration_datasets_list:
     description: |
