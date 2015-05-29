@@ -291,7 +291,11 @@ class ContainerAPITests(TestCase):
     @require_cluster(2)
     def test_linking(self, cluster):
         """
-        A container one machine can be linked to another.
+        A link from an origin container to a destination container allows the
+        origin container to establish connections to the destination container
+        when the containers are running on different machines using an address
+        obtained from ``<ALIAS>_PORT_<PORT>_TCP_{ADDR,PORT}``-style environment
+        set in the origin container's environment.
         """
         _, destination_port = find_free_port()
         _, port = find_free_port()
