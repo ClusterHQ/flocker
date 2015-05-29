@@ -237,6 +237,30 @@ You'll probably want to setup at least two nodes.
 
 #. Follow the installation instructions for your chosen distribution below.
 
+.. _fedora-20-install:
+
+Installing on Fedora 20
+-----------------------
+
+.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
+
+Now install the ``clusterhq-flocker-node`` package.
+To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
+The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
+Paste them into a root console on the target node:
+
+.. task:: install_flocker fedora-20
+   :prompt: [root@node]#
+   
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+To enable and start Docker, run the following commands in a root console:
+
+.. task:: enable_docker fedora-20
+   :prompt: [root@fedora]#
+
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+
 .. _centos-7-install:
 
 Installing on CentOS 7
