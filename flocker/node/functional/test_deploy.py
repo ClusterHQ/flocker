@@ -72,7 +72,7 @@ class P2PNodeDeployer(object):
         ])
 
 
-def change_node_state(deployer, desired_configuration, iterations=3):
+def change_node_state(deployer, desired_configuration):
     """
     Change the local state to match the given desired state.
 
@@ -80,8 +80,6 @@ def change_node_state(deployer, desired_configuration, iterations=3):
         calculate changes.
     :param Deployment desired_configuration: The intended configuration of all
         nodes.
-    :param iterations: Number of times to run discover/calculate/apply
-        loop.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
     def converge():
@@ -277,7 +275,7 @@ class DeployerTests(TestCase):
         desired_configuration = Deployment(nodes=[
             Node(uuid=deployer.node_uuid,
                  applications=[application])])
-        d = change_node_state(deployer, desired_configuration, iterations=1)
+        d = change_node_state(deployer, desired_configuration)
         d.addCallback(lambda _: deployer.discover_state(
             NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
                       applications=[], used_ports=[],
