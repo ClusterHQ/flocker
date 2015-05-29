@@ -190,7 +190,7 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
     :param unicode hostname: The remote hostname to connect to.
     :param int remote_port: The remote port to connect to.
     """
-    alias = alias.upper().replace(u'-', u"_")
+    alias = alias.upper()
     base = u'%s_PORT_%d_%s' % (alias, local_port, protocol.upper())
 
     return {
