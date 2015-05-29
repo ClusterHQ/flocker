@@ -8,9 +8,12 @@ import socket
 
 from uuid import uuid4
 
+from pyrsistent import thaw, pmap
+
 from twisted.trial.unittest import TestCase
 
 from twisted.internet import reactor
+from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
 
@@ -22,6 +25,19 @@ from .testtools import (
     get_test_cluster, require_cluster,
     require_moving_backend,
 )
+
+# A command that will run an "HTTP" in a Busybox container.  The server
+# responds "hi" to any request.
+BUSYBOX_HTTP = [
+    u"sh", u"-c",
+    u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 8080 -e /tmp/script.sh
+"""
+]
 
 
 def verify_socket(host, port):
@@ -288,6 +304,26 @@ class ContainerAPITests(TestCase):
         creating.addCallback(created)
         return creating
 
+    def assert_busybox_http(self, host, port):
+        """
+        Assert that a HTTP serving a response with body ``b"hi"`` is running
+        at given host and port.
+
+        :param host: Host to connect to.
+        :param port: Port to connect to.
+        """
+        def query(host, port):
+            req = get(
+                "http://{host}:{port}".format(host=host, port=port),
+                persistent=False
+            ).addCallback(content)
+            return req
+
+        d = verify_socket(host, port)
+        d.addCallback(lambda _: query(host, port))
+        d.addCallback(self.assertEqual, b"hi")
+        return d
+
     @require_cluster(1)
     def test_non_root_container_can_access_dataset(self, cluster):
         """
@@ -326,22 +362,67 @@ nc -ll -p 8080 -e /data/script.sh
             created.addCallback(lambda _: cluster)
             return created
         creating_dataset.addCallback(created_dataset)
-
-        def query(host):
-            req = get(
-                "http://{host}:{port}".format(host=host, port=port),
-                persistent=False
-            ).addCallback(content)
-            return req
-
-        def checked(cluster):
-            host = node.address
-            d = verify_socket(host, port)
-            d.addCallback(lambda _: query(host))
-            return d
-        creating_dataset.addCallback(checked)
-        creating_dataset.addCallback(self.assertEqual, b"hi")
+        creating_dataset.addCallback(
+            lambda _: self.assert_busybox_http(node.address, port))
         return creating_dataset
+
+    @require_cluster(2)
+    def test_linking(self, cluster):
+        """
+        A link from an origin container to a destination container allows the
+        origin container to establish connections to the destination container
+        when the containers are running on different machines using an address
+        obtained from ``<ALIAS>_PORT_<PORT>_TCP_{ADDR,PORT}``-style environment
+        set in the origin container's environment.
+        """
+        _, destination_port = find_free_port()
+        _, origin_port = find_free_port()
+
+        [destination, origin] = cluster.nodes
+
+        busybox = pmap({
+            u"image": u"busybox",
+        })
+
+        destination_container = busybox.update({
+            u"name": random_name(self),
+            u"node_uuid": destination.uuid,
+            u"ports": [{u"internal": 8080, u"external": destination_port}],
+            u"command_line": BUSYBOX_HTTP,
+        })
+        self.addCleanup(
+            cluster.remove_container, destination_container[u"name"]
+        )
+
+        origin_container = busybox.update({
+            u"name": random_name(self),
+            u"node_uuid": origin.uuid,
+            u"links": [{u"alias": "DEST", u"local_port": 80,
+                        u"remote_port": destination_port}],
+            u"ports": [{u"internal": 9000, u"external": origin_port}],
+            u"command_line": [
+                u"sh", u"-c", u"""\
+echo -n '#!/bin/sh
+nc $DEST_PORT_80_TCP_ADDR $DEST_PORT_80_TCP_PORT
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 9000 -e /tmp/script.sh
+                """]})
+        self.addCleanup(
+            cluster.remove_container, origin_container[u"name"]
+        )
+        running = gatherResults([
+            cluster.create_container(thaw(destination_container)),
+            cluster.create_container(thaw(origin_container)),
+            # Wait for the link target container to be accepting connections.
+            verify_socket(destination.address, destination_port),
+            # Wait for the link source container to be accepting connections.
+            verify_socket(origin.address, origin_port),
+        ])
+
+        running.addCallback(
+            lambda _: self.assert_busybox_http(origin.address, origin_port))
+        return running
 
 
 def create_dataset(test_case, nodes=1,
