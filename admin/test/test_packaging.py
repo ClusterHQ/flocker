@@ -1163,6 +1163,8 @@ class BuildOptionsTests(TestCase):
     Tests for ``BuildOptions``.
     """
 
+    DISTROS = [u"greatos"]
+
     def test_defaults(self):
         """
         ``BuildOptions`` destination path defaults to the current working
@@ -1172,14 +1174,28 @@ class BuildOptionsTests(TestCase):
             'destination-path': '.',
             'distribution': None,
         }
-        self.assertEqual(expected_defaults, BuildOptions())
+        self.assertEqual(expected_defaults, BuildOptions([]))
+
+    def test_possible_distributions(self):
+        """
+        ``BuildOptions`` offers as possible distributions all of the names
+        passed to its initializer.
+        """
+        options = BuildOptions([b"greatos", b"betteros"])
+        description = options.docs["distribution"]
+        self.assertNotIn(
+            -1,
+            (description.find(b"greatos"), description.find(b"betteros")),
+            "Supplied distribution names, greatos and betteros, not found in "
+            "--distribution parameter definition: {}".format(description)
+        )
 
     def test_distribution_missing(self):
         """
         ``BuildOptions.parseOptions`` raises ``UsageError`` if
         ``--distribution`` is not supplied.
         """
-        options = BuildOptions()
+        options = BuildOptions(self.DISTROS)
         self.assertRaises(
             UsageError,
             options.parseOptions,
@@ -1191,7 +1207,7 @@ class BuildOptionsTests(TestCase):
         the URI of the Python package which is being packaged.
         """
         exception = self.assertRaises(
-            UsageError, BuildOptions().parseOptions, [])
+            UsageError, BuildOptions(self.DISTROS).parseOptions, [])
         self.assertEqual('Wrong number of arguments.', str(exception))
 
     def test_package_options_supplied(self):
@@ -1200,7 +1216,7 @@ class BuildOptionsTests(TestCase):
         """
         expected_uri = 'http://www.example.com/foo-bar.whl'
         expected_distribution = 'ubuntu1404'
-        options = BuildOptions()
+        options = BuildOptions(self.DISTROS + [expected_distribution])
         options.parseOptions(
             ['--distribution', expected_distribution, expected_uri])
 

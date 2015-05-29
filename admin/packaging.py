@@ -1148,6 +1148,16 @@ class BuildOptions(usage.Options):
     <package-uri>: The Python package url or path to install using ``pip``.
     """)
 
+    def __init__(self, distributions):
+        """
+        :param distributions: An iterable of the names of distributions which
+            are acceptable as values for the ``--distribution`` parameter.
+        """
+        usage.Options.__init__(self)
+        self.docs["distribution"] = self.docs["distribution"].format(
+            ', '.join(sorted(distributions))
+        )
+
     def parseArgs(self, package_uri):
         """
         The Python package to install.
