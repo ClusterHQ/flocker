@@ -26,7 +26,6 @@ from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid
 from ._docker import DockerClient
-from docker.errors import DockerException
 
 
 def docker_accessible():
