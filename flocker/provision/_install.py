@@ -44,9 +44,9 @@ CLUSTERHQ_REPO = {
                     archive_bucket=ARCHIVE_BUCKET,
                     ),
     # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
-    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                'ubuntu-testing/14.04/$(ARCH)'.format(
-                    archive_bucket=ARCHIVE_BUCKET
+    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/ubuntu-testing/'
+                    '$(lsb_release --release --short)/$(ARCH)'.format(
+                        archive_bucket=ARCHIVE_BUCKET
                     ),
 }
 
