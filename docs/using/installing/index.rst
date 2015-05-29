@@ -396,7 +396,7 @@ Copy the generated files to ``/etc/flocker/`` on the target node and name them `
 Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
 The ``/etc/flocker/`` directory should be set to ``chmod 700``.
 
-You should now have cluster.crt, node.crt, and node.key on each of your agent nodes, and control-service.crt and control-service.key on your control node.
+You should now have ``cluster.crt``, ``node.crt``, and ``node.key`` on each of your agent nodes, and ``control-service.crt`` and ``control-service.key`` on your control node.
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
