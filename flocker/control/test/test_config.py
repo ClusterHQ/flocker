@@ -664,16 +664,16 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         "links" key contains an application name that has a hyphen.
         """
         config = {
-            'postgres': {
-                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'sample/postgres',
-                'ports': ['54320:5432'],
-                'volumes': ['/var/lib/postgres'],
-                'links': ['wordpress:wordpress-bad'],
+            u'postgres': {
+                u'environment': {u'PG_ROOT_PASSWORD': u'clusterhq'},
+                u'image': u'sample/postgres',
+                u'ports': [u'54320:5432'],
+                u'volumes': [u'/var/lib/postgres'],
+                u'links': [u'wordpress:wordpress-bad'],
             },
-            'wordpress': {
-                'image': 'sample/wordpress',
-                'ports': ['8080:8080'],
+            u'wordpress': {
+                u'image': u'sample/wordpress',
+                u'ports': [u'8080:8080'],
             }
         }
         parser = FigConfiguration(config)
