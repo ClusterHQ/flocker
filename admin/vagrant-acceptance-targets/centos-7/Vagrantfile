@@ -10,44 +10,29 @@ VAGRANTFILE_API_VERSION = "2"
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
-# Run the admin/credentials/make_credentials script before up'ing this.
-
-clustercrt = File.read("../../credentials/cluster.crt")
-controlcrt = File.read("../../credentials/control-172.16.255.240.crt")
-controlkey = File.read("../../credentials/control-172.16.255.240.key")
-node1crt = File.read("../../credentials/node1/node1.crt")
-node1key = File.read("../../credentials/node1/node1.key")
-node2crt = File.read("../../credentials/node2/node2.crt")
-node2key = File.read("../../credentials/node2/node2.key")
-$bootstrapnode1 = <<EOL
-echo -n "#{clustercrt}" >> /etc/flocker/cluster.crt
-echo -n "#{controlcrt}" >> /etc/flocker/control-service.crt
-echo -n "#{controlkey}" >> /etc/flocker/control-service.key
-echo -n "#{node1crt}" >> /etc/flocker/node.crt
-echo -n "#{node1key}" >> /etc/flocker/node.key
-echo "control-service: {hostname: 172.16.255.240}
-dataset: {backend: zfs}
-version: 1" >> /etc/flocker/agent.yml
+$bootstrap_control = <<EOF
+cp /home/vagrant/credentials/control-service.crt /etc/flocker/control-service.crt
+cp /home/vagrant/credentials/control-service.key /etc/flocker/control-service.key
 systemctl enable flocker-control
 systemctl start flocker-control
-systemctl enable flocker-dataset-agent
-systemctl start flocker-dataset-agent
-systemctl enable flocker-container-agent
-systemctl start flocker-container-agent
-EOL
+EOF
 
-$bootstrapnode2 = <<EOL
-echo -n "#{clustercrt}" >> /etc/flocker/cluster.crt
-echo -n "#{node2crt}" >> /etc/flocker/node.crt
-echo -n "#{node2key}" >> /etc/flocker/node.key
-echo "control-service: {hostname: 172.16.255.240}
-dataset: {backend: zfs}
-version: 1" >> /etc/flocker/agent.yml
+$bootstrap_node1_cert = <<EOF
+cp /home/vagrant/credentials/node-2.crt /etc/flocker/node.crt
+cp /home/vagrant/credentials/node-2.key /etc/flocker/node.key
+EOF
+
+$bootstrap_node2_cert = <<EOF
+cp /home/vagrant/credentials/node-2.crt /etc/flocker/node.crt
+cp /home/vagrant/credentials/node-2.key /etc/flocker/node.key
+EOF
+
+$bootstrap_node = <<EOF
 systemctl enable flocker-dataset-agent
 systemctl start flocker-dataset-agent
 systemctl enable flocker-container-agent
 systemctl start flocker-container-agent
-EOL
+EOF
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
@@ -64,13 +49,17 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "node1" do |node1|
     node1.vm.network :private_network, :ip => "172.16.255.250"
     node1.vm.hostname = "node1"
-    node1.vm.provision "shell", inline: $bootstrapnode1, privileged: true    
+    node1.vm.provision "shell", inline: $bootstrap_control, privileged: true
+    node1.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
+    node1.vm.provision "shell", inline: $bootstrap_node, privileged: true
   end
 
   config.vm.define "node2" do |node2|
     node2.vm.network :private_network, :ip => "172.16.255.251"
     node2.vm.hostname = "node2"
-    node2.vm.provision "shell", inline: $bootstrapnode2, privileged: true    
+    node1.vm.provision "shell", inline: $bootstrap_control, privileged: true
+    node1.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
+    node1.vm.provision "shell", inline: $bootstrap_node, privileged: true
   end
 
   # Don't use a shared folder.
