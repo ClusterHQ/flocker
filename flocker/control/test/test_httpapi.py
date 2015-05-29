@@ -663,7 +663,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                         u"remote_port": 54320
                     },
                     {
-                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"alias": u"anotherpostgres", u"local_port": 5432,
                         u"remote_port": 54321
                     },
                 ]
