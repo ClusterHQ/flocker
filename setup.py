@@ -204,6 +204,8 @@ setup(
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
             "requests-file==1.0",
+            # TLS SNI Support is needed to test link redirects
+            "ndg-httpsclient==0.4.0",
             ],
         },
 
