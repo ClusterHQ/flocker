@@ -28,6 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.web import template
 
 import flocker
+from flocker.common.version import get_package_key_suffix
 from flocker.provision._effect import sequence, dispatcher as base_dispatcher
 
 from flocker.common.version import (
@@ -503,12 +504,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes version: Version to download RPMs for.
     :param bytes build_server: Server to download new RPMs from.
     """
-    is_dev = not is_release(version)
-    if is_dev:
-        target_distro_suffix = "-testing"
-    else:
-        target_distro_suffix = ""
-
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
@@ -524,7 +519,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
                     operating_system['arch'])),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                operating_system['distro'] + target_distro_suffix,
+                operating_system['distro'] + get_package_key_suffix(version),
                 operating_system['version'],
                 operating_system['arch']),
             source_repo=os.path.join(
