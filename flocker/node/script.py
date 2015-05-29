@@ -414,7 +414,8 @@ from novaclient.client import Client as NovaClient
 
 def cinder_from_configuration(**config):
     """
-    :param UUID cluster_id:
+    Build a ``CinderBlockDeviceAPI`` using configuration and
+    credentials in ``config``.
     """
     region = config.pop('region')
     auth = _openstack_auth_from_config(**config)
@@ -437,6 +438,8 @@ from flocker.node.agents.ebs import EBSBlockDeviceAPI, ec2_client
 
 def aws_from_configuration(**config):
     """
+    Build an ``EBSBlockDeviceAPI`` using configuration and credentials
+    in ``config``.
     """
     return EBSBlockDeviceAPI(
         ec2_client=ec2_client(
