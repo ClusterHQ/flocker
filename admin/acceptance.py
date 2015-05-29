@@ -574,8 +574,6 @@ def main(reactor, args, base_path, top_level):
                 ]),
             )
 
-        yield perform(make_dispatcher(reactor), configure_cluster(cluster))
-
         result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
