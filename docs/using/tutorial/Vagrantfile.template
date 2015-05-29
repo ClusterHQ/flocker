@@ -356,4 +356,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     node2.vm.provision "shell", inline: $bootstrapnode2, privileged: true
   end
 
+  # Don't use a shared folder.
+  config.vm.synced_folder ".", "/vagrant", disabled: true
 end
