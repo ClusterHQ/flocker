@@ -7,6 +7,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 from errno import ENOTDIR
 from functools import partial
 from os import getuid, statvfs
+import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
@@ -25,6 +26,7 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
+from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, assertHasMessage,
@@ -70,11 +72,16 @@ from ....control import (
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
+CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 # Enough space for the Ext4 journal
 # And enough space for predictable inode counts after resize in
 # ResizeFilesystemTests.test_shrink
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
+
+# Eliot is transitioning away from the "Logger instances all over the place"
+# approach. So just use this global logger for now.
+_logger = Logger()
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -202,14 +209,32 @@ def create_blockdevicedeployer(
 def detach_destroy_volumes(api):
     """
     Detach and destroy all volumes known to this API.
+    If we failed to detach a volume for any reason,
+    sleep for 1 second and retry until we hit CLEANUP_RETRY_LIMIT.
+    This is to facilitate best effort cleanup of volume
+    environment after each test run, so that future runs
+    are not impacted.
     """
     volumes = api.list_volumes()
+    retry = 0
+    action_type = u"agent:blockdevice:cleanup:details"
+    with start_action(action_type=action_type):
+        while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
+            for volume in volumes:
+                try:
+                    if volume.attached_to is not None:
+                        api.detach_volume(volume.blockdevice_id)
+                    api.destroy_volume(volume.blockdevice_id)
+                except:
+                    write_traceback(_logger)
 
-    for volume in volumes:
-        if volume.attached_to is not None:
-            api.detach_volume(volume.blockdevice_id)
+            time.sleep(1.0)
+            volumes = api.list_volumes()
+            retry += 1
 
-        api.destroy_volume(volume.blockdevice_id)
+        if len(volumes) > 0:
+            Message.new(u"agent:blockdevice:failedcleanup:volumes",
+                        volumes=volumes).write()
 
 
 class BlockDeviceDeployerTests(
