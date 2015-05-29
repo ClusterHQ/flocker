@@ -216,12 +216,10 @@ def get_package_key_suffix(version):
     :return bytes: The suffix for the keys in which packages for a version are
         stored.
     """
-    # TODO tests for this
-    is_dev = not is_release(version)
-    if is_dev:
+    if is_release(version):
+        return ""
+    else:
         return "-testing"
-
-    return ""
 
 
 class RPMVersion(PRecord):
