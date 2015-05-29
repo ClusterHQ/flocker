@@ -98,7 +98,9 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       vagrant up
-      vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
+      vagrant scp default:/home/vagrant/.bashrc vagrant_bashrc
+      echo export VERSION=${VERSION} >> vagrant_bashrc
+      vagrant scp vagrant_bashrc /home/vagrant/.bashrc
       if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
       vagrant ssh -- -A
 
@@ -111,7 +113,6 @@ Preparing For a Release
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
       admin/create-release-branch --flocker-version="${VERSION}"
-      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -125,7 +126,7 @@ Preparing For a Release
 
       .. prompt:: bash [vagrant@localhost]$
 
-          # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+          # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
           git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
@@ -139,7 +140,7 @@ Preparing For a Release
    - (optional) Add a version heading.
      If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
      If this is a weekly development release, add a "Next Release" heading instead.
-   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product Development > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
+   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
    - and add links (where appropriate) to documentation that has been added for those features.
 
@@ -163,30 +164,9 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Go to the `BuildBot web status`_ and force a build on the just-created branch.
-
-#. Update the Getting Started Guide ``Vagrantfile`` in a new branch:
-
-   XXX This process should be changed, see :issue:`1307`.
-
-   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released, in a new branch of the ``vagrant-flocker`` repository:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd
-      git clone git@github.com:ClusterHQ/vagrant-flocker.git
-      cd vagrant-flocker
-      git checkout -b release/flocker-${VERSION} origin/master
-      vi Vagrantfile
-
-   Commit the changes and push the branch:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      git commit -am "Updated Vagrantfile"
-      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
@@ -271,9 +251,8 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. If it is not running in to the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`:
-
-   From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
+#. The following steps should be done in the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`.
+   If this is not running, start it again from the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
 
@@ -293,12 +272,12 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
-             Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
+   .. note:: We force a build on the tag as well as the branch because the packages built before pushing the tag won't have the right version.
+             Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
 
-#. Build Python and RPM packages and upload them to Amazon S3,
+#. Build packages and upload them to Amazon S3,
    and copy the tutorial box to the final location:
 
    .. prompt:: bash [vagrant@localhost]$
@@ -317,59 +296,13 @@ Release
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
-#. Test the Getting Started Guide:
-
-   XXX This process should be changed, see :issue:`1307`.
-
-   XXX This process should be automated, see :issue:`1309`.
-
-   .. note:: This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
-
-   Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
-   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch:
-
-   XXX This process should be automated, see :issue:`1309`.
-
-   .. prompt:: bash $
-
-      git checkout release/flocker-${VERSION}
-
-   Test the client install instructions work on all supported platforms by following the instructions and checking the version:
-
-   .. prompt:: bash $
-
-      flocker-deploy --version
-
-   The expected version is the version being released.
-
 #. Update the documentation.
-
-   This should be done from the :doc:`Flocker development machine <vagrant>`.
-
-   If this machine is no longer connected to, go to the clone of ``flocker-${VERSION}`` and SSH into the machine:
-
-   .. prompt:: bash $
-
-      vagrant up
-      vagrant ssh -- -A
 
    .. prompt:: bash [vagrant@localhost]$
 
       cd ~/flocker-${VERSION}
       workon flocker-release-${VERSION}
       admin/publish-docs --production
-
-#. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
-
-   .. warning:: It takes some time for `CloudFront`_ invalidations to propagate.
-      This means that there will be a short period for some users where the documentation will still be for the previous version but the ``Vagrantfile`` downloads the latest tutorial box.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd ~/vagrant-flocker
-      git checkout master
-      git merge origin/release/flocker-${VERSION}
-      git push
 
 #. Check that the staging documentation is set up correctly:
 
@@ -397,9 +330,11 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
+   OS X and Ubuntu 14.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
+
    Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
-   XXX: This step should be documented, see :issue:`1622`.
+   To create a testing environment for a supported platform, see :ref:`cli-testing`.
 
    XXX: This step should be automated, see :issue:`1039`.
 
