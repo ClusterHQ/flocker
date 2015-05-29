@@ -9,25 +9,32 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message, MessageType, Field, start_action
+from eliot import Message, start_action
 
 from pyrsistent import PRecord, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
+    HttpError as KeystoneHttpError,
 )
 from novaclient.exceptions import NotFound as NovaNotFound
+from novaclient.exceptions import ClientException as NovaClientException
 
 from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
 from ...common import (
-    auto_openstack_logging, get_all_ips, ipaddress_from_string
+    interface_decorator, get_all_ips, ipaddress_from_string
+    # auto_openstack_logging, get_all_ips, ipaddress_from_string
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
+)
+from ._logging import (
+    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
+    OPENSTACK_ACTION
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -38,23 +45,73 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-LOCAL_IPS = Field(
-    u"local_ips",
-    repr,
-    u"The IP addresses found on the target node."
-)
 
-API_IPS = Field(
-    u"api_ips",
-    repr,
-    u"The IP addresses and instance_ids for all nodes."
-)
+def _openstack_logged_method(method_name, original_name):
+    """
+    Run a method and log additional information about any exceptions that are
+    raised.
 
-COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
-    u"blockdevice:cinder:compute_instance_id:not_found",
-    [LOCAL_IPS, API_IPS],
-    u"Unable to determine the instance ID of this node.",
-)
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+        with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except NovaClientException as e:
+                NOVA_CLIENT_EXCEPTION(
+                    code=e.code,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                ).write()
+                raise
+            except KeystoneHttpError as e:
+                KEYSTONE_HTTP_ERROR(
+                    code=e.http_status,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                    response=e.response.text,
+                ).write()
+                raise
+    return _run_with_logging
+
+
+def auto_openstack_logging(interface, original):
+    """
+    Create a class decorator which will add OpenStack-specific exception
+    logging versions versions of all of the methods on ``interface``.
+    Specifically, some Nova and Cinder client exceptions will have all of their
+    details logged any time they are raised.
+
+    :param zope.interface.InterfaceClass interface: The interface from which to
+        take methods.
+    :param str original: The name of an attribute on instances of the decorated
+        class.  The attribute should refer to a provider of ``interface``.
+        That object will have all of its methods called with additional
+        exception logging to make more details of the underlying OpenStack API
+        calls available.
+
+    :return: The class decorator.
+    """
+    return interface_decorator(
+        "auto_openstack_logging",
+        interface,
+        _openstack_logged_method,
+        original,
+    )
 
 
 class ICinderVolumeManager(Interface):

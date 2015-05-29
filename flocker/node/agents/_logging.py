@@ -7,12 +7,8 @@ for storage drivers (AWS, Cinder).
 
 from eliot import Field, ActionType, MessageType
 
-# Begin: Helper datastructures to log all
-# IBlockDeviceAPI calls from AWS storage driver using Eliot.
-# - Log all IBlockDeviceAPI calls as Eliot ``ActionType``.
-# - Log ``EC2ResponseError`` from AWS to Boto.
-# - Log failure of attached device manifestation
-# - Log OS out of available devices for attaching volume.
+# Begin: Common structures used by all (AWS, OpenStack)
+# storage drivers.
 
 # An OPERATION is a list of:
 # IBlockDeviceAPI name, positional arguments, keyword arguments.
@@ -20,6 +16,15 @@ OPERATION = Field.forTypes(
     u"operation", [list],
     u"The IBlockDeviceAPI operation being executed,"
     u"along with positional and keyword arguments.")
+
+# End: Common structures used by all storage drivers.
+
+# Begin: Helper datastructures to log all
+# IBlockDeviceAPI calls from AWS storage driver using Eliot.
+# - Log all IBlockDeviceAPI calls as Eliot ``ActionType``.
+# - Log ``EC2ResponseError`` from AWS to Boto.
+# - Log failure of attached device manifestation
+# - Log OS out of available devices for attaching volume.
 
 # ActionType used by AWS storage driver.
 AWS_ACTION = ActionType(
@@ -94,3 +99,70 @@ WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
     [VOLUME_ID, STATUS, TARGET_STATUS, WAIT_TIME],
     u"Waiting for a volume to reach target status.",)
 # End: Helper datastructures used by AWS storage driver.
+
+# Begin: Helper datastructures used by OpenStack storage drivers
+
+CODE = Field.for_types("code", [int], u"The HTTP response code.")
+MESSAGE = Field.for_types(
+    "message", [bytes, unicode],
+    u"A human-readable error message given by the response.",
+)
+DETAILS = Field.for_types("details", [dict], u"Extra details about the error.")
+REQUEST_ID = Field.for_types(
+    "request_id", [bytes, unicode],
+    u"The unique identifier assigned by the server for this request.",
+)
+URL = Field.for_types("url", [bytes, unicode], u"The request URL.")
+METHOD = Field.for_types("method", [bytes, unicode], u"The request method.")
+
+NOVA_CLIENT_EXCEPTION = MessageType(
+    u"openstack:nova_client_exception", [
+        CODE,
+        MESSAGE,
+        DETAILS,
+        REQUEST_ID,
+        URL,
+        METHOD,
+    ],
+)
+
+RESPONSE = Field.for_types("response", [bytes, unicode], u"The response body.")
+
+KEYSTONE_HTTP_ERROR = MessageType(
+    u"openstack:keystone_http_error", [
+        CODE,
+        RESPONSE,
+        MESSAGE,
+        DETAILS,
+        REQUEST_ID,
+        URL,
+        METHOD,
+    ],
+)
+
+LOCAL_IPS = Field(
+    u"local_ips",
+    repr,
+    u"The IP addresses found on the target node."
+)
+
+API_IPS = Field(
+    u"api_ips",
+    repr,
+    u"The IP addresses and instance_ids for all nodes."
+)
+
+COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
+    u"blockdevice:cinder:compute_instance_id:not_found",
+    [LOCAL_IPS, API_IPS],
+    u"Unable to determine the instance ID of this node.",
+)
+
+# ActionType used by OpenStack storage driver.
+OPENSTACK_ACTION = ActionType(
+    u"flocker:node:agents:blockdevice:openstack",
+    [OPERATION],
+    [],
+    u"An IBlockDeviceAPI operation is executing using OpenStack"
+    u"storage driver.")
+# End: Helper datastructures used by OpenStack storage driver.
