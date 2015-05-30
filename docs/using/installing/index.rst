@@ -13,7 +13,7 @@ The following diagram illustrates the architecture of the cluster you are about 
 The CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster. 
 This package also includes the ``flocker-ca`` tool, which you must use to generate certificates for all the Flocker components.
 
-The Flocker agents are installed on any number of hosts (or nodes) in the cluster where your containers will run.
+The Flocker agents are installed on any number of nodes (or hosts) in the cluster where your containers will run.
 The agent software is included in the ``clusterhq-flocker-node`` package.
 
 There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. 
@@ -23,7 +23,7 @@ The control service is also included in the ``clusterhq-flocker-node`` package, 
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
-This document will describe how to install the CLI locally and install the agents and control service on Vagrant or cloud infrastructure.
+This document will describe how to install the CLI locally and install the agents and control service on cloud infrastructure. It also describes how to Vagrant nodes started which already have these services running.
 
 .. _installing-flocker-cli:
 
@@ -229,7 +229,7 @@ Using Rackspace
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
-#. Create a new Cloud Server
+#. Create a new cloud server
 
    * Visit https://mycloud.rackspace.com
    * Click "Create Server".
@@ -360,15 +360,16 @@ For TLS verification purposes this hostname must match the one you will give to 
    $ flocker-ca create-control-certificate example.org
    Created control-example.org.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
    
-Before copying these files you will need to SSH into the node and create a /etc/flocker directory:
+Before copying these files you will need to SSH into the node and create a :file:`/etc/flocker` directory:
 
-.. code-block:: console
+.. prompt:: bash [root@node]#
 
-   root@mercury:~/$ mkdir -p /etc/flocker
+   mkdir -p /etc/flocker
+   chmod 700 /etc/flocker
 
-You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
-You should also copy the cluster's public certificate, the `cluster.crt` file.
-On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
+You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the :file:`/etc/flocker` directory and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
+You should also copy the cluster's public certificate, the ``cluster.crt`` file.
+On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via ``chmod``:
 
 .. code-block:: console
 
@@ -394,11 +395,11 @@ Run the command in the same directory containing the certificate authority files
 The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
 
 As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the `cluster.crt` certificate.
-Copy the generated files to ``/etc/flocker/`` on the target node and name them ``node.crt`` and ``node.key``.
+Copy the generated files to :file:`/etc/flocker` on the target node and name them ``node.crt`` and ``node.key``.
 Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
-The ``/etc/flocker/`` directory should be set to ``chmod 700``.
+The :file:`/etc/flocker` directory should be set to ``chmod 700``.
 
-You should now have ``cluster.crt``, ``node.crt``, and ``node.key`` on each of your agent nodes, and ``control-service.crt`` and ``control-service.key`` on your control node.
+You should now have ``cluster.crt``, ``node.crt``, and ``node.key`` on each of your agent nodes, and ``cluster.crt``, ``control-service.crt``, and ``control-service.key`` on your control node.
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
