@@ -213,6 +213,7 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
         cluster = Cluster(
+            all_nodes=nodes,
             control_node=nodes[0],
             agent_nodes=nodes,
             dataset_backend=DatasetBackend.zfs,
@@ -310,6 +311,7 @@ class LibcloudRunner(object):
             len(self.nodes))
 
         cluster = Cluster(
+            all_nodes=pvector(self.nodes),
             control_node=self.nodes[0],
             agent_nodes=pvector(self.nodes),
             dataset_backend=DatasetBackend.zfs,
@@ -566,7 +568,7 @@ def main(reactor, args, base_path, top_level):
 
         if options['distribution'] in ('fedora-20', 'centos-7'):
             remote_logs_file = open("remote_logs.log", "a")
-            for node in {cluster.control_node} & set(cluster.agent_nodes):
+            for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)
 
         if not options["no-pull"]:
@@ -592,7 +594,7 @@ def main(reactor, args, base_path, top_level):
         # Unless the tests failed, and the user asked to keep the nodes, we
         # delete them.
         if not (result != 0 and options['keep']):
-            runner.stop_nodes(reactor)
+            runner.stop_cluster(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
             try:
