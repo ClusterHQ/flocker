@@ -47,6 +47,7 @@ class Cluster(PRecord):
     """
     Description of the components of a cluster.
 
+    :ivar list all_nodes: List of all nodes in the cluster.
     :ivar INode control_node: The control node of the cluster.
         tests against.
     :ivar list agent_nodes: The list of INode nodes running flocker
@@ -57,6 +58,7 @@ class Cluster(PRecord):
         found; specifically the directory used by ``Certificates``.
     :ivar Certificates certificates: Certificates to for the cluster.
     """
+    all_nodes = field(mandatory=True)
     control_node = field(mandatory=True)
     agent_nodes = field(mandatory=True)
     dataset_backend = field(mandatory=True)
