@@ -1233,7 +1233,7 @@ class AvailableDistributionTests(TestCase):
     def test_dockerfiles(self):
         """
         Directories in the ``admin/build_targets/`` sub-directory of the path
-        passed to ``available_distributions`` which themselves container a
+        passed to ``available_distributions`` which themselves contain a
         ``Dockerfile`` are considered distributions and included in the result.
         """
         root = FilePath(self.mktemp())
