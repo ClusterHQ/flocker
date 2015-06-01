@@ -55,8 +55,8 @@ def get_repository_url(distribution, flocker_version):
     distro_key_suffix = get_package_key_suffix(flocker_version)
 
     distribution_to_url = {
-        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/"
-                     "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/{key}"
+                     "/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                          archive_bucket=ARCHIVE_BUCKET,
                          key='fedora' + distro_key_suffix,
                      ),
@@ -77,10 +77,12 @@ def get_repository_url(distribution, flocker_version):
     except KeyError:
         raise UnsupportedDistribution()
 
+
 class UnsupportedDistribution(Exception):
     """
     Raised if trying to support a distribution which is not supported.
     """
+
 
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):
@@ -128,8 +130,8 @@ def install_cli_commands_yum(distribution, package_source):
     # repository URL is the same as Fedora 20's.
     commands = [
         sudo(command="yum install -y " + get_repository_url(
-                distribution='centos-7',
-                flocker_version=get_installable_version(version))),
+            distribution='centos-7',
+            flocker_version=get_installable_version(version))),
     ]
 
     if use_development_branch:
