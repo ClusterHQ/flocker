@@ -20,7 +20,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 
-from eliot import Logger, start_action, Message
+from eliot import Logger, start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content
@@ -936,9 +936,18 @@ def get_test_cluster(reactor, node_count=0):
         ).write()
 
         def failed_query(failure):
-            Message.new(message_type="acceptance:is_available_error",
-                        reason=unicode(failure),
-                        exception=unicode(failure.__class__)).write()
+            try:
+                reasons = failure.value.reasons
+            except AttributeError:
+                pass
+            else:
+                for reason in reasons:
+                    write_failure(reason, None)
+            Message.new(
+                message_type="acceptance:is_available_error",
+                reason=unicode(failure),
+                exception=unicode(failure.__class__)
+            ).write()
             return False
         d = cluster.current_nodes()
         d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
