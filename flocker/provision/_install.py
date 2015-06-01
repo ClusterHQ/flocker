@@ -468,7 +468,9 @@ def task_open_control_firewall(distribution):
 
 def task_enable_flocker_agent(distribution, control_node,
                               dataset_backend=DatasetBackend.zfs,
-                              dataset_backend_configuration=dict(pool=u'flocker')):
+                              dataset_backend_configuration=dict(
+                                  pool=u'flocker'
+                              )):
     """
     Configure and enable the flocker agents.
 
