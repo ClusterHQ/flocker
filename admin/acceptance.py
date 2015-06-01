@@ -163,7 +163,7 @@ class VagrantRunner(object):
     # rather than assuming it is available.
     # https://clusterhq.atlassian.net/browse/FLOC-1163
 
-    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
+    NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
