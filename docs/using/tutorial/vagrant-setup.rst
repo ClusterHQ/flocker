@@ -103,6 +103,9 @@ Note that you will need to make the same substitution in commands used throughou
 #. Download the Vagrant configuration file by right clicking on the link below.
    Save it in the *flocker-tutorial* directory and preserve its filename.
 
+   .. This download is also used in the getting started guide. You will need to adjust
+      it if this download is changed.
+
    :version-download:`Vagrantfile.template`
 
    .. version-literalinclude:: Vagrantfile.template
@@ -118,6 +121,9 @@ Note that you will need to make the same substitution in commands used throughou
 
 #. Download the cluster and user credentials by right clicking on the link below.
    Save these to the *flocker-tutorial* directory too, also preserving the file names.
+
+   .. These downloads iare also used in the getting started guide. You will need to adjust
+      it if these downloads are changed.
    
    :download:`cluster.crt`
    

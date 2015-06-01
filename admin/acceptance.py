@@ -169,6 +169,8 @@ class VagrantRunner(object):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
+        self.certificate_path = self.top_level.descendant([
+            'vagrant', 'tutorial', 'certificates'])
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
@@ -201,13 +203,6 @@ class VagrantRunner(object):
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
 
-        certificates_path = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(certificates_path.path))
-        certificates = Certificates.generate(
-            certificates_path,
-            self.NODE_ADDRESSES[0],
-            len(self.NODE_ADDRESSES))
-
         nodes = pvector(
             VagrantNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
@@ -217,10 +212,8 @@ class VagrantRunner(object):
             control_node=nodes[0],
             agent_nodes=nodes,
             dataset_backend=DatasetBackend.zfs,
-            certificates_path=certificates_path,
-            certificates=certificates)
-
-        yield perform(make_dispatcher(reactor), configure_cluster(cluster))
+            certificates_path=self.certificates_path,
+            certificates=Certificates(self.certificates_path))
 
         returnValue(cluster)
 
