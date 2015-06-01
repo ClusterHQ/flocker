@@ -107,6 +107,8 @@ def start_tls_server(test, port, context_factory):
     :param test: The test this is being run in.
     :param int port: Port to listen on.
     :param context_factory: Context factory to use.
+
+    :return: ``Deferred`` that fires when port is open to connections.
     """
     server_endpoint = SSL4ServerEndpoint(reactor, port,
                                          context_factory,
@@ -115,6 +117,7 @@ def start_tls_server(test, port, context_factory):
     test.addCleanup(lambda: server_factory.wait_for_disconnects())
     d = server_endpoint.listen(server_factory)
     d.addCallback(lambda port: test.addCleanup(port.stopListening))
+    return d
 
 
 def make_validation_tests(context_factory_fixture,
@@ -178,11 +181,12 @@ def make_validation_tests(context_factory_fixture,
                 server_context_factory = validating_context_factory
                 client_context_factory = peer_context_factory
 
-            start_tls_server(self, port, server_context_factory)
+            result = start_tls_server(self, port, server_context_factory)
             validating_endpoint = SSL4ClientEndpoint(
                 reactor, "127.0.0.1", port, client_context_factory)
             client_protocol = ReceivingProtocol()
-            result = connectProtocol(validating_endpoint, client_protocol)
+            result.addCallback(lambda _: connectProtocol(validating_endpoint,
+                                                         client_protocol))
             result.addCallback(lambda _: client_protocol.result)
             return result
 
@@ -354,7 +358,7 @@ class RequestsTests(TestCase):
         context_factory = rest_api_context_factory(
             ca_certificate=ca_set.root.credential.certificate,
             control_credential=getattr(ca_set, cert_name))
-        start_tls_server(self, port, context_factory)
+        d = start_tls_server(self, port, context_factory)
 
         certs = FilePath(self.mktemp())
         certs.makedirs()
@@ -371,7 +375,7 @@ class RequestsTests(TestCase):
         pool = ThreadPool(minthreads=1, maxthreads=1)
         pool.start()
         self.addCleanup(pool.stop)
-        d = deferToThreadPool(reactor, pool, req)
+        d.addCallback(lambda _: deferToThreadPool(reactor, pool, req))
         d.addCallback(self.assertEqual, EXPECTED_STRING)
         return d
 
