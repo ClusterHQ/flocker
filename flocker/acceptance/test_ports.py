@@ -8,9 +8,9 @@ from twisted.trial.unittest import TestCase
 from flocker.control import Port
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
-                        get_mongo_client, get_mongo_application, get_nodes,
-                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
-                        require_mongo)
+                        get_mongo_client, get_mongo_application,
+                        get_clean_nodes, MONGO_APPLICATION, MONGO_IMAGE,
+                        require_flocker_cli, require_mongo)
 
 
 class PortsTests(TestCase):
@@ -26,7 +26,7 @@ class PortsTests(TestCase):
         Deploy an application with an internal port mapped to a different
         external port.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        getting_nodes = get_clean_nodes(self, num_nodes=2)
 
         def deploy_port_application(node_ips):
             self.node_1, self.node_2 = node_ips
