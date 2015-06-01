@@ -44,6 +44,7 @@ _logger = Logger()
 
 # The size which will be assigned to datasets with an unspecified
 # maximum_size.
+# XXX: Make this configurable. FLOC-2044
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
 
@@ -1729,6 +1730,7 @@ class BlockDeviceDeployer(PRecord):
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
             if dataset_id not in cluster_state.nonmanifest_datasets:
                 manifestation = configured_manifestations[dataset_id]
+                # XXX: Make this configurable. FLOC-2044
                 if manifestation.dataset.maximum_size is None:
                     manifestation = manifestation.transform(
                         ['dataset', 'maximum_size'],

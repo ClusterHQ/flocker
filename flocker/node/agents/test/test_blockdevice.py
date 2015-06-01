@@ -1187,8 +1187,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         """
         When supplied with a configuration containing a dataset with a null
         size, ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``CreateBlockDeviceDataset`` for a dataset with the default size
-        returned by ``BlockDeviceDeployer.minimum_allocatable_size``
+        ``CreateBlockDeviceDataset`` for a 100GiB dataset.
+        XXX: Make the default size configurable. FLOC-2044
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
