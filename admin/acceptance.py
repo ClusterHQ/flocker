@@ -317,10 +317,7 @@ class RunOptions(Options):
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
-        ['dataset-backend', None, 'zfs',
-         'The dataset backend to test against. '
-         'One of {}'.format(', '.join(backend.name for backend
-                                      in DatasetBackend.iterconstants()))],
+        ['dataset-backend', None, None, 'ignored'],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab packages from'],
@@ -364,14 +361,6 @@ class RunOptions(Options):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
-        try:
-            # XXX Get rid of dataset-backend option
-            self.dataset_backend = DatasetBackend.lookupByName(
-                self['dataset-backend'])
-        except ValueError:
-            raise UsageError("Unknown dataset backend: %s"
-                             % (self['dataset-backend']))
-
         if self['config-file'] is not None:
             config_file = FilePath(self['config-file'])
             self['config'] = yaml.safe_load(config_file.getContent())
@@ -392,6 +381,14 @@ class RunOptions(Options):
             branch=self['branch'],
             build_server=self['build-server'],
         )
+        provider_config = self['config'].get(self['provider'])
+        try:
+            dataset_backend = DatasetBackend.lookupByName(
+                provider_config['dataset']['backend']
+            )
+        except ValueError:
+            raise UsageError("Unknown dataset backend: %s"
+                             % (self['dataset-backend']))
 
         try:
             get_runner = getattr(self, "runner_" + self['provider'].upper())
@@ -404,7 +401,8 @@ class RunOptions(Options):
         else:
             self.runner = get_runner(
                 package_source=package_source,
-                provider_config=self['config'].get(self['provider']),
+                dataset_backend=dataset_backend,
+                provider_config=provider_config,
             )
 
     def _provider_config_missing(self):
@@ -413,7 +411,7 @@ class RunOptions(Options):
             "{!r} config stanza.".format(self['provider'])
         )
 
-    def runner_VAGRANT(self, package_source, provider_config):
+    def runner_VAGRANT(self, package_source, dataset_backend, provider_config):
         return VagrantRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -422,27 +420,32 @@ class RunOptions(Options):
             variants=self['variants'],
         )
 
-    def runner_MANAGED(self, package_source, provider_config):
+    def runner_MANAGED(self, package_source, dataset_backend, provider_config):
         if provider_config is None:
             self._provider_config_missing()
 
         return ManagedRunner(
             node_addresses=provider_config['addresses'],
-            distribution=provider_config['distribution'],
+            # TODO LATER Might be nice if this were part of
+            # provider_config
+            distribution=self['distribution'],
         )
 
-    def _runner_libcloud(self, package_source, provider_config):
+    def _runner_libcloud(self, package_source, dataset_backend,
+                         provider_config):
         if provider_config is None:
             self._provider_config_missing()
 
-        provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
+        cloud_config = provider_config.copy()
+        cloud_config.pop('dataset')
+        provisioner = CLOUD_PROVIDERS[self['provider']](**cloud_config)
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
             distribution=self['distribution'],
             package_source=package_source,
             provisioner=provisioner,
-            dataset_backend=self.dataset_backend,
+            dataset_backend=dataset_backend,
             variants=self['variants'],
         )
 
