@@ -344,8 +344,8 @@ class RequestsTests(TestCase):
         """
         Assert that ``requests`` succeeds in doing a TLS query to our server.
 
-        :param hostname: Hostname to connect to.
-        :param cert_name: Which attribute of the ``ControlSet`` to use.
+        :param bytes hostname: Hostname to connect to.
+        :param str cert_name: Which attribute of the ``ControlSet`` to use.
 
         :return: ``Deferred`` firing when test is done.
         """
