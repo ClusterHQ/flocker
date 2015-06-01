@@ -310,8 +310,12 @@ class ContainerAPITests(TestCase):
         Assert that a HTTP serving a response with body ``b"hi"`` is running
         at given host and port.
 
-        :param host: Host to connect to.
-        :param port: Port to connect to.
+        This can be coupled with code that only conditionally starts up
+        the HTTP server via Flocker in order to check if that particular
+        setup succeeded.
+
+        :param bytes host: Host to connect to.
+        :param int port: Port to connect to.
         """
         def query(host, port):
             req = get(
@@ -345,7 +349,8 @@ class ContainerAPITests(TestCase):
                 # Run as non-root user:
                 u"su", u"-", u"nobody", u"-c", u"sh", u"-c",
                 # Write something to volume we attached, and then
-                # expose what we wrote as a web server:
+                # expose what we wrote as a web server; for info on nc options
+                # you can do `docker run busybox man nc`.
                 u"""\
 echo -n '#!/bin/sh
 echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
