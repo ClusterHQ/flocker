@@ -403,6 +403,31 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
 
+    def test_pull_timeout(self):
+        """
+        Pulling an image times-out if it takes longer than a provided timeout.
+        """
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests:
+        image = u"ubuntu:12.04"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image, force=True)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name(self)
+        client = DockerClient(
+            namespace=self.namespacing_prefix, long_timeout=5)
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+        # requests has a TimeoutError, but timeout raises a ConnectionError.
+        # Both are subclasses of IOError, so use that for now
+        self.assertFailure(d, IOError)
+        return d
+
     def test_namespacing(self):
         """
         Containers are created with a namespace prefixed to their container
