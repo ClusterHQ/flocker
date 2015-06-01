@@ -303,6 +303,7 @@ class LibcloudRunner(object):
 
 
 DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
+# TODO: Collect this from RunOptions (or another dynamic dispatch-y thing)
 PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
@@ -392,40 +393,51 @@ class RunOptions(Options):
             build_server=self['build-server'],
         )
 
-        if self['provider'] not in PROVIDERS:
+        try:
+            get_runner = getattr(self, "runner_" + self['provider'].upper())
+        except AttributeError:
             raise UsageError(
-                "Provider %r not supported. Available providers: %s"
-                % (self['provider'], ', '.join(PROVIDERS)))
-
-        if self['provider'] in CLOUD_PROVIDERS:
-            # Configuration must include credentials etc for cloud providers.
-            try:
-                provider_config = self['config'][self['provider']]
-            except KeyError:
-                raise UsageError(
-                    "Configuration file must include a "
-                    "{!r} config stanza.".format(self['provider'])
+                "Provider {!r} not supported. Available providers: {}".format(
+                    self['provider'], ', '.join(PROVIDERS)
                 )
-
-            provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
-
-            self.runner = LibcloudRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
-                package_source=package_source,
-                provisioner=provisioner,
-                dataset_backend=self.dataset_backend,
-                variants=self['variants'],
             )
         else:
-            self.runner = VagrantRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
+            self.runner = get_runner(
                 package_source=package_source,
-                variants=self['variants'],
+                provider_config=self['config'].get(self['provider']),
             )
+
+    def _provider_config_missing(self):
+        raise UsageError(
+            "Configuration file must include a "
+            "{!r} config stanza.".format(self['provider'])
+        )
+
+    def runner_VAGRANT(self, package_source, provider_config):
+        return VagrantRunner(
+            config=self['config'],
+            top_level=self.top_level,
+            distribution=self['distribution'],
+            package_source=package_source,
+            variants=self['variants'],
+        )
+
+    def _runner_libcloud(self, package_source, provider_config):
+        if provider_config is None:
+            self._provider_config_missing()
+
+        provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
+        return LibcloudRunner(
+            config=self['config'],
+            top_level=self.top_level,
+            distribution=self['distribution'],
+            package_source=package_source,
+            provisioner=provisioner,
+            dataset_backend=self.dataset_backend,
+            variants=self['variants'],
+        )
+
+    runner_RACKSPACE = runner_AWS = _runner_libcloud
 
 
 MESSAGE_FORMATS = {
