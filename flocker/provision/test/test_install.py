@@ -11,9 +11,83 @@ from .._install import (
     task_install_flocker,
     CLUSTERHQ_REPO,
     run, put,
+    get_repository_url, UnsupportedDistribution,
 )
 from .._effect import sequence
 
+
+class GetRepositoryURL(SynchronousTestCase):
+    """
+    Tests for ``get_repository_url``.
+    """
+
+    def test_fedora_20(self):
+        """
+        It is possible to get a repository URL for Fedora 20 packages.
+        """
+        expected = ("https://s3.amazonaws.com/clusterhq-archive/fedora/"
+                    "clusterhq-release$(rpm -E %dist).noarch.rpm")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='fedora-20',
+                flocker_version='0.3.0'),
+            expected
+        )
+
+    def test_centos_7(self):
+        """
+        It is possible to get a repository URL for CentOS 7 packages.
+        """
+        expected = ("https://s3.amazonaws.com/clusterhq-archive/centos/"
+                    "clusterhq-release$(rpm -E %dist).noarch.rpm")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='centos-7',
+                flocker_version='0.3.0'),
+            expected
+        )
+
+    def test_ubuntu_14_04(self):
+        """
+        It is possible to get a repository URL for Ubuntu 14.04 packages.
+        """
+        expected = ("https://s3.amazonaws.com/clusterhq-archive/ubuntu/14.04"
+                    "/$(ARCH)")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='ubuntu-14.04',
+                flocker_version='0.3.0'),
+            expected
+        )
+
+    def test_unsupported_distribution(self):
+        """
+        An ``UnsupportedDistribution`` error is thrown if a repository for the
+        desired distribution cannot be found.
+        """
+        self.assertRaises(
+            UnsupportedDistribution,
+            get_repository_url, 'fedora-20', '0.3.0',
+        )
+
+    def test_non_release(self):
+        """
+        Operating system keys have the suffix ``-testing`` for non-marketing
+        releases.
+        """
+        expected = ("https://s3.amazonaws.com/clusterhq-archive/"
+                    "fedora-testing/"
+                    "clusterhq-release$(rpm -E %dist).noarch.rpm")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='fedora-20',
+                flocker_version='0.3.0dev1'),
+            expected
+        )
 
 class InstallFlockerTests(SynchronousTestCase):
     """
