@@ -476,3 +476,10 @@ class GetPackageKeySuffixTests(SynchronousTestCase):
         is returned.
         """
         self.assertEqual(get_package_key_suffix('0.3.0dev1'), "-testing")
+
+    def test_pre_release(self):
+        """
+        If a pre-release is passed to ``get_package_key_suffix``, "-testing"
+        is returned.
+        """
+        self.assertEqual(get_package_key_suffix('0.3.0pre1'), "-testing")
