@@ -247,9 +247,9 @@ You'll probably want to setup at least two nodes.
 
 #. Follow the installation instructions for your chosen distribution:
 
-	* :ref:`fedora-20-install`
-	* :ref:`centos-7-install`
-	* :ref:`ubuntu-14.04-install`
+   * :ref:`fedora-20-install`
+   * :ref:`centos-7-install`
+   * :ref:`ubuntu-14.04-install`
 
 .. _fedora-20-install:
 
