@@ -6,7 +6,7 @@ OpenStack-related tools.
 
 # After _interface_decorator is public, move this and auto_openstack_logging
 # into (or at least nearer) flocker/node/agents/cinder.py.
-from eliot import Field, MessageType
+from eliot import Field, MessageType, Message
 
 from novaclient.exceptions import ClientException as NovaClientException
 from keystoneclient.openstack.common.apiclient.exceptions import (
@@ -71,6 +71,9 @@ def _openstack_logged_method(method_name, original_name):
     def _run_with_logging(self, *args, **kwargs):
         original = getattr(self, original_name)
         method = getattr(original, method_name)
+        Message.new(
+            method=method.__name__, args=args, kwargs=kwargs
+        ).write()
         try:
             return method(*args, **kwargs)
         except NovaClientException as e:
