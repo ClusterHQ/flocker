@@ -721,6 +721,7 @@ class ApplicationNodeDeployer(object):
                     links=frozenset(links),
                     restart_policy=unit.restart_policy,
                     running=(unit.activation_state == u"active"),
+                    command_line=unit.command_line,
                 ))
 
             return [NodeState(

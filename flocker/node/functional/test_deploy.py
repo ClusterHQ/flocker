@@ -6,7 +6,7 @@ Functional tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, pvector
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -306,7 +306,7 @@ class DeployerTests(TestCase):
         Checking the command-line status results in same command-line we
         passed in.
         """
-        command_line = [u"nc", u"-l", u"-p", u"8080"]
+        command_line = pvector([u"nc", u"-l", u"-p", u"8080"])
         d = self._start_container_for_introspection(command_line=command_line)
         d.addCallback(
             lambda results: self.assertIn(
