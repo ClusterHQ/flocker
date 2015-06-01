@@ -17,6 +17,9 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 
+from effect import parallel
+from effect.twisted import perform
+
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
@@ -30,8 +33,6 @@ from flocker.provision._install import (
     configure_zfs,
 )
 from flocker.provision._ca import Certificates
-from effect import parallel
-from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.acceptance.testtools import DatasetBackend
 
