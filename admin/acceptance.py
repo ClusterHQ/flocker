@@ -422,6 +422,15 @@ class RunOptions(Options):
             variants=self['variants'],
         )
 
+    def runner_MANAGED(self, package_source, provider_config):
+        if provider_config is None:
+            self._provider_config_missing()
+
+        return ManagedRunner(
+            node_addresses=provider_config['addresses'],
+            distribution=provider_config['distribution'],
+        )
+
     def _runner_libcloud(self, package_source, provider_config):
         if provider_config is None:
             self._provider_config_missing()
