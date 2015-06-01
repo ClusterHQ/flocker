@@ -105,7 +105,7 @@ check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])
 
 
 check_call(['mkdir', '/etc/flocker'])
-check_call(['cp', '/opt/flocker/credentials/cluster.crt',
+check_call(['cp', '/home/vagrant/credentials/cluster.crt',
             '/etc/flocker/cluster.crt'])
 with file("/etc/flocker/agent.yml", "a") as f:
     f.write(json.dumps({
