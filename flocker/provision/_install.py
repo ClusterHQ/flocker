@@ -61,6 +61,12 @@ CLUSTERHQ_REPO = {
 }
 
 
+def get_repository_url(distribution, flocker_version):
+    pass
+
+class UnsupportedDistribution(Exception):
+    pass
+
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):
     """
