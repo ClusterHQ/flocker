@@ -1230,7 +1230,7 @@ class UploadPackagesTests(SynchronousTestCase):
     def test_development_repositories_created(self):
         """
         Calling :func:`upload_packages` creates development repositories for
-        CentOS 7 and Fedora 20 for a development release.
+        supported distributions for a development release.
         """
         aws = FakeAWS(
             routing_rules={},
@@ -1284,7 +1284,7 @@ class UploadPackagesTests(SynchronousTestCase):
     def test_marketing_repositories_created(self):
         """
         Calling :func:`upload_packages` creates marketing repositories for
-        CentOS 7 and Fedora 20 for a marketing release.
+        supported distributions for a marketing release.
         """
         aws = FakeAWS(
             routing_rules={},
