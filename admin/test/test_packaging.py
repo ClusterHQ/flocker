@@ -27,7 +27,7 @@ from ..packaging import (
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
-    make_dependencies,
+    make_dependencies, available_distributions,
     LintPackage,
 )
 from flocker.common.version import RPMVersion
@@ -1226,6 +1226,33 @@ class BuildOptionsTests(TestCase):
         )
 
 
+class AvailableDistributionTests(TestCase):
+    """
+    Tests for ``available_distributions``.
+    """
+    def test_dockerfiles(self):
+        """
+        Directories in the ``admin/build_targets/`` sub-directory of the path
+        passed to ``available_distributions`` which themselves container a
+        ``Dockerfile`` are considered distributions and included in the result.
+        """
+        root = FilePath(self.mktemp())
+        build_targets = root.descendant([b"admin", b"build_targets"])
+        build_targets.makedirs()
+        build_targets.child(b"foo").setContent(b"bar")
+        greatos = build_targets.child(b"greatos")
+        greatos.makedirs()
+        greatos.child(b"Dockerfile").setContent(
+            b"MAINTAINER example@example.invalid\n"
+        )
+        nothing = build_targets.child(b"nothing")
+        nothing.makedirs()
+
+        self.assertEqual(
+            {b"greatos"},
+            available_distributions(root),
+        )
+
 class BuildScriptTests(TestCase):
     """
     Tests for ``BuildScript``.
@@ -1262,6 +1289,32 @@ class BuildScriptTests(TestCase):
         """
         self.assertIs(build_in_docker, BuildScript.build_command)
 
+    def test_default_distributions(self):
+        """
+        ``BuildScript.main`` uses the ``admin/build_targets/`` directory next
+        to the ``admin.packaging`` module it comes from to determine supported
+        distributions if no ``top_level`` path is passed to it.
+        """
+        supported_distribution = FLOCKER_PATH.descendant([
+            b"admin", b"build_targets"
+        ]).children()[0].basename()
+
+        fake_sys_module = FakeSysModule(argv=[
+            b"build-command-name",
+            b"--distribution", supported_distribution,
+            b"http://www.example.com/foo/bar.whl",
+        ])
+
+        def record_arguments(distribution, *args, **kwargs):
+            self.distribution = distribution
+            return SpyStep()
+
+        script = BuildScript(sys_module=fake_sys_module)
+        script.build_command = record_arguments
+        script.main()
+
+        self.assertEqual(self.distribution, supported_distribution)
+
     def test_run(self):
         """
         ``BuildScript.main`` calls ``run`` on the instance returned by
@@ -1291,7 +1344,7 @@ class BuildScriptTests(TestCase):
             dict(destination_path=expected_destination_path,
                  distribution=expected_distribution,
                  package_uri=expected_package_uri,
-                 top_level=None)
+                 top_level=FLOCKER_PATH)
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
