@@ -5,7 +5,6 @@ Effectful interface to packaging tools.
 """
 
 import requests
-from requests.exceptions import HTTPError
 from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
