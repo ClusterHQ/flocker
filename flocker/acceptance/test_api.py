@@ -5,7 +5,7 @@ Tests for the control service REST API.
 """
 
 import socket
-
+from contextlib import closing
 from uuid import uuid4
 
 from pyrsistent import thaw, pmap
@@ -17,13 +17,14 @@ from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
 
+from eliot import Message
+
 from ..testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
 )
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client,
-    get_test_cluster, require_cluster,
-    require_moving_backend,
+    MONGO_IMAGE, require_mongo, get_mongo_client, get_test_cluster,
+    require_cluster, require_moving_backend,
 )
 
 # A command that will run an "HTTP" in a Busybox container.  The server
@@ -50,9 +51,15 @@ def verify_socket(host, port):
     :return Deferred: Firing when connection is possible.
     """
     def can_connect():
-        s = socket.socket()
-        conn = s.connect_ex((host, port))
-        return False if conn else True
+        with closing(socket.socket()) as s:
+            conn = s.connect_ex((host, port))
+            Message.new(
+                message_type="acceptance:verify_socket",
+                host=host,
+                port=port,
+                result=conn,
+            ).write()
+            return conn == 0
 
     dl = loop_until(can_connect)
     return dl
@@ -95,8 +102,7 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         return d
 
-    @require_cluster(1)
-    def test_create_container_with_ports(self, cluster):
+    def test_create_container_with_ports(self):
         """
         Create a container including port mappings on a single-node cluster.
         """
@@ -115,13 +121,9 @@ class ContainerAPITests(TestCase):
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
             u'restart_policy': {u'name': u'never'},
         }
-        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
-        def create_container(cluster, data):
-            data[u"node_uuid"] = cluster.nodes[0].uuid
-            return cluster.create_container(data)
-
-        d = waiting_for_cluster.addCallback(create_container, data)
+        data[u"node_uuid"] = cluster.nodes[0].uuid
+        d = cluster.create_container(data)
 
         def check_result((cluster, response)):
             self.addCleanup(cluster.remove_container, data[u"name"])
@@ -164,7 +166,7 @@ class ContainerAPITests(TestCase):
         to move the container. Wait until we can connect to the running
         container on the new host and verify the data has moved with it.
         """
-        creating_dataset = create_dataset(self, nodes=2)
+        creating_dataset = create_dataset(self, cluster)
 
         def created_dataset(result):
             cluster, dataset = result
@@ -239,7 +241,7 @@ class ContainerAPITests(TestCase):
         shut it down, create a new container with same dataset, make sure
         the data is still there.
         """
-        creating_dataset = create_dataset(self)
+        creating_dataset = create_dataset(self, cluster)
 
         def created_dataset(result):
             cluster, dataset = result
@@ -284,8 +286,7 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    @require_cluster(1)
-    def test_current(self, cluster):
+    def test_current(self):
         """
         The current container endpoint includes a currently running container.
         """
@@ -298,7 +299,7 @@ class ContainerAPITests(TestCase):
 
             def in_current():
                 current = cluster.current_containers()
-                current.addCallback(lambda result: data in result[1])
+                current.addCallback(lambda result: data in result)
                 return current
             return loop_until(in_current)
         creating.addCallback(created)
@@ -372,46 +373,28 @@ nc -ll -p 9000 -e /tmp/script.sh
         return running
 
 
-def create_dataset(test_case, nodes=1,
+def create_dataset(test_case, cluster,
                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
     """
     Create a dataset on a cluster.
 
     :param TestCase test_case: The test the API is running on.
-    :param int nodes: The number of nodes to create. Defaults to 1.
+    :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
     """
-    # Create a cluster
-    waiting_for_cluster = get_test_cluster(reactor, node_count=nodes)
-
     # Configure a dataset on node1
-    def configure_dataset(cluster):
-        """
-        Send a dataset creation request on node1.
-        """
-        requested_dataset = {
-            u"primary": cluster.nodes[0].uuid,
-            u"dataset_id": unicode(uuid4()),
-            u"maximum_size": maximum_size,
-            u"metadata": {u"name": u"my_volume"},
-        }
+    requested_dataset = {
+        u"primary": cluster.nodes[0].uuid,
+        u"dataset_id": unicode(uuid4()),
+        u"maximum_size": maximum_size,
+        u"metadata": {u"name": u"my_volume"},
+    }
 
-        d = cluster.create_dataset(requested_dataset)
-
-        def got_result(result):
-            test_case.addCleanup(
-                cluster.delete_dataset, requested_dataset[u"dataset_id"])
-            return result
-        d.addCallback(got_result)
-        return d
-
-    configuring_dataset = waiting_for_cluster.addCallback(
-        configure_dataset
-    )
+    configuring_dataset = cluster.create_dataset(requested_dataset)
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
@@ -425,35 +408,27 @@ class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
     """
-    def test_dataset_creation(self):
+    @require_cluster(1)
+    def test_dataset_creation(self, cluster):
         """
         A dataset can be created on a specific node.
         """
-        return create_dataset(self)
+        return create_dataset(self, cluster)
 
+    @require_cluster(2)
     @require_moving_backend
-    def test_dataset_move(self):
+    def test_dataset_move(self, cluster):
         """
         A dataset can be moved from one node to another.
         """
-        # Create a 2 node cluster
-        waiting_for_cluster = get_test_cluster(reactor, node_count=2)
+        # Send a dataset creation request on node1.
+        requested_dataset = {
+            u"primary": cluster.nodes[0].uuid,
+            u"dataset_id": unicode(uuid4()),
+            u"metadata": {u"name": u"my_volume"}
+        }
 
-        # Configure a dataset on node1
-        def configure_dataset(cluster):
-            """
-            Send a dataset creation request on node1.
-            """
-            requested_dataset = {
-                u"primary": cluster.nodes[0].uuid,
-                u"dataset_id": unicode(uuid4()),
-                u"metadata": {u"name": u"my_volume"}
-            }
-
-            return cluster.create_dataset(requested_dataset)
-        configuring_dataset = waiting_for_cluster.addCallback(
-            configure_dataset
-        )
+        configuring_dataset = cluster.create_dataset(requested_dataset)
 
         # Wait for the dataset to be created
         waiting_for_create = configuring_dataset.addCallback(
@@ -475,11 +450,12 @@ class DatasetAPITests(TestCase):
 
         return waiting_for_move
 
-    def test_dataset_deletion(self):
+    @require_cluster(1)
+    def test_dataset_deletion(self, cluster):
         """
         A dataset can be deleted, resulting in its removal from the node.
         """
-        created = create_dataset(self)
+        created = create_dataset(self, cluster)
 
         def delete_dataset(result):
             cluster, dataset = result
