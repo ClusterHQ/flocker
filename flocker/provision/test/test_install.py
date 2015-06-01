@@ -70,7 +70,7 @@ class GetRepositoryURL(SynchronousTestCase):
         """
         self.assertRaises(
             UnsupportedDistribution,
-            get_repository_url, 'fedora-20', '0.3.0',
+            get_repository_url, 'unsupported-os', '0.3.0',
         )
 
     def test_non_release(self):

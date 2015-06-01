@@ -92,10 +92,15 @@ def get_repository_url(distribution, flocker_version):
                         ),
     }
 
-    return distribution_to_url[distribution]
+    try:
+        return distribution_to_url[distribution]
+    except KeyError:
+        raise UnsupportedDistribution()
 
 class UnsupportedDistribution(Exception):
-    pass
+    """
+    Raised if trying to support a distribution which is not supported.
+    """
 
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):
