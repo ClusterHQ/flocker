@@ -25,7 +25,7 @@ class GetRepositoryURL(SynchronousTestCase):
         """
         It is possible to get a repository URL for Fedora 20 packages.
         """
-        expected = ("https://s3.amazonaws.com/clusterhq-archive/fedora/"
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/fedora/"
                     "clusterhq-release$(rpm -E %dist).noarch.rpm")
 
         self.assertEqual(
@@ -39,7 +39,7 @@ class GetRepositoryURL(SynchronousTestCase):
         """
         It is possible to get a repository URL for CentOS 7 packages.
         """
-        expected = ("https://s3.amazonaws.com/clusterhq-archive/centos/"
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/centos/"
                     "clusterhq-release$(rpm -E %dist).noarch.rpm")
 
         self.assertEqual(
@@ -53,7 +53,7 @@ class GetRepositoryURL(SynchronousTestCase):
         """
         It is possible to get a repository URL for Ubuntu 14.04 packages.
         """
-        expected = ("https://s3.amazonaws.com/clusterhq-archive/ubuntu/14.04"
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/ubuntu/14.04"
                     "/$(ARCH)")
 
         self.assertEqual(
@@ -78,7 +78,7 @@ class GetRepositoryURL(SynchronousTestCase):
         Operating system keys have the suffix ``-testing`` for non-marketing
         releases.
         """
-        expected = ("https://s3.amazonaws.com/clusterhq-archive/"
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/"
                     "fedora-testing/"
                     "clusterhq-release$(rpm -E %dist).noarch.rpm")
 

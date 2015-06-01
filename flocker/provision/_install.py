@@ -43,12 +43,12 @@ DISTRO_KEY_SUFFIX = get_package_key_suffix(
 )
 
 CLUSTERHQ_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
+    'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/"
                  "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                      archive_bucket=ARCHIVE_BUCKET,
                      key='fedora' + DISTRO_KEY_SUFFIX,
                  ),
-    'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
+    'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
                 "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                     archive_bucket=ARCHIVE_BUCKET,
                     key='centos' + DISTRO_KEY_SUFFIX,
@@ -62,7 +62,37 @@ CLUSTERHQ_REPO = {
 
 
 def get_repository_url(distribution, flocker_version):
-    pass
+    """
+    Return the URL for the repository of a given distribution.
+
+    :param bytes distribution: The Linux distribution to get a repository for.
+    :param bytes flocker_version: The version of Flocker to get a repository
+        for.
+
+    :return bytes: The URL pointing to a repository of packages.
+    :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
+    """
+    distro_key_suffix = get_package_key_suffix(flocker_version)
+
+    distribution_to_url = {
+        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/"
+                     "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                         archive_bucket=ARCHIVE_BUCKET,
+                         key='fedora' + distro_key_suffix,
+                     ),
+        'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
+                    "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                        archive_bucket=ARCHIVE_BUCKET,
+                        key='centos' + distro_key_suffix,
+                        ),
+        'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
+                        '{key}/14.04/$(ARCH)'.format(
+                        archive_bucket=ARCHIVE_BUCKET,
+                        key='ubuntu' + distro_key_suffix,
+                        ),
+    }
+
+    return distribution_to_url[distribution]
 
 class UnsupportedDistribution(Exception):
     pass
