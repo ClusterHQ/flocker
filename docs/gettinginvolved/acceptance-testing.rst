@@ -143,6 +143,7 @@ To run the acceptance tests on AWS, you need:
 .. code-block:: yaml
 
    aws:
+     .. XXX Use availability zone instead?
      region: <aws region, e.g. "us-west-2">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
@@ -150,6 +151,12 @@ To run the acceptance tests on AWS, you need:
      security_groups: ["<permissive security group>"]
      # FLOC-1925 looks like everything we need for dataset backend is
      # already here.
+     dataset:
+         backend: aws
+         region: <aws region, e.g. "us-west-2">
+         .. XXX Can region be inferred from zone?
+         zone: <aws zone, e.g. "us-west-2a">
+         etc...
    metadata:
      creator: <your-name>
 
