@@ -12,6 +12,8 @@ from subprocess import check_output
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from os import umask
 
+from bitmath import GiB
+
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
@@ -40,6 +42,11 @@ from ...common import auto_threaded
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
 # we have a lot of.  So just use this global logger for now.
 _logger = Logger()
+
+# The size which will be assigned to datasets with an unspecified
+# maximum_size.
+# XXX: Make this configurable. FLOC-2044
+DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
 
 @attributes(["dataset_id"])
@@ -1742,12 +1749,17 @@ class BlockDeviceDeployer(PRecord):
 
         local_dataset_ids = set(local_state.manifestations.keys())
 
-        manifestations_to_create = set(
-            configured_manifestations[dataset_id]
-            for dataset_id
-            in configured_dataset_ids.difference(local_dataset_ids)
-            if dataset_id not in cluster_state.nonmanifest_datasets
-        )
+        manifestations_to_create = set()
+        for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
+            if dataset_id not in cluster_state.nonmanifest_datasets:
+                manifestation = configured_manifestations[dataset_id]
+                # XXX: Make this configurable. FLOC-2044
+                if manifestation.dataset.maximum_size is None:
+                    manifestation = manifestation.transform(
+                        ['dataset', 'maximum_size'],
+                        DEFAULT_DATASET_SIZE
+                    )
+                manifestations_to_create.add(manifestation)
 
         attaches = list(self._calculate_attaches(
             local_state.devices,
