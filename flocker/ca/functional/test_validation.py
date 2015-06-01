@@ -336,6 +336,9 @@ class RequestsTests(TestCase):
     """
     Tests for the ``requests`` library's ability to talk to REST API TLS
     server.
+
+    Validation of certificates encoding an IP address fails; see
+    https://clusterhq.atlassian.net/browse/FLOC-2046 for details.
     """
     def assert_requests_validates(self, hostname, cert_name):
         """
@@ -371,17 +374,6 @@ class RequestsTests(TestCase):
         d = deferToThreadPool(reactor, pool, req)
         d.addCallback(self.assertEqual, EXPECTED_STRING)
         return d
-
-    def test_requests_ip(self):
-        """
-        The ``requests`` library can communicate with the certificate used by
-        the REST API when it is accessed via an IP address.
-        """
-        return self.assert_requests_validates(b"127.0.0.1", "control")
-    test_requests_ip.skip = (
-        "This is a actually an expected failure, see "
-        "https://bugs.python.org/msg138405, "
-        "but the failing test is resulting in a deadlock somewhere.")
 
     def test_requests_dns(self):
         """
