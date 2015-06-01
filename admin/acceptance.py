@@ -563,6 +563,7 @@ def main(reactor, args, base_path, top_level):
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)
 
+    cluster = None
     try:
         cluster = yield runner.start_cluster(reactor)
 
@@ -597,9 +598,7 @@ def main(reactor, args, base_path, top_level):
             runner.stop_cluster(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
-            try:
-                cluster
-            except NameError:
+            if cluster is None:
                 print ("Didn't finish creating the cluster.")
             else:
                 print ("To run acceptance tests against these nodes, "
