@@ -491,22 +491,21 @@ def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
                    keys=['flocker-tutorial-{}.box'.format(version)]))
 
 
-
 @do
-def upload_rpms(scratch_directory, target_bucket, version, build_server):
+def upload_packages(scratch_directory, target_bucket, version, build_server):
     """
-    The ClusterHQ yum repository contains packages for Flocker, as well as the
-    dependencies which aren't available in Fedora 20 or CentOS 7. It is
-    currently hosted on Amazon S3. When doing a release, we want to add the
-    new Flocker packages, while preserving the existing packages in the
+    The ClusterHQ yum and deb repositories contain packages for Flocker, as
+    well as the dependencies which aren't available in Fedora 20 or CentOS 7.
+    It is currently hosted on Amazon S3. When doing a release, we want to add
+    the new Flocker packages, while preserving the existing packages in the
     repository. To do this, we download the current repository, add the new
     package, update the metadata, and then upload the repository.
 
     :param FilePath scratch_directory: Temporary directory to download
         repository to.
     :param bytes target_bucket: S3 bucket to upload repository to.
-    :param bytes version: Version to download RPMs for.
-    :param bytes build_server: Server to download new RPMs from.
+    :param bytes version: Version to download packages for.
+    :param bytes build_server: Server to download new packages from.
     """
     is_dev = not is_release(version)
     if is_dev:
@@ -677,7 +676,7 @@ def publish_artifacts_main(args, base_path, top_level):
 
     scratch_directory = FilePath(tempfile.mkdtemp(
         prefix=b'flocker-upload-'))
-    scratch_directory.child('rpm').createDirectory()
+    scratch_directory.child('packages').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
     scratch_directory.child('homebrew').createDirectory()
@@ -686,8 +685,8 @@ def publish_artifacts_main(args, base_path, top_level):
         sync_perform(
             dispatcher=dispatcher,
             effect=sequence([
-                upload_rpms(
-                    scratch_directory=scratch_directory.child('rpm'),
+                upload_packages(
+                    scratch_directory=scratch_directory.child('packages'),
                     target_bucket=options['target'],
                     version=options['flocker-version'],
                     build_server=options['build-server'],

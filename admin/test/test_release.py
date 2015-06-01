@@ -27,7 +27,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from .. import release
 
 from ..release import (
-    upload_python_packages, upload_rpms, update_repo,
+    upload_python_packages, upload_packages, update_repo,
     publish_docs, Environments,
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
@@ -1193,26 +1193,27 @@ class UpdateRepoTests(SynchronousTestCase):
         self.assertNotIn(self.package_directory.path, packages_metadata)
 
 
-class UploadRPMsTests(SynchronousTestCase):
+class UploadPackagesTests(SynchronousTestCase):
     """
-    Tests for :func:``upload_rpms``.
+    Tests for :func:``upload_packages``.
     """
-    def upload_rpms(self, aws, yum,
-                    scratch_directory, target_bucket, version, build_server):
+    def upload_packages(self, aws, yum,
+                        scratch_directory, target_bucket, version,
+                        build_server):
         """
-        Call :func:``upload_rpms``, interacting with a fake AWS and yum
+        Call :func:``upload_packages``, interacting with a fake AWS and yum
         utilities.
 
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
 
-        See :py:func:`upload_rpms` for other parameter documentation.
+        See :py:func:`upload_packages` for other parameter documentation.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
-            upload_rpms(
+            upload_packages(
                 scratch_directory=scratch_directory,
                 target_bucket=target_bucket,
                 version=version,
@@ -1228,7 +1229,7 @@ class UploadRPMsTests(SynchronousTestCase):
 
     def test_development_repositories_created(self):
         """
-        Calling :func:`upload_rpms` creates development repositories for
+        Calling :func:`upload_packages` creates development repositories for
         CentOS 7 and Fedora 20 for a development release.
         """
         aws = FakeAWS(
@@ -1250,7 +1251,7 @@ class UploadRPMsTests(SynchronousTestCase):
             'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
+        self.upload_packages(
             aws=aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
@@ -1282,7 +1283,7 @@ class UploadRPMsTests(SynchronousTestCase):
 
     def test_development_repositories_created_for_pre_release(self):
         """
-        Calling :func:`upload_rpms` creates development repositories for
+        Calling :func:`upload_packages` creates development repositories for
         CentOS 7 and Fedora 20 for a pre-release.
         """
         aws = FakeAWS(
@@ -1304,7 +1305,7 @@ class UploadRPMsTests(SynchronousTestCase):
             'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
+        self.upload_packages(
             aws=aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
@@ -1337,7 +1338,7 @@ class UploadRPMsTests(SynchronousTestCase):
 
     def test_marketing_repositories_created(self):
         """
-        Calling :func:`upload_rpms` creates marketing repositories for
+        Calling :func:`upload_packages` creates marketing repositories for
         CentOS 7 and Fedora 20 for a marketing release.
         """
         aws = FakeAWS(
@@ -1359,7 +1360,7 @@ class UploadRPMsTests(SynchronousTestCase):
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
+        self.upload_packages(
             aws=aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
