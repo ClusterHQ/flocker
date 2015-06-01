@@ -10,7 +10,6 @@ devices.
 from uuid import UUID, uuid4
 from subprocess import check_output
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
-from os import umask
 from errno import EEXIST
 
 from bitmath import GiB
@@ -623,20 +622,18 @@ class MountBlockDevice(PRecord):
         except OSError as e:
             if e.errno != EEXIST:
                 return fail()
-        original_umask = umask(0)
-        try:
-            mountroot = self.mountpoint.parent()
-            mountroot.chmod(S_IRWXU)
+        self.mountpoint.parent().chmod(S_IRWXU)
 
-            # This should be asynchronous.  FLOC-1797
-            check_output([b"mount", device.path, self.mountpoint.path])
+        # This should be asynchronous.  FLOC-1797
+        check_output([b"mount", device.path, self.mountpoint.path])
 
-            # Make sure we change mounted filesystem's root directory
-            # permissions, so we only do this after the filesystem is mounted.
-            self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
-            self.mountpoint.restat()
-        finally:
-            umask(original_umask)
+        # Mounted filesystem is world writeable/readable/executable since
+        # we can't predict what user a container will run as.  Make sure
+        # we change mounted filesystem's root directory permissions, so we
+        # only do this after the filesystem is mounted.
+        self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
+        self.mountpoint.restat()
+
         return succeed(None)
 
 
