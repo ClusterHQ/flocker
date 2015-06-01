@@ -406,7 +406,11 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
 
     homebrew_repo.index.add([recipe])
     homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
-    push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    try:
+        push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    except GitCommandError:
+        raise PushFailed()
+
     if (push_info.flags & push_info.ERROR) != 0:
         raise PushFailed()
 
