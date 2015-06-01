@@ -38,32 +38,12 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
-DISTRO_KEY_SUFFIX = get_package_key_suffix(
-    get_installable_version(version)
-)
-
-CLUSTERHQ_REPO = {
-    'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/"
-                 "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                     archive_bucket=ARCHIVE_BUCKET,
-                     key='fedora' + DISTRO_KEY_SUFFIX,
-                 ),
-    'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
-                "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                    archive_bucket=ARCHIVE_BUCKET,
-                    key='centos' + DISTRO_KEY_SUFFIX,
-                    ),
-    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                    '{key}/14.04/$(ARCH)'.format(
-                    archive_bucket=ARCHIVE_BUCKET,
-                    key='ubuntu' + DISTRO_KEY_SUFFIX,
-                    ),
-}
-
 
 def get_repository_url(distribution, flocker_version):
     """
     Return the URL for the repository of a given distribution.
+
+    Note that for ``yum``-using distributions this gives the URL to a package.
 
     :param bytes distribution: The Linux distribution to get a repository for.
     :param bytes flocker_version: The version of Flocker to get a repository
@@ -144,8 +124,11 @@ def install_cli_commands_yum(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
+    # This references CentOS 7 but this only works because CentOS 7's
+    # repository URL is the same as Fedora 20's.
     commands = [
-        sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        sudo(command="yum install -y " + get_repository_url(
+                distribution='centos-7', flocker_version=version)),
     ]
 
     if use_development_branch:
@@ -209,7 +192,8 @@ def install_cli_commands_ubuntu(distribution, package_source):
         # Add ClusterHQ repo for installation of Flocker packages.
         sudo_from_args([
             'add-apt-repository', '-y',
-            'deb {} /'.format(CLUSTERHQ_REPO[distribution])
+            'deb {} /'.format(get_repository_url(
+                distribution='centos-7', flocker_version=version))
             ])
         ]
 
@@ -669,7 +653,8 @@ def task_install_flocker(
             # Add ClusterHQ repo for installation of Flocker packages.
             run_from_args([
                 'add-apt-repository', '-y',
-                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
+                'deb {} /'.format(get_repository_url(
+                    distribution='centos-7', flocker_version=version))
                 ])
             ]
 
@@ -708,8 +693,10 @@ def task_install_flocker(
 
         return sequence(commands)
     else:
+        # TODO this mentions centos-7 but is also for fedora
         commands = [
-            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+            run(command="yum install -y " + get_repository_url(
+                distribution='centos-7', flocker_version=version))
         ]
 
         if use_development_branch:
