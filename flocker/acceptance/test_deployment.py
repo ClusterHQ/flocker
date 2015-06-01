@@ -14,9 +14,10 @@ from twisted.trial.unittest import TestCase
 
 from ..control.httpapi import container_configuration_response
 
-from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        MONGO_APPLICATION, MONGO_IMAGE, get_mongo_application,
-                        require_flocker_cli, require_mongo, create_application,
+from .testtools import (assert_expected_deployment, flocker_deploy,
+                        get_clean_nodes, MONGO_APPLICATION, MONGO_IMAGE,
+                        get_mongo_application, require_flocker_cli,
+                        require_mongo, create_application,
                         create_attached_volume, require_cluster)
 
 SIZE_100_MB = u"104857600"
@@ -190,7 +191,7 @@ class DeploymentTests(TestCase):
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
-        getting_nodes = get_nodes(self, num_nodes=1)
+        getting_nodes = get_clean_nodes(self, num_nodes=1)
 
         def deploy(node_ips):
             [node_1] = node_ips

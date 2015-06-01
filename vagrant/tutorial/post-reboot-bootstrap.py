@@ -4,6 +4,7 @@
 
 import sys
 import os
+import json
 from subprocess import check_call, check_output
 from textwrap import dedent
 from urlparse import urljoin
@@ -102,11 +103,34 @@ check_call(['mkdir', '-p', '/var/opt/flocker'])
 check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
 check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])
 
+
+check_call(['mkdir', '/etc/flocker'])
+check_call(['cp', '/home/vagrant/credentials/cluster.crt',
+            '/etc/flocker/cluster.crt'])
+with file("/etc/flocker/agent.yml", "a") as f:
+    f.write(json.dumps({
+        "control-service": {"hostname": "172.16.255.250"},
+        "dataset": {"backend": "zfs"},
+        "version": 1
+    }))
+
 # Move SSH private key into place so ZFS agent can use it until we remove
 # SSH completely in FLOC-1665. The Vagrantfile copied it over, and it's
 # the same one we already have in root's authorized_keys (see above).
-check_call(['mkdir', '/etc/flocker'])
 check_call(['chmod', 'u=rwx,g=,o=', '/etc/flocker'])
 check_call(["ssh-keygen", "-N", "", "-f", "/etc/flocker/id_rsa_flocker"])
 with file("/root/.ssh/authorized_keys", "a") as f:
     f.write(file("/etc/flocker/id_rsa_flocker.pub").read())
+
+# Workaround https://github.com/mitchellh/vagrant/issues/5590
+# New version of CentOS have a NetworkManager that is aggresive about
+# configuring network devices. Vagrant tells NetworkManager to not
+# manage the device it uses for a static IP, but doesn't tell NetworkManger
+# that it has done so. Teach NetworkManager to automatically reload the
+# configuration.
+with file("/etc/NetworkManager/conf.d/auto-reload.conf", "a") as f:
+    f.write("""\
+# Workaround https://github.com/mitchellh/vagrant/issues/5590
+[main]
+monitor-connection-files=true
+""")
