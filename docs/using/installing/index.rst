@@ -229,7 +229,7 @@ Using Rackspace
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
-#. Create a new cloud server
+#. Create a new cloud server:
 
    * Visit https://mycloud.rackspace.com
    * Click "Create Server".
@@ -237,7 +237,7 @@ You'll probably want to setup at least two nodes.
    * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
    * Add your SSH key
 
-#. SSH in
+#. SSH in:
 
    You can find the IP in the Server Details page after it is created.
 
@@ -245,7 +245,11 @@ You'll probably want to setup at least two nodes.
 
       ssh root@203.0.113.109
 
-#. Follow the installation instructions for your chosen distribution below.
+#. Follow the installation instructions for your chosen distribution:
+
+	* :ref:`fedora-20-install`
+	* :ref:`centos-7-install`
+	* :ref:`ubuntu-14.04-install`
 
 .. _fedora-20-install:
 
