@@ -340,14 +340,13 @@ The file ``cluster.key`` should be kept only by the cluster administrator; it do
 
 You are now able to generate authentication certificates for the control service and each of your nodes.
 To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
-Replace ``example.org`` with the hostname of your control service node; this hostname should match the hostname you will give to REST API clients.
-It should be a valid DNS name that HTTPS clients can resolve, since they will use it as part of TLS validation.
+Replace ``example.org`` with the hostname of your control service node; this hostname should match the hostname you will give to HTTP API clients.
+It should be a valid DNS name that HTTPS clients can resolve since they will use it as part of TLS validation.
 Using an IP address is not recommended as it may break some HTTPS clients.
 
 .. code-block:: console
 
    $ flocker-ca create-control-certificate example.org
-   Created control-example.org.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
 
 You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
 You should also copy the cluster's public certificate, the `cluster.crt` file.
@@ -454,7 +453,7 @@ To enable the Flocker control service on Fedora / CentOS
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
-To configure FirewallD to allow access to the control service REST API, and for agent connections:
+To configure FirewallD to allow access to the control service HTTP API, and for agent connections:
 
 .. task:: open_control_firewall fedora-20
    :prompt: [root@control-node]#
@@ -470,7 +469,7 @@ To enable the Flocker control service on Ubuntu
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
-To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
+To configure ``UFW`` to allow access to the control service HTTP API, and for agent connections:
 
 .. task:: open_control_firewall ubuntu-14.04
    :prompt: [root@control-node]#
