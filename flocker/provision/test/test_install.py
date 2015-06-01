@@ -10,7 +10,7 @@ from .. import PackageSource
 from .._install import (
     task_install_flocker,
     run, put,
-    get_repository_url, UnsupportedDistribution,
+    get_repository_url, UnsupportedDistribution, get_installable_version,
 )
 from .._effect import sequence
 
@@ -104,7 +104,8 @@ class InstallFlockerTests(SynchronousTestCase):
         commands = task_install_flocker(distribution=distribution)
         self.assertEqual(commands, sequence([
             run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7', flocker_version=version)),
+                distribution='centos-7',
+                flocker_version=get_installable_version(version))),
             run(command="yum install -y clusterhq-flocker-node")
         ]))
 
@@ -121,7 +122,8 @@ class InstallFlockerTests(SynchronousTestCase):
             distribution=distribution)
         self.assertEqual(commands, sequence([
             run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7', flocker_version=version)),
+                distribution='centos-7',
+                flocker_version=get_installable_version(version))),
             run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
         ]))
 
@@ -137,8 +139,8 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command="add-apt-repository -y 'deb {} /'".format(
                 get_repository_url(
-                    distribution='centos-7',
-                    flocker_version=version))),
+                    distribution='ubuntu-14.04',
+                    flocker_version=get_installable_version(version)))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
@@ -159,8 +161,8 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command="add-apt-repository -y 'deb {} /'".format(
                 get_repository_url(
-                    distribution='centos-7',
-                    flocker_version=version))),
+                    distribution='ubuntu-14.04',
+                    flocker_version=get_installable_version(version)))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
         ]))
@@ -180,8 +182,8 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command="add-apt-repository -y 'deb {} /'".format(
                 get_repository_url(
-                    distribution='centos-7',
-                    flocker_version=version))),
+                    distribution='ubuntu-14.04',
+                    flocker_version=get_installable_version(version)))),
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
             put(
@@ -204,7 +206,8 @@ class InstallFlockerTests(SynchronousTestCase):
             distribution=distribution)
         self.assertEqual(commands, sequence([
             run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7', flocker_version=version)),
+                distribution='centos-7',
+                flocker_version=get_installable_version(version))),
             put(content="""\
 [clusterhq-build]
 name=clusterhq-build
@@ -231,7 +234,8 @@ enabled=0
             distribution=distribution)
         self.assertEqual(commands, sequence([
             run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7', flocker_version=version)),
+                distribution='centos-7',
+                flocker_version=get_installable_version(version))),
             put(content="""\
 [clusterhq-build]
 name=clusterhq-build
@@ -257,7 +261,8 @@ enabled=0
             distribution=distribution)
         self.assertEqual(commands, sequence([
             run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7', flocker_version=version)),
+                distribution='centos-7',
+                flocker_version=get_installable_version(version))),
             put(content="""\
 [clusterhq-build]
 name=clusterhq-build
