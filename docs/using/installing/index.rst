@@ -373,7 +373,7 @@ Before copying these files you will need to SSH into the node and create a :file
 
 You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the :file:`/etc/flocker` directory and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
 You should also copy the cluster's public certificate, the ``cluster.crt`` file.
-On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via ``chmod``:
+On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
 .. code-block:: console
 
