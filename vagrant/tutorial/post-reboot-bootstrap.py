@@ -110,7 +110,8 @@ check_call(['cp', '/home/vagrant/credentials/cluster.crt',
 with file("/etc/flocker/agent.yml", "a") as f:
     f.write(json.dumps({
         "control-service": {"hostname": "172.16.255.250"},
-        "dataset": {"backend": "zfs"}
+        "dataset": {"backend": "zfs"},
+        "version": 1
     }))
 
 # Move SSH private key into place so ZFS agent can use it until we remove
