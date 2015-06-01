@@ -18,8 +18,8 @@ systemctl start flocker-control
 EOF
 
 $bootstrap_node1_cert = <<EOF
-cp /home/vagrant/credentials/node-2.crt /etc/flocker/node.crt
-cp /home/vagrant/credentials/node-2.key /etc/flocker/node.key
+cp /home/vagrant/credentials/node-1.crt /etc/flocker/node.crt
+cp /home/vagrant/credentials/node-1.key /etc/flocker/node.key
 EOF
 
 $bootstrap_node2_cert = <<EOF
@@ -53,9 +53,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "node2" do |node2|
     node2.vm.network :private_network, :ip => "172.16.255.251"
     node2.vm.hostname = "node2"
-    node1.vm.provision "shell", inline: $bootstrap_control, privileged: true
-    node1.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
-    node1.vm.provision "shell", inline: $bootstrap_node, privileged: true
+    node2.vm.provision "shell", inline: $bootstrap_control, privileged: true
+    node2.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
+    node2.vm.provision "shell", inline: $bootstrap_node, privileged: true
   end
 
   # Don't use a shared folder.
