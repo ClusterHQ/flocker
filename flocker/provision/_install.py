@@ -54,7 +54,7 @@ CLUSTERHQ_REPO = {
                     key='centos' + DISTRO_KEY_SUFFIX,
                     ),
     'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                '{key}/14.04/$(ARCH)'.format(
+                    '{key}/14.04/$(ARCH)'.format(
                     archive_bucket=ARCHIVE_BUCKET,
                     key='ubuntu' + DISTRO_KEY_SUFFIX,
                     ),
