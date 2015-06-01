@@ -11,9 +11,12 @@ from urlparse import urljoin, urlparse
 from effect import Func, Effect
 import yaml
 
+from zope.interface import implementer
+
 from characteristic import attributes
 
 from flocker.acceptance.testtools import DatasetBackend
+from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
@@ -61,6 +64,15 @@ class DistributionNotSupported(NotImplementedError):
     """
     def __str__(self):
         return "Distribution not supported: %s" % (self.distribution,)
+
+
+@implementer(INode)
+@attributes(['address', 'distribution'], apply_immutable=True)
+class ManagedNode(object):
+    """
+    A node managed by some other system (eg by hand or by another piece of
+    orchestration software).
+    """
 
 
 def task_client_installation_test():

@@ -15,7 +15,7 @@ from eliot import add_destination, writeFailure
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -24,11 +24,11 @@ import flocker
 from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
+    ManagedNode,
     task_pull_docker_images,
     configure_cluster,
     configure_zfs,
 )
-from flocker.provision._libcloud import INode
 from flocker.provision._ca import Certificates
 from effect import parallel
 from effect.twisted import perform
@@ -137,12 +137,19 @@ RUNNER_ATTRIBUTES = [
 ]
 
 
-@implementer(INode)
-@attributes(['address', 'distribution'], apply_immutable=True)
-class VagrantNode(object):
-    """
-    Node run using VagrantRunner
-    """
+@implementer(INodeRunner)
+class ManagedRunner(object):
+    def __init__(self, node_addresses, distribution):
+        self._nodes = list(
+            ManagedNode(address=address, distribution=distribution)
+            for address in node_addresses
+        )
+
+    def start_nodes(self, reactor):
+        return succeed(self._nodes[:])
+
+    def stop_nodes(self, reactor):
+        return succeed(None)
 
 
 @implementer(INodeRunner)
@@ -195,7 +202,7 @@ class VagrantRunner(object):
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
         returnValue([
-            VagrantNode(address=address, distribution=self.distribution)
+            ManagedNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
             ])
 
