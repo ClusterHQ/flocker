@@ -1,5 +1,5 @@
 # -*- mode: ruby -*-
-# vi: set ft=ruby :
+# vi: set ft=ruby sw=2 :
 
 # This requires Vagrant 1.6.2 or newer (earlier versions can't reliably
 # configure the Fedora 20 network stack).
@@ -10,9 +10,14 @@ VAGRANTFILE_API_VERSION = "2"
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
+$bootstrap_common = <<EOF
+mkdir -p /etc/flocker
+cp /home/vagrant/credentials/cluster.crt /etc/flocker/cluster.crt
+EOF
+
 $bootstrap_control = <<EOF
-cp /home/vagrant/credentials/control-service.crt /etc/flocker/control-service.crt
-cp /home/vagrant/credentials/control-service.key /etc/flocker/control-service.key
+cp /home/vagrant/credentials/control-172.16.255.250.crt /etc/flocker/control-service.crt
+cp /home/vagrant/credentials/control-172.16.255.250.key /etc/flocker/control-service.key
 systemctl enable flocker-control
 systemctl start flocker-control
 EOF
@@ -28,6 +33,12 @@ cp /home/vagrant/credentials/node-2.key /etc/flocker/node.key
 EOF
 
 $bootstrap_node = <<EOF
+cat <<CONFIG > /etc/flocker/agent.yml
+control-service:
+  hostname: "172.16.255.250"
+dataset:
+  backend: "zfs"
+CONFIG
 systemctl enable flocker-dataset-agent
 systemctl start flocker-dataset-agent
 systemctl enable flocker-container-agent
@@ -41,6 +52,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "node1" do |node1|
     node1.vm.network :private_network, :ip => "172.16.255.250"
     node1.vm.hostname = "node1"
+    node1.vm.provision "shell", inline: $bootstrap_common, privileged: true
     node1.vm.provision "shell", inline: $bootstrap_control, privileged: true
     node1.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
     node1.vm.provision "shell", inline: $bootstrap_node, privileged: true
@@ -49,8 +61,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "node2" do |node2|
     node2.vm.network :private_network, :ip => "172.16.255.251"
     node2.vm.hostname = "node2"
-    node2.vm.provision "shell", inline: $bootstrap_control, privileged: true
-    node2.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
+    node2.vm.provision "shell", inline: $bootstrap_common, privileged: true
+    node2.vm.provision "shell", inline: $bootstrap_node2_cert, privileged: true
     node2.vm.provision "shell", inline: $bootstrap_node, privileged: true
   end
 

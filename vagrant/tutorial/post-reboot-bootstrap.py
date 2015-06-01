@@ -4,7 +4,6 @@
 
 import sys
 import os
-import json
 from subprocess import check_call, check_output
 from textwrap import dedent
 from urlparse import urljoin
@@ -102,17 +101,6 @@ check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 check_call(['mkdir', '-p', '/var/opt/flocker'])
 check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
 check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])
-
-
-check_call(['mkdir', '/etc/flocker'])
-check_call(['cp', '/home/vagrant/credentials/cluster.crt',
-            '/etc/flocker/cluster.crt'])
-with file("/etc/flocker/agent.yml", "a") as f:
-    f.write(json.dumps({
-        "control-service": {"hostname": "172.16.255.250"},
-        "dataset": {"backend": "zfs"},
-        "version": 1
-    }))
 
 # Move SSH private key into place so ZFS agent can use it until we remove
 # SSH completely in FLOC-1665. The Vagrantfile copied it over, and it's
