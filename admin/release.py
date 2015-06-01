@@ -518,6 +518,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
         {'distro': 'ubuntu', 'version': '14.04', 'arch': 'amd64'},
+        {'distro': 'ubuntu', 'version': '15.04', 'arch': 'amd64'},
     ]
 
     for operating_system in operating_systems:
