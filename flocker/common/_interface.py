@@ -7,8 +7,6 @@ Some interface-related tools.
 from zope.interface.interface import Method
 
 
-# TODO: Add tests and documentation for this, make it public (somewhere else).
-# https://clusterhq.atlassian.net/browse/FLOC-1847
 def interface_decorator(decorator_name, interface, method_decorator,
                         *args, **kwargs):
     """

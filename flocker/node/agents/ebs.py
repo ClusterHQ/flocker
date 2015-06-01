@@ -16,6 +16,7 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
+from boto import set_stream_logger
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
@@ -34,6 +35,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
+BOTO_LOG_HEADER = u'flocker:node:agents:blockdevice:aws'
 BOTO_NUM_RETRIES = u'10'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 
@@ -78,6 +80,9 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     # Set Boto debug level to BOTO_DEBUG_LEVEL:
     # ``1``: log basic debug messages
     config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
+
+    # Set Boto log header to tag Boto logs for Eliot's consumption.
+    set_stream_logger(BOTO_LOG_HEADER)
 
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,

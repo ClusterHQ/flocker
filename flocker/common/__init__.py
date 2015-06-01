@@ -10,10 +10,8 @@ __all__ = [
     'get_all_ips', 'ipaddress_from_string',
 ]
 
-# import platform
-
 from ._ipc import INode, FakeNode, ProcessNode
 from ._defer import gather_deferreds
-from .thread import auto_threaded
-from .interface import interface_decorator
+from ._thread import auto_threaded
+from ._interface import interface_decorator
 from ._net import get_all_ips, ipaddress_from_string

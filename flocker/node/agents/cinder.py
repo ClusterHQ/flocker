@@ -26,7 +26,6 @@ from zope.interface import implementer, Interface
 
 from ...common import (
     interface_decorator, get_all_ips, ipaddress_from_string
-    # auto_openstack_logging, get_all_ips, ipaddress_from_string
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,

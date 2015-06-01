@@ -3,6 +3,8 @@
 """
 Helper module to provide macros for logging support
 for storage drivers (AWS, Cinder).
+See https://clusterhq.atlassian.net/browse/FLOC-2053
+for consolidation opportunities.
 """
 
 from eliot import Field, ActionType, MessageType
@@ -12,19 +14,15 @@ from eliot import Field, ActionType, MessageType
 
 # An OPERATION is a list of:
 # IBlockDeviceAPI name, positional arguments, keyword arguments.
-OPERATION = Field.forTypes(
+OPERATION = Field.for_types(
     u"operation", [list],
     u"The IBlockDeviceAPI operation being executed,"
     u"along with positional and keyword arguments.")
 
 # End: Common structures used by all storage drivers.
 
-# Begin: Helper datastructures to log all
-# IBlockDeviceAPI calls from AWS storage driver using Eliot.
-# - Log all IBlockDeviceAPI calls as Eliot ``ActionType``.
-# - Log ``EC2ResponseError`` from AWS to Boto.
-# - Log failure of attached device manifestation
-# - Log OS out of available devices for attaching volume.
+# Begin: Helper datastructures to log IBlockDeviceAPI calls
+# from AWS storage driver using Eliot.
 
 # ActionType used by AWS storage driver.
 AWS_ACTION = ActionType(
@@ -38,7 +36,7 @@ AWS_CODE = Field.for_types(
     "aws_code", [bytes, unicode],
     u"The error response code.")
 AWS_MESSAGE = Field.for_types(
-    "aws_message", [bytes, unicode],
+    "aws_message", [unicode],
     u"A human-readable error message given by the response.",
 )
 AWS_REQUEST_ID = Field.for_types(
@@ -46,17 +44,13 @@ AWS_REQUEST_ID = Field.for_types(
     u"The unique identifier assigned by the server for this request.",
 )
 
-# Log ``boto.exception.EC2ResponseError``, covering all errors from AWS:
-# server operation rate limit exceeded, invalid server request parameters, etc.
+# Structures to help log ``boto.exception.EC2ResponseError`` from AWS.
 BOTO_EC2RESPONSE_ERROR = MessageType(
-    u"boto:boto_ec2response_error", [
-        AWS_CODE,
-        AWS_MESSAGE,
-        AWS_REQUEST_ID,
-    ],
+    u"flocker:node:agents:blockdevice:aws:boto_ec2response_error",
+    [AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID],
 )
 
-DEVICES = Field.forTypes(
+DEVICES = Field.for_types(
     u"devices", [list],
     u"List of devices currently in use by the compute instance.")
 NO_AVAILABLE_DEVICE = MessageType(
@@ -64,17 +58,17 @@ NO_AVAILABLE_DEVICE = MessageType(
     [DEVICES],
 )
 
-NEW_DEVICES = Field.forTypes(
+NEW_DEVICES = Field.for_types(
     u"new_devices", [list],
     u"List of new devices in the compute instance.")
-NEW_DEVICES_SIZE = Field.forTypes(
+NEW_DEVICES_SIZE = Field.for_types(
     u"new_devices_size", [list],
     u"List of sizes of new devices in the compute instance.")
-SIZE = Field.forTypes(
+SIZE = Field.for_types(
     u"size", [int],
     u"Size, in bytes, of new device we are expecting to manifest."
     u"in the OS.")
-TIME_LIMIT = Field.forTypes(
+TIME_LIMIT = Field.for_types(
     u"time_limit", [int],
     u"Time, in seconds, waited for new device to manifest in the OS.")
 NO_NEW_DEVICE_IN_OS = MessageType(
@@ -82,16 +76,16 @@ NO_NEW_DEVICE_IN_OS = MessageType(
     [NEW_DEVICES, NEW_DEVICES_SIZE, SIZE, TIME_LIMIT],
     u"No new block device manifested in the OS in given time.",)
 
-VOLUME_ID = Field.forTypes(
+VOLUME_ID = Field.for_types(
     u"volume_id", [bytes, unicode],
     u"The identifier of volume of interest.")
-STATUS = Field.forTypes(
+STATUS = Field.for_types(
     u"status", [bytes, unicode],
     u"Current status of the volume.")
-TARGET_STATUS = Field.forTypes(
+TARGET_STATUS = Field.for_types(
     u"target_status", [bytes, unicode],
     u"Expected target status of the volume, as a result of an AWS API call.")
-WAIT_TIME = Field.forTypes(
+WAIT_TIME = Field.for_types(
     u"wait_time", [int],
     u"Time, in seconds, system waited for the volume to reach target status.")
 WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
@@ -104,7 +98,7 @@ WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
 
 CODE = Field.for_types("code", [int], u"The HTTP response code.")
 MESSAGE = Field.for_types(
-    "message", [bytes, unicode],
+    "message", [unicode],
     u"A human-readable error message given by the response.",
 )
 DETAILS = Field.for_types("details", [dict], u"Extra details about the error.")
@@ -116,28 +110,15 @@ URL = Field.for_types("url", [bytes, unicode], u"The request URL.")
 METHOD = Field.for_types("method", [bytes, unicode], u"The request method.")
 
 NOVA_CLIENT_EXCEPTION = MessageType(
-    u"openstack:nova_client_exception", [
-        CODE,
-        MESSAGE,
-        DETAILS,
-        REQUEST_ID,
-        URL,
-        METHOD,
-    ],
+    u"flocker:node:agents:blockdevice:openstack:nova_client_exception",
+    [CODE, MESSAGE, DETAILS, REQUEST_ID, URL, METHOD],
 )
 
 RESPONSE = Field.for_types("response", [bytes, unicode], u"The response body.")
 
 KEYSTONE_HTTP_ERROR = MessageType(
-    u"openstack:keystone_http_error", [
-        CODE,
-        RESPONSE,
-        MESSAGE,
-        DETAILS,
-        REQUEST_ID,
-        URL,
-        METHOD,
-    ],
+    u"flocker:node:agents:blockdevice:openstack:keystone_http_error",
+    [CODE, RESPONSE, MESSAGE, DETAILS, REQUEST_ID, URL, METHOD],
 )
 
 LOCAL_IPS = Field(
@@ -153,7 +134,7 @@ API_IPS = Field(
 )
 
 COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
-    u"blockdevice:cinder:compute_instance_id:not_found",
+    u"flocker:node:agents:blockdevice:openstack:compute_instance_id:not_found",
     [LOCAL_IPS, API_IPS],
     u"Unable to determine the instance ID of this node.",
 )
@@ -165,4 +146,5 @@ OPENSTACK_ACTION = ActionType(
     [],
     u"An IBlockDeviceAPI operation is executing using OpenStack"
     u"storage driver.")
+
 # End: Helper datastructures used by OpenStack storage driver.
