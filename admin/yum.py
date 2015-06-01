@@ -5,6 +5,7 @@ Effectful interface to packaging tools.
 """
 
 import requests
+from requests.exceptions import HTTPError
 from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
@@ -69,7 +70,15 @@ def perform_download_packages_from_repository(dispatcher, intent):
         url = intent.source_repo + '/' + package_name
         local_path = intent.target_path.child(package_name).path
         download = s.get(url)
-        download.raise_for_status()
+        try:
+            download.raise_for_status()
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                e.message += '. ' + e.response.text
+                raise
+            else:
+                raise
+
         content = download.content
         with open(local_path, "wb") as local_file:
             local_file.write(content)

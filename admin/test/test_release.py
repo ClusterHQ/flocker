@@ -1048,6 +1048,7 @@ class UpdateRepoTests(SynchronousTestCase):
             )
 
         self.assertEqual(404, exception.exception.response.status_code)
+        self.assertIn('No such file or directory', exception.exception.message)
 
     @skipUnless(which('createrepo'),
                 "Tests require the ``createrepo`` command.")
