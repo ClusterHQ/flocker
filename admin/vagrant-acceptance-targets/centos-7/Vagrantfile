@@ -42,6 +42,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   rescue KeyError
   end
 
+  # Work around https://github.com/mitchellh/vagrant/issues/5590
+  config.vm.provision "shell", inline: "nmcli connection reload; systemctl restart network.service"
 
   config.vm.define "node1" do |node1|
     node1.vm.network :private_network, :ip => "172.16.255.250"
