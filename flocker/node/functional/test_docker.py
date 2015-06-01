@@ -425,6 +425,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = client.add(name, image)
         # requests has a TimeoutError, but timeout raises a ConnectionError.
         # Both are subclasses of IOError, so use that for now
+        # https://github.com/kennethreitz/requests/issues/2620
         self.assertFailure(d, IOError)
         return d
 
