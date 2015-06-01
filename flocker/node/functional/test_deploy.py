@@ -6,7 +6,7 @@ Functional tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from pyrsistent import pmap, pvector
+from pyrsistent import pmap, pvector, pset
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -296,7 +296,7 @@ class DeployerTests(TestCase):
             command_line=[u"nc", u"-l", u"-p", u"8080"])
         d.addCallback(
             lambda results: self.assertIn(
-                [link],
+                pset([link]),
                 [app.links for app in results[0].applications]))
         return d
 
