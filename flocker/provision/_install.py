@@ -53,9 +53,17 @@ CLUSTERHQ_REPO = {
                     archive_bucket=ARCHIVE_BUCKET,
                     ),
     # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
-    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                'ubuntu-testing/14.04/$(ARCH)'.format(
-                    archive_bucket=ARCHIVE_BUCKET
+    # This could hardcode the version number instead of using ``lsb_release``
+    # but that allows instructions to be shared between versions, and for
+    # earlier error reporting if you try to install on a separate version.
+    # The $(ARCH) part must be left unevaluated, hence the backslash escapes
+    # (one to make shell ignore the $ as a substitution marker, and then
+    # doubled to make Python ignore the \ as an escape marker).
+    # The output of this value then goes into /etc/apt/sources.list which does
+    # its own substitution on $(ARCH) during a subsequent apt-get update
+    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/ubuntu-testing/'
+                    '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                        archive_bucket=ARCHIVE_BUCKET
                     ),
 }
 
@@ -174,10 +182,8 @@ def install_cli_commands_ubuntu(distribution, package_source):
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
         # Add ClusterHQ repo for installation of Flocker packages.
-        sudo_from_args([
-            'add-apt-repository', '-y',
-            'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-            ])
+        sudo(command='add-apt-repository -y "deb {} /"'.format(
+            CLUSTERHQ_REPO[distribution])),
         ]
 
     if use_development_branch:
@@ -679,11 +685,9 @@ def task_install_flocker(
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
-            run_from_args([
-                'add-apt-repository', '-y',
-                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-                ])
-            ]
+            run(command='add-apt-repository -y "deb {} /"'.format(
+                CLUSTERHQ_REPO[distribution])),
+        ]
 
         if use_development_branch:
             # Add BuildBot repo for testing
