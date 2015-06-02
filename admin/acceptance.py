@@ -385,8 +385,11 @@ class RunOptions(Options):
 
     def dataset_backend(self):
         """
-        Get the name of the storage driver the acceptance testing nodes will be
-        confused to use.
+        Get the storage driver the acceptance testing nodes will be confused to
+        use.
+
+        :return: A constant from ``DatasetBackend`` matching the name of the
+            backend chosen by the command-line options.
         """
         try:
             return DatasetBackend.lookupByName(self['dataset-backend'])
