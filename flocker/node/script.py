@@ -139,6 +139,10 @@ def validate_configuration(configuration):
     """
     Validate a provided configuration.
 
+    XXX: Validation of backend specific parameters was removed in
+    a4d0f0eb4c38ffbfe10085a1cbc3d5ed5cae17c7 and will be re-instated
+    as part of FLOC-2058.
+
     :param dict configuration: A desired configuration for an agent.
 
     :raises: jsonschema.ValidationError if the configuration is invalid.
