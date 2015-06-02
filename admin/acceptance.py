@@ -11,7 +11,7 @@ from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination, writeFailure
+from eliot import add_destination, write_failure
 from pyrsistent import pvector
 
 from twisted.internet.error import ProcessTerminated
@@ -697,7 +697,7 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-container-agent',
         ])),
     ], handle_line=lambda line: output_file.write(line + b'\n'))
-    ran.addErrback(writeFailure)
+    ran.addErrback(write_failure, logger=None)
 
 
 @inlineCallbacks
