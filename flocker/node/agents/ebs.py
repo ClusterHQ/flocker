@@ -114,6 +114,8 @@ def _boto_logged_method(method_name, original_name):
         method = getattr(original, method_name)
 
         # Trace IBlockDeviceAPI ``method`` as Eliot Action.
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
         with AWS_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)

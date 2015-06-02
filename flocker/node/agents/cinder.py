@@ -61,6 +61,9 @@ def _openstack_logged_method(method_name, original_name):
     def _run_with_logging(self, *args, **kwargs):
         original = getattr(self, original_name)
         method = getattr(original, method_name)
+
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
         with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)
