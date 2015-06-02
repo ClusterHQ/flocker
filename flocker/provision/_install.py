@@ -303,8 +303,7 @@ def task_upgrade_kernel(distribution):
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
-    # TODO this and similar to ``if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):``
-    elif distribution == 'ubuntu-14.04':
+    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         # Not required.
         return sequence([])
     else:
@@ -325,7 +324,7 @@ def task_disable_selinux(distribution):
                 "'s/^SELINUX=.*$/SELINUX=disabled/g' "
                 "/etc/selinux/config"),
         ])
-    elif distribution in ('fedora-20', 'ubuntu-14.04'):
+    elif distribution in ('fedora-20', 'ubuntu-14.04', 'ubuntu-15.04'):
         # Fedora and Ubuntu do not have SELinux enabled
         return sequence([])
     else:
@@ -387,7 +386,7 @@ def task_enable_docker(distribution):
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         # Ubuntu enables docker service during installation
         return sequence([])
     else:
@@ -426,7 +425,7 @@ def task_enable_flocker_control(distribution):
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', 'start', 'flocker-control']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         # Since the flocker-control service is currently installed
         # alongside the flocker-dataset-agent service, the default control
         # service configuration does not automatically start the
@@ -453,7 +452,7 @@ def task_open_control_firewall(distribution):
     """
     if distribution in ('centos-7', 'fedora-20'):
         open_firewall = open_firewalld
-    elif distribution == 'ubuntu-14.04':
+    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         open_firewall = open_ufw
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -496,7 +495,7 @@ def task_enable_flocker_agent(distribution, control_node,
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
             run_from_args(['systemctl', 'start', 'flocker-container-agent']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         return sequence([
             put_config_file,
             run_from_args(['service', 'flocker-dataset-agent', 'start']),
@@ -525,7 +524,7 @@ def task_install_zfs(distribution, variants=set()):
     :param set variants: The set of variant configurations to use when
     """
     commands = []
-    if distribution == 'ubuntu-14.04':
+    if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
             run_from_args([
@@ -621,7 +620,7 @@ def task_install_flocker(
     else:
         use_development_branch = False
 
-    if distribution == 'ubuntu-14.04':
+    if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
             # FLOC-1880 will ensure these are necessary and sufficient
