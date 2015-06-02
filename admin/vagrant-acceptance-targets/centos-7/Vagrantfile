@@ -18,10 +18,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   rescue KeyError
   end
 
-  if Vagrant.has_plugin?("vagrant-cachier")
-    config.cache.scope = :box
-  end
-
   config.vm.define "node1" do |node1|
     node1.vm.network :private_network, :ip => "172.16.255.240"
     node1.vm.hostname = "node1"
