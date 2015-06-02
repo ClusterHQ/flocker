@@ -808,49 +808,48 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes,
-                      certificates, dataset_backend,
-                      dataset_backend_configuration):
+def configure_cluster(cluster, dataset_backend_configuration):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
 
-    :param INode control_node: The control node.
-    :param list agent_nodes: List of ``INode`` providers representing agent
-        nodes.
-    :param Certificates certificates: Certificates to upload.
-    :param DatasetBackend dataset_backend: Dataset backend to configure.
+    :param Cluster cluster: Description of the cluster to configure.
+
     :param dict dataset_backend_configuration: Configuration parameters to
         supply to the dataset backend.
     """
     return sequence([
         run_remotely(
             username='root',
-            address=control_node.address,
+            address=cluster.control_node.address,
             commands=sequence([
                 task_install_control_certificates(
-                    certificates.cluster.certificate,
-                    certificates.control.certificate,
-                    certificates.control.key),
-                task_enable_flocker_control(control_node.distribution),
+                    cluster.certificates.cluster.certificate,
+                    cluster.certificates.control.certificate,
+                    cluster.certificates.control.key),
+                task_enable_flocker_control(cluster.control_node.distribution),
                 ]),
         ),
-    ] + list(
-        run_remotely(
-            username='root',
-            address=node.address,
-            commands=sequence([
-                task_install_node_certificates(
-                    certificates.cluster.certificate,
-                    certnkey.certificate,
-                    certnkey.key),
-                task_enable_flocker_agent(
-                    distribution=node.distribution,
-                    control_node=control_node.address,
-                    dataset_backend=dataset_backend,
-                    dataset_backend_configuration=dataset_backend_configuration,
-                ),
-            ]),
-        )
-        for certnkey, node in zip(certificates.nodes, agent_nodes)
-    ))
+        sequence([
+            sequence([
+                run_remotely(
+                    username='root',
+                    address=node.address,
+                    commands=sequence([
+                        task_install_node_certificates(
+                            cluster.certificates.cluster.certificate,
+                            certnkey.certificate,
+                            certnkey.key),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
+                            control_node=cluster.control_node.address,
+                            dataset_backend=cluster.dataset_backend,
+                            dataset_backend_configuration=(
+                                dataset_backend_configuration
+                            ),
+                        )]),
+                    ),
+            ]) for certnkey, node
+            in zip(cluster.certificates.nodes, cluster.agent_nodes)
+        ])
+    ])

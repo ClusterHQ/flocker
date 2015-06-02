@@ -12,6 +12,8 @@ from tempfile import mkdtemp
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import add_destination, writeFailure
+from pyrsistent import pvector
+
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
@@ -35,6 +37,7 @@ from flocker.provision._install import (
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
+from flocker.provision._common import Cluster
 from flocker.acceptance.testtools import DatasetBackend
 
 from .runner import run
@@ -64,23 +67,31 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_tests(reactor, nodes, control_node, agent_nodes, dataset_backend,
-              trial_args, certificates_path):
+def get_trial_environment(cluster):
+    """
+    Return a dictionary of environment varibles describing a cluster for
+    accetpance testing.
+
+    :param Cluster cluster: Description of the cluster to get environment
+        variables for.
+    """
+    return {
+        'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
+        'FLOCKER_ACCEPTANCE_AGENT_NODES':
+            ':'.join(node.address for node in cluster.agent_nodes),
+        'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
+        'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
+            cluster.certificates_path.path,
+    }
+
+
+def run_tests(reactor, cluster, trial_args):
     """
     Run the acceptance tests.
 
-    :param list nodes: The list of INode nodes to run the acceptance
-        tests against.
-    :param INode control_node: The control node to run API acceptance
-        tests against.
-    :param list agent_nodes: The list of INode nodes running flocker
-        agent, to run API acceptance tests against.
-    :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with.
+    :param Cluster cluster: The cluster to run acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
-    :param FilePath certificates_path: Directory where certificates can be
-        found; specifically the directory used by ``Certificates``.
 
     :return int: The exit-code of trial.
     """
@@ -98,79 +109,121 @@ def run_tests(reactor, nodes, control_node, agent_nodes, dataset_backend,
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            FLOCKER_ACCEPTANCE_NODES=':'.join(node.address for node in nodes),
-            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
-            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
-                node.address for node in agent_nodes),
-            FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=certificates_path.path,
-            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=dataset_backend.name,
+            **get_trial_environment(cluster)
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
             )
 
 
-class INodeRunner(Interface):
+class IClusterRunner(Interface):
     """
-    Interface for starting and stopping nodes for acceptance testing.
+    Interface for starting and stopping a cluster for acceptance testing.
     """
 
-    def start_nodes(reactor):
+    def start_cluster(reactor):
         """
-        Start nodes for running acceptance tests.
+        Start cluster for running acceptance tests.
 
         :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires with a list of nodes to run
+        :return Deferred: Deferred which fires with a cluster to run
             tests against.
         """
 
-    def stop_nodes(reactor):
+    def stop_cluster(reactor):
         """
-        Stop the nodes started by `start_nodes`.
+        Stop the cluster started by `start_cluster`.
 
         :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires when the nodes have been
+        :return Deferred: Deferred which fires when the cluster has been
             stopped.
         """
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source', 'variants'
+    'distribution', 'top_level', 'config', 'package_source', 'variants',
+    'dataset_backend', 'dataset_backend_configuration',
 ]
 
 
-@implementer(INodeRunner)
+@implementer(IClusterRunner)
 class ManagedRunner(object):
     """
-    An ``INodeRunner`` implementation that doesn't start or stop nodes but only
-    gives out access to nodes that are already running and managed by someone
-    else.
+    An ``IClusterRunner`` implementation that doesn't start or stop nodes but
+    only gives out access to nodes that are already running and managed by
+    someone else.
     """
-    def __init__(self, node_addresses, distribution):
-        self._nodes = list(
+    def __init__(self, node_addresses, distribution,
+                 dataset_backend, dataset_backend_configuration):
+        self._nodes = pvector(
             ManagedNode(address=address, distribution=distribution)
             for address in node_addresses
         )
+        self.dataset_backend = dataset_backend
+        self.dataset_backend_configuration = dataset_backend_configuration
 
-    def start_nodes(self, reactor):
+    def start_cluster(self, reactor):
         """
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
-        return succeed(self._nodes[:])
+        return configured_cluster_for_nodes(
+            reactor,
+            self._nodes,
+            self.dataset_backend,
+            self.dataset_backend_configuration,
+        )
 
-    def stop_nodes(self, reactor):
+    def stop_cluster(self, reactor):
         """
         Don't stop any nodes.
         """
         return succeed(None)
 
 
-@implementer(INodeRunner)
+def configured_cluster_for_nodes(
+    reactor, nodes, dataset_backend,
+    dataset_backend_configuration
+):
+    """
+    Get a ``Cluster`` with Flocker services running on the right nodes.
+
+    Generate new certificates for the services.
+
+    :param reactor: The reactor.
+    :param nodes: The ``ManagedNode``s on which to operate.
+    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
+        configured.
+    """
+    certificates_path = FilePath(mkdtemp())
+    print("Generating certificates in: {}".format(certificates_path.path))
+    certificates = Certificates.generate(
+        certificates_path,
+        nodes[0].address,
+        len(nodes)
+    )
+    cluster = Cluster(
+        all_nodes=pvector(nodes),
+        control_node=nodes[0],
+        agent_nodes=nodes,
+        dataset_backend=dataset_backend,
+        certificates_path=certificates_path,
+        certificates=certificates
+    )
+
+    configuring = perform(
+        make_dispatcher(reactor),
+        configure_cluster(cluster, dataset_backend_configuration)
+    )
+    configuring.addCallback(lambda ignored: cluster)
+    return configuring
+
+
+@implementer(IClusterRunner)
 @attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
 class VagrantRunner(object):
     """
-    Start and stop vagrant nodes for acceptance testing.
+    Start and stop vagrant cluster for acceptance testing.
 
     :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
     """
@@ -192,7 +245,7 @@ class VagrantRunner(object):
             raise UsageError("Variants unsupported on vagrant.")
 
     @inlineCallbacks
-    def start_nodes(self, reactor):
+    def start_cluster(self, reactor):
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
         yield run(
@@ -215,12 +268,22 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
-        returnValue([
+
+        nodes = pvector(
             ManagedNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
-            ])
+        )
 
-    def stop_nodes(self, reactor):
+        cluster = yield configured_cluster_for_nodes(
+            reactor,
+            nodes,
+            self.dataset_backend,
+            self.dataset_backend_configuration,
+        )
+
+        returnValue(cluster)
+
+    def stop_cluster(self, reactor):
         return run(
             reactor,
             ['vagrant', 'destroy', '-f'],
@@ -229,11 +292,10 @@ class VagrantRunner(object):
 
 @attributes(RUNNER_ATTRIBUTES + [
     'provisioner',
-    'dataset_backend',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
-    Start and stop cloud nodes for acceptance testing.
+    Start and stop cloud cluster for acceptance testing.
 
     :ivar LibcloudProvioner provisioner: The provisioner to use to create the
         nodes.
@@ -257,12 +319,11 @@ class LibcloudRunner(object):
         self.creator = creator
 
     @inlineCallbacks
-    def start_nodes(self, reactor):
+    def start_cluster(self, reactor):
         """
-        Provision cloud nodes for acceptance tests.
+        Provision cloud cluster for acceptance tests.
 
-        :return list: List of addresses of nodes to connect to, for acceptance
-            tests.
+        :return Cluster: The cluster to connect to for acceptance tests.
         """
         metadata = {
             'purpose': 'acceptance-testing',
@@ -299,13 +360,18 @@ class LibcloudRunner(object):
                 for node in self.nodes
             ])
             commands = commands.on(success=lambda _: zfs_commands)
+
         yield perform(make_dispatcher(reactor), commands)
 
-        returnValue(self.nodes)
+        cluster = yield configured_cluster_for_nodes(
+            self.nodes, self.dataset_backend_configuration
+        )
 
-    def stop_nodes(self, reactor):
+        returnValue(cluster)
+
+    def stop_cluster(self, reactor):
         """
-        Deprovision the nodes provisioned by ``start_nodes``.
+        Deprovision the cluster provisioned by ``start_cluster``.
         """
         for node in self.nodes:
             try:
@@ -326,17 +392,15 @@ class RunOptions(Options):
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
         ['provider', None, 'vagrant',
-         'The target provider to test against. '
+         'The compute-resource provider to test against. '
          'One of {}.'],
         ['dataset-backend', None, 'zfs',
          'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
                                       in DatasetBackend.iterconstants()))],
         ['config-file', None, None,
-         'Configuration for providers.'],
+         'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
@@ -462,7 +526,8 @@ class RunOptions(Options):
             "{!r} config stanza.".format(provider)
         )
 
-    def _runner_VAGRANT(self, package_source, dataset_backend, provider_config):
+    def _runner_VAGRANT(self, package_source, dataset_backend,
+                        provider_config):
         """
         :param provider_config: The ``vagrant`` section of the acceptance
             testing configuration file.  Since the Vagrant runner accepts no
@@ -474,6 +539,8 @@ class RunOptions(Options):
             distribution=self['distribution'],
             package_source=package_source,
             variants=self['variants'],
+            dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration()
         )
 
     def _runner_MANAGED(self, package_source, dataset_backend,
@@ -497,6 +564,8 @@ class RunOptions(Options):
             # TODO LATER Might be nice if this were part of
             # provider_config
             distribution=self['distribution'],
+            dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration(),
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -515,6 +584,7 @@ class RunOptions(Options):
             package_source=package_source,
             provisioner=provisioner,
             dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
         )
 
@@ -659,17 +729,14 @@ def main(reactor, args, base_path, top_level):
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)
 
+    cluster = None
     try:
-        nodes = yield runner.start_nodes(reactor)
+        cluster = yield runner.start_cluster(reactor)
+
         if options['distribution'] in ('fedora-20', 'centos-7'):
             remote_logs_file = open("remote_logs.log", "a")
-            for node in nodes:
+            for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)
-
-        ca_directory = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(ca_directory.path))
-        certificates = Certificates.generate(ca_directory, nodes[0].address,
-                                             len(nodes))
 
         if not options["no-pull"]:
             yield perform(
@@ -679,32 +746,14 @@ def main(reactor, args, base_path, top_level):
                         username='root',
                         address=node.address,
                         commands=task_pull_docker_images()
-                    ) for node in nodes
+                    ) for node in cluster.agent_nodes
                 ]),
             )
 
-        control_node = nodes[0]
-        dataset_backend = options.dataset_backend()
-        dataset_backend_configuration = options.dataset_backend_configuration()
-
-        yield perform(
-            make_dispatcher(reactor),
-            configure_cluster(
-                control_node=control_node, agent_nodes=nodes,
-                certificates=certificates,
-                dataset_backend=dataset_backend,
-                dataset_backend_configuration=dataset_backend_configuration,
-            )
-        )
-
         result = yield run_tests(
             reactor=reactor,
-            nodes=nodes,
-            control_node=control_node,
-            agent_nodes=nodes,
-            dataset_backend=dataset_backend,
-            trial_args=options['trial-args'],
-            certificates_path=ca_directory)
+            cluster=cluster,
+            trial_args=options['trial-args'])
     except:
         result = 1
         raise
@@ -712,26 +761,21 @@ def main(reactor, args, base_path, top_level):
         # Unless the tests failed, and the user asked to keep the nodes, we
         # delete them.
         if not (result != 0 and options['keep']):
-            runner.stop_nodes(reactor)
+            runner.stop_cluster(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
-            print ("To run acceptance tests against these nodes, "
-                   "set the following environment variables: ")
+            if cluster is None:
+                print ("Didn't finish creating the cluster.")
+            else:
+                print ("To run acceptance tests against these nodes, "
+                       "set the following environment variables: ")
 
-            environment_variables = {
-                'FLOCKER_ACCEPTANCE_NODES':
-                    ':'.join(node.address for node in nodes),
-                'FLOCKER_ACCEPTANCE_CONTROL_NODE': control_node.address,
-                'FLOCKER_ACCEPTANCE_AGENT_NODES':
-                    ':'.join(node.address for node in nodes),
-                'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': dataset_backend.name,
-                'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': ca_directory.path,
-            }
+                environment_variables = get_trial_environment(cluster)
 
-            for environment_variable in environment_variables:
-                print "export {name}={value};".format(
-                    name=environment_variable,
-                    value=environment_variables[environment_variable],
-                )
+                for environment_variable in environment_variables:
+                    print "export {name}={value};".format(
+                        name=environment_variable,
+                        value=environment_variables[environment_variable],
+                    )
 
     raise SystemExit(result)
