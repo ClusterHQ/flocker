@@ -1337,7 +1337,8 @@ class BuildInDockerFunctionTests(TestCase):
             ['admin', 'build_targets', supplied_distribution])
         expected_build_directory.makedirs()
         requirements = 'some_requirement'
-        expected_build_directory.sibling('requirements.txt').setContent(requirements)
+        expected_build_directory.sibling('requirements.txt').setContent(
+            requirements)
         supplied_destination_path = FilePath('/baz/qux')
         expected_package_uri = 'http://www.example.com/foo/bar/whl'
         build_in_docker(
