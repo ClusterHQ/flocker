@@ -936,7 +936,7 @@ def get_test_cluster(reactor, node_count=0):
         ).write()
 
         def failed_query(failure):
-            reasons = getattr(failure.value, 'reasons')
+            reasons = getattr(failure.value, 'reasons', None)
             if reasons is None:
                 # Guess it was something else.  Do some simpler logging.
                 write_failure(failure, logger=None)
