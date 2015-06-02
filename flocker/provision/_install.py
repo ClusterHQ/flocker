@@ -45,15 +45,15 @@ CLUSTERHQ_REPO = {
                     ),
     # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
 
-    # This could hardcode the version numbers for the Ubuntu repositories instead of using
-    # ``lsb_release`` but that allows instructions to be shared between
-    # versions, and for earlier error reporting if you try to install on a
-    # separate version. The $(ARCH) part must be left unevaluated, hence the
-    # backslash escapes (one to make shell ignore the $ as a substitution
-    # marker, and then doubled to make Python ignore the \ as an escape
-    # marker). The output of this value then goes into /etc/apt/sources.list
-    # which does its own substitution on $(ARCH) during a subsequent apt-get
-    # update
+    # This could hardcode the version numbers for the Ubuntu repositories
+    # instead of using ``lsb_release`` but that allows instructions to be
+    # shared between versions, and for earlier error reporting if you try to
+    # install on a separate version. The $(ARCH) part must be left unevaluated,
+    # hence the backslash escapes (one to make shell ignore the $ as a
+    # substitution marker, and then doubled to make Python ignore the \ as an
+    # escape marker). The output of this value then goes into
+    # /etc/apt/sources.list which does its own substitution on $(ARCH) during a
+    # subsequent apt-get update
 
     'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/ubuntu-testing/'
                     '$(lsb_release --release --short)/\\$(ARCH)'.format(
