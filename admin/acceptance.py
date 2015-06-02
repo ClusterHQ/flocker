@@ -483,7 +483,14 @@ class RunOptions(Options):
             backend chosen by the command-line options.
         """
         configuration = self.dataset_backend_configuration()
-        dataset_backend_name = configuration["backend"]
+        # Avoid requiring repetition of the backend name when it is the same as
+        # the name of the configuration section.  But allow it so that there
+        # can be "great-openstack-provider" and "better-openstack-provider"
+        # sections side-by-side that both use "openstack" backend but configure
+        # it slightly differently.
+        dataset_backend_name = configuration.get(
+            "backend", self["dataset-backend"]
+        )
         try:
             return DatasetBackend.lookupByName(dataset_backend_name)
         except ValueError:
