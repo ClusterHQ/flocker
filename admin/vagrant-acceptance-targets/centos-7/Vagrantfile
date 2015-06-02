@@ -34,6 +34,7 @@ EOF
 
 $bootstrap_node = <<EOF
 cat <<CONFIG > /etc/flocker/agent.yml
+version: 1
 control-service:
   hostname: "172.16.255.250"
 dataset:
