@@ -372,7 +372,7 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   OS X and Ubuntu 14.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
+   OS X, Ubuntu 14.04, and Ubuntu 15.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
 
    Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 

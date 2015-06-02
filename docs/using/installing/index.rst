@@ -20,6 +20,7 @@ It contains the services that need to run on each node.
 Installing ``flocker-cli``
 ==========================
 
+# TODO change to 15.04
 Ubuntu 14.04
 ------------
 

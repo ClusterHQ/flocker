@@ -48,6 +48,7 @@ CLUSTERHQ_REPO = {
                 'ubuntu-testing/14.04/$(ARCH)'.format(
                     archive_bucket=ARCHIVE_BUCKET
                     ),
+    # TODO add 15.04
 }
 
 
@@ -198,6 +199,7 @@ _task_install_commands = {
     'centos-7': install_cli_commands_yum,
     'fedora-20': install_cli_commands_yum,
     'ubuntu-14.04': install_cli_commands_ubuntu,
+    'ubuntu-15.04': install_cli_commands_ubuntu,
 }
 
 
@@ -288,6 +290,7 @@ def task_upgrade_kernel(distribution):
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
+    # TODO this and similar to ``if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):``
     elif distribution == 'ubuntu-14.04':
         # Not required.
         return sequence([])
