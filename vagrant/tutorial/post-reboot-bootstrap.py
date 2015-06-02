@@ -119,6 +119,7 @@ with file("/root/.ssh/authorized_keys", "a") as f:
 # configuration.
 with file("/etc/NetworkManager/conf.d/auto-reload.conf", "a") as f:
     f.write("""\
+# Created by Flocker (https://clusterhq.atlassian.net/browse/FLOC-2052)
 # Workaround https://github.com/mitchellh/vagrant/issues/5590
 [main]
 monitor-connection-files=true
