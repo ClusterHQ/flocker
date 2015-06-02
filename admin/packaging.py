@@ -1052,7 +1052,8 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
 
     tag = "clusterhq/build-%s" % (distribution,)
     build_directory = top_level.descendant(
-        ['admin', 'build_targets', distribution])
+        BUILD_TARGETS_SEGMENTS + [distribution]
+    )
 
     return BuildSequence(
         steps=[
