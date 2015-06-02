@@ -11,6 +11,7 @@ from bitmath import Byte
 
 from boto.exception import EC2ResponseError
 
+from twisted.python.threadpool import ThreadPool
 from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
 
@@ -95,6 +96,44 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         self.assert_foreign_volume(flocker_volume)
+
+    def test_ec2_operation_limit2(self):
+        """
+        """
+        def minion():
+            while True:
+                try:
+                    volume = self.api.create_volume(
+                        dataset_id=uuid4(),
+                        size=self.minimum_allocatable_size,
+                    )
+                    self.api.destroy_volume(volume.blockdevice_id)
+                except:
+                    raise
+        thread_count = 2
+        pool = ThreadPool(minthreads=thread_count, maxthreads=thread_count)
+        pool.start()
+        i = 0
+        while i < thread_count:
+            ThreadPool.callInThread(pool, minion)
+            i += 1
+        self.addCleanup(pool.stop)
+
+    def test_ec2_operation_limit1(self):
+        """
+        """
+        try:
+            requested_volume = self.api.connection.create_volume(
+                size=1, zone=self.api.zone)
+            i = 0
+            while True:
+                metadata = {
+                    u'test_counter': i,
+                }
+                i += 1
+                self.api.connection.create_tags([requested_volume.id], metadata)
+        except:
+            raise
 
     def test_attached_volume_missing_device_tag(self):
         """
