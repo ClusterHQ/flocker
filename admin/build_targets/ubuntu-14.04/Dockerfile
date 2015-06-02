@@ -12,7 +12,7 @@ RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "
 # See https://github.com/jordansissel/fpm/issues/611 and
 # https://github.com/jordansissel/fpm/issues/657
 RUN ["gem", "install", "fpm"]
-ADD ../requirements /requirements
-RUN ["pip", "install", "-r", "/requirements/requirements.txt"]
+COPY requirements.txt /tmp/
+RUN ["pip", "install", "-r", "/tmp/requirements.txt"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]

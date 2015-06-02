@@ -11,8 +11,8 @@ RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "libf
 # Despite being a packaging tool, fpm isn't yet packaged for Fedora.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
-ADD ../requirements /requirements
-RUN ["pip", "install", "-r", "/requirements/requirements.txt"]
+COPY requirements.txt /tmp/
+RUN ["pip", "install", "-r", "/tmp/requirements.txt"]
 VOLUME /flocker
 WORKDIR /
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]
