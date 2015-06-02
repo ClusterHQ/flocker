@@ -32,6 +32,8 @@ from flocker.provision._ssh import (
 from flocker.provision._install import (
     ManagedNode,
     task_pull_docker_images,
+    uninstall_flocker,
+    install_flocker,
     configure_cluster,
     configure_zfs,
 )
@@ -153,12 +155,13 @@ class ManagedRunner(object):
     only gives out access to nodes that are already running and managed by
     someone else.
     """
-    def __init__(self, node_addresses, distribution,
+    def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration):
         self._nodes = pvector(
             ManagedNode(address=address, distribution=distribution)
             for address in node_addresses
         )
+        self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
 
@@ -167,12 +170,29 @@ class ManagedRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
-        return configured_cluster_for_nodes(
-            reactor,
-            self._nodes,
-            self.dataset_backend,
-            self.dataset_backend_configuration,
-        )
+        dispatcher = make_dispatcher(reactor)
+
+        uninstalling = perform(dispatcher, uninstall_flocker(self._nodes))
+
+        # Uninstall can fail.  Maybe the package wasn't installed yet.
+        uninstalling.addErrback(write_failure, logger=None)
+
+        def install(ignored):
+            return perform(
+                dispatcher,
+                install_flocker(self._nodes, self.package_source),
+            )
+        installing = uninstalling.addCallback(install)
+
+        def configure(ignored):
+            return configured_cluster_for_nodes(
+                reactor,
+                self._nodes,
+                self.dataset_backend,
+                self.dataset_backend_configuration,
+            )
+        configuring = installing.addCallback(configure)
+        return configuring
 
     def stop_cluster(self, reactor):
         """
@@ -462,7 +482,8 @@ class RunOptions(Options):
         :return: A constant from ``DatasetBackend`` matching the name of the
             backend chosen by the command-line options.
         """
-        dataset_backend_name = self['dataset-backend']
+        configuration = self.dataset_backend_configuration()
+        dataset_backend_name = configuration["backend"]
         try:
             return DatasetBackend.lookupByName(dataset_backend_name)
         except ValueError:
@@ -561,6 +582,7 @@ class RunOptions(Options):
 
         return ManagedRunner(
             node_addresses=provider_config['addresses'],
+            package_source=package_source,
             # TODO LATER Might be nice if this were part of
             # provider_config
             distribution=self['distribution'],

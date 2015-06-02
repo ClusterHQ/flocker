@@ -607,9 +607,46 @@ def configure_zfs(node, variants):
     ])
 
 
+def _uninstall_flocker_ubuntu1404():
+    # TODO Does a real upgrade (instead of uninstall/install) work?
+    return run_from_args([
+        b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
+    ])
+
+
+def _uninstall_flocker_centos7():
+    # TODO Does a real upgrade (instead of uninstall/install) work?
+    return sequence([
+        run_from_args([
+            b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
+        ]),
+        run_from_args([
+            b"yum", b"erase", b"-y", b"clusterhq-release",
+        ]),
+    ])
+
+
+_flocker_uninstallers = {
+    "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
+    "centos-7": _uninstall_flocker_centos7,
+}
+
+
+def task_uninstall_flocker(distribution):
+    return _flocker_uninstallers[distribution]()
+
+
+def uninstall_flocker(nodes):
+    return _run_on_all_nodes(
+        nodes,
+        task=lambda node: task_uninstall_flocker(node.distribution)
+    )
+
+
 def task_install_flocker(
-        distribution=None,
-        package_source=PackageSource()):
+    distribution=None,
+    package_source=PackageSource(),
+):
     """
     Install flocker cluster on a distribution.
 
@@ -684,6 +721,7 @@ def task_install_flocker(
         return sequence(commands)
     else:
         commands = [
+            run(command="yum clean all"),
             run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
         ]
 
@@ -806,6 +844,27 @@ def provision(distribution, package_source, variants):
         commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
     return sequence(commands)
+
+
+def _run_on_all_nodes(nodes, task):
+    return sequence(list(
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=task(node),
+        )
+        for node in nodes
+    ))
+
+
+def install_flocker(nodes, package_source):
+    return _run_on_all_nodes(
+        nodes,
+        task=lambda node: task_install_flocker(
+            distribution=node.distribution,
+            package_source=package_source,
+        )
+    )
 
 
 def configure_cluster(cluster, dataset_backend_configuration):
