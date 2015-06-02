@@ -11,8 +11,6 @@ from bitmath import Byte, GiB
 
 from eliot import Message, start_action
 
-from pyrsistent import PRecord, field
-
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
     HttpError as KeystoneHttpError,
@@ -514,21 +512,6 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-@auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
-class _LoggingCinderVolumeManager(PRecord):
-    _cinder_volumes = field(mandatory=True)
-
-
-@auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
-class _LoggingNovaVolumeManager(PRecord):
-    _nova_volumes = field(mandatory=True)
-
-
-@auto_openstack_logging(INovaServerManager, "_nova_servers")
-class _LoggingNovaServerManager(PRecord):
-    _nova_servers = field(mandatory=True)
-
-
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -541,15 +524,21 @@ def cinder_api(cinder_client, nova_client, cluster_id):
 
     :returns: A ``CinderBlockDeviceAPI``.
     """
-    logging_cinder = _LoggingCinderVolumeManager(
+    logging_cinder = auto_openstack_logging(
+        ICinderVolumeManager,
         _cinder_volumes=cinder_client.volumes
     )
-    logging_nova_volume_manager = _LoggingNovaVolumeManager(
+
+    logging_nova_volume_manager = auto_openstack_logging(
+        INovaVolumeManager,
         _nova_volumes=nova_client.volumes
     )
-    logging_nova_server_manager = _LoggingNovaServerManager(
+
+    logging_nova_server_manager = auto_openstack_logging(
+        INovaServerManager,
         _nova_servers=nova_client.servers
     )
+
     return CinderBlockDeviceAPI(
         cinder_volume_manager=logging_cinder,
         nova_volume_manager=logging_nova_volume_manager,
