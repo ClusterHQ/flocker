@@ -10,6 +10,7 @@ from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
+from contextlib import closing
 
 from yaml import safe_dump
 
@@ -30,6 +31,8 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
+from ..common import gather_deferreds
+
 from ..control.httpapi import container_configuration_response, REST_API_PORT
 from ..ca import treq_with_authentication
 from ..testtools import loop_until
@@ -42,7 +45,7 @@ except ImportError:
     PYMONGO_INSTALLED = False
 
 __all__ = [
-    'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
+    'assert_expected_deployment', 'flocker_deploy', 'get_clean_nodes',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
     'create_attached_volume'
@@ -262,7 +265,7 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
-def get_nodes(test_case, num_nodes):
+def get_clean_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
 
@@ -280,12 +283,12 @@ def get_nodes(test_case, num_nodes):
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
 
-    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
+    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_AGENT_NODES")
 
     if nodes_env_var is None:
         raise SkipTest(
-            "Set acceptance testing node IP addresses using the " +
-            "FLOCKER_ACCEPTANCE_NODES environment variable and a colon " +
+            "Set acceptance testing node IP addresses using the "
+            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a colon "
             "separated list.")
 
     # Remove any empty strings, for example if the list has ended with a colon
@@ -296,18 +299,27 @@ def get_nodes(test_case, num_nodes):
                        "{existing} node(s) are set.".format(
                            necessary=num_nodes, existing=len(nodes)))
 
+    Message.new(
+        message_type="acceptance:get_clean_nodes:seeking",
+        num_nodes=num_nodes
+    ).write()
+
     reachable_nodes = set()
 
     for node in nodes:
-        sock = socket()
-        try:
-            can_connect = not sock.connect_ex((node, 22))
-        except gaierror:
-            can_connect = False
-        finally:
-            if can_connect:
-                reachable_nodes.add(node)
-            sock.close()
+        with closing(socket()) as sock:
+            try:
+                can_connect = not sock.connect_ex((node, 22))
+            except gaierror:
+                can_connect = False
+            finally:
+                if can_connect:
+                    reachable_nodes.add(node)
+
+    Message.new(
+        message_type="acceptance:get_clean_nodes:found",
+        nodes=reachable_nodes,
+    ).write()
 
     if len(reachable_nodes) < num_nodes:
         unreachable_nodes = set(nodes) - reachable_nodes
@@ -324,32 +336,62 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    clean_applications = {u"version": 1,
-                          u"applications": {}}
-    getting = get_test_cluster(reactor)
+    getting = get_test_cluster(reactor, node_count=num_nodes)
 
-    def got_cluster(cluster):
-        # Remove all existing containers; we make sure to pass in node
-        # hostnames since we still rely on flocker-deploy to distribute SSH
-        # keys for now.
-        clean_deploy = {u"version": 1,
-                        u"nodes": {node.address: [] for node in cluster.nodes}}
-        flocker_deploy(test_case, clean_deploy, clean_applications)
-        return cluster
-    getting.addCallback(got_cluster)
+    def api_clean_state(cluster, configuration_method,
+                        state_method, delete_method):
+        """
+        Clean containers and datasets via the API.
 
-    def no_containers(cluster):
-        d = cluster.current_containers()
-        d.addCallback(lambda result: len(result[1]) == 0)
-        return d
-    getting.addCallback(lambda cluster:
-                        loop_until(lambda: no_containers(cluster)))
+        :param Cluster cluster: The test cluster to act on.
+        :param configuration_method: The function to obtain the configured
+            entities.
+        :param delete_method: The method to delete an entity.
 
-    def clean_zfs(_):
-        for node in reachable_nodes:
-            _clean_node(test_case, node)
-    if get_dataset_backend(test_case) == b'zfs':
-        getting.addCallback(clean_zfs)
+        :return: A `Deferred` that fires with the cluster object.
+        """
+        get_items = configuration_method(cluster)
+
+        def delete_items(items):
+            return gather_deferreds(list(
+                delete_method(cluster, item)
+                for item in items
+            ))
+        get_items.addCallback(delete_items)
+        get_items.addCallback(
+            lambda ignored: loop_until(
+                lambda: state_method(cluster).addCallback(
+                    lambda result: [] == result
+                )
+            )
+        )
+        return get_items
+
+    def cleanup_containers(cluster):
+        return api_clean_state(
+            cluster,
+            lambda cluster: cluster.configured_containers(),
+            lambda cluster: cluster.current_containers(),
+            lambda cluster, item: cluster.remove_container(item[u"name"]),
+        ).addCallback(lambda ignored: cluster)
+
+    def cleanup_datasets(cluster):
+        return api_clean_state(
+            cluster,
+            lambda cluster: cluster.configured_datasets().addCallback(
+                lambda datasets: list(
+                    dataset
+                    for dataset
+                    in datasets
+                    if not dataset.get(u"deleted", False)
+                )
+            ),
+            lambda cluster: cluster.datasets_state(),
+            lambda cluster, item: cluster.delete_dataset(item[u"dataset_id"]),
+        )
+
+    getting.addCallback(cleanup_containers)
+    getting.addCallback(cleanup_datasets)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
@@ -438,8 +480,7 @@ def assert_expected_deployment(test_case, expected_deployment):
         ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
         uuid_to_ip = {node.uuid: node.address for node in cluster.nodes}
 
-        def got_results(results):
-            cluster, existing_containers = results
+        def got_results(existing_containers):
             expected = []
             for hostname, apps in expected_deployment.items():
                 node_uuid = ip_to_uuid[hostname]
@@ -526,13 +567,25 @@ def log_method(function):
     """
     Decorator that log calls to the given function.
     """
+    label = "acceptance:" + function.__name__
+
+    def log_result(result):
+        Message.new(
+            action_type=label + ":result",
+            value=result,
+        ).write()
+        return result
+
     @wraps(function)
     def wrapper(self, *args, **kwargs):
-        context = start_action(Logger(),
-                               action_type="acceptance:" + function.__name__,
-                               args=args, kwargs=kwargs)
+        context = start_action(
+            Logger(),
+            action_type=label,
+            args=args, kwargs=kwargs,
+        )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))
+            d.addCallback(log_result)
             d.addActionFinish()
             return d.result
     return wrapper
@@ -561,6 +614,19 @@ class Cluster(PRecord):
         return b"https://{}:{}/v1".format(
             self.control_node.address, REST_API_PORT
         )
+
+    @log_method
+    def configured_datasets(self):
+        """
+        Return the configured dataset state of the cluster.
+
+        :return: ``Deferred`` firing with a list of dataset dictionaries,
+            the configuration of the cluster.
+        """
+        request = self.treq.get(
+            self.base_url + b"/configuration/datasets", persistent=False)
+        request.addCallback(check_and_decode_json, OK)
+        return request
 
     @log_method
     def datasets_state(self):
@@ -740,6 +806,22 @@ class Cluster(PRecord):
         return request
 
     @log_method
+    def configured_containers(self):
+        """
+        Get current containers from configuration.
+
+        :return: A ``Deferred`` firing with a tuple (cluster instance, API
+            response).
+        """
+        request = self.treq.get(
+            self.base_url + b"/configuration/containers",
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        return request
+
+    @log_method
     def current_containers(self):
         """
         Get current containers.
@@ -753,7 +835,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -776,8 +857,7 @@ class Cluster(PRecord):
             """
             request = self.current_containers()
 
-            def got_response(result):
-                cluster, containers = result
+            def got_response(containers):
                 expected_container = container_properties.copy()
                 for container in containers:
                     container_items = container.items()
@@ -851,6 +931,10 @@ def get_test_cluster(reactor, node_count=0):
 
     # Wait until nodes are up and running:
     def nodes_available():
+        Message.new(
+            message_type="acceptance:get_test_cluster:polling",
+        ).write()
+
         def failed_query(failure):
             Message.new(message_type="acceptance:is_available_error",
                         reason=unicode(failure),
@@ -893,11 +977,11 @@ def require_cluster(num_nodes):
 
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
-            # get_nodes will check that the required number of nodes are
+            # get_clean_nodes will check that the required number of nodes are
             # reachable and clean them up prior to the test.
             # The nodes must already have been started and their flocker
             # services started.
-            waiting_for_nodes = get_nodes(test_case, num_nodes)
+            waiting_for_nodes = get_clean_nodes(test_case, num_nodes)
             waiting_for_cluster = waiting_for_nodes.addCallback(
                 lambda nodes: get_test_cluster(reactor, node_count=num_nodes)
             )
