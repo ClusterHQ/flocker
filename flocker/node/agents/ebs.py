@@ -60,7 +60,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
-
     # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
     # 1. ``num_retries``:
     # Request automatic exponential backoff and retry
