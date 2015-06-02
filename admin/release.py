@@ -62,7 +62,7 @@ from .yum import (
 )
 
 from .homebrew import make_recipe
-from .packaging import Distribution
+from .packaging import Distribution, PACKAGE_TYPE_MAP, ARCH
 
 
 class NotTagged(Exception):
@@ -514,24 +514,28 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
         target_distro_suffix = ""
 
     operating_systems = [
-        {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
-        {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
-        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'amd64'},
-        {'distro': 'ubuntu', 'version': '15.04', 'arch': 'amd64'},
+        {'distro': 'fedora', 'version': '20'},
+        {'distro': 'centos', 'version': '7'},
+        {'distro': 'ubuntu', 'version': '14.04'},
+        {'distro': 'ubuntu', 'version': '15.04'},
     ]
 
     for operating_system in operating_systems:
+        for package_type, distribution_names in PACKAGE_TYPE_MAP.items():
+            if operating_system['distro'] in distribution_names:
+                architecture = ARCH['native'][package_type]
+
         yield update_repo(
             package_directory=scratch_directory.child(
                 b'{}-{}-{}'.format(
                     operating_system['distro'],
                     operating_system['version'],
-                    operating_system['arch'])),
+                    architecture)),
             target_bucket=target_bucket,
             target_key=os.path.join(
                 operating_system['distro'] + target_distro_suffix,
                 operating_system['version'],
-                operating_system['arch']),
+                architecture),
             source_repo=os.path.join(
                 build_server, b'results/omnibus',
                 version,
