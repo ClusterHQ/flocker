@@ -9,11 +9,14 @@ from uuid import uuid4
 
 from bitmath import Byte
 
+import time
+
 from boto.exception import EC2ResponseError
 
 from twisted.python.threadpool import ThreadPool
 from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
+from eliot import Message
 
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
                    BOTO_EC2RESPONSE_ERROR, UnattachedVolume)
@@ -100,40 +103,30 @@ class EBSBlockDeviceAPIInterfaceTests(
     def test_ec2_operation_limit2(self):
         """
         """
-        def minion():
+        def minion(start_time):
+            count = 0
             while True:
                 try:
+                    count += 1
                     volume = self.api.create_volume(
                         dataset_id=uuid4(),
                         size=self.minimum_allocatable_size,
                     )
+                    count += 1
                     self.api.destroy_volume(volume.blockdevice_id)
                 except:
+                    Message.new(count=count, time=(time.time()-start_time)).write()
                     raise
-        thread_count = 2
+
+        thread_count = 5
         pool = ThreadPool(minthreads=thread_count, maxthreads=thread_count)
         pool.start()
         i = 0
+        start_time = time.time()
         while i < thread_count:
-            ThreadPool.callInThread(pool, minion)
+            ThreadPool.callInThread(pool, minion, start_time)
             i += 1
         self.addCleanup(pool.stop)
-
-    def test_ec2_operation_limit1(self):
-        """
-        """
-        try:
-            requested_volume = self.api.connection.create_volume(
-                size=1, zone=self.api.zone)
-            i = 0
-            while True:
-                metadata = {
-                    u'test_counter': i,
-                }
-                i += 1
-                self.api.connection.create_tags([requested_volume.id], metadata)
-        except:
-            raise
 
     def test_attached_volume_missing_device_tag(self):
         """
