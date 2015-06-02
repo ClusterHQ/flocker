@@ -153,7 +153,7 @@ class ManagedRunner(object):
     someone else.
     """
     def __init__(self, node_addresses, distribution):
-        self._nodes = list(
+        self._nodes = pvector(
             ManagedNode(address=address, distribution=distribution)
             for address in node_addresses
         )
@@ -163,13 +163,48 @@ class ManagedRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
-        return succeed(self._nodes[:])
+        return configured_cluster_for_nodes(reactor, self._nodes)
 
     def stop_cluster(self, reactor):
         """
         Don't stop any nodes.
         """
         return succeed(None)
+
+
+def configured_cluster_for_nodes(reactor, nodes):
+    """
+    Get a ``Cluster`` with Flocker services running on the right nodes.
+
+    Generate new certificates for the services.
+
+    :param reactor: The reactor.
+    :param nodes: The ``ManagedNode``s on which to operate.
+    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
+        configured.
+    """
+    certificates_path = FilePath(mkdtemp())
+    print("Generating certificates in: {}".format(certificates_path.path))
+    certificates = Certificates.generate(
+        certificates_path,
+        nodes[0].address,
+        len(nodes)
+    )
+    cluster = Cluster(
+        all_nodes=nodes,
+        control_node=nodes[0],
+        agent_nodes=nodes,
+        dataset_backend=DatasetBackend.zfs,
+        certificates_path=certificates_path,
+        certificates=certificates
+    )
+
+    configuring = perform(
+        make_dispatcher(reactor),
+        configure_cluster(cluster)
+    )
+    configuring.addCallback(lambda ignored: cluster)
+    return configuring
 
 
 @implementer(IClusterRunner)
@@ -222,25 +257,12 @@ class VagrantRunner(object):
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
 
-        certificates_path = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(certificates_path.path))
-        certificates = Certificates.generate(
-            certificates_path,
-            self.NODE_ADDRESSES[0],
-            len(self.NODE_ADDRESSES))
         nodes = pvector(
-            VagrantNode(address=address, distribution=self.distribution)
+            ManagedNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
         )
-        cluster = Cluster(
-            all_nodes=nodes,
-            control_node=nodes[0],
-            agent_nodes=nodes,
-            dataset_backend=DatasetBackend.zfs,
-            certificates_path=certificates_path,
-            certificates=certificates)
 
-        yield perform(make_dispatcher(reactor), configure_cluster(cluster))
+        cluster = yield configured_cluster_for_nodes(nodes)
 
         returnValue(cluster)
 
