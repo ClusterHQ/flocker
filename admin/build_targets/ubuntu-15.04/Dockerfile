@@ -4,6 +4,8 @@
 # environment.
 #
 
+# TODO Use requirements.txt when FLOC-1669 is merged
+
 FROM ubuntu:15.04
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["apt-get", "update"]
