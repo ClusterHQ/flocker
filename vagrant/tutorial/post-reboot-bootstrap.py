@@ -110,3 +110,17 @@ check_call(['chmod', 'u=rwx,g=,o=', '/etc/flocker'])
 check_call(["ssh-keygen", "-N", "", "-f", "/etc/flocker/id_rsa_flocker"])
 with file("/root/.ssh/authorized_keys", "a") as f:
     f.write(file("/etc/flocker/id_rsa_flocker.pub").read())
+
+# Workaround https://github.com/mitchellh/vagrant/issues/5590
+# New version of CentOS have a NetworkManager that is aggresive about
+# configuring network devices. Vagrant tells NetworkManager to not
+# manage the device it uses for a static IP, but doesn't tell NetworkManger
+# that it has done so. Teach NetworkManager to automatically reload the
+# configuration.
+with file("/etc/NetworkManager/conf.d/auto-reload.conf", "a") as f:
+    f.write("""\
+# Created by Flocker (https://clusterhq.atlassian.net/browse/FLOC-2052)
+# Workaround https://github.com/mitchellh/vagrant/issues/5590
+[main]
+monitor-connection-files=true
+""")
