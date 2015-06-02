@@ -283,12 +283,12 @@ def get_clean_nodes(test_case, num_nodes):
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
 
-    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
+    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_AGENT_NODES")
 
     if nodes_env_var is None:
         raise SkipTest(
-            "Set acceptance testing node IP addresses using the " +
-            "FLOCKER_ACCEPTANCE_NODES environment variable and a colon " +
+            "Set acceptance testing node IP addresses using the "
+            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a colon "
             "separated list.")
 
     # Remove any empty strings, for example if the list has ended with a colon

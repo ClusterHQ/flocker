@@ -782,27 +782,23 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes,
-                      certificates, dataset_backend):
+def configure_cluster(cluster):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
 
-    :param INode control_node: The control node.
-    :param INode agent_nodes: List of agent nodes.
-    :param Certificates certificates: Certificates to upload.
-    :param DatasetBackend dataset_backend: Dataset backend to configure.
+    :param Cluster cluster: Description of the cluster to configure.
     """
     return sequence([
         run_remotely(
             username='root',
-            address=control_node.address,
+            address=cluster.control_node.address,
             commands=sequence([
                 task_install_control_certificates(
-                    certificates.cluster.certificate,
-                    certificates.control.certificate,
-                    certificates.control.key),
-                task_enable_flocker_control(control_node.distribution),
+                    cluster.certificates.cluster.certificate,
+                    cluster.certificates.control.certificate,
+                    cluster.certificates.control.key),
+                task_enable_flocker_control(cluster.control_node.distribution),
                 ]),
         ),
         sequence([
@@ -812,15 +808,16 @@ def configure_cluster(control_node, agent_nodes,
                     address=node.address,
                     commands=sequence([
                         task_install_node_certificates(
-                            certificates.cluster.certificate,
+                            cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
-                            control_node=control_node.address,
-                            dataset_backend=dataset_backend,
+                            control_node=cluster.control_node.address,
+                            dataset_backend=cluster.dataset_backend,
                         )]),
                     ),
-            ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
+            ]) for certnkey, node
+            in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
