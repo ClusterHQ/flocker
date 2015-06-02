@@ -291,8 +291,8 @@ class TimeoutClient(Client):
     A subclass of docker.Client that sets any infinite timeouts to the
     provided ``long_timeout`` value.
 
-    This class is hopefully a temporary fix until docker-py with
-    PR/issue TBD merged is released (working on PR, or will submit issue)
+    This class is a temporary fix until docker-py is released with
+    PR #625 or similar. See https://github.com/docker/docker-py/pull/625
     """
 
     def __init__(self, *args, **kw):
@@ -322,6 +322,9 @@ class DockerClient(object):
 
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
+    :ivar str base_url: URL for connection to the Docker server.
+    :ivar int long_timeout: Maximum time in seconds to wait for
+        long-running operations, particularly pulling an image.
     """
     def __init__(
             self, namespace=BASE_NAMESPACE, base_url=BASE_DOCKER_API_URL,
