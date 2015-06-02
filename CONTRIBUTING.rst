@@ -1,3 +1,5 @@
+.. _contribute:
+
 =======================
 Contributing to Flocker
 =======================
