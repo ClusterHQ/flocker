@@ -28,6 +28,12 @@ from ._effect import sequence
 
 from flocker.cli import configure_ssh
 
+# A systemctl sub-command to start or restart a service.  We use restart here
+# so that if it is already running it gets restart (possibly necessary to
+# respect updated configuration) and because restart will also start it if it
+# is not running.
+START = "restart"
+
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                  "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
@@ -420,7 +426,7 @@ def task_enable_flocker_control(distribution):
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', 'start', 'flocker-control']),
+            run_from_args(['systemctl', START, 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
@@ -488,9 +494,9 @@ def task_enable_flocker_agent(distribution, control_node,
         return sequence([
             put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
-            run_from_args(['systemctl', 'start', 'flocker-dataset-agent']),
+            run_from_args(['systemctl', START, 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
-            run_from_args(['systemctl', 'start', 'flocker-container-agent']),
+            run_from_args(['systemctl', START, 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
