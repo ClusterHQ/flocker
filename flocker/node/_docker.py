@@ -290,6 +290,9 @@ class TimeoutClient(Client):
     """
     A subclass of docker.Client that sets any infinite timeouts to the
     provided ``long_timeout`` value.
+
+    This class is hopefully a temporary fix until docker-py with
+    PR/issue TBD merged is released (working on PR, or will submit issue)
     """
 
     def __init__(self, *args, **kw):
