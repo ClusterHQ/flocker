@@ -936,21 +936,14 @@ def get_test_cluster(reactor, node_count=0):
         ).write()
 
         def failed_query(failure):
-            try:
-                # Try to detect _WrapperException.
-                reasons = failure.value.reasons
-            except AttributeError:
+            reasons = getattr(failure.value, 'reasons')
+            if reasons is None:
                 # Guess it was something else.  Do some simpler logging.
-                system = "acceptance:is_available_error"
-                Message.new(
-                    message_type=system,
-                    reason=unicode(failure),
-                    exception=unicode(failure.__class__)
-                ).write()
+                write_failure(failure, logger=None)
             else:
                 # It is one of those.  Log all of the stuff from inside it.
                 for reason in reasons:
-                    write_failure(reason, None, system=system)
+                    write_failure(reason, logger=None)
             return False
         d = cluster.current_nodes()
         d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
