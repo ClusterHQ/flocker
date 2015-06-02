@@ -866,3 +866,8 @@ class ContainerAgentOptionsTests(
     """
     Tests for ``ContainerAgentOptions``.
     """
+
+
+# FLOC-1925 Test cases for cinder_from_configuration and
+# aws_from_configuration which pass in a config dictionary and verify
+# that ``IBlockDeviceAPI`` providers are returned.

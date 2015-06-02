@@ -3,17 +3,130 @@
 """
 Tests for ``flocker.provision._install``.
 """
+import yaml
 
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
+from pyrsistent import pmap, thaw, freeze
+
+from ...acceptance.testtools import DatasetBackend
 from .. import PackageSource
 from .._install import (
+    ManagedNode,
     task_install_flocker,
+    task_enable_flocker_agent,
+    configure_cluster,
     CLUSTERHQ_REPO,
     run, put,
 )
+from .._ca import Certificates
+
+from .._ssh._model import Put
 from .._effect import sequence
 
+
+THE_AGENT_YML_PATH = b"/etc/flocker/agent.yml"
+BASIC_AGENT_YML = freeze({
+    "version": 1,
+    "control-service": {
+        "hostname": "192.0.2.42",
+        "port": 4524,
+    },
+    "dataset": {
+        "backend": "zfs",
+    },
+})
+
+
+class ConfigureClusterTests(SynchronousTestCase):
+    """
+    Tests for ``configure_cluster``.
+    """
+    def test_enable_flocker_agent(self):
+        """
+        ``configure_cluster`` enables the Flocker agents with the storage
+        driver and storage driver configuration passed to it.
+        """
+        control_node = ManagedNode(
+            address="192.0.2.42", distribution="centos-7",
+        )
+        agent_node = ManagedNode(
+            address="192.0.2.43", distribution="ubuntu-14.04",
+        )
+        dataset_backend = DatasetBackend.lookupByName("loopback")
+        dataset_backend_configuration = dict(
+            root_path="/foo/bar",
+            compute_instance_id="baz-quux",
+        )
+
+        certificates_path = FilePath(self.mktemp())
+        certificates_path.makedirs()
+        for name in [
+                b"cluster.crt", b"cluster.key",
+                b"control-service.crt", b"control-service.key",
+                b"user.crt", b"user.key",
+                b"aaaaaaaa-aaaa-aaaa.crt", b"aaaaaaaa-aaaa-aaaa.key",
+        ]:
+            certificates_path.child(name).touch()
+
+        commands = configure_cluster(
+            control_node=control_node,
+            agent_nodes=[],
+            certificates=Certificates(certificates_path),
+            dataset_backend=dataset_backend,
+            dataset_backend_configuration=dataset_backend_configuration,
+        )
+        self.assertIn(
+            task_enable_flocker_agent(
+                distribution=agent_node.distribution,
+                control_node=control_node.address,
+                dataset_backend=dataset_backend,
+                dataset_backend_configuration=dataset_backend_configuration,
+            ).intent,
+            list(effect.intent for effect in commands.intent.effects),
+        )
+
+
+class EnableFlockerAgentTests(SynchronousTestCase):
+    """
+    Tests for ``task_enable_flocker_agent``.
+    """
+    def test_agent_yml(self):
+        """
+        ```task_enable_flocker_agent`` writes a ``/etc/flocker/agent.yml`` file
+        which contains the backend configuration passed to it.
+        """
+        distribution = u"centos-7"
+        control_address = BASIC_AGENT_YML["control-service"]["hostname"]
+        expected_pool = u"some-test-pool"
+        expected_backend_configuration = dict(pool=expected_pool)
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+            control_node=control_address,
+            dataset_backend=DatasetBackend.lookupByName(
+                BASIC_AGENT_YML["dataset"]["backend"]
+            ),
+            dataset_backend_configuration=expected_backend_configuration,
+        )
+        [put_agent_yml] = list(
+            effect.intent
+            for effect in
+            commands.intent.effects
+            if isinstance(effect.intent, Put)
+        )
+        # Seems like transform should be usable here but I don't know how.
+        expected_agent_config = BASIC_AGENT_YML.set(
+            "dataset",
+            BASIC_AGENT_YML["dataset"].update(expected_backend_configuration)
+        )
+        self.assertEqual(
+            put(
+                content=yaml.safe_dump(thaw(expected_agent_config)),
+                path=THE_AGENT_YML_PATH,
+            ).intent,
+            put_agent_yml,
+        )
 
 class InstallFlockerTests(SynchronousTestCase):
     """

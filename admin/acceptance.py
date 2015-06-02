@@ -383,6 +383,13 @@ class RunOptions(Options):
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
+    def dataset_backend_configuration(self):
+        """
+        Get the configuration corresponding to storage driver chosen by the
+        command line options.
+        """
+        return self['config']['storage-drivers'][self['dataset-backend']]
+
     def dataset_backend(self):
         """
         Get the storage driver the acceptance testing nodes will be confused to
@@ -391,12 +398,13 @@ class RunOptions(Options):
         :return: A constant from ``DatasetBackend`` matching the name of the
             backend chosen by the command-line options.
         """
+        dataset_backend_name = self['dataset-backend']
         try:
-            return DatasetBackend.lookupByName(self['dataset-backend'])
+            return DatasetBackend.lookupByName(dataset_backend_name)
         except ValueError:
             raise UsageError(
                 "Unknown dataset backend: {}".format(
-                    self['dataset-backend']
+                    dataset_backend_name
                 )
             )
 
@@ -427,7 +435,6 @@ class RunOptions(Options):
             branch=self['branch'],
             build_server=self['build-server'],
         )
-
         try:
             get_runner = getattr(self, "_runner_" + provider.upper())
         except AttributeError:
@@ -500,9 +507,7 @@ class RunOptions(Options):
         if provider_config is None:
             self._provider_config_missing(provider)
 
-        cloud_config = provider_config.copy()
-        cloud_config.pop('dataset')
-        provisioner = CLOUD_PROVIDERS[provider](**cloud_config)
+        provisioner = CLOUD_PROVIDERS[provider](**provider_config)
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -680,12 +685,17 @@ def main(reactor, args, base_path, top_level):
 
         control_node = nodes[0]
         dataset_backend = options.dataset_backend()
+        dataset_backend_configuration = options.dataset_backend_configuration()
 
         yield perform(
             make_dispatcher(reactor),
-            configure_cluster(control_node=control_node, agent_nodes=nodes,
-                              certificates=certificates,
-                              dataset_backend=dataset_backend))
+            configure_cluster(
+                control_node=control_node, agent_nodes=nodes,
+                certificates=certificates,
+                dataset_backend=dataset_backend,
+                dataset_backend_configuration=dataset_backend_configuration,
+            )
+        )
 
         result = yield run_tests(
             reactor=reactor,

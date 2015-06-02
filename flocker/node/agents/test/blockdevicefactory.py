@@ -166,6 +166,9 @@ def _openstack(**config):
     a ``CinderBlockDeviceAPI``.  They will be configured to use the region
     where the server that is running this code is running.
 
+    # FLOC-1925 Make this a public helper function
+    # Move the REGION from environment parts elsewhere.
+
     :param config: Any additional configuration (possibly provider-specific)
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
@@ -179,6 +182,7 @@ def _openstack(**config):
     # case) instead of forcing me to figure out how to upper case things in
     # bash (I already learned a piece of shell syntax today, once is all I can
     # take).
+    # FLOC-1925 Region will come from the supplied config dict instead.
     region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
     if region is not None:
         region = region.upper()
@@ -207,6 +211,7 @@ def _aws(**config):
     # We just get the credentials from the config file.
     # We ignore the region specified in acceptance test configuration,
     # and instead get the region from the zone of the host.
+    # FLOC-1925 Refactor this.
     zone = environ['FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE']
     # The region is the zone, without the trailing [abc].
     region = zone[:-1]
@@ -221,6 +226,7 @@ def _aws(**config):
 
 # Map provider labels to IBlockDeviceAPI factory and a corresponding argument
 # factory.
+# FLOC-1925 Refactor this.
 _BLOCKDEVICE_TYPES = {
     ProviderType.openstack: (cinder_api, _openstack),
     ProviderType.rackspace:

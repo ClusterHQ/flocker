@@ -467,14 +467,24 @@ def task_open_control_firewall(distribution):
 
 
 def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs):
+                              dataset_backend=DatasetBackend.zfs,
+                              dataset_backend_configuration=dict(
+                                  pool=u'flocker'
+                              )):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with. (This has a default for use in the documentation).
+        configured with.  (This has a default for use in the documentation).
+    :param dict dataset_backend_configuration: The backend specific
+        configuration options.
     """
+    dataset_backend_configuration = dataset_backend_configuration.copy()
+    dataset_backend_configuration.update({
+        u"backend": dataset_backend.name,
+    })
+
     put_config_file = put(
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(
@@ -484,9 +494,7 @@ def task_enable_flocker_agent(distribution, control_node,
                     "hostname": control_node,
                     "port": 4524,
                 },
-                "dataset": {
-                    "backend": dataset_backend.name,
-                },
+                "dataset": dataset_backend_configuration,
             },
         ),
     )
@@ -801,15 +809,19 @@ def provision(distribution, package_source, variants):
 
 
 def configure_cluster(control_node, agent_nodes,
-                      certificates, dataset_backend):
+                      certificates, dataset_backend,
+                      dataset_backend_configuration):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
 
     :param INode control_node: The control node.
-    :param INode agent_nodes: List of agent nodes.
+    :param list agent_nodes: List of ``INode`` providers representing agent
+        nodes.
     :param Certificates certificates: Certificates to upload.
     :param DatasetBackend dataset_backend: Dataset backend to configure.
+    :param dict dataset_backend_configuration: Configuration parameters to
+        supply to the dataset backend.
     """
     return sequence([
         run_remotely(
@@ -823,22 +835,22 @@ def configure_cluster(control_node, agent_nodes,
                 task_enable_flocker_control(control_node.distribution),
                 ]),
         ),
-        sequence([
-            sequence([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=sequence([
-                        task_install_node_certificates(
-                            certificates.cluster.certificate,
-                            certnkey.certificate,
-                            certnkey.key),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
-                            control_node=control_node.address,
-                            dataset_backend=dataset_backend,
-                        )]),
-                    ),
-            ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
-        ])
-    ])
+    ] + list(
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=sequence([
+                task_install_node_certificates(
+                    certificates.cluster.certificate,
+                    certnkey.certificate,
+                    certnkey.key),
+                task_enable_flocker_agent(
+                    distribution=node.distribution,
+                    control_node=control_node.address,
+                    dataset_backend=dataset_backend,
+                    dataset_backend_configuration=dataset_backend_configuration,
+                ),
+            ]),
+        )
+        for certnkey, node in zip(certificates.nodes, agent_nodes)
+    ))

@@ -396,6 +396,55 @@ class DeployerType(Names):
     block = NamedConstant()
 
 
+from flocker.node.agents.cinder import cinder_api
+from flocker.node.agents.test.blockdevicefactory import (
+    _openstack_auth_from_config
+)
+from keystoneclient.session import Session
+from cinderclient.client import Client as CinderClient
+from novaclient.client import Client as NovaClient
+
+
+def cinder_from_configuration(**config):
+    """
+    Build a ``CinderBlockDeviceAPI`` using configuration and
+    credentials in ``config``.
+    """
+    region = config.pop('region')
+    auth = _openstack_auth_from_config(**config)
+    session = Session(auth=auth)
+    cinder_client = CinderClient(
+        session=session, region_name=region, version=1
+    )
+    nova_client = NovaClient(
+        session=session, region_name=region, version=2
+    )
+
+    return cinder_api(
+        cinder_client=cinder_client,
+        nova_client=nova_client,
+        cluster_id=config['cluster_id']
+    )
+
+from flocker.node.agents.ebs import EBSBlockDeviceAPI, ec2_client
+
+
+def aws_from_configuration(**config):
+    """
+    Build an ``EBSBlockDeviceAPI`` using configuration and credentials
+    in ``config``.
+    """
+    return EBSBlockDeviceAPI(
+        ec2_client=ec2_client(
+            region=config['region'],
+            zone=config['zone'],
+            access_key_id=config['access_key_id'],
+            secret_access_key=config['secret_access_key'],
+        ),
+        cluster_id=config['cluster_id']
+    )
+
+
 class BackendDescription(PRecord):
     """
     Represent one kind of storage backend we might be able to use.
@@ -443,12 +492,18 @@ _DEFAULT_BACKENDS = [
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
     ),
-
-    # BackendDescription(
-    #     name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-    #     factory=cinder_from_configuration,
-    #     deployer_type=DeployerType.block,
-    # ),
+    # FLOC-1925
+    BackendDescription(
+        name=u"openstack", needs_reactor=False, needs_cluster_id=True,
+        api_factory=cinder_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
+    # FLOC-1925
+    BackendDescription(
+        name=u"aws", needs_reactor=False, needs_cluster_id=True,
+        api_factory=aws_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
 ]
 
 _DEFAULT_DEPLOYERS = {

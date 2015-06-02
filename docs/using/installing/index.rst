@@ -251,7 +251,7 @@ Paste them into a root console on the target node:
 
 .. task:: install_flocker fedora-20
    :prompt: [root@node]#
-   
+
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
@@ -291,7 +291,7 @@ To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker centos-7
    :prompt: [root@centos]#
-   
+
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
@@ -498,6 +498,7 @@ The ZFS ``pool`` variable should match the pool name created in the ZFS section.
 
 .. The following is put in to demonstrate how to format alternative backends.
    Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
+   FLOC-1925 Replace the documentation below
 
 For a ``loopback`` device, change the ``dataset`` clause to:
 
@@ -506,6 +507,34 @@ For a ``loopback`` device, change the ``dataset`` clause to:
    "dataset":
       "backend": "loopback"
       "root_path": "/var/lib/flocker/loopback"
+
+OpenStack Block Device Backend Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "LON"
+       auth_plugin: "rackspace"
+       username: "joe.bloggs.rackspace"
+       api_key: "aaa-bbb-ccc-ddd"
+       auth_url: "https://identity.api.rackspacecloud.com/v2.0"
+
+
+Amazon AWS / EBS Block Device Backend Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "aws"
+       region: "us-west-1"
+       zone: "us-west-1a"
+       access_key_id: "foo"
+       secret_access_key: "bar"
+
+
 
 Fedora / CentOS
 ...............
@@ -531,5 +560,3 @@ You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 Next you may want to perform the steps in :ref:`the tutorial <movingapps>`, to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yml`` files with the IP addresses of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
-
-

@@ -124,6 +124,10 @@ The configuration file for the Rackspace provider looks like:
      keyname: <ssh-key-name>
    metadata:
      creator: <your-name>
+   storage-drivers:
+     openstack:
+       # FLOC-1925
+       # Add auth_url, auth_plugin, provider, etc
 
 You will need a ssh agent running with access to the corresponding private key.
 
@@ -146,6 +150,7 @@ To run the acceptance tests on AWS, you need:
 .. code-block:: yaml
 
    aws:
+     .. XXX Use availability zone instead?
      region: <aws region, e.g. "us-west-2">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
@@ -153,6 +158,9 @@ To run the acceptance tests on AWS, you need:
      security_groups: ["<permissive security group>"]
    metadata:
      creator: <your-name>
+   storage-drivers:
+     aws:
+       # FLOC-1925 finish this
 
 You will need a ssh agent running with access to the corresponding private key.
 
@@ -236,6 +244,9 @@ The tests for the various cloud block device backends depend on access to creden
 The tests look for two environment variables:
 
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This points at a yaml file with the credentials.
+  # FLOC-1925 This is yet another configuration file.
+  # Buildbot  currently points this at the acceptance.yaml file.
+  # So perhaps we should add a link to the acceptance.yaml format here.
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This is the name of a top-level key in the configuration file.
 
 The credentials are read from the stanza specified by the ``CLOUD_PROVIDER`` environment variable.
