@@ -102,6 +102,9 @@ Ensure that they all pass, with no skips:
 
   admin/run-acceptance-tests --distribution fedora-20 --provider vagrant
 
+
+.. _acceptance-testing-rackspace-config:
+
 Rackspace
 ---------
 
@@ -128,6 +131,8 @@ You will need a ssh agent running with access to the corresponding private key.
 
   admin/run-acceptance-tests --distribution fedora-20 --provider rackspace --config-file config.yml
 
+
+.. _acceptance-testing-rackspace-config:
 
 AWS
 ---
