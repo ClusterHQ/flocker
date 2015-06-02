@@ -169,7 +169,7 @@ class VagrantRunner(object):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
-        self.certificate_path = self.top_level.descendant([
+        self.certificates_path = self.top_level.descendant([
             'vagrant', 'tutorial', 'certificates'])
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
