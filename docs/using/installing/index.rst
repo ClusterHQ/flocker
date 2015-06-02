@@ -20,13 +20,12 @@ It contains the services that need to run on each node.
 Installing ``flocker-cli``
 ==========================
 
-# TODO change to 15.04
-Ubuntu 14.04
+Ubuntu 15.04
 ------------
 
-On Ubuntu, the Flocker CLI can be installed from the ClusterHQ repository:
+On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
-.. task:: install_cli ubuntu-14.04
+.. task:: install_cli ubuntu-15.04
    :prompt: alice@mercury:~$
 
 
