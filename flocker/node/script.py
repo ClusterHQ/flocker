@@ -166,42 +166,14 @@ def validate_configuration(configuration):
             },
             "dataset": {
                 "type": "object",
-                "oneOf": [
-                    {
-                        "required": ["backend"],
-                        "properties": {
-                            "backend": {
-                                "type": "string",
-                                "pattern": "zfs",
-                            },
-                            "pool": {
-                                "type": "string",
-                            },
-                            "mount_root": {
-                                "type": "string"
-                            },
-                            "volume_config_path": {
-                                "type": "string"
-                            },
-                        }
+                "properties": {
+                    "backend": {
+                        "type": "string",
                     },
-                    {
-                        "required": ["backend"],
-                        "properties": {
-                            "backend": {
-                                "type": "string",
-                                "pattern": "loopback",
-                            },
-                            "root_path": {
-                                "type": "string",
-                            },
-                            "compute_instance_id": {
-                                "type": "string",
-                            },
-                        }
-
-                    },
-                ]
+                },
+                "required": [
+                    "backend",
+                ],
             }
         }
     }
