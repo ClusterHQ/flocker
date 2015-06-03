@@ -1,3 +1,10 @@
+
+Flocker 0.4.1dev2 (2015-07-03)
+==============================
+
+- CentOS 7 tutorial environment. (FLOC-1510)
+- Ubuntu CLI installation instructions now use debian packages instead of pip packaging. (FLOC-1742)
+
 Flocker 0.4.1dev1 (2015-05-25)
 ==============================
 
