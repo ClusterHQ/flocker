@@ -20,5 +20,6 @@ Contents:
    concepts/index
    reference/index
    releasenotes/index
+   labs/index
    faq/index
    gettinginvolved/index
