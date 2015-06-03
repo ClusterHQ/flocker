@@ -10,7 +10,7 @@ Bootstrap extension entry point.
 
 from docutils import nodes
 from sphinx.writers.html import HTMLTranslator
-from . import _simple, _tabs
+from . import _simple, _tabs, _collapsed
 
 
 def setup(app):
@@ -18,7 +18,7 @@ def setup(app):
     Entry point for sphinx extension.
     """
 
-    for module in [_simple, _tabs]:
+    for module in [_simple, _tabs, _collapsed]:
         module.setup(app)
 
 
