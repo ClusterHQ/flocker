@@ -38,7 +38,6 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
-
 def get_repository_url(distribution, flocker_version):
     """
     Return the URL for the repository of a given distribution.
@@ -65,10 +64,21 @@ def get_repository_url(distribution, flocker_version):
                         archive_bucket=ARCHIVE_BUCKET,
                         key='centos' + distro_key_suffix,
                         ),
-        'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                        '{key}/14.04/$(ARCH)'.format(
-                        archive_bucket=ARCHIVE_BUCKET,
-                        key='ubuntu' + distro_key_suffix,
+
+        # This could hardcode the version number instead of using
+        # ``lsb_release`` but that allows instructions to be shared between
+        # versions, and for earlier error reporting if you try to install on a
+        # separate version. The $(ARCH) part must be left unevaluated, hence
+        # the backslash escapes (one to make shell ignore the $ as a
+        # substitution marker, and then doubled to make Python ignore the \ as
+        # an escape marker). The output of this value then goes into
+        # /etc/apt/sources.list which does its own substitution on $(ARCH)
+        # during a subsequent apt-get update
+
+        'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + distro_key_suffix,
                         ),
     }
 
@@ -82,7 +92,6 @@ class UnsupportedDistribution(Exception):
     """
     Raised if trying to support a distribution which is not supported.
     """
-
 
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):
@@ -193,12 +202,10 @@ def install_cli_commands_ubuntu(distribution, package_source):
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
         # Add ClusterHQ repo for installation of Flocker packages.
-        sudo_from_args([
-            'add-apt-repository', '-y',
-            'deb {} /'.format(get_repository_url(
+        sudo(command='add-apt-repository -y "deb {} /"'.format(
+            get_repository_url(
                 distribution='ubuntu-14.04',
-                flocker_version=get_installable_version(version)))
-            ])
+                flocker_version=get_installable_version(version))))
         ]
 
     if use_development_branch:
@@ -655,13 +662,11 @@ def task_install_flocker(
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
-            run_from_args([
-                'add-apt-repository', '-y',
-                'deb {} /'.format(get_repository_url(
+            run(command='add-apt-repository -y "deb {} /"'.format(
+                get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))
-                ])
-            ]
+                    flocker_version=get_installable_version(version)))),
+        ]
 
         if use_development_branch:
             # Add BuildBot repo for testing
@@ -827,27 +832,23 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes,
-                      certificates, dataset_backend):
+def configure_cluster(cluster):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
 
-    :param INode control_node: The control node.
-    :param INode agent_nodes: List of agent nodes.
-    :param Certificates certificates: Certificates to upload.
-    :param DatasetBackend dataset_backend: Dataset backend to configure.
+    :param Cluster cluster: Description of the cluster to configure.
     """
     return sequence([
         run_remotely(
             username='root',
-            address=control_node.address,
+            address=cluster.control_node.address,
             commands=sequence([
                 task_install_control_certificates(
-                    certificates.cluster.certificate,
-                    certificates.control.certificate,
-                    certificates.control.key),
-                task_enable_flocker_control(control_node.distribution),
+                    cluster.certificates.cluster.certificate,
+                    cluster.certificates.control.certificate,
+                    cluster.certificates.control.key),
+                task_enable_flocker_control(cluster.control_node.distribution),
                 ]),
         ),
         sequence([
@@ -857,15 +858,16 @@ def configure_cluster(control_node, agent_nodes,
                     address=node.address,
                     commands=sequence([
                         task_install_node_certificates(
-                            certificates.cluster.certificate,
+                            cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
-                            control_node=control_node.address,
-                            dataset_backend=dataset_backend,
+                            control_node=cluster.control_node.address,
+                            dataset_backend=cluster.dataset_backend,
                         )]),
                     ),
-            ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
+            ]) for certnkey, node
+            in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
