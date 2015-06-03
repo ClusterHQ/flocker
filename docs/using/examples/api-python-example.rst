@@ -4,4 +4,5 @@
 Using the Flocker API with Python
 =================================
 
-.. literalinclude:: `example.py`
+.. literalinclude:: example.py
+   :language: python
