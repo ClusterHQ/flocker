@@ -191,6 +191,32 @@ AWS can use these dataset backends:
 
   admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
 
+.. _acceptance-testing-managed-config:
+
+Managed
+~~~~~~~
+
+You can also run acceptance tests on existing "managed" nodes.
+In this case the configuration file should include:
+
+- **addresses**: The IP addresses of two running nodes.
+
+.. code-block:: yaml
+
+   managed:
+     addresses:
+       - "192.0.2.101"
+       - "192.0.2.102"
+   metadata:
+     creator: <your-name>
+
+The nodes should be configured to allow key based SSH connections as user ``root`` and the ``root``.
+
+.. prompt:: bash $
+
+   admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
+
+
 .. _client-acceptance-tests:
 
 Client Testing
