@@ -428,8 +428,7 @@ class RunOptions(Options):
 
     def _get_provider_names(self):
         """
-        Find the names of all supported "providers" (eg Vagrant, Rackspace,
-        etc).
+        Find the names of all supported "providers" (eg Vagrant, Rackspace).
 
         :return: A ``list`` of ``str`` giving all such names.
         """
@@ -448,8 +447,7 @@ class RunOptions(Options):
 
     def dataset_backend(self):
         """
-        Get the storage driver the acceptance testing nodes will be confused to
-        use.
+        Get the storage driver the acceptance testing nodes will use.
 
         :return: A constant from ``DatasetBackend`` matching the name of the
             backend chosen by the command-line options.
@@ -510,6 +508,7 @@ class RunOptions(Options):
 
     def _provider_config_missing(self, provider):
         """
+        :param str provider: The name of the missing provider.
         :raise: ``UsageError`` indicating which provider configuration was
                 missing.
         """
@@ -518,11 +517,15 @@ class RunOptions(Options):
             "{!r} config stanza.".format(provider)
         )
 
-    def _runner_VAGRANT(self, package_source, dataset_backend, provider_config):
+    def _runner_VAGRANT(self, package_source,
+                        dataset_backend, provider_config):
         """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``vagrant`` section of the acceptance
             testing configuration file.  Since the Vagrant runner accepts no
             configuration, this is ignored.
+        :returns: ``VagrantRunner``
         """
         return VagrantRunner(
             config=self['config'],
@@ -535,6 +538,8 @@ class RunOptions(Options):
     def _runner_MANAGED(self, package_source, dataset_backend,
                         provider_config):
         """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``managed`` section of the acceptance
             testing configuration file.  The section of the configuration
             file should look something like:
@@ -544,6 +549,7 @@ class RunOptions(Options):
                     - "172.16.255.240"
                     - "172.16.255.241"
                   distribution: "centos-7"
+        :returns: ``ManagedRunner``.
         """
         if provider_config is None:
             self._provider_config_missing("managed")
@@ -551,7 +557,7 @@ class RunOptions(Options):
         return ManagedRunner(
             node_addresses=provider_config['addresses'],
             # TODO LATER Might be nice if this were part of
-            # provider_config
+            # provider_config. See FLOC-2078.
             distribution=self['distribution'],
         )
 
@@ -559,6 +565,12 @@ class RunOptions(Options):
                          provider, provider_config):
         """
         Run some nodes using ``libcloud``.
+
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider: The name of the cloud provider of nodes for the tests.
+        :param provider_config: The ``managed`` section of the acceptance
+        :returns: ``LibcloudRunner``.
         """
         if provider_config is None:
             self._provider_config_missing(provider)
@@ -579,6 +591,8 @@ class RunOptions(Options):
     def _runner_RACKSPACE(self, package_source, dataset_backend,
                           provider_config):
         """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``rackspace`` section of the acceptance
             testing configuration file.  The section of the configuration
             file should look something like:
@@ -598,6 +612,8 @@ class RunOptions(Options):
     def _runner_AWS(self, package_source, dataset_backend,
                     provider_config):
         """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``aws`` section of the acceptance testing
             configuration file.  The section of the configuration file should
             look something like:
