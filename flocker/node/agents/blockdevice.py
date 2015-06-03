@@ -430,7 +430,7 @@ class CreateFilesystem(PRecord):
     @property
     def eliot_action(self):
         return CREATE_FILESYSTEM(
-            _logger, volume=self.volume, filesystem=self.filesystem
+            _logger, volume=self.volume, filesystem_type=self.filesystem
         )
 
     def run(self, deployer):
