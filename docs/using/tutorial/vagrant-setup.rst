@@ -253,7 +253,7 @@ Failing to do so will cause SSH to think there is a security problem when you co
    alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
    alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
-Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` along with the cluster and user ceritficate and key files below and run ``vagrant up``.
+Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` along with the cluster and user certificate and key files below and run ``vagrant up``.
 
    :download:`cluster.crt`
    
