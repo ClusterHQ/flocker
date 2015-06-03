@@ -208,8 +208,6 @@ In this case the configuration file should include:
      addresses:
        - "192.0.2.101"
        - "192.0.2.102"
-   metadata:
-     creator: <your-name>
 
 The nodes should be configured to allow key based SSH connections as user ``root`` and the ``root``.
 
