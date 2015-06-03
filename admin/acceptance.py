@@ -186,7 +186,7 @@ class ManagedRunner(object):
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
 
-    def _upgrade_flocker(self, nodes, package_source):
+    def _upgrade_flocker(self, reactor, nodes, package_source):
         """
         Put the version of Flocker indicated by ``package_source`` onto all of
         the given nodes.
