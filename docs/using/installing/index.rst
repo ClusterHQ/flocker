@@ -4,13 +4,7 @@
 Installing Flocker
 ==================
 
-The following diagram illustrates the architecture of the cluster you are about to install:
-
-.. image:: images/installintro.png
-   :width: 75%
-   :alt: Diagram illustrating the Flocker CLI and control service and agents.
-
-The CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster. 
+The Flocker CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster. 
 This package also includes the ``flocker-ca`` tool, which you must use to generate certificates for all the Flocker components.
 
 The Flocker agents are installed on any number of nodes (or hosts) in the cluster where your containers will run.
