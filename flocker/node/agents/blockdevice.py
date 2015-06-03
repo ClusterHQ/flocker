@@ -634,6 +634,15 @@ class MountBlockDevice(PRecord):
         self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
         self.mountpoint.restat()
 
+        # Remove lost+found to ensure filesystems always start out empty.
+        # If other files exist we don't bother, since at that point user
+        # has modified the volume and we don't want to delete their data
+        # by mistake. A better way is described in
+        # https://clusterhq.atlassian.net/browse/FLOC-2074
+        lostfound = self.mountpoint.child(b"lost+found")
+        if self.mountpoint.children() == [lostfound]:
+            lostfound.remove()
+
         return succeed(None)
 
 
