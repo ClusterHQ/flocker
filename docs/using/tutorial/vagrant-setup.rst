@@ -118,12 +118,6 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       :lines: 1-8
       :append: ...
 
-   .. code-block:: console
-
-      alice@mercury:~/flocker-tutorial$ ls
-      cluster.crt user.crt user.key Vagrantfile
-      alice@mercury:~/flocker-tutorial$
-
 #. Download the cluster and user credentials by right clicking on the link below.
    Save these to the *flocker-tutorial* directory too, also preserving the file names.
 
@@ -135,6 +129,12 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    :download:`user.crt`
    
    :download:`user.key`
+
+   .. code-block:: console
+
+      alice@mercury:~/flocker-tutorial$ ls
+      cluster.crt user.crt user.key Vagrantfile
+      alice@mercury:~/flocker-tutorial$
 
 #. Use ``vagrant up`` to start and provision the VMs:
 
