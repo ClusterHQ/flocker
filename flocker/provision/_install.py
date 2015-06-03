@@ -38,6 +38,7 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
+
 def get_repository_url(distribution, flocker_version):
     """
     Return the URL for the repository of a given distribution.
@@ -51,18 +52,18 @@ def get_repository_url(distribution, flocker_version):
     :return bytes: The URL pointing to a repository of packages.
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
-    distro_key_suffix = get_package_key_suffix(flocker_version)
-
     distribution_to_url = {
+        # XXX Use testing repositories when appropriate for CentOS.
+        # See FLOC-2080.
         'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/{key}"
                      "/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                          archive_bucket=ARCHIVE_BUCKET,
-                         key='fedora' + distro_key_suffix,
+                         key='fedora',
                      ),
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
                     "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
-                        key='centos' + distro_key_suffix,
+                        key='centos',
                         ),
 
         # This could hardcode the version number instead of using
@@ -78,7 +79,8 @@ def get_repository_url(distribution, flocker_version):
         'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
                         '$(lsb_release --release --short)/\\$(ARCH)'.format(
                             archive_bucket=ARCHIVE_BUCKET,
-                            key='ubuntu' + distro_key_suffix,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
                         ),
     }
 
@@ -92,6 +94,7 @@ class UnsupportedDistribution(Exception):
     """
     Raised if trying to support a distribution which is not supported.
     """
+
 
 @attributes(['distribution'])
 class DistributionNotSupported(NotImplementedError):

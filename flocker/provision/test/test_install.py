@@ -74,13 +74,43 @@ class GetRepositoryURL(SynchronousTestCase):
             get_repository_url, 'unsupported-os', '0.3.0',
         )
 
-    def test_non_release(self):
+    def test_non_release_ubuntu(self):
         """
-        Operating system keys have the suffix ``-testing`` for non-marketing
-        releases.
+        The operating system key for ubuntu has the suffix ``-testing`` for
+        non-marketing releases.
         """
         expected = ("https://clusterhq-archive.s3.amazonaws.com/"
-                    "fedora-testing/"
+                    "ubuntu-testing/"
+                    "$(lsb_release --release --short)/\\$(ARCH)")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='ubuntu-14.04',
+                flocker_version='0.3.0dev1'),
+            expected
+        )
+
+    def test_non_release_centos(self):
+        """
+        The operating system key for centos stays the same non-marketing
+        releases.
+        """
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/centos/"
+                    "clusterhq-release$(rpm -E %dist).noarch.rpm")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='centos-7',
+                flocker_version='0.3.0dev1'),
+            expected
+        )
+
+    def test_non_release_fedora(self):
+        """
+        The operating system key for fedora stays the same non-marketing
+        releases.
+        """
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/fedora/"
                     "clusterhq-release$(rpm -E %dist).noarch.rpm")
 
         self.assertEqual(
@@ -89,7 +119,6 @@ class GetRepositoryURL(SynchronousTestCase):
                 flocker_version='0.3.0dev1'),
             expected
         )
-
 
 class InstallFlockerTests(SynchronousTestCase):
     """
