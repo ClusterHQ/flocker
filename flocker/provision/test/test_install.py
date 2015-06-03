@@ -29,6 +29,14 @@ BASIC_AGENT_YML = freeze({
 })
 
 
+def _centos7_install_commands(distribution, version):
+    return sequence([
+        run(command="yum clean all"),
+        run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
+        run(command="yum install -y clusterhq-flocker-node" + version)
+    ])
+
+
 class InstallFlockerTests(SynchronousTestCase):
     """
     Tests for ``task_install_flocker``.
@@ -41,10 +49,7 @@ class InstallFlockerTests(SynchronousTestCase):
         """
         distribution = 'centos-7'
         commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            run(command="yum install -y clusterhq-flocker-node")
-        ]))
+        self.assertEqual(commands, _centos7_install_commands(distribution, ""))
 
     def test_centos_with_version(self):
         """
@@ -57,10 +62,10 @@ class InstallFlockerTests(SynchronousTestCase):
         commands = task_install_flocker(
             package_source=source,
             distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
-        ]))
+        self.assertEqual(
+            commands,
+            _centos7_install_commands(distribution, "-1.2.3-1"),
+        )
 
     def test_ubuntu_no_arguments(self):
         """
@@ -131,6 +136,7 @@ class InstallFlockerTests(SynchronousTestCase):
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
+            run(command="yum clean all"),
             run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             put(content="""\
 [clusterhq-build]
@@ -157,6 +163,7 @@ enabled=0
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
+            run(command="yum clean all"),
             run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             put(content="""\
 [clusterhq-build]
@@ -182,6 +189,7 @@ enabled=0
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
+            run(command="yum clean all"),
             run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             put(content="""\
 [clusterhq-build]
