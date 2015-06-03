@@ -172,7 +172,6 @@ To run the acceptance tests on AWS, you need:
 .. code-block:: yaml
 
    aws:
-     .. XXX Use availability zone instead?
      region: <aws region, e.g. "us-west-2">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
