@@ -11,7 +11,7 @@ KEY_FILE = "/Users/rob/Projects/demo-cluster/rob.key"
 CERT_FILE = "/Users/rob/Projects/demo-cluster/rob.crt"
 CA_FILE = "/Users/rob/Projects/demo-cluster/cluster.crt"
 
-# We must create a certificat chain and then pass that into the SSL system.
+# We must create a certificate chain and then pass that into the SSL system.
 
 certtemp = tempfile.NamedTemporaryFile()
 TEMP_CERT_CA_FILE = certtemp.name
@@ -43,9 +43,11 @@ def make_api_request(method, endpoint, data=None):
     print body
 
 # Make our first request to check the service is working.
+
 make_api_request("GET", "/v1/version")
 
 # Create a volume.
+
 make_api_request("POST", "/v1/configuration/datasets",
     body= r'{"primary": "%s", "maximum_size": 107374182400, "metadata": {"name": "mongodb_data"}}'
         % ("5540d6e3-392b-4da0-828a-34b724c5bb80",))
