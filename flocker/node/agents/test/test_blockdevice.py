@@ -2864,6 +2864,19 @@ class MountBlockDeviceTests(
         failure = self.failureResultOf(mount_result, OSError)
         self.assertEqual(ENOTDIR, failure.value.errno)
 
+    def test_mountpoint_permissions(self):
+        """
+        The mountpoint is world-writeable (since containers can run as any
+        user), and its parent is only accessible as current user (for
+        security).
+        """
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(b"mount-test")
+        self._run_success_test(mountpoint)
+        self.assertEqual((mountroot.getPermissions().shorthand(),
+                          mountpoint.getPermissions().shorthand()),
+                         ('rwx------', 'rwxrwxrwx'))
+
 
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
@@ -3169,6 +3182,19 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
                 in psutil.disk_partitions()
             )
         )
+
+    def test_mountpoint_permissions(self):
+        """
+        The mountpoint is world-writeable (since containers can run as any
+        user), and its parent is only accessible as current user (for
+        security).
+        """
+        _, _, mountpoint, _ = self._create_blockdevice_dataset(
+            uuid4(), maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        mountroot = mountpoint.parent()
+        self.assertEqual((mountroot.getPermissions().shorthand(),
+                          mountpoint.getPermissions().shorthand()),
+                         ('rwx------', 'rwxrwxrwx'))
 
 
 class ResizeBlockDeviceDatasetInitTests(
