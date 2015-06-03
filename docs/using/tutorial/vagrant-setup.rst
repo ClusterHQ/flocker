@@ -248,6 +248,5 @@ The two virtual machines will have names like ``flocker-tutorial_node1_141045091
 .. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
-.. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
 .. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
 .. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568

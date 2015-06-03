@@ -14,10 +14,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
   config.vm.box_version = "= |latest-installable|"
 
-  if Vagrant.has_plugin?("vagrant-cachier")
-    config.cache.scope = :box
-  end
-
   config.vm.define "node1" do |node1|
     node1.vm.network :private_network, :ip => "172.16.255.250"
     node1.vm.hostname = "node1"
