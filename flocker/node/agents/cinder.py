@@ -514,12 +514,10 @@ def _openstack_auth_from_config(auth_plugin='password', **config):
 
     :return: The authentication object.
     """
-    auth_plugin_name = config.pop('auth_plugin', 'password')
-
-    if auth_plugin_name == 'rackspace':
+    if auth_plugin == 'rackspace':
         plugin_class = RackspaceAuth
     else:
-        plugin_class = get_plugin_class(auth_plugin_name)
+        plugin_class = get_plugin_class(auth_plugin)
 
     plugin_options = plugin_class.get_options()
     plugin_kwargs = {}
