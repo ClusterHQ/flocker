@@ -107,7 +107,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/version", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Get the version of Flocker being run.
         """,
         header=u"Get Flocker version",
@@ -125,7 +125,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Get the cluster's dataset configuration.
         """,
         header=u"Get the cluster's dataset configuration",
@@ -150,7 +150,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         Create a new dataset.
         """,
         header=u"Create new dataset",
@@ -244,7 +244,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
-        """
+        u"""
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
         """,
@@ -296,7 +296,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         This can be used to:
 
         * Move a dataset from one node to another by changing the
@@ -368,7 +368,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         The result reflects the control service's knowledge, which may be
         out of date or incomplete. E.g. a dataset agent has not connected
         or updated the control service yet.
@@ -401,7 +401,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         These containers may or may not actually exist on the
         cluster.
         """,
@@ -427,7 +427,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         This reflects the control service's knowledge of the cluster,
         which may be out of date or incomplete, e.g. if a container agent
         has not connected or updated the control service yet.
@@ -494,7 +494,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         The container will be automatically started once it is created on
         the cluster.
         """,
@@ -668,7 +668,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers/<name>", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         This will lead to the container being relocated to the specified host
         and restarted. This will also update the primary host of any attached
         datasets.
@@ -725,7 +725,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers/<name>", methods=['DELETE'])
     @user_documentation(
-        """
+        u"""
         This will lead to the container being stopped and not being
         restarted again. Any datasets that were attached as volumes will
         continue to exist on the cluster.
@@ -767,7 +767,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/nodes", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Some nodes may not be listed if their agents are disconnected from
         the cluster. IP addresses may be private IP addresses that are not
         publicly routable.
@@ -790,7 +790,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/_compose", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         Private API endpoint used by flocker-deploy.
 
         Please do not use it as it may be removed in the near future.
