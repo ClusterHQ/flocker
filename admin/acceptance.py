@@ -576,7 +576,6 @@ class RunOptions(Options):
             self._provider_config_missing(provider)
 
         cloud_config = provider_config.copy()
-        cloud_config.pop('dataset')
         provisioner = CLOUD_PROVIDERS[provider](**cloud_config)
         return LibcloudRunner(
             config=self['config'],
