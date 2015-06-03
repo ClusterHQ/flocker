@@ -8,6 +8,7 @@ from yaml import safe_dump
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.reflect import namedModule
+from sphinx.errors import SphinxError
 
 from klein import Klein
 
@@ -57,10 +58,10 @@ class MakeRstTests(SynchronousTestCase):
     """
     Tests for L{makeRst}.
     """
-
-    def test_stuff(self):
+    def test_must_be_documented(self):
         """
-        L{makeRst} returns a generator that returns a bunch of lines of rest.
+        If any route doesn't have documentation, then ``SphinxError`` is
+        raised.
         """
         app = Klein()
 
@@ -69,24 +70,29 @@ class MakeRstTests(SynchronousTestCase):
             """
             Developer docs.
             """
+
+        self.assertRaises(
+            SphinxError,
+            lambda: list(makeRst(b"/prefix", app, None, {})))
+
+    def test_stuff(self):
+        """
+        L{makeRst} returns a generator that returns a bunch of lines of rest.
+        """
+        app = Klein()
+
         @app.route(b"/g", methods=[b"PUT"])
-        @user_documentation("""
+        @user_documentation(u"""
             Does G-like stuff.
 
             Like g, G and gg.
-            """, header='g stuff')
+            """, header=u'g stuff')
         def g():
             pass
 
         rest = list(makeRst(b"/prefix", app, None, {}))
 
         self.assertEqual(rest, [
-            '',
-            '.. http:get:: /prefix/',
-            '',
-            '   Undocumented.',
-            '   ',
-            '',
             'g stuff',
             '=======',
             '',
@@ -110,9 +116,10 @@ class MakeRstTests(SynchronousTestCase):
 
         @app.route("/", methods=["GET"])
         @user_documentation(
-            """
+            u"""
             Demonstrates examples.
-            """, ["example-example"])
+            """, examples=[u"example-example"],
+            header=u"Header")
         def hasExamples():
             pass
 
@@ -132,7 +139,10 @@ class MakeRstTests(SynchronousTestCase):
 
         rest = list(makeRst(b"/prefix", app, examples.get, {}))
         self.assertEqual(
-            ['',
+            [u'Header',
+             u'======',
+             u'',
+             u'',
              # This line introduces the endpoint
              '.. http:get:: /prefix/',
              '',
@@ -196,6 +206,7 @@ class MakeRstTests(SynchronousTestCase):
             outputSchema={},
             schema_store=self.INPUT_SCHEMAS,
         )
+        @user_documentation(u"Undocumented.", header=u"Header")
         def f():
             """
             Developer docs,
@@ -204,7 +215,10 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.INPUT_SCHEMAS))
 
         self.assertEqual(rest, [
-            '',
+            u'Header',
+            u'======',
+            u'',
+            u'',
             '.. http:get:: /prefix/',
             '',
             '   Undocumented.',
@@ -279,6 +293,7 @@ class MakeRstTests(SynchronousTestCase):
             outputSchema={},
             schema_store=self.INPUT_ARRAY_SCHEMAS,
         )
+        @user_documentation(u"Undocumented.", header=u"Header")
         def f():
             """
             Developer docs,
@@ -287,7 +302,10 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.INPUT_ARRAY_SCHEMAS))
 
         self.assertListEqual(rest, [
-            '',
+            u'Header',
+            u'======',
+            u'',
+            u'',
             '.. http:get:: /prefix/',
             '',
             '   Undocumented.',
@@ -350,6 +368,7 @@ class MakeRstTests(SynchronousTestCase):
             outputSchema={'$ref': '/v0/test.json#/endpoint'},
             schema_store=self.OUTPUT_SCHEMAS,
         )
+        @user_documentation(u"Undocumented.", header=u"Header")
         def f():
             """
             Developer docs,
@@ -358,7 +377,10 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
 
         self.assertEqual(rest, [
-            '',
+            u'Header',
+            u'======',
+            u'',
+            u'',
             '.. http:get:: /prefix/',
             '',
             '   Undocumented.',
@@ -423,6 +445,7 @@ class MakeRstTests(SynchronousTestCase):
             outputSchema={'$ref': '/v0/test.json#/endpoint'},
             schema_store=self.OUTPUT_ARRAY_SCHEMAS,
         )
+        @user_documentation(u"Undocumented.", header=u"Header")
         def f():
             """
             Developer docs,
@@ -431,7 +454,10 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_ARRAY_SCHEMAS))
 
         self.assertListEqual(rest, [
-            '',
+            u'Header',
+            u'======',
+            u'',
+            u'',
             '.. http:get:: /prefix/',
             '',
             '   Undocumented.',
@@ -494,6 +520,7 @@ class MakeRstTests(SynchronousTestCase):
             outputSchema={'$ref': '/v0/test.json#/endpoint'},
             schema_store=self.INLINED_SCHEMAS,
         )
+        @user_documentation(u"Undocumented.", header=u"Header")
         def f():
             """
             Developer docs,
@@ -502,7 +529,10 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
 
         self.assertEqual(rest, [
-            '',
+            u'Header',
+            u'======',
+            u'',
+            u'',
             '.. http:get:: /prefix/',
             '',
             '   Undocumented.',
@@ -657,7 +687,7 @@ class VariableInterpolationTests(SynchronousTestCase):
         app = Klein()
 
         @app.route(b"/", methods=[b"GET"])
-        @user_documentation("", ["dummy id"])
+        @user_documentation(u"", examples=[u"dummy id"], header=u"Header")
         def f():
             pass
 
@@ -665,7 +695,10 @@ class VariableInterpolationTests(SynchronousTestCase):
         self.assertEqual(
             # Unfortunately a lot of stuff that's not relevant to this test
             # comes back from makeRst.
-            [u'',
+            [u'Header',
+             u'======',
+             u'',
+             u'',
              u'.. http:get:: /prefix/',
              u'',
              u'   **Example:** Documentation of some example.',

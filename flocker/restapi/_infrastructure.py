@@ -233,7 +233,7 @@ class UserDocumentation(PRecord):
     examples = field(mandatory=True)
 
 
-def user_documentation(text, header, section, examples=None):
+def user_documentation(text, header, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 
