@@ -7,6 +7,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 from errno import ENOTDIR
 from functools import partial
 from os import getuid, statvfs
+import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
@@ -25,6 +26,7 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
+from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, assertHasMessage,
@@ -70,11 +72,16 @@ from ....control import (
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
+CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 # Enough space for the Ext4 journal
 # And enough space for predictable inode counts after resize in
 # ResizeFilesystemTests.test_shrink
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
+
+# Eliot is transitioning away from the "Logger instances all over the place"
+# approach. So just use this global logger for now.
+_logger = Logger()
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -202,14 +209,32 @@ def create_blockdevicedeployer(
 def detach_destroy_volumes(api):
     """
     Detach and destroy all volumes known to this API.
+    If we failed to detach a volume for any reason,
+    sleep for 1 second and retry until we hit CLEANUP_RETRY_LIMIT.
+    This is to facilitate best effort cleanup of volume
+    environment after each test run, so that future runs
+    are not impacted.
     """
     volumes = api.list_volumes()
+    retry = 0
+    action_type = u"agent:blockdevice:cleanup:details"
+    with start_action(action_type=action_type):
+        while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
+            for volume in volumes:
+                try:
+                    if volume.attached_to is not None:
+                        api.detach_volume(volume.blockdevice_id)
+                    api.destroy_volume(volume.blockdevice_id)
+                except:
+                    write_traceback(_logger)
 
-    for volume in volumes:
-        if volume.attached_to is not None:
-            api.detach_volume(volume.blockdevice_id)
+            time.sleep(1.0)
+            volumes = api.list_volumes()
+            retry += 1
 
-        api.destroy_volume(volume.blockdevice_id)
+        if len(volumes) > 0:
+            Message.new(u"agent:blockdevice:failedcleanup:volumes",
+                        volumes=volumes).write()
 
 
 class BlockDeviceDeployerTests(
@@ -1043,7 +1068,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         """
         uuid = uuid4()
         dataset_id = unicode(uuid4())
-        dataset = Dataset(dataset_id=dataset_id)
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
         manifestation = Manifestation(
             dataset=dataset, primary=True
         )
@@ -1154,6 +1182,66 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         expected_changes = in_parallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
+
+    def test_dataset_without_maximum_size(self):
+        """
+        When supplied with a configuration containing a dataset with a null
+        size, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``CreateBlockDeviceDataset`` for a 100GiB dataset.
+        XXX: Make the default size configurable. FLOC-2044
+        """
+        node_id = uuid4()
+        node_address = u"192.0.2.1"
+        dataset_id = unicode(uuid4())
+
+        requested_dataset = Dataset(dataset_id=dataset_id, maximum_size=None)
+
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=node_id,
+                    manifestations={
+                        dataset_id: Manifestation(
+                            dataset=requested_dataset,
+                            primary=True
+                        )
+                    },
+                )
+            }
+        )
+        state = DeploymentState(
+            nodes=[
+                NodeState(
+                    uuid=node_id,
+                    hostname=node_address,
+                    applications=[],
+                    manifestations={},
+                    devices={},
+                    paths={},
+                    used_ports=[]
+                )
+            ]
+        )
+        deployer = create_blockdevicedeployer(
+            self,
+            hostname=node_address,
+            node_uuid=node_id,
+        )
+        changes = deployer.calculate_changes(configuration, state)
+        mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
+        expected_size = int(GiB(100).to_Byte().value)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset=requested_dataset.set(
+                            'maximum_size', expected_size
+                        ),
+                        mountpoint=mountpoint
+                    )
+                ]),
+            changes
+        )
 
 
 class BlockDeviceDeployerDetachCalculateChangesTests(
@@ -2065,6 +2153,34 @@ class LoopbackBlockDeviceAPITests(
     """
     Interface adherence Tests for ``LoopbackBlockDeviceAPI``.
     """
+
+
+class LoopbackBlockDeviceAPIConstructorTests(SynchronousTestCase):
+    """
+    Implementation specific constructor tests.
+    """
+    def test_from_path_creates_instance_id_if_not_provided(self):
+        """
+        Calling ``from_path`` with empty instance id creates an id.
+        """
+        loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
+            root_path=b'',
+        )
+        id = loopback_blockdevice_api.compute_instance_id()
+        self.assertIsInstance(id, unicode)
+        self.assertNotEqual(u"", id)
+
+    def test_unique_instance_id_if_not_provided(self):
+        """
+        Calling constructor with empty instance id creates a different
+        id each time.
+        """
+        a = LoopbackBlockDeviceAPI.from_path(root_path=b'')
+        b = LoopbackBlockDeviceAPI.from_path(root_path=b'')
+        self.assertNotEqual(
+            a.compute_instance_id(),
+            b.compute_instance_id(),
+        )
 
 
 class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):

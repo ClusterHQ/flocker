@@ -102,10 +102,10 @@ Getting started with Flocker
 
          .. version-code-block:: console
 
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://clusterhq-archive.s3.amazonaws.com/python/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
+            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/linux-install.sh && \
+              sh linux-install.sh && \
+              source flocker-tutorial/bin/activate
 
 
       .. tabs::
@@ -133,10 +133,10 @@ Getting started with Flocker
 
          .. version-code-block:: console
 
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://clusterhq-archive.s3.amazonaws.com/python/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
+            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/linux-install.sh && \
+              sh linux-install.sh && \
+              source flocker-tutorial/bin/activate
 
       .. empty-div:: arrow-down center-block invisible
 

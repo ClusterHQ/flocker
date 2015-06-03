@@ -121,6 +121,7 @@ if platform.system() == 'Linux':
     install_requirements.extend([
         "python-cinderclient==1.1.1",
         "python-novaclient==2.24.1",
+        "python-keystoneclient==1.4.0",
         "python-keystoneclient-rackspace==0.1.3",
     ])
 
