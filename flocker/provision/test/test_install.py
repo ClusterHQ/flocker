@@ -120,6 +120,7 @@ class GetRepositoryURL(SynchronousTestCase):
             expected
         )
 
+
 class InstallFlockerTests(SynchronousTestCase):
     """
     Tests for ``task_install_flocker``.
