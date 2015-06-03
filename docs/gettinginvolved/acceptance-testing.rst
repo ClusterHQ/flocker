@@ -74,8 +74,10 @@ Configuration File
 ------------------
 
 The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
-The top-level object in the file is a mapping.
+The contents and structure of the file are explained here.
+:ref:`An example containing all of the sections<acceptance-testing-configuration>` is also provided.
 
+The top-level object in the file is a mapping.
 It may optionally contain a ``metadata`` key.
 If it does and if the provider supports it,
 the value should be a mapping and the contents will be added as metadata of the created nodes.
