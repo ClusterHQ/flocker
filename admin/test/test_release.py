@@ -1853,6 +1853,29 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.target_bucket = 'clusterhq-archive'
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
+
+    def metadata_version(self, version, box_filename, provider="virtualbox"):
+        """
+        Create a version section for Vagrant metadata, for a given box, with
+        one provider: virtualbox.
+
+        :param bytes version: The version of the box, normalised for Vagrant.
+        :param bytes box_filename: The filename of the box.
+        :param bytes provider: The provider for the box.
+
+        :return: Dictionary to be used as a version section in Vagrant
+            metadata.
+        """
+        return {
+            "version": version,
+            "providers": [
+                {
+                    "url": "https://example.com/" + box_filename,
+                    "name": provider,
+                }
+            ],
+        }
+
     def publish_vagrant_metadata(self, aws, version):
         """
         Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
@@ -1890,15 +1913,10 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [
-                {
-                    "version": "0.3.0",
-                    "providers": [
-                        {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
-                            "name": "virtualbox"
-                        }
-                    ],
-                }
+                self.metadata_version(
+                    version="0.3.0",
+                    box_filename="flocker-tutorial-0.3.0.box",
+                ),
             ],
         }
 
@@ -1911,21 +1929,15 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         """
         A version is added to an existing metadata file.
         """
+        existing_old_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
         existing_metadata = json.dumps({
             "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
-            "versions": [
-                {
-                    "version": "0.3.0",
-                    "providers": [
-                        {
-                            "url":
-                                "https://example.com/flocker-tutorial-0.3.0.box",
-                            "name": "virtualbox"
-                        }
-                    ],
-                }
-            ],
+            "versions": [existing_old_version],
         })
 
         aws = FakeAWS(
@@ -1937,33 +1949,16 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             },
         )
 
+        expected_new_version = self.metadata_version(
+            version="0.4.0",
+            box_filename="flocker-tutorial-0.4.0.box",
+        )
+
         expected_metadata = {
             "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
-            "versions": [
-                {
-                    "version": "0.3.0",
-                    "providers": [
-                        {
-                            "url":
-                                "https://example.com/flocker-tutorial-0.3.0.box",
-                            "name": "virtualbox"
-                        }
-                    ]
-                },
-                {
-                    "version": "0.4.0",
-                    "providers": [
-                        {
-                            "url":
-                                "https://example.com/flocker-tutorial-0.4.0.box",
-                            "name": "virtualbox"
-                        }
-                    ]
-                },
-            ],
+            "versions": [existing_old_version, expected_new_version],
         }
-
 
         self.publish_vagrant_metadata(aws=aws, version='0.4.0')
         self.assertEqual(
@@ -1996,20 +1991,16 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         metadata. This works even if the version is changed when being
         normalised.
         """
+        existing_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="old_filename",
+            provider="old_provider",
+        )
+
         existing_metadata = json.dumps({
             "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
-            "versions": [
-                {
-                    "version": "0.4.0.2314.g941011b",
-                    "providers": [
-                        {
-                            "url": "old_url",
-                            "name": "old_provider"
-                        }
-                    ],
-                }
-            ],
+            "versions": [existing_version],
         })
 
         aws = FakeAWS(
@@ -2021,23 +2012,18 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             },
         )
 
-        expected_metadata_versions = [{
-            "version": "0.4.0.2314.g941011b",
-            "providers": [
-                {
-                    "url":
-                        "https://example.com/flocker-tutorial-0.4.0-2314-g941011b.box",
-                    "name": "virtualbox"
-                },
-            ],
-        }]
+        expected_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="flocker-tutorial-0.4.0-2314-g941011b.box",
+            provider="virtualbox",
+        )
 
         self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
 
         metadata_versions = json.loads(
             aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
 
-        self.assertEqual(metadata_versions, expected_metadata_versions)
+        self.assertEqual(metadata_versions, [expected_version])
 
 
 class PublishHomebrewRecipeTests(SynchronousTestCase):
