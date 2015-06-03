@@ -85,8 +85,13 @@ For your convenience, this tutorial includes ``Vagrantfile`` which will boot the
 Flocker and its dependencies will be installed on these VMs the first time you start them.
 One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
 These two IP addresses will be used throughout the tutorial and configuration files.
-If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
-Note that you will need to make the same substitution in commands used throughout the tutorial.
+
+.. warning::
+   
+   If these addresses conflict with your local network configuration, you will need to edit the ``Vagrantfile`` to change the IP addresses.
+   You will then need to generate a new set of certificates and keys using the Flocker CLI ``flocker-ca`` tool and copy these to the virtual machines.
+   This will also require you to start the node services manually.
+   Therefore if your IP addresses conflict with the tutorial, please see the full :doc:`installation instructions <../installation/index>` for more information.
 
 .. note:: The two virtual machines are each assigned a 10GB virtual disk.
           The underlying disk files grow to about 5GB.
@@ -116,13 +121,13 @@ Note that you will need to make the same substitution in commands used throughou
    .. code-block:: console
 
       alice@mercury:~/flocker-tutorial$ ls
-      Vagrantfile
+      cluster.crt user.crt user.key Vagrantfile
       alice@mercury:~/flocker-tutorial$
 
 #. Download the cluster and user credentials by right clicking on the link below.
    Save these to the *flocker-tutorial* directory too, also preserving the file names.
 
-   .. These downloads iare also used in the getting started guide. You will need to adjust
+   .. These downloads are also used in the getting started guide. You will need to adjust
       it if these downloads are changed.
    
    :download:`cluster.crt`
@@ -248,7 +253,13 @@ Failing to do so will cause SSH to think there is a security problem when you co
    alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
    alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
-Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` and run ``vagrant up``.
+Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` along with the cluster and user ceritficate and key files below and run ``vagrant up``.
+
+   :download:`cluster.crt`
+   
+   :download:`user.crt`
+   
+   :download:`user.key`
 
 .. code-block:: console
 
