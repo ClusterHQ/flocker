@@ -4,6 +4,7 @@
 Tests for ``admin.release``.
 """
 
+import json
 import os
 
 from gzip import GzipFile
@@ -34,8 +35,9 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion, copy_tutorial_vagrant_box,
+    IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
+    publish_vagrant_metadata
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1842,39 +1844,186 @@ class CalculateBaseBranchTests(SynchronousTestCase):
             self.calculate_base_branch, '0.3.0')
 
 
-class CopyTutorialVagrantBox(SynchronousTestCase):
+class PublishVagrantMetadataTests(SynchronousTestCase):
     """
-    Tests for :func:`copy_tutorial_vagrant_box`.
+    Tests for :func:`publish_vagrant_metadata`.
     """
 
-    def test_vagrant_box_copied(self):
+    def setUp(self):
+        self.target_bucket = 'clusterhq-archive'
+        self.metadata_key = 'vagrant/flocker-tutorial.json'
+
+
+    def metadata_version(self, version, box_filename, provider="virtualbox"):
         """
-        A Vagrant box for a given version of Flocker is copied to the
-        archive.
+        Create a version section for Vagrant metadata, for a given box, with
+        one provider: virtualbox.
+
+        :param bytes version: The version of the box, normalised for Vagrant.
+        :param bytes box_filename: The filename of the box.
+        :param bytes provider: The provider for the box.
+
+        :return: Dictionary to be used as a version section in Vagrant
+            metadata.
         """
-        target_bucket = 'clusterhq-archive'
-        dev_bucket = 'clusterhq-dev-archive'
+        return {
+            "version": version,
+            "providers": [
+                {
+                    "url": "https://example.com/" + box_filename,
+                    "name": provider,
+                }
+            ],
+        }
+
+    def tutorial_metadata(self, versions):
+        """
+        Create example tutorial metadata.
+
+        :param list versions: List of dictionaries of version sections.
+
+        :return: Dictionary to be used as Vagrant metadata.
+        """
+        return {
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": versions,
+        }
+
+    def publish_vagrant_metadata(self, aws, version):
+        """
+        Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param version: See :py:func:`publish_vagrant_metadata`.
+        """
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
+        box_name = 'flocker-tutorial'
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            publish_vagrant_metadata(
+                version=version,
+                box_url=box_url,
+                box_name =box_name,
+                target_bucket=self.target_bucket,
+                scratch_directory=scratch_directory))
+
+    def test_no_metadata_exists(self):
+        """
+        A metadata file is added when one does not exist.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        expected_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            self.tutorial_metadata(versions=[expected_version]),
+        )
+
+    def test_version_added(self):
+        """
+        A version is added to an existing metadata file.
+        """
+        existing_old_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_old_version])
+        )
 
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                target_bucket: {},
-                dev_bucket: {
-                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content',
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
                 },
-            })
-
-        sync_perform(
-            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            copy_tutorial_vagrant_box(
-                target_bucket=target_bucket,
-                dev_bucket=dev_bucket,
-                version='0.3.0'))
-
-        self.assertEqual(
-            aws.s3_buckets[target_bucket],
-            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content'}
+            },
         )
+
+        expected_new_version = self.metadata_version(
+            version="0.4.0",
+            box_filename="flocker-tutorial-0.4.0.box",
+        )
+
+        expected_metadata = self.tutorial_metadata(
+            versions=[existing_old_version, expected_new_version])
+
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0')
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            expected_metadata,
+        )
+
+    def test_version_normalised(self):
+        """
+        The version given is converted to a version number acceptable to
+        Vagrant.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
+        metadata = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])
+        # The underscore is converted to a period in the version.
+        self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
+
+
+    def test_version_already_exists(self):
+        """
+        If a version already exists then its data is overwritten by the new
+        metadata. This works even if the version is changed when being
+        normalised.
+        """
+        existing_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="old_filename",
+            provider="old_provider",
+        )
+
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_version])
+        )
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
+                },
+            },
+        )
+
+        expected_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="flocker-tutorial-0.4.0-2314-g941011b.box",
+            provider="virtualbox",
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
+
+        metadata_versions = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+
+        self.assertEqual(metadata_versions, [expected_version])
 
 
 class PublishHomebrewRecipeTests(SynchronousTestCase):

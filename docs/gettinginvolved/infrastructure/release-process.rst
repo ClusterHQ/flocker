@@ -54,11 +54,9 @@ Access
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
-- A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
+- An OS X (most recent release) system.
 
 - SSH access to ClusterHQ's GitHub repositories.
-
-.. note:: For a maintenance or documentation release, access to Atlas is not required.
 
 .. _preparing-for-a-release:
 
@@ -301,31 +299,11 @@ Release
 
    Wait for the build to complete successfully.
 
-#. Build packages and upload them to Amazon S3,
-   and copy the tutorial box to the final location:
+#. Publish artifacts and documentation:
 
    .. prompt:: bash [vagrant@localhost]$
 
       admin/publish-artifacts
-
-#. Add the tutorial box to Atlas:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   XXX This should be automated, see :issue:`943`.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      echo https://s3.amazonaws.com/clusterhq-archive/vagrant/tutorial/flocker-tutorial-${VERSION}.box
-
-   Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
-
-#. Update the documentation.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd ~/flocker-${VERSION}
-      workon flocker-release-${VERSION}
       admin/publish-docs --production
 
 #. Copy the AWS configuration to your local home directory:

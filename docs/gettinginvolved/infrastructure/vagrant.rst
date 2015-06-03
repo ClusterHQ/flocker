@@ -41,53 +41,21 @@ If an error occurs similar to ``/sbin/mount.vboxsf: mounting failed with the err
 
 This will generate a :file:`flocker-<box>-<version>.box` file.
 
-Upload this file to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=>`_,
-using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
+Tutorial boxes and metadata for them are published to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/>`_ during the :ref:`release-process`.
 
-   gsutil cp -a public-read flocker-dev-$(python ../../setup.py --version).box s3://clusterhq-archive/vagrant
+To publish the latest development box which has been built by BuildBot:
 
-If you are uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.
-However, the :ref:`release-process` automatically builds and uploads a new tutorial box.
+* Merge a branch into ``master`` with changes to the development box,
+* Wait for the development box to be built again for the ``master`` branch,
+* Check out an up to date ``master`` branch,
+* Run ``admin/publish-dev-box``.
 
-#. For the following step, retrieve the public link:
-
-   - Visit https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/.
-   - Right click and select "Properties".
-   - Copy the "Link".
-
-#. :ref:`add-vagrant-box-to-atlas`\ .
-
-.. _add-vagrant-box-to-atlas:
-
-Add a Vagrant Box to Atlas
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To add to Atlas, you will need a public link to the relevant Vagrant box.
-
-#. Visit the Atlas page for creating a new version of the `tutorial box <https://atlas.hashicorp.com/clusterhq/boxes/flocker-tutorial/versions/new>`_ or the `development box <https://atlas.hashicorp.com/clusterhq/boxes/flocker-dev/versions/new>`_ as appropriate.
-
-#. Set the "Version" to the relevant version.
-
-   If adding the ``flocker-dev`` box, ensure that the version number increases using the semantic versioning format.
-   This usually involves replacing instances of ``-`` and ``+`` with ``.`` and removing any alphanumeric segments.
-
-   No description is needed.
-
-#. Click "Create version" and then "Create new provider".
-
-#. Set the new provider as "``virtualbox``" and set the URL to be the public link to the Vagrant box.
-
-   Click the "Create provider" button.
-
-#. Click the "Edit" button that appears next to the button containing the version.
-
-#. A message should appear, saying "This version hasn't been released. Upon releasing, it will be available to users from Vagrant".
-
-   Click the "Release version" button next to this message.
+This should be done whenever there is a change to the development box.
 
 Testing
 ^^^^^^^
-It is possible to test this image locally before uploading.
+
+It is possible to test a box which has been built locally.
 The :file:`build` script generates metadata pointing a the locally built file,
 which can be used to add the box with the correct version::
 
@@ -97,3 +65,14 @@ Then destroy and re-up that vagrant image.
 
 It is also possible to build a vagrant image based on RPMs from a branch.
 If you pass a ``--branch`` argument to :file:`build`, then it will use the RPMs from the latest build of that branch on Buildbot.
+
+Legacy
+^^^^^^
+
+Metadata for Vagrant boxes was hosted on `Atlas`_.
+
+The Vagrant boxes were hosted on Google Cloud Storage.
+
+The development box used to be based on Fedora 20.
+
+.. _`Atlas`: https://atlas.hashicorp.com/vagrant

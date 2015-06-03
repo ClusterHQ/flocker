@@ -1705,10 +1705,9 @@ class BlockDeviceDeployer(PRecord):
                 applications=None,
                 used_ports=None,
             ),
+            NonManifestDatasets(datasets=nonmanifest),
         )
 
-        if nonmanifest:
-            state += (NonManifestDatasets(datasets=nonmanifest),)
         return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):
