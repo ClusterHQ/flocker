@@ -199,6 +199,8 @@ You can also run acceptance tests on existing "managed" nodes.
 In this case the configuration file should include:
 
 - **addresses**: The IP addresses of two running nodes.
+- **upgrade**: ``true`` to automatically upgrade Flocker before running the tests,
+  ``false`` or missing to rely on the version already installed.
 
 .. code-block:: yaml
 
