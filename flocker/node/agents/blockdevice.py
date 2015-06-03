@@ -430,7 +430,7 @@ class CreateFilesystem(PRecord):
     @property
     def eliot_action(self):
         return CREATE_FILESYSTEM(
-            _logger, volume=self.volume, filesystem=self.filesystem
+            _logger, volume=self.volume, filesystem_type=self.filesystem
         )
 
     def run(self, deployer):
@@ -438,9 +438,12 @@ class CreateFilesystem(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
-        check_output([
-            b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
-        ])
+        try:
+            check_output([
+                b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
+            ])
+        except:
+            return fail()
         return succeed(None)
 
 
@@ -869,12 +872,12 @@ class CreateBlockDeviceDataset(PRecord):
         )
         device = api.get_device_path(volume.blockdevice_id)
 
-        # This duplicates CreateFilesystem now.
-        check_output(["mkfs", "-t", "ext4", device.path])
+        create = CreateFilesystem(volume=volume, filesystem=u"ext4")
+        d = run_state_change(create, deployer)
 
         mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
                                  mountpoint=self.mountpoint)
-        d = mount.run(deployer)
+        d.addCallback(lambda _: run_state_change(mount, deployer))
 
         def passthrough(result):
             BLOCK_DEVICE_DATASET_CREATED(
