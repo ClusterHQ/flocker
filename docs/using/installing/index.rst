@@ -478,13 +478,13 @@ For more details on configuring the firewall, see Ubuntu's `UFW documentation <h
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
+.. _agent-yml:
+
 To enable the Flocker agent service
 -----------------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
-This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to.
-The ZFS ``pool`` variable should match the pool name created in the ZFS section.
+The file must always include ``version`` and ``control-service`` items similar to these:
 
 .. code-block:: yaml
 
@@ -492,15 +492,92 @@ The ZFS ``pool`` variable should match the pool name created in the ZFS section.
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
+
+``${CONTROL_NODE}`` should be replaced with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to.
+This value must agree with the configuration for the control service telling it on what port to listen.
+
+The file must also include a ``dataset`` item.
+This selects and configures a dataset backend.
+All nodes must be configured to use the same dataset backend.
+
+.. _openstack-dataset-backend:
+
+OpenStack Block Device Backend Configuration
+............................................
+
+The OpenStack backend uses Cinder volumes as the storage for datasets.
+This backend can be used with Flocker dataset agent nodes run by OpenStack Nova.
+The configuration item to use OpenStack should look like:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "<region slug; for example, LON>"
+       auth_plugin: "<authentication plugin>"
+       ...
+
+Make sure that the ``region`` specified matches the region where the Flocker nodes run.
+OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
+
+Other items are typically required but vary depending on the OpenStack authentication plugin selected
+(Flocker relies on these plugins; it does not provide them itself).
+The ``rackspace`` plugin requires ``username``, ``api_key``, and ``auth_url``.
+To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
+
+.. _aws-dataset-backend:
+
+Amazon AWS / EBS Block Device Backend Configuration
+...................................................
+
+The AWS backend uses EBS volumes as the storage for datasets.
+This backend can be used when Flocker dataset agents are run on EC2 instances.
+The configuration item to use AWS should look like:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "aws"
+       region: "<region slug; for example, us-west-1>"
+       zone: "<availability zone slug; for example, us-west-1a>"
+       access_key_id: "<AWS API key identifier>"
+       secret_access_key: "<Matching AWS API key>"
+
+Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
+AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
+
+.. _zfs-dataset-backend:
+
+ZFS Peer-to-Peer Backend Configuration (EXPERIMENTAL)
+.....................................................
+
+The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
+The ZFS backend remains under development,
+it is not expected to operate reliably in many situations,
+and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use ZFS should look like:
+
+.. code-block:: yaml
+
    "dataset":
       "backend": "zfs"
       "pool": "flocker"
 
-.. The following is put in to demonstrate how to format alternative backends.
-   Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
-   FLOC-1925 Replace the documentation below
+The pool name must match a ZFS storage pool that has been created on all of the Flocker agent nodes.
 
-For a ``loopback`` device, change the ``dataset`` clause to:
+.. _loopback-dataset-backend:
+
+Loopback Block Device Backend Configuration (TESTING)
+.....................................................
+
+The Loopback backend uses node-local storage as storage for datasets.
+It has no data movement functionality.
+It serves primarily as a development and testing tool for the other block device backend implementations.
+You may find it useful if you plan to work on Flocker itself.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use Loopback should look like:
 
 .. code-block:: yaml
 
@@ -508,32 +585,7 @@ For a ``loopback`` device, change the ``dataset`` clause to:
       "backend": "loopback"
       "root_path": "/var/lib/flocker/loopback"
 
-OpenStack Block Device Backend Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: yaml
-
-   dataset:
-       backend: "openstack"
-       region: "LON"
-       auth_plugin: "rackspace"
-       username: "joe.bloggs.rackspace"
-       api_key: "aaa-bbb-ccc-ddd"
-       auth_url: "https://identity.api.rackspacecloud.com/v2.0"
-
-
-Amazon AWS / EBS Block Device Backend Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: yaml
-
-   dataset:
-       backend: "aws"
-       region: "us-west-1"
-       zone: "us-west-1a"
-       access_key_id: "foo"
-       secret_access_key: "bar"
-
+The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
 
 Fedora / CentOS

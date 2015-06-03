@@ -55,9 +55,6 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies a YAML configuration file that contains provider specific configuration.
    See below for the required configuration options.
-   If the configuration contains a ``metadata`` key,
-   the contents will be added as metadata of the created nodes,
-   if the provider supports it.
 
 .. option:: --keep
 
@@ -73,11 +70,36 @@ To see the supported values for each option, run:
 
    admin/run-acceptance-tests --help
 
+Configuration File
+------------------
+
+The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
+The top-level object in the file is a mapping.
+
+It may optionally contain a ``metadata`` key.
+If it does and if the provider supports it,
+the value should be a mapping and the contents will be added as metadata of the created nodes.
+
+The top-level mapping must contain a ``dataset-backends`` item.
+The value should be another mapping from names to dataset backend configuration mappings.
+The names are primarily human-readable and meant for easy use with the ``--dataset-backend`` option.
+In some cases,
+the name may exactly match the name of one of the dataset backend implementations supported by Flocker.
+If this is not the case,
+the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<agent-yml>`.
+
+Any number of dataset backend configurations may be present.
+The configuration with a key matching the value of the ``--dataset-backend`` parameter is used.
+Nodes in the testing cluster are given this configuration.
+
+The top-level mapping may also contain any number of computer-resource provider configurations.
+These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
+Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
 Vagrant
--------
+~~~~~~~
 
-A configuration file is not required for the vagrant provider.
+The Vagrant cluster runner does not require any configuration and so does not require an item in the configuration file.
 
 You will need a ssh agent running with access to the insecure vagrant private key:
 
@@ -106,14 +128,14 @@ Ensure that they all pass, with no skips:
 .. _acceptance-testing-rackspace-config:
 
 Rackspace
----------
+~~~~~~~~~
 
 To run the acceptance tests on Rackspace, you need:
 
 - a Rackspace account and the associated API key
 - an ssh-key registered with the Rackspace account.
 
-The configuration file for the Rackspace provider looks like:
+To use the Rackspace provider, the configuration file should include an item like:
 
 .. code-block:: yaml
 
@@ -122,14 +144,14 @@ The configuration file for the Rackspace provider looks like:
      username: <rackspace username>
      key: <access key>
      keyname: <ssh-key-name>
-   metadata:
-     creator: <your-name>
-   storage-drivers:
-     openstack:
-       # FLOC-1925
-       # Add auth_url, auth_plugin, provider, etc
 
 You will need a ssh agent running with access to the corresponding private key.
+
+Rackspace can use these dataset backends:
+
+  * :ref:`OpenStack<openstack-dataset-backend>`.
+  * :ref:`ZFS<zfs-dataset-backend>`.
+  * :ref:`Loopback<loopback-dataset-backend>`.
 
 .. prompt:: bash $
 
@@ -139,7 +161,7 @@ You will need a ssh agent running with access to the corresponding private key.
 .. _acceptance-testing-aws-config:
 
 AWS
----
+~~~
 
 To run the acceptance tests on AWS, you need:
 
@@ -156,18 +178,18 @@ To run the acceptance tests on AWS, you need:
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
-   metadata:
-     creator: <your-name>
-   storage-drivers:
-     aws:
-       # FLOC-1925 finish this
 
 You will need a ssh agent running with access to the corresponding private key.
+
+AWS can use these dataset backends:
+
+  * :ref:`AWS<aws-dataset-backend>`.
+  * :ref:`ZFS<zfs-dataset-backend>`.
+  * :ref:`Loopback<loopback-dataset-backend>`.
 
 .. prompt:: bash $
 
   admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
-
 
 .. _client-acceptance-tests:
 
@@ -242,11 +264,13 @@ Functional Testing
 The tests for the various cloud block device backends depend on access to credentials supplied from the environment.
 
 The tests look for two environment variables:
+  ..
+     # FLOC-1925 This is yet another configuration file.
+     # Buildbot  currently points this at the acceptance.yaml file.
+     # So perhaps we should add a link to the acceptance.yaml format here.
 
-- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This points at a yaml file with the credentials.
-  # FLOC-1925 This is yet another configuration file.
-  # Buildbot  currently points this at the acceptance.yaml file.
-  # So perhaps we should add a link to the acceptance.yaml format here.
+
+- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This points at a YAML file with the credentials.
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This is the name of a top-level key in the configuration file.
 
 The credentials are read from the stanza specified by the ``CLOUD_PROVIDER`` environment variable.
