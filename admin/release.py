@@ -444,8 +444,11 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         "versions": [],
     }
 
-    if scratch_directory.children():
+    try:
         existing_metadata_file = scratch_directory.children()[0]
+    except IndexError:
+        pass
+    else:
         existing_metadata = json.loads(existing_metadata_file.getContent())
         for version_metadata in existing_metadata['versions']:
             # In the future we may want to have multiple providers for the
