@@ -418,7 +418,7 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
 
 @do
 def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
-    target_bucket):
+                             target_bucket):
     """
     Publish Vagrant metadata for a given version of a given box.
 
