@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, PMap
+from pyrsistent import PRecord, field, pmap
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -444,7 +444,7 @@ class EBSBlockDeviceAPI(object):
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
-            ATTACHED_DEVICE_LABEL: None,
+            ATTACHED_DEVICE_LABEL: unicode(''),
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
@@ -541,7 +541,7 @@ class EBSBlockDeviceAPI(object):
         # attached_volume = volume.set('attached_to', attach_to)
 
         # Update volume's attached instance and device name in cache.
-        volume_updates = PMap({'attach_to': attach_to,
+        volume_updates = pmap({'attach_to': attach_to,
                                'attach_device': unicode(new_device)})
         attached_volume = self.cache.update(blockdevice_id, volume_updates)
 
@@ -578,7 +578,7 @@ class EBSBlockDeviceAPI(object):
         self.connection.create_tags([ebs_volume.id], metadata)
 
         # Update volume's attached instance and device name in cache.
-        volume_updates = PMap({'attach_to': None,
+        volume_updates = pmap({'attach_to': None,
                                'attach_device': None})
         self.cache.update(blockdevice_id, volume_updates)
 

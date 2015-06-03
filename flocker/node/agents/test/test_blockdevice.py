@@ -43,6 +43,7 @@ from ..blockdevice import (
     ResizeBlockDeviceDataset, ResizeVolume, AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice, ResizeFilesystem,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
+    BlockDeviceVolumeCache,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
@@ -235,6 +236,52 @@ def detach_destroy_volumes(api):
         if len(volumes) > 0:
             Message.new(u"agent:blockdevice:failedcleanup:volumes",
                         volumes=volumes).write()
+
+
+class BlockDeviceVolumeCacheTests(SynchronousTestCase):
+    """
+    Unit tests for ``BlockDeviceVolumeCache`` functionality.
+    """
+
+    def _generate_sample_volume(self):
+        """
+        Helper to generate ``BlockDeviceVolume`` for tests.
+        """
+        blockdevice_id = uuid4()
+        size = 1
+        attached_to = None
+        attached_device = None
+        dataset_id = uuid4()
+        test_volume = BlockDeviceVolume(
+            blockdevice_id=blockdevice_id,
+            size=size,
+            attached_to=attached_to,
+            attached_device=attached_device,
+            dataset_id=dataset_id)
+        return test_volume
+
+    def test_insert_exists(self):
+        """
+        Test if ``insert``ed  item exists in cache.
+        """
+        cache = BlockDeviceVolumeCache()
+        test_volume = self._generate_sample_volume()
+        cache.insert(test_volume)
+        self.assertEqual(cache.data[blockdevice_id], test_volume)
+
+    def test_lookup(self):
+        """
+        Test if ``lookup`` returns an right inserted volume.
+        """
+        cache = BlockDeviceVolumeCache()
+        test_volume1 = self._generate_sample_volume()
+        cache.insert(test_volume1)
+        test_volume2 = self._generate_sample_volume()
+        cache.insert(test_volume2)
+        self.assertEqual({test_volume1, test_volume2},
+                         {cache.lookup(test_volume1.blockdevice_id),
+                             cache.lookup(test_volume2.blockdevice_id2})
+
 
 
 class BlockDeviceDeployerTests(

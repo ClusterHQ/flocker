@@ -19,7 +19,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field, PMap
+from pyrsistent import PRecord, field, pmap
 from characteristic import attributes, with_cmp
 
 import psutil
@@ -335,13 +335,13 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
-def BlockDeviceVolumeCache():
+class BlockDeviceVolumeCache(object):
     """
     """
     def __init__(self):
         """
         """
-        self.cache = PMap({})
+        self.data = pmap({})
         self.lock = threading.Lock()
 
     def lookup(self, blockdevice_id):
@@ -349,36 +349,36 @@ def BlockDeviceVolumeCache():
         XXX Improve linear time complexity of lookup.
         """
         with self.lock:
-            return self.cache[blockdevice_id]
+            return self.data[blockdevice_id]
 
     def insert(self, volume):
         """
         """
         with self.lock:
-            self.cache = self.cache.set(volume.blockdevice_id, volume)
+            self.data = self.data.set(volume.blockdevice_id, volume)
 
     def update(self, blockdevice_id, update_fields):
         """
         """
         with self.lock:
-            volume = self.cache.lookup(blockdevice_id)
+            volume = self.data.lookup(blockdevice_id)
             if volume is not None:
                 for key, value in update_fields.items():
                     volume.key = value
-                self.cache = self.cache.set(blockdevice_id, volume)
+                self.data = self.data.set(blockdevice_id, volume)
             return volume
 
     def remove(self, blockdevice_id):
         """
         """
         with self.lock:
-            self.cache = self.cache.discard(blockdevice_id)
+            self.data = self.data.discard(blockdevice_id)
 
     def list_keys(self):
         """
         """
         with self.lock:
-            return self.cache.keys()
+            return self.data.keys()
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
