@@ -20,7 +20,31 @@ Please see the :doc:`API authentication guide <./authentication>` for more infor
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
+
+Common
+======
+
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
     :prefix: /v1
     :examples_path: api_examples.yml
+    :section: common
+
+Dataset
+=======
+
+.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
+    :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
+    :prefix: /v1
+    :examples_path: api_examples.yml
+    :section: dataset
+
+
+Container
+=========
+
+.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
+    :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
+    :prefix: /v1
+    :examples_path: api_examples.yml
+    :section: container

@@ -110,6 +110,7 @@ class ConfigurationAPIUserV1(object):
         u"""
         Get the version of Flocker being run.
         """,
+        section=u"common",
         header=u"Get Flocker version",
         examples=[u"get version"])
     @structured(
@@ -130,6 +131,7 @@ class ConfigurationAPIUserV1(object):
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
+        section=u"dataset",
     )
     @structured(
         inputSchema={},
@@ -160,7 +162,8 @@ class ConfigurationAPIUserV1(object):
             u"create dataset with duplicate dataset_id",
             u"create dataset with maximum_size",
             u"create dataset with metadata",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={
@@ -252,7 +255,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"delete dataset",
             u"delete dataset with unknown dataset id",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={},
@@ -308,7 +312,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={
@@ -374,7 +379,9 @@ class ConfigurationAPIUserV1(object):
         or updated the control service yet.
         """,
         header=u"Get current cluster datasets",
-        examples=[u"get state datasets"])
+        examples=[u"get state datasets"],
+        section=u"dataset",
+    )
     @structured(
         inputSchema={},
         outputSchema={
@@ -407,6 +414,7 @@ class ConfigurationAPIUserV1(object):
         """,
         header=u"Get the cluster's container configuration",
         examples=[u"get configured containers"],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -434,6 +442,7 @@ class ConfigurationAPIUserV1(object):
         """,
         header=u"Get the cluster's actual containers",
         examples=[u"get actual containers"],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -510,7 +519,8 @@ class ConfigurationAPIUserV1(object):
             u"create container with memory limit",
             u"create container with links",
             u"create container with command line",
-        ]
+        ],
+        section=u"container",
     )
     @structured(
         inputSchema={
@@ -675,6 +685,7 @@ class ConfigurationAPIUserV1(object):
         """,
         header=u"Update a named container's configuration",
         examples=[u"move container"],
+        section=u"container",
     )
     @structured(
         inputSchema={
@@ -734,7 +745,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"remove a container",
             u"remove a container with unknown name",
-        ]
+        ],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -775,7 +787,8 @@ class ConfigurationAPIUserV1(object):
         header=u"List known nodes in the cluster",
         examples=[
             u"list known nodes",
-        ]
+        ],
+        section=u"common",
     )
     @structured(
         inputSchema={},
@@ -797,6 +810,7 @@ class ConfigurationAPIUserV1(object):
         """,
         header=u"Private API endpoint used by flocker-deploy",
         examples=[],
+        section=u"private",
     )
     @structured(
         inputSchema={

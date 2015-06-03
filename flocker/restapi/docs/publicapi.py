@@ -164,6 +164,8 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     @rtype: L{dict} with the following keys.
       - C{'description'}:
              L{list} of L{str} containing a prose description of the endpoint.
+      - C{'section'}:
+             Section identifier this route should be included in.
       - C{'header'}:
              Header for the route.
       - C{'input'} I{(optional)}:
@@ -193,6 +195,7 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
 
     result['description'] = prepare_docstring(user_documentation.text)
     result['header'] = user_documentation.header
+    result['section'] = user_documentation.section
 
     inputSchema = route.attributes.get('inputSchema', None)
     outputSchema = route.attributes.get('outputSchema', None)
@@ -347,11 +350,13 @@ def _formatRouteBody(data, schema_store):
             yield line
 
 
-def makeRst(prefix, app, exampleByIdentifier, schema_store):
+def makeRst(prefix, section, app, exampleByIdentifier, schema_store):
     """
     Generate the sphinx documentation associated with a L{klein} application.
 
     :param bytes prefix: The URL prefix of the URLs in this application.
+
+    :param unicode section: The section of documentation to generate.
 
     :param klein.Klein app: The L{klein} application to introspect.
 
@@ -367,11 +372,14 @@ def makeRst(prefix, app, exampleByIdentifier, schema_store):
     # Adapted from sphinxcontrib.autohttp.flask
     for route in sorted(getRoutes(app)):
         data = _introspectRoute(route, exampleByIdentifier, schema_store)
+        if data['section'] != section:
+            continue
         for method in route.methods:
             if data['header'] is not None:
                 yield data['header']
-                yield '=' * len(data['header'])
+                yield '-' * len(data['header'])
                 yield ''
+
             body = _formatRouteBody(data, schema_store)
             for line in http_directive(method, prefix + route.path, body):
                 yield line
@@ -422,7 +430,9 @@ class AutoKleinDirective(Directive):
         # relative to sphinx-build working directory which may vary.
         'examples_path': directives.unchanged,
         # Python import path of schema store.
-        'schema_store_fqpn': directives.unchanged}
+        'schema_store_fqpn': directives.unchanged,
+        'section': directives.unchanged,
+        }
 
     def run(self):
         schema_store = namedAny(self.options["schema_store_fqpn"])
@@ -460,7 +470,9 @@ class AutoKleinDirective(Directive):
         node.document = self.state.document
         result = ViewList()
         restLines = makeRst(
-            prefix=self.options['prefix'], app=appContainer.app,
+            prefix=self.options['prefix'],
+            section=self.options['section'],
+            app=appContainer.app,
             exampleByIdentifier=self._exampleByIdentifier,
             schema_store=schema_store)
         for line in restLines:

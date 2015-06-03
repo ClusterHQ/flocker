@@ -230,10 +230,11 @@ class UserDocumentation(PRecord):
     """
     text = field(type=unicode, mandatory=True)
     header = field(type=unicode, mandatory=True)
+    section = field(type=unicode, mandatory=True)
     examples = field(mandatory=True)
 
 
-def user_documentation(text, header, examples=None):
+def user_documentation(text, header, section, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 
@@ -241,6 +242,8 @@ def user_documentation(text, header, examples=None):
         documentation along with the decorated endpoint.
 
     :param unicode header: The header to be included in the generated API docs.
+
+    :param unicode section: The section of the docs to include this route in.
 
     :param list examples: The identifiers of any examples demonstrating the use
         of this example to include in the generated API documentation along
@@ -252,6 +255,6 @@ def user_documentation(text, header, examples=None):
     def deco(f):
         f.user_documentation = UserDocumentation(
             text=text, examples=pvector(examples),
-            header=header)
+            header=header, section=section)
         return f
     return deco
