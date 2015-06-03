@@ -8,6 +8,9 @@ Vagrant.require_version ">= 1.6.2"
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
+CONTROL_IP = "172.16.255.250"
+NODE_IP = "172.16.255.251"
+
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
 $bootstrap_common = <<EOF
@@ -16,8 +19,8 @@ cp /home/vagrant/credentials/cluster.crt /etc/flocker/cluster.crt
 EOF
 
 $bootstrap_control = <<EOF
-cp /home/vagrant/credentials/control-172.16.255.250.crt /etc/flocker/control-service.crt
-cp /home/vagrant/credentials/control-172.16.255.250.key /etc/flocker/control-service.key
+cp /home/vagrant/credentials/control-#{CONTROL_IP}.crt /etc/flocker/control-service.crt
+cp /home/vagrant/credentials/control-#{CONTROL_IP}.key /etc/flocker/control-service.key
 systemctl enable flocker-control
 systemctl start flocker-control
 EOF
@@ -36,7 +39,7 @@ $bootstrap_node = <<EOF
 cat <<CONFIG > /etc/flocker/agent.yml
 version: 1
 control-service:
-  hostname: "172.16.255.250"
+  hostname: "#{CONTROL_IP}"
 dataset:
   backend: "zfs"
 CONFIG
@@ -55,7 +58,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   config.vm.define "node1" do |node1|
-    node1.vm.network :private_network, :ip => "172.16.255.250"
+    node1.vm.network :private_network, :ip => CONTROL_IP
     node1.vm.hostname = "node1"
     node1.vm.provision "shell", inline: $bootstrap_common, privileged: true
     node1.vm.provision "shell", inline: $bootstrap_control, privileged: true
@@ -64,7 +67,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   config.vm.define "node2" do |node2|
-    node2.vm.network :private_network, :ip => "172.16.255.251"
+    node2.vm.network :private_network, :ip => NODE_IP
     node2.vm.hostname = "node2"
     node2.vm.provision "shell", inline: $bootstrap_common, privileged: true
     node2.vm.provision "shell", inline: $bootstrap_node2_cert, privileged: true
