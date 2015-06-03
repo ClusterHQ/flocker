@@ -449,6 +449,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         name = random_name(self)
         client = DockerClient(
             namespace=self.namespacing_prefix, long_timeout=1)
+        self.addCleanup(client.remove, name)
         d = client.add(name, image)
 
         def unexpected_success(_):
@@ -459,7 +460,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
             # We got our failure, now try to successfully pull
             client = DockerClient(
                 namespace=self.namespacing_prefix, long_timeout=600)
-            self.addCleanup(client.remove, name)
             return client.add(name, image)
 
         d.addCallbacks(unexpected_success, expected_failure)
