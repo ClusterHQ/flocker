@@ -293,6 +293,8 @@ class TimeoutClient(Client):
 
     This class is a temporary fix until docker-py is released with
     PR #625 or similar. See https://github.com/docker/docker-py/pull/625
+
+    See Flocker JIRA Issue FLOC-2082
     """
 
     def __init__(self, *args, **kw):
