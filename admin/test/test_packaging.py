@@ -1253,6 +1253,7 @@ class AvailableDistributionTests(TestCase):
             available_distributions(root),
         )
 
+
 class BuildScriptTests(TestCase):
     """
     Tests for ``BuildScript``.
