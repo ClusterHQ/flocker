@@ -143,8 +143,18 @@ class IClusterRunner(Interface):
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source', 'variants',
-    'dataset_backend', 'dataset_backend_configuration',
+    # Name of the distribution the nodes run - eg "ubuntu-14.04"
+    'distribution',
+
+    'top_level', 'config', 'package_source', 'variants',
+
+    # DatasetBackend named constant of the dataset backend the nodes use - eg
+    # DatasetBackend.zfs
+    'dataset_backend',
+
+    # dict giving configuration for the dataset backend the nodes use - eg
+    # {"pool": "flocker"}
+    'dataset_backend_configuration',
 ]
 
 
@@ -154,6 +164,17 @@ class ManagedRunner(object):
     An ``IClusterRunner`` implementation that doesn't start or stop nodes but
     only gives out access to nodes that are already running and managed by
     someone else.
+
+    :ivar pvector _nodes: The ``ManagedNode`` instances representing the nodes
+        that are already running that this object will pretend to start and
+        stop.
+    :ivar PackageSource package_source: The version of the software this object
+        will install on the nodes when it "starts" them.
+    :ivar NamedConstant dataset_backend: The ``DatasetBackend`` constant
+        representing the dataset backend that the nodes will be configured to
+        use when they are "started".
+    :ivar dict dataset_backend_configuration: The backend-specific
+        configuration the nodes will be given for their dataset backend.
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration):
@@ -212,6 +233,12 @@ def configured_cluster_for_nodes(
 
     :param reactor: The reactor.
     :param nodes: The ``ManagedNode``s on which to operate.
+    :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
+        representing the dataset backend that the nodes will be configured to
+        use when they are "started".
+    :param dict dataset_backend_configuration: The backend-specific
+        configuration the nodes will be given for their dataset backend.
+
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
     """
