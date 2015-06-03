@@ -5,24 +5,16 @@ Tests for ``flocker.provision._install``.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.python.filepath import FilePath
 
 from pyrsistent import freeze
 
-from ...acceptance.testtools import DatasetBackend
 from .. import PackageSource
 from .._install import (
-    ManagedNode,
     task_install_flocker,
-    task_enable_flocker_agent,
-    configure_cluster,
     CLUSTERHQ_REPO,
     run, put,
 )
-from .._ca import Certificates
-
 from .._effect import sequence
-
 
 THE_AGENT_YML_PATH = b"/etc/flocker/agent.yml"
 BASIC_AGENT_YML = freeze({
@@ -35,6 +27,7 @@ BASIC_AGENT_YML = freeze({
         "backend": "zfs",
     },
 })
+
 
 class InstallFlockerTests(SynchronousTestCase):
     """
