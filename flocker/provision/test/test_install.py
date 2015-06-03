@@ -36,56 +36,6 @@ BASIC_AGENT_YML = freeze({
     },
 })
 
-
-class ConfigureClusterTests(SynchronousTestCase):
-    """
-    Tests for ``configure_cluster``.
-    """
-    def test_enable_flocker_agent(self):
-        """
-        ``configure_cluster`` enables the Flocker agents with the storage
-        driver and storage driver configuration passed to it.
-        """
-        control_node = ManagedNode(
-            address="192.0.2.42", distribution="centos-7",
-        )
-        agent_node = ManagedNode(
-            address="192.0.2.43", distribution="ubuntu-14.04",
-        )
-        dataset_backend = DatasetBackend.lookupByName("loopback")
-        dataset_backend_configuration = dict(
-            root_path="/foo/bar",
-            compute_instance_id="baz-quux",
-        )
-
-        certificates_path = FilePath(self.mktemp())
-        certificates_path.makedirs()
-        for name in [
-                b"cluster.crt", b"cluster.key",
-                b"control-service.crt", b"control-service.key",
-                b"user.crt", b"user.key",
-                b"aaaaaaaa-aaaa-aaaa.crt", b"aaaaaaaa-aaaa-aaaa.key",
-        ]:
-            certificates_path.child(name).touch()
-
-        commands = configure_cluster(
-            control_node=control_node,
-            agent_nodes=[],
-            certificates=Certificates(certificates_path),
-            dataset_backend=dataset_backend,
-            dataset_backend_configuration=dataset_backend_configuration,
-        )
-        self.assertIn(
-            task_enable_flocker_agent(
-                distribution=agent_node.distribution,
-                control_node=control_node.address,
-                dataset_backend=dataset_backend,
-                dataset_backend_configuration=dataset_backend_configuration,
-            ).intent,
-            list(effect.intent for effect in commands.intent.effects),
-        )
-
-
 class InstallFlockerTests(SynchronousTestCase):
     """
     Tests for ``task_install_flocker``.
