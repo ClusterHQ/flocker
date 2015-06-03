@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
 from twisted.python.filepath import FilePath
 from flocker.provision._ca import Certificates
 
