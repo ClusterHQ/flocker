@@ -226,7 +226,7 @@ class VagrantRunner(object):
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
         self.certificates_path = self.top_level.descendant([
-            'vagrant', 'tutorial', 'certificates'])
+            'vagrant', 'tutorial', 'credentials'])
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
@@ -264,7 +264,16 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        cluster = yield configured_cluster_for_nodes(nodes)
+        certificates = Certificates(self.certificates_path)
+
+        cluster = Cluster(
+            all_nodes=nodes,
+            control_node=nodes[0],
+            agent_nodes=nodes,
+            dataset_backend=DatasetBackend.zfs,
+            certificates_path=self.certificates_path,
+            certificates=certificates
+        )
 
         returnValue(cluster)
 
