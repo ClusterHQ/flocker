@@ -583,7 +583,13 @@ The configuration item to use ZFS should look like:
       "backend": "zfs"
       "pool": "flocker"
 
-The pool name must match a ZFS storage pool that has been created on all of the Flocker agent nodes.
+.. This section could stand to be improved.
+   Some of the suggested steps are not straightforward.
+   FLOC-2092
+
+The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
+This requires first installing :ref:`ZFS on Linux<http://zfsonlinux.org/>`.
+You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
 .. _loopback-dataset-backend:
 
