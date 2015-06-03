@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, PMap
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -26,7 +26,7 @@ from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume, get_blockdevice_volume, BlockDeviceVolumeCache
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
@@ -186,10 +186,12 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     :return: Input volume in BlockDeviceVolume format.
     """
     ebs_volume.update()
+
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
         attached_to=ebs_volume.attach_data.instance_id,
+        attached_device=ebs_volume.tags.get(ATTACHED_DEVICE_LABEL),
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 
@@ -362,6 +364,7 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.attach_lock = threading.Lock()
+        self.cache = BlockDeviceVolumeCache()
 
     def allocation_unit(self):
         """
@@ -441,6 +444,7 @@ class EBSBlockDeviceAPI(object):
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
+            ATTACHED_DEVICE_LABEL: None,
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
@@ -451,8 +455,11 @@ class EBSBlockDeviceAPI(object):
                          transient_status=u'creating',
                          end_status=u'available')
 
-        # Return created volume in BlockDeviceVolume format.
-        return _blockdevicevolume_from_ebs_volume(requested_volume)
+        # Create and insert BlockDeviceVolume into Cache.
+        volume = _blockdevicevolume_from_ebs_volume(requested_volume)
+        self.cache.insert(volume)
+
+        return volume
 
     def list_volumes(self):
         """
@@ -463,9 +470,11 @@ class EBSBlockDeviceAPI(object):
         for ebs_volume in self.connection.get_all_volumes():
             if ((_is_cluster_volume(self.cluster_id, ebs_volume)) and
                (ebs_volume.status in [u'available', u'in-use'])):
-                volumes.append(
-                    _blockdevicevolume_from_ebs_volume(ebs_volume)
-                )
+                volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
+                volumes.append(volume)
+
+                # Update volume state in cache.
+                self.cache.insert(volume)
         return volumes
 
     def resize_volume(self, blockdevice_id, size):
@@ -486,9 +495,7 @@ class EBSBlockDeviceAPI(object):
             to a device.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        if (volume.attached_to is not None or
-                ebs_volume.status != 'available'):
+        if volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
         with self.attach_lock:
@@ -523,6 +530,7 @@ class EBSBlockDeviceAPI(object):
         metadata = {
             ATTACHED_DEVICE_LABEL: unicode(new_device),
         }
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
         if new_device is not None:
             self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume,
@@ -530,7 +538,13 @@ class EBSBlockDeviceAPI(object):
                          transient_status=u'attaching',
                          end_status=u'in-use')
 
-        attached_volume = volume.set('attached_to', attach_to)
+        # attached_volume = volume.set('attached_to', attach_to)
+
+        # Update volume's attached instance and device name in cache.
+        volume_updates = PMap({'attach_to': attach_to,
+                               'attach_device': unicode(new_device)})
+        attached_volume = self.cache.update(blockdevice_id, volume_updates)
+
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
@@ -545,13 +559,12 @@ class EBSBlockDeviceAPI(object):
             blockdevice_id is not currently 'in-use'.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        if (volume.attached_to is None or
-                ebs_volume.status != 'in-use'):
+        if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
         self.connection.detach_volume(blockdevice_id)
 
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
         _wait_for_volume(ebs_volume,
                          start_status=u'in-use',
                          transient_status=u'detaching',
@@ -559,6 +572,15 @@ class EBSBlockDeviceAPI(object):
 
         # Delete attached device metadata from EBS Volume
         self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
+        metadata = {
+            ATTACHED_DEVICE_LABEL: None,
+        }
+        self.connection.create_tags([ebs_volume.id], metadata)
+
+        # Update volume's attached instance and device name in cache.
+        volume_updates = PMap({'attach_to': None,
+                               'attach_device': None})
+        self.cache.update(blockdevice_id, volume_updates)
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -571,16 +593,28 @@ class EBSBlockDeviceAPI(object):
         :raises Exception: If we failed to destroy Flocker cluster volume
             corresponding to input blockdevice_id.
         """
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                ret_val = self.connection.delete_volume(blockdevice_id)
-                if ret_val is False:
-                    raise Exception(
-                        'Failed to delete volume: {!r}'.format(blockdevice_id)
-                    )
-                else:
-                    return
-        raise UnknownVolume(blockdevice_id)
+        # Look for volume corresponding to the blockdevice id.
+        volume_exists = False
+        if blockdevice_id in self.cache.list_keys():
+            volume_exists = True
+        else:
+            for volume in self.list_volumes():
+                if volume.blockdevice_id == blockdevice_id:
+                    volume_exists = True
+
+        # Could not find volume in cache or storage backend.
+        if volume_exists is False:
+            raise UnknownVolume(blockdevice_id)
+
+        # AWS call to delete volume.
+        ret_val = self.connection.delete_volume(blockdevice_id)
+        if ret_val is False:
+            raise Exception(
+                'Failed to delete volume: {!r}'.format(blockdevice_id)
+            )
+        else:
+            # Remove volume from cache.
+            self.cache.remove(blockdevice_id)
 
     def get_device_path(self, blockdevice_id):
         """
@@ -596,14 +630,7 @@ class EBSBlockDeviceAPI(object):
             not attached to a host.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
-        if volume.attached_to is None:
+        if (volume.attached_to is None or volume.attached_device is None):
             raise UnattachedVolume(blockdevice_id)
 
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        try:
-            device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
-        except KeyError:
-            raise UnattachedVolume(blockdevice_id)
-        if device is None:
-            raise UnattachedVolume(blockdevice_id)
-        return FilePath(device)
+        return FilePath(volume.attached_device)

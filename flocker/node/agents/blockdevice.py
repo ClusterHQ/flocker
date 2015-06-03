@@ -10,6 +10,7 @@ devices.
 from errno import EEXIST
 from uuid import UUID, uuid4
 from subprocess import check_output
+import threading
 
 from bitmath import GiB
 
@@ -328,52 +329,56 @@ class BlockDeviceVolume(PRecord):
     attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
+    attached_device = field(
+        type=(unicode, type(None)), initial=None, mandatory=True
+    )
     dataset_id = field(type=UUID, mandatory=True)
 
 
 def BlockDeviceVolumeCache():
     """
     """
-    def __init(self):
+    def __init__(self):
         """
         """
         self.cache = PMap({})
+        self.lock = threading.Lock()
 
     def lookup(self, blockdevice_id):
         """
         XXX Improve linear time complexity of lookup.
         """
-        for key, value in self.cache.iteritems():
-            if key == blockdevice_id:
-                return value
-            else:
-                return None
+        with self.lock:
+            return self.cache[blockdevice_id]
 
-    def insert(self, blockdevice_id, size, instance_id, dataset_id):
+    def insert(self, volume):
         """
         """
-        volume = BlockDeviceVolume(blockdevice_id=blockdevice_id,
-                                   size=size,
-                                   attached_to=instance_id,
-                                   dataset_id=dataset_id)
-        self.cache = self.cache.set(blockdevice_id, volume)
+        with self.lock:
+            self.cache = self.cache.set(volume.blockdevice_id, volume)
 
     def update(self, blockdevice_id, update_fields):
         """
         """
-        volume = self.cache.lookup(blockdevice_id)
-        if volume is None:
-            return False
-        else:
-            for key, value in update_fields.iteritems():
-                volume.key = value
-            self.cache = self.cache.update(blockdevice_id=volume)
-            return True
+        with self.lock:
+            volume = self.cache.lookup(blockdevice_id)
+            if volume is not None:
+                for key, value in update_fields.items():
+                    volume.key = value
+                self.cache = self.cache.set(blockdevice_id, volume)
+            return volume
 
     def remove(self, blockdevice_id):
         """
         """
-        self.cache = self.cache.discard(blockdevice_id)
+        with self.lock:
+            self.cache = self.cache.discard(blockdevice_id)
+
+    def list_keys(self):
+        """
+        """
+        with self.lock:
+            return self.cache.keys()
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
@@ -1249,9 +1254,21 @@ def get_blockdevice_volume(api, blockdevice_id):
 
     :return: The ``BlockDeviceVolume`` that matches.
     """
+
+    # Check for cache hit
+    volume = api.cache.lookup(blockdevice_id)
+    if volume is not None:
+        return volume
+
+    # If we failed to find volume in cache, reach out to storage backend.
+    # We need to check backend because cache miss does not always indicate
+    # ``UnknownVolume`` (for example, after flocker process restart,
+    # cache contents will be lost).
     for volume in api.list_volumes():
         if volume.blockdevice_id == blockdevice_id:
             return volume
+
+    # Cache miss and missing ``blockdevice_id`` on storage backend.
     raise UnknownVolume(blockdevice_id)
 
 
