@@ -186,24 +186,44 @@ class ManagedRunner(object):
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
 
-    def start_cluster(self, reactor):
+    def _upgrade_flocker(self, nodes, package_source):
         """
-        Don't start any nodes.  Give back the addresses of the configured,
-        already-started nodes.
+        Put the version of Flocker indicated by ``package_source`` onto all of
+        the given nodes.
+
+        This takes a primitive approach of uninstalling the software and then
+        installing the new version instead of trying to take advantage of any
+        OS-level package upgrade support.  Because it's easier.  The package
+        removal step is allowed to fail in case the package is not installed
+        yet (other failures are not differentiated).  The only action taken on
+        failure is that the failure is logged.
+
+        :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
+            software.
+        :param PackageSource package_source: The version of the software to
+            which to upgrade.
+
+        :return: A ``Deferred`` that fires when the software has been upgraded.
         """
         dispatcher = make_dispatcher(reactor)
 
-        uninstalling = perform(dispatcher, uninstall_flocker(self._nodes))
-
-        # Uninstall can fail.  Maybe the package wasn't installed yet.
+        uninstalling = perform(dispatcher, uninstall_flocker(nodes))
         uninstalling.addErrback(write_failure, logger=None)
 
         def install(ignored):
             return perform(
                 dispatcher,
-                install_flocker(self._nodes, self.package_source),
+                install_flocker(nodes, package_source),
             )
         installing = uninstalling.addCallback(install)
+        return installing
+
+    def start_cluster(self, reactor):
+        """
+        Don't start any nodes.  Give back the addresses of the configured,
+        already-started nodes.
+        """
+        upgrading = self._upgrade_flocker(self._nodes, self.package_source)
 
         def configure(ignored):
             return configured_cluster_for_nodes(
@@ -212,7 +232,7 @@ class ManagedRunner(object):
                 self.dataset_backend,
                 self.dataset_backend_configuration,
             )
-        configuring = installing.addCallback(configure)
+        configuring = upgrading.addCallback(configure)
         return configuring
 
     def stop_cluster(self, reactor):
