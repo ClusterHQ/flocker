@@ -1170,6 +1170,7 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
+         # {} is formatted in __init__
          'The target distribution. One of {}'],
     ]
 
