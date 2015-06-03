@@ -32,16 +32,15 @@ On Ubuntu, the Flocker CLI can be installed from the ClusterHQ repository:
 .. task:: install_cli ubuntu-14.04
    :prompt: alice@mercury:~$
 
-
 Other Linux Distributions
 -------------------------
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 On Fedora 20 you can install these by running:
 
-.. prompt:: bash [alice@mercury:~$]
-
-   sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
+.. code-block:: console
+	
+   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
 
 On Ubuntu or Debian you can run:
 
