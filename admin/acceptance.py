@@ -223,7 +223,12 @@ class ManagedRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
-        upgrading = self._upgrade_flocker(self._nodes, self.package_source)
+        if self.package_source is not None:
+            upgrading = self._upgrade_flocker(
+                reactor, self._nodes, self.package_source
+            )
+        else:
+            upgrading = succeed(None)
 
         def configure(ignored):
             return configured_cluster_for_nodes(
@@ -638,6 +643,9 @@ class RunOptions(Options):
         """
         if provider_config is None:
             self._provider_config_missing("managed")
+
+        if not provider_config.get("upgrade"):
+            package_source = None
 
         return ManagedRunner(
             node_addresses=provider_config['addresses'],
