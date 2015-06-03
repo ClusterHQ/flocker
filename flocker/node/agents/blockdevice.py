@@ -440,7 +440,13 @@ class CreateFilesystem(PRecord):
         )
         try:
             check_output([
-                b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
+                b"mkfs", b"-t", self.filesystem.encode("ascii"),
+                # This is ext4 specific, and ensures mke2fs doesn't ask
+                # user interactively about whether they really meant to
+                # format whole device rather than partition. It will be
+                # removed once upstream bug is fixed. See FLOC-2085.
+                b"-F",
+                device.path
             ])
         except:
             return fail()
