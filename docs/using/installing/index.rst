@@ -20,6 +20,8 @@ It contains the services that need to run on each node.
 Installing ``flocker-cli``
 ==========================
 
+.. _installing-flocker-cli-ubuntu-14.04:
+
 Ubuntu 14.04
 ------------
 

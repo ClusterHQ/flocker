@@ -9,6 +9,8 @@ Release Notes
 Next Release
 ============
 
+* Ubuntu CLI installation instructions now use Debian packages instead of pip packaging. 
+  See :ref:`installing-flocker-cli-ubuntu-14.04`
 * ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
 * It is now necessary to specify a dataset backend for each agent node.
   See :ref:`post-installation-configuration`.
