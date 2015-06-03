@@ -26,7 +26,7 @@ class ManagedRunnerTests(SynchronousTestCase):
                 version=b"",
                 os_version=b"",
                 branch=b"",
-                build_serve=b"",
+                build_server=b"",
             ),
             distribution=b'centos-7',
             dataset_backend=DatasetBackend.zfs,
