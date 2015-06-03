@@ -16,6 +16,11 @@ from pyrsistent import PRecord, field
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
 )
+from keystoneclient.auth import get_plugin_class
+from keystoneclient.session import Session
+from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from cinderclient.client import Client as CinderClient
+from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 
 from twisted.python.filepath import FilePath
@@ -496,4 +501,55 @@ def cinder_api(cinder_client, nova_client, cluster_id):
         nova_volume_manager=logging_nova_volume_manager,
         nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
+    )
+
+
+def _openstack_auth_from_config(auth_plugin='password', **config):
+    """
+    Create an OpenStack authentication plugin from the given configuration.
+
+    :param str auth_plugin: The name of the authentication plugin to create.
+    :param config: Parameters to supply to the authentication plugin.  The
+        exact parameters depends on the authentication plugin selected.
+
+    :return: The authentication object.
+    """
+    auth_plugin_name = config.pop('auth_plugin', 'password')
+
+    if auth_plugin_name == 'rackspace':
+        plugin_class = RackspaceAuth
+    else:
+        plugin_class = get_plugin_class(auth_plugin_name)
+
+    plugin_options = plugin_class.get_options()
+    plugin_kwargs = {}
+    for option in plugin_options:
+        # option.dest is the python compatible attribute name in the plugin
+        # implementation.
+        # option.dest is option.name with hyphens replaced with underscores.
+        if option.dest in config:
+            plugin_kwargs[option.dest] = config[option.dest]
+
+    return plugin_class(**plugin_kwargs)
+
+
+def cinder_from_configuration(**config):
+    """
+    Build a ``CinderBlockDeviceAPI`` using configuration and
+    credentials in ``config``.
+    """
+    region = config.pop('region')
+    auth = _openstack_auth_from_config(**config)
+    session = Session(auth=auth)
+    cinder_client = CinderClient(
+        session=session, region_name=region, version=1
+    )
+    nova_client = NovaClient(
+        session=session, region_name=region, version=2
+    )
+
+    return cinder_api(
+        cinder_client=cinder_client,
+        nova_client=nova_client,
+        cluster_id=config['cluster_id']
     )
