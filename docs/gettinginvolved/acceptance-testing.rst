@@ -73,6 +73,9 @@ To see the supported values for each option, run:
 Configuration File
 ------------------
 
+.. This is pretty messy.
+   FLOC-2090
+
 The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
 The contents and structure of the file are explained here.
 :ref:`An example containing all of the sections<acceptance-testing-configuration>` is also provided.
