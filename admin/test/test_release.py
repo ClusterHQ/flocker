@@ -1854,6 +1854,12 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
     def publish_vagrant_metadata(self, aws, version):
+        """
+        Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param version: See :py:func:`publish_vagrant_metadata`.
+        """
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
