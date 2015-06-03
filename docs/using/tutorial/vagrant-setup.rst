@@ -118,7 +118,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       :lines: 1-8
       :append: ...
 
-#. Download the cluster and user credentials by right clicking on the link below.
+#. Download the cluster and user credentials by right clicking on the links below.
    Save these to the *flocker-tutorial* directory too, also preserving the file names.
 
    .. These downloads are also used in the getting started guide. You will need to adjust
