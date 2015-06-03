@@ -270,30 +270,38 @@ def _formatExample(example, substitutions):
     @return: A generator which yields L{unicode} strings each of which should
         be a line in the resulting rst document.
     """
-    yield u"**Example:** {}".format(example.doc)
-    yield u""
-    yield u"Request"
-    yield u""
-    yield u".. sourcecode:: http"
-    yield u""
+    def inner():
+        yield example.doc
+        yield u"+" * len(example.doc)
+        yield u""
+        yield u"Request"
+        yield u""
+        yield u".. sourcecode:: http"
+        yield u""
 
-    lines = (example.request % substitutions).splitlines()
-    lines.insert(1, u"Content-Type: application/json")
-    lines.insert(1, u"Host: api.%(DOMAIN)s" % substitutions)
-    for line in lines:
+        lines = (example.request % substitutions).splitlines()
+        lines.insert(1, u"Content-Type: application/json")
+        lines.insert(1, u"Host: api.%(DOMAIN)s" % substitutions)
+        for line in lines:
+            yield u"   " + line.rstrip()
+        yield u""
+
+        yield u"Response"
+        yield u""
+        yield u".. sourcecode:: http"
+        yield u""
+
+        lines = (example.response % substitutions).splitlines()
+        lines.insert(1, u"Content-Type: application/json")
+        for line in lines:
+            yield u"   " + line.rstrip()
+        yield u""
+
+    yield u""
+    yield '.. collapse::'
+    yield u"   "
+    for line in inner():
         yield u"   " + line.rstrip()
-    yield u""
-
-    yield u"Response"
-    yield u""
-    yield u".. sourcecode:: http"
-    yield u""
-
-    lines = (example.response % substitutions).splitlines()
-    lines.insert(1, u"Content-Type: application/json")
-    for line in lines:
-        yield u"   " + line.rstrip()
-    yield u""
 
 
 def _formatRouteBody(data, schema_store):
