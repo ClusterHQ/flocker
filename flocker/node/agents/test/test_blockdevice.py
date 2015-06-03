@@ -606,7 +606,8 @@ class UnusableAPI(object):
 
 
 def assert_calculated_changes(
-    case, node_state, node_config, nonmanifest_datasets, expected_changes
+    case, node_state, node_config, nonmanifest_datasets, expected_changes,
+    additional_node_states=frozenset(),
 ):
     """
     Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
@@ -621,9 +622,10 @@ def assert_calculated_changes(
     :param set nonmanifest_datasets: Datasets which will be presented as part
         of the cluster state without manifestations on any node.
     :param expected_changes: The ``IStateChange`` expected to be returned.
+    :param set additional_node_states: A set of ``NodeState`` for other nodes.
     """
     cluster_state = DeploymentState(
-        nodes={node_state},
+        nodes={node_state} | additional_node_states,
         nonmanifest_datasets={
             dataset.dataset_id: dataset
             for dataset in nonmanifest_datasets
@@ -774,6 +776,25 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
 
         assert_calculated_changes(self, local_state, local_config, set(),
                                   in_parallel(changes=[]))
+
+    def test_another_node_ignorant(self):
+        """
+        If a different node is ignorant about its state, it is still possible
+        to calculate state for the current node.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        assert_calculated_changes(
+            self, local_state, local_config, set(),
+            in_parallel(changes=[
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
+            ]),
+            # Another node which is ignorant about its state:
+            set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
+        )
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
