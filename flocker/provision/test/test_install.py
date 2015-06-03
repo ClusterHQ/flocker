@@ -54,8 +54,8 @@ class GetRepositoryURL(SynchronousTestCase):
         """
         It is possible to get a repository URL for Ubuntu 14.04 packages.
         """
-        expected = ("https://clusterhq-archive.s3.amazonaws.com/ubuntu/14.04"
-                    "/$(ARCH)")
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/ubuntu/"
+                    "$(lsb_release --release --short)/\\$(ARCH)")
 
         self.assertEqual(
             get_repository_url(
@@ -139,7 +139,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command='add-apt-repository -y "deb {} /"'.format(
-                get_installable_version(version))),
+                get_repository_url(
+                    distribution='ubuntu-14.04',
+                    flocker_version=get_installable_version(version)))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
@@ -179,7 +181,10 @@ class InstallFlockerTests(SynchronousTestCase):
         self.assertEqual(commands, sequence([
             run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command='add-apt-repository -y "deb {} /"'.format(get_installable_version(version))),  # noqa
+            run(command='add-apt-repository -y "deb {} /"'.format(
+                get_repository_url(
+                    distribution='ubuntu-14.04',
+                    flocker_version=get_installable_version(version)))),
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
             put(
