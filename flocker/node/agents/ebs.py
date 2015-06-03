@@ -191,7 +191,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
         attached_to=ebs_volume.attach_data.instance_id,
-        attached_device=ebs_volume.tags.get(ATTACHED_DEVICE_LABEL),
+        attached_device=unicode(ebs_volume.tags[ATTACHED_DEVICE_LABEL]),
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 
@@ -444,7 +444,7 @@ class EBSBlockDeviceAPI(object):
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
-            ATTACHED_DEVICE_LABEL: unicode(''),
+            ATTACHED_DEVICE_LABEL: u'',
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
