@@ -468,13 +468,11 @@ _DEFAULT_BACKENDS = [
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
     ),
-    # FLOC-1925
     BackendDescription(
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
         api_factory=cinder_from_configuration,
         deployer_type=DeployerType.block,
     ),
-    # FLOC-1925
     BackendDescription(
         name=u"aws", needs_reactor=False, needs_cluster_id=True,
         api_factory=aws_from_configuration,
