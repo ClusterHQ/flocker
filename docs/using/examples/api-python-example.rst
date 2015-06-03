@@ -4,3 +4,4 @@
 Using the Flocker API with Python
 =================================
 
+.. literalinclude:: `example.py`
