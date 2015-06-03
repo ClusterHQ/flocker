@@ -444,7 +444,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         "versions": [],
     }
 
-    if len(scratch_directory.children()):
+    if scratch_directory.children():
         existing_metadata_file = scratch_directory.children()[0]
         existing_metadata = json.loads(existing_metadata_file.getContent())
         for version_metadata in existing_metadata['versions']:
