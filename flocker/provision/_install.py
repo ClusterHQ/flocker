@@ -43,7 +43,9 @@ def get_repository_url(distribution, flocker_version):
     """
     Return the URL for the repository of a given distribution.
 
-    Note that for ``yum``-using distributions this gives the URL to a package.
+    For ``yum``-using distributions this gives the URL to a package that adds
+    entries to ``/etc/yum.repos.d``. For ``apt``-using distributions, this
+    gives the URL for a repo containing a Packages(.gz) file.
 
     :param bytes distribution: The Linux distribution to get a repository for.
     :param bytes flocker_version: The version of Flocker to get a repository
