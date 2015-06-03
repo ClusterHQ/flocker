@@ -243,11 +243,10 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
     Unit tests for ``BlockDeviceVolumeCache`` functionality.
     """
 
-    def _generate_sample_volume(self):
+    def _generate_sample_volume(self, blockdevice_id):
         """
         Helper to generate ``BlockDeviceVolume`` for tests.
         """
-        blockdevice_id = uuid4()
         size = 1
         attached_to = None
         attached_device = None
@@ -260,12 +259,13 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
             dataset_id=dataset_id)
         return test_volume
 
-    def test_insert_exists(self):
+    def test_insert(self):
         """
         Test if ``insert``ed  item exists in cache.
         """
         cache = BlockDeviceVolumeCache()
-        test_volume = self._generate_sample_volume()
+        blockdevice_id = u'test-id'
+        test_volume = self._generate_sample_volume(blockdevice_id)
         cache.insert(test_volume)
         self.assertEqual(cache.data[blockdevice_id], test_volume)
 
@@ -274,14 +274,90 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
         Test if ``lookup`` returns an right inserted volume.
         """
         cache = BlockDeviceVolumeCache()
-        test_volume1 = self._generate_sample_volume()
+        blockdevice_id1 = u'test-id1'
+        test_volume1 = self._generate_sample_volume(blockdevice_id1)
         cache.insert(test_volume1)
-        test_volume2 = self._generate_sample_volume()
+        blockdevice_id2 = u'test-id2'
+        test_volume2 = self._generate_sample_volume(blockdevice_id2)
         cache.insert(test_volume2)
-        self.assertEqual({test_volume1, test_volume2},
-                         {cache.lookup(test_volume1.blockdevice_id),
-                             cache.lookup(test_volume2.blockdevice_id2})
 
+        self.assertEqual((test_volume1, test_volume2),
+                         (cache.lookup(blockdevice_id1),
+                             cache.lookup(blockdevice_id2)))
+
+    def test_remove(self):
+        """
+        Test if ``remove``ed entry is cleaned up from cache.
+        """
+        cache = BlockDeviceVolumeCache()
+        blockdevice_id = u'test-id1'
+        test_volume = self._generate_sample_volume(blockdevice_id)
+
+        cache.insert(test_volume)
+        cache.remove(blockdevice_id)
+
+        self.assertEqual(None, cache.lookup(blockdevice_id))
+
+    def test_update(self):
+        """
+        Test if ``update``ed fields in cache reflect expected updates.
+        """
+        cache = BlockDeviceVolumeCache()
+        blockdevice_id = u'test-id1'
+        test_volume = self._generate_sample_volume(blockdevice_id)
+        cache.insert(test_volume)
+
+        # Assign attachement tags to volume.
+        update_fields = pmap({'attached_to': u'test-update-attached-to',
+                              'attached_device': u'/dev/xvdg'})
+        cache.update(blockdevice_id, update_fields)
+
+        updated_volume = cache.lookup(blockdevice_id)
+        self.assertEqual((test_volume.blockdevice_id,
+                          test_volume.size,
+                          test_volume.dataset_id,
+                          update_fields['attached_to'],
+                          update_fields['attached_device']),
+                         (updated_volume.blockdevice_id,
+                          updated_volume.size,
+                          updated_volume.dataset_id,
+                          updated_volume.attached_to,
+                          updated_volume.attached_device))
+
+        # Revert volume attachement tags.
+        update_fields = pmap({'attached_to': None,
+                              'attached_device': None})
+        updated_volume = cache.update(blockdevice_id, update_fields)
+
+        cache_volume = cache.lookup(blockdevice_id)
+        self.assertEqual(test_volume, updated_volume, cache_volume)
+
+    def test_update_nonexisting_volume(self):
+        """
+        Test if requesting cache ``update`` on an unknown blockdevice
+        returns ``None``.
+        """
+        cache = BlockDeviceVolumeCache()
+
+        update_fields = pmap({'size': 1})
+        volume = cache.update(u'test-id1', update_fields)
+
+        self.assertEqual(volume, None)
+
+    def test_list_keys(self):
+        """
+        Test if ``list_keys`` lists all expected keys in cache.
+        """
+        cache = BlockDeviceVolumeCache()
+        blockdevice_id1 = u'test-id1'
+        test_volume1 = self._generate_sample_volume(blockdevice_id1)
+        cache.insert(test_volume1)
+        blockdevice_id2 = u'test-id2'
+        test_volume2 = self._generate_sample_volume(blockdevice_id2)
+        cache.insert(test_volume2)
+
+        self.assertEqual(set(cache.list_keys()),
+                         {blockdevice_id1, blockdevice_id2})
 
 
 class BlockDeviceDeployerTests(

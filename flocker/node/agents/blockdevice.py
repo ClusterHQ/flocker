@@ -337,45 +337,87 @@ class BlockDeviceVolume(PRecord):
 
 class BlockDeviceVolumeCache(object):
     """
+    Cache for storing ``BlockDeviceVolume``s.
     """
     def __init__(self):
         """
+        Initialize Cache with data and lock.
         """
         self.data = pmap({})
         self.lock = threading.Lock()
 
     def lookup(self, blockdevice_id):
         """
+        Given a blockdevice id, fetch ``BlockDeviceVolume`` from cache.
         XXX Improve linear time complexity of lookup.
+
+        :param unicode blockdevice_id: Identifier for volume to lookup.
+
+        :returns: A ``BlockDeviceVolume`` for given blockdevice id,
+            if we find a cache hit.
+        :rtype: ``BlockDeviceVolume``
         """
         with self.lock:
-            return self.data[blockdevice_id]
+            try:
+                volume = self.data[blockdevice_id]
+            except KeyError:
+                volume = None
+        return volume
 
     def insert(self, volume):
         """
+        Insert given ``BlockDeviceVolume`` into cache.
+        Any existing cache volume with the same blockdevice_id will be
+        overwritten.
+
+        :param BlockDeviceVolume volume: Volume to insert into cache.
         """
         with self.lock:
             self.data = self.data.set(volume.blockdevice_id, volume)
 
     def update(self, blockdevice_id, update_fields):
         """
+        Update cached volume corresponding to given blockdevice_id
+        with requested key-value field updates.
+        Updates to fields that do not belong to ``BlockDeviceVolume``
+        are discarded.
+
+        :param unicode blockdevice_id: Identifier for volume to update.
+        :param PMap update_fields: Map of key-value updates.
+
+        :returns: ``BlockDeviceVolume`` with requested updates.
+        :rtype: ``BlockDeviceVolume``
         """
         with self.lock:
-            volume = self.data.lookup(blockdevice_id)
+            if blockdevice_id not in self.data.keys():
+                return None
+            volume = self.data[blockdevice_id]
+
+            # If volume exists in cache, update ``BlockDeviceVolume``
+            # fields provided in the update_fields.
             if volume is not None:
                 for key, value in update_fields.items():
-                    volume.key = value
+                    if key in volume.keys():
+                        volume = volume.set(key, value)
                 self.data = self.data.set(blockdevice_id, volume)
             return volume
 
     def remove(self, blockdevice_id):
         """
+        Remove cache entry for ``BlockDeviceVolume`` for given device id.
+
+        :param unicode blockdevice_id: Block device identifier of cache
+            entry to discard.
         """
         with self.lock:
             self.data = self.data.discard(blockdevice_id)
 
     def list_keys(self):
         """
+        List block device identifiers for cache volumes.
+
+        :returns: A list of blockdevice_ids of all cached volumes.
+        :rtype: ``list``
         """
         with self.lock:
             return self.data.keys()

@@ -541,8 +541,8 @@ class EBSBlockDeviceAPI(object):
         # attached_volume = volume.set('attached_to', attach_to)
 
         # Update volume's attached instance and device name in cache.
-        volume_updates = pmap({'attach_to': attach_to,
-                               'attach_device': unicode(new_device)})
+        volume_updates = pmap({'attached_to': attach_to,
+                               'attached_device': unicode(new_device)})
         attached_volume = self.cache.update(blockdevice_id, volume_updates)
 
         return attached_volume
@@ -578,8 +578,8 @@ class EBSBlockDeviceAPI(object):
         self.connection.create_tags([ebs_volume.id], metadata)
 
         # Update volume's attached instance and device name in cache.
-        volume_updates = pmap({'attach_to': None,
-                               'attach_device': None})
+        volume_updates = pmap({'attached_to': None,
+                               'attached_device': None})
         self.cache.update(blockdevice_id, volume_updates)
 
     def destroy_volume(self, blockdevice_id):
