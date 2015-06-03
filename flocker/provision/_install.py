@@ -140,11 +140,10 @@ def install_cli_commands_yum(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
-    # This references CentOS 7 but this only works because CentOS 7's
-    # repository URL is the same as Fedora 20's.
+
     commands = [
         sudo(command="yum install -y " + get_repository_url(
-            distribution='centos-7',
+            distribution=distribution,
             flocker_version=get_installable_version(version))),
     ]
 
@@ -209,7 +208,7 @@ def install_cli_commands_ubuntu(distribution, package_source):
         # Add ClusterHQ repo for installation of Flocker packages.
         sudo(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
-                distribution='ubuntu-14.04',
+                distribution=distribution,
                 flocker_version=get_installable_version(version))))
         ]
 
@@ -669,7 +668,7 @@ def task_install_flocker(
             # Add ClusterHQ repo for installation of Flocker packages.
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
-                    distribution='ubuntu-14.04',
+                    distribution=distribution,
                     flocker_version=get_installable_version(version)))),
         ]
 
@@ -708,11 +707,9 @@ def task_install_flocker(
 
         return sequence(commands)
     else:
-        # This mentions CentOS 7 but also works for Fedora 20.
-        # Fedora is going away, see FLOC-1517.
         commands = [
             run(command="yum install -y " + get_repository_url(
-                distribution='centos-7',
+                distribution=distribution,
                 flocker_version=get_installable_version(version)))
         ]
 
