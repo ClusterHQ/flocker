@@ -526,17 +526,17 @@ def cinder_api(cinder_client, nova_client, cluster_id):
     """
     logging_cinder = auto_openstack_logging(
         ICinderVolumeManager,
-        _cinder_volumes=cinder_client.volumes
+        cinder_client.volumes
     )
 
     logging_nova_volume_manager = auto_openstack_logging(
         INovaVolumeManager,
-        _nova_volumes=nova_client.volumes
+        nova_client.volumes
     )
 
     logging_nova_server_manager = auto_openstack_logging(
         INovaServerManager,
-        _nova_servers=nova_client.servers
+        nova_client.servers
     )
 
     return CinderBlockDeviceAPI(
