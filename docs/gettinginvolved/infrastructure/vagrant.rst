@@ -1,4 +1,5 @@
 Vagrant
+=======
 
 There is a :file:`Vagrantfile` in the base of the repository,
 that is pre-installed with all of the dependencies required to run flocker.
