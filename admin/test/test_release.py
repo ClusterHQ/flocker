@@ -1888,7 +1888,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.3.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",  # noqa
+                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
                             "name": "virtualbox"
                         }
                     ],
@@ -1913,7 +1913,8 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.3.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",  # noqa
+                            "url":
+                                "https://example.com/flocker-tutorial-0.3.0.box",
                             "name": "virtualbox"
                         }
                     ],
@@ -1938,7 +1939,8 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.3.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",  # noqa
+                            "url":
+                                "https://example.com/flocker-tutorial-0.3.0.box",
                             "name": "virtualbox"
                         }
                     ]
@@ -1947,7 +1949,8 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.4.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.4.0.box",  # noqa
+                            "url":
+                                "https://example.com/flocker-tutorial-0.4.0.box",
                             "name": "virtualbox"
                         }
                     ]
@@ -2016,7 +2019,8 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             "version": "0.4.0.2314.g941011b",
             "providers": [
                 {
-                    "url": "https://example.com/flocker-tutorial-0.4.0-2314-g941011b.box",  # noqa
+                    "url":
+                        "https://example.com/flocker-tutorial-0.4.0-2314-g941011b.box",
                     "name": "virtualbox"
                 },
             ],
