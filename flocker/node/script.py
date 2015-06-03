@@ -139,6 +139,10 @@ def validate_configuration(configuration):
     """
     Validate a provided configuration.
 
+    XXX: Validation of backend specific parameters was removed in
+    a4d0f0eb4c38ffbfe10085a1cbc3d5ed5cae17c7 and will be re-instated
+    as part of FLOC-2058.
+
     :param dict configuration: A desired configuration for an agent.
 
     :raises: jsonschema.ValidationError if the configuration is invalid.
@@ -166,42 +170,14 @@ def validate_configuration(configuration):
             },
             "dataset": {
                 "type": "object",
-                "oneOf": [
-                    {
-                        "required": ["backend"],
-                        "properties": {
-                            "backend": {
-                                "type": "string",
-                                "pattern": "zfs",
-                            },
-                            "pool": {
-                                "type": "string",
-                            },
-                            "mount_root": {
-                                "type": "string"
-                            },
-                            "volume_config_path": {
-                                "type": "string"
-                            },
-                        }
+                "properties": {
+                    "backend": {
+                        "type": "string",
                     },
-                    {
-                        "required": ["backend"],
-                        "properties": {
-                            "backend": {
-                                "type": "string",
-                                "pattern": "loopback",
-                            },
-                            "root_path": {
-                                "type": "string",
-                            },
-                            "compute_instance_id": {
-                                "type": "string",
-                            },
-                        }
-
-                    },
-                ]
+                },
+                "required": [
+                    "backend",
+                ],
             }
         }
     }

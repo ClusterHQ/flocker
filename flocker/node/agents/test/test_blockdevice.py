@@ -294,7 +294,7 @@ class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
 def assert_discovered_state(case,
                             deployer,
                             expected_manifestations,
-                            expected_nonmanifest_datasets=None,
+                            expected_nonmanifest_datasets=(),
                             expected_devices=pmap()):
     """
     Assert that the manifestations on the state object returned by
@@ -304,8 +304,9 @@ def assert_discovered_state(case,
     :param IDeployer deployer: The object to use to discover the state.
     :param list expected_manifestations: The ``Manifestation``\ s expected to
         be discovered on the deployer's node.
-    :param dict expected_nonmanifest_datasets: The ``Dataset``\ s expected to
-        be discovered on the cluster but not attached to any node.
+    :param expected_nonmanifest_datasets: Sequence of the ``Dataset``\ s
+        expected to be discovered on the cluster but not attached to any
+        node.
     :param dict expected_devices: The OS device files which are expected to be
         discovered as allocated to volumes attached to the node.  See
         ``NodeState.devices``.
@@ -337,18 +338,15 @@ def assert_discovered_state(case,
             devices=expected_devices,
         ),
     )
-    if expected_nonmanifest_datasets is not None:
-        # FLOC-1806 - Make this actually be a dictionary (callers pass a list
-        # instead, despite the docs, and this is used like an iterable) and
-        # construct the ``NonManifestDatasets`` with the ``Dataset`` instances
-        # that are present as values.
-        expected += (
-            NonManifestDatasets(datasets={
-                unicode(dataset_id):
-                Dataset(dataset_id=unicode(dataset_id))
-                for dataset_id in expected_nonmanifest_datasets
-            }),
-        )
+    # FLOC-1806 - Make this actually be a dictionary (callers pass a list
+    # instead) and construct the ``NonManifestDatasets`` with the
+    # ``Dataset`` instances that are present as values.
+    expected += (
+        NonManifestDatasets(datasets={
+            unicode(dataset_id):
+            Dataset(dataset_id=unicode(dataset_id))
+            for dataset_id in expected_nonmanifest_datasets
+        }),)
     case.assertEqual(expected, state)
 
 
@@ -458,7 +456,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            expected_nonmanifest_datasets=None,
+            expected_nonmanifest_datasets=[],
             expected_devices={},
         )
 
@@ -608,7 +606,8 @@ class UnusableAPI(object):
 
 
 def assert_calculated_changes(
-    case, node_state, node_config, nonmanifest_datasets, expected_changes
+    case, node_state, node_config, nonmanifest_datasets, expected_changes,
+    additional_node_states=frozenset(),
 ):
     """
     Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
@@ -623,9 +622,10 @@ def assert_calculated_changes(
     :param set nonmanifest_datasets: Datasets which will be presented as part
         of the cluster state without manifestations on any node.
     :param expected_changes: The ``IStateChange`` expected to be returned.
+    :param set additional_node_states: A set of ``NodeState`` for other nodes.
     """
     cluster_state = DeploymentState(
-        nodes={node_state},
+        nodes={node_state} | additional_node_states,
         nonmanifest_datasets={
             dataset.dataset_id: dataset
             for dataset in nonmanifest_datasets
@@ -776,6 +776,25 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
 
         assert_calculated_changes(self, local_state, local_config, set(),
                                   in_parallel(changes=[]))
+
+    def test_another_node_ignorant(self):
+        """
+        If a different node is ignorant about its state, it is still possible
+        to calculate state for the current node.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        assert_calculated_changes(
+            self, local_state, local_config, set(),
+            in_parallel(changes=[
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
+            ]),
+            # Another node which is ignorant about its state:
+            set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
+        )
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
@@ -2845,6 +2864,19 @@ class MountBlockDeviceTests(
         failure = self.failureResultOf(mount_result, OSError)
         self.assertEqual(ENOTDIR, failure.value.errno)
 
+    def test_mountpoint_permissions(self):
+        """
+        The mountpoint is world-writeable (since containers can run as any
+        user), and its parent is only accessible as current user (for
+        security).
+        """
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(b"mount-test")
+        self._run_success_test(mountpoint)
+        self.assertEqual((mountroot.getPermissions().shorthand(),
+                          mountpoint.getPermissions().shorthand()),
+                         ('rwx------', 'rwxrwxrwx'))
+
 
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
@@ -3150,6 +3182,19 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
                 in psutil.disk_partitions()
             )
         )
+
+    def test_mountpoint_permissions(self):
+        """
+        The mountpoint is world-writeable (since containers can run as any
+        user), and its parent is only accessible as current user (for
+        security).
+        """
+        _, _, mountpoint, _ = self._create_blockdevice_dataset(
+            uuid4(), maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        mountroot = mountpoint.parent()
+        self.assertEqual((mountroot.getPermissions().shorthand(),
+                          mountpoint.getPermissions().shorthand()),
+                         ('rwx------', 'rwxrwxrwx'))
 
 
 class ResizeBlockDeviceDatasetInitTests(

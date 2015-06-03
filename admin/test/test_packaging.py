@@ -1361,9 +1361,11 @@ class BuildInDockerFunctionTests(TestCase):
         """
         supplied_distribution = 'Foo'
         expected_tag = 'clusterhq/build-%s' % (supplied_distribution,)
-        supplied_top_level = FilePath('/foo/bar')
+        supplied_top_level = FilePath(self.mktemp())
         expected_build_directory = supplied_top_level.descendant(
             ['admin', 'build_targets', supplied_distribution])
+        expected_build_directory.makedirs()
+        expected_build_directory.sibling('requirements.txt').setContent('')
         supplied_destination_path = FilePath('/baz/qux')
         expected_volumes = {
             FilePath('/output'): supplied_destination_path,
@@ -1392,6 +1394,32 @@ class BuildInDockerFunctionTests(TestCase):
                 top_level=supplied_top_level,
                 package_uri=expected_package_uri
             )
+        )
+
+    def test_copies_requirements(self):
+        """
+        A requirements file is copied into the build directory.
+        """
+        supplied_distribution = 'Foo'
+        supplied_top_level = FilePath(self.mktemp())
+        expected_build_directory = supplied_top_level.descendant(
+            ['admin', 'build_targets', supplied_distribution])
+        expected_build_directory.makedirs()
+        requirements = 'some_requirement'
+        expected_build_directory.sibling('requirements.txt').setContent(
+            requirements)
+        supplied_destination_path = FilePath('/baz/qux')
+        expected_package_uri = 'http://www.example.com/foo/bar/whl'
+        build_in_docker(
+            destination_path=supplied_destination_path,
+            distribution=supplied_distribution,
+            top_level=supplied_top_level,
+            package_uri=expected_package_uri
+        )
+
+        self.assertEqual(
+            requirements,
+            expected_build_directory.child('requirements.txt').getContent()
         )
 
 
