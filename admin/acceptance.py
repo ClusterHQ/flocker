@@ -436,7 +436,10 @@ class LibcloudRunner(object):
         yield perform(make_dispatcher(reactor), commands)
 
         cluster = yield configured_cluster_for_nodes(
-            self.nodes, self.dataset_backend_configuration
+            reactor,
+            self.nodes,
+            self.dataset_backend,
+            self.dataset_backend_configuration,
         )
 
         returnValue(cluster)
