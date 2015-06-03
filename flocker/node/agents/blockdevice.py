@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output
+from subprocess import check_output, call
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -498,7 +498,13 @@ class ResizeFilesystem(PRecord):
         #     e2fsck refuses to run non-interactively, though.
         #
         # See FLOC-1814
-        check_output([b"e2fsck", b"-f", b"-y", device.path])
+
+        # The first call will exit with non-zero exit code as it needs to
+        # recreate lost+found. The second call ought to succeed.
+        command_line = [b"e2fsck", b"-f", b"-y", device.path]
+        call(command_line)
+        check_output(command_line)
+
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.  Be sure to use
         # 1024 byte KiB conversion because that's what "K" means to resize2fs.
