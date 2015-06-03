@@ -356,7 +356,7 @@ class LibcloudRunner(object):
             all_nodes=pvector(self.nodes),
             control_node=self.nodes[0],
             agent_nodes=pvector(self.nodes),
-            dataset_backend=DatasetBackend.zfs,
+            dataset_backend=self.dataset_backend,
             certificates_path=certificates_path,
             certificates=certificates)
 
