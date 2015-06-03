@@ -522,9 +522,24 @@ The configuration item to use OpenStack should look like:
 Make sure that the ``region`` specified matches the region where the Flocker nodes run.
 OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
 
-Other items are typically required but vary depending on the OpenStack authentication plugin selected
+Other items are typically required but vary depending on the :ref:`OpenStack authentication plugin selected<http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`
 (Flocker relies on these plugins; it does not provide them itself).
-The ``rackspace`` plugin requires ``username``, ``api_key``, and ``auth_url``.
+
+Flocker does provide explicit support for a ``rackspace`` authentication plugin.
+This plugin requires ``username``, ``api_key``, and ``auth_url``.
+
+For example:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "<region slug; for example, LON>"
+       auth_plugin: "rackspace"
+       username: "<your rackspace username>"
+       api_key: "<your rackspace API key>"
+       auth_url: "https://identity.api.rackspacecloud.com/v2.0"
+
 To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
 
 .. _aws-dataset-backend:
