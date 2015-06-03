@@ -333,9 +333,6 @@ def _is_cluster_volume(cluster_id, ebs_volume):
     return False
 
 
-# FLOC-1925 Maybe make this a PRecord with a unicode typed field for
-# cluster_id. Would catch errors such as:
-# https://github.com/ClusterHQ/flocker/commit/bc5d4c61317241c9779d4bbe07c744c6dd297ac5
 @implementer(IBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
     """
