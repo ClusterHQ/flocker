@@ -292,10 +292,8 @@ The tests for the various cloud block device backends depend on access to creden
 
 The tests look for two environment variables:
   ..
-     # FLOC-1925 This is yet another configuration file.
-     # Buildbot  currently points this at the acceptance.yaml file.
-     # So perhaps we should add a link to the acceptance.yaml format here.
-
+     # FLOC-2090 This is yet another configuration file.
+     # Make it just be the same as the acceptance testing configuration file.
 
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This points at a YAML file with the credentials.
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This is the name of a top-level key in the configuration file.
