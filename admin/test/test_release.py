@@ -1876,6 +1876,20 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             ],
         }
 
+    def tutorial_metadata(self, versions):
+        """
+        Create example tutorial metadata.
+
+        :param list versions: List of dictionaries of version sections.
+
+        :return: Dictionary to be used as Vagrant metadata.
+        """
+        return {
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": versions,
+        }
+
     def publish_vagrant_metadata(self, aws, version):
         """
         Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
@@ -1908,21 +1922,14 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         )
 
         self.publish_vagrant_metadata(aws=aws, version='0.3.0')
-
-        expected_metadata = {
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": [
-                self.metadata_version(
-                    version="0.3.0",
-                    box_filename="flocker-tutorial-0.3.0.box",
-                ),
-            ],
-        }
+        expected_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
 
         self.assertEqual(
             json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
-            expected_metadata,
+            self.tutorial_metadata(versions=[expected_version]),
         )
 
     def test_version_added(self):
@@ -1934,11 +1941,9 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             box_filename="flocker-tutorial-0.3.0.box",
         )
 
-        existing_metadata = json.dumps({
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": [existing_old_version],
-        })
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_old_version])
+        )
 
         aws = FakeAWS(
             routing_rules={},
@@ -1954,11 +1959,8 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             box_filename="flocker-tutorial-0.4.0.box",
         )
 
-        expected_metadata = {
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": [existing_old_version, expected_new_version],
-        }
+        expected_metadata = self.tutorial_metadata(
+            versions=[existing_old_version, expected_new_version])
 
         self.publish_vagrant_metadata(aws=aws, version='0.4.0')
         self.assertEqual(
@@ -1997,11 +1999,9 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             provider="old_provider",
         )
 
-        existing_metadata = json.dumps({
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": [existing_version],
-        })
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_version])
+        )
 
         aws = FakeAWS(
             routing_rules={},
