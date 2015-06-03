@@ -18,7 +18,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, PMap
 from characteristic import attributes, with_cmp
 
 import psutil
@@ -329,6 +329,51 @@ class BlockDeviceVolume(PRecord):
         type=(unicode, type(None)), initial=None, mandatory=True
     )
     dataset_id = field(type=UUID, mandatory=True)
+
+
+def BlockDeviceVolumeCache():
+    """
+    """
+    def __init(self):
+        """
+        """
+        self.cache = PMap({})
+
+    def lookup(self, blockdevice_id):
+        """
+        XXX Improve linear time complexity of lookup.
+        """
+        for key, value in self.cache.iteritems():
+            if key == blockdevice_id:
+                return value
+            else:
+                return None
+
+    def insert(self, blockdevice_id, size, instance_id, dataset_id):
+        """
+        """
+        volume = BlockDeviceVolume(blockdevice_id=blockdevice_id,
+                                   size=size,
+                                   attached_to=instance_id,
+                                   dataset_id=dataset_id)
+        self.cache = self.cache.set(blockdevice_id, volume)
+
+    def update(self, blockdevice_id, update_fields):
+        """
+        """
+        volume = self.cache.lookup(blockdevice_id)
+        if volume is None:
+            return False
+        else:
+            for key, value in update_fields.iteritems():
+                volume.key = value
+            self.cache = self.cache.update(blockdevice_id=volume)
+            return True
+
+    def remove(self, blockdevice_id):
+        """
+        """
+        self.cache = self.cache.discard(blockdevice_id)
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):

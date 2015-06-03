@@ -21,7 +21,6 @@ from boto import set_stream_logger
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
-from boto.exception import BotoServerError
 
 from twisted.python.filepath import FilePath
 
@@ -39,8 +38,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
-BOTO_NUM_RETRIES = u'0'
-# BOTO_NUM_RETRIES = u'10'
+BOTO_NUM_RETRIES = u'20'
 RETRY_LIMIT = u'10'
 BOTO_HTTP_SOCKET_TIMEOUT = u'300'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
@@ -121,38 +119,17 @@ def _boto_logged_method(method_name, original_name):
         original = getattr(self, original_name)
         method = getattr(original, method_name)
 
-        def _apply_retry_policy(self, iteration):
-            """
-            """
-            sleep_time = 2**iteration
-            time.sleep(sleep_time)
-
         # Trace IBlockDeviceAPI ``method`` as Eliot Action.
-        # with AWS_ACTION(operation=[method_name, args, kwargs]):
-        retry = True
-        iteration = 0
         with AWS_ACTION(operation=[method_name, args, kwargs]):
-            while retry is True:
-                iteration += 1
-                try:
-                    # Optimistically reset retry attempt.
-                    retry = False
-                    return method(*args, **kwargs)
-                except EC2ResponseError as e:
-                    BOTO_EC2RESPONSE_ERROR(
-                        aws_code=e.code,
-                        aws_message=e.message,
-                        aws_request_id=e.request_id,
-                    ).write()
-                    raise
-                except BotoServerError as e:
-                    if (e.code == u'RequestLimitExceeded' and
-                            iteration < RETRY_LIMIT):
-                        _apply_retry_policy(iteration)
-                        # Flag retry
-                        retry = True
-                    else:
-                        raise
+            try:
+                return method(*args, **kwargs)
+            except EC2ResponseError as e:
+                BOTO_EC2RESPONSE_ERROR(
+                    aws_code=e.code,
+                    aws_message=e.message,
+                    aws_request_id=e.request_id,
+                ).write()
+                raise
     return _run_with_logging
 
 
