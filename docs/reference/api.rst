@@ -26,6 +26,10 @@ For more information, see the :ref:`API authentication guide <authenticate>`.
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
+.. XXX: Improvements to the API (split in sections, and create collapse directive), both require Engineering effort:
+.. https://clusterhq.atlassian.net/browse/FLOC-2093
+.. https://clusterhq.atlassian.net/browse/FLOC-2094 
+
 REST API Endpoints
 ==================
 
