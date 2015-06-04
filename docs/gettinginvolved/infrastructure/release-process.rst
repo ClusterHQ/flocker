@@ -84,6 +84,7 @@ Preparing For a Release
    This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
    Add your SSH key to the ``sshd`` agent.
+   Note that the ssh key you use must be linked to your GitHub account.
 
    .. prompt:: bash $
 
@@ -124,7 +125,6 @@ Preparing For a Release
    - The NEWS date format is YYYY-MM-DD.
    - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
      This means that in doing a release, you may have to remove the previous development release or pre-release header, merging the changes from that previous release into the current release.
-     This applies to both Weekly Development Releases or pre-releases.
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
