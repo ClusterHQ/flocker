@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output, call
+from subprocess import check_output
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -20,10 +20,9 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
-from characteristic import attributes, with_cmp
+from characteristic import attributes
 
 import psutil
-from bitmath import Byte
 
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
