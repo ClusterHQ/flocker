@@ -262,7 +262,7 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        cluster = yield configured_cluster_for_nodes(nodes)
+        cluster = yield configured_cluster_for_nodes(reactor, nodes)
 
         returnValue(cluster)
 
