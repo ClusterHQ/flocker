@@ -658,14 +658,20 @@ def configure_zfs(node, variants):
 
 
 def _uninstall_flocker_ubuntu1404():
-    # TODO Does a real upgrade (instead of uninstall/install) work?
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
+    14.04 machine.
+    """
     return run_from_args([
         b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
     ])
 
 
 def _uninstall_flocker_centos7():
-    # TODO Does a real upgrade (instead of uninstall/install) work?
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
+    machine.
+    """
     return sequence([
         run_from_args([
             b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
@@ -683,10 +689,18 @@ _flocker_uninstallers = {
 
 
 def task_uninstall_flocker(distribution):
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from the given
+    distribution.
+    """
     return _flocker_uninstallers[distribution]()
 
 
 def uninstall_flocker(nodes):
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from all of the
+    given nodes.
+    """
     return _run_on_all_nodes(
         nodes,
         task=lambda node: task_uninstall_flocker(node.distribution)
