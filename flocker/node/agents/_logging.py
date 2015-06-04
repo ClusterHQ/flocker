@@ -18,7 +18,7 @@ CACHE_UPDATE_COUNT = Field.for_types(
     u"update_count", [int],
     u"Number of BlockDeviceVolumes updated in cache.")
 CACHE_HIT_PERCENT = Field.for_types(
-    u"hit_percent", [int],
+    u"read_hit_percent", [int],
     u"Percentage of backend lookups served from cache.")
 CACHE_BACKEND_CALLS_SAVED = Field.for_types(
     u"backend_calls_saved", [int],

@@ -340,6 +340,21 @@ class BlockDeviceVolume(PRecord):
 class BlockDeviceVolumeCache(object):
     """
     Cache for storing ``BlockDeviceVolume``s.
+
+    This is a cache for saving storage backend read operations
+    originating from ``IBlockDeviceAPI`` calls.
+
+    Cache is used for::
+    - Serving ``get_device_path``, ``list_volumes`` ``IBlockDeviceAPI`` calls.
+    - Checking if a volume exists, and is in expected attach/detach state.
+      This helps in raising exceptions like ``UnattachedVolume`` and
+      ``AlreadyAttachedVolume`` during ``detach_volume`` and ``attach_volume``,
+      without having to fetch volume state from storage backend.
+
+    Cache stores::
+    - A ``pmap`` mapping blockdevice ids to ``BlockDeviceVolume``s.
+    - A lock to protect cache data.
+    - A few counters to track cache utilization and usefulness.
     """
     def __init__(self):
         """
@@ -347,13 +362,15 @@ class BlockDeviceVolumeCache(object):
         """
         self.data = pmap({})
         self.lock = threading.Lock()
-        self.lookup_hit_count = 0
-        self.lookup_miss_count = 0
-        self.insert_count = 0
-        self.update_count = 0
-        self.remove_count = 0
-        self.list_keys_count = 0
-        self.list_volumes_count = 0
+
+        # Counters to log cache utilization.
+        self._lookup_hit_count = 0
+        self._lookup_miss_count = 0
+        self._insert_count = 0
+        self._update_count = 0
+        self._remove_count = 0
+        self._list_keys_count = 0
+        self._list_volumes_count = 0
 
     def lookup(self, blockdevice_id):
         """
@@ -369,9 +386,9 @@ class BlockDeviceVolumeCache(object):
         with self.lock:
             try:
                 volume = self.data[blockdevice_id]
-                self.lookup_hit_count += 1
+                self._lookup_hit_count += 1
             except KeyError:
-                self.lookup_miss_count += 1
+                self._lookup_miss_count += 1
                 volume = None
         return volume
 
@@ -385,7 +402,7 @@ class BlockDeviceVolumeCache(object):
         """
         with self.lock:
             self.data = self.data.set(volume.blockdevice_id, volume)
-            self.insert_count += 1
+            self._insert_count += 1
 
     def update(self, blockdevice_id, update_fields):
         """
@@ -412,7 +429,7 @@ class BlockDeviceVolumeCache(object):
                     if key in volume.keys():
                         volume = volume.set(key, value)
                 self.data = self.data.set(blockdevice_id, volume)
-            self.update_count += 1
+            self._update_count += 1
             return volume
 
     def remove(self, blockdevice_id):
@@ -424,7 +441,7 @@ class BlockDeviceVolumeCache(object):
         """
         with self.lock:
             self.data = self.data.discard(blockdevice_id)
-            self.remove_count += 1
+            self._remove_count += 1
 
     def list_keys(self):
         """
@@ -434,7 +451,7 @@ class BlockDeviceVolumeCache(object):
         :rtype: ``list``
         """
         with self.lock:
-            self.list_keys_count += 1
+            self._list_keys_count += 1
             return self.data.keys()
 
     def list_volumes(self):
@@ -445,7 +462,7 @@ class BlockDeviceVolumeCache(object):
         :rtype: ``list``
         """
         with self.lock:
-            self.list_volumes_count += 1
+            self._list_volumes_count += 1
             return self.data.values()
 
     def get_hit_rate_percentage(self):
@@ -455,9 +472,9 @@ class BlockDeviceVolumeCache(object):
         :returns: hit rate of cache lookup (percentage)
         :rtype: ``int``
         """
-        total_lookups = self.lookup_hit_count + self.lookup_miss_count
-        total_lookups += self.list_volumes_count
-        saved_lookups = self.lookup_hit_count + self.list_volumes_count
+        total_lookups = self._lookup_hit_count + self._lookup_miss_count
+        total_lookups += self._list_volumes_count
+        saved_lookups = self._lookup_hit_count + self._list_volumes_count
         if total_lookups > 0:
             hit_rate = int((saved_lookups * 100)/total_lookups)
         else:
@@ -469,11 +486,11 @@ class BlockDeviceVolumeCache(object):
         Retrive cache usage stats.
         """
         hit_percentage = self.get_hit_rate_percentage()
-        backend_calls_saved = self.lookup_hit_count + self.list_volumes_count
-        LOG_CACHE_STATS(insert_count=self.insert_count,
-                        delete_count=self.remove_count,
-                        update_count=self.update_count,
-                        hit_percent=hit_percentage,
+        backend_calls_saved = self._lookup_hit_count + self._list_volumes_count
+        LOG_CACHE_STATS(insert_count=self._insert_count,
+                        delete_count=self._remove_count,
+                        update_count=self._update_count,
+                        read_hit_percent=hit_percentage,
                         backend_calls_saved=backend_calls_saved).write()
 
 

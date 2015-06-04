@@ -14,8 +14,7 @@ from boto.exception import EC2ResponseError
 from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
 
-from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
-                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume)
+from ..ebs import _wait_for_volume, BOTO_EC2RESPONSE_ERROR
 
 from .._logging import (AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID)
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
@@ -95,27 +94,6 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         self.assert_foreign_volume(flocker_volume)
-
-    def test_attached_volume_missing_device_tag(self):
-        """
-        Test that missing ATTACHED_DEVICE_LABEL on an EBS
-        volume causes `UnattacheVolume` while attempting
-        `get_device_path()`.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.attach_volume(
-            volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-        self.api.connection.delete_tags([volume.blockdevice_id],
-                                        [ATTACHED_DEVICE_LABEL])
-
-        self.assertRaises(UnattachedVolume, self.api.get_device_path,
-                          volume.blockdevice_id)
 
     @capture_logging(lambda self, logger: None)
     def test_boto_ec2response_error(self, logger):
