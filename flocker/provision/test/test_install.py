@@ -12,7 +12,6 @@ from pyrsistent import freeze, thaw
 
 from .. import PackageSource
 from .._install import (
-    CLUSTERHQ_REPO,
     task_install_flocker,
     task_enable_flocker_agent,
     run, put,
@@ -21,6 +20,9 @@ from .._install import (
 from .._ssh import Put
 from .._effect import sequence
 from ...acceptance.testtools import DatasetBackend
+
+from ... import __version__ as flocker_version
+
 
 THE_AGENT_YML_PATH = b"/etc/flocker/agent.yml"
 BASIC_AGENT_YML = freeze({
@@ -90,12 +92,10 @@ def _centos7_install_commands(version):
         run(command="yum clean all"),
         run(command="yum install -y {}".format(get_repository_url(
             distribution='centos-7',
-            flocker_version=get_installable_version(version),
+            flocker_version=get_installable_version(flocker_version),
         ))),
         run(command="yum install -y clusterhq-flocker-node" + version)
     ])
-
-from flocker import __version__ as version
 
 
 class GetRepositoryURL(SynchronousTestCase):
@@ -242,7 +242,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=get_installable_version(flocker_version)))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
@@ -264,7 +264,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=get_installable_version(flocker_version)))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
         ]))
@@ -285,7 +285,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=get_installable_version(flocker_version)))),
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
             put(
@@ -311,7 +311,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command="yum install -y {}".format(
                 get_repository_url(
                     distribution='centos-7',
-                    flocker_version=get_installable_version(version),
+                    flocker_version=get_installable_version(flocker_version),
                 ),
             )),
             put(content="""\
@@ -342,7 +342,7 @@ enabled=0
             run(command="yum clean all"),
             run(command="yum install -y %s" % get_repository_url(
                 distribution='centos-7',
-                flocker_version=get_installable_version(version),
+                flocker_version=get_installable_version(flocker_version),
             )),
             put(content="""\
 [clusterhq-build]
@@ -371,7 +371,7 @@ enabled=0
             run(command="yum clean all"),
             run(command="yum install -y %s" % get_repository_url(
                 distribution='centos-7',
-                flocker_version=get_installable_version(version),
+                flocker_version=get_installable_version(flocker_version),
             )),
             put(content="""\
 [clusterhq-build]
