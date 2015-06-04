@@ -236,6 +236,17 @@ def detach_destroy_volumes(api):
                         volumes=volumes).write()
 
 
+def delete_manifestation(node_state, manifestation):
+    """
+    Remove all traces of a ``Manifestation`` from a ``NodeState``.
+    """
+    dataset_id = manifestation.dataset.dataset_id
+    node_state = node_state.transform(['manifestations', dataset_id], discard)
+    node_state = node_state.transform(['paths', dataset_id], discard)
+    node_state = node_state.transform(['devices', UUID(dataset_id)], discard)
+    return node_state
+
+
 class BlockDeviceDeployerTests(
         ideployer_tests_factory(create_blockdevicedeployer)
 ):
