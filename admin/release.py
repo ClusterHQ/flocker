@@ -8,6 +8,7 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -28,6 +29,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.web import template
 
 import flocker
+from flocker.common.version import get_package_key_suffix
 from flocker.provision._effect import sequence, dispatcher as base_dispatcher
 
 from flocker.common.version import (
@@ -61,8 +63,12 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
+from .vagrant import vagrant_version
 from .homebrew import make_recipe
 from .packaging import Distribution
+
+
+DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
 
 
 class NotTagged(Exception):
@@ -351,7 +357,7 @@ class UploadOptions(Options):
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload packages for."
+         "The version of Flocker to upload artifacts for."
          "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
         ["target", None, ARCHIVE_BUCKET,
          "The bucket to upload artifacts to.\n"],
@@ -412,6 +418,69 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
 
 
 @do
+def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
+                             target_bucket):
+    """
+    Publish Vagrant metadata for a given version of a given box.
+
+    :param bytes version: The version of the Vagrant box to publish metadata
+        for.
+    :param bytes box_url: The URL of the Vagrant box.
+    :param FilePath scratch_directory: A directory to create Vagrant metadata
+        files in before uploading.
+    :param bytes box_name: The name of the Vagrant box to publish metadata for.
+    :param bytes target_bucket: S3 bucket to upload metadata to.
+    """
+    metadata_filename = '{box_name}.json'.format(box_name=box_name)
+    # Download recursively because there may not be a metadata file
+    yield Effect(DownloadS3KeyRecursively(
+        source_bucket=target_bucket,
+        source_prefix='vagrant',
+        target_path=scratch_directory,
+        filter_extensions=(metadata_filename,)))
+
+    metadata = {
+        "description": "clusterhq/{box_name} box.".format(box_name=box_name),
+        "name": "clusterhq/{box_name}".format(box_name=box_name),
+        "versions": [],
+    }
+
+    try:
+        existing_metadata_file = scratch_directory.children()[0]
+    except IndexError:
+        pass
+    else:
+        existing_metadata = json.loads(existing_metadata_file.getContent())
+        for version_metadata in existing_metadata['versions']:
+            # In the future we may want to have multiple providers for the
+            # same version but for now we discard any current providers for
+            # the version being added.
+            if version_metadata['version'] != vagrant_version(version):
+                metadata['versions'].append(version_metadata)
+
+    metadata['versions'].append({
+        "version": vagrant_version(version),
+        "providers": [
+            {
+                "url": box_url,
+                "name": "virtualbox",
+            },
+        ],
+    })
+
+    # If there is an existing file, overwrite it. Else create a new file.
+    new_metadata_file = scratch_directory.child(metadata_filename)
+    new_metadata_file.setContent(json.dumps(metadata))
+
+    yield Effect(UploadToS3(
+        source_path=scratch_directory,
+        target_bucket=target_bucket,
+        target_key='vagrant/' + metadata_filename,
+        file=new_metadata_file,
+        ))
+
+
+@do
 def update_repo(package_directory, target_bucket, target_key, source_repo,
                 packages, flocker_version, distro_name, distro_version):
     """
@@ -468,25 +537,6 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         files=downloaded_packages | new_metadata,
         ))
 
-
-@do
-def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
-    """
-    Copy the tutorial box from a ``dev_bucket`` to a ``target_bucket``.
-
-    :param bytes target_bucket: S3 bucket to copy tutorial box to.
-    :param bytes dev_bucket: S3 bucket to copy tutorial box from.
-    :param bytes version: Version of Flocker to copy the tutorial box for.
-    """
-    yield Effect(
-        CopyS3Keys(source_bucket=dev_bucket,
-                   source_prefix='vagrant/tutorial/',
-                   destination_bucket=target_bucket,
-                   destination_prefix='vagrant/tutorial/',
-                   keys=['flocker-tutorial-{}.box'.format(version)]))
-
-
-
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
@@ -503,12 +553,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes version: Version to download RPMs for.
     :param bytes build_server: Server to download new RPMs from.
     """
-    is_dev = not is_release(version)
-    if is_dev:
-        target_distro_suffix = "-testing"
-    else:
-        target_distro_suffix = ""
-
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
@@ -524,7 +568,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
                     operating_system['arch'])),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                operating_system['distro'] + target_distro_suffix,
+                operating_system['distro'] + get_package_key_suffix(version),
                 operating_system['version'],
                 operating_system['arch']),
             source_repo=os.path.join(
@@ -674,7 +718,21 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('rpm').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
+    scratch_directory.child('vagrant').createDirectory()
     scratch_directory.child('homebrew').createDirectory()
+
+    box_type = "flocker-tutorial"
+    vagrant_prefix = 'vagrant/tutorial/'
+
+    box_name = "{box_type}-{version}.box".format(
+        box_type=box_type,
+        version=options['flocker-version'],
+    )
+
+    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
+        bucket=options['target'],
+        key=vagrant_prefix + box_name,
+    )
 
     try:
         sync_perform(
@@ -697,11 +755,22 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
-                copy_tutorial_vagrant_box(
-                    target_bucket=options['target'],
-                    dev_bucket='clusterhq-dev-archive',
+                Effect(
+                    CopyS3Keys(
+                        source_bucket=DEV_ARCHIVE_BUCKET,
+                        source_prefix=vagrant_prefix,
+                        destination_bucket=options['target'],
+                        destination_prefix=vagrant_prefix,
+                        keys=[box_name],
+                    )
+                ),
+                publish_vagrant_metadata(
                     version=options['flocker-version'],
-                )
+                    box_url=box_url,
+                    scratch_directory=scratch_directory.child('vagrant'),
+                    box_name=box_type,
+                    target_bucket=options['target'],
+                ),
             ]),
         )
 
@@ -823,6 +892,8 @@ class CreateReleaseBranchOptions(Options):
 
 def create_release_branch_main(args, base_path, top_level):
     """
+    Create a release branch.
+
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
@@ -861,3 +932,70 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
+
+
+class PublishDevBoxOptions(Options):
+    """
+    Options for publishing a Vagrant development box.
+    """
+    optParameters = [
+        ["flocker-version", None, flocker.__version__,
+         "The version of Flocker to upload a development box for.\n"],
+        ["target", None, ARCHIVE_BUCKET,
+         "The bucket to upload a development box to.\n"],
+    ]
+
+def publish_dev_box_main(args, base_path, top_level):
+    """
+    Publish a development Vagrant box.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = PublishDevBoxOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    scratch_directory = FilePath(tempfile.mkdtemp(
+        prefix=b'flocker-upload-'))
+    scratch_directory.child('vagrant').createDirectory()
+
+    box_type = "flocker-dev"
+    prefix = 'vagrant/dev/'
+
+    box_name = "{box_type}-{version}.box".format(
+        box_type=box_type,
+        version=options['flocker-version'],
+    )
+
+    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
+        bucket=options['target'],
+        key=prefix + box_name,
+    )
+
+    sync_perform(
+        dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
+        effect=sequence([
+            Effect(
+                CopyS3Keys(
+                    source_bucket=DEV_ARCHIVE_BUCKET,
+                    source_prefix=prefix,
+                    destination_bucket=options['target'],
+                    destination_prefix=prefix,
+                    keys=[box_name],
+                )
+            ),
+            publish_vagrant_metadata(
+                version=options['flocker-version'],
+                box_url=box_url,
+                scratch_directory=scratch_directory.child('vagrant'),
+                box_name=box_type,
+                target_bucket=options['target'],
+            ),
+        ]),
+    )

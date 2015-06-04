@@ -47,7 +47,7 @@ class Certificates(object):
         self.user = CertAndKey(directory.child(b"user.crt"),
                                directory.child(b"user.key"))
         nodes = []
-        for child in directory.globChildren(b"????????-????-*.crt"):
+        for child in directory.globChildren(b"node-*.crt"):
             sibling = FilePath(child.path[:-3] + b"key")
             nodes.append(CertAndKey(child, sibling))
         self.nodes = nodes
@@ -74,4 +74,9 @@ class Certificates(object):
         directory.child(b"allison.key").moveTo(directory.child(b"user.key"))
         for i in range(num_nodes):
             run(b"create-node-certificate")
+        for i, child in enumerate(
+                directory.globChildren(b"????????-????-*.crt")):
+            sibling = FilePath(child.path[:-3] + b"key")
+            child.moveTo(directory.child(b"node-%di.crt" % i))
+            sibling.moveTo(directory.child(b"node-%di.key" % i))
         return cls(directory)

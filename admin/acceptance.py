@@ -17,7 +17,11 @@ from pyrsistent import pvector
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.python.reflect import prefixedMethodNames
+
+from effect import parallel
+from effect.twisted import perform
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -26,14 +30,12 @@ import flocker
 from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
+    ManagedNode,
     task_pull_docker_images,
     configure_cluster,
     configure_zfs,
 )
-from flocker.provision._libcloud import INode
 from flocker.provision._ca import Certificates
-from effect import parallel
-from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
 from flocker.acceptance.testtools import DatasetBackend
@@ -143,12 +145,66 @@ RUNNER_ATTRIBUTES = [
 ]
 
 
-@implementer(INode)
-@attributes(['address', 'distribution'], apply_immutable=True)
-class VagrantNode(object):
+@implementer(IClusterRunner)
+class ManagedRunner(object):
     """
-    Node run using VagrantRunner
+    An ``IClusterRunner`` implementation that doesn't start or stop nodes but
+    only gives out access to nodes that are already running and managed by
+    someone else.
     """
+    def __init__(self, node_addresses, distribution):
+        self._nodes = pvector(
+            ManagedNode(address=address, distribution=distribution)
+            for address in node_addresses
+        )
+
+    def start_cluster(self, reactor):
+        """
+        Don't start any nodes.  Give back the addresses of the configured,
+        already-started nodes.
+        """
+        return configured_cluster_for_nodes(reactor, self._nodes)
+
+    def stop_cluster(self, reactor):
+        """
+        Don't stop any nodes.
+        """
+        return succeed(None)
+
+
+def configured_cluster_for_nodes(reactor, nodes):
+    """
+    Get a ``Cluster`` with Flocker services running on the right nodes.
+
+    Generate new certificates for the services.
+
+    :param reactor: The reactor.
+    :param nodes: The ``ManagedNode``s on which to operate.
+    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
+        configured.
+    """
+    certificates_path = FilePath(mkdtemp())
+    print("Generating certificates in: {}".format(certificates_path.path))
+    certificates = Certificates.generate(
+        certificates_path,
+        nodes[0].address,
+        len(nodes)
+    )
+    cluster = Cluster(
+        all_nodes=nodes,
+        control_node=nodes[0],
+        agent_nodes=nodes,
+        dataset_backend=DatasetBackend.zfs,
+        certificates_path=certificates_path,
+        certificates=certificates
+    )
+
+    configuring = perform(
+        make_dispatcher(reactor),
+        configure_cluster(cluster)
+    )
+    configuring.addCallback(lambda ignored: cluster)
+    return configuring
 
 
 @implementer(IClusterRunner)
@@ -163,12 +219,14 @@ class VagrantRunner(object):
     # rather than assuming it is available.
     # https://clusterhq.atlassian.net/browse/FLOC-1163
 
-    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
+    NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
+        self.certificates_path = self.top_level.descendant([
+            'vagrant', 'tutorial', 'credentials'])
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
@@ -201,26 +259,21 @@ class VagrantRunner(object):
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
 
-        certificates_path = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(certificates_path.path))
-        certificates = Certificates.generate(
-            certificates_path,
-            self.NODE_ADDRESSES[0],
-            len(self.NODE_ADDRESSES))
-
         nodes = pvector(
-            VagrantNode(address=address, distribution=self.distribution)
+            ManagedNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
         )
+
+        certificates = Certificates(self.certificates_path)
+
         cluster = Cluster(
             all_nodes=nodes,
             control_node=nodes[0],
             agent_nodes=nodes,
             dataset_backend=DatasetBackend.zfs,
-            certificates_path=certificates_path,
-            certificates=certificates)
-
-        yield perform(make_dispatcher(reactor), configure_cluster(cluster))
+            certificates_path=self.certificates_path,
+            certificates=certificates
+        )
 
         returnValue(cluster)
 
@@ -337,7 +390,6 @@ class LibcloudRunner(object):
 
 
 DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
-PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
 class RunOptions(Options):
@@ -349,7 +401,7 @@ class RunOptions(Options):
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
-         'One of {}.'.format(', '.join(PROVIDERS))],
+         'One of {}.'],
         ['dataset-backend', None, 'zfs',
          'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
@@ -379,8 +431,19 @@ class RunOptions(Options):
         :param FilePath top_level: The top-level of the flocker repository.
         """
         Options.__init__(self)
+        self.docs['provider'] = self.docs['provider'].format(
+            self._get_provider_names()
+        )
         self.top_level = top_level
         self['variants'] = []
+
+    def _get_provider_names(self):
+        """
+        Find the names of all supported "providers" (eg Vagrant, Rackspace).
+
+        :return: A ``list`` of ``str`` giving all such names.
+        """
+        return prefixedMethodNames(self.__class__, "_runner_")
 
     def opt_variant(self, arg):
         """
@@ -393,22 +456,34 @@ class RunOptions(Options):
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
+    def dataset_backend(self):
+        """
+        Get the storage driver the acceptance testing nodes will use.
+
+        :return: A constant from ``DatasetBackend`` matching the name of the
+            backend chosen by the command-line options.
+        """
+        try:
+            return DatasetBackend.lookupByName(self['dataset-backend'])
+        except ValueError:
+            raise UsageError(
+                "Unknown dataset backend: {}".format(
+                    self['dataset-backend']
+                )
+            )
+
     def postOptions(self):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
-
-        try:
-            self.dataset_backend = DatasetBackend.lookupByName(
-                self['dataset-backend'])
-        except ValueError:
-            raise UsageError("Unknown dataset backend: %s"
-                             % (self['dataset-backend']))
 
         if self['config-file'] is not None:
             config_file = FilePath(self['config-file'])
             self['config'] = yaml.safe_load(config_file.getContent())
         else:
             self['config'] = {}
+
+        provider = self['provider'].lower()
+        provider_config = self['config'].get(provider, {})
 
         if self['flocker-version']:
             rpm_version = make_rpm_version(self['flocker-version'])
@@ -425,41 +500,146 @@ class RunOptions(Options):
             build_server=self['build-server'],
         )
 
-        if self['provider'] not in PROVIDERS:
+        try:
+            get_runner = getattr(self, "_runner_" + provider.upper())
+        except AttributeError:
             raise UsageError(
-                "Provider %r not supported. Available providers: %s"
-                % (self['provider'], ', '.join(PROVIDERS)))
-
-        if self['provider'] in CLOUD_PROVIDERS:
-            # Configuration must include credentials etc for cloud providers.
-            try:
-                provider_config = self['config'][self['provider']]
-            except KeyError:
-                raise UsageError(
-                    "Configuration file must include a "
-                    "{!r} config stanza.".format(self['provider'])
+                "Provider {!r} not supported. Available providers: {}".format(
+                    provider, ', '.join(
+                        name.lower() for name in self._get_provider_names()
+                    )
                 )
-
-            provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
-
-            self.runner = LibcloudRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
-                package_source=package_source,
-                provisioner=provisioner,
-                dataset_backend=self.dataset_backend,
-                variants=self['variants'],
             )
         else:
-            self.runner = VagrantRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
+            self.runner = get_runner(
                 package_source=package_source,
-                variants=self['variants'],
+                dataset_backend=self.dataset_backend(),
+                provider_config=provider_config,
             )
 
+    def _provider_config_missing(self, provider):
+        """
+        :param str provider: The name of the missing provider.
+        :raise: ``UsageError`` indicating which provider configuration was
+                missing.
+        """
+        raise UsageError(
+            "Configuration file must include a "
+            "{!r} config stanza.".format(provider)
+        )
+
+    def _runner_VAGRANT(self, package_source,
+                        dataset_backend, provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``vagrant`` section of the acceptance
+            testing configuration file.  Since the Vagrant runner accepts no
+            configuration, this is ignored.
+        :returns: ``VagrantRunner``
+        """
+        return VagrantRunner(
+            config=self['config'],
+            top_level=self.top_level,
+            distribution=self['distribution'],
+            package_source=package_source,
+            variants=self['variants'],
+        )
+
+    def _runner_MANAGED(self, package_source, dataset_backend,
+                        provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``managed`` section of the acceptance
+            testing configuration file.  The section of the configuration
+            file should look something like:
+
+                managed:
+                  addresses:
+                    - "172.16.255.240"
+                    - "172.16.255.241"
+                  distribution: "centos-7"
+        :returns: ``ManagedRunner``.
+        """
+        if provider_config is None:
+            self._provider_config_missing("managed")
+
+        return ManagedRunner(
+            node_addresses=provider_config['addresses'],
+            # TODO LATER Might be nice if this were part of
+            # provider_config. See FLOC-2078.
+            distribution=self['distribution'],
+        )
+
+    def _libcloud_runner(self, package_source, dataset_backend,
+                         provider, provider_config):
+        """
+        Run some nodes using ``libcloud``.
+
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider: The name of the cloud provider of nodes for the tests.
+        :param provider_config: The ``managed`` section of the acceptance
+        :returns: ``LibcloudRunner``.
+        """
+        if provider_config is None:
+            self._provider_config_missing(provider)
+
+        cloud_config = provider_config.copy()
+        provisioner = CLOUD_PROVIDERS[provider](**cloud_config)
+        return LibcloudRunner(
+            config=self['config'],
+            top_level=self.top_level,
+            distribution=self['distribution'],
+            package_source=package_source,
+            provisioner=provisioner,
+            dataset_backend=dataset_backend,
+            variants=self['variants'],
+        )
+
+    def _runner_RACKSPACE(self, package_source, dataset_backend,
+                          provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``rackspace`` section of the acceptance
+            testing configuration file.  The section of the configuration
+            file should look something like:
+
+               rackspace:
+                 region: <rackspace region, e.g. "iad">
+                 username: <rackspace username>
+                 key: <access key>
+                 keyname: <ssh-key-name>
+
+        :see: :ref:`acceptance-testing-rackspace-config`
+        """
+        return self._libcloud_runner(
+            package_source, dataset_backend, "rackspace", provider_config
+        )
+
+    def _runner_AWS(self, package_source, dataset_backend,
+                    provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``aws`` section of the acceptance testing
+            configuration file.  The section of the configuration file should
+            look something like:
+
+               aws:
+                 region: <aws region, e.g. "us-west-2">
+                 access_key: <aws access key>
+                 secret_access_token: <aws secret access token>
+                 keyname: <ssh-key-name>
+                 security_groups: ["<permissive security group>"]
+
+        :see: :ref:`acceptance-testing-aws-config`
+        """
+        return self._libcloud_runner(
+            package_source, dataset_backend, "aws", provider_config
+        )
 
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
@@ -594,9 +774,9 @@ def main(reactor, args, base_path, top_level):
     finally:
         # Unless the tests failed, and the user asked to keep the nodes, we
         # delete them.
-        if not (result != 0 and options['keep']):
+        if not options['keep']:
             runner.stop_cluster(reactor)
-        elif options['keep']:
+        else:
             print "--keep specified, not destroying nodes."
             if cluster is None:
                 print ("Didn't finish creating the cluster.")
