@@ -531,12 +531,15 @@ def _openstack_auth_from_config(auth_plugin='password', **config):
     return plugin_class(**plugin_kwargs)
 
 
-def cinder_from_configuration(**config):
+def cinder_from_configuration(region, cluster_id, **config):
     """
-    Build a ``CinderBlockDeviceAPI`` using configuration and
-    credentials in ``config``.
+    Build a ``CinderBlockDeviceAPI`` using configuration and credentials in
+    ``config``.
+
+    :param str region: The region "slug" for which to configure the object.
+    :param cluster_id: The unique cluster identifier for which to configure the
+        object.
     """
-    region = config.pop('region')
     auth = _openstack_auth_from_config(**config)
     session = Session(auth=auth)
     cinder_client = CinderClient(
@@ -549,5 +552,5 @@ def cinder_from_configuration(**config):
     return cinder_api(
         cinder_client=cinder_client,
         nova_client=nova_client,
-        cluster_id=config['cluster_id']
+        cluster_id=cluster_id,
     )
