@@ -1265,7 +1265,9 @@ class BuildScriptTests(TestCase):
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = BuildScript(sys_module=fake_sys_module)
-        exception = self.assertRaises(SystemExit, script.main)
+        exception = self.assertRaises(
+            SystemExit,
+            script.main, top_level=FLOCKER_PATH)
         self.assertEqual(1, exception.code)
 
     def test_usage_error_message(self):
@@ -1275,8 +1277,9 @@ class BuildScriptTests(TestCase):
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = BuildScript(sys_module=fake_sys_module)
+
         try:
-            script.main()
+            script.main(top_level=FLOCKER_PATH)
         except SystemExit:
             pass
         self.assertEqual(
@@ -1289,32 +1292,6 @@ class BuildScriptTests(TestCase):
         ``BuildScript.build_command`` is ``build_in_docker`` by default.
         """
         self.assertIs(build_in_docker, BuildScript.build_command)
-
-    def test_default_distributions(self):
-        """
-        ``BuildScript.main`` uses the ``admin/build_targets/`` directory next
-        to the ``admin.packaging`` module it comes from to determine supported
-        distributions if no ``top_level`` path is passed to it.
-        """
-        supported_distribution = FLOCKER_PATH.descendant([
-            b"admin", b"build_targets"
-        ]).children()[0].basename()
-
-        fake_sys_module = FakeSysModule(argv=[
-            b"build-command-name",
-            b"--distribution", supported_distribution,
-            b"http://www.example.com/foo/bar.whl",
-        ])
-
-        def record_arguments(distribution, *args, **kwargs):
-            self.distribution = distribution
-            return SpyStep()
-
-        script = BuildScript(sys_module=fake_sys_module)
-        script.build_command = record_arguments
-        script.main()
-
-        self.assertEqual(self.distribution, supported_distribution)
 
     def test_run(self):
         """
@@ -1339,7 +1316,7 @@ class BuildScriptTests(TestCase):
             arguments.append((args, kwargs))
             return build_step
         script.build_command = record_arguments
-        script.main()
+        script.main(top_level=FLOCKER_PATH)
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
@@ -1393,7 +1370,7 @@ class BuildInDockerFunctionTests(TestCase):
                 destination_path=supplied_destination_path,
                 distribution=supplied_distribution,
                 top_level=supplied_top_level,
-                package_uri=expected_package_uri
+                package_uri=expected_package_uri,
             )
         )
 

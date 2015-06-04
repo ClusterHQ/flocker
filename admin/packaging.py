@@ -1236,10 +1236,6 @@ class BuildScript(object):
         :param base_path: ignored.
         """
         to_file(self.sys_module.stderr)
-
-        if top_level is None:
-            top_level = FilePath(__file__).parent().parent()
-
         distributions = available_distributions(top_level)
 
         options = BuildOptions(distributions)
