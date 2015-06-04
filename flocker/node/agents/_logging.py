@@ -7,6 +7,28 @@ for storage drivers (AWS, Cinder).
 
 from eliot import Field, ActionType, MessageType
 
+# Begin: BlockDeviceVolumeCache logs
+CACHE_INSERT_COUNT = Field.for_types(
+    u"insert_count", [int],
+    u"Number of BlockDeviceVolumes inserted into cache.")
+CACHE_DELETE_COUNT = Field.for_types(
+    u"delete_count", [int],
+    u"Number of BlockDeviceVolumes deleted from cache.")
+CACHE_UPDATE_COUNT = Field.for_types(
+    u"update_count", [int],
+    u"Number of BlockDeviceVolumes updated in cache.")
+CACHE_HIT_PERCENT = Field.for_types(
+    u"hit_percent", [int],
+    u"Percentage of backend lookups served from cache.")
+CACHE_BACKEND_CALLS_SAVED = Field.for_types(
+    u"backend_calls_saved", [int],
+    u"Number of storage backend calls saved by caching.")
+LOG_CACHE_STATS = MessageType(
+    u"flocker:node:agents:blockdevice:cache:stats",
+    [CACHE_INSERT_COUNT, CACHE_DELETE_COUNT, CACHE_UPDATE_COUNT,
+     CACHE_HIT_PERCENT, CACHE_BACKEND_CALLS_SAVED])
+# End: BlockDeviceVolumeCache logs
+
 # Begin: Helper datastructures to log all
 # IBlockDeviceAPI calls from AWS storage driver using Eliot.
 # - Log all IBlockDeviceAPI calls as Eliot ``ActionType``.

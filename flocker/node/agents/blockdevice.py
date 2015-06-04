@@ -38,6 +38,7 @@ from .._deploy import NotInUseDatasets
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...common import auto_threaded
 
+from ._logging import LOG_CACHE_STATS
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -346,8 +347,13 @@ class BlockDeviceVolumeCache(object):
         """
         self.data = pmap({})
         self.lock = threading.Lock()
-        self.hit_count = 0
-        self.miss_count = 0
+        self.lookup_hit_count = 0
+        self.lookup_miss_count = 0
+        self.insert_count = 0
+        self.update_count = 0
+        self.remove_count = 0
+        self.list_keys_count = 0
+        self.list_volumes_count = 0
 
     def lookup(self, blockdevice_id):
         """
@@ -363,9 +369,9 @@ class BlockDeviceVolumeCache(object):
         with self.lock:
             try:
                 volume = self.data[blockdevice_id]
-                self.hit_count += 1
+                self.lookup_hit_count += 1
             except KeyError:
-                self.miss_count += 1
+                self.lookup_miss_count += 1
                 volume = None
         return volume
 
@@ -379,6 +385,7 @@ class BlockDeviceVolumeCache(object):
         """
         with self.lock:
             self.data = self.data.set(volume.blockdevice_id, volume)
+            self.insert_count += 1
 
     def update(self, blockdevice_id, update_fields):
         """
@@ -405,6 +412,7 @@ class BlockDeviceVolumeCache(object):
                     if key in volume.keys():
                         volume = volume.set(key, value)
                 self.data = self.data.set(blockdevice_id, volume)
+            self.update_count += 1
             return volume
 
     def remove(self, blockdevice_id):
@@ -416,6 +424,7 @@ class BlockDeviceVolumeCache(object):
         """
         with self.lock:
             self.data = self.data.discard(blockdevice_id)
+            self.remove_count += 1
 
     def list_keys(self):
         """
@@ -425,6 +434,7 @@ class BlockDeviceVolumeCache(object):
         :rtype: ``list``
         """
         with self.lock:
+            self.list_keys_count += 1
             return self.data.keys()
 
     def list_volumes(self):
@@ -435,6 +445,7 @@ class BlockDeviceVolumeCache(object):
         :rtype: ``list``
         """
         with self.lock:
+            self.list_volumes_count += 1
             return self.data.values()
 
     def get_hit_rate_percentage(self):
@@ -444,12 +455,26 @@ class BlockDeviceVolumeCache(object):
         :returns: hit rate of cache lookup (percentage)
         :rtype: ``int``
         """
-        total_lookups = self.hit_count + self.miss_count
+        total_lookups = self.lookup_hit_count + self.lookup_miss_count
+        total_lookups += self.list_volumes_count
+        saved_lookups = self.lookup_hit_count + self.list_volumes_count
         if total_lookups > 0:
-            hit_rate = int((self.hit_count * 100)/total_lookups)
+            hit_rate = int((saved_lookups * 100)/total_lookups)
         else:
             hit_rate = 100
         return hit_rate
+
+    def log_stats(self):
+        """
+        Retrive cache usage stats.
+        """
+        hit_percentage = self.get_hit_rate_percentage()
+        backend_calls_saved = self.lookup_hit_count + self.list_volumes_count
+        LOG_CACHE_STATS(insert_count=self.insert_count,
+                        delete_count=self.remove_count,
+                        update_count=self.update_count,
+                        hit_percent=hit_percentage,
+                        backend_calls_saved=backend_calls_saved).write()
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):

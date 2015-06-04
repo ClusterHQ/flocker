@@ -218,7 +218,7 @@ def detach_destroy_volumes(api):
     """
     volumes = api.list_volumes()
     retry = 0
-    action_type = u"agent:blockdevice:cleanup:details"
+    action_type = u"node:agents:blockdevice:cleanup:details"
     with start_action(action_type=action_type):
         while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
             for volume in volumes:
@@ -234,8 +234,11 @@ def detach_destroy_volumes(api):
             retry += 1
 
         if len(volumes) > 0:
-            Message.new(u"agent:blockdevice:failedcleanup:volumes",
+            Message.new(u"node:agents:blockdevice:failedcleanup:volumes",
                         volumes=volumes).write()
+
+        if api.cache is not None:
+            api.cache.log_stats()
 
 
 class BlockDeviceVolumeCacheTests(SynchronousTestCase):
@@ -267,7 +270,8 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
         blockdevice_id = u'test-id'
         test_volume = self._generate_sample_volume(blockdevice_id)
         cache.insert(test_volume)
-        self.assertEqual(cache.data[blockdevice_id], test_volume)
+        self.assertEqual((cache.data[blockdevice_id], cache.insert_count),
+                         (test_volume, 1))
 
     def test_lookup(self):
         """
@@ -296,7 +300,8 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
         cache.insert(test_volume)
         cache.remove(blockdevice_id)
 
-        self.assertEqual(None, cache.lookup(blockdevice_id))
+        self.assertEqual((None, cache.remove_count),
+                         (cache.lookup(blockdevice_id), 1))
 
     def test_update(self):
         """
@@ -356,8 +361,8 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
         test_volume2 = self._generate_sample_volume(blockdevice_id2)
         cache.insert(test_volume2)
 
-        self.assertEqual(set(cache.list_keys()),
-                         {blockdevice_id1, blockdevice_id2})
+        self.assertEqual((set(cache.list_keys()), cache.list_keys_count),
+                         ({blockdevice_id1, blockdevice_id2}, 1))
 
     def test_list_volumes(self):
         """
