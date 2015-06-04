@@ -47,6 +47,7 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
+
 def get_repository_url(distribution, flocker_version):
     """
     Return the URL for the repository of a given distribution.
@@ -100,8 +101,6 @@ def get_repository_url(distribution, flocker_version):
                                 flocker_version),
                         ),
     }
-
-
 
     try:
         return distribution_to_url[distribution]
