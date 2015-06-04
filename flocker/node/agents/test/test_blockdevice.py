@@ -38,7 +38,7 @@ from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    CreateBlockDeviceDataset, UnattachedVolume,
+    CreateBlockDeviceDataset, UnattachedVolume, VolumeExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     ResizeBlockDeviceDataset, ResizeVolume, AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice, ResizeFilesystem,
@@ -1581,6 +1581,25 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=self.minimum_allocatable_size)
         self.assertIn(new_volume, self.api.list_volumes())
+
+    def test_created_exists(self):
+        """
+        ``create_volume`` raises ``VolumeExists`` if there is already a
+        ``BlockDeviceVolume`` for the requested dataset
+        """
+        dataset_id = uuid4()
+
+        self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size
+        )
+
+        self.assertRaises(
+            VolumeExists,
+            self.api.create_volume,
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size
+        )
 
     def test_listed_volume_attributes(self):
         """

@@ -27,7 +27,7 @@ from ...common import (
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume, get_blockdevice_volume, check_for_existing_dataset,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -290,6 +290,7 @@ class CinderBlockDeviceAPI(object):
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
         """
+        check_for_existing_dataset(api=self, dataset_id=dataset_id)
         metadata = {
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),

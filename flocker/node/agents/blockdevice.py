@@ -77,6 +77,12 @@ class VolumeException(Exception):
         self.blockdevice_id = blockdevice_id
 
 
+class VolumeExists(VolumeException):
+    """
+    A volume with the requested dataset_id already exists.
+    """
+
+
 class UnknownVolume(VolumeException):
     """
     The block device could not be found.
@@ -1004,6 +1010,8 @@ class IBlockDeviceAPI(Interface):
             volume.
         :param int size: The size of the new volume in bytes.
         :returns: A ``BlockDeviceVolume``.
+        :raises: ``VolumeExists`` if a volume for the supplied ``dataset_id``
+            already exists in the cluster.
         """
 
     def destroy_volume(blockdevice_id):
@@ -1209,6 +1217,19 @@ def _device_for_path(expected_backing_file):
             return device_file
 
 
+def check_for_existing_dataset(api, dataset_id):
+    """
+    :param IBlockDeviceAPI api: The ``api`` for listing the existing volumes.
+    :param UUID dataset_id: The dataset_id to check for.
+
+    :raises: ``VolumeExists`` if there is already a ``BlockDeviceVolume`` with
+        the supplied ``dataset_id``.
+    """
+    for volume in api.list_volumes():
+        if volume.dataset_id == dataset_id:
+            raise VolumeExists(volume.blockdevice_id)
+
+
 def get_blockdevice_volume(api, blockdevice_id):
     """
     Find a ``BlockDeviceVolume`` matching the given identifier.
@@ -1339,6 +1360,7 @@ class LoopbackBlockDeviceAPI(object):
         documentation.
         """
         check_allocatable_size(self.allocation_unit(), size)
+        check_for_existing_dataset(api=self, dataset_id=dataset_id)
         volume = _blockdevicevolume_from_dataset_id(
             size=size, dataset_id=dataset_id,
         )
