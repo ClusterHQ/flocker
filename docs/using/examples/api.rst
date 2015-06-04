@@ -1,8 +1,8 @@
 :tocdepth: 2
 
-====================
-Flocker API Examples
-====================
+===================
+Flocker API Example
+===================
 
 .. toctree::
    :maxdepth: 2
