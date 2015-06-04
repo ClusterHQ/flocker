@@ -1256,6 +1256,7 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
 
     node_states = {node.hostname: node for node in deployment_state.nodes}
     nodes = []
+    seen_applications = set()
     for hostname, application_names in (
             deployment_configuration['nodes'].items()):
         if not isinstance(application_names, list):
@@ -1268,6 +1269,11 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
             )
         node_applications = []
         for name in application_names:
+            if name in seen_applications:
+                raise ConfigurationError(
+                    "Application '{name}' appears more than once.".format(
+                        name=name))
+            seen_applications.add(name)
             application = all_applications.get(name)
             if application is None:
                 raise ConfigurationError(
