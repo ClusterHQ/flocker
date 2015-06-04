@@ -2572,9 +2572,12 @@ def multistep_change_log(parent, children):
     """
     def verify(self, logger):
         [parent_action] = LoggedAction.of_type(logger.messages, parent)
-        self.assertEqual([child.startMessage[u"action_type"] for child
-                          in parent_action.children],
-                         [child.action_type for child in children])
+        children_actions = [
+            LoggedAction.of_type(logger.messages, child_action)[0]
+            for child_action
+            in children
+        ]
+        self.assertEqual(children_actions, parent_action.children)
     return verify
 
 
