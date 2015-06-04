@@ -4,17 +4,98 @@
 Tests for ``flocker.provision._install``.
 """
 
+import yaml
+
 from twisted.trial.unittest import SynchronousTestCase
+
+from pyrsistent import freeze, thaw
 
 from .. import PackageSource
 from .._install import (
     task_install_flocker,
+    task_enable_flocker_agent,
     run, put,
     get_repository_url, UnsupportedDistribution, get_installable_version,
 )
+from .._ssh import Put
 from .._effect import sequence
+from ...acceptance.testtools import DatasetBackend
 
-from flocker import __version__ as version
+from ... import __version__ as flocker_version
+
+
+THE_AGENT_YML_PATH = b"/etc/flocker/agent.yml"
+BASIC_AGENT_YML = freeze({
+    "version": 1,
+    "control-service": {
+        "hostname": "192.0.2.42",
+        "port": 4524,
+    },
+    "dataset": {
+        "backend": "zfs",
+    },
+})
+
+
+class EnableFlockerAgentTests(SynchronousTestCase):
+    """
+    Tests for ``task_enable_flocker_agent``.
+    """
+    def test_agent_yml(self):
+        """
+        ```task_enable_flocker_agent`` writes a ``/etc/flocker/agent.yml`` file
+        which contains the backend configuration passed to it.
+        """
+        distribution = u"centos-7"
+        control_address = BASIC_AGENT_YML["control-service"]["hostname"]
+        expected_pool = u"some-test-pool"
+        expected_backend_configuration = dict(pool=expected_pool)
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+            control_node=control_address,
+            dataset_backend=DatasetBackend.lookupByName(
+                BASIC_AGENT_YML["dataset"]["backend"]
+            ),
+            dataset_backend_configuration=expected_backend_configuration,
+        )
+        [put_agent_yml] = list(
+            effect.intent
+            for effect in
+            commands.intent.effects
+            if isinstance(effect.intent, Put)
+        )
+        # Seems like transform should be usable here but I don't know how.
+        expected_agent_config = BASIC_AGENT_YML.set(
+            "dataset",
+            BASIC_AGENT_YML["dataset"].update(expected_backend_configuration)
+        )
+        self.assertEqual(
+            put(
+                content=yaml.safe_dump(thaw(expected_agent_config)),
+                path=THE_AGENT_YML_PATH,
+            ).intent,
+            put_agent_yml,
+        )
+
+
+def _centos7_install_commands(version):
+    """
+    Construct the command sequence expected for installing Flocker on CentOS 7.
+
+    :param str version: A Flocker native OS package version (a package name
+        suffix) like ``"-1.2.3-1"``.
+
+    :return: The sequence of commands expected for installing Flocker on
+        CentOS7.
+    """
+    return sequence([
+        run(command="yum clean all"),
+        run(command="yum install -y {}".format(get_repository_url(
+            distribution='centos-7',
+            flocker_version=get_installable_version(flocker_version),
+        ))),
+        run(command="yum install -y clusterhq-flocker-node" + version)
+    ])
 
 
 class GetRepositoryURL(SynchronousTestCase):
@@ -133,12 +214,7 @@ class InstallFlockerTests(SynchronousTestCase):
         """
         distribution = 'centos-7'
         commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7',
-                flocker_version=get_installable_version(version))),
-            run(command="yum install -y clusterhq-flocker-node")
-        ]))
+        self.assertEqual(commands, _centos7_install_commands(""))
 
     def test_centos_with_version(self):
         """
@@ -151,12 +227,7 @@ class InstallFlockerTests(SynchronousTestCase):
         commands = task_install_flocker(
             package_source=source,
             distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7',
-                flocker_version=get_installable_version(version))),
-            run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
-        ]))
+        self.assertEqual(commands, _centos7_install_commands("-1.2.3-1"))
 
     def test_ubuntu_no_arguments(self):
         """
@@ -171,7 +242,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=get_installable_version(
+                        flocker_version
+                    )))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
@@ -193,7 +266,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=get_installable_version(
+                        flocker_version
+                    )))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
         ]))
@@ -214,7 +289,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=get_installable_version(
+                        flocker_version
+                    )))),
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
             put(
@@ -236,9 +313,13 @@ class InstallFlockerTests(SynchronousTestCase):
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
-            run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7',
-                flocker_version=get_installable_version(version))),
+            run(command="yum clean all"),
+            run(command="yum install -y {}".format(
+                get_repository_url(
+                    distribution='centos-7',
+                    flocker_version=get_installable_version(flocker_version),
+                ),
+            )),
             put(content="""\
 [clusterhq-build]
 name=clusterhq-build
@@ -264,9 +345,11 @@ enabled=0
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
+            run(command="yum clean all"),
             run(command="yum install -y %s" % get_repository_url(
                 distribution='centos-7',
-                flocker_version=get_installable_version(version))),
+                flocker_version=get_installable_version(flocker_version),
+            )),
             put(content="""\
 [clusterhq-build]
 name=clusterhq-build
@@ -291,9 +374,11 @@ enabled=0
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
+            run(command="yum clean all"),
             run(command="yum install -y %s" % get_repository_url(
                 distribution='centos-7',
-                flocker_version=get_installable_version(version))),
+                flocker_version=get_installable_version(flocker_version),
+            )),
             put(content="""\
 [clusterhq-build]
 name=clusterhq-build

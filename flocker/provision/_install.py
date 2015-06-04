@@ -517,14 +517,24 @@ def task_open_control_firewall(distribution):
 
 
 def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs):
+                              dataset_backend=DatasetBackend.zfs,
+                              dataset_backend_configuration=dict(
+                                  pool=u'flocker'
+                              )):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with. (This has a default for use in the documentation).
+        configured with.  (This has a default for use in the documentation).
+    :param dict dataset_backend_configuration: The backend specific
+        configuration options.
     """
+    dataset_backend_configuration = dataset_backend_configuration.copy()
+    dataset_backend_configuration.update({
+        u"backend": dataset_backend.name,
+    })
+
     put_config_file = put(
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(
@@ -534,9 +544,7 @@ def task_enable_flocker_agent(distribution, control_node,
                     "hostname": control_node,
                     "port": 4524,
                 },
-                "dataset": {
-                    "backend": dataset_backend.name,
-                },
+                "dataset": dataset_backend_configuration,
             },
         ),
     )
@@ -649,9 +657,60 @@ def configure_zfs(node, variants):
     ])
 
 
+def _uninstall_flocker_ubuntu1404():
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
+    14.04 machine.
+    """
+    return run_from_args([
+        b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
+    ])
+
+
+def _uninstall_flocker_centos7():
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
+    machine.
+    """
+    return sequence([
+        run_from_args([
+            b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
+        ]),
+        run_from_args([
+            b"yum", b"erase", b"-y", b"clusterhq-release",
+        ]),
+    ])
+
+
+_flocker_uninstallers = {
+    "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
+    "centos-7": _uninstall_flocker_centos7,
+}
+
+
+def task_uninstall_flocker(distribution):
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from the given
+    distribution.
+    """
+    return _flocker_uninstallers[distribution]()
+
+
+def uninstall_flocker(nodes):
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from all of the
+    given nodes.
+    """
+    return _run_on_all_nodes(
+        nodes,
+        task=lambda node: task_uninstall_flocker(node.distribution)
+    )
+
+
 def task_install_flocker(
-        distribution=None,
-        package_source=PackageSource()):
+    distribution=None,
+    package_source=PackageSource(),
+):
     """
     Install flocker cluster on a distribution.
 
@@ -726,6 +785,7 @@ def task_install_flocker(
         return sequence(commands)
     else:
         commands = [
+            run(command="yum clean all"),
             run(command="yum install -y " + get_repository_url(
                 distribution=distribution,
                 flocker_version=get_installable_version(version)))
@@ -852,12 +912,56 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(cluster):
+def _run_on_all_nodes(nodes, task):
+    """
+    Run some commands on some nodes.
+
+    :param nodes: An iterable of ``Node`` instances where the commands should
+        be run.
+    :param task: A one-argument callable which is called with each ``Node`` and
+        should return the ``Effect`` to run on that node.
+
+    :return: An ``Effect`` that runs the commands on a group of nodes.
+    """
+    return sequence(list(
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=task(node),
+        )
+        for node in nodes
+    ))
+
+
+def install_flocker(nodes, package_source):
+    """
+    Return an ``Effect`` that installs a certain version of Flocker on the
+    given nodes.
+
+    :param nodes: An iterable of ``Node`` instances on which to install
+        Flocker.
+    :param PackageSource package_source: The version of Flocker to install.
+
+    :return: An ``Effect`` which installs Flocker on the nodes.
+    """
+    return _run_on_all_nodes(
+        nodes,
+        task=lambda node: task_install_flocker(
+            distribution=node.distribution,
+            package_source=package_source,
+        )
+    )
+
+
+def configure_cluster(cluster, dataset_backend_configuration):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
 
     :param Cluster cluster: Description of the cluster to configure.
+
+    :param dict dataset_backend_configuration: Configuration parameters to
+        supply to the dataset backend.
     """
     return sequence([
         run_remotely(
@@ -885,6 +989,9 @@ def configure_cluster(cluster):
                             distribution=node.distribution,
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
+                            dataset_backend_configuration=(
+                                dataset_backend_configuration
+                            ),
                         )]),
                     ),
             ]) for certnkey, node

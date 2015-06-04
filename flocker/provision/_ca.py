@@ -28,6 +28,7 @@ class Certificates(object):
     """
     The certificates generated for a cluster.
 
+    :ivar FilePath directory: See ``__init__``.
     :ivar CertAndKey cluster: The certificate authority/cluster files.
     :ivar CertAndKey control: The control service files.
     :ivar CertAndKey user: The user files.
@@ -38,6 +39,7 @@ class Certificates(object):
         :param FilePath directory: Directory where the certificates can be
             found.
         """
+        self.directory = directory
         self.cluster = CertAndKey(directory.child(b"cluster.crt"),
                                   directory.child(b"cluster.key"))
         # Assume only one control service:

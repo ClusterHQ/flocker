@@ -8,6 +8,9 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from ..acceptance import IClusterRunner, ManagedRunner
 
+from flocker.provision import PackageSource
+from flocker.acceptance.testtools import DatasetBackend
+
 
 class ManagedRunnerTests(SynchronousTestCase):
     """
@@ -19,7 +22,15 @@ class ManagedRunnerTests(SynchronousTestCase):
         """
         runner = ManagedRunner(
             node_addresses=[b'192.0.2.1'],
-            distribution=b'centos-7'
+            package_source=PackageSource(
+                version=b"",
+                os_version=b"",
+                branch=b"",
+                build_server=b"",
+            ),
+            distribution=b'centos-7',
+            dataset_backend=DatasetBackend.zfs,
+            dataset_backend_configuration={},
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)
