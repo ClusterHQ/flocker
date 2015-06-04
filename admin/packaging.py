@@ -1028,8 +1028,17 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
         package_uri = '/flocker'
 
     tag = "clusterhq/build-%s" % (distribution,)
-    build_directory = top_level.descendant(
-        ['admin', 'build_targets', distribution])
+    build_targets_directory = top_level.descendant(
+        ['admin', 'build_targets'])
+    build_directory = build_targets_directory.child(distribution)
+    # The <src> path must be inside the context of the build; you cannot COPY
+    # ../something /something, because the first step of a docker build is to
+    # send the context directory (and subdirectories) to the docker daemon.
+    # To work around this, we copy a shared requirements file into the build
+    # directory.
+    requirements_file = build_targets_directory.child('requirements.txt')
+    tmp_requirements = build_directory.child('requirements.txt')
+    requirements_file.copyTo(tmp_requirements)
 
     return BuildSequence(
         steps=[
