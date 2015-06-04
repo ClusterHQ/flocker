@@ -10,6 +10,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from ..version import (
     _parse_version, FlockerVersion,
     get_doc_version, get_installable_version, get_pre_release,
+    get_package_key_suffix,
     is_pre_release, is_release, is_weekly_release,
     target_release,
     NotAPreRelease, UnparseableVersion,
@@ -448,3 +449,37 @@ class TargetReleaseTests(SynchronousTestCase):
         release is returned.
         """
         self.assertEqual(target_release('0.3.2pre3'), '0.3.2')
+
+
+class GetPackageKeySuffixTests(SynchronousTestCase):
+    """
+    Tests for :function:`get_package_key_suffix`.
+    """
+
+    def test_marketing_release(self):
+        """
+        If a marketing release is passed to ``get_package_key_suffix``, an
+        empty string is returned.
+        """
+        self.assertEqual(get_package_key_suffix('0.3.0'), "")
+
+    def test_documentation_release(self):
+        """
+        If a documentation release is passed to ``get_package_key_suffix``, an
+        empty string is returned.
+        """
+        self.assertEqual(get_package_key_suffix('0.3.0+doc1'), "")
+
+    def test_non_marketing_release(self):
+        """
+        If a weekly release is passed to ``get_package_key_suffix``, "-testing"
+        is returned.
+        """
+        self.assertEqual(get_package_key_suffix('0.3.0dev1'), "-testing")
+
+    def test_pre_release(self):
+        """
+        If a pre-release is passed to ``get_package_key_suffix``, "-testing"
+        is returned.
+        """
+        self.assertEqual(get_package_key_suffix('0.3.0pre1'), "-testing")

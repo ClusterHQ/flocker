@@ -186,6 +186,7 @@ setup(
             "pyenchant==1.6.6",
             "sphinxcontrib-spelling==2.1.1",
             "sphinx-prompt==0.2.2",
+            "Pygments==2.0.2",
             "sphinxcontrib-httpdomain==1.3.0",
             ],
         # This extra is for developers who need to work on Flocker itself.

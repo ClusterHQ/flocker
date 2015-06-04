@@ -1,0 +1,45 @@
+metadata:
+  creator: <your name here>
+
+aws:
+  access_key: "XXXXXXXXXXXXXXXXXXXX"
+  secret_access_token: "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+  keyname: your.ec2.ssh.key.identifier
+  region: us-east-1
+  security_groups: ['acceptance']
+
+rackspace:
+  region: "dfw"
+  username: "your.rackspace.username"
+  key: "33333333333333333333333333333333"
+  keyname: "your.rackspace.ssh.key.identifier"
+
+managed:
+  addresses:
+    - "192.0.2.15"
+    - "192.0.2.16"
+
+storage-drivers:
+  loopback:
+    backend: "loopback"
+    root_path: "/var/lib/flocker/loopback"
+    allocation_unit: 67108864
+
+  zfs:
+    backend: "zfs"
+    pool: "xxx-flocker"
+
+  aws:
+    backend: "aws"
+    region: "us-east-1"
+    zone: "us-east-1d"
+    access_key_id: "XXXXXXXXXXXXXXXXXXXX"
+    secret_access_key: "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+
+  rackspace:
+    backend: "openstack"
+    region: "DFW"
+    auth_plugin: "rackspace"
+    username: "your.rackspace.username"
+    api_key: "33333333333333333333333333333333"
+    auth_url: "https://identity.api.rackspacecloud.com/v2.0"

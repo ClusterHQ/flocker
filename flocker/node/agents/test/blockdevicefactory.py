@@ -28,13 +28,12 @@ from bitmath import GiB
 from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
 
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
 
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
-from ..cinder import cinder_api
+from ..cinder import _openstack_auth_from_config, cinder_api
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 
@@ -135,29 +134,6 @@ def get_blockdeviceapi_args(provider):
     kwargs = dict(cluster_id=uuid4())
     kwargs.update(get_kwargs(**section))
     return cls, kwargs
-
-
-from keystoneclient.auth import get_plugin_class
-
-
-def _openstack_auth_from_config(**config):
-    auth_plugin_name = config.pop('auth_plugin', 'password')
-
-    if auth_plugin_name == 'rackspace':
-        plugin_class = RackspaceAuth
-    else:
-        plugin_class = get_plugin_class(auth_plugin_name)
-
-    plugin_options = plugin_class.get_options()
-    plugin_kwargs = {}
-    for option in plugin_options:
-        # option.dest is the python compatible attribute name in the plugin
-        # implementation.
-        # option.dest is option.name with hyphens replaced with underscores.
-        if option.dest in config:
-            plugin_kwargs[option.dest] = config[option.dest]
-
-    return plugin_class(**plugin_kwargs)
 
 
 def _openstack(**config):
