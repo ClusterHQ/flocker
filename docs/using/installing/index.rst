@@ -567,8 +567,8 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 
 .. _zfs-dataset-backend:
 
-ZFS Peer-to-Peer Backend Configuration (EXPERIMENTAL)
-.....................................................
+ZFS Peer-to-Peer Backend Configuration (ALPHA)
+..............................................
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development,
@@ -593,8 +593,8 @@ You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allo
 
 .. _loopback-dataset-backend:
 
-Loopback Block Device Backend Configuration (TESTING)
-.....................................................
+Loopback Block Device Backend Configuration (INTERNAL TESTING)
+..............................................................
 
 The Loopback backend uses node-local storage as storage for datasets.
 It has no data movement functionality.
