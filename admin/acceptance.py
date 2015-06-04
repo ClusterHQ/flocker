@@ -272,8 +272,6 @@ def configured_cluster_for_nodes(
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
 
-    Generate new certificates for the services.
-
     :param reactor: The reactor.
     :param Certificates certificates: The certificates to install on the cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
