@@ -774,9 +774,9 @@ def main(reactor, args, base_path, top_level):
     finally:
         # Unless the tests failed, and the user asked to keep the nodes, we
         # delete them.
-        if not (result != 0 and options['keep']):
+        if not options['keep']:
             runner.stop_cluster(reactor)
-        elif options['keep']:
+        else:
             print "--keep specified, not destroying nodes."
             if cluster is None:
                 print ("Didn't finish creating the cluster.")
