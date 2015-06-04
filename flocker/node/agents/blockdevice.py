@@ -1769,11 +1769,11 @@ class BlockDeviceDeployer(PRecord):
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set()
-        all_dataset_ids = [
+        all_dataset_ids = list(
             dataset.dataset_id
             for dataset
             in cluster_state.all_datasets()
-        ]
+        )
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
             if dataset_id in all_dataset_ids:
                 continue
