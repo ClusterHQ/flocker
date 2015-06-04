@@ -346,6 +346,8 @@ class BlockDeviceVolumeCache(object):
         """
         self.data = pmap({})
         self.lock = threading.Lock()
+        self.hit_count = 0
+        self.miss_count = 0
 
     def lookup(self, blockdevice_id):
         """
@@ -361,7 +363,9 @@ class BlockDeviceVolumeCache(object):
         with self.lock:
             try:
                 volume = self.data[blockdevice_id]
+                self.hit_count += 1
             except KeyError:
+                self.miss_count += 1
                 volume = None
         return volume
 
@@ -432,6 +436,20 @@ class BlockDeviceVolumeCache(object):
         """
         with self.lock:
             return self.data.values()
+
+    def get_hit_rate_percentage(self):
+        """
+        Retrieve cache hit rate.
+
+        :returns: hit rate of cache lookup (percentage)
+        :rtype: ``int``
+        """
+        total_lookups = self.hit_count + self.miss_count
+        if total_lookups > 0:
+            hit_rate = int((self.hit_count * 100)/total_lookups)
+        else:
+            hit_rate = 100
+        return hit_rate
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):

@@ -361,6 +361,8 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
 
     def test_list_volumes(self):
         """
+        Verify ``list_volumes`` returns current ``BlockDeviceVolume``s
+        in cache.
         """
         cache = BlockDeviceVolumeCache()
         blockdevice_id1 = u'test_id1'
@@ -375,6 +377,35 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
 
         self.assertEqual({test_volume1, test_volume2, test_volume3},
                          set(cache.list_volumes()))
+
+    def test_hit_percentage_empty_cache(self):
+        """
+        Verify that cache hit percentage is 100 if there have not
+        been any lookups.
+        """
+        cache = BlockDeviceVolumeCache()
+        self.assertEqual(100, cache.get_hit_rate_percentage())
+
+    def test_hit_percentage(self):
+        """
+        Verify cache hit percentage reflects expected value.
+        """
+        cache = BlockDeviceVolumeCache()
+        blockdevice_id1 = u'test_id1'
+        test_volume1 = self._generate_sample_volume(blockdevice_id1)
+        cache.insert(test_volume1)
+
+        cache.lookup(blockdevice_id1)
+        self.assertEqual(100, cache.get_hit_rate_percentage())
+
+        blockdevice_id2 = u'test_id2'
+        cache.lookup(blockdevice_id2)
+        self.assertEqual(50, cache.get_hit_rate_percentage())
+
+        test_volume2 = self._generate_sample_volume(blockdevice_id2)
+        cache.insert(test_volume2)
+        cache.lookup(blockdevice_id2)
+        self.assertEqual(int(200/3), cache.get_hit_rate_percentage())
 
 
 class BlockDeviceDeployerTests(
