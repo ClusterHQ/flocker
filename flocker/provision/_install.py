@@ -913,6 +913,16 @@ def provision(distribution, package_source, variants):
 
 
 def _run_on_all_nodes(nodes, task):
+    """
+    Run some commands on some nodes.
+
+    :param nodes: An iterable of ``Node`` instances where the commands should
+        be run.
+    :param task: A one-argument callable which is called with each ``Node`` and
+        should return the ``Effect`` to run on that node.
+
+    :return: An ``Effect`` that runs the commands on a group of nodes.
+    """
     return sequence(list(
         run_remotely(
             username='root',
@@ -924,6 +934,14 @@ def _run_on_all_nodes(nodes, task):
 
 
 def install_flocker(nodes, package_source):
+    """
+    Return an ``Effect`` that installs a certain version of Flocker on the given nodes.
+
+    :param nodes: An iterable of ``Node`` instances on which to install Flocker.
+    :param PackageSource package_source: The version of Flocker to install.
+
+    :return: An ``Effect`` which installs Flocker on the nodes.
+    """
     return _run_on_all_nodes(
         nodes,
         task=lambda node: task_install_flocker(
