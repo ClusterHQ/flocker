@@ -7,10 +7,11 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
-from errno import EEXIST
 from uuid import UUID, uuid4
-from subprocess import check_output
 import threading
+from subprocess import check_output, call
+from stat import S_IRWXU, S_IRWXG, S_IRWXO
+from errno import EEXIST
 
 from bitmath import GiB
 
@@ -531,7 +532,7 @@ class CreateFilesystem(PRecord):
     @property
     def eliot_action(self):
         return CREATE_FILESYSTEM(
-            _logger, volume=self.volume, filesystem=self.filesystem
+            _logger, volume=self.volume, filesystem_type=self.filesystem
         )
 
     def run(self, deployer):
@@ -599,7 +600,13 @@ class ResizeFilesystem(PRecord):
         #     e2fsck refuses to run non-interactively, though.
         #
         # See FLOC-1814
-        check_output([b"e2fsck", b"-f", b"-y", device.path])
+
+        # The first call will exit with non-zero exit code as it needs to
+        # recreate lost+found. The second call ought to succeed.
+        command_line = [b"e2fsck", b"-f", b"-y", device.path]
+        call(command_line)
+        check_output(command_line)
+
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.  Be sure to use
         # 1024 byte KiB conversion because that's what "K" means to resize2fs.
@@ -715,13 +722,35 @@ class MountBlockDevice(PRecord):
             volume=volume, block_device_path=device,
         ).write(_logger)
 
+        # Create the directory where a device will be mounted.
+        # The directory's parent's permissions will be set to only allow access
+        # by owner, to limit access by other users on the node.
         try:
             self.mountpoint.makedirs()
         except OSError as e:
-            if EEXIST != e.errno:
+            if e.errno != EEXIST:
                 return fail()
+        self.mountpoint.parent().chmod(S_IRWXU)
+
         # This should be asynchronous.  FLOC-1797
         check_output([b"mount", device.path, self.mountpoint.path])
+
+        # Mounted filesystem is world writeable/readable/executable since
+        # we can't predict what user a container will run as.  Make sure
+        # we change mounted filesystem's root directory permissions, so we
+        # only do this after the filesystem is mounted.
+        self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
+        self.mountpoint.restat()
+
+        # Remove lost+found to ensure filesystems always start out empty.
+        # If other files exist we don't bother, since at that point user
+        # has modified the volume and we don't want to delete their data
+        # by mistake. A better way is described in
+        # https://clusterhq.atlassian.net/browse/FLOC-2074
+        lostfound = self.mountpoint.child(b"lost+found")
+        if self.mountpoint.children() == [lostfound]:
+            lostfound.remove()
+
         return succeed(None)
 
 
@@ -960,18 +989,21 @@ class CreateBlockDeviceDataset(PRecord):
         # This duplicates CreateFilesystem now.
         check_output(["mkfs", "-t", "ext4", device.path])
 
-        # This duplicates MountBlockDevice now.
-        self.mountpoint.makedirs()
-        check_output(["mount", device.path, self.mountpoint.path])
+        mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
+                                 mountpoint=self.mountpoint)
+        d = mount.run(deployer)
 
-        BLOCK_DEVICE_DATASET_CREATED(
-            block_device_path=device,
-            block_device_id=volume.blockdevice_id,
-            dataset_id=volume.dataset_id,
-            block_device_size=volume.size,
-            block_device_compute_instance_id=volume.attached_to,
-        ).write(_logger)
-        return succeed(None)
+        def passthrough(result):
+            BLOCK_DEVICE_DATASET_CREATED(
+                block_device_path=device,
+                block_device_id=volume.blockdevice_id,
+                dataset_id=volume.dataset_id,
+                block_device_size=volume.size,
+                block_device_compute_instance_id=volume.attached_to,
+            ).write(_logger)
+            return result
+        d.addCallback(passthrough)
+        return d
 
 
 class IBlockDeviceAsyncAPI(Interface):
@@ -1787,10 +1819,9 @@ class BlockDeviceDeployer(PRecord):
                 applications=None,
                 used_ports=None,
             ),
+            NonManifestDatasets(datasets=nonmanifest),
         )
 
-        if nonmanifest:
-            state += (NonManifestDatasets(datasets=nonmanifest),)
         return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):

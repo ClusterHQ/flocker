@@ -27,6 +27,8 @@ from ..script import (
     AgentService, BackendDescription, get_configuration,
     DeployerType,
 )
+from ..agents.cinder import CinderBlockDeviceAPI
+from ..agents.ebs import EBSBlockDeviceAPI
 
 from .._loop import AgentLoopService
 from ...testtools import MemoryCoreReactor, random_name
@@ -312,6 +314,42 @@ class AgentServiceGetAPITests(SynchronousTestCase):
             API(cluster_id=self.ca_set.node.cluster_uuid),
             api,
         )
+
+    def test_default_openstack(self):
+        """
+        An OpenStack backend is available by default.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"openstack"
+        ).set(
+            "api_args", {
+                "region": "abc",
+                "auth_plugin": "password",
+                "auth_url": "http://example.invalid/",
+                "username": "allison",
+                "password": "123",
+            }
+        )
+        cinder = agent_service.get_api()
+        self.assertIsInstance(cinder, CinderBlockDeviceAPI)
+
+    def test_default_aws(self):
+        """
+        An AWS backend is available by default.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"aws"
+        ).set(
+            "api_args", {
+                "region": "aq-south-1",
+                "zone": "aq-south-1g",
+                "access_key_id": "XXXXXXXXXX",
+                "secret_access_key": "YYYYYYYYYY",
+                "cluster_id": "123456789",
+            }
+        )
+        ebs = agent_service.get_api()
+        self.assertIsInstance(ebs, EBSBlockDeviceAPI)
 
 
 class AgentServiceDeployerTests(SynchronousTestCase):
