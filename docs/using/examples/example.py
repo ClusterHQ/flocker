@@ -3,7 +3,7 @@ import os
 import ssl
 import tempfile
 
-# Define our control IP, port, and the certificates for authentication.
+# Define the control IP, port, and the certificates for authentication.
 
 CONTROL_SERVICE = "52.17.91.83"
 CONTROL_PORT = 4523
@@ -11,7 +11,7 @@ KEY_FILE = "/Users/rob/Projects/demo-cluster/rob.key"
 CERT_FILE = "/Users/rob/Projects/demo-cluster/rob.crt"
 CA_FILE = "/Users/rob/Projects/demo-cluster/cluster.crt"
 
-# We must create a certificate chain and then pass that into the SSL system.
+# Create a certificate chain and then pass that into the SSL system.
 
 certtemp = tempfile.NamedTemporaryFile()
 TEMP_CERT_CA_FILE = certtemp.name
@@ -23,7 +23,7 @@ certtemp.seek(0)
 ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 ctx.load_cert_chain(TEMP_CERT_CA_FILE, KEY_FILE)
 
-# Finally, create our HTTP connection.
+# Finally, create a HTTP connection.
 
 c = httplib.HTTPSConnection(CONTROL_SERVICE, CONTROL_PORT, context=ctx)
 
@@ -42,7 +42,7 @@ def make_api_request(method, endpoint, data=None):
     print "Got response", status
     print body
 
-# Make our first request to check the service is working.
+# Make the first request to check the service is working.
 
 make_api_request("GET", "/v1/version")
 
