@@ -520,7 +520,9 @@ def task_enable_flocker_agent(distribution, control_node,
                               dataset_backend=DatasetBackend.zfs,
                               dataset_backend_configuration=dict(
                                   pool=u'flocker'
-                              )):
+                              ),
+                              public_ip=None,
+                              ):
     """
     Configure and enable the flocker agents.
 
@@ -535,18 +537,19 @@ def task_enable_flocker_agent(distribution, control_node,
         u"backend": dataset_backend.name,
     })
 
+    agent_config = {
+        "version": 1,
+        "control-service": {
+            "hostname": control_node,
+            "port": 4524,
+        },
+        "dataset": dataset_backend_configuration,
+    }
+    if public_ip is not None:
+        agent_config['public-ip'] = public_ip
     put_config_file = put(
         path='/etc/flocker/agent.yml',
-        content=yaml.safe_dump(
-            {
-                "version": 1,
-                "control-service": {
-                    "hostname": control_node,
-                    "port": 4524,
-                },
-                "dataset": dataset_backend_configuration,
-            },
-        ),
+        content=yaml.safe_dump(agent_config),
     )
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
@@ -992,6 +995,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
                             ),
+                            public_ip=node._node.private_ips[0] if node._node.driver.name == 'Amazon EC2' else None,
                         )]),
                     ),
             ]) for certnkey, node

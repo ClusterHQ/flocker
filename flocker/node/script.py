@@ -281,7 +281,7 @@ class AgentServiceFactory(PRecord):
         configuration = get_configuration(options)
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
-        ip = _get_external_ip(host, port)
+        ip = configuration.get('public-ip', _get_external_ip(host, port))
 
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
