@@ -1761,7 +1761,14 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
-        self.assertEqual(expected_volume, attached_volume)
+        self.assertEqual((expected_volume.blockdevice_id,
+                          expected_volume.size,
+                          expected_volume.attached_to,
+                          expected_volume.dataset_id),
+                         (attached_volume.blockdevice_id,
+                          attached_volume.size,
+                          attached_volume.attached_to,
+                          attached_volume.dataset_id))
 
     def test_attached_volume_listed(self):
         """
@@ -1782,7 +1789,16 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
-        self.assertEqual([expected_volume], self.api.list_volumes())
+
+        listed_volume = self.api.list_volume()[0]
+        self.assertEqual((expected_volume.blockdevice_id,
+                          expected_volume.size,
+                          expected_volume.attached_to,
+                          expected_volume.dataset_id),
+                         (listed_volume.blockdevice_id,
+                          listed_volume.size,
+                          listed_volume.attached_to,
+                          listed_volume.dataset_id))
 
     def test_list_attached_and_unattached(self):
         """
