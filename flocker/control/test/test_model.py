@@ -1212,6 +1212,14 @@ class DeploymentStateTests(SynchronousTestCase):
         nonmanifest_id = unicode(uuid4())
         deployment = DeploymentState(
             nodes={
+                # A node for which we are ignorant of manifestations, should
+                # contribute nothing to the result.
+                NodeState(
+                    uuid=uuid4(), hostname=u"192.0.2.4",
+                    applications={}, used_ports={},
+                    manifestations=None, paths=None, devices=None,
+                ),
+                # A node with a manifestation.
                 NodeState(
                     uuid=uuid4(), hostname=u"192.0.2.5",
                     applications={}, used_ports={},
@@ -1227,6 +1235,7 @@ class DeploymentStateTests(SynchronousTestCase):
                 ),
             },
             nonmanifest_datasets={
+                # And one dataset with no manifestation anywhere.
                 nonmanifest_id: Dataset(dataset_id=nonmanifest_id),
             },
         )
