@@ -17,7 +17,8 @@ The control service is also included in the ``clusterhq-flocker-node`` package, 
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
-This document will describe how to install the CLI locally and install the agents and control service on cloud infrastructure. It also describes how to Vagrant nodes started which already have these services running.
+This document will describe how to install the CLI locally and install the agents and control service on cloud infrastructure.
+It also describes how to Vagrant nodes started which already have these services running.
 
 .. _installing-flocker-cli:
 
