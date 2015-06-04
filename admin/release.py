@@ -565,16 +565,16 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
         target_distro_suffix = ""
 
     operating_systems = [
-        {'distro': 'fedora', 'version': '20'},
-        {'distro': 'centos', 'version': '7'},
-        {'distro': 'ubuntu', 'version': '14.04'},
-        {'distro': 'ubuntu', 'version': '15.04'},
+        {'distro': 'fedora', 'version': '20', 'arch': 'native'},
+        {'distro': 'centos', 'version': '7', 'arch': 'native'},
+        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'native'},
+        {'distro': 'ubuntu', 'version': '15.04', 'arch': 'native'},
     ]
 
     for operating_system in operating_systems:
         for package_type, distribution_names in PACKAGE_TYPE_MAP.items():
             if operating_system['distro'] in distribution_names:
-                architecture = ARCH['native'][package_type]
+                architecture = ARCH[operating_system['arch']][package_type]
 
         yield update_repo(
             package_directory=scratch_directory.child(
