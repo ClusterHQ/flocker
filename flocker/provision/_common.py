@@ -3,7 +3,6 @@
 from characteristic import attributes, Attribute
 from pyrsistent import PRecord, field
 from twisted.python.constants import Values, ValueConstant
-from twisted.python.filepath import FilePath
 
 from ._ca import Certificates
 
@@ -62,5 +61,8 @@ class Cluster(PRecord):
     control_node = field(mandatory=True)
     agent_nodes = field(mandatory=True)
     dataset_backend = field(mandatory=True)
-    certificates_path = field(type=FilePath, mandatory=True)
     certificates = field(type=Certificates, mandatory=True)
+
+    @property
+    def certificates_path(self):
+        return self.certificates.directory

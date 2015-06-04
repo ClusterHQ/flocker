@@ -401,6 +401,9 @@ class BackendDescription(PRecord):
         ),
     )
 
+from .agents.cinder import cinder_from_configuration
+from .agents.ebs import aws_from_configuration
+
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [
     # P2PManifestationDeployer doesn't currently know anything about
@@ -419,12 +422,16 @@ _DEFAULT_BACKENDS = [
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
     ),
-
-    # BackendDescription(
-    #     name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-    #     factory=cinder_from_configuration,
-    #     deployer_type=DeployerType.block,
-    # ),
+    BackendDescription(
+        name=u"openstack", needs_reactor=False, needs_cluster_id=True,
+        api_factory=cinder_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
+    BackendDescription(
+        name=u"aws", needs_reactor=False, needs_cluster_id=True,
+        api_factory=aws_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
 ]
 
 _DEFAULT_DEPLOYERS = {
