@@ -935,9 +935,11 @@ def _run_on_all_nodes(nodes, task):
 
 def install_flocker(nodes, package_source):
     """
-    Return an ``Effect`` that installs a certain version of Flocker on the given nodes.
+    Return an ``Effect`` that installs a certain version of Flocker on the
+    given nodes.
 
-    :param nodes: An iterable of ``Node`` instances on which to install Flocker.
+    :param nodes: An iterable of ``Node`` instances on which to install
+        Flocker.
     :param PackageSource package_source: The version of Flocker to install.
 
     :return: An ``Effect`` which installs Flocker on the nodes.

@@ -3,7 +3,6 @@
 from characteristic import attributes, Attribute
 from pyrsistent import PRecord, field
 from twisted.python.constants import Values, ValueConstant
-from twisted.python.filepath import FilePath
 
 from ._ca import Certificates
 

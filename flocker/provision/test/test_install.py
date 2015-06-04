@@ -242,7 +242,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(flocker_version)))),
+                    flocker_version=get_installable_version(
+                        flocker_version
+                    )))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
@@ -264,7 +266,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(flocker_version)))),
+                    flocker_version=get_installable_version(
+                        flocker_version
+                    )))),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
         ]))
@@ -285,7 +289,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
                     distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(flocker_version)))),
+                    flocker_version=get_installable_version(
+                        flocker_version
+                    )))),
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
             put(
