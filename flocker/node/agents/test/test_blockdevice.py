@@ -1282,27 +1282,19 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         remote_state = self.ONE_DATASET_STATE
 
         # But the dataset has been moved.
-        remote_config = to_node(
-            remote_state.delete_manifestation(self.MANIFESTATION)
-        )
+        empty_state = delete_manifestation(remote_state, self.MANIFESTATION)
+        remote_config = to_node(empty_state)
 
         # Local state has no manifestations
         local_node_id = uuid4()
         local_node_address = u"192.0.2.2"
-        local_state = NodeState(
-            uuid=local_node_id,
-            hostname=local_node_address,
-            applications=[],
-            manifestations={},
-            devices={},
-            paths={},
-            used_ports=[]
+        local_state = empty_state.set(
+            "uuid", local_node_id, "hostname", local_node_address
         )
 
         # But the dataset is configured here.
-        local_config = to_node(local_state).transform(
-            ['manifestations', unicode(self.DATASET_ID)],
-            self.MANIFESTATION
+        local_config = to_node(remote_state).set(
+            "uuid", local_node_id, "hostname", local_node_address
         )
 
         configuration = Deployment(
