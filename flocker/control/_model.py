@@ -200,6 +200,11 @@ class Link(PRecord):
     an application, and the corresponding external port of a possibly remote
     application.
 
+    The alias is always lower-cased since the resulting environment
+    variables don't care about initial case of alias; upper and lower case
+    versions result in same environment variable. We therefore want ``Link``
+    comparison to be case-insensitive as far as aliases go.
+
     :ivar int local_port: The port the local application expects to access.
         This is used to determine the environment variables to populate in the
         container.
@@ -210,7 +215,12 @@ class Link(PRecord):
     """
     local_port = field(mandatory=True, type=int)
     remote_port = field(mandatory=True, type=int)
-    alias = field(mandatory=True)
+    alias = field(
+        mandatory=True, factory=lambda s: s.lower(),
+        invariant=lambda s: (
+            s.isalnum(), "Link aliases must be alphanumeric."
+        )
+    )
 
 
 class IRestartPolicy(Interface):
@@ -590,7 +600,7 @@ class DatasetHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating", "resizing", "deleting"])
+@attributes(["going", "creating", "resizing", "deleting"])
 class DatasetChanges(object):
     """
     The dataset-related changes necessary to change the current state to
@@ -599,10 +609,6 @@ class DatasetChanges(object):
     :ivar frozenset going: The ``DatasetHandoff``\ s necessary to let
         other nodes take over hosting datasets being moved away from a
         node.  These must be handed off.
-
-    :ivar frozenset coming: The ``Dataset``\ s necessary to let this
-        node take over hosting of any datasets being moved to
-        this node.  These must be acquired.
 
     :ivar frozenset creating: The ``Dataset``\ s necessary to let this
         node create any new datasets meant to be hosted on

@@ -251,7 +251,7 @@ Paste them into a root console on the target node:
 
 .. task:: install_flocker fedora-20
    :prompt: [root@node]#
-   
+
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
@@ -291,7 +291,7 @@ To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker centos-7
    :prompt: [root@centos]#
-   
+
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
@@ -340,13 +340,14 @@ The file ``cluster.key`` should be kept only by the cluster administrator; it do
 
 You are now able to generate authentication certificates for the control service and each of your nodes.
 To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
-Replace ``example.org`` with the hostname of your control service node; this hostname should match the one you will give to REST API clients.
+Replace ``example.org`` with the hostname of your control service node; this hostname should match the hostname you will give to HTTP API clients.
+It should be a valid DNS name that HTTPS clients can resolve since they will use it as part of TLS validation.
+Using an IP address is not recommended as it may break some HTTPS clients.
 
 .. code-block:: console
 
    $ flocker-ca create-control-certificate example.org
-   Created control-example.org.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
-   
+
 You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
 You should also copy the cluster's public certificate, the `cluster.crt` file.
 On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
@@ -452,7 +453,7 @@ To enable the Flocker control service on Fedora / CentOS
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
-To configure FirewallD to allow access to the control service REST API, and for agent connections:
+To configure FirewallD to allow access to the control service HTTP API, and for agent connections:
 
 .. task:: open_control_firewall fedora-20
    :prompt: [root@control-node]#
@@ -468,7 +469,7 @@ To enable the Flocker control service on Ubuntu
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
-To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
+To configure ``UFW`` to allow access to the control service HTTP API, and for agent connections:
 
 .. task:: open_control_firewall ubuntu-14.04
    :prompt: [root@control-node]#
@@ -477,13 +478,13 @@ For more details on configuring the firewall, see Ubuntu's `UFW documentation <h
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
+.. _agent-yml:
+
 To enable the Flocker agent service
 -----------------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
-This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to.
-The ZFS ``pool`` variable should match the pool name created in the ZFS section.
+The file must always include ``version`` and ``control-service`` items similar to these:
 
 .. code-block:: yaml
 
@@ -491,20 +492,125 @@ The ZFS ``pool`` variable should match the pool name created in the ZFS section.
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
+
+``${CONTROL_NODE}`` should be replaced with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to.
+This value must agree with the configuration for the control service telling it on what port to listen.
+Omit the ``port`` from both configurations and the services will automatically agree.
+
+The file must also include a ``dataset`` item.
+This selects and configures a dataset backend.
+All nodes must be configured to use the same dataset backend.
+
+.. _openstack-dataset-backend:
+
+OpenStack Block Device Backend Configuration
+............................................
+
+The OpenStack backend uses Cinder volumes as the storage for datasets.
+This backend can be used with Flocker dataset agent nodes run by OpenStack Nova.
+The configuration item to use OpenStack should look like:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "<region slug; for example, LON>"
+       auth_plugin: "<authentication plugin>"
+       ...
+
+Make sure that the ``region`` specified matches the region where the Flocker nodes run.
+OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
+
+.. FLOC-2091 - Fix up this section.
+
+Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
+(Flocker relies on these plugins; it does not provide them itself).
+
+Flocker does provide explicit support for a ``rackspace`` authentication plugin.
+This plugin requires ``username``, ``api_key``, and ``auth_url``.
+
+For example:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "<region slug; for example, LON>"
+       auth_plugin: "rackspace"
+       username: "<your rackspace username>"
+       api_key: "<your rackspace API key>"
+       auth_url: "https://identity.api.rackspacecloud.com/v2.0"
+
+To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
+
+.. _aws-dataset-backend:
+
+Amazon AWS / EBS Block Device Backend Configuration
+...................................................
+
+The AWS backend uses EBS volumes as the storage for datasets.
+This backend can be used when Flocker dataset agents are run on EC2 instances.
+The configuration item to use AWS should look like:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "aws"
+       region: "<region slug; for example, us-west-1>"
+       zone: "<availability zone slug; for example, us-west-1a>"
+       access_key_id: "<AWS API key identifier>"
+       secret_access_key: "<Matching AWS API key>"
+
+Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
+AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
+
+.. _zfs-dataset-backend:
+
+ZFS Peer-to-Peer Backend Configuration (ALPHA)
+..............................................
+
+The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
+The ZFS backend remains under development,
+it is not expected to operate reliably in many situations,
+and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use ZFS should look like:
+
+.. code-block:: yaml
+
    "dataset":
       "backend": "zfs"
       "pool": "flocker"
 
-.. The following is put in to demonstrate how to format alternative backends.
-   Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
+.. This section could stand to be improved.
+   Some of the suggested steps are not straightforward.
+   FLOC-2092
 
-For a ``loopback`` device, change the ``dataset`` clause to:
+The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
+This requires first installing `ZFS on Linux <http://zfsonlinux.org/>`_.
+You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
+
+.. _loopback-dataset-backend:
+
+Loopback Block Device Backend Configuration (INTERNAL TESTING)
+..............................................................
+
+The Loopback backend uses node-local storage as storage for datasets.
+It has no data movement functionality.
+It serves primarily as a development and testing tool for the other block device backend implementations.
+You may find it useful if you plan to work on Flocker itself.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use Loopback should look like:
 
 .. code-block:: yaml
 
    "dataset":
       "backend": "loopback"
       "root_path": "/var/lib/flocker/loopback"
+
+The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
+
 
 Fedora / CentOS
 ...............
@@ -530,5 +636,3 @@ You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 Next you may want to perform the steps in :ref:`the tutorial <movingapps>`, to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yml`` files with the IP addresses of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
-
-

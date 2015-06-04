@@ -21,7 +21,7 @@ else:
     from ..publicapi import (
         Example, KleinRoute, getRoutes, _loadExamples, _formatExample, makeRst)
 
-from ..._infrastructure import user_documentation, structured
+from ..._infrastructure import user_documentation, structured, private_api
 
 
 class GetRoutesTests(SynchronousTestCase):
@@ -99,6 +99,21 @@ class MakeRstTests(SynchronousTestCase):
             '   ',
             '',
             ])
+
+    def test_private_not_visible(self):
+        """
+        When an endpoint is decorated with ``@private_api`` it is
+        omitted from result of ``makeRst``.
+        """
+        app = Klein()
+
+        @private_api
+        def g():
+            pass
+
+        app.route(b"/g", methods=[b"GET"])(g)
+        rest = list(makeRst(b"/", app, None, {}))
+        self.assertEqual(rest, [])
 
     def test_example(self):
         """

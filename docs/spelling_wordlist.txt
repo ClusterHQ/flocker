@@ -45,6 +45,7 @@ invalidations
 Kubernetes
 libswarm
 lifecycle
+loopback
 Mesos
 metadata
 microservices
