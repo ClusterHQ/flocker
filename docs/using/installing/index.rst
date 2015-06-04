@@ -39,7 +39,7 @@ Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the
 On Fedora 20 you can install these by running:
 
 .. code-block:: console
-	
+
    alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
 
 On Ubuntu or Debian you can run:
@@ -336,8 +336,8 @@ Using the machine on which you installed the ``flocker-cli`` package, run the fo
     $ flocker-ca initialize mycluster
     Created cluster.key and cluster.crt. Please keep cluster.key secret, as anyone who can access it will be able to control your cluster.
 
-You will find the files ``cluster.key`` and ``cluster.crt`` have been created in your working directory.
-The file ``cluster.key`` should be kept only by the cluster administrator; it does not need to be copied anywhere.
+You will find the files :file:`cluster.key` and :file:`cluster.crt` have been created in your working directory.
+The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere.
 
 .. warning::
 
@@ -356,8 +356,8 @@ Using an IP address is not recommended as it may break some HTTPS clients.
 
    $ flocker-ca create-control-certificate example.org
 
-You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
-You should also copy the cluster's public certificate, the `cluster.crt` file.
+You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
+You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
 On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
 .. code-block:: console
@@ -369,7 +369,7 @@ You should copy these files via a secure communication medium such as SSH, SCP o
 
 .. warning::
 
-   Only copy the file ``cluster.crt`` to the control service and node machines, not the ``cluster.key`` file; this must kept only by the cluster administrator.
+   Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file; this must kept only by the cluster administrator.
 
 You will also need to generate authentication certificates for each of your nodes.
 Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
@@ -383,12 +383,12 @@ Run the command in the same directory containing the certificate authority files
 
 The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
 
-As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the `cluster.crt` certificate.
-Copy the generated files to :file:`/etc/flocker` on the target node and name them ``node.crt`` and ``node.key``.
-Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
+As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the :file:`cluster.crt` certificate.
+Copy the generated files to :file:`/etc/flocker` on the target node and name them :file:`node.crt` and :file:`node.key`.
+Perform the same :command:`chmod 600` commands on :file:`node.key` as you did for the control service in the instructions above.
 The :file:`/etc/flocker` directory should be set to ``chmod 700``.
 
-You should now have ``cluster.crt``, ``node.crt``, and ``node.key`` on each of your agent nodes, and ``cluster.crt``, ``control-service.crt``, and ``control-service.key`` on your control node.
+You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
