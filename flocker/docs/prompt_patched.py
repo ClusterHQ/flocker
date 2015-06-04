@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # coding: utf-8
-
+"""
+This is a patched version of sphinx-prompt to handle Chrome and Safari
+correctly. This is copied from https://github.com/sbrunner/sphinx-prompt/pull/3
+until that patch makes it into PyPI. See FLOC-2102
+"""
 
 from docutils import nodes
 from docutils.parsers import rst

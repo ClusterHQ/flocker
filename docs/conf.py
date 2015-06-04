@@ -34,10 +34,8 @@ extensions = [
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
     'flocker.docs.version_extensions',
-    # Replace sphinx-prompt with patched version.  Patched version from
-    # https://github.com/sbrunner/sphinx-prompt/pull/3
-    # See FLOC-2102
-    # 'sphinx-prompt',
+    # Replace sphinx-prompt with patched version. See FLOC-2102. Patched
+    # version from https://github.com/sbrunner/sphinx-prompt/pull/3
     'flocker.docs.prompt_patched',
     'sphinxcontrib.httpdomain',
     'flocker.restapi.docs.publicapi',
