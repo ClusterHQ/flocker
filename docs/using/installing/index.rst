@@ -4,6 +4,8 @@
 Installing Flocker
 ==================
 
+.. XXX We will improve this introduction with an image. See FLOC-2077
+
 The Flocker CLI is installed on your local machine and provides command line tools to control the cluster. 
 This also includes the ``flocker-ca`` tool, which you use to generate certificates for all the Flocker components.
 
