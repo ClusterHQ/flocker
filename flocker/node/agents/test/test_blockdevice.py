@@ -1268,71 +1268,48 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         ``calculate_changes`` does not attempt to create a new dataset it is
         already manifest on another node.
         """
-        other_node_id = uuid4()
-        other_node_address = u"192.0.2.2"
-        dataset_id = unicode(uuid4())
-        requested_dataset = Dataset(
-            dataset_id=dataset_id, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        # Remote node still has an attached dataset
+        remote_state = self.ONE_DATASET_STATE
+
+        # But the dataset has been moved.
+        remote_config = to_node(
+            remote_state.delete_manifestation(self.MANIFESTATION)
+        )
+
+        # Local state has no manifestations
+        local_node_id = uuid4()
+        local_node_address = u"192.0.2.2"
+        local_state = NodeState(
+            uuid=local_node_id,
+            hostname=local_node_address,
+            applications=[],
+            manifestations={},
+            devices={},
+            paths={},
+            used_ports=[]
+        )
+
+        # But the dataset is configured here.
+        local_config = to_node(local_state).transform(
+            ['manifestations', unicode(self.DATASET_ID)],
+            self.MANIFESTATION
         )
 
         configuration = Deployment(
-            nodes={
-                Node(
-                    uuid=other_node_id,
-                    # The dataset is no longer configured on the other node.
-                    manifestations={},
-                ),
-                Node(
-                    uuid=self.NODE_UUID,
-                    manifestations={
-                        # Now configured to be on this node.
-                        dataset_id: Manifestation(
-                            dataset=requested_dataset,
-                            primary=True
-                        )
-                    },
-                )
-            }
+            nodes={local_config, remote_config}
         )
         state = DeploymentState(
-            nodes=[
-                NodeState(
-                    uuid=other_node_id,
-                    hostname=other_node_address,
-                    applications=[],
-                    manifestations={
-                        # Still manifested on other node.
-                        dataset_id: Manifestation(
-                            dataset=requested_dataset,
-                            primary=True
-                        )
-                    },
-                    devices={},
-                    paths={},
-                    used_ports=[]
-                ),
-                NodeState(
-                    uuid=self.NODE_UUID,
-                    hostname=self.NODE,
-                    applications=[],
-                    manifestations={},
-                    devices={},
-                    paths={},
-                    used_ports=[]
-                )
-            ],
-            nonmanifest_datasets={}
+            nodes={local_state, remote_state},
         )
+
         deployer = create_blockdevicedeployer(
             self,
-            hostname=self.NODE,
-            node_uuid=self.NODE_UUID,
+            hostname=local_node_address,
+            node_uuid=local_node_id,
         )
         changes = deployer.calculate_changes(configuration, state)
-        self.assertEqual(
-            in_parallel(changes=[]),
-            changes
-        )
+
+        self.assertEqual(in_parallel(changes=[]), changes)
 
 
 class BlockDeviceDeployerDetachCalculateChangesTests(

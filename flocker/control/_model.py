@@ -781,6 +781,16 @@ class NodeState(PRecord):
                       if getattr(self, attr) is not None]
         return _WipeNodeState(node_uuid=self.uuid, attributes=attributes)
 
+    def delete_manifestation(self, manifestation):
+        """
+        Remove all traces of a ``Manifestation`` from a ``NodeState``.
+        """
+        dataset_id = manifestation.dataset.dataset_id
+        node_state = self.transform(['manifestations', dataset_id], discard)
+        node_state = node_state.transform(['paths', dataset_id], discard)
+        node_state = node_state.transform(['devices', dataset_id], discard)
+        return node_state
+
 
 @implementer(IClusterStateWipe)
 class _WipeNodeState(PRecord):
