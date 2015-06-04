@@ -3120,6 +3120,19 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
     """
     ``CreateBlockDeviceDataset`` implementation tests.
     """
+    def setUp(self):
+        self.api = loopbackblockdeviceapi_for_test(
+            self,
+            allocation_unit=LOOPBACK_ALLOCATION_UNIT
+        )
+        self.mountroot = mountroot_for_test(self)
+        self.deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
+            hostname=u"192.0.2.10",
+            block_device_api=self.api,
+            mountroot=self.mountroot
+        )
+
     @capture_logging(
         assertHasAction, CREATE_BLOCK_DEVICE_DATASET, succeeded=False
     )
@@ -3131,21 +3144,10 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         self.patch(blockdevice, '_logger', logger)
         dataset_id = uuid4()
 
-        api = loopbackblockdeviceapi_for_test(self)
-
         # The a volume for the dataset already exists.
-        api.create_volume(
+        self.api.create_volume(
             dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-
-        mountroot = mountroot_for_test(self)
-
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=u"192.0.2.10",
-            block_device_api=api,
-            mountroot=mountroot
         )
 
         dataset = Dataset(
@@ -3155,18 +3157,16 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
 
         change = CreateBlockDeviceDataset(
             dataset=dataset,
-            mountpoint=mountroot.child(
+            mountpoint=self.mountroot.child(
                 unicode(dataset_id).encode("ascii")
             )
         )
 
-        changing = run_state_change(change, deployer)
+        changing = run_state_change(change, self.deployer)
 
         self.failureResultOf(changing, VolumeExists)
 
-    def _create_blockdevice_dataset(self,
-                                    dataset_id, maximum_size,
-                                    allocation_unit=LOOPBACK_ALLOCATION_UNIT):
+    def _create_blockdevice_dataset(self, dataset_id, maximum_size):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -3179,18 +3179,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             * The ``FilePath`` of the device where the volume is attached.
             * The ``FilePath`` where the volume is expected to be mounted.
         """
-        api = loopbackblockdeviceapi_for_test(
-            self, allocation_unit=allocation_unit)
-        mountroot = mountroot_for_test(self)
-        expected_mountpoint = mountroot.child(
+        expected_mountpoint = self.mountroot.child(
             unicode(dataset_id).encode("ascii")
-        )
-
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=u"192.0.2.10",
-            block_device_api=api,
-            mountroot=mountroot
         )
 
         dataset = Dataset(
@@ -3202,12 +3192,13 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             dataset=dataset, mountpoint=expected_mountpoint
         )
 
-        run_state_change(change, deployer)
+        run_state_change(change, self.deployer)
 
-        [volume] = api.list_volumes()
-        device_path = api.get_device_path(volume.blockdevice_id)
+        [volume] = self.api.list_volumes()
+        device_path = self.api.get_device_path(volume.blockdevice_id)
         return (
-            volume, device_path, expected_mountpoint, api.compute_instance_id()
+            volume, device_path, expected_mountpoint,
+            self.api.compute_instance_id()
         )
 
     def test_run_create(self):
@@ -3244,7 +3235,6 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             dataset_id=dataset_id,
             # Request a size which will force over allocation.
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + 1,
-            allocation_unit=LOOPBACK_ALLOCATION_UNIT,
         )
         expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, attached_to=compute_instance_id,
