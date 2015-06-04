@@ -1765,8 +1765,15 @@ class BlockDeviceDeployer(PRecord):
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set()
+        all_dataset_ids = [
+            dataset.dataset_id
+            for dataset
+            in cluster_state.all_datasets()
+        ]
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
-            if dataset_id not in cluster_state.nonmanifest_datasets:
+            if dataset_id in all_dataset_ids:
+                continue
+            else:
                 manifestation = configured_manifestations[dataset_id]
                 # XXX: Make this configurable. FLOC-2044
                 if manifestation.dataset.maximum_size is None:

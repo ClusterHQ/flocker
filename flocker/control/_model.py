@@ -881,6 +881,19 @@ class DeploymentState(PRecord):
             "nodes", self.nodes.discard(original_node).add(
                 updated_node.persistent()))
 
+    def all_datasets(self):
+        """
+        :returns: A generator of all the manifest and non-manifest datasets in
+            the ``DeploymentState``.
+        """
+        for node in self.nodes:
+            if node.manifestations is None:
+                continue
+            for manifestation in node.manifestations.values():
+                yield manifestation.dataset
+        for dataset in self.nonmanifest_datasets.values():
+            yield dataset
+
 
 @implementer(IClusterStateChange)
 class NonManifestDatasets(PRecord):
