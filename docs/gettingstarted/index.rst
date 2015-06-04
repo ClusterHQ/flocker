@@ -74,7 +74,7 @@ Getting started with Flocker
 
          Local
 
-      .. noscript-content::
+      .. tabs::
 
          OS X
          ^^^^
@@ -84,8 +84,6 @@ Getting started with Flocker
          .. task:: test_homebrew flocker-|latest-installable|
             :prompt: you@laptop:~$
 
-      .. noscript-content::
-
          Ubuntu 14.04
          ^^^^^^^^^^^^
 
@@ -93,7 +91,6 @@ Getting started with Flocker
 
          .. task:: install_cli ubuntu-14.04
             :prompt: you@laptop:~$
-
 
          Fedora 20
          ^^^^^^^^^
@@ -107,8 +104,7 @@ Getting started with Flocker
               sh linux-install.sh && \
               source flocker-tutorial/bin/activate
 
-
-      .. tabs::
+      .. noscript-content::
 
          OS X
          ^^^^
