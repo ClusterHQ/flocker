@@ -29,12 +29,11 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
-    LoggedAction, assertHasMessage,
+    LoggedAction, assertHasMessage, assertHasAction
 )
 
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
-
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -47,7 +46,7 @@ from ..blockdevice import (
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
     RESIZE_BLOCK_DEVICE_DATASET, RESIZE_VOLUME, ATTACH_VOLUME,
-    RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE,
+    RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE, CREATE_BLOCK_DEVICE_DATASET,
 
     INVALID_DEVICE_PATH,
 
@@ -1581,25 +1580,6 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=self.minimum_allocatable_size)
         self.assertIn(new_volume, self.api.list_volumes())
-
-    def test_created_exists(self):
-        """
-        ``create_volume`` raises ``VolumeExists`` if there is already a
-        ``BlockDeviceVolume`` for the requested dataset
-        """
-        dataset_id = uuid4()
-
-        self.api.create_volume(
-            dataset_id=dataset_id,
-            size=self.minimum_allocatable_size
-        )
-
-        self.assertRaises(
-            VolumeExists,
-            self.api.create_volume,
-            dataset_id=dataset_id,
-            size=self.minimum_allocatable_size
-        )
 
     def test_listed_volume_attributes(self):
         """
@@ -3140,6 +3120,50 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
     """
     ``CreateBlockDeviceDataset`` implementation tests.
     """
+    @capture_logging(
+        assertHasAction, CREATE_BLOCK_DEVICE_DATASET, succeeded=False
+    )
+    def test_created_exists(self, logger):
+        """
+        ``CreateBlockDeviceDataset.run`` fails with ``VolumeExists`` if there
+        is already a ``BlockDeviceVolume`` for the requested dataset.
+        """
+        self.patch(blockdevice, '_logger', logger)
+        dataset_id = uuid4()
+
+        api = loopbackblockdeviceapi_for_test(self)
+
+        # The a volume for the dataset already exists.
+        api.create_volume(
+            dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+
+        mountroot = mountroot_for_test(self)
+
+        deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
+            hostname=u"192.0.2.10",
+            block_device_api=api,
+            mountroot=mountroot
+        )
+
+        dataset = Dataset(
+            dataset_id=unicode(dataset_id),
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+
+        change = CreateBlockDeviceDataset(
+            dataset=dataset,
+            mountpoint=mountroot.child(
+                unicode(dataset_id).encode("ascii")
+            )
+        )
+
+        changing = run_state_change(change, deployer)
+
+        self.failureResultOf(changing, VolumeExists)
+
     def _create_blockdevice_dataset(self,
                                     dataset_id, maximum_size,
                                     allocation_unit=LOOPBACK_ALLOCATION_UNIT):

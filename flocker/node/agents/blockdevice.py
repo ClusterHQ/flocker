@@ -859,6 +859,10 @@ class CreateBlockDeviceDataset(PRecord):
         :returns: An already fired ``Deferred`` with result ``None``.
         """
         api = deployer.block_device_api
+        try:
+            check_for_existing_dataset(api, UUID(hex=self.dataset.dataset_id))
+        except:
+            return fail()
 
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
@@ -1225,7 +1229,8 @@ def check_for_existing_dataset(api, dataset_id):
     :raises: ``VolumeExists`` if there is already a ``BlockDeviceVolume`` with
         the supplied ``dataset_id``.
     """
-    for volume in api.list_volumes():
+    volumes = api.list_volumes()
+    for volume in volumes:
         if volume.dataset_id == dataset_id:
             raise VolumeExists(volume.blockdevice_id)
 
@@ -1360,7 +1365,6 @@ class LoopbackBlockDeviceAPI(object):
         documentation.
         """
         check_allocatable_size(self.allocation_unit(), size)
-        check_for_existing_dataset(api=self, dataset_id=dataset_id)
         volume = _blockdevicevolume_from_dataset_id(
             size=size, dataset_id=dataset_id,
         )

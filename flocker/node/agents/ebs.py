@@ -23,7 +23,7 @@ from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume, check_for_existing_dataset,
+    UnattachedVolume, get_blockdevice_volume,
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
@@ -422,7 +422,6 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        check_for_existing_dataset(api=self, dataset_id=dataset_id)
         requested_volume = self.connection.create_volume(
             size=int(Byte(size).to_GiB().value), zone=self.zone)
 
