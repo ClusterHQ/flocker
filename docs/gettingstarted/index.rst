@@ -145,7 +145,7 @@ Getting started with Flocker
 
          Live
 
-      .. noscript-content::
+      .. tabs::
 
          Vagrant
          ^^^^^^^
@@ -167,7 +167,10 @@ Getting started with Flocker
 
          Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
 
-      .. tabs::
+      .. noscript-content::
+
+         .. The noscript content must come after the tabs, because the prompt
+            command defines CSS styles on the first use of a prompt. See FLOC-2104.
 
          Vagrant
          ^^^^^^^
