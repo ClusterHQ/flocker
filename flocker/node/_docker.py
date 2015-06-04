@@ -286,6 +286,33 @@ BASE_NAMESPACE = u"flocker--"
 BASE_DOCKER_API_URL = u'unix://var/run/docker.sock'
 
 
+class TimeoutClient(Client):
+    """
+    A subclass of docker.Client that sets any infinite timeouts to the
+    provided ``long_timeout`` value.
+
+    This class is a temporary fix until docker-py is released with
+    PR #625 or similar. See https://github.com/docker/docker-py/pull/625
+
+    See Flocker JIRA Issue FLOC-2082
+    """
+
+    def __init__(self, *args, **kw):
+        self.long_timeout = kw.pop('long_timeout', None)
+        Client.__init__(self, *args, **kw)
+
+    def _set_request_timeout(self, kwargs):
+        """
+        Prepare the kwargs for an HTTP request by inserting the timeout
+        parameter, if not already present.  If the timeout is infinite,
+        set it to the ``long_timeout`` parameter.
+        """
+        kwargs = Client._set_request_timeout(self, kwargs)
+        if kwargs['timeout'] is None:
+            kwargs['timeout'] = self.long_timeout
+        return kwargs
+
+
 @implementer(IDockerClient)
 class DockerClient(object):
     """
@@ -297,11 +324,16 @@ class DockerClient(object):
 
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
+    :ivar str base_url: URL for connection to the Docker server.
+    :ivar int long_timeout: Maximum time in seconds to wait for
+        long-running operations, particularly pulling an image.
     """
-    def __init__(self, namespace=BASE_NAMESPACE,
-                 base_url=BASE_DOCKER_API_URL):
+    def __init__(
+            self, namespace=BASE_NAMESPACE, base_url=BASE_DOCKER_API_URL,
+            long_timeout=600):
         self.namespace = namespace
-        self._client = Client(version="1.15", base_url=base_url)
+        self._client = TimeoutClient(
+            version="1.15", base_url=base_url, long_timeout=long_timeout)
 
     def _to_container_name(self, unit_name):
         """

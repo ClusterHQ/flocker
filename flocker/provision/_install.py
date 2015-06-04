@@ -26,7 +26,11 @@ from ._ssh import (
 )
 from ._effect import sequence
 
+from flocker import __version__ as version
 from flocker.cli import configure_ssh
+from flocker.common.version import (
+    get_installable_version, get_package_key_suffix,
+)
 
 # A systemctl sub-command to start or restart a service.  We use restart here
 # so that if it is already running it gets restart (possibly necessary to
@@ -43,29 +47,64 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
-CLUSTERHQ_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
-                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                     archive_bucket=ARCHIVE_BUCKET,
-                 ),
-    'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
-                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                    archive_bucket=ARCHIVE_BUCKET,
-                    ),
-    # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
-    # This could hardcode the version number instead of using ``lsb_release``
-    # but that allows instructions to be shared between versions, and for
-    # earlier error reporting if you try to install on a separate version.
-    # The $(ARCH) part must be left unevaluated, hence the backslash escapes
-    # (one to make shell ignore the $ as a substitution marker, and then
-    # doubled to make Python ignore the \ as an escape marker).
-    # The output of this value then goes into /etc/apt/sources.list which does
-    # its own substitution on $(ARCH) during a subsequent apt-get update
-    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/ubuntu-testing/'
-                    '$(lsb_release --release --short)/\\$(ARCH)'.format(
-                        archive_bucket=ARCHIVE_BUCKET
-                    ),
-}
+
+def get_repository_url(distribution, flocker_version):
+    """
+    Return the URL for the repository of a given distribution.
+
+    For ``yum``-using distributions this gives the URL to a package that adds
+    entries to ``/etc/yum.repos.d``. For ``apt``-using distributions, this
+    gives the URL for a repo containing a Packages(.gz) file.
+
+    :param bytes distribution: The Linux distribution to get a repository for.
+    :param bytes flocker_version: The version of Flocker to get a repository
+        for.
+
+    :return bytes: The URL pointing to a repository of packages.
+    :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
+    """
+    distribution_to_url = {
+        # XXX Use testing repositories when appropriate for CentOS.
+        # See FLOC-2080.
+        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/{key}"
+                     "/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                         archive_bucket=ARCHIVE_BUCKET,
+                         key='fedora',
+                     ),
+        'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
+                    "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                        archive_bucket=ARCHIVE_BUCKET,
+                        key='centos',
+                        ),
+
+        # This could hardcode the version number instead of using
+        # ``lsb_release`` but that allows instructions to be shared between
+        # versions, and for earlier error reporting if you try to install on a
+        # separate version. The $(ARCH) part must be left unevaluated, hence
+        # the backslash escapes (one to make shell ignore the $ as a
+        # substitution marker, and then doubled to make Python ignore the \ as
+        # an escape marker). The output of this value then goes into
+        # /etc/apt/sources.list which does its own substitution on $(ARCH)
+        # during a subsequent apt-get update
+
+        'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
+    }
+
+    try:
+        return distribution_to_url[distribution]
+    except KeyError:
+        raise UnsupportedDistribution()
+
+
+class UnsupportedDistribution(Exception):
+    """
+    Raised if trying to support a distribution which is not supported.
+    """
 
 
 @attributes(['distribution'])
@@ -119,8 +158,11 @@ def install_cli_commands_yum(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
+
     commands = [
-        sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        sudo(command="yum install -y " + get_repository_url(
+            distribution=distribution,
+            flocker_version=get_installable_version(version))),
     ]
 
     if use_development_branch:
@@ -183,7 +225,9 @@ def install_cli_commands_ubuntu(distribution, package_source):
             "software-properties-common"]),
         # Add ClusterHQ repo for installation of Flocker packages.
         sudo(command='add-apt-repository -y "deb {} /"'.format(
-            CLUSTERHQ_REPO[distribution])),
+            get_repository_url(
+                distribution=distribution,
+                flocker_version=get_installable_version(version))))
         ]
 
     if use_development_branch:
@@ -686,7 +730,9 @@ def task_install_flocker(
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
             run(command='add-apt-repository -y "deb {} /"'.format(
-                CLUSTERHQ_REPO[distribution])),
+                get_repository_url(
+                    distribution=distribution,
+                    flocker_version=get_installable_version(version)))),
         ]
 
         if use_development_branch:
@@ -726,7 +772,9 @@ def task_install_flocker(
     else:
         commands = [
             run(command="yum clean all"),
-            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+            run(command="yum install -y " + get_repository_url(
+                distribution=distribution,
+                flocker_version=get_installable_version(version)))
         ]
 
         if use_development_branch:

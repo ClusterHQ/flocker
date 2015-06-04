@@ -2196,6 +2196,38 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[])
         self.assertEqual(expected, changes)
 
+    def test_different_node_is_ignorant(self):
+        """
+        The fact that a different node is ignorant about its manifestations
+        does not prevent calculating changes necessary for the current
+        node.
+        """
+        node_state = NodeState(
+            hostname=u"10.1.1.1",
+            uuid=uuid4(),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+            devices={}, paths={},
+            applications=[], used_ports=[],
+        )
+        another_node_state = NodeState(hostname=u"10.1.2.3", uuid=uuid4())
+
+        api = P2PManifestationDeployer(node_state.hostname,
+                                       create_volume_service(self),
+                                       node_uuid=node_state.uuid)
+        current = DeploymentState(nodes=[node_state, another_node_state])
+        desired = Deployment(nodes=[
+            Node(hostname=api.hostname, uuid=api.node_uuid,
+                 manifestations=node_state.manifestations.transform(
+                     (DATASET_ID, "dataset", "deleted"), True))])
+
+        changes = api.calculate_changes(desired, current)
+        expected = sequentially(changes=[
+            in_parallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
 
 class SetProxiesTests(SynchronousTestCase):
     """
