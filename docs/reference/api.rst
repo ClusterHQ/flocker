@@ -19,7 +19,7 @@ For more information, see the :ref:`API authentication guide <authenticate>`.
 #. A successful response indicates a change in configuration, not a change to cluster state.
 #. Convergence agents will then take the necessary actions and eventually the cluster's state will match the requested configuration.
 #. The actual cluster state will then reflect the requested change.
-   For example, getting the current cluster datasets can be accessed via :http:get:`/v1/state/datasets`.
+   For example, you can retrieve the current cluster datasets via :http:get:`/v1/state/datasets`.
 
 .. XXX: Document the response when input validation fails:
 .. https://clusterhq.atlassian.net/browse/FLOC-1613
