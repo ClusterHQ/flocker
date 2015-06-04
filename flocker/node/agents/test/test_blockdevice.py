@@ -9,7 +9,7 @@ from functools import partial
 from os import getuid, statvfs
 import time
 from uuid import UUID, uuid4
-from subprocess import STDOUT, PIPE, Popen, check_output
+from subprocess import STDOUT, PIPE, Popen, check_output, check_call
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -2829,6 +2829,7 @@ class MountBlockDeviceTests(
             for part in psutil.disk_partitions()
         )
         self.assertIn(expected, mounted)
+        return scenario
 
     def test_run(self):
         """
@@ -2876,6 +2877,61 @@ class MountBlockDeviceTests(
         self.assertEqual((mountroot.getPermissions().shorthand(),
                           mountpoint.getPermissions().shorthand()),
                          ('rwx------', 'rwxrwxrwx'))
+
+    def test_new_is_empty(self):
+        """
+        A newly created filesystem is empty after being mounted.
+
+        If it's not empty it might break some Docker images that assumes
+        volumes start out empty.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        self._run_success_test(mountpoint)
+        self.assertEqual(mountpoint.children(), [])
+
+    def test_remount(self):
+        """
+        It's possible to unmount and then remount an attached volume.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        check_call([b"umount", mountpoint.path])
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+
+    def test_lost_found_deleted_remount(self):
+        """
+        If ``lost+found`` is recreated, remounting it removes it.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        check_call([b"mklost+found"], cwd=mountpoint.path)
+        check_call([b"umount", mountpoint.path])
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertEqual(mountpoint.children(), [])
+
+    def test_lost_found_not_deleted_if_other_files_exist(self):
+        """
+        If files other than ``lost+found`` exist in the filesystem,
+        ``lost+found`` is not deleted.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        mountpoint.child(b"file").setContent(b"stuff")
+        check_call([b"mklost+found"], cwd=mountpoint.path)
+        check_call([b"umount", mountpoint.path])
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertItemsEqual(mountpoint.children(),
+                              [mountpoint.child(b"file"),
+                               mountpoint.child(b"lost+found")])
 
 
 class UnmountBlockDeviceInitTests(
