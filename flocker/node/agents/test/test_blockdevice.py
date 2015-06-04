@@ -1264,7 +1264,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
     def test_dataset_exists_on_other_node(self):
         """
-        ``calculate_changes`` does not attempt to create a new dataset it is
+        ``calculate_changes`` does not attempt to create a new dataset if it is
         already manifest on another node.
         """
         # Remote node still has an attached dataset
