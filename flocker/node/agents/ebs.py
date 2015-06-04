@@ -444,7 +444,7 @@ class EBSBlockDeviceAPI(object):
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
-            ATTACHED_DEVICE_LABEL: u'',
+            ATTACHED_DEVICE_LABEL: '',
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
@@ -466,7 +466,14 @@ class EBSBlockDeviceAPI(object):
         Return all volumes in {available, in-use} state that belong to
         this Flocker cluster.
         """
-        volumes = []
+        volumes = self.cache.list_volumes()
+
+        if volumes != []:
+            return volumes
+
+        # Empty cache indicates Flocker process reboot,
+        # or actual lack of volumes.
+        # Check with EBS to confirm.
         for ebs_volume in self.connection.get_all_volumes():
             if ((_is_cluster_volume(self.cluster_id, ebs_volume)) and
                (ebs_volume.status in [u'available', u'in-use'])):
@@ -573,7 +580,7 @@ class EBSBlockDeviceAPI(object):
         # Delete attached device metadata from EBS Volume
         self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
         metadata = {
-            ATTACHED_DEVICE_LABEL: None,
+            ATTACHED_DEVICE_LABEL: '',
         }
         self.connection.create_tags([ebs_volume.id], metadata)
 

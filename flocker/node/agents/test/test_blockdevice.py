@@ -359,6 +359,23 @@ class BlockDeviceVolumeCacheTests(SynchronousTestCase):
         self.assertEqual(set(cache.list_keys()),
                          {blockdevice_id1, blockdevice_id2})
 
+    def test_list_volumes(self):
+        """
+        """
+        cache = BlockDeviceVolumeCache()
+        blockdevice_id1 = u'test_id1'
+        test_volume1 = self._generate_sample_volume(blockdevice_id1)
+        cache.insert(test_volume1)
+        blockdevice_id2 = u'test_id2'
+        test_volume2 = self._generate_sample_volume(blockdevice_id2)
+        cache.insert(test_volume2)
+        blockdevice_id3 = u'test_id3'
+        test_volume3 = self._generate_sample_volume(blockdevice_id3)
+        cache.insert(test_volume3)
+
+        self.assertEqual({test_volume1, test_volume2, test_volume3},
+                         set(cache.list_volumes()))
+
 
 class BlockDeviceDeployerTests(
         ideployer_tests_factory(create_blockdevicedeployer)
@@ -1790,7 +1807,7 @@ class IBlockDeviceAPITestsMixin(object):
             attach_to=self.this_node,
         )
 
-        listed_volume = self.api.list_volume()[0]
+        listed_volume = self.api.list_volumes()[0]
         self.assertEqual((expected_volume.blockdevice_id,
                           expected_volume.size,
                           expected_volume.attached_to,
@@ -2034,7 +2051,7 @@ class IBlockDeviceAPITestsMixin(object):
         self.api.detach_volume(volume.blockdevice_id)
 
         self.assertEqual(
-            {unrelated, volume.set(attached_to=None)},
+            {unrelated, volume.set(attached_to=None, attached_device=None)},
             set(self.api.list_volumes())
         )
 

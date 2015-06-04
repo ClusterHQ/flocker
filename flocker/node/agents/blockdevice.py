@@ -422,6 +422,16 @@ class BlockDeviceVolumeCache(object):
         with self.lock:
             return self.data.keys()
 
+    def list_volumes(self):
+        """
+        List all ``BlockDeviceVolume``s stored in cache.
+
+        :returns: A list of cached ``BlockDeviceVolume``s.
+        :rtype: ``list``
+        """
+        with self.lock:
+            return self.data.values()
+
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
     """
