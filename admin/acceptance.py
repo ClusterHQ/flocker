@@ -219,12 +219,14 @@ class VagrantRunner(object):
     # rather than assuming it is available.
     # https://clusterhq.atlassian.net/browse/FLOC-1163
 
-    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
+    NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
+        self.certificates_path = self.top_level.descendant([
+            'vagrant', 'tutorial', 'credentials'])
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
@@ -262,7 +264,16 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        cluster = yield configured_cluster_for_nodes(nodes)
+        certificates = Certificates(self.certificates_path)
+
+        cluster = Cluster(
+            all_nodes=nodes,
+            control_node=nodes[0],
+            agent_nodes=nodes,
+            dataset_backend=DatasetBackend.zfs,
+            certificates_path=self.certificates_path,
+            certificates=certificates
+        )
 
         returnValue(cluster)
 
