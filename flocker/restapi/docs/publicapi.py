@@ -72,6 +72,8 @@ def getRoutes(app):
     """
     Get the routes assoicated with a L{klein} application.
 
+    Endpoints decorated with ``@private_api`` will be omitted.
+
     @param app: The L{klein} application to introspect.
     @type app: L{klein.Klein}
 
@@ -363,6 +365,8 @@ def makeRst(prefix, app, exampleByIdentifier, schema_store):
     """
     # Adapted from sphinxcontrib.autohttp.flask
     for route in sorted(getRoutes(app)):
+        if route.attributes.get("private_api", False):
+            continue
         data = _introspectRoute(route, exampleByIdentifier, schema_store)
         for method in route.methods:
             if data['header'] is not None:

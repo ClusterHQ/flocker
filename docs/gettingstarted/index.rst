@@ -74,7 +74,7 @@ Getting started with Flocker
 
          Local
 
-      .. noscript-content::
+      .. tabs::
 
          OS X
          ^^^^
@@ -84,8 +84,6 @@ Getting started with Flocker
          .. task:: test_homebrew flocker-|latest-installable|
             :prompt: you@laptop:~$
 
-      .. noscript-content::
-
          Ubuntu 14.04
          ^^^^^^^^^^^^
 
@@ -93,7 +91,6 @@ Getting started with Flocker
 
          .. task:: install_cli ubuntu-14.04
             :prompt: you@laptop:~$
-
 
          Fedora 20
          ^^^^^^^^^
@@ -107,8 +104,7 @@ Getting started with Flocker
               sh linux-install.sh && \
               source flocker-tutorial/bin/activate
 
-
-      .. tabs::
+      .. noscript-content::
 
          OS X
          ^^^^
@@ -149,7 +145,7 @@ Getting started with Flocker
 
          Live
 
-      .. noscript-content::
+      .. tabs::
 
          Vagrant
          ^^^^^^^
@@ -171,7 +167,10 @@ Getting started with Flocker
 
          Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
 
-      .. tabs::
+      .. noscript-content::
+
+         .. The noscript content must come after the tabs, because the prompt
+            command defines CSS styles on the first use of a prompt. See FLOC-2104.
 
          Vagrant
          ^^^^^^^
