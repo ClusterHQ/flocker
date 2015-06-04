@@ -995,7 +995,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
                             ),
-                            public_ip=node._node.private_ips[0] if node._node.driver.name == 'Amazon EC2' else None,
+                            public_ip=node.address if node._node.driver.name == 'Amazon EC2' else None,
                         )]),
                     ),
             ]) for certnkey, node
