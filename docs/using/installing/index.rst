@@ -7,7 +7,7 @@ Installing Flocker
 The Flocker CLI is installed on your local machine via the ``flocker-cli`` package which provides command line tools to control the cluster. 
 This package also includes the ``flocker-ca`` tool, which you must use to generate certificates for all the Flocker components.
 
-The Flocker agents are installed on any number of nodes (or hosts) in the cluster where your containers will run.
+The Flocker agents are installed on any number of nodes in the cluster where your containers will run.
 The agent software is included in the ``clusterhq-flocker-node`` package.
 
 There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. 
