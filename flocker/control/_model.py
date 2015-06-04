@@ -704,17 +704,18 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this
-        node, or ``None`` if the information is not known.
-    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
-        in use (by anything) on this node.
-    :ivar PMap manifestations: Mapping between dataset IDs and
-        corresponding ``Manifestation`` instances that are present on the
-        node. Includes both those attached as volumes to any applications,
-        and those that are unattached. ``None`` if this information is
-        unknown.
-    :ivar PMap paths: The filesystem paths of the manifestations on this
-        node. Maps ``dataset_id`` to a ``FilePath``.
+    :ivar applications: A ``PSet`` of ``Application`` instances on this node,
+        or ``None`` if the information is not known.
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers in
+        use (by anything) on this node.
+    :ivar PMap manifestations: Mapping between dataset IDs and corresponding
+        ``Manifestation`` instances that are present on the node.  Includes
+        both those attached as volumes to any applications, and those that are
+        unattached.  ``None`` if this information is unknown.
+    :ivar PMap paths: The filesystem paths of the manifestations on this node.
+        Maps ``dataset_id`` to a ``FilePath``.
+    :ivar PMap devices: The OS devices by which datasets are made manifest.
+        Maps ``dataset_id`` (as a ``UUID``) to a ``FilePath``.
     """
     # Attributes that may be set to None to indicate ignorance:
     _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
