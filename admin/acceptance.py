@@ -249,6 +249,12 @@ class ManagedRunner(object):
 
 
 def generate_certificates(nodes):
+    """
+    Generate a new set of certificates for the given nodes.
+
+    :return: A ``Certificates`` instance referring to the newly generated
+        certificates.
+    """
     certificates_path = FilePath(mkdtemp())
     print("Generating certificates in: {}".format(certificates_path.path))
     certificates = Certificates.generate(
