@@ -77,12 +77,6 @@ class VolumeException(Exception):
         self.blockdevice_id = blockdevice_id
 
 
-class VolumeExists(VolumeException):
-    """
-    A volume with the requested dataset_id already exists.
-    """
-
-
 class UnknownVolume(VolumeException):
     """
     The block device could not be found.
@@ -100,6 +94,16 @@ class UnattachedVolume(VolumeException):
     An attempt was made to operate on an unattached volume but the operation
     requires the volume to be attached.
     """
+
+
+class DatasetExists(Exception):
+    """
+    A ``BlockDeviceVolume`` with the requested dataset_id already exists.
+    """
+    def __init__(self, blockdevice):
+        Exception.__init__(self, blockdevice)
+        self.blockdevice = blockdevice
+
 
 OLD_SIZE = Field.for_types(
     u"old_size", [int], u"The size of a volume prior to a resize operation."
@@ -856,7 +860,9 @@ class CreateBlockDeviceDataset(PRecord):
         See ``IStateChange.run`` for general argument and return type
         documentation.
 
-        :returns: An already fired ``Deferred`` with result ``None``.
+        :returns: An already fired ``Deferred`` with result ``None`` or a
+            failed ``Deferred`` with a ``DatasetExists`` exception if a
+            blockdevice with the required dataset_id already exists.
         """
         api = deployer.block_device_api
         try:
@@ -1014,8 +1020,6 @@ class IBlockDeviceAPI(Interface):
             volume.
         :param int size: The size of the new volume in bytes.
         :returns: A ``BlockDeviceVolume``.
-        :raises: ``VolumeExists`` if a volume for the supplied ``dataset_id``
-            already exists in the cluster.
         """
 
     def destroy_volume(blockdevice_id):
@@ -1226,13 +1230,13 @@ def check_for_existing_dataset(api, dataset_id):
     :param IBlockDeviceAPI api: The ``api`` for listing the existing volumes.
     :param UUID dataset_id: The dataset_id to check for.
 
-    :raises: ``VolumeExists`` if there is already a ``BlockDeviceVolume`` with
+    :raises: ``DatasetExists`` if there is already a ``BlockDeviceVolume`` with
         the supplied ``dataset_id``.
     """
     volumes = api.list_volumes()
     for volume in volumes:
         if volume.dataset_id == dataset_id:
-            raise VolumeExists(volume.blockdevice_id)
+            raise DatasetExists(volume)
 
 
 def get_blockdevice_volume(api, blockdevice_id):

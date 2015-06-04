@@ -37,7 +37,7 @@ from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    CreateBlockDeviceDataset, UnattachedVolume, VolumeExists,
+    CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     ResizeBlockDeviceDataset, ResizeVolume, AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice, ResizeFilesystem,
@@ -3138,14 +3138,14 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
     )
     def test_created_exists(self, logger):
         """
-        ``CreateBlockDeviceDataset.run`` fails with ``VolumeExists`` if there
+        ``CreateBlockDeviceDataset.run`` fails with ``DatasetExists`` if there
         is already a ``BlockDeviceVolume`` for the requested dataset.
         """
         self.patch(blockdevice, '_logger', logger)
         dataset_id = uuid4()
 
         # The a volume for the dataset already exists.
-        self.api.create_volume(
+        existing_volume = self.api.create_volume(
             dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
@@ -3164,7 +3164,11 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
 
         changing = run_state_change(change, self.deployer)
 
-        self.failureResultOf(changing, VolumeExists)
+        failure = self.failureResultOf(changing, DatasetExists)
+        self.assertEqual(
+            existing_volume,
+            failure.value.blockdevice
+        )
 
     def _create_blockdevice_dataset(self, dataset_id, maximum_size):
         """
