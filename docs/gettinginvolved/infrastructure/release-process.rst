@@ -141,11 +141,11 @@ Preparing For a Release
 
       git commit -am "Updated NEWS"
 
-#. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
+#. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
-   - Update the "What's New" document.
+   - Update the "Release Notes" document.
    - (optional) Add a version heading.
-     If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
+     If this is a Major or Minor Marketing (pre-)release, the "Release Notes" document should have a heading corresponding to the release version.
      If this is a weekly development release, add a "Next Release" heading instead.
    - Refer to the appropriate internal release planning document on Google Drive for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
@@ -155,7 +155,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git commit -am "Updated What's New"
+      git commit -am "Updated Release Notes"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
@@ -263,7 +263,7 @@ So it is important to check that the code in the release branch is working befor
 
 #. Check the changes in the Pull Request:
 
-   The "Files changed" should include changes to NEWS and What's New.
+   The "Files changed" should include changes to NEWS and Release Notes.
    For some releases it may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
    These fixes or documentation changes may have to be merged into ``master`` in order to merge the release branch into ``master``.
    This should either block the acceptance of the release branch, or the team should discuss a workaround for that particular situation.
