@@ -281,7 +281,7 @@ class AgentServiceFactory(PRecord):
         configuration = get_configuration(options)
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
-        ip = configuration.get('public-ip', _get_external_ip(host, port))
+        ip = configuration.get('hostname', _get_external_ip(host, port))
 
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
@@ -467,6 +467,9 @@ class AgentService(PRecord):
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
 
+    node_hostname = field(type=(bytes, type(None)),
+                          initial=None, mandatory=True)
+
     # Cannot use type=NodeCredential because one of the tests really wants to
     # set this to None.
     node_credential = field(mandatory=True)
@@ -488,8 +491,10 @@ class AgentService(PRecord):
         :return: A new instance of ``cls`` with values loaded from the
             configuration.
         """
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service']['port']
+        control_service_host = configuration['control-service']['hostname']
+        control_service_port = configuration['control-service']['port']
+
+        node_hostname = configuration.get('hostname')
 
         node_credential = configuration['node-credential']
         ca_certificate = configuration['ca-certificate']
@@ -498,8 +503,10 @@ class AgentService(PRecord):
         backend_name = api_args.pop('backend')
 
         return cls(
-            control_service_host=host,
-            control_service_port=port,
+            control_service_host=control_service_host,
+            control_service_port=control_service_port,
+
+            node_hostname=node_hostname,
 
             node_credential=node_credential,
             ca_certificate=ca_certificate,
@@ -572,12 +579,15 @@ class AgentService(PRecord):
         backend = self.get_backend()
         deployer_factory = self.deployers[backend.deployer_type]
 
-        address = self.get_external_ip(
-            self.control_service_host, self.control_service_port,
-        )
+        if self.node_hostname is None:
+            hostname = self.get_external_ip(
+                self.control_service_host, self.control_service_port,
+            )
+        else:
+            hostname = self.node_hostname
         node_uuid = self.node_credential.uuid
         return deployer_factory(
-            api=api, hostname=address, node_uuid=node_uuid,
+            api=api, hostname=hostname, node_uuid=node_uuid,
         )
 
     def get_loop_service(self, deployer):

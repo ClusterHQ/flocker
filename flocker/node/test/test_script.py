@@ -196,6 +196,8 @@ class AgentServiceFromConfigurationTests(SynchronousTestCase):
                 control_service_host=host,
                 control_service_port=port,
 
+                node_hostname=None,
+
                 # Compare this separately :/
                 node_credential=None,
                 ca_certificate=self.ca_set.root.credential.certificate,
@@ -218,6 +220,21 @@ class AgentServiceFromConfigurationTests(SynchronousTestCase):
                 ["credential", "path"], None
             ),
         )
+
+    def test_initialized_hostname(self):
+        host = b"192.0.2.13"
+        port = 2314
+        name = u"from_config-test"
+
+        setup_config(self, control_address=host, control_port=port, name=name)
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        config = get_configuration(options)
+        config['hostname'] = 'hostname.example'
+
+        agent_service = AgentService.from_configuration(config)
+
+        self.assertEqual(agent_service.node_hostname, "hostname.example")
 
 
 class AgentServiceGetAPITests(SynchronousTestCase):
@@ -410,6 +427,46 @@ class AgentServiceDeployerTests(SynchronousTestCase):
             deployer,
         )
 
+    def test_hostname(self):
+        """
+        ``AgentService.get_deployer`` creates a new deployer supplied with the
+        hostname from the configuration file, if one is provided.
+        """
+        hostname = "hostname.example"
+
+        class Deployer(PRecord):
+            api = field(mandatory=True)
+            hostname = field(mandatory=True)
+            node_uuid = field(mandatory=True)
+
+        agent_service = self.agent_service.set(
+            "node_hostname", hostname,
+        ).set(
+            "backends", [
+                BackendDescription(
+                    name=self.agent_service.backend_name,
+                    needs_reactor=False, needs_cluster_id=False,
+                    api_factory=None, deployer_type=DeployerType.p2p,
+                ),
+            ],
+        ).set(
+            "deployers", {
+                DeployerType.p2p: Deployer,
+            },
+        )
+
+        api = object()
+        deployer = agent_service.get_deployer(api)
+
+        self.assertEqual(
+            Deployer(
+                api=api,
+                hostname=hostname,
+                node_uuid=self.ca_set.node.uuid,
+            ),
+            deployer,
+        )
+
 
 class AgentServiceLoopTests(SynchronousTestCase):
     """
@@ -542,8 +599,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
     def test_deployer_factory_called_with_ip(self):
         """
-        ``AgentServiceFactory.main`` calls its ``deployer_factory`` with one
-        of the node's IPs.
+        If the configuration doesn't specify a ``hostname``,
+        ``AgentServiceFactory.main`` calls its ``deployer_factory`` with one of
+        the node's IPs.
         """
         spied = []
 
@@ -557,6 +615,32 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
+
+    def test_deployer_factory_called_with_hostname(self):
+        """
+        If the configuration does specify a ``hostname``,
+        ``AgentServiceFactory.main`` calls its ``deployer_factory`` with one of
+        the hostname.
+        """
+        spied = []
+
+        def deployer_factory(node_uuid, hostname, cluster_uuid):
+            spied.append(hostname)
+            return object()
+
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+
+        config = yaml.safe_load(self.config.getContent())
+        config["hostname"] = "hostname.local"
+        self.config.setContent(yaml.safe_dump(config))
+
+        options.parseOptions([b"--agent-config", self.config.path])
+
+        agent = AgentServiceFactory(deployer_factory=deployer_factory)
+        agent.get_service(reactor, options)
+
+        self.assertIn(spied[0], "hostname.local")
 
     def test_missing_configuration_file(self):
         """
