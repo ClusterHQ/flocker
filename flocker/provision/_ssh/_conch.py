@@ -204,3 +204,6 @@ def make_dispatcher(reactor):
         make_twisted_dispatcher(reactor),
         base_dispatcher,
     ])
+
+from ._monkeypatch import _dh_sha256_patch
+_dh_sha256_patch()
