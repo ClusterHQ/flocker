@@ -14,6 +14,7 @@ from twisted.trial.unittest import TestCase
 from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset, Manifestation,
     )
+from flocker.control._config import dataset_id_from_name
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
@@ -46,33 +47,29 @@ class PostgresTests(TestCase):
         """
         Deploy PostgreSQL to a node.
         """
-        self.POSTGRES_APPLICATION = Application(
-            name=POSTGRES_APPLICATION_NAME,
-            image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
-            ports=frozenset([
-                Port(internal_port=POSTGRES_INTERNAL_PORT,
-                     external_port=POSTGRES_EXTERNAL_PORT),
-                ]),
-            volume=AttachedVolume(
-                manifestation=Manifestation(
-                    dataset=Dataset(
-                        dataset_id=unicode(uuid4()),
-                        metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
-                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
-                    primary=True),
-                mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
-            ),
-        )
-
         getting_nodes = get_clean_nodes(self, num_nodes=2)
 
         def deploy_postgres(node_ips):
             self.node_1, self.node_2 = node_ips
 
-            #application_name = (
-            #    u'postgres-volume-example-' + unicode(uuid4())[-8:]
-            #)
-            application_name = POSTGRES_APPLICATION_NAME
+            application_name = POSTGRES_APPLICATION_NAME + unicode(uuid4())[-8:]
+            self.POSTGRES_APPLICATION = Application(
+                name=application_name,
+                image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
+                ports=frozenset([
+                    Port(internal_port=POSTGRES_INTERNAL_PORT,
+                         external_port=POSTGRES_EXTERNAL_PORT),
+                    ]),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=dataset_id_from_name(application_name),
+                            metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                            maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
+                        primary=True),
+                    mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
+                ),
+            )
 
             postgres_deployment = {
                 u"version": 1,
@@ -100,8 +97,6 @@ class PostgresTests(TestCase):
                             u"external": POSTGRES_EXTERNAL_PORT,
                         }],
                         u"volume": {
-                            u"dataset_id":
-                                self.POSTGRES_APPLICATION.volume.dataset.dataset_id,
                             # The location within the container where the data
                             # volume will be mounted; see:
                             # https://github.com/docker-library/postgres/blob/
