@@ -522,7 +522,7 @@ class AgentService(PRecord):
                 return backend
         try:
             return namedAny(self.backend_name + ".FLOCKER_BACKEND")
-        except (AttributeError, ImportError):
+        except (AttributeError, ValueError):
             raise ValueError(
                 "'{!s}' is neither a built-in backend nor a 3rd party "
                 "module.".format(self.backend_name),

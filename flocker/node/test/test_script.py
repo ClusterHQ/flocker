@@ -370,10 +370,10 @@ class AgentServiceGetAPITests(SynchronousTestCase):
         # This backend is hardcoded to always return the same object:
         self.assertIs(api, DUMMY_API)
 
-    def test_bad_3rd_party_backend(self):
+    def test_wrong_attribute_3rd_party_backend(self):
         """
-        If the backend name refers to an unknown backend, an appropriate
-        ``ValueError`` is raised.
+        If the backend name refers to a bad attribute lookup path in an
+        importable package, an appropriate ``ValueError`` is raised.
         """
         agent_service = self.agent_service.set(
             "backend_name", u"flocker.not.a.real.module",
@@ -381,6 +381,19 @@ class AgentServiceGetAPITests(SynchronousTestCase):
         exc = self.assertRaises(ValueError, agent_service.get_api)
         self.assertEqual(str(exc),
                          "'flocker.not.a.real.module' is neither a "
+                         "built-in backend nor a 3rd party module.")
+
+    def test_wrong_package_3rd_party_backend(self):
+        """
+        If the backend name refers to an unimportable package, an appropriate
+        ``ValueError`` is raised.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"notarealmoduleireallyhope",
+        )
+        exc = self.assertRaises(ValueError, agent_service.get_api)
+        self.assertEqual(str(exc),
+                         "'notarealmoduleireallyhope' is neither a "
                          "built-in backend nor a 3rd party module.")
 
 
