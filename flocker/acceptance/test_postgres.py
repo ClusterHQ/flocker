@@ -36,24 +36,6 @@ POSTGRES_APPLICATION_NAME = u"postgres-volume-example"
 POSTGRES_IMAGE = u"postgres"
 POSTGRES_VOLUME_MOUNTPOINT = u'/var/lib/postgresql/data'
 
-POSTGRES_APPLICATION = Application(
-    name=POSTGRES_APPLICATION_NAME,
-    image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
-    ports=frozenset([
-        Port(internal_port=POSTGRES_INTERNAL_PORT,
-             external_port=POSTGRES_EXTERNAL_PORT),
-        ]),
-    volume=AttachedVolume(
-        manifestation=Manifestation(
-            dataset=Dataset(
-                dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
-                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
-            primary=True),
-        mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
-    ),
-)
-
 
 class PostgresTests(TestCase):
     """
@@ -64,15 +46,38 @@ class PostgresTests(TestCase):
         """
         Deploy PostgreSQL to a node.
         """
+        self.POSTGRES_APPLICATION = Application(
+            name=POSTGRES_APPLICATION_NAME,
+            image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
+            ports=frozenset([
+                Port(internal_port=POSTGRES_INTERNAL_PORT,
+                     external_port=POSTGRES_EXTERNAL_PORT),
+                ]),
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(uuid4()),
+                        metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
+                    primary=True),
+                mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
+            ),
+        )
+
         getting_nodes = get_clean_nodes(self, num_nodes=2)
 
         def deploy_postgres(node_ips):
             self.node_1, self.node_2 = node_ips
 
+            #application_name = (
+            #    u'postgres-volume-example-' + unicode(uuid4())[-8:]
+            #)
+            application_name = POSTGRES_APPLICATION_NAME
+
             postgres_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    self.node_1: [POSTGRES_APPLICATION_NAME],
+                    self.node_1: [application_name],
                     self.node_2: [],
                 },
             }
@@ -81,14 +86,14 @@ class PostgresTests(TestCase):
                 u"version": 1,
                 u"nodes": {
                     self.node_1: [],
-                    self.node_2: [POSTGRES_APPLICATION_NAME],
+                    self.node_2: [application_name],
                 },
             }
 
             self.postgres_application = {
                 u"version": 1,
                 u"applications": {
-                    POSTGRES_APPLICATION_NAME: {
+                    application_name: {
                         u"image": POSTGRES_IMAGE,
                         u"ports": [{
                             u"internal": POSTGRES_INTERNAL_PORT,
@@ -96,7 +101,7 @@ class PostgresTests(TestCase):
                         }],
                         u"volume": {
                             u"dataset_id":
-                                POSTGRES_APPLICATION.volume.dataset.dataset_id,
+                                self.POSTGRES_APPLICATION.volume.dataset.dataset_id,
                             # The location within the container where the data
                             # volume will be mounted; see:
                             # https://github.com/docker-library/postgres/blob/
@@ -111,7 +116,7 @@ class PostgresTests(TestCase):
 
             self.postgres_application_different_port = thaw(freeze(
                 self.postgres_application).transform(
-                    [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
+                    [u"applications", application_name, u"ports", 0,
                      u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
             flocker_deploy(self, postgres_deployment,
@@ -126,7 +131,7 @@ class PostgresTests(TestCase):
         not another.
         """
         return assert_expected_deployment(self, {
-            self.node_1: set([POSTGRES_APPLICATION]),
+            self.node_1: set([self.POSTGRES_APPLICATION]),
             self.node_2: set([]),
         })
 
@@ -140,7 +145,7 @@ class PostgresTests(TestCase):
 
         return assert_expected_deployment(self, {
             self.node_1: set([]),
-            self.node_2: set([POSTGRES_APPLICATION]),
+            self.node_2: set([self.POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):
