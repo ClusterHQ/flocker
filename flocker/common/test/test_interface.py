@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Tests for ``flocker.common.interface_decorator``.
+Tests for ``flocker.common._interface``.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -13,7 +13,7 @@ from eliot import Field, MessageType
 
 from zope.interface import Interface, implementer
 
-from ..common import interface_decorator
+from .. import interface_decorator
 
 
 # Eliot structures for testing ``interface_decorator``.
@@ -45,8 +45,9 @@ class IDummy(Interface):
 class Dummy(object):
     """
     Dummy class that implements ``IDummy`` interface.
-    Implements two methods: one to return an object,
-    and the second to raise an ``Exception``.
+
+    Implements two methods: one to return an object, and the second
+    to raise an ``Exception``.
     """
     def __init__(self, result):
         self._result = result
