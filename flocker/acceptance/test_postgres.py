@@ -19,7 +19,7 @@ from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
                         get_clean_nodes, require_flocker_cli,
-                        require_moving_backend)
+                        require_moving_backend, get_test_cluster)
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE
 
@@ -37,24 +37,6 @@ POSTGRES_APPLICATION_NAME = u"postgres-volume-example"
 POSTGRES_IMAGE = u"postgres"
 POSTGRES_VOLUME_MOUNTPOINT = u'/var/lib/postgresql/data'
 
-POSTGRES_APPLICATION = Application(
-    name=POSTGRES_APPLICATION_NAME,
-    image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
-    ports=frozenset([
-        Port(internal_port=POSTGRES_INTERNAL_PORT,
-             external_port=POSTGRES_EXTERNAL_PORT),
-        ]),
-    volume=AttachedVolume(
-        manifestation=Manifestation(
-            dataset=Dataset(
-                dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
-                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
-            primary=True),
-        mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
-    ),
-)
-
 
 class PostgresTests(TestCase):
     """
@@ -66,7 +48,32 @@ class PostgresTests(TestCase):
         Deploy PostgreSQL to a node.
         """
         new_dataset_id = unicode(uuid4())
-        getting_cluster = get_test_cluster(reactor, 2)
+        self.node_ips = []
+        self.POSTGRES_APPLICATION = Application(
+            name=POSTGRES_APPLICATION_NAME,
+            image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
+            ports=frozenset([
+                Port(internal_port=POSTGRES_INTERNAL_PORT,
+                     external_port=POSTGRES_EXTERNAL_PORT),
+                ]),
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(
+                        dataset_id=new_dataset_id,
+                        metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
+                    primary=True),
+                mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
+            ),
+        )
+        getting_cluster = get_clean_nodes(self, num_nodes=2)
+
+        def set_node_ips(node_ips):
+            self.node_ips = [ip for ip in node_ips]
+            return node_ips
+        getting_cluster.addCallback(set_node_ips)
+        getting_cluster.addCallback(lambda _: get_test_cluster(reactor, 2))
+
         def create_dataset(cluster):
             requested_dataset = {
                 u"primary": cluster.nodes[0].uuid,
@@ -80,8 +87,6 @@ class PostgresTests(TestCase):
             )
             return waiting_for_create
         getting_cluster.addCallback(create_dataset)
-        getting_nodes = getting_cluster.addCallback(get_clean_nodes(self, num_nodes=2))
-
 
         def deploy_postgres(node_ips):
             self.node_1, self.node_2 = node_ips
@@ -134,8 +139,8 @@ class PostgresTests(TestCase):
             flocker_deploy(self, postgres_deployment,
                            self.postgres_application)
 
-        getting_nodes.addCallback(deploy_postgres)
-        return getting_nodes
+        getting_cluster.addCallback(lambda _: deploy_postgres(self.node_ips))
+        return getting_cluster
 
     def test_deploy(self):
         """
@@ -143,7 +148,7 @@ class PostgresTests(TestCase):
         not another.
         """
         return assert_expected_deployment(self, {
-            self.node_1: set([POSTGRES_APPLICATION]),
+            self.node_1: set([self.POSTGRES_APPLICATION]),
             self.node_2: set([]),
         })
 
@@ -157,7 +162,7 @@ class PostgresTests(TestCase):
 
         return assert_expected_deployment(self, {
             self.node_1: set([]),
-            self.node_2: set([POSTGRES_APPLICATION]),
+            self.node_2: set([self.POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):
