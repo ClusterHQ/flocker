@@ -170,11 +170,18 @@ Preparing For a Release
 
       git push --set-upstream origin release/flocker-${VERSION}
 
+#. Go to the `BuildBot web status`_ and force a build on the just-created branch.
+
+#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
+
+   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
+   This means that ``awscli`` may have correct defaults.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      aws configure
+
 #. Ensure all the required tests pass on BuildBot:
-
-   Go to the `BuildBot web status`_ and force a build on the just-created branch.
-
-   The next steps in this section can be done while waiting for BuildBot to run, unless otherwise stated.
 
    Unfortunately it is acceptable or expected for some tests to fail.
    Discuss with the team whether the release can continue given any failed tests.
@@ -190,26 +197,23 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
-#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
-
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      aws configure
-
 #. Update the staging documentation:
-
-   This requires the BuildBot step to have finished.
 
    .. prompt:: bash [vagrant@localhost]$
 
       ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
 
-#. Make a pull request on GitHub:
+#. Check that the staging documentation is set up correctly:
 
-   This requires the BuildBot step to have finished.
+   The following command outputs error messages if the documentation does not redirect correctly.
+   It outputs a success message if the documentation does redirect correctly.
+   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      ~/flocker-${VERSION}/admin/test-redirects --doc-version ${VERSION}
+
+#. Make a pull request on GitHub:
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
    Add a note to the pull request why any failed tests were deemed acceptable.
@@ -230,33 +234,6 @@ So it is important to check that the code in the release branch is working befor
 .. note::
 
    Make sure to follow the latest version of this documentation when reviewing a release.
-
-#. Check that the staging documentation is set up correctly:
-
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
-
-   XXX This should be automated, see :issue:`1701`.
-
-   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
-
-   - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
-
-   - For a marketing release, the following URLs should redirect to the above URL.
-
-     - https://docs.staging.clusterhq.com/
-     - https://docs.staging.clusterhq.com/en/
-     - https://docs.staging.clusterhq.com/en/latest/
-
-     In addition, check that deep-links to `/en/latest/` work.
-     https://docs.staging.clusterhq.com/en/latest/authors.html
-     should redirect to
-     ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
-
-   - For a development release, the following redirects should work.
-
-     - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Check the changes in the Pull Request:
 
@@ -312,6 +289,16 @@ Release
       admin/publish-artifacts
       admin/publish-docs --production
 
+#. Check that the staging documentation is set up correctly:
+
+   The following command outputs error messages if the documentation does not redirect correctly.
+   It outputs a success message if the documentation does redirect correctly.
+   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      ~/flocker-${VERSION}/admin/test-redirects --production
+
 #. Copy the AWS configuration to your local home directory:
 
    If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
@@ -326,33 +313,6 @@ Release
 
 Post-Release Review Process
 ---------------------------
-
-#. Check that the documentation is set up correctly:
-
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
-
-   XXX This should be automated, see :issue:`1701`.
-
-   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
-
-   - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
-
-   - For a marketing release, the following URLs should redirect to the above URL.
-
-     - https://docs.clusterhq.com/
-     - https://docs.clusterhq.com/en/
-     - https://docs.clusterhq.com/en/latest/
-
-     In addition, check that deep-links to `/en/latest/` work.
-     https://docs.clusterhq.com/en/latest/authors.html
-     should redirect to
-     ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
-
-   - For a development release, the following redirects should work.
-
-     - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
@@ -384,4 +344,3 @@ The issue(s) for the planned improvements should be put into the next sprint.
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
-.. _BrowserStack: https://www.browserstack.com/
