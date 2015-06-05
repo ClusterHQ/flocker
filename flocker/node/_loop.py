@@ -313,7 +313,7 @@ class ConvergenceLoop(object):
             d = DeferredContext(
                 self.deployer.discover_state(known_local_state))
 
-        def got_local_state(state_changes):
+        def got_local_state(state_changes, node_snapshot):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
             for state in state_changes:
@@ -327,7 +327,7 @@ class ConvergenceLoop(object):
                                        state_changes=state_changes,
                                        eliot_context=context)
             action = self.deployer.calculate_changes(
-                self.configuration, self.cluster_state
+                self.configuration, self.cluster_state, node_snapshot
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
