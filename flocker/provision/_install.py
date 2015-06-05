@@ -546,7 +546,7 @@ def task_enable_flocker_agent(distribution, control_node,
         "dataset": dataset_backend_configuration,
     }
     if public_ip is not None:
-        agent_config['public-ip'] = public_ip
+        agent_config['hostname'] = public_ip
     put_config_file = put(
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(agent_config),
