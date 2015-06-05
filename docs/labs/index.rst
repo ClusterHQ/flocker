@@ -10,6 +10,7 @@ However, if they are popular then they may be promoted to supported projects.
    docker-plugin
    installer
    volumes-cli
+   volumes-gui
    mesosphere
    swarm
    kubernetes
