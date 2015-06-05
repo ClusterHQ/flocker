@@ -71,9 +71,7 @@ from ....common.test.test_thread import NonThreadPool, NonReactor
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
-# Enough space for the Ext4 journal
-# And enough space for predictable inode counts after resize in
-# ResizeFilesystemTests.test_shrink
+# Enough space for the ext4 journal:
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -1878,58 +1876,6 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
-    def test_resize_unknown_volume(self):
-        """
-        ``resize_volume`` raises ``UnknownVolume`` if passed a
-        ``blockdevice_id`` does not exist.
-        """
-        blockdevice_id = unicode(uuid4())
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.resize_volume,
-            blockdevice_id=blockdevice_id,
-            size=self.minimum_allocatable_size * 10,
-        )
-        self.assertEqual(exception.args, (blockdevice_id,))
-
-    def test_resize_volume_listed(self):
-        """
-        ``resize_volume`` returns when the ``BlockDeviceVolume`` has been
-        resized and ``list_volumes`` then reports the ``BlockDeviceVolume``
-        with the new size.
-        """
-        unrelated_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        original_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        new_size = self.minimum_allocatable_size * 8
-        self.api.resize_volume(original_volume.blockdevice_id, new_size)
-        larger_volume = original_volume.set(size=new_size)
-
-        self.assertItemsEqual(
-            [unrelated_volume, larger_volume],
-            self.api.list_volumes()
-        )
-
-    def test_resize_destroyed_volume(self):
-        """
-        ``resize_volume`` raises ``UnknownVolume`` if the supplied
-        ``blockdevice_id`` was associated with a volume but that volume has
-        been destroyed.
-        """
-        volume = self._destroyed_volume()
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.resize_volume,
-            blockdevice_id=volume.blockdevice_id,
-            size=self.minimum_allocatable_size,
-        )
-        self.assertEqual(exception.args, (volume.blockdevice_id,))
-
     def assert_foreign_volume(self, flocker_volume):
         """
         Assert that a volume does not belong to the API object under test.
@@ -2210,78 +2156,6 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size + 1,
         )
-
-    def test_resize_grow_sparse(self):
-        """
-        ``resize_volume`` extends backing files sparsely.
-        """
-        requested_size = self.minimum_allocatable_size
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=requested_size
-        )
-
-        larger_size = requested_size * 2
-        self.api.resize_volume(
-            volume.blockdevice_id, larger_size,
-        )
-        [volume] = self.api.list_volumes()
-        allocated_size_2 = volume.size
-        size = get_size_info(self.api, volume)
-        self.assertEqual(
-            (0, allocated_size_2),
-            (size.actual, size.reported)
-        )
-
-    def test_resize_with_non_allocation_unit(self):
-        """
-        ``resize_volume`` raises ``ValueError`` unless the supplied
-        ``size`` is a multiple of
-        ``IBlockDeviceAPI.allocated_unit()``.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-
-        self.assertRaises(
-            ValueError,
-            self.api.resize_volume,
-            blockdevice_id=volume.blockdevice_id,
-            size=self.minimum_allocatable_size + 1,
-        )
-
-    def test_resize_data_preserved(self):
-        """
-        ``resize_volume`` does not modify the data contained inside the backing
-        file.
-        """
-        start_size = self.minimum_allocatable_size
-        end_size = start_size * 2
-        volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
-        backing_file = self.api._root_path.descendant(
-            ['unattached', _backing_file_name(volume)]
-        )
-        # Make up a bit pattern that seems kind of interesting.  Not being
-        # particularly rigorous here.  Assuming any failures will be pretty
-        # obvious.
-        pattern = b"\x00\x0f\xf0\xff"
-        expected_data = pattern * (start_size / len(pattern))
-
-        # Make sure we didn't do something insane:
-        self.assertEqual(len(expected_data), start_size)
-
-        with backing_file.open("w") as fObj:
-            fObj.write(expected_data)
-
-        self.api.resize_volume(volume.blockdevice_id, end_size)
-        [volume] = self.api.list_volumes()
-
-        backing_file = self.api._root_path.descendant(
-            ['unattached', _backing_file_name(volume)]
-        )
-        with backing_file.open("r") as fObj:
-            data_after_resize = fObj.read(start_size)
-
-        self.assertEqual(expected_data, data_after_resize)
 
     def test_list_unattached_volumes(self):
         """

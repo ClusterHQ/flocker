@@ -104,15 +104,6 @@ class DatasetExists(Exception):
         self.blockdevice = blockdevice
 
 
-OLD_SIZE = Field.for_types(
-    u"old_size", [int], u"The size of a volume prior to a resize operation."
-)
-
-NEW_SIZE = Field.for_types(
-    u"new_size", [int],
-    u"The intended size of a volume after resize operation."
-)
-
 DATASET = Field(
     u"dataset",
     lambda dataset: dataset.dataset_id,
@@ -260,32 +251,11 @@ DESTROY_VOLUME = ActionType(
     u"The volume for a block-device-backed dataset is being destroyed."
 )
 
-RESIZE_VOLUME = ActionType(
-    u"agent:blockdevice:resize_volume",
-    [VOLUME, OLD_SIZE, NEW_SIZE],
-    [],
-    u"The volume for a block-device-backed dataset is being resized."
-)
-
 CREATE_FILESYSTEM = ActionType(
     u"agent:blockdevice:create_filesystem",
     [VOLUME, FILESYSTEM_TYPE],
     [],
     u"A block device is being initialized with a filesystem.",
-)
-
-RESIZE_FILESYSTEM = ActionType(
-    u"agent:blockdevice:resize_filesystem",
-    [VOLUME],
-    [],
-    u"The filesystem on a block-device-backed dataset is being resized."
-)
-
-RESIZE_BLOCK_DEVICE_DATASET = ActionType(
-    u"agent:blockdevice:resize",
-    [DATASET_ID],
-    [],
-    u"A block-device-backed dataset is being resized.",
 )
 
 INVALID_DEVICE_PATH_VALUE = Field(
@@ -396,31 +366,6 @@ class DestroyBlockDeviceDataset(PRecord):
             ),
             deployer,
         )
-
-
-@implementer(IStateChange)
-class ResizeVolume(PRecord):
-    """
-    Change the size of a volume.
-
-    :ivar BlockDeviceVolume volume: The volume to resize.
-    :ivar int size: The size (in bytes) to which to resize the volume.
-    """
-    volume = _volume_field()
-    size = field(type=int, mandatory=True)
-
-    @property
-    def eliot_action(self):
-        return RESIZE_VOLUME(
-            _logger, volume=self.volume,
-            old_size=self.volume.size, new_size=self.size,
-        )
-
-    def run(self, deployer):
-        deployer.block_device_api.resize_volume(
-            self.volume.blockdevice_id, self.size
-        )
-        return succeed(None)
 
 
 @implementer(IStateChange)
@@ -839,13 +784,6 @@ class IBlockDeviceAsyncAPI(Interface):
         :returns: A ``Deferred`` that fires when the volume has been detached.
         """
 
-    def resize_volume(blockdevice_id, size):
-        """
-        See ``BlockDeviceAPI.resize_volume``.
-
-        :returns: A ``Deferred`` that fires when the volume has been resized.
-        """
-
     def list_volumes():
         """
         See ``BlockDeviceAPI.list_volume``.
@@ -947,23 +885,6 @@ class IBlockDeviceAPI(Interface):
             exist.
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to anything.
-        :returns: ``None``
-        """
-
-    def resize_volume(blockdevice_id, size):
-        """
-        Resize an unattached ``blockdevice_id``.
-
-        This changes the amount of storage available.  It does not change the
-        data on the volume (including the filesystem).
-
-        :param unicode blockdevice_id: The unique identifier for the block
-            device being detached.
-        :param int size: The required size, in bytes, of the volume.
-
-        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
-            exist.
-
         :returns: ``None``
         """
 
@@ -1340,32 +1261,6 @@ class LoopbackBlockDeviceAPI(object):
             filename
         )
         volume_path.moveTo(new_path)
-
-    def resize_volume(self, blockdevice_id, size):
-        """
-        Change the size of the loopback backing file.
-
-        Sparseness is maintained by using ``truncate`` on the backing file.
-
-        This implementation is limited to being able to resize volumes only if
-        they are unattached.
-        """
-        check_allocatable_size(self.allocation_unit(), size)
-        volume = get_blockdevice_volume(self, blockdevice_id)
-        filename = _backing_file_name(volume)
-        backing_path = self._unattached_directory.child(filename)
-        try:
-            backing_file = backing_path.open("r+")
-        except IOError:
-            raise UnknownVolume(blockdevice_id)
-        else:
-            try:
-                backing_file.truncate(size)
-            finally:
-                backing_file.close()
-        resized_volume = volume.set('size', size)
-        resized_filename = _backing_file_name(resized_volume)
-        backing_path.moveTo(backing_path.sibling(resized_filename))
 
     def list_volumes(self):
         """
