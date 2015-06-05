@@ -334,6 +334,7 @@ class BlockDeviceVolume(PRecord):
     attached_device = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
+    is_cached_copy = field(type=bool, initial=False, mandatory=True)
     dataset_id = field(type=UUID, mandatory=True)
 
 
@@ -375,7 +376,6 @@ class BlockDeviceVolumeCache(object):
     def lookup(self, blockdevice_id):
         """
         Given a blockdevice id, fetch ``BlockDeviceVolume`` from cache.
-        XXX Improve linear time complexity of lookup.
 
         :param unicode blockdevice_id: Identifier for volume to lookup.
 
@@ -390,6 +390,7 @@ class BlockDeviceVolumeCache(object):
             except KeyError:
                 self._lookup_miss_count += 1
                 volume = None
+        self.log_stats()
         return volume
 
     def insert(self, volume):
@@ -401,8 +402,10 @@ class BlockDeviceVolumeCache(object):
         :param BlockDeviceVolume volume: Volume to insert into cache.
         """
         with self.lock:
+            volume.set('is_cached_copy', True)
             self.data = self.data.set(volume.blockdevice_id, volume)
             self._insert_count += 1
+        self.log_stats()
 
     def update(self, blockdevice_id, update_fields):
         """
@@ -430,7 +433,8 @@ class BlockDeviceVolumeCache(object):
                         volume = volume.set(key, value)
                 self.data = self.data.set(blockdevice_id, volume)
             self._update_count += 1
-            return volume
+        self.log_stats()
+        return volume
 
     def remove(self, blockdevice_id):
         """
@@ -442,6 +446,7 @@ class BlockDeviceVolumeCache(object):
         with self.lock:
             self.data = self.data.discard(blockdevice_id)
             self._remove_count += 1
+        self.log_stats()
 
     def list_keys(self):
         """

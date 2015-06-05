@@ -43,16 +43,6 @@ RETRY_LIMIT = u'10'
 BOTO_HTTP_SOCKET_TIMEOUT = u'300'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 
-# Set Boto debug level to ``1``, requesting basic debug messages from Boto
-# to be printed.
-# See https://code.google.com/p/boto/wiki/BotoConfig#Boto
-# for available debug levels.
-# Warning: BotoConfig is a Boto global option, so, all Boto clients from
-# from this process will have their log levels modified. See
-# https://clusterhq.atlassian.net/browse/FLOC-1962
-# to track evaluation of impact of log level change.
-BOTO_DEBUG_LEVEL = u'0'
-
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
@@ -80,11 +70,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
         config.add_section('Boto')
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
-
-    # Set Boto debug level to BOTO_DEBUG_LEVEL:
-    # ``1``: log basic debug messages
-    config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
-    # config.set('Boto', 'http_socket_timeout', BOTO_HTTP_SOCKET_TIMEOUT)
 
     # Set Boto log header to tag Boto logs for Eliot's consumption.
     set_stream_logger(BOTO_LOG_HEADER, level=logging.WARNING)
@@ -192,6 +177,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
         size=int(GiB(ebs_volume.size).to_Byte().value),
         attached_to=ebs_volume.attach_data.instance_id,
         attached_device=unicode(ebs_volume.tags[ATTACHED_DEVICE_LABEL]),
+        is_cached_copy=False,
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 
