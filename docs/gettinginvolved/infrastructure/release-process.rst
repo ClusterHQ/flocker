@@ -252,14 +252,14 @@ So it is important to check that the code in the release branch is working befor
      - https://docs.staging.clusterhq.com/en/latest/
 
      In addition, check that deep-links to `/en/latest/` work.
-     https://docs.staging.clusterhq.com/en/latest/authors.html
+     https://docs.staging.clusterhq.com/en/latest/releasenotes/index.html
      should redirect to
-     ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+     ``https://docs.staging.clusterhq.com/en/${VERSION}/releasenotes/index.html``
 
    - For a development release, the following redirects should work.
 
      - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.staging.clusterhq.com/en/devel/releasenotes/index.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/releasenotes/index.html``
 
 #. Check the changes in the Pull Request:
 
@@ -348,14 +348,14 @@ Post-Release Review Process
      - https://docs.clusterhq.com/en/latest/
 
      In addition, check that deep-links to `/en/latest/` work.
-     https://docs.clusterhq.com/en/latest/authors.html
+     https://docs.clusterhq.com/en/latest/releasenotes/index.html
      should redirect to
-     ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+     ``https://docs.clusterhq.com/en/${VERSION}/releasenotes/index.html``
 
    - For a development release, the following redirects should work.
 
      - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.clusterhq.com/en/devel/releasenotes/index.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/releasenotes/index.html``
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
