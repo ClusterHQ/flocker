@@ -99,6 +99,9 @@ Preparing For a Release
 
    .. prompt:: bash $
 
+      # The following command means that you will not be asked whether
+      # you want to continue connecting
+      ssh-keyscan github.com >> ~/.ssh/known_hosts
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       vagrant up
