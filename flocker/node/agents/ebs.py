@@ -596,3 +596,33 @@ class EBSBlockDeviceAPI(object):
         if device is None:
             raise UnattachedVolume(blockdevice_id)
         return FilePath(device)
+
+
+def aws_from_configuration(region, zone, access_key_id, secret_access_key,
+                           cluster_id):
+    """
+    Build an ``EBSBlockDeviceAPI`` instance using configuration and
+    credentials.
+
+    :param str region: The EC2 region slug.  Volumes will be manipulated in
+        this region.
+    :param str zone: The EC2 availability zone.  Volumes will be manipulated in
+        this zone.
+    :param str access_key_id: The EC2 API key identifier to use to make AWS API
+        calls.
+    :param str secret_access_key: The EC2 API key to use to make AWS API calls.
+    :param UUID cluster_id: The unique identifier of the cluster with which to
+        associate the resulting object.  It will only manipulate volumes
+        belonging to this cluster.
+
+    :return: A ``EBSBlockDeviceAPI`` instance using the given parameters.
+    """
+    return EBSBlockDeviceAPI(
+        ec2_client=ec2_client(
+            region=region,
+            zone=zone,
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        ),
+        cluster_id=cluster_id,
+    )

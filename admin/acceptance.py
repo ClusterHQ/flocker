@@ -11,7 +11,7 @@ from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination, writeFailure
+from eliot import add_destination, write_failure
 from pyrsistent import pvector
 
 from twisted.internet.error import ProcessTerminated
@@ -32,6 +32,8 @@ from flocker.provision._ssh import (
 from flocker.provision._install import (
     ManagedNode,
     task_pull_docker_images,
+    uninstall_flocker,
+    install_flocker,
     configure_cluster,
     configure_zfs,
 )
@@ -141,7 +143,18 @@ class IClusterRunner(Interface):
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source', 'variants'
+    # Name of the distribution the nodes run - eg "ubuntu-14.04"
+    'distribution',
+
+    'top_level', 'config', 'package_source', 'variants',
+
+    # DatasetBackend named constant of the dataset backend the nodes use - eg
+    # DatasetBackend.zfs
+    'dataset_backend',
+
+    # dict giving configuration for the dataset backend the nodes use - eg
+    # {"pool": "flocker"}
+    'dataset_backend_configuration',
 ]
 
 
@@ -151,19 +164,82 @@ class ManagedRunner(object):
     An ``IClusterRunner`` implementation that doesn't start or stop nodes but
     only gives out access to nodes that are already running and managed by
     someone else.
+
+    :ivar pvector _nodes: The ``ManagedNode`` instances representing the nodes
+        that are already running that this object will pretend to start and
+        stop.
+    :ivar PackageSource package_source: The version of the software this object
+        will install on the nodes when it "starts" them.
+    :ivar NamedConstant dataset_backend: The ``DatasetBackend`` constant
+        representing the dataset backend that the nodes will be configured to
+        use when they are "started".
+    :ivar dict dataset_backend_configuration: The backend-specific
+        configuration the nodes will be given for their dataset backend.
     """
-    def __init__(self, node_addresses, distribution):
+    def __init__(self, node_addresses, package_source, distribution,
+                 dataset_backend, dataset_backend_configuration):
         self._nodes = pvector(
             ManagedNode(address=address, distribution=distribution)
             for address in node_addresses
         )
+        self.package_source = package_source
+        self.dataset_backend = dataset_backend
+        self.dataset_backend_configuration = dataset_backend_configuration
+
+    def _upgrade_flocker(self, reactor, nodes, package_source):
+        """
+        Put the version of Flocker indicated by ``package_source`` onto all of
+        the given nodes.
+
+        This takes a primitive approach of uninstalling the software and then
+        installing the new version instead of trying to take advantage of any
+        OS-level package upgrade support.  Because it's easier.  The package
+        removal step is allowed to fail in case the package is not installed
+        yet (other failures are not differentiated).  The only action taken on
+        failure is that the failure is logged.
+
+        :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
+            software.
+        :param PackageSource package_source: The version of the software to
+            which to upgrade.
+
+        :return: A ``Deferred`` that fires when the software has been upgraded.
+        """
+        dispatcher = make_dispatcher(reactor)
+
+        uninstalling = perform(dispatcher, uninstall_flocker(nodes))
+        uninstalling.addErrback(write_failure, logger=None)
+
+        def install(ignored):
+            return perform(
+                dispatcher,
+                install_flocker(nodes, package_source),
+            )
+        installing = uninstalling.addCallback(install)
+        return installing
 
     def start_cluster(self, reactor):
         """
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
-        return configured_cluster_for_nodes(reactor, self._nodes)
+        if self.package_source is not None:
+            upgrading = self._upgrade_flocker(
+                reactor, self._nodes, self.package_source
+            )
+        else:
+            upgrading = succeed(None)
+
+        def configure(ignored):
+            return configured_cluster_for_nodes(
+                reactor,
+                generate_certificates(self._nodes),
+                self._nodes,
+                self.dataset_backend,
+                self.dataset_backend_configuration,
+            )
+        configuring = upgrading.addCallback(configure)
+        return configuring
 
     def stop_cluster(self, reactor):
         """
@@ -172,16 +248,12 @@ class ManagedRunner(object):
         return succeed(None)
 
 
-def configured_cluster_for_nodes(reactor, nodes):
+def generate_certificates(nodes):
     """
-    Get a ``Cluster`` with Flocker services running on the right nodes.
+    Generate a new set of certificates for the given nodes.
 
-    Generate new certificates for the services.
-
-    :param reactor: The reactor.
-    :param nodes: The ``ManagedNode``s on which to operate.
-    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
-        configured.
+    :return: A ``Certificates`` instance referring to the newly generated
+        certificates.
     """
     certificates_path = FilePath(mkdtemp())
     print("Generating certificates in: {}".format(certificates_path.path))
@@ -190,18 +262,39 @@ def configured_cluster_for_nodes(reactor, nodes):
         nodes[0].address,
         len(nodes)
     )
+    return certificates
+
+
+def configured_cluster_for_nodes(
+    reactor, certificates, nodes, dataset_backend,
+    dataset_backend_configuration
+):
+    """
+    Get a ``Cluster`` with Flocker services running on the right nodes.
+
+    :param reactor: The reactor.
+    :param Certificates certificates: The certificates to install on the cluster.
+    :param nodes: The ``ManagedNode``s on which to operate.
+    :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
+        representing the dataset backend that the nodes will be configured to
+        use when they are "started".
+    :param dict dataset_backend_configuration: The backend-specific
+        configuration the nodes will be given for their dataset backend.
+
+    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
+        configured.
+    """
     cluster = Cluster(
-        all_nodes=nodes,
+        all_nodes=pvector(nodes),
         control_node=nodes[0],
         agent_nodes=nodes,
-        dataset_backend=DatasetBackend.zfs,
-        certificates_path=certificates_path,
+        dataset_backend=dataset_backend,
         certificates=certificates
     )
 
     configuring = perform(
         make_dispatcher(reactor),
-        configure_cluster(cluster)
+        configure_cluster(cluster, dataset_backend_configuration)
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
@@ -264,15 +357,12 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        certificates = Certificates(self.certificates_path)
-
-        cluster = Cluster(
-            all_nodes=nodes,
-            control_node=nodes[0],
-            agent_nodes=nodes,
-            dataset_backend=DatasetBackend.zfs,
-            certificates_path=self.certificates_path,
-            certificates=certificates
+        cluster = yield configured_cluster_for_nodes(
+            reactor,
+            Certificates(self.certificates_path),
+            nodes,
+            self.dataset_backend,
+            self.dataset_backend_configuration,
         )
 
         returnValue(cluster)
@@ -286,7 +376,6 @@ class VagrantRunner(object):
 
 @attributes(RUNNER_ATTRIBUTES + [
     'provisioner',
-    'dataset_backend',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -356,24 +445,15 @@ class LibcloudRunner(object):
             ])
             commands = commands.on(success=lambda _: zfs_commands)
 
-        certificates_path = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(certificates_path.path))
-        certificates = Certificates.generate(
-            certificates_path,
-            self.nodes[0].address,
-            len(self.nodes))
-
-        cluster = Cluster(
-            all_nodes=pvector(self.nodes),
-            control_node=self.nodes[0],
-            agent_nodes=pvector(self.nodes),
-            dataset_backend=DatasetBackend.zfs,
-            certificates_path=certificates_path,
-            certificates=certificates)
-
-        commands = commands.on(success=lambda _: configure_cluster(cluster))
-
         yield perform(make_dispatcher(reactor), commands)
+
+        cluster = yield configured_cluster_for_nodes(
+            reactor,
+            generate_certificates(self.nodes),
+            self.nodes,
+            self.dataset_backend,
+            self.dataset_backend_configuration,
+        )
 
         returnValue(cluster)
 
@@ -400,17 +480,15 @@ class RunOptions(Options):
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
         ['provider', None, 'vagrant',
-         'The target provider to test against. '
+         'The compute-resource provider to test against. '
          'One of {}.'],
         ['dataset-backend', None, 'zfs',
          'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
                                       in DatasetBackend.iterconstants()))],
         ['config-file', None, None,
-         'Configuration for providers.'],
+         'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
@@ -456,6 +534,13 @@ class RunOptions(Options):
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
+    def dataset_backend_configuration(self):
+        """
+        Get the configuration corresponding to storage driver chosen by the
+        command line options.
+        """
+        return self['config']['storage-drivers'][self['dataset-backend']]
+
     def dataset_backend(self):
         """
         Get the storage driver the acceptance testing nodes will use.
@@ -463,12 +548,21 @@ class RunOptions(Options):
         :return: A constant from ``DatasetBackend`` matching the name of the
             backend chosen by the command-line options.
         """
+        configuration = self.dataset_backend_configuration()
+        # Avoid requiring repetition of the backend name when it is the same as
+        # the name of the configuration section.  But allow it so that there
+        # can be "great-openstack-provider" and "better-openstack-provider"
+        # sections side-by-side that both use "openstack" backend but configure
+        # it slightly differently.
+        dataset_backend_name = configuration.get(
+            "backend", self["dataset-backend"]
+        )
         try:
-            return DatasetBackend.lookupByName(self['dataset-backend'])
+            return DatasetBackend.lookupByName(dataset_backend_name)
         except ValueError:
             raise UsageError(
                 "Unknown dataset backend: {}".format(
-                    self['dataset-backend']
+                    dataset_backend_name
                 )
             )
 
@@ -499,7 +593,6 @@ class RunOptions(Options):
             branch=self['branch'],
             build_server=self['build-server'],
         )
-
         try:
             get_runner = getattr(self, "_runner_" + provider.upper())
         except AttributeError:
@@ -544,6 +637,8 @@ class RunOptions(Options):
             distribution=self['distribution'],
             package_source=package_source,
             variants=self['variants'],
+            dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration()
         )
 
     def _runner_MANAGED(self, package_source, dataset_backend,
@@ -565,11 +660,17 @@ class RunOptions(Options):
         if provider_config is None:
             self._provider_config_missing("managed")
 
+        if not provider_config.get("upgrade"):
+            package_source = None
+
         return ManagedRunner(
             node_addresses=provider_config['addresses'],
+            package_source=package_source,
             # TODO LATER Might be nice if this were part of
             # provider_config. See FLOC-2078.
             distribution=self['distribution'],
+            dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration(),
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -586,8 +687,7 @@ class RunOptions(Options):
         if provider_config is None:
             self._provider_config_missing(provider)
 
-        cloud_config = provider_config.copy()
-        provisioner = CLOUD_PROVIDERS[provider](**cloud_config)
+        provisioner = CLOUD_PROVIDERS[provider](**provider_config)
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -595,6 +695,7 @@ class RunOptions(Options):
             package_source=package_source,
             provisioner=provisioner,
             dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
         )
 
@@ -711,7 +812,7 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-container-agent',
         ])),
     ], handle_line=lambda line: output_file.write(line + b'\n'))
-    ran.addErrback(writeFailure)
+    ran.addErrback(write_failure, logger=None)
 
 
 @inlineCallbacks

@@ -54,8 +54,6 @@ Access
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
-- An OS X (most recent release) system.
-
 - SSH access to ClusterHQ's GitHub repositories.
 
 .. _preparing-for-a-release:
@@ -84,6 +82,14 @@ Preparing For a Release
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
 
    This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+
+   Add your SSH key to the ``sshd`` agent.
+   Note that the ssh key you use must be linked to your GitHub account.
+
+   .. prompt:: bash $
+
+      [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent)
+      ssh-add $HOME/.ssh/id_rsa
 
    This copies your local git configuration from ``~/.gitconfig``.
    If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
@@ -118,7 +124,7 @@ Preparing For a Release
 
    - The NEWS date format is YYYY-MM-DD.
    - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
-   - This means that in doing a release, you may have to change the NEWS heading from a previous Weekly Development Release or pre-release.
+     This means that in doing a release, you may have to remove the previous development release or pre-release header, merging the changes from that previous release into the current release.
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
@@ -138,7 +144,7 @@ Preparing For a Release
    - (optional) Add a version heading.
      If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
      If this is a weekly development release, add a "Next Release" heading instead.
-   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
+   - Refer to the appropriate internal release planning document on Google Drive for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
    - and add links (where appropriate) to documentation that has been added for those features.
 
