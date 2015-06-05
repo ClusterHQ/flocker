@@ -1021,6 +1021,8 @@ def test_redirects_main(args, base_path, top_level):
 
     if len(failed_redirects):
          raise SystemExit(1)
+    else:
+        print 'All tested redirects work correctly.'
 
 
 class PublishDevBoxOptions(Options):
