@@ -206,6 +206,7 @@ Preparing For a Release
 #. Check that the staging documentation is set up correctly:
 
    The following command outputs error messages if the documentation does not redirect correctly.
+   It outputs a success message if the documentation does redirect correctly.
    It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
    .. prompt:: bash [vagrant@localhost]$
@@ -291,6 +292,7 @@ Release
 #. Check that the staging documentation is set up correctly:
 
    The following command outputs error messages if the documentation does not redirect correctly.
+   It outputs a success message if the documentation does redirect correctly.
    It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
    .. prompt:: bash [vagrant@localhost]$
