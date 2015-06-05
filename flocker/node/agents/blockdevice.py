@@ -734,7 +734,7 @@ class AttachVolume(PRecord):
     """
     dataset_id = field(type=UUID, mandatory=True)
     instance_id = field(type=unicode, mandatory=True)
-    snapshot = field(type=NodeSnapshot, mandatory=True)
+    volume = field(type=BlockDeviceVolume, mandatory=True)
 
     @property
     def eliot_action(self):
@@ -755,14 +755,12 @@ class AttachVolume(PRecord):
         """
         api = deployer.async_block_device_api
 
-        volume = self._lookup_volume_in_snapshot()
-
-        if volume is None:
+        if self.volume is None:
             # It was not actually found.
             raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-        ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
+        ATTACH_VOLUME_DETAILS(volume=self.volume).write(_logger)
         return api.attach_volume(
-            volume.blockdevice_id,
+            self.volume.blockdevice_id,
             attach_to=self.instance_id,
         )
 
@@ -1838,7 +1836,7 @@ class BlockDeviceDeployer(PRecord):
             local_state.devices, local_state.paths, configured_manifestations,
         ))
         unmounts = list(self._calculate_unmounts(
-            local_state.paths, configured_manifestations
+            local_state.paths, configured_manifestations,
         ))
 
         # XXX prevent the configuration of unsized datasets on blockdevice
@@ -1853,7 +1851,7 @@ class BlockDeviceDeployer(PRecord):
         )
 
         detaches = list(self._calculate_detaches(
-            local_state.devices, local_state.paths, configured_manifestations
+            local_state.devices, local_state.paths, configured_manifestations,
         ))
         deletes = self._calculate_deletes(configured_manifestations)
 
@@ -1871,6 +1869,17 @@ class BlockDeviceDeployer(PRecord):
             creates + not_in_use(deletes) +
             not_in_use(resizes)
         ))
+
+    def _lookup_volume_in_snapshot(self, snapshot, dataset_id):
+        """
+        Look for ``BlockDeviceVolume`` corresponding to ``dataset_id``
+        in snapshot.
+        """
+        try:
+            if snapshot.volumes[self.dataset_id] is not None:
+                return self.snapshot.volumes[self.dataset_id][0]
+        except KeyError:
+            return None
 
     def _calculate_mounts(self, devices, paths, configured):
         """
@@ -1958,9 +1967,14 @@ class BlockDeviceDeployer(PRecord):
                 continue
             if manifestation.dataset_id in nonmanifest:
                 # It exists and doesn't belong to anyone else.
+                dataset_id = manifestation.dataset_id
+
+                volume = self._lookup_volume_in_snapshot(snapshot, dataset_id)
+
                 yield AttachVolume(
                     dataset_id=UUID(manifestation.dataset_id),
-                    instance_id=snapshot.instance_id
+                    instance_id=snapshot.instance_id,
+                    volume=volume
                 )
 
     def _calculate_deletes(self, configured_manifestations):
