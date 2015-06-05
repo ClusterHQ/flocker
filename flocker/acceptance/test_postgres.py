@@ -8,13 +8,13 @@ from uuid import uuid4
 
 from pyrsistent import pmap, freeze, thaw
 
+from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset, Manifestation,
     )
-from flocker.control._config import dataset_id_from_name
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
@@ -37,6 +37,24 @@ POSTGRES_APPLICATION_NAME = u"postgres-volume-example"
 POSTGRES_IMAGE = u"postgres"
 POSTGRES_VOLUME_MOUNTPOINT = u'/var/lib/postgresql/data'
 
+POSTGRES_APPLICATION = Application(
+    name=POSTGRES_APPLICATION_NAME,
+    image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
+    ports=frozenset([
+        Port(internal_port=POSTGRES_INTERNAL_PORT,
+             external_port=POSTGRES_EXTERNAL_PORT),
+        ]),
+    volume=AttachedVolume(
+        manifestation=Manifestation(
+            dataset=Dataset(
+                dataset_id=unicode(uuid4()),
+                metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
+            primary=True),
+        mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
+    ),
+)
+
 
 class PostgresTests(TestCase):
     """
@@ -47,34 +65,31 @@ class PostgresTests(TestCase):
         """
         Deploy PostgreSQL to a node.
         """
-        getting_nodes = get_clean_nodes(self, num_nodes=2)
+        new_dataset_id = unicode(uuid4())
+        getting_cluster = get_test_cluster(reactor, 2)
+        def create_dataset(cluster):
+            requested_dataset = {
+                u"primary": cluster.nodes[0].uuid,
+                u"dataset_id": new_dataset_id,
+                u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+                u"metadata": {u"name": POSTGRES_APPLICATION_NAME},
+            }
+            configuring_dataset = cluster.create_dataset(requested_dataset)
+            waiting_for_create = configuring_dataset.addCallback(
+                lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+            )
+            return waiting_for_create
+        getting_cluster.addCallback(create_dataset)
+        getting_nodes = getting_cluster.addCallback(get_clean_nodes(self, num_nodes=2))
+
 
         def deploy_postgres(node_ips):
             self.node_1, self.node_2 = node_ips
 
-            application_name = POSTGRES_APPLICATION_NAME + unicode(uuid4())[-8:]
-            self.POSTGRES_APPLICATION = Application(
-                name=application_name,
-                image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
-                ports=frozenset([
-                    Port(internal_port=POSTGRES_INTERNAL_PORT,
-                         external_port=POSTGRES_EXTERNAL_PORT),
-                    ]),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(
-                            dataset_id=dataset_id_from_name(application_name),
-                            metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
-                            maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
-                        primary=True),
-                    mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
-                ),
-            )
-
             postgres_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    self.node_1: [application_name],
+                    self.node_1: [POSTGRES_APPLICATION_NAME],
                     self.node_2: [],
                 },
             }
@@ -83,20 +98,22 @@ class PostgresTests(TestCase):
                 u"version": 1,
                 u"nodes": {
                     self.node_1: [],
-                    self.node_2: [application_name],
+                    self.node_2: [POSTGRES_APPLICATION_NAME],
                 },
             }
 
             self.postgres_application = {
                 u"version": 1,
                 u"applications": {
-                    application_name: {
+                    POSTGRES_APPLICATION_NAME: {
                         u"image": POSTGRES_IMAGE,
                         u"ports": [{
                             u"internal": POSTGRES_INTERNAL_PORT,
                             u"external": POSTGRES_EXTERNAL_PORT,
                         }],
                         u"volume": {
+                            u"dataset_id":
+                                new_dataset_id,
                             # The location within the container where the data
                             # volume will be mounted; see:
                             # https://github.com/docker-library/postgres/blob/
@@ -111,7 +128,7 @@ class PostgresTests(TestCase):
 
             self.postgres_application_different_port = thaw(freeze(
                 self.postgres_application).transform(
-                    [u"applications", application_name, u"ports", 0,
+                    [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                      u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
             flocker_deploy(self, postgres_deployment,
@@ -126,7 +143,7 @@ class PostgresTests(TestCase):
         not another.
         """
         return assert_expected_deployment(self, {
-            self.node_1: set([self.POSTGRES_APPLICATION]),
+            self.node_1: set([POSTGRES_APPLICATION]),
             self.node_2: set([]),
         })
 
@@ -140,7 +157,7 @@ class PostgresTests(TestCase):
 
         return assert_expected_deployment(self, {
             self.node_1: set([]),
-            self.node_2: set([self.POSTGRES_APPLICATION]),
+            self.node_2: set([POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):
