@@ -987,14 +987,16 @@ def test_redirects_main(args, base_path, top_level):
     if is_dev:
         expected_redirects = {
             '/en/devel': '/en/' + doc_version + '/',
-            '/en/devel/authors.html': '/en/' + doc_version + '/authors.html',
+            '/en/devel/faq/index.html':
+                '/en/' + doc_version + '/faq/index.html',
         }
     else:
         expected_redirects = {
             '/': '/en/' + doc_version + '/',
             '/en/': '/en/' + doc_version + '/',
             '/en/latest': '/en/' + doc_version + '/',
-            '/en/latest/authors.html': '/en/' + doc_version + '/authors.html',
+            '/en/latest/faq/index.html':
+                '/en/' + doc_version + '/faq/index.html',
         }
 
     failed_redirects = []
