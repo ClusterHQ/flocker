@@ -493,20 +493,19 @@ class LinkEnviromentTests(SynchronousTestCase):
         ``<alias>_PORT_<local_port>_<protocol>`` and the broken out variants
         ``_ADDR``, ``_PORT`` and ``_PROTO``.
         """
-
         environment = _link_environment(
-            protocol="udp",
-            alias="dash-alias",
+            protocol="tcp",
+            alias="somealias",
             local_port=80,
             hostname=u"the-host",
             remote_port=8080)
         self.assertEqual(
             environment,
             {
-                u'DASH_ALIAS_PORT_80_UDP': u'udp://the-host:8080',
-                u'DASH_ALIAS_PORT_80_UDP_PROTO': u'udp',
-                u'DASH_ALIAS_PORT_80_UDP_ADDR': u'the-host',
-                u'DASH_ALIAS_PORT_80_UDP_PORT': u'8080',
+                u'SOMEALIAS_PORT_80_TCP': u'tcp://the-host:8080',
+                u'SOMEALIAS_PORT_80_TCP_PROTO': u'tcp',
+                u'SOMEALIAS_PORT_80_TCP_ADDR': u'the-host',
+                u'SOMEALIAS_PORT_80_TCP_PORT': u'8080',
             })
 
 
@@ -2195,6 +2194,38 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
         changes = api.calculate_changes(desired, current)
         expected = sequentially(changes=[])
+        self.assertEqual(expected, changes)
+
+    def test_different_node_is_ignorant(self):
+        """
+        The fact that a different node is ignorant about its manifestations
+        does not prevent calculating changes necessary for the current
+        node.
+        """
+        node_state = NodeState(
+            hostname=u"10.1.1.1",
+            uuid=uuid4(),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+            devices={}, paths={},
+            applications=[], used_ports=[],
+        )
+        another_node_state = NodeState(hostname=u"10.1.2.3", uuid=uuid4())
+
+        api = P2PManifestationDeployer(node_state.hostname,
+                                       create_volume_service(self),
+                                       node_uuid=node_state.uuid)
+        current = DeploymentState(nodes=[node_state, another_node_state])
+        desired = Deployment(nodes=[
+            Node(hostname=api.hostname, uuid=api.node_uuid,
+                 manifestations=node_state.manifestations.transform(
+                     (DATASET_ID, "dataset", "deleted"), True))])
+
+        changes = api.calculate_changes(desired, current)
+        expected = sequentially(changes=[
+            in_parallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
         self.assertEqual(expected, changes)
 
 

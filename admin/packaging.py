@@ -1052,9 +1052,17 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
         package_uri = '/flocker'
 
     tag = "clusterhq/build-%s" % (distribution,)
-    build_directory = top_level.descendant(
-        BUILD_TARGETS_SEGMENTS + [distribution]
-    )
+
+    build_targets_directory = top_level.descendant(BUILD_TARGETS_SEGMENTS)
+    build_directory = build_targets_directory.child(distribution)
+    # The <src> path must be inside the context of the build; you cannot COPY
+    # ../something /something, because the first step of a docker build is to
+    # send the context directory (and subdirectories) to the docker daemon.
+    # To work around this, we copy a shared requirements file into the build
+    # directory.
+    requirements_file = build_targets_directory.child('requirements.txt')
+    tmp_requirements = build_directory.child('requirements.txt')
+    requirements_file.copyTo(tmp_requirements)
 
     return BuildSequence(
         steps=[
@@ -1163,7 +1171,8 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of {}.'],
+         # {} is formatted in __init__
+         'The target distribution. One of {}'],
     ]
 
     longdesc = dedent("""\
@@ -1228,10 +1237,6 @@ class BuildScript(object):
         :param base_path: ignored.
         """
         to_file(self.sys_module.stderr)
-
-        if top_level is None:
-            top_level = FilePath(__file__).parent().parent()
-
         distributions = available_distributions(top_level)
 
         options = BuildOptions(distributions)

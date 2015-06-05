@@ -1250,7 +1250,7 @@ class AvailableDistributionTests(TestCase):
     def test_dockerfiles(self):
         """
         Directories in the ``admin/build_targets/`` sub-directory of the path
-        passed to ``available_distributions`` which themselves container a
+        passed to ``available_distributions`` which themselves contain a
         ``Dockerfile`` are considered distributions and included in the result.
         """
         root = FilePath(self.mktemp())
@@ -1282,7 +1282,9 @@ class BuildScriptTests(TestCase):
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = BuildScript(sys_module=fake_sys_module)
-        exception = self.assertRaises(SystemExit, script.main)
+        exception = self.assertRaises(
+            SystemExit,
+            script.main, top_level=FLOCKER_PATH)
         self.assertEqual(1, exception.code)
 
     def test_usage_error_message(self):
@@ -1292,8 +1294,9 @@ class BuildScriptTests(TestCase):
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = BuildScript(sys_module=fake_sys_module)
+
         try:
-            script.main()
+            script.main(top_level=FLOCKER_PATH)
         except SystemExit:
             pass
         self.assertEqual(
@@ -1356,7 +1359,7 @@ class BuildScriptTests(TestCase):
             arguments.append((args, kwargs))
             return build_step
         script.build_command = record_arguments
-        script.main()
+        script.main(top_level=FLOCKER_PATH)
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
@@ -1379,9 +1382,11 @@ class BuildInDockerFunctionTests(TestCase):
         """
         supplied_distribution = 'Foo'
         expected_tag = 'clusterhq/build-%s' % (supplied_distribution,)
-        supplied_top_level = FilePath('/foo/bar')
+        supplied_top_level = FilePath(self.mktemp())
         expected_build_directory = supplied_top_level.descendant(
             ['admin', 'build_targets', supplied_distribution])
+        expected_build_directory.makedirs()
+        expected_build_directory.sibling('requirements.txt').setContent('')
         supplied_destination_path = FilePath('/baz/qux')
         expected_volumes = {
             FilePath('/output'): supplied_destination_path,
@@ -1408,8 +1413,34 @@ class BuildInDockerFunctionTests(TestCase):
                 destination_path=supplied_destination_path,
                 distribution=supplied_distribution,
                 top_level=supplied_top_level,
-                package_uri=expected_package_uri
+                package_uri=expected_package_uri,
             )
+        )
+
+    def test_copies_requirements(self):
+        """
+        A requirements file is copied into the build directory.
+        """
+        supplied_distribution = 'Foo'
+        supplied_top_level = FilePath(self.mktemp())
+        expected_build_directory = supplied_top_level.descendant(
+            ['admin', 'build_targets', supplied_distribution])
+        expected_build_directory.makedirs()
+        requirements = 'some_requirement'
+        expected_build_directory.sibling('requirements.txt').setContent(
+            requirements)
+        supplied_destination_path = FilePath('/baz/qux')
+        expected_package_uri = 'http://www.example.com/foo/bar/whl'
+        build_in_docker(
+            destination_path=supplied_destination_path,
+            distribution=supplied_distribution,
+            top_level=supplied_top_level,
+            package_uri=expected_package_uri
+        )
+
+        self.assertEqual(
+            requirements,
+            expected_build_directory.child('requirements.txt').getContent()
         )
 
 

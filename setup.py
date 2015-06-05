@@ -186,6 +186,7 @@ setup(
             "pyenchant==1.6.6",
             "sphinxcontrib-spelling==2.1.1",
             "sphinx-prompt==0.2.2",
+            "Pygments==2.0.2",
             "sphinxcontrib-httpdomain==1.3.0",
             ],
         # This extra is for developers who need to work on Flocker itself.
@@ -205,6 +206,8 @@ setup(
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
             "requests-file==1.0",
+            # TLS SNI Support is needed to test link redirects
+            "ndg-httpsclient==0.4.0",
             ],
         },
 

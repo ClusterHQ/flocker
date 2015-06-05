@@ -24,6 +24,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
+    Link,
 )
 
 
@@ -1203,6 +1204,46 @@ class DeploymentStateTests(SynchronousTestCase):
                           DeploymentState,
                           nonmanifest_datasets={u"123": MANIFESTATION.dataset})
 
+    def test_all_datasets(self):
+        """
+        ``all_datasets`` returns an iterator of ``Dataset``\ s on any node in
+        the deployment and any that exist but have no manifestations.
+        """
+        nonmanifest_id = unicode(uuid4())
+        deployment = DeploymentState(
+            nodes={
+                # A node for which we are ignorant of manifestations, should
+                # contribute nothing to the result.
+                NodeState(
+                    uuid=uuid4(), hostname=u"192.0.2.4",
+                    applications={}, used_ports={},
+                    manifestations=None, paths=None, devices=None,
+                ),
+                # A node with a manifestation.
+                NodeState(
+                    uuid=uuid4(), hostname=u"192.0.2.5",
+                    applications={}, used_ports={},
+                    manifestations={
+                        MANIFESTATION.dataset_id: MANIFESTATION,
+                    },
+                    paths={
+                        MANIFESTATION.dataset_id: FilePath(b"/foo/bar"),
+                    },
+                    devices={
+                        UUID(MANIFESTATION.dataset_id): FilePath(b"/dev/foo"),
+                    },
+                ),
+            },
+            nonmanifest_datasets={
+                # And one dataset with no manifestation anywhere.
+                nonmanifest_id: Dataset(dataset_id=nonmanifest_id),
+            },
+        )
+        self.assertEqual(
+            [MANIFESTATION.dataset, Dataset(dataset_id=nonmanifest_id)],
+            list(deployment.all_datasets()),
+        )
+
 
 class SameNodeTests(SynchronousTestCase):
     """
@@ -1369,3 +1410,16 @@ class NonManifestDatasetsWipingTests(SynchronousTestCase):
         # "Wiping" this information has no effect:
         updated = self.WIPE.update_cluster_state(cluster_state)
         self.assertEqual(updated, cluster_state)
+
+
+class LinkTests(SynchronousTestCase):
+    """
+    Tests for ``Link``.
+    """
+    def test_case_insensitive(self):
+        """
+        Link aliases are case insensitive as far as comparison goes.
+        """
+        link = Link(alias=u'myLINK', local_port=1, remote_port=1)
+        link2 = link.set('alias', u'MYlink')
+        self.assertEqual(link, link2)

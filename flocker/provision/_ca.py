@@ -28,6 +28,7 @@ class Certificates(object):
     """
     The certificates generated for a cluster.
 
+    :ivar FilePath directory: See ``__init__``.
     :ivar CertAndKey cluster: The certificate authority/cluster files.
     :ivar CertAndKey control: The control service files.
     :ivar CertAndKey user: The user files.
@@ -38,6 +39,7 @@ class Certificates(object):
         :param FilePath directory: Directory where the certificates can be
             found.
         """
+        self.directory = directory
         self.cluster = CertAndKey(directory.child(b"cluster.crt"),
                                   directory.child(b"cluster.key"))
         # Assume only one control service:
@@ -47,7 +49,7 @@ class Certificates(object):
         self.user = CertAndKey(directory.child(b"user.crt"),
                                directory.child(b"user.key"))
         nodes = []
-        for child in directory.globChildren(b"????????-????-*.crt"):
+        for child in directory.globChildren(b"node-*.crt"):
             sibling = FilePath(child.path[:-3] + b"key")
             nodes.append(CertAndKey(child, sibling))
         self.nodes = nodes
@@ -74,4 +76,9 @@ class Certificates(object):
         directory.child(b"allison.key").moveTo(directory.child(b"user.key"))
         for i in range(num_nodes):
             run(b"create-node-certificate")
+        for i, child in enumerate(
+                directory.globChildren(b"????????-????-*.crt")):
+            sibling = FilePath(child.path[:-3] + b"key")
+            child.moveTo(directory.child(b"node-%di.crt" % i))
+            sibling.moveTo(directory.child(b"node-%di.key" % i))
         return cls(directory)

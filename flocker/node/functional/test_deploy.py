@@ -6,7 +6,7 @@ Functional tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, pvector, pset
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -245,6 +245,73 @@ class DeployerTests(TestCase):
                 needles=['{}={}\n'.format(k, v)
                          for k, v in expected_variables])
         d.addCallback(started)
+        return d
+
+    def _start_container_for_introspection(self, **kwargs):
+        """
+        Configure and deploy a busybox container with the given options.
+
+        :param **kwargs: Additional arguments to pass to
+            ``Application.__init__``.
+
+        :return: ``Deferred`` that fires after convergence loop has been
+            run with results of state discovery.
+        """
+        application_name = random_name(self)
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
+
+        deployer = ApplicationNodeDeployer(
+            u"localhost", docker_client,
+            make_memory_network(), node_uuid=uuid4())
+
+        application = Application(
+            name=application_name,
+            image=DockerImage.from_string(u"busybox"),
+            **kwargs)
+        desired_configuration = Deployment(nodes=[
+            Node(uuid=deployer.node_uuid,
+                 applications=[application])])
+        d = change_node_state(deployer, desired_configuration)
+        d.addCallback(lambda _: deployer.discover_state(
+            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                      applications=[], used_ports=[],
+                      manifestations={}, paths={}, devices={})))
+        return d
+
+    @if_docker_configured
+    def test_links_lowercase(self):
+        """
+        Lower-cased link aliases do not result in lack of covergence.
+
+        Environment variables introspected by the Docker client for links
+        are all upper-case, a source of potential problems in detecting
+        the state.
+        """
+        link = Link(alias=u"alias",
+                    local_port=80,
+                    remote_port=8080)
+        d = self._start_container_for_introspection(
+            links=[link],
+            command_line=[u"nc", u"-l", u"-p", u"8080"])
+        d.addCallback(
+            lambda results: self.assertIn(
+                pset([link]),
+                [app.links for app in results[0].applications]))
+        return d
+
+    @if_docker_configured
+    def test_command_line_introspection(self):
+        """
+        Checking the command-line status results in same command-line we
+        passed in.
+        """
+        command_line = pvector([u"nc", u"-l", u"-p", u"8080"])
+        d = self._start_container_for_introspection(command_line=command_line)
+        d.addCallback(
+            lambda results: self.assertIn(
+                command_line,
+                [app.command_line for app in results[0].applications]))
         return d
 
     @if_docker_configured

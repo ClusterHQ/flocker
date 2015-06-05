@@ -403,6 +403,68 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
 
+    def test_pull_timeout(self):
+        """
+        Pulling an image times-out if it takes longer than a provided timeout.
+        """
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests:
+        image = u"ubuntu:12.04"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image, force=True)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name(self)
+        client = DockerClient(
+            namespace=self.namespacing_prefix, long_timeout=1)
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+        # requests has a TimeoutError, but timeout raises a ConnectionError.
+        # Both are subclasses of IOError, so use that for now
+        # https://github.com/kennethreitz/requests/issues/2620
+        self.assertFailure(d, IOError)
+        return d
+
+    def test_pull_timeout_pull(self):
+        """
+        Image pull timeout does not affect subsequent pulls.
+        """
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests.  Note, this is the
+        # same image as test_pull_image_if_necessary, but they run at
+        # different times.
+        image = u"busybox:ubuntu-12.04"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image, force=True)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name(self)
+        client = DockerClient(
+            namespace=self.namespacing_prefix, long_timeout=1)
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+
+        def unexpected_success(_):
+            self.fail('Image unexpectedly pulled within timeout limit')
+
+        def expected_failure(failure):
+            self.assertIsNotNone(failure.check(IOError))
+            # We got our failure, now try to successfully pull
+            client = DockerClient(
+                namespace=self.namespacing_prefix, long_timeout=600)
+            return client.add(name, image)
+
+        d.addCallbacks(unexpected_success, expected_failure)
+        return d
+
     def test_namespacing(self):
         """
         Containers are created with a namespace prefixed to their container
