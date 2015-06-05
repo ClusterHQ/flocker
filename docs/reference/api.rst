@@ -4,21 +4,34 @@
 Flocker REST API Details
 ========================
 
+.. contents::
+	:local:
+
+Introduction
+============
+
 In general the API allows for modifying the desired configuration of the cluster.
 When you use the API to change the configuration, e.g. creating a new dataset:
 
 You will need to provide API end users with a certificate for authentication before they can use the API.
-Please see the :doc:`API authentication guide <./authentication>` for more information.
+For more information, see the :ref:`API authentication guide <authenticate>`.
 
 #. A successful response indicates a change in configuration, not a change to cluster state.
 #. Convergence agents will then take the necessary actions and eventually the cluster's state will match the requested configuration.
 #. The actual cluster state will then reflect the requested change.
-   E.g. cluster datasets state can be accessed via :http:get:`/v1/state/datasets`.
+   For example, you can retrieve the current cluster datasets via :http:get:`/v1/state/datasets`.
 
 .. XXX: Document the response when input validation fails:
 .. https://clusterhq.atlassian.net/browse/FLOC-1613
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
+
+.. XXX: Improvements to the API (split in sections, and create collapse directive), both require Engineering effort:
+.. https://clusterhq.atlassian.net/browse/FLOC-2093
+.. https://clusterhq.atlassian.net/browse/FLOC-2094
+
+REST API Endpoints
+==================
 
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS

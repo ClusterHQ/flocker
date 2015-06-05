@@ -457,9 +457,6 @@ class EBSBlockDeviceAPI(object):
                 )
         return volumes
 
-    def resize_volume(self, blockdevice_id, size):
-        pass
-
     # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, attach_to):
         """

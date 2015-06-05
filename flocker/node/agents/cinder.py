@@ -332,9 +332,6 @@ class CinderBlockDeviceAPI(object):
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
 
-    def resize_volume(self, blockdevice_id, size):
-        pass
-
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach a volume to an instance using the Nova volume manager.
