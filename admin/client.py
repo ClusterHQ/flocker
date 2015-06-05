@@ -168,7 +168,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
+DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04', 'ubuntu-15.04')
 PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
 
 
@@ -231,6 +231,11 @@ class RunOptions(Options):
             branch=self['branch'],
             build_server=self['build-server'],
         )
+
+        if self['distribution'] not in DISTRIBUTIONS:
+            raise UsageError(
+                "Distribution %r not supported. Available distributions: %s"
+                % (self['distribution'], ', '.join(DISTRIBUTIONS)))
 
         if self['provider'] not in PROVIDERS:
             raise UsageError(
