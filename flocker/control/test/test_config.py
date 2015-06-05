@@ -2466,6 +2466,35 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_error_on_duplicate_application_name(self):
+        """
+        ``deployment_from_configuration`` raises a ``ConfigurationError`` if
+        the deployment_configuration refers to an application more than
+        once.
+        """
+        applications = {
+            u'app': Application(
+                name=u'app',
+                image=DockerImage.from_string(u'busybox'),
+            )
+        }
+        exception = self.assertRaises(
+            ConfigurationError,
+            deployment_from_configuration,
+            DeploymentState(
+                nodes=[NodeState(hostname=u'1.2.3.4', uuid=uuid4()),
+                       NodeState(hostname=u'1.2.3.5', uuid=uuid4())]),
+            dict(
+                version=1,
+                nodes={u'1.2.3.4': ['app'],
+                       u'1.2.3.5': ['app']}),
+            applications
+        )
+        self.assertEqual(
+            "Application 'app' appears more than once.",
+            exception.message
+        )
+
     def test_error_on_unknown_ip(self):
         """
         ``deployment_from_configuration`` raises a ``ConfigurationError`` if

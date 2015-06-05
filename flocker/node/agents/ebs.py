@@ -619,10 +619,10 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     """
     return EBSBlockDeviceAPI(
         ec2_client=ec2_client(
-            region=config['region'],
-            zone=config['zone'],
-            access_key_id=config['access_key_id'],
-            secret_access_key=config['secret_access_key'],
+            region=region,
+            zone=zone,
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
         ),
-        cluster_id=config['cluster_id']
+        cluster_id=cluster_id,
     )

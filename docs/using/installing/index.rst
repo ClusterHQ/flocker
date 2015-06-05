@@ -524,7 +524,7 @@ OpenStack must be able to attach volumes created in that region to your Flocker 
 
 .. FLOC-2091 - Fix up this section.
 
-Other items are typically required but vary depending on the :ref:`OpenStack authentication plugin selected<http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`
+Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
 (Flocker relies on these plugins; it does not provide them itself).
 
 Flocker does provide explicit support for a ``rackspace`` authentication plugin.
@@ -567,8 +567,8 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 
 .. _zfs-dataset-backend:
 
-ZFS Peer-to-Peer Backend Configuration (EXPERIMENTAL)
-.....................................................
+ZFS Peer-to-Peer Backend Configuration (ALPHA)
+..............................................
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development,
@@ -588,13 +588,13 @@ The configuration item to use ZFS should look like:
    FLOC-2092
 
 The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
-This requires first installing :ref:`ZFS on Linux<http://zfsonlinux.org/>`.
+This requires first installing `ZFS on Linux <http://zfsonlinux.org/>`_.
 You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
 .. _loopback-dataset-backend:
 
-Loopback Block Device Backend Configuration (TESTING)
-.....................................................
+Loopback Block Device Backend Configuration (INTERNAL TESTING)
+..............................................................
 
 The Loopback backend uses node-local storage as storage for datasets.
 It has no data movement functionality.

@@ -24,7 +24,7 @@ from klein import Klein
 from pyrsistent import discard
 
 from ..restapi import (
-    EndpointResponse, structured, user_documentation, make_bad_request
+    EndpointResponse, structured, user_documentation, make_bad_request,
 )
 from . import (
     Dataset, Manifestation, Application, DockerImage, Port,

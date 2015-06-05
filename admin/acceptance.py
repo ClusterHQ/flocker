@@ -232,6 +232,7 @@ class ManagedRunner(object):
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
+                generate_certificates(self._nodes),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
@@ -246,16 +247,32 @@ class ManagedRunner(object):
         return succeed(None)
 
 
+def generate_certificates(nodes):
+    """
+    Generate a new set of certificates for the given nodes.
+
+    :return: A ``Certificates`` instance referring to the newly generated
+        certificates.
+    """
+    certificates_path = FilePath(mkdtemp())
+    print("Generating certificates in: {}".format(certificates_path.path))
+    certificates = Certificates.generate(
+        certificates_path,
+        nodes[0].address,
+        len(nodes)
+    )
+    return certificates
+
+
 def configured_cluster_for_nodes(
-    reactor, nodes, dataset_backend,
+    reactor, certificates, nodes, dataset_backend,
     dataset_backend_configuration
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
 
-    Generate new certificates for the services.
-
     :param reactor: The reactor.
+    :param Certificates certificates: The certificates to install on the cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
     :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
         representing the dataset backend that the nodes will be configured to
@@ -266,19 +283,11 @@ def configured_cluster_for_nodes(
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
     """
-    certificates_path = FilePath(mkdtemp())
-    print("Generating certificates in: {}".format(certificates_path.path))
-    certificates = Certificates.generate(
-        certificates_path,
-        nodes[0].address,
-        len(nodes)
-    )
     cluster = Cluster(
         all_nodes=pvector(nodes),
         control_node=nodes[0],
         agent_nodes=nodes,
         dataset_backend=dataset_backend,
-        certificates_path=certificates_path,
         certificates=certificates
     )
 
@@ -302,12 +311,14 @@ class VagrantRunner(object):
     # rather than assuming it is available.
     # https://clusterhq.atlassian.net/browse/FLOC-1163
 
-    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
+    NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
+        self.certificates_path = self.top_level.descendant([
+            'vagrant', 'tutorial', 'credentials'])
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
@@ -347,6 +358,7 @@ class VagrantRunner(object):
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
+            Certificates(self.certificates_path),
             nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
@@ -439,6 +451,7 @@ class LibcloudRunner(object):
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
+            generate_certificates(self.nodes),
             self.nodes,
             self.dataset_backend,
             dataset_backend_configuration,
@@ -848,9 +861,9 @@ def main(reactor, args, base_path, top_level):
     finally:
         # Unless the tests failed, and the user asked to keep the nodes, we
         # delete them.
-        if not (result != 0 and options['keep']):
+        if not options['keep']:
             runner.stop_cluster(reactor)
-        elif options['keep']:
+        else:
             print "--keep specified, not destroying nodes."
             if cluster is None:
                 print ("Didn't finish creating the cluster.")

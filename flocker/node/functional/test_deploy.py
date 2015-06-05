@@ -6,7 +6,7 @@ Functional tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, pvector, pset
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -247,14 +247,15 @@ class DeployerTests(TestCase):
         d.addCallback(started)
         return d
 
-    @if_docker_configured
-    def test_links_lowercase(self):
+    def _start_container_for_introspection(self, **kwargs):
         """
-        Lower-cased link aliases do not result in lack of covergence.
+        Configure and deploy a busybox container with the given options.
 
-        Environment variables introspected by the Docker client for links
-        are all upper-case, a source of potential problems in detecting
-        the state.
+        :param **kwargs: Additional arguments to pass to
+            ``Application.__init__``.
+
+        :return: ``Deferred`` that fires after convergence loop has been
+            run with results of state discovery.
         """
         application_name = random_name(self)
         docker_client = DockerClient()
@@ -264,14 +265,10 @@ class DeployerTests(TestCase):
             u"localhost", docker_client,
             make_memory_network(), node_uuid=uuid4())
 
-        link = Link(alias=u"alias",
-                    local_port=80,
-                    remote_port=8080)
         application = Application(
             name=application_name,
             image=DockerImage.from_string(u"busybox"),
-            links=[link],
-            command_line=[u"nc", u"-l", u"-p", u"8080"])
+            **kwargs)
         desired_configuration = Deployment(nodes=[
             Node(uuid=deployer.node_uuid,
                  applications=[application])])
@@ -280,10 +277,41 @@ class DeployerTests(TestCase):
             NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
                       applications=[], used_ports=[],
                       manifestations={}, paths={}, devices={})))
+        return d
+
+    @if_docker_configured
+    def test_links_lowercase(self):
+        """
+        Lower-cased link aliases do not result in lack of covergence.
+
+        Environment variables introspected by the Docker client for links
+        are all upper-case, a source of potential problems in detecting
+        the state.
+        """
+        link = Link(alias=u"alias",
+                    local_port=80,
+                    remote_port=8080)
+        d = self._start_container_for_introspection(
+            links=[link],
+            command_line=[u"nc", u"-l", u"-p", u"8080"])
         d.addCallback(
             lambda results: self.assertIn(
-                application.links,
+                pset([link]),
                 [app.links for app in results[0].applications]))
+        return d
+
+    @if_docker_configured
+    def test_command_line_introspection(self):
+        """
+        Checking the command-line status results in same command-line we
+        passed in.
+        """
+        command_line = pvector([u"nc", u"-l", u"-p", u"8080"])
+        d = self._start_container_for_introspection(command_line=command_line)
+        d.addCallback(
+            lambda results: self.assertIn(
+                command_line,
+                [app.command_line for app in results[0].applications]))
         return d
 
     @if_docker_configured
