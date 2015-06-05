@@ -372,7 +372,7 @@ class RequestsTests(TestCase):
                 cert=(certs.child(b"user.crt").path,
                       certs.child(b"user.key").path),
                 verify=certs.child(b"cluster.crt").path).content
-        pool = ThreadPool(minthreads=1, maxthreads=1)
+        pool = ThreadPool(minthreads=0, maxthreads=1)
         pool.start()
         self.addCleanup(pool.stop)
         d.addCallback(lambda _: deferToThreadPool(reactor, pool, req))
