@@ -19,14 +19,14 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, pmap
 from characteristic import attributes, with_cmp
 
 import psutil
 from bitmath import Byte
 
 from twisted.python.reflect import safe_repr
-from twisted.internet.defer import succeed, fail, gatherResults
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -340,6 +340,21 @@ class BlockDeviceVolume(PRecord):
         type=(unicode, type(None)), initial=None, mandatory=True
     )
     dataset_id = field(type=UUID, mandatory=True)
+
+
+class NodeSnapshot(PRecord):
+    """
+    Snapshot of a node, as seen by ``BlockDeviceDeployer``.
+
+    Instance_id is the instance id of compute instance that block device
+    deployer is connected to.
+    Volumes is a ``pmap`` of blockdevice id to tuple (``BlockDeviceVolume``,
+    attached device name). Attached device name is the name of the volume's
+    as seen by the OS (ex: ``/dev/xvdj``), if the volume is attached.
+    If unattached, this field is ``None``.
+    """
+    instance_id = field(type=unicode, mandatory=True)
+    volumes = field(type=pmap, mandatory=False)
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
@@ -718,35 +733,38 @@ class AttachVolume(PRecord):
         the volume to attach.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    instance_id = field(type=unicode, mandatory=True)
+    snapshot = field(type=NodeSnapshot, mandatory=True)
 
     @property
     def eliot_action(self):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id)
+
+    def _lookup_volume_in_snapshot(self):
+        """
+        Look for ``BlockDeviceVolume`` corresponding to ``dataset_id``
+        in snapshot.
+        """
+        if self.snapshot.volumes[self.dataset_id] is not None:
+            return self.snapshot.volumes[self.dataset_id][0]
+        return None
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
         api = deployer.async_block_device_api
-        listing = api.list_volumes()
-        listing.addCallback(
-            _blockdevice_volume_from_datasetid, self.dataset_id
+
+        volume = self._lookup_volume_in_snapshot()
+
+        if volume is None:
+            # It was not actually found.
+            raise DatasetWithoutVolume(dataset_id=self.dataset_id)
+        ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
+        return api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.instance_id,
         )
-        getting_id = api.compute_instance_id()
-
-        d = gatherResults([listing, getting_id])
-
-        def found((volume, compute_instance_id)):
-            if volume is None:
-                # It was not actually found.
-                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-            ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
-            return api.attach_volume(
-                volume.blockdevice_id,
-                attach_to=compute_instance_id,
-            )
-        attaching = d.addCallback(found)
-        return attaching
 
 
 @implementer(IStateChange)
@@ -1656,6 +1674,8 @@ class BlockDeviceDeployer(PRecord):
         volumes = api.list_volumes()
         manifestations = {}
         nonmanifest = {}
+        snapshot = NodeSnapshot(instance_id=compute_instance_id,
+                                volumes=pmap({}))
 
         def is_existing_block_device(dataset_id, path):
             if isinstance(path, FilePath) and path.isBlockDevice():
@@ -1686,7 +1706,9 @@ class BlockDeviceDeployer(PRecord):
                 # Why not? The size is available from the volume.
                 # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[u_dataset_id] = Dataset(dataset_id=dataset_id)
+                device_path = None
 
+        snapshot.volumes.set(dataset_id, (volume, device_path))
         system_mounts = self._get_system_mounts(volumes, compute_instance_id)
 
         paths = {}
@@ -1738,7 +1760,7 @@ class BlockDeviceDeployer(PRecord):
             NonManifestDatasets(datasets=nonmanifest),
         )
 
-        return succeed(state)
+        return succeed(state, snapshot)
 
     def _mountpath_for_manifestation(self, manifestation):
         """
@@ -1762,7 +1784,7 @@ class BlockDeviceDeployer(PRecord):
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
 
-    def calculate_changes(self, configuration, cluster_state):
+    def calculate_changes(self, configuration, cluster_state, snapshot):
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
         local_state = cluster_state.get_node(self.node_uuid,
@@ -1809,13 +1831,14 @@ class BlockDeviceDeployer(PRecord):
         attaches = list(self._calculate_attaches(
             local_state.devices,
             configured_manifestations,
-            cluster_state.nonmanifest_datasets
+            cluster_state.nonmanifest_datasets,
+            snapshot
         ))
         mounts = list(self._calculate_mounts(
             local_state.devices, local_state.paths, configured_manifestations,
         ))
         unmounts = list(self._calculate_unmounts(
-            local_state.paths, configured_manifestations,
+            local_state.paths, configured_manifestations
         ))
 
         # XXX prevent the configuration of unsized datasets on blockdevice
@@ -1830,7 +1853,7 @@ class BlockDeviceDeployer(PRecord):
         )
 
         detaches = list(self._calculate_detaches(
-            local_state.devices, local_state.paths, configured_manifestations,
+            local_state.devices, local_state.paths, configured_manifestations
         ))
         deletes = self._calculate_deletes(configured_manifestations)
 
@@ -1915,7 +1938,7 @@ class BlockDeviceDeployer(PRecord):
                 continue
             yield DetachVolume(dataset_id=attached_dataset_id)
 
-    def _calculate_attaches(self, devices, configured, nonmanifest):
+    def _calculate_attaches(self, devices, configured, nonmanifest, snapshot):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1937,6 +1960,7 @@ class BlockDeviceDeployer(PRecord):
                 # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
                     dataset_id=UUID(manifestation.dataset_id),
+                    instance_id=snapshot.instance_id
                 )
 
     def _calculate_deletes(self, configured_manifestations):
