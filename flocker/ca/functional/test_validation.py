@@ -365,16 +365,13 @@ class RequestsTests(TestCase):
         ca_set.copy_to(certs, user=True)
 
         def req():
-            session = requests.Session()
-            try:
-                return session.get(
-                    "https://{}:{}/".format(hostname, port),
-                    headers={"connection": "close"},
-                    cert=(certs.child(b"user.crt").path,
-                          certs.child(b"user.key").path),
-                    verify=certs.child(b"cluster.crt").path).content
-            finally:
-                session.close()
+            return requests.get(
+                "https://{}:{}/".format(hostname, port),
+                headers={"connection": "close"},
+                stream=False,
+                cert=(certs.child(b"user.crt").path,
+                      certs.child(b"user.key").path),
+                verify=certs.child(b"cluster.crt").path).content
         pool = ThreadPool(minthreads=1, maxthreads=1)
         pool.start()
         self.addCleanup(pool.stop)
