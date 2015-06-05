@@ -84,6 +84,8 @@ deployer = object()
 def deployer_factory_stub(**kw):
     if set(kw.keys()) != {"node_uuid", "cluster_uuid", "hostname"}:
         raise TypeError("wrong arguments")
+    if not isinstance(kw["hostname"], unicode):
+        raise TypeError("hostname not unicode")
     return deployer
 
 
@@ -390,7 +392,7 @@ class AgentServiceDeployerTests(SynchronousTestCase):
 
         class Deployer(PRecord):
             api = field(mandatory=True)
-            hostname = field(mandatory=True)
+            hostname = field(type=unicode, mandatory=True)
             node_uuid = field(mandatory=True)
 
         class WrongDeployer(PRecord):
@@ -421,7 +423,7 @@ class AgentServiceDeployerTests(SynchronousTestCase):
         self.assertEqual(
             Deployer(
                 api=api,
-                hostname=ip,
+                hostname=unicode(ip, "ascii"),
                 node_uuid=self.ca_set.node.uuid,
             ),
             deployer,
@@ -436,7 +438,7 @@ class AgentServiceDeployerTests(SynchronousTestCase):
 
         class Deployer(PRecord):
             api = field(mandatory=True)
-            hostname = field(mandatory=True)
+            hostname = field(unicode, mandatory=True)
             node_uuid = field(mandatory=True)
 
         agent_service = self.agent_service.set(
@@ -461,7 +463,7 @@ class AgentServiceDeployerTests(SynchronousTestCase):
         self.assertEqual(
             Deployer(
                 api=api,
-                hostname=hostname,
+                hostname=unicode(hostname, "ascii"),
                 node_uuid=self.ca_set.node.uuid,
             ),
             deployer,
@@ -640,7 +642,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
 
-        self.assertIn(spied[0], "hostname.local")
+        self.assertEqual(
+            (spied[0], type(spied[0])),
+            ("hostname.local", unicode))
 
     def test_missing_configuration_file(self):
         """

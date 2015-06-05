@@ -86,13 +86,13 @@ def _get_external_ip(host, port):
     :param host: A host to connect to.
     :param port: The port to connect to.
 
-    :return unicode: IP address of external interface on this node.
+    :return bytes: IP address of external interface on this node.
     """
     sock = socket()
     try:
         sock.setblocking(False)
         sock.connect_ex((host, port))
-        return unicode(sock.getsockname()[0], "ascii")
+        return sock.getsockname()[0]
     finally:
         sock.close()
 
@@ -289,7 +289,8 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
-                node_uuid=tls_info.node_credential.uuid, hostname=ip,
+                node_uuid=tls_info.node_credential.uuid,
+                hostname=unicode(ip, "ascii"),
                 cluster_uuid=tls_info.node_credential.cluster_uuid),
             host=host, port=port,
             context_factory=tls_info.context_factory,
@@ -467,7 +468,7 @@ class AgentService(PRecord):
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
 
-    node_hostname = field(type=(bytes, type(None)),
+    node_hostname = field(type=(str, type(None)),
                           initial=None, mandatory=True)
 
     # Cannot use type=NodeCredential because one of the tests really wants to
@@ -587,7 +588,9 @@ class AgentService(PRecord):
             hostname = self.node_hostname
         node_uuid = self.node_credential.uuid
         return deployer_factory(
-            api=api, hostname=hostname, node_uuid=node_uuid,
+            api=api,
+            hostname=unicode(hostname, "ascii"),
+            node_uuid=node_uuid,
         )
 
     def get_loop_service(self, deployer):
