@@ -60,7 +60,7 @@ Once your users have installed the package, they will write a ``/etc/flocker/age
 All other sub-keys of the ``dataset`` section will be passed to a function you must implement (see below) and can be used to configure the resulting ``IBlockDeviceAPI`` instance.
 Typical parameters are authentication information or server addresses; whatever is necessary to configure your class.
 
-For example, if you installed a Python package importable ``mystorage_flocker_plugin``, and you require a username and password in order to login to your storage system, you might tell your users to write a ``agent.yml`` that looks like this:
+For example, if you installed a Python package importable ``mystorage_flocker_plugin``, and you require a username and password in order to log in to your storage system, you might tell your users to write a ``agent.yml`` that looks like this:
 
 .. code-block:: yaml
 
