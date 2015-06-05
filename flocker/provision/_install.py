@@ -224,12 +224,19 @@ def install_cli_commands_ubuntu(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
+
     commands = [
-        # Ensure add-apt-repository command and HTTPS URLs are supported
-        # FLOC-1880 will ensure these are necessary and sufficient
+        # Minimal images often have cleared apt caches and are missing
+        # packages that are common in a typical release.  These commands
+        # ensure that we start from a good base system with the required
+        # capabilities, particularly that the add-apt-repository command
+        # and HTTPS URLs are supported.
+        # FLOC-1880 will ensure these are necessary and sufficient.
+        sudo_from_args(["apt-get", "update"]),
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
+
         # Add ClusterHQ repo for installation of Flocker packages.
         sudo(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
