@@ -1227,21 +1227,19 @@ class UploadPackagesTests(SynchronousTestCase):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.createDirectory()
         self.target_bucket = 'test-target-bucket'
-        self.build_server = 'http://test-build-server.example'
-
-    def test_repositories_created(self):
-        """
-        Calling :func:`upload_packages` creates repositories for supported
-        distributions. The keys for these repositories have suffixes
-        appropriate for the release type.
-        """
-        aws = FakeAWS(
+        self.aws = FakeAWS(
             routing_rules={},
             s3_buckets={
                 self.target_bucket: {},
             },
         )
+        self.build_server = 'http://test-build-server.example'
 
+    def test_repositories_created(self):
+        """
+        Calling :func:`upload_packages` creates repositories for supported
+        distributions.
+        """
         repo_contents = {
             'results/omnibus/0.3.3dev1/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev1/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
@@ -1258,7 +1256,7 @@ class UploadPackagesTests(SynchronousTestCase):
         }
 
         self.upload_packages(
-            aws=aws,
+            aws=self.aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
@@ -1289,9 +1287,41 @@ class UploadPackagesTests(SynchronousTestCase):
             'ubuntu-testing/15.04/amd64/Release',
         }
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
 
+    def test_key_suffixes(self):
+        """
+        The OS part of the keys for created repositories have suffixes (or not)
+        appropriate for the release type. In particular there is no "-testing"
+        in keys created for a marketing release.
+        """
+        repo_contents = {
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
+        }
+
+        self.upload_packages(
+            aws=self.aws,
+            yum=FakeYum(),
+            scratch_directory=self.scratch_directory,
+            target_bucket=self.target_bucket,
+            version='0.3.3',
+            build_server=create_fake_repository(self, files=repo_contents),
+        )
+
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
+        self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 def create_fake_repository(test_case, files):
     """
