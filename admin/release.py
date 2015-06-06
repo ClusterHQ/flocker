@@ -561,38 +561,38 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
     :param bytes version: Version to download packages for.
     :param bytes build_server: Server to download new packages from.
     """
-    operating_systems = [
+    distributions = [
         Distribution(name='fedora', version='20'),
         Distribution(name='centos', version='7'),
         Distribution(name='ubuntu', version='14.04'),
         Distribution(name='ubuntu', version='15.04'),
     ]
 
-    for operating_system in operating_systems:
-        package_type = operating_system.package_type()
+    for distribution in distributions:
+        package_type = distribution.package_type()
         architecture = ARCH['native'][package_type]
 
         yield update_repo(
             package_directory=scratch_directory.child(
                 b'{}-{}-{}'.format(
-                    operating_system.name,
-                    operating_system.version,
+                    distribution.name,
+                    distribution.version,
                     architecture)),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                operating_system.name + get_package_key_suffix(version),
-                operating_system.version,
+                distribution.name + get_package_key_suffix(version),
+                distribution.version,
                 architecture),
             source_repo=os.path.join(
                 build_server, b'results/omnibus',
                 version,
                 b'{}-{}'.format(
-                    operating_system.name,
-                    operating_system.version)),
+                    distribution.name,
+                    distribution.version)),
             packages=FLOCKER_PACKAGES,
             flocker_version=version,
-            distro_name=operating_system.name,
-            distro_version=operating_system.version,
+            distro_name=distribution.name,
+            distro_version=distribution.version,
         )
 
 
