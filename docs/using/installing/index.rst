@@ -498,6 +498,9 @@ The optional ``port`` variable is the port on the control node to connect to.
 This value must agree with the configuration for the control service telling it on what port to listen.
 Omit the ``port`` from both configurations and the services will automatically agree.
 
+If node has a public address that is different than its local address (for example, on an EC2 instance),
+then the file should include a ``hostname`` item with a public address of the node.
+
 The file must also include a ``dataset`` item.
 This selects and configures a dataset backend.
 All nodes must be configured to use the same dataset backend.

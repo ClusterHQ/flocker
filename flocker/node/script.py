@@ -87,13 +87,13 @@ def _get_external_ip(host, port):
     :param host: A host to connect to.
     :param port: The port to connect to.
 
-    :return unicode: IP address of external interface on this node.
+    :return bytes: IP address of external interface on this node.
     """
     sock = socket()
     try:
         sock.setblocking(False)
         sock.connect_ex((host, port))
-        return unicode(sock.getsockname()[0], "ascii")
+        return sock.getsockname()[0]
     finally:
         sock.close()
 
@@ -282,7 +282,7 @@ class AgentServiceFactory(PRecord):
         configuration = get_configuration(options)
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
-        ip = _get_external_ip(host, port)
+        ip = configuration.get('hostname', _get_external_ip(host, port))
 
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
@@ -290,7 +290,8 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
-                node_uuid=tls_info.node_credential.uuid, hostname=ip,
+                node_uuid=tls_info.node_credential.uuid,
+                hostname=unicode(ip, "ascii"),
                 cluster_uuid=tls_info.node_credential.cluster_uuid),
             host=host, port=port,
             context_factory=tls_info.context_factory,
@@ -468,6 +469,9 @@ class AgentService(PRecord):
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
 
+    node_hostname = field(type=(str, type(None)),
+                          initial=None, mandatory=True)
+
     # Cannot use type=NodeCredential because one of the tests really wants to
     # set this to None.
     node_credential = field(mandatory=True)
@@ -489,8 +493,10 @@ class AgentService(PRecord):
         :return: A new instance of ``cls`` with values loaded from the
             configuration.
         """
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service']['port']
+        control_service_host = configuration['control-service']['hostname']
+        control_service_port = configuration['control-service']['port']
+
+        node_hostname = configuration.get('hostname')
 
         node_credential = configuration['node-credential']
         ca_certificate = configuration['ca-certificate']
@@ -499,8 +505,10 @@ class AgentService(PRecord):
         backend_name = api_args.pop('backend')
 
         return cls(
-            control_service_host=host,
-            control_service_port=port,
+            control_service_host=control_service_host,
+            control_service_port=control_service_port,
+
+            node_hostname=node_hostname,
 
             node_credential=node_credential,
             ca_certificate=ca_certificate,
@@ -577,12 +585,17 @@ class AgentService(PRecord):
         backend = self.get_backend()
         deployer_factory = self.deployers[backend.deployer_type]
 
-        address = self.get_external_ip(
-            self.control_service_host, self.control_service_port,
-        )
+        if self.node_hostname is None:
+            hostname = self.get_external_ip(
+                self.control_service_host, self.control_service_port,
+            )
+        else:
+            hostname = self.node_hostname
         node_uuid = self.node_credential.uuid
         return deployer_factory(
-            api=api, hostname=address, node_uuid=node_uuid,
+            api=api,
+            hostname=unicode(hostname, "ascii"),
+            node_uuid=node_uuid,
         )
 
     def get_loop_service(self, deployer):
