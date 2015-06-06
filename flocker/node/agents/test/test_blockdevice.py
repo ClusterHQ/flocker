@@ -1731,6 +1731,28 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual([expected_volume], self.api.list_volumes())
 
+    def test_attached_volume_device(self):
+        """
+        ``attach_volume`` does not return until a corresponding device appears
+        in the host operating system.
+        """
+        dataset_id = uuid4()
+        new_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size
+        )
+        attached_volume = self.api.attach_volume(
+            blockdevice_id=new_volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        expected_path = self.api.get_device_path(
+            attached_volume.blockdevice_id
+        )
+        self.assertIn(
+            expected_path,
+            FilePath('/dev').children()
+        )
+
     def test_list_attached_and_unattached(self):
         """
         ``list_volumes`` returns both attached and unattached
