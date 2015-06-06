@@ -174,7 +174,6 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
 
     :return: Input volume in BlockDeviceVolume format.
     """
-    ebs_volume.update()
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
@@ -377,8 +376,6 @@ class EBSBlockDeviceAPI(object):
         for volume in self.connection.get_all_volumes(
                 volume_ids=[blockdevice_id]):
             if volume.id == blockdevice_id:
-                # Sync volume for uptodate metadata
-                volume.update()
                 return volume
         return None
 
