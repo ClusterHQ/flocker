@@ -468,7 +468,6 @@ class EBSBlockDeviceAPI(object):
     def resize_volume(self, blockdevice_id, size):
         pass
 
-    # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach an EBS volume to given compute instance.
