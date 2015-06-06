@@ -606,7 +606,6 @@ class RunOptions(Options):
         else:
             self.runner = get_runner(
                 package_source=package_source,
-                dataset_backend=self.dataset_backend(),
                 provider_config=provider_config,
             )
 
@@ -621,8 +620,7 @@ class RunOptions(Options):
             "{!r} config stanza.".format(provider)
         )
 
-    def _runner_VAGRANT(self, package_source,
-                        dataset_backend, provider_config):
+    def _runner_VAGRANT(self, package_source, provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
@@ -631,6 +629,16 @@ class RunOptions(Options):
             configuration, this is ignored.
         :returns: ``VagrantRunner``
         """
+        # By default Vagrant runner just uses ZFS, which is pre-configured
+        # in the Vagrant images, so additional configuration may not be
+        # available:
+        try:
+            dataset_backend = self.dataset_backend()
+            dataset_backend_config = self.dataset_backend_configuration()
+        except KeyError:
+            dataset_backend = DatasetBackend.zfs
+            dataset_backend_config = {}
+
         return VagrantRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -638,14 +646,12 @@ class RunOptions(Options):
             package_source=package_source,
             variants=self['variants'],
             dataset_backend=dataset_backend,
-            dataset_backend_configuration=self.dataset_backend_configuration()
+            dataset_backend_configuration=dataset_backend_config,
         )
 
-    def _runner_MANAGED(self, package_source, dataset_backend,
-                        provider_config):
+    def _runner_MANAGED(self, package_source, provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``managed`` section of the acceptance
             testing configuration file.  The section of the configuration
             file should look something like:
@@ -669,17 +675,15 @@ class RunOptions(Options):
             # TODO LATER Might be nice if this were part of
             # provider_config. See FLOC-2078.
             distribution=self['distribution'],
-            dataset_backend=dataset_backend,
+            dataset_backend=self.dataset_backend(),
             dataset_backend_configuration=self.dataset_backend_configuration(),
         )
 
-    def _libcloud_runner(self, package_source, dataset_backend,
-                         provider, provider_config):
+    def _libcloud_runner(self, package_source, provider, provider_config):
         """
         Run some nodes using ``libcloud``.
 
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider: The name of the cloud provider of nodes for the tests.
         :param provider_config: The ``managed`` section of the acceptance
         :returns: ``LibcloudRunner``.
@@ -694,13 +698,12 @@ class RunOptions(Options):
             distribution=self['distribution'],
             package_source=package_source,
             provisioner=provisioner,
-            dataset_backend=dataset_backend,
+            dataset_backend=self.dataset_backend(),
             dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
         )
 
-    def _runner_RACKSPACE(self, package_source, dataset_backend,
-                          provider_config):
+    def _runner_RACKSPACE(self, package_source, provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
@@ -717,14 +720,12 @@ class RunOptions(Options):
         :see: :ref:`acceptance-testing-rackspace-config`
         """
         return self._libcloud_runner(
-            package_source, dataset_backend, "rackspace", provider_config
+            package_source, "rackspace", provider_config
         )
 
-    def _runner_AWS(self, package_source, dataset_backend,
-                    provider_config):
+    def _runner_AWS(self, package_source, provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``aws`` section of the acceptance testing
             configuration file.  The section of the configuration file should
             look something like:
@@ -739,8 +740,9 @@ class RunOptions(Options):
         :see: :ref:`acceptance-testing-aws-config`
         """
         return self._libcloud_runner(
-            package_source, dataset_backend, "aws", provider_config
+            package_source, "aws", provider_config
         )
+
 
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
