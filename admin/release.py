@@ -67,7 +67,7 @@ from .yum import (
 
 from .vagrant import vagrant_version
 from .homebrew import make_recipe
-from .packaging import Distribution
+from .packaging import available_distributions, DISTRIBUTION_NAME_MAP
 
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
@@ -538,7 +538,8 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
 
 
 @do
-def upload_packages(scratch_directory, target_bucket, version, build_server):
+def upload_packages(scratch_directory, target_bucket, version, build_server,
+                    top_level):
     """
     The ClusterHQ yum and deb repositories contain packages for Flocker, as
     well as the dependencies which aren't available in Fedora 20 or CentOS 7.
@@ -552,15 +553,14 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
     :param bytes target_bucket: S3 bucket to upload repository to.
     :param bytes version: Version to download packages for.
     :param bytes build_server: Server to download new packages from.
+    :param FilePath top_level: The top-level of the flocker repository.
     """
-    distributions = [
-        Distribution(name='fedora', version='20'),
-        Distribution(name='centos', version='7'),
-        Distribution(name='ubuntu', version='14.04'),
-        Distribution(name='ubuntu', version='15.04'),
-    ]
+    distribution_names = available_distributions(
+        flocker_source_path=top_level,
+    )
 
-    for distribution in distributions:
+    for distribution_name in distribution_names:
+        distribution = DISTRIBUTION_NAME_MAP[distribution_name]
         architecture = distribution.native_package_architecture()
 
         yield update_repo(
@@ -745,6 +745,7 @@ def publish_artifacts_main(args, base_path, top_level):
                     target_bucket=options['target'],
                     version=options['flocker-version'],
                     build_server=options['build-server'],
+                    flocker_source_path=top_level,
                 ),
                 upload_python_packages(
                     scratch_directory=scratch_directory.child('python'),

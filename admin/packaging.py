@@ -107,6 +107,13 @@ class Distribution(object):
         """
         return ARCH['native'][self.package_type()]
 
+DISTRIBUTION_NAME_MAP = {
+    'fedora-20': Distribution(name="fedora", version="20"),
+    'centos-7': Distribution(name="centos", version="7"),
+    'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
+    'ubuntu-15.04': Distribution(name="ubuntu", version="15.04"),
+}
+
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
 
 

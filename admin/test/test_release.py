@@ -45,6 +45,8 @@ from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
 
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
+
 
 def hard_linking_possible():
     """
@@ -1196,7 +1198,7 @@ class UploadPackagesTests(SynchronousTestCase):
     """
     def upload_packages(self, aws, yum,
                         scratch_directory, target_bucket, version,
-                        build_server):
+                        build_server, top_level):
         """
         Call :func:``upload_packages``, interacting with a fake AWS and yum
         utilities.
@@ -1215,6 +1217,7 @@ class UploadPackagesTests(SynchronousTestCase):
                 target_bucket=target_bucket,
                 version=version,
                 build_server=build_server,
+                top_level=top_level,
             ),
         )
 
@@ -1257,6 +1260,7 @@ class UploadPackagesTests(SynchronousTestCase):
             target_bucket=self.target_bucket,
             version='0.3.3dev1',
             build_server=create_fake_repository(self, files=repo_contents),
+            top_level=FLOCKER_PATH,
         )
 
         expected_files = {
@@ -1313,6 +1317,7 @@ class UploadPackagesTests(SynchronousTestCase):
             target_bucket=self.target_bucket,
             version='0.3.3',
             build_server=create_fake_repository(self, files=repo_contents),
+            top_level=FLOCKER_PATH,
         )
 
         files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
