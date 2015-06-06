@@ -376,15 +376,18 @@ class EBSBlockDeviceAPI(object):
              found.
         """
         try:
-            for volume in self.connection.get_all_volumes(
-                    volume_ids=[blockdevice_id]):
-                if volume.id == blockdevice_id:
-                    return volume
+            all_volumes = self.connection.get_all_volumes(
+                volume_ids=[blockdevice_id])
         except EC2ResponseError as e:
-            if e.error_code == "InvalidName.NotFound":
+            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors
+            if e.error_code == "InvalidVolume.NotFound":
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise
+
+        for volume in all_volumes:
+            if volume.id == blockdevice_id:
+                return volume
         raise UnknownVolume(blockdevice_id)
 
     def _next_device(self, instance_id):
