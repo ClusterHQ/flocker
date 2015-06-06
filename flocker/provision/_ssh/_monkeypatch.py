@@ -1,3 +1,12 @@
+# Copyright (c) Twisted Matrix Laboratories.
+"""
+Monkey patch twisted.conch.ssh.transport.SSHClientTransport to support
+``diffie-hellman-group-exchange-sha256``.
+
+This is adapted from the patch at http://twistedmatrix.com/trac/ticket/7672
+"""
+
+
 from twisted.conch.ssh.transport import (
     SSHTransportBase, SSHClientTransport,
     _generateX,
@@ -13,6 +22,10 @@ from twisted.conch.ssh import keys
 
 
 def _dh_sha256_patch():
+    """
+    Monkey patch twisted.conch.ssh.transport.SSHClientTransport to support
+    ``diffie-hellman-group-exchange-sha256``.
+    """
     supportedKeyExchanges = ['diffie-hellman-group-exchange-sha1',
                              'diffie-hellman-group-exchange-sha256',
                              'diffie-hellman-group1-sha1']
@@ -127,3 +140,27 @@ def _dh_sha256_patch():
 
     for var, val in locals().items():
         setattr(SSHClientTransport, var, val)
+
+
+def _patch_7672_needed():
+    """
+    Check if patching ``SSHClientTransport`` sf necessary.
+    This will be true if ``diffie-hellman-group-exchange-sha256``
+    is not a supported keyexchange.
+    """
+    return ('diffie-hellman-group-exchange-sha256'
+            in SSHClientTransport.supportedKeyExchanges)
+
+patch_7672_applied = False
+
+
+def patch_twisted_7672():
+    """
+    Apply monkeypatches.
+    """
+    global patch_7672_applied
+    if patch_7672_applied:
+        return
+    if _patch_7672_needed():
+        patch_7672_applied = True
+        _dh_sha256_patch()
