@@ -389,3 +389,6 @@ class RequestsTests(TestCase):
         the REST API when it is accessed via a domain name.
         """
         return self.assert_requests_validates(b"localhost", "control_dns")
+    test_requests_dns.skip = (
+        "This fails in some environments, probably due to using old version of"
+        " requests. Re-enable in FLOC-2035 when we upgrade requests.")
