@@ -23,12 +23,15 @@ from effect.do import do
 from characteristic import attributes
 from git import GitCommandError, Repo
 
+import requests
+
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
 from twisted.web import template
 
 import flocker
+from flocker.common.version import get_package_key_suffix
 from flocker.provision._effect import sequence, dispatcher as base_dispatcher
 
 from flocker.common.version import (
@@ -558,12 +561,6 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
     :param bytes version: Version to download packages for.
     :param bytes build_server: Server to download new packages from.
     """
-    is_dev = not is_release(version)
-    if is_dev:
-        target_distro_suffix = "-testing"
-    else:
-        target_distro_suffix = ""
-
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'native'},
         {'distro': 'centos', 'version': '7', 'arch': 'native'},
@@ -584,7 +581,7 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
                     architecture)),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                operating_system['distro'] + target_distro_suffix,
+                operating_system['distro'] + get_package_key_suffix(version),
                 operating_system['version'],
                 architecture),
             source_repo=os.path.join(
@@ -948,6 +945,94 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
+
+
+class TestRedirectsOptions(Options):
+    """
+    Arguments for ``test-redirects`` script.
+    """
+    optParameters = [
+        ["doc-version", None, None,
+         "The version which the documentation sites are expected to redirect "
+         "to.\n"
+        ],
+    ]
+
+    optFlags = [
+        ["production", None, "Check the production documentation site."],
+    ]
+
+    environment = Environments.STAGING
+
+    def parseArgs(self):
+        if self['doc-version'] is None:
+            self['doc-version'] = get_doc_version(flocker.__version__)
+
+        if self['production']:
+            self.environment = Environments.PRODUCTION
+
+
+def test_redirects_main(args, base_path, top_level):
+    """
+    Tests redirects to Flocker documentation.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = TestRedirectsOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    doc_version = options['doc-version']
+
+    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
+    base_url = 'https://' + document_configuration.cloudfront_cname
+
+    is_dev = not is_release(doc_version)
+    if is_dev:
+        expected_redirects = {
+            '/en/devel': '/en/' + doc_version + '/',
+            '/en/devel/faq/index.html':
+                '/en/' + doc_version + '/faq/index.html',
+        }
+    else:
+        expected_redirects = {
+            '/': '/en/' + doc_version + '/',
+            '/en/': '/en/' + doc_version + '/',
+            '/en/latest': '/en/' + doc_version + '/',
+            '/en/latest/faq/index.html':
+                '/en/' + doc_version + '/faq/index.html',
+        }
+
+    failed_redirects = []
+
+    for path in expected_redirects:
+        original_url = base_url + path
+        expected_url = base_url + expected_redirects[path]
+        final_url = requests.get(original_url).url
+
+        if expected_url != final_url:
+            failed_redirects.append(original_url)
+
+            message = (
+                "'{original_url}' expected to redirect to '{expected_url}', "
+                "instead redirects to '{final_url}'.\n").format(
+                    original_url=original_url,
+                    expected_url=expected_url,
+                    final_url=final_url,
+            )
+
+            sys.stderr.write(message)
+
+    if len(failed_redirects):
+         raise SystemExit(1)
+    else:
+        print 'All tested redirects work correctly.'
 
 
 class PublishDevBoxOptions(Options):

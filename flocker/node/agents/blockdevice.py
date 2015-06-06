@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output
+from subprocess import check_output, call
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -94,6 +94,16 @@ class UnattachedVolume(VolumeException):
     An attempt was made to operate on an unattached volume but the operation
     requires the volume to be attached.
     """
+
+
+class DatasetExists(Exception):
+    """
+    A ``BlockDeviceVolume`` with the requested dataset_id already exists.
+    """
+    def __init__(self, blockdevice):
+        Exception.__init__(self, blockdevice)
+        self.blockdevice = blockdevice
+
 
 OLD_SIZE = Field.for_types(
     u"old_size", [int], u"The size of a volume prior to a resize operation."
@@ -430,7 +440,7 @@ class CreateFilesystem(PRecord):
     @property
     def eliot_action(self):
         return CREATE_FILESYSTEM(
-            _logger, volume=self.volume, filesystem=self.filesystem
+            _logger, volume=self.volume, filesystem_type=self.filesystem
         )
 
     def run(self, deployer):
@@ -498,7 +508,13 @@ class ResizeFilesystem(PRecord):
         #     e2fsck refuses to run non-interactively, though.
         #
         # See FLOC-1814
-        check_output([b"e2fsck", b"-f", b"-y", device.path])
+
+        # The first call will exit with non-zero exit code as it needs to
+        # recreate lost+found. The second call ought to succeed.
+        command_line = [b"e2fsck", b"-f", b"-y", device.path]
+        call(command_line)
+        check_output(command_line)
+
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.  Be sure to use
         # 1024 byte KiB conversion because that's what "K" means to resize2fs.
@@ -633,6 +649,15 @@ class MountBlockDevice(PRecord):
         # only do this after the filesystem is mounted.
         self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
         self.mountpoint.restat()
+
+        # Remove lost+found to ensure filesystems always start out empty.
+        # If other files exist we don't bother, since at that point user
+        # has modified the volume and we don't want to delete their data
+        # by mistake. A better way is described in
+        # https://clusterhq.atlassian.net/browse/FLOC-2074
+        lostfound = self.mountpoint.child(b"lost+found")
+        if self.mountpoint.children() == [lostfound]:
+            lostfound.remove()
 
         return succeed(None)
 
@@ -850,9 +875,15 @@ class CreateBlockDeviceDataset(PRecord):
         See ``IStateChange.run`` for general argument and return type
         documentation.
 
-        :returns: An already fired ``Deferred`` with result ``None``.
+        :returns: An already fired ``Deferred`` with result ``None`` or a
+            failed ``Deferred`` with a ``DatasetExists`` exception if a
+            blockdevice with the required dataset_id already exists.
         """
         api = deployer.block_device_api
+        try:
+            check_for_existing_dataset(api, UUID(hex=self.dataset.dataset_id))
+        except:
+            return fail()
 
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
@@ -1207,6 +1238,20 @@ def _device_for_path(expected_backing_file):
     for device_file, backing_file in _losetup_list():
         if expected_backing_file == backing_file:
             return device_file
+
+
+def check_for_existing_dataset(api, dataset_id):
+    """
+    :param IBlockDeviceAPI api: The ``api`` for listing the existing volumes.
+    :param UUID dataset_id: The dataset_id to check for.
+
+    :raises: ``DatasetExists`` if there is already a ``BlockDeviceVolume`` with
+        the supplied ``dataset_id``.
+    """
+    volumes = api.list_volumes()
+    for volume in volumes:
+        if volume.dataset_id == dataset_id:
+            raise DatasetExists(volume)
 
 
 def get_blockdevice_volume(api, blockdevice_id):
@@ -1743,8 +1788,15 @@ class BlockDeviceDeployer(PRecord):
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set()
+        all_dataset_ids = list(
+            dataset.dataset_id
+            for dataset
+            in cluster_state.all_datasets()
+        )
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
-            if dataset_id not in cluster_state.nonmanifest_datasets:
+            if dataset_id in all_dataset_ids:
+                continue
+            else:
                 manifestation = configured_manifestations[dataset_id]
                 # XXX: Make this configurable. FLOC-2044
                 if manifestation.dataset.maximum_size is None:

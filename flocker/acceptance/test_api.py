@@ -480,19 +480,7 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be moved from one node to another.
         """
-        # Send a dataset creation request on node1.
-        requested_dataset = {
-            u"primary": cluster.nodes[0].uuid,
-            u"dataset_id": unicode(uuid4()),
-            u"metadata": {u"name": u"my_volume"}
-        }
-
-        configuring_dataset = cluster.create_dataset(requested_dataset)
-
-        # Wait for the dataset to be created
-        waiting_for_create = configuring_dataset.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
-        )
+        waiting_for_create = create_dataset(self, cluster)
 
         # Once created, request to move the dataset to node2
         def move_dataset((cluster, dataset)):
