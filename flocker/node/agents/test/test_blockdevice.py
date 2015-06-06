@@ -20,7 +20,7 @@ from zope.interface.verify import verifyObject
 
 from pyrsistent import (
     InvariantException, PRecord, field, ny as match_anything, discard, pmap,
-    inc as increment, pvector
+    pvector
 )
 
 from twisted.python.runtime import platform
@@ -3949,3 +3949,54 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
             (later, self.counting_proxy.num_calls("compute_instance_id")),
             ([initial] * 10, 1))
 
+    def attached_volumes(self):
+        """
+        :return: A sequence of two attached volumes' ``blockdevice_id``.
+        """
+        dataset1 = uuid4()
+        dataset2 = uuid4()
+        this_node = self.cache.compute_instance_id()
+        attached_volume1 = self.cache.attach_volume(
+            self.cache.create_volume(
+                dataset_id=dataset1,
+                size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ).blockdevice_id,
+            attach_to=this_node)
+        attached_volume2 = self.cache.attach_volume(
+            self.cache.create_volume(
+                dataset_id=dataset2,
+                size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ).blockdevice_id,
+            attach_to=this_node)
+        return attached_volume1.blockdevice_id, attached_volume2.blockdevice_id
+
+    def test_get_device_path_cached_after_attach(self):
+        """
+        The result of ``get_device_path`` is cached after an ``attach_device``.
+        """
+        attached_id1, attached_id2 = self.attached_volumes()
+        path1 = self.cache.get_device_path(attached_id1)
+        path2 = self.cache.get_device_path(attached_id2)
+        path1again = self.cache.get_device_path(attached_id1)
+        path2again = self.cache.get_device_path(attached_id2)
+
+        self.assertEqual(
+            (path1again, path2again,
+             path1 == path2,
+             self.counting_proxy.num_calls("get_device_path", attached_id1),
+             self.counting_proxy.num_calls("get_device_path", attached_id2)),
+            (path1, path2, False, 1, 1))
+
+    def test_get_device_path_until_detach(self):
+        """
+        The result of ``get_device_path`` is no longer cached after an
+        ``detach_device`` call.
+        """
+        attached_id1, attached_id2 = self.attached_volumes()
+        # Warm up cache:
+        self.cache.get_device_path(attached_id1)
+        # Invalidate cache:
+        self.cache.detach_volume(attached_id1)
+
+        self.assertRaises(UnattachedVolume,
+                          self.cache.get_device_path, attached_id1)
