@@ -1081,8 +1081,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=repo_uri,
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='fedora',
-            distro_version='7',
+            distribution=Distribution(name='fedora', version='7'),
         )
 
         expected_files = {
@@ -1164,8 +1163,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=repo_uri,
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='ubuntu',
-            distro_version='14.04',
+            distribution=Distribution(name="ubuntu", version="14.04"),
         )
 
         expected_files = {
