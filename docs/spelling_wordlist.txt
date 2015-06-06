@@ -60,6 +60,7 @@ petabyte
 petabytes
 plugin
 plugins
+pluggable
 pre
 programmatically
 proxied
