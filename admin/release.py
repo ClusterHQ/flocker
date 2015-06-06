@@ -67,7 +67,7 @@ from .yum import (
 
 from .vagrant import vagrant_version
 from .homebrew import make_recipe
-from .packaging import Distribution, PACKAGE_TYPE_MAP, ARCH
+from .packaging import Distribution
 
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
