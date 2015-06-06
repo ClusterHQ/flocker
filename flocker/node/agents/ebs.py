@@ -370,7 +370,7 @@ class EBSBlockDeviceAPI(object):
 
         :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
 
-        :returns boto.ec2.volume.Volume for the input id.
+        :returns: boto.ec2.volume.Volume for the input id.
 
         :raise UnknownVolume: If no volume with a matching identifier can be
              found.
