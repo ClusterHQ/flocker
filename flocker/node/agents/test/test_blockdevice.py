@@ -20,6 +20,7 @@ from zope.interface.verify import verifyObject
 
 from pyrsistent import (
     InvariantException, PRecord, field, ny as match_anything, discard, pmap,
+    inc as increment, pvector
 )
 
 from twisted.python.runtime import platform
@@ -3889,3 +3890,62 @@ class ProcessLifetimeCacheIBlockDeviceAPITests(
     """
     Interface adherence Tests for ``ProcessLifetimeCache``.
     """
+
+
+class CountingProxy(object):
+    """
+    Transparent proxy that counts the number of calls to methods of the
+    wrapped object.
+
+    :ivar _wrapped: Wrapped object.
+    :ivar call_count: Mapping of (method name, args, kwargs) to number of
+        calls.
+    """
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
+        self.call_count = pmap()
+
+    def num_calls(self, name, *args, **kwargs):
+        """
+        Return the number of times the given method was called with given
+        arguments.
+
+        :param name: Method name.
+        :param args: Positional arguments it was called with.
+        :param kwargs: Keyword arguments it was called with.
+
+        :return: Number of calls.
+        """
+        return self.call_count.get(
+            pvector([name, pvector(args), pmap(kwargs)]), 0)
+
+    def __getattr__(self, name):
+        method = getattr(self._wrapped, name)
+
+        def counting_proxy(*args, **kwargs):
+            key = pvector([name, pvector(args), pmap(kwargs)])
+            current_count = self.call_count.get(key, 0)
+            self.call_count = self.call_count.set(key, current_count + 1)
+            return method(*args, **kwargs)
+        return counting_proxy
+
+
+class ProcessLifetimeCacheTests(SynchronousTestCase):
+    """
+    Tests for the caching logic in ``ProcessLifetimeCache``.
+    """
+    def setUp(self):
+        self.api = loopbackblockdeviceapi_for_test(self)
+        self.counting_proxy = CountingProxy(self.api)
+        self.cache = ProcessLifetimeCache(self.counting_proxy)
+
+    def test_compute_instance_id(self):
+        """
+        The result of ``compute_instance_id`` is cached indefinitely.
+        """
+        initial = self.cache.compute_instance_id()
+        later = [self.cache.compute_instance_id() for i in range(10)]
+        self.assertEqual(
+            (later, self.counting_proxy.num_calls("compute_instance_id")),
+            ([initial] * 10, 1))
+

@@ -2006,6 +2006,13 @@ class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
     intended to exist for the lifetime of the process.
 
     :ivar _api: Wrapped ``IBlockDeviceAPI`` provider.
+    :ivar _instance_id: Cached result of ``compute_instance_id``.
     """
     def __init__(self, api):
         self._api = api
+        self._instance_id = None
+
+    def compute_instance_id(self):
+        if self._instance_id is None:
+            self._instance_id = self._api.compute_instance_id()
+        return self._instance_id
