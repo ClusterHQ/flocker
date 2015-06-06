@@ -577,9 +577,7 @@ def upload_packages(scratch_directory, target_bucket, version, build_server,
             source_repo=os.path.join(
                 build_server, b'results/omnibus',
                 version,
-                b'{}-{}'.format(
-                    distribution.name,
-                    distribution.version)),
+                b'{}-{}'.format(distribution.name, distribution.version)),
             packages=FLOCKER_PACKAGES,
             flocker_version=version,
             distribution=distribution,
