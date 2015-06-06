@@ -49,6 +49,12 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def unknown_blockdevice_id(self):
+        """
+        Return a legitimate unknown EBS volume id.
+        """
+        return u"vol-00000000"
+
     # We haven't implemented resize functionality yet.
     def test_resize_destroyed_volume(self):
         raise SkipTest("Resize not implemented on AWS - FLOC-1985")

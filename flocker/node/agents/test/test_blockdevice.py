@@ -1620,6 +1620,16 @@ class IBlockDeviceAPITestsMixin(object):
             (new_volume.dataset_id, new_volume.size)
         )
 
+    def unknown_blockdevice_id(self):
+        """
+        Return a legitimate unknown block device id.
+
+        Override in subclasses as needed.
+
+        :return: By default a newly generated UUID.
+        """
+        return unicode(uuid4())
+
     def test_attach_unknown_volume(self):
         """
         An attempt to attach an unknown ``BlockDeviceVolume`` raises
@@ -1628,7 +1638,7 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertRaises(
             UnknownVolume,
             self.api.attach_volume,
-            blockdevice_id=unicode(uuid4()),
+            blockdevice_id=self.unknown_blockdevice_id(),
             attach_to=self.this_node,
         )
 
@@ -1782,7 +1792,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``get_device_path`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` has not been created.
         """
-        unknown_blockdevice_id = unicode(uuid4())
+        unknown_blockdevice_id = self.unknown_blockdevice_id()
         exception = self.assertRaises(
             UnknownVolume,
             self.api.get_device_path,
@@ -1904,7 +1914,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``detach_volume`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` does not exist.
         """
-        blockdevice_id = unicode(uuid4)
+        blockdevice_id = self.unknown_blockdevice_id()
         exception = self.assertRaises(
             UnknownVolume,
             self.api.detach_volume, blockdevice_id=blockdevice_id
