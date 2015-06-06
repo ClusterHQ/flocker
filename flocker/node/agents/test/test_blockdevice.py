@@ -1620,16 +1620,6 @@ class IBlockDeviceAPITestsMixin(object):
             (new_volume.dataset_id, new_volume.size)
         )
 
-    def unknown_blockdevice_id(self):
-        """
-        Return a legitimate unknown block device id.
-
-        Override in subclasses as needed.
-
-        :return: By default a newly generated UUID.
-        """
-        return unicode(uuid4())
-
     def test_attach_unknown_volume(self):
         """
         An attempt to attach an unknown ``BlockDeviceVolume`` raises
@@ -1638,7 +1628,7 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertRaises(
             UnknownVolume,
             self.api.attach_volume,
-            blockdevice_id=self.unknown_blockdevice_id(),
+            blockdevice_id=self.unknown_blockdevice_id,
             attach_to=self.this_node,
         )
 
@@ -1792,7 +1782,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``get_device_path`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` has not been created.
         """
-        unknown_blockdevice_id = self.unknown_blockdevice_id()
+        unknown_blockdevice_id = self.unknown_blockdevice_id
         exception = self.assertRaises(
             UnknownVolume,
             self.api.get_device_path,
@@ -1914,7 +1904,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``detach_volume`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` does not exist.
         """
-        blockdevice_id = self.unknown_blockdevice_id()
+        blockdevice_id = self.unknown_blockdevice_id
         exception = self.assertRaises(
             UnknownVolume,
             self.api.detach_volume, blockdevice_id=blockdevice_id
@@ -2094,7 +2084,8 @@ class IBlockDeviceAPITestsMixin(object):
 def make_iblockdeviceapi_tests(
         blockdevice_api_factory,
         minimum_allocatable_size,
-        device_allocation_unit
+        device_allocation_unit,
+        unknown_blockdevice_id_factory
 ):
     """
     :param blockdevice_api_factory: A factory which will be called
@@ -2109,12 +2100,18 @@ def make_iblockdeviceapi_tests(
         allows sizes to be supplied in GiB, but certain Cinder storage
         drivers may be constrained to create sizes with 8GiB
         intervals.
+    :param unknown_blockdevice_id_factory: A factory which will be called
+        with an an instance of the generated ``TestCase``, and should
+        return a ``blockdevice_id`` which is valid but unknown, i.e. does
+        not match any actual volume in the backend.
+
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
+            self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
             check_allocatable_size(
                 self.api.allocation_unit(),
                 minimum_allocatable_size
@@ -2228,6 +2225,7 @@ class LoopbackBlockDeviceAPITests(
             ),
             minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             device_allocation_unit=None,
+            unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
     """
