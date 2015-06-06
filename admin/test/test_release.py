@@ -1232,8 +1232,8 @@ class UploadPackagesTests(SynchronousTestCase):
     def test_repositories_created(self):
         """
         Calling :func:`upload_packages` creates repositories for supported
-        distributions in directories with suffixes appropriate for the release
-        type.
+        distributions. The keys for these repositories have suffixes
+        appropriate for the release type.
         """
         aws = FakeAWS(
             routing_rules={},
