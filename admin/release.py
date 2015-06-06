@@ -489,7 +489,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
 
 @do
 def update_repo(package_directory, target_bucket, target_key, source_repo,
-                packages, flocker_version, distro_name, distro_version):
+                packages, flocker_version, distribution):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
@@ -504,16 +504,10 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         to upload to the repository.
     :param bytes flocker_version: The version of flocker to upload packages
         for.
-    :param distro_name: The name of the distribution to upload packages for.
-    :param distro_version: The distro_version of the distribution to upload
-        packages for.
+    :param distribution: The distribution to upload packages for.
     """
     package_directory.createDirectory()
 
-    distribution = Distribution(
-        name=distro_name,
-        version=distro_version,
-    )
     package_type = distribution.package_type()
 
     yield Effect(DownloadS3KeyRecursively(
@@ -527,14 +521,14 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         target_path=package_directory,
         packages=packages,
         flocker_version=flocker_version,
-        distro_name=distro_name,
-        distro_version=distro_version,
+        distro_name=distribution.name,
+        distro_version=distribution.version,
         ))
 
     new_metadata = yield Effect(CreateRepo(
         repository_path=package_directory,
-        distro_name=distro_name,
-        distro_version=distro_version,
+        distro_name=distribution.name,
+        distro_version=distribution.version,
         ))
 
     yield Effect(UploadToS3Recursively(
@@ -590,8 +584,7 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
                     distribution.version)),
             packages=FLOCKER_PACKAGES,
             flocker_version=version,
-            distro_name=distribution.name,
-            distro_version=distribution.version,
+            distribution=distribution,
         )
 
 

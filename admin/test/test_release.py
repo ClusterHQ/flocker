@@ -40,6 +40,7 @@ from ..release import (
     publish_vagrant_metadata
 )
 
+from ..packaging import Distribution
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
@@ -855,7 +856,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
     def update_repo(self, aws, yum,
                     package_directory, target_bucket, target_key, source_repo,
-                    packages, flocker_version, distro_name, distro_version):
+                    packages, flocker_version, distribution):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -876,8 +877,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 source_repo=source_repo,
                 packages=packages,
                 flocker_version=flocker_version,
-                distro_name=distro_name,
-                distro_version=distro_version,
+                distribution=distribution,
             )
         )
 
@@ -925,8 +925,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='fedora',
-            distro_version='7',
+            distribution=Distribution(name='fedora', version='7'),
         )
 
         # The expected files are the new files plus the package which already
@@ -996,8 +995,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='ubuntu',
-            distro_version='14.04',
+            distribution=Distribution(name='ubuntu', version='14.04'),
         )
 
         # The expected files are the new files plus the package which already
@@ -1045,8 +1043,7 @@ class UpdateRepoTests(SynchronousTestCase):
                     self, files={}),
                 packages=self.packages,
                 flocker_version='0.3.3dev7',
-                distro_name='fedora',
-                distro_version='7',
+                distribution=Distribution(name="fedora", version="7"),
             )
 
         self.assertEqual(404, exception.exception.response.status_code)
