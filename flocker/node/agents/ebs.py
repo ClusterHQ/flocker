@@ -375,10 +375,16 @@ class EBSBlockDeviceAPI(object):
         :raise UnknownVolume: If no volume with a matching identifier can be
              found.
         """
-        for volume in self.connection.get_all_volumes(
-                volume_ids=[blockdevice_id]):
-            if volume.id == blockdevice_id:
-                return volume
+        try:
+            for volume in self.connection.get_all_volumes(
+                    volume_ids=[blockdevice_id]):
+                if volume.id == blockdevice_id:
+                    return volume
+        except EC2ResponseError as e:
+            if e.error_code == "InvalidName.NotFound":
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise
         raise UnknownVolume(blockdevice_id)
 
     def _next_device(self, instance_id):
