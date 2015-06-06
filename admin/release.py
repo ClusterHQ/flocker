@@ -562,38 +562,37 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
     :param bytes build_server: Server to download new packages from.
     """
     operating_systems = [
-        {'distro': 'fedora', 'version': '20', 'arch': 'native'},
-        {'distro': 'centos', 'version': '7', 'arch': 'native'},
-        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'native'},
-        {'distro': 'ubuntu', 'version': '15.04', 'arch': 'native'},
+        Distribution(name='fedora', version='20'),
+        Distribution(name='centos', version='7'),
+        Distribution(name='ubuntu', version='14.04'),
+        Distribution(name='ubuntu', version='15.04'),
     ]
 
     for operating_system in operating_systems:
-        for package_type, distribution_names in PACKAGE_TYPE_MAP.items():
-            if operating_system['distro'] in distribution_names:
-                architecture = ARCH[operating_system['arch']][package_type]
+        package_type = operating_system.package_type()
+        architecture = ARCH['native'][package_type]
 
         yield update_repo(
             package_directory=scratch_directory.child(
                 b'{}-{}-{}'.format(
-                    operating_system['distro'],
-                    operating_system['version'],
+                    operating_system.name,
+                    operating_system.version,
                     architecture)),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                operating_system['distro'] + get_package_key_suffix(version),
-                operating_system['version'],
+                operating_system.name + get_package_key_suffix(version),
+                operating_system.version,
                 architecture),
             source_repo=os.path.join(
                 build_server, b'results/omnibus',
                 version,
                 b'{}-{}'.format(
-                    operating_system['distro'],
-                    operating_system['version'])),
+                    operating_system.name,
+                    operating_system.version)),
             packages=FLOCKER_PACKAGES,
             flocker_version=version,
-            distro_name=operating_system['distro'],
-            distro_version=operating_system['version'],
+            distro_name=operating_system.name,
+            distro_version=operating_system.version,
         )
 
 
