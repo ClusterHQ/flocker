@@ -569,8 +569,7 @@ def upload_packages(scratch_directory, target_bucket, version, build_server):
     ]
 
     for distribution in distributions:
-        package_type = distribution.package_type()
-        architecture = ARCH['native'][package_type]
+        architecture = distribution.native_package_architecture()
 
         yield update_repo(
             package_directory=scratch_directory.child(

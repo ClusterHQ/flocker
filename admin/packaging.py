@@ -100,6 +100,12 @@ class Distribution(object):
         else:
             raise ValueError("Unknown distribution.", distribution_name)
 
+    def native_package_architecture(self):
+        """
+        :return: The ``bytes`` representing the native package architecture for
+            this distribution.
+        """
+        return ARCH['native'][self.package_type()]
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
 
