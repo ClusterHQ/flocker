@@ -16,6 +16,7 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
+from boto import set_stream_logger
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
@@ -27,25 +28,16 @@ from .blockdevice import (
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
-    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE
+    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
+    BOTO_LOG_HEADER,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
-BOTO_NUM_RETRIES = u'10'
+BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
-
-# Set Boto debug level to ``1``, requesting basic debug messages from Boto
-# to be printed.
-# See https://code.google.com/p/boto/wiki/BotoConfig#Boto
-# for available debug levels.
-# Warning: BotoConfig is a Boto global option, so, all Boto clients from
-# from this process will have their log levels modified. See
-# https://clusterhq.atlassian.net/browse/FLOC-1962
-# to track evaluation of impact of log level change.
-BOTO_DEBUG_LEVEL = u'1'
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -75,9 +67,8 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
 
-    # Set Boto debug level to BOTO_DEBUG_LEVEL:
-    # ``1``: log basic debug messages
-    config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
+    # Set Boto log header to tag Boto logs for Eliot's consumption.
+    set_stream_logger(BOTO_LOG_HEADER, level=logging.WARNING)
 
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
