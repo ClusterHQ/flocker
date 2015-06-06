@@ -17,11 +17,12 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
-from boto import set_stream_logger
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
+
+from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -40,6 +41,12 @@ ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 
+class EliotLogHandler(logging.Handler):
+    def emit(self, record):
+        print("HELLO")
+	Message.new(**vars(record)).write()
+import boto
+boto.log.addHandler(EliotLogHandler())
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
@@ -69,7 +76,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
 
     # Set Boto log header to tag Boto logs for Eliot's consumption.
-    set_stream_logger(BOTO_LOG_HEADER, level=logging.WARNING)
 
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
