@@ -3,13 +3,20 @@ import os
 import ssl
 import tempfile
 
+# NOTE - to run this example, you need at least python 2.7.9
+
 # Define the control IP, port, and the certificates for authentication.
 
-CONTROL_SERVICE = "52.17.91.83"
-CONTROL_PORT = 4523
-KEY_FILE = "/Users/rob/Projects/demo-cluster/rob.key"
-CERT_FILE = "/Users/rob/Projects/demo-cluster/rob.crt"
-CA_FILE = "/Users/rob/Projects/demo-cluster/cluster.crt"
+CONTROL_SERVICE = os.environ.get(
+    "CONTROL_SERVICE", "54.157.8.57")
+CONTROL_PORT = os.environ.get(
+    "CONTROL_PORT", 4523)
+KEY_FILE = os.environ.get(
+    "KEY_FILE", "/Users/kai/projects/flocker-api-examples/flockerdemo.key")
+CERT_FILE = os.environ.get(
+    "CERT_FILE", "/Users/kai/projects/flocker-api-examples/flockerdemo.crt")
+CA_FILE = os.environ.get(
+    "CA_FILE", "/Users/kai/projects/flocker-api-examples/cluster.crt")
 
 # Create a certificate chain and then pass that into the SSL system.
 
@@ -31,7 +38,8 @@ def make_api_request(method, endpoint, data=None):
     if method in ("GET", "DELETE"):
         c.request(method, endpoint)
     elif method == "POST":
-        c.request("POST", endpoint, data, headers={"Content-type": "application/json"})
+        c.request("POST", endpoint, data, 
+            headers={"Content-type": "application/json"})
     else:
         raise Exception("Unknown method %s" % (method,))
 
