@@ -28,6 +28,7 @@ from bitmath import Byte
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
+from twisted.python.components import proxyForInterface
 
 from .. import (
     IDeployer, IStateChange, sequentially, in_parallel, run_state_change
@@ -1997,3 +1998,14 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id=UUID(dataset_id),
                     size=configured_size,
                 )
+
+
+class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
+    """
+    A transparent caching layer around an ``IBlockDeviceAPI`` instance,
+    intended to exist for the lifetime of the process.
+
+    :ivar _api: Wrapped ``IBlockDeviceAPI`` provider.
+    """
+    def __init__(self, api):
+        self._api = api

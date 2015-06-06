@@ -57,6 +57,7 @@ from ..blockdevice import (
     check_allocatable_size,
     get_blockdevice_volume,
     _backing_file_name,
+    ProcessLifetimeCache,
 )
 
 from ... import run_state_change, in_parallel
@@ -3873,3 +3874,18 @@ def _make_allocated_size_testcases():
             globals()[test_case.__name__] = test_case
 _make_allocated_size_testcases()
 del _make_allocated_size_testcases
+
+
+class ProcessLifetimeCacheIBlockDeviceAPITests(
+        make_iblockdeviceapi_tests(
+            blockdevice_api_factory=lambda test_case: ProcessLifetimeCache(
+                loopbackblockdeviceapi_for_test(
+                    test_case, allocation_unit=LOOPBACK_ALLOCATION_UNIT
+                )),
+            minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            device_allocation_unit=None,
+        )
+):
+    """
+    Interface adherence Tests for ``ProcessLifetimeCache``.
+    """
