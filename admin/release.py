@@ -557,7 +557,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes build_server: Server to download new RPMs from.
     """
     operating_systems = [
-        {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
         {'distro': 'ubuntu', 'version': '14.04', 'arch': 'amd64'},
     ]

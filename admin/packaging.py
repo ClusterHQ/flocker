@@ -35,7 +35,7 @@ class PackageTypes(Values):
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('fedora', 'centos'),
+    PackageTypes.RPM: ('centos',),
     PackageTypes.DEB: ('ubuntu',),
 }
 
@@ -206,16 +206,6 @@ class Dependency(object):
 # The minimum required version of Docker. The package names vary between
 # operating systems and are supplied later.
 DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
-# This ensures that servers with the broken docker-io-1.4.1 package get
-# upgraded when Flocker is installed.
-# See https://bugzilla.redhat.com/show_bug.cgi?id=1185423
-# The working 1.4.1-8 package is temporarily being hosted in the ClusterHQ
-# repo, but will soon be backported to Fedora20.
-# See https://admin.fedoraproject.org/updates/docker-io-1.4.1-8.fc20
-# In future this specific minimum version dependency can be removed.
-# See https://clusterhq.atlassian.net/browse/FLOC-1293
-FedoraDockerDependency = partial(
-    Dependency, package='docker-io', compare='>=', version='1.4.1-8.fc20')
 
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
 # code base.  ``clusterhq-flocker-cli`` and ``clusterhq-flocker-node`` are meta
@@ -225,9 +215,6 @@ FedoraDockerDependency = partial(
 # dependency package names and versions on various platforms.
 DEPENDENCIES = {
     'python': {
-        'fedora': (
-            Dependency(package='python'),
-        ),
         'centos': (
             Dependency(package='python'),
         ),
@@ -236,11 +223,6 @@ DEPENDENCIES = {
         ),
     },
     'node': {
-        'fedora': (
-            FedoraDockerDependency(),
-            Dependency(package='/usr/sbin/iptables'),
-            Dependency(package='openssh-clients'),
-        ),
         'centos': (
             DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
@@ -811,6 +793,7 @@ def omnibus_package_builder(
     flocker_node_path.makedirs()
     empty_path = target_dir.child('empty')
     empty_path.makedirs()
+    # TODO is this relevant?
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')

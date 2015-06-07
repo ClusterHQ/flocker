@@ -434,7 +434,7 @@ def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
-    if distribution in ('fedora-20', 'centos-7'):
+    if distribution in ('centos-7',):
         return sequence([
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
@@ -503,7 +503,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
@@ -548,7 +548,7 @@ def task_enable_flocker_agent(distribution, control_node,
             },
         ),
     )
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7'):
         return sequence([
             put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
@@ -602,7 +602,7 @@ def task_install_zfs(distribution, variants=set()):
             run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
             ]
 
-    elif distribution in ('fedora-20', 'centos-7'):
+    elif distribution in ('centos-7',):
         commands += [
             run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
         ]
@@ -834,23 +834,6 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
         run_from_args(['docker', 'pull', image]) for image in images
     ])
 
-
-def task_enable_updates_testing(distribution):
-    """
-    Enable the distribution's proposed updates repository.
-
-    :param bytes distribution: See func:`task_install_flocker`
-    """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager', '--enable', 'updates-testing'])
-        ])
-    else:
-        raise DistributionNotSupported(distribution=distribution)
-
-
 def task_enable_docker_head_repository(distribution):
     """
     Enable the distribution's repository containing in-development docker
@@ -858,16 +841,7 @@ def task_enable_docker_head_repository(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager',
-                '--add-repo',
-                'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
-            ])
-        ])
-    elif distribution == "centos-7":
+    if distribution == "centos-7":
         return sequence([
             put(content=dedent("""\
                 [virt7-testing]
@@ -886,6 +860,7 @@ def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
 
+    # TODO change this comment
     This drives all the common Fedora20 installation steps in:
      * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20 # noqa
 
@@ -898,8 +873,6 @@ def provision(distribution, package_source, variants):
     """
     commands = []
 
-    if Variants.DISTRO_TESTING in variants:
-        commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
 

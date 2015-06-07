@@ -1,3 +1,5 @@
+# TODO Remove this
+
 # See README for instructions on how to build.
 Name:           clusterhq-release
 Version:        1
