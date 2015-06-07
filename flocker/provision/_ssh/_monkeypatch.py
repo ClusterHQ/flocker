@@ -3,6 +3,8 @@
 Monkey patch twisted.conch.ssh.transport.SSHClientTransport to support
 ``diffie-hellman-group-exchange-sha256``.
 
+https://clusterhq.atlassian.net/browse/FLOC-2134
+
 This is adapted from the patch at http://twistedmatrix.com/trac/ticket/7672
 """
 
