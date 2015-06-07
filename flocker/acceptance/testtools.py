@@ -42,7 +42,7 @@ except ImportError:
     PYMONGO_INSTALLED = False
 
 __all__ = [
-    'assert_expected_deployment', 'flocker_deploy', 'get_clean_nodes',
+    'assert_expected_deployment',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
     'create_attached_volume'
@@ -251,35 +251,6 @@ def get_clean_nodes(test_case, num_nodes):
     return getting
 
 
-def flocker_deploy(test_case, deployment_config, application_config):
-    """
-    Run ``flocker-deploy`` with given configuration files.
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param dict deployment_config: The desired deployment configuration.
-    :param dict application_config: The desired application configuration.
-    """
-    # This is duplicate code, see
-    # https://clusterhq.atlassian.net/browse/FLOC-1903
-    control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    certificate_path = environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"]
-    if control_node is None:
-        raise SkipTest("Set control node address using "
-                       "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    temp = FilePath(test_case.mktemp())
-    temp.makedirs()
-
-    deployment = temp.child(b"deployment.yml")
-    deployment.setContent(safe_dump(deployment_config))
-
-    application = temp.child(b"application.yml")
-    application.setContent(safe_dump(application_config))
-    check_call([b"flocker-deploy", b"--certificates-directory",
-               certificate_path, control_node, deployment.path,
-               application.path])
-
-
 def get_mongo_client(host, port=27017):
     """
     Returns a ``Deferred`` which fires with a ``MongoClient`` when one has been
@@ -459,6 +430,7 @@ class Cluster(PRecord):
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    certificates_path = field(FilePath, mandatory=True)
 
     @property
     def base_url(self):
@@ -745,6 +717,27 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def flocker_deploy(self, test_case, deployment_config, application_config):
+        """
+        Run ``flocker-deploy`` with given configuration files.
+
+        :param test_case: The ``TestCase`` running this unit test.
+        :param dict deployment_config: The desired deployment configuration.
+        :param dict application_config: The desired application configuration.
+        """
+        temp = FilePath(test_case.mktemp())
+        temp.makedirs()
+
+        deployment = temp.child(b"deployment.yml")
+        deployment.setContent(safe_dump(deployment_config))
+
+        application = temp.child(b"application.yml")
+        application.setContent(safe_dump(application_config))
+        check_call([b"flocker-deploy",
+                    b"--certificates-directory", self.certificate_path.path,
+                    self.control_node.address,
+                    deployment.path, application.path])
+
 
 def get_test_cluster(reactor, node_count=0):
     """
@@ -781,7 +774,8 @@ def get_test_cluster(reactor, node_count=0):
     cluster = Cluster(
         control_node=ControlService(address=control_node),
         nodes=[],
-        treq=treq_with_authentication(reactor, certificates_path)
+        treq=treq_with_authentication(reactor, certificates_path),
+        certificates_path=certificates_path,
     )
 
     # Wait until nodes are up and running:
