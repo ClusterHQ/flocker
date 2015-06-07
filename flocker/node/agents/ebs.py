@@ -15,6 +15,7 @@ from bitmath import Byte, GiB
 
 from pyrsistent import PRecord, field
 from zope.interface import implementer
+import boto
 from boto import ec2
 from boto import config
 from boto.ec2.connection import EC2Connection
@@ -42,11 +43,27 @@ BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 
 class EliotLogHandler(logging.Handler):
+    _to_log = {"Method", "Path", "Params"}
     def emit(self, record):
-        print("HELLO")
-	Message.new(**vars(record)).write()
-import boto
-boto.log.addHandler(EliotLogHandler())
+        fields = vars(record)
+        # Only log certain things.  The log is massively too verbose
+        # otherwise.
+        if fields.get("msg", ":").split(":")[0] in self._to_log:
+            Message.new(
+                message_type=BOTO_LOG_HEADER, **fields
+            ).write()
+
+def _enable_boto_logging():
+    """
+    Make boto log activity using Eliot.
+    """
+    logger = logging.getLogger("boto")
+    logger.addHandler(EliotLogHandler())
+
+    # It seems as though basically all boto log messages are at the same
+    # level.  Either we can see all of them or we can see none of them.
+    # We'll do some extra filtering in the handler.
+    logger.setLevel(logging.DEBUG)
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
@@ -74,8 +91,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
         config.add_section('Boto')
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
-
-    # Set Boto log header to tag Boto logs for Eliot's consumption.
 
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
