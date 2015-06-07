@@ -6,10 +6,8 @@ Testing utilities for ``flocker.acceptance``.
 from functools import wraps
 from json import dumps
 from os import environ
-from socket import gaierror, socket
 from subprocess import check_call
 from unittest import SkipTest, skipUnless
-from contextlib import closing
 
 from yaml import safe_dump
 
@@ -193,60 +191,6 @@ def get_clean_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-
-    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_AGENT_NODES")
-
-    if nodes_env_var is None:
-        raise SkipTest(
-            "Set acceptance testing node IP addresses using the "
-            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a colon "
-            "separated list.")
-
-    # Remove any empty strings, for example if the list has ended with a colon
-    nodes = filter(None, nodes_env_var.split(':'))
-
-    if len(nodes) < num_nodes:
-        raise SkipTest("This test requires a minimum of {necessary} nodes, "
-                       "{existing} node(s) are set.".format(
-                           necessary=num_nodes, existing=len(nodes)))
-
-    Message.new(
-        message_type="acceptance:get_clean_nodes:seeking",
-        num_nodes=num_nodes
-    ).write()
-
-    reachable_nodes = set()
-
-    for node in nodes:
-        with closing(socket()) as sock:
-            try:
-                can_connect = not sock.connect_ex((node, 22))
-            except gaierror:
-                can_connect = False
-            finally:
-                if can_connect:
-                    reachable_nodes.add(node)
-
-    Message.new(
-        message_type="acceptance:get_clean_nodes:found",
-        nodes=reachable_nodes,
-    ).write()
-
-    if len(reachable_nodes) < num_nodes:
-        unreachable_nodes = set(nodes) - reachable_nodes
-        test_case.fail(
-            "At least {min} node(s) must be running and reachable on port 22. "
-            "The following node(s) are reachable: {reachable}. "
-            "The following node(s) are not reachable: {unreachable}.".format(
-                min=num_nodes,
-                reachable=", ".join(str(node) for node in reachable_nodes),
-                unreachable=", ".join(str(node) for node in unreachable_nodes),
-            )
-        )
-
-    # Only return the desired number of nodes
-    reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
-
     getting = get_test_cluster(reactor, node_count=num_nodes)
 
     def api_clean_state(cluster, configuration_method,
@@ -299,11 +243,11 @@ def get_clean_nodes(test_case, num_nodes):
             ),
             lambda cluster: cluster.datasets_state(),
             lambda cluster, item: cluster.delete_dataset(item[u"dataset_id"]),
-        )
+        ).addCallback(lambda ignored: cluster)
 
     getting.addCallback(cleanup_containers)
     getting.addCallback(cleanup_datasets)
-    getting.addCallback(lambda _: reachable_nodes)
+    getting.addCallback(lambda cluster: cluster.nodes[:num_nodes])
     return getting
 
 
