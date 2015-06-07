@@ -253,6 +253,7 @@ class CinderBlockDeviceAPI(object):
         self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
+        self.cache = None
 
     def allocation_unit(self):
         """

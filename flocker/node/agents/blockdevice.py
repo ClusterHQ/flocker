@@ -8,6 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
+import threading
 from subprocess import check_output, call
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
@@ -19,7 +20,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, pmap
 from characteristic import attributes, with_cmp
 
 import psutil
@@ -37,6 +38,7 @@ from .._deploy import NotInUseDatasets
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...common import auto_threaded
 
+from ._logging import LOG_CACHE_STATS
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -339,7 +341,172 @@ class BlockDeviceVolume(PRecord):
     attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
+    attached_device = field(
+        type=(unicode, type(None)), initial=None, mandatory=True
+    )
+    is_cached_copy = field(type=bool, initial=False, mandatory=True)
     dataset_id = field(type=UUID, mandatory=True)
+
+
+class BlockDeviceVolumeCache(object):
+    """
+    Cache for storing ``BlockDeviceVolume``s.
+
+    This is a cache for saving storage backend read operations
+    originating from ``IBlockDeviceAPI`` calls.
+
+    Cache is used for::
+    - Serving ``get_device_path``, ``list_volumes`` ``IBlockDeviceAPI`` calls.
+    - Checking if a volume exists, and is in expected attach/detach state.
+      This helps in raising exceptions like ``UnattachedVolume`` and
+      ``AlreadyAttachedVolume`` during ``detach_volume`` and ``attach_volume``,
+      without having to fetch volume state from storage backend.
+
+    Cache stores::
+    - A ``pmap`` mapping blockdevice ids to ``BlockDeviceVolume``s.
+    - A lock to protect cache data.
+    - A few counters to track cache utilization and usefulness.
+    """
+    def __init__(self):
+        """
+        Initialize Cache with data and lock.
+        """
+        self.data = pmap({})
+        self.lock = threading.Lock()
+
+        # Counters to log cache utilization.
+        self._lookup_hit_count = 0
+        self._lookup_miss_count = 0
+        self._insert_count = 0
+        self._update_count = 0
+        self._remove_count = 0
+        self._list_keys_count = 0
+        self._list_volumes_count = 0
+
+    def lookup(self, blockdevice_id):
+        """
+        Given a blockdevice id, fetch ``BlockDeviceVolume`` from cache.
+
+        :param unicode blockdevice_id: Identifier for volume to lookup.
+
+        :returns: A ``BlockDeviceVolume`` for given blockdevice id,
+            if we find a cache hit.
+        :rtype: ``BlockDeviceVolume``
+        """
+        with self.lock:
+            try:
+                volume = self.data[blockdevice_id]
+                self._lookup_hit_count += 1
+            except KeyError:
+                self._lookup_miss_count += 1
+                volume = None
+        self.log_stats()
+        return volume
+
+    def insert(self, volume):
+        """
+        Insert given ``BlockDeviceVolume`` into cache.
+        Any existing cache volume with the same blockdevice_id will be
+        overwritten.
+
+        :param BlockDeviceVolume volume: Volume to insert into cache.
+        """
+        with self.lock:
+            volume.set('is_cached_copy', True)
+            self.data = self.data.set(volume.blockdevice_id, volume)
+            self._insert_count += 1
+        self.log_stats()
+
+    def update(self, blockdevice_id, update_fields):
+        """
+        Update cached volume corresponding to given blockdevice_id
+        with requested key-value field updates.
+        Updates to fields that do not belong to ``BlockDeviceVolume``
+        are discarded.
+
+        :param unicode blockdevice_id: Identifier for volume to update.
+        :param PMap update_fields: Map of key-value updates.
+
+        :returns: ``BlockDeviceVolume`` with requested updates.
+        :rtype: ``BlockDeviceVolume``
+        """
+        with self.lock:
+            if blockdevice_id not in self.data.keys():
+                return None
+            volume = self.data[blockdevice_id]
+
+            # If volume exists in cache, update ``BlockDeviceVolume``
+            # fields provided in the update_fields.
+            if volume is not None:
+                for key, value in update_fields.items():
+                    if key in volume.keys():
+                        volume = volume.set(key, value)
+                self.data = self.data.set(blockdevice_id, volume)
+            self._update_count += 1
+        self.log_stats()
+        return volume
+
+    def remove(self, blockdevice_id):
+        """
+        Remove cache entry for ``BlockDeviceVolume`` for given device id.
+
+        :param unicode blockdevice_id: Block device identifier of cache
+            entry to discard.
+        """
+        with self.lock:
+            self.data = self.data.discard(blockdevice_id)
+            self._remove_count += 1
+        self.log_stats()
+
+    def list_keys(self):
+        """
+        List block device identifiers for cache volumes.
+
+        :returns: A list of blockdevice_ids of all cached volumes.
+        :rtype: ``list``
+        """
+        with self.lock:
+            self._list_keys_count += 1
+            return self.data.keys()
+
+    def list_volumes(self):
+        """
+        List all ``BlockDeviceVolume``s stored in cache.
+
+        :returns: A list of cached ``BlockDeviceVolume``s.
+        :rtype: ``list``
+        """
+        with self.lock:
+            self._list_volumes_count += 1
+            return self.data.values()
+
+    def get_hit_rate_percentage(self):
+        """
+        Retrieve cache hit rate.
+
+        :returns: hit rate of cache lookup (percentage)
+        :rtype: ``int``
+        """
+        total_lookups = self._lookup_hit_count + self._lookup_miss_count
+        total_lookups += self._list_volumes_count
+        saved_lookups = self._lookup_hit_count + self._list_volumes_count
+        if total_lookups > 0:
+            hit_rate = int((saved_lookups * 100)/total_lookups)
+        else:
+            hit_rate = 100
+        return hit_rate
+
+    def log_stats(self):
+        """
+        Retrive cache usage stats.
+        """
+        hit_percentage = self.get_hit_rate_percentage()
+        backend_calls_saved = self._lookup_hit_count + self._list_volumes_count
+        LOG_CACHE_STATS(insert_count=self._insert_count,
+                        delete_count=self._remove_count,
+                        update_count=self._update_count,
+                        read_hit_percent=hit_percentage,
+                        backend_calls_saved=backend_calls_saved).write()
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
@@ -1266,9 +1433,21 @@ def get_blockdevice_volume(api, blockdevice_id):
 
     :return: The ``BlockDeviceVolume`` that matches.
     """
+
+    # Check for cache hit
+    volume = api.cache.lookup(blockdevice_id)
+    if volume is not None:
+        return volume
+
+    # If we failed to find volume in cache, reach out to storage backend.
+    # We need to check backend because cache miss does not always indicate
+    # ``UnknownVolume`` (for example, after flocker process restart,
+    # cache contents will be lost).
     for volume in api.list_volumes():
         if volume.blockdevice_id == blockdevice_id:
             return volume
+
+    # Cache miss and missing ``blockdevice_id`` on storage backend.
     raise UnknownVolume(blockdevice_id)
 
 
