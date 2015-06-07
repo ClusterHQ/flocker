@@ -65,6 +65,8 @@ def _enable_boto_logging():
     # We'll do some extra filtering in the handler.
     logger.setLevel(logging.DEBUG)
 
+_enable_boto_logging()
+
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
     Establish connection to EC2 client.
