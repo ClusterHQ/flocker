@@ -174,83 +174,6 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
-def get_clean_nodes(test_case, num_nodes):
-    """
-    Create or get ``num_nodes`` nodes with no Docker containers on them.
-
-    This is an alternative to
-    http://doc-dev.clusterhq.com/gettingstarted/tutorial/
-    vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
-
-    XXX This pretends to be asynchronous because num_nodes Docker containers
-    will be created instead to replace this in some circumstances, see
-    https://clusterhq.atlassian.net/browse/FLOC-900
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param int num_nodes: The number of nodes to start up.
-
-    :return: A ``Deferred`` which fires with a set of IP addresses.
-    """
-    getting = get_test_cluster(reactor, node_count=num_nodes)
-
-    def api_clean_state(cluster, configuration_method,
-                        state_method, delete_method):
-        """
-        Clean containers and datasets via the API.
-
-        :param Cluster cluster: The test cluster to act on.
-        :param configuration_method: The function to obtain the configured
-            entities.
-        :param delete_method: The method to delete an entity.
-
-        :return: A `Deferred` that fires with the cluster object.
-        """
-        get_items = configuration_method(cluster)
-
-        def delete_items(items):
-            return gather_deferreds(list(
-                delete_method(cluster, item)
-                for item in items
-            ))
-        get_items.addCallback(delete_items)
-        get_items.addCallback(
-            lambda ignored: loop_until(
-                lambda: state_method(cluster).addCallback(
-                    lambda result: [] == result
-                )
-            )
-        )
-        return get_items
-
-    def cleanup_containers(cluster):
-        return api_clean_state(
-            cluster,
-            lambda cluster: cluster.configured_containers(),
-            lambda cluster: cluster.current_containers(),
-            lambda cluster, item: cluster.remove_container(item[u"name"]),
-        ).addCallback(lambda ignored: cluster)
-
-    def cleanup_datasets(cluster):
-        return api_clean_state(
-            cluster,
-            lambda cluster: cluster.configured_datasets().addCallback(
-                lambda datasets: list(
-                    dataset
-                    for dataset
-                    in datasets
-                    if not dataset.get(u"deleted", False)
-                )
-            ),
-            lambda cluster: cluster.datasets_state(),
-            lambda cluster, item: cluster.delete_dataset(item[u"dataset_id"]),
-        ).addCallback(lambda ignored: cluster)
-
-    getting.addCallback(cleanup_containers)
-    getting.addCallback(cleanup_datasets)
-    getting.addCallback(lambda cluster: cluster.nodes[:num_nodes])
-    return getting
-
-
 def get_mongo_client(host, port=27017):
     """
     Returns a ``Deferred`` which fires with a ``MongoClient`` when one has been
@@ -738,6 +661,64 @@ class Cluster(PRecord):
                     self.control_node.address,
                     deployment.path, application.path])
 
+    def clean_nodes(self):
+        """
+        Clean containers and datasets via the API.
+
+        :return: A `Deferred` that fires when the cluster is clean.
+        """
+        def api_clean_state(configuration_method, state_method, delete_method):
+            """
+            Clean entities from the cluster.
+
+            :param configuration_method: The function to obtain the configured
+                entities.
+            :param state_method: The function to get the current entities.
+            :param delete_method: The method to delete an entity.
+
+            :return: A `Deferred` that fires when the entities have been
+                deleted.
+            """
+            get_items = configuration_method()
+
+            def delete_items(items):
+                return gather_deferreds(list(
+                    delete_method(item)
+                    for item in items
+                ))
+            get_items.addCallback(delete_items)
+            get_items.addCallback(
+                lambda ignored: loop_until(
+                    lambda: state_method().addCallback(
+                        lambda result: [] == result
+                    )
+                )
+            )
+            return get_items
+
+        def cleanup_containers():
+            return api_clean_state(
+                self.configured_containers,
+                self.current_containers,
+                lambda item: self.remove_container(item[u"name"]),
+            )
+
+        def cleanup_datasets():
+            return api_clean_state(
+                lambda: self.configured_datasets().addCallback(
+                    lambda datasets: list(
+                        dataset
+                        for dataset
+                        in datasets
+                        if not dataset.get(u"deleted", False)
+                    )
+                ),
+                self.datasets_state,
+                lambda item: self.delete_dataset(item[u"dataset_id"]),
+            )
+
+        return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+
 
 def get_test_cluster(reactor, node_count=0):
     """
@@ -835,10 +816,14 @@ def require_cluster(num_nodes):
             # reachable and clean them up prior to the test.
             # The nodes must already have been started and their flocker
             # services started.
-            waiting_for_nodes = get_clean_nodes(test_case, num_nodes)
-            waiting_for_cluster = waiting_for_nodes.addCallback(
-                lambda nodes: get_test_cluster(reactor, node_count=num_nodes)
-            )
+            waiting_for_cluster = get_test_cluster(
+                reactor, node_count=num_nodes)
+
+            def clean(cluster):
+                cluster.clean_nodes()
+                return cluster
+
+            waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs
