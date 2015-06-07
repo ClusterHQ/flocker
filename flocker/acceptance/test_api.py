@@ -12,7 +12,6 @@ from pyrsistent import thaw, pmap
 
 from twisted.trial.unittest import TestCase
 
-from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
@@ -23,7 +22,7 @@ from ..testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
 )
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client, get_test_cluster,
+    MONGO_IMAGE, require_mongo, get_mongo_client,
     require_cluster, require_moving_backend,
 )
 
@@ -69,7 +68,8 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    def _create_container(self):
+    @require_cluster(1)
+    def _create_container(self, cluster):
         """
         Create a container listening on port 8080.
 
@@ -80,15 +80,11 @@ class ContainerAPITests(TestCase):
             u"name": random_name(self),
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
-            u'restart_policy': {u'name': u'never'}
+            u'restart_policy': {u'name': u'never'},
+            u"node_uuid": cluster.nodes[0].uuid,
         }
-        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
-        def create_container(cluster, data):
-            data[u"node_uuid"] = cluster.nodes[0].uuid
-            return cluster.create_container(data)
-
-        d = waiting_for_cluster.addCallback(create_container, data)
+        d = cluster.create_container(data)
 
         def check_result(result):
             cluster, response = result
