@@ -19,6 +19,7 @@ To test that your implementation is correct you can instantiate a generic test s
 
 .. code-block:: python
 
+    from uuid import uuid4
     from flocker.node.agents.test.test_blockdevice import make_istatechange_tests
 
     def api_factory(test):
@@ -32,7 +33,9 @@ To test that your implementation is correct you can instantiate a generic test s
     MIN_ALLOCATION_UNIT = 1024 * 1024
 
     class YourStorageTests(make_istatechange_tests(
-        api_factory, MIN_ALLOCATION_SIZE, MIN_ALLOCATION_UNIT)):
+        api_factory, MIN_ALLOCATION_SIZE, MIN_ALLOCATION_UNIT,
+        # Factory for valid but unknown volume id specific to your backend:
+        lambda test: unicode(uuid4()))):
         """
         Tests for your storage.
         """
