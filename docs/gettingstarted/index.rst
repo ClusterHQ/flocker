@@ -92,6 +92,14 @@ Getting started with Flocker
          .. task:: install_cli ubuntu-15.04
             :prompt: you@laptop:~$
 
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
+
+         Install the Flocker client on your Linux machine:
+
+         .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
+
          Fedora 20
          ^^^^^^^^^
 

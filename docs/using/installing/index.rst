@@ -28,6 +28,14 @@ On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 .. task:: install_cli ubuntu-15.04
    :prompt: alice@mercury:~$
 
+Ubuntu 14.04
+------------
+
+On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
+
+.. task:: install_cli ubuntu-15.04
+   :prompt: alice@mercury:~$
+
 
 Other Linux Distributions
 -------------------------
