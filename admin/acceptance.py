@@ -281,7 +281,8 @@ def configured_cluster_for_nodes(
     Get a ``Cluster`` with Flocker services running on the right nodes.
 
     :param reactor: The reactor.
-    :param Certificates certificates: The certificates to install on the cluster.
+    :param Certificates certificates: The certificates to install on the
+        cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
     :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
         representing the dataset backend that the nodes will be configured to
