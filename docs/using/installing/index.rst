@@ -200,25 +200,28 @@ Complete the configuration wizard; in general the default configuration should s
       chmod 600 ~/.ssh/my-instance.pem
       ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of each new instance and, depending on the OS, log in as user ``fedora``, ``centos``, or ``ubuntu`` e.g.:
+#. Look up the public DNS name or public IP address of each new instance.
+Log in as user ``centos`` (or the relevant user if you are using another AMI).
+For example:
 
    .. prompt:: bash alice@mercury:~$
 
-      ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh centos@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Allow SSH access for the ``root`` user, then log out.
+#. Allow SSH access for the ``root`` user on each node, then log out.
 
    .. task:: install_ssh_key
       :prompt: [user@aws]$
 
-#. Log back into the instances as user "root", e.g.:
+#. Log back into the instances as user "root" on each node.
+For example:
 
    .. prompt:: bash alice@mercury:~$
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 
-#. Follow the operating system specific installation instructions below.
+#. Follow the operating system specific installation instructions below on each node.
 
 
 .. _rackspace-install:
