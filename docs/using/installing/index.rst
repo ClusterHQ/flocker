@@ -22,6 +22,11 @@ The control service is also included in the ``clusterhq-flocker-node`` package, 
 This document will describe how to install the CLI locally and install the agents and control service on cloud infrastructure.
 It also describes how to get Vagrant nodes started which already have these services running.
 
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
+
 .. _installing-flocker-cli:
 
 Installing ``flocker-cli``
@@ -41,16 +46,16 @@ Other Linux Distributions
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 On Fedora 20 you can install these by running:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
+   sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
 
 On Ubuntu or Debian you can run:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo apt-get update
-   alice@mercury:~$ sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
+   sudo apt-get update
+   sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
 
 Then run the following script to install ``flocker-cli``:
 
@@ -61,13 +66,11 @@ Then run the following script to install ``flocker-cli``:
 
 Save the script to a file and then run it:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sh linux-install.sh
-   ...
-   alice@mercury:~$
+   sh linux-install.sh
 
-The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
+The ``flocker-deploy`` command line program will now be available in :file:`flocker-tutorial/bin/`:
 
 .. version-code-block:: console
 
@@ -93,11 +96,9 @@ Install the `Homebrew`_ package manager.
 
 Make sure Homebrew has no issues:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ brew doctor
-   ...
-   alice@mercury:~$
+   brew doctor
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
@@ -118,7 +119,6 @@ The ``flocker-deploy`` command line program will now be available:
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
-
 
 .. _installing-flocker-node:
 
@@ -153,7 +153,6 @@ You can therefore skip this section unless you want to run Flocker on a cluster 
 
 .. warning:: These instructions describe the installation of ``clusterhq-flocker-node`` on a Fedora 20 operating system.
              This is the only supported node operating system right now.
-
 
 .. _aws-install:
 
@@ -397,7 +396,7 @@ You can read more about how Flocker's authentication layer works in the :ref:`se
 
 .. _post-installation-configuration:
 
-Post installation configuration
+Post-Installation Configuration
 -------------------------------
 
 Your firewall will need to allow access to the ports your applications are exposing.
@@ -459,8 +458,8 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-To enable the Flocker control service on Fedora / CentOS
---------------------------------------------------------
+Enabling the Flocker control service on Fedora / CentOS
+-------------------------------------------------------
 
 .. task:: enable_flocker_control fedora-20
    :prompt: [root@control-node]#
@@ -475,8 +474,8 @@ For more details on configuring the firewall, see Fedora's `FirewallD documentat
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
-To enable the Flocker control service on Ubuntu
------------------------------------------------
+Enabling the Flocker control service on Ubuntu
+----------------------------------------------
 
 .. task:: enable_flocker_control ubuntu-14.04
    :prompt: [root@control-node]#
@@ -491,8 +490,8 @@ For more details on configuring the firewall, see Ubuntu's `UFW documentation <h
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
-To enable the Flocker agent service
------------------------------------
+Enabling the Flocker agent service
+----------------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
@@ -537,12 +536,12 @@ Run the following commands to enable the agent service:
    :prompt: [root@agent-node]#
 
 What to do next
----------------
+===============
 
 You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 
-Next you may want to perform the steps in :ref:`the tutorial <movingapps>`, to ensure that your nodes are correctly configured.
-Replace the IP addresses in the ``deployment.yml`` files with the IP addresses of your own nodes.
-Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+Next, we will describe how to use cluster security and authentication.
+However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
+You can replace the IP addresses in the sample ``deployment.yml`` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
 
 
