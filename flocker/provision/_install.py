@@ -39,8 +39,6 @@ from flocker.common.version import (
 START = "restart"
 
 ZFS_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
-                 "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
     'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                 "epel/zfs-release.el7.noarch.rpm",
 }
@@ -66,11 +64,8 @@ def get_repository_url(distribution, flocker_version):
     distribution_to_url = {
         # XXX Use testing repositories when appropriate for CentOS.
         # See FLOC-2080.
-        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/{key}"
-                     "/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                         archive_bucket=ARCHIVE_BUCKET,
-                         key='fedora',
-                     ),
+        # TODO instead of hardcoding keys, use the _to_Distribution map
+        # and then choose the name
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
                     "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
@@ -137,7 +132,7 @@ def task_client_installation_test():
 
 def install_cli_commands_yum(distribution, package_source):
     """
-    Install flocker CLI on Fedora or CentOS.
+    Install Flocker CLI on Fedora or CentOS.
 
     The ClusterHQ repo is added for downloading latest releases.  If
     ``package_source`` contains a branch, then a BuildBot repo will also
