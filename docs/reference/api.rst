@@ -30,8 +30,8 @@ REST API Endpoints
 ==================
 
 
-Common
-------
+Common API Endpoints
+--------------------
 
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
@@ -39,8 +39,8 @@ Common
     :examples_path: api_examples.yml
     :section: common
 
-Dataset
--------
+Dataset API Endpoints
+---------------------
 
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
@@ -49,8 +49,8 @@ Dataset
     :section: dataset
 
 
-Container
----------
+Container API Endpoints
+-----------------------
 
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
@@ -59,5 +59,5 @@ Container
     :section: container
 
 
-.. XXX: Improvements to the API (split in sections, and create collapse directive), both require Engineering effort:
+.. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094
