@@ -1261,7 +1261,7 @@ class UploadPackagesTests(SynchronousTestCase):
         )
 
         expected_files = {
-             'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
             'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm',  # noqa
             'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm',  # noqa
             'centos-testing/7/x86_64/repodata/repomod.xml',  # noqa
