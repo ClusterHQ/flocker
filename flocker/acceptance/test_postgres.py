@@ -16,7 +16,7 @@ from flocker.control import (
     )
 from flocker.testtools import loop_until
 
-from .testtools import (assert_expected_deployment, require_cluster,
+from .testtools import (require_cluster,
                         require_flocker_cli, require_moving_backend)
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE
@@ -121,7 +121,7 @@ class PostgresTests(TestCase):
         Verify that Docker reports that PostgreSQL is running on one node and
         not another.
         """
-        return assert_expected_deployment(self, {
+        return self.cluster.assert_expected_deployment(self, {
             self.node_1.address: set([POSTGRES_APPLICATION]),
             self.node_2.address: set([]),
         })
@@ -134,7 +134,7 @@ class PostgresTests(TestCase):
         self.cluster.flocker_deploy(
             self, self.postgres_deployment_moved, self.postgres_application)
 
-        return assert_expected_deployment(self, {
+        return self.cluster.assert_expected_deployment(self, {
             self.node_1.address: set([]),
             self.node_2.address: set([POSTGRES_APPLICATION]),
         })

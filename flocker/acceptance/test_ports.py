@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.control import Port
 
-from .testtools import (assert_expected_deployment, require_cluster,
+from .testtools import (require_cluster,
                         get_mongo_client, get_mongo_application,
                         MONGO_APPLICATION, MONGO_IMAGE,
                         require_flocker_cli, require_mongo)
@@ -68,7 +68,7 @@ class PortsTests(TestCase):
 
         application = get_mongo_application().set("ports", ports)
 
-        d = assert_expected_deployment(self, {
+        d = self.cluster.assert_expected_deployment(self, {
             self.node_1.address: set([application]),
             self.node_2.address: set([]),
         })

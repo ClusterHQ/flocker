@@ -42,7 +42,7 @@ except ImportError:
     PYMONGO_INSTALLED = False
 
 __all__ = [
-    'assert_expected_deployment',
+    'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
     'create_attached_volume'
@@ -199,55 +199,6 @@ def get_mongo_client(host, port=27017):
             return False
 
     d = loop_until(create_mongo_client)
-    return d
-
-
-def assert_expected_deployment(test_case, expected_deployment):
-    """
-    Assert that the expected set of ``Application`` instances on a set of
-    nodes is the same as the actual set of ``Application`` instance on
-    those nodes.
-
-    The tutorial looks at Docker output, but the acceptance tests are
-    intended to test high-level external behaviors. Since this is looking
-    at the output of the control service API it merely verifies what
-    Flocker believes the system state is, not the actual state.
-    The latter should be verified separately with additional tests
-    for external side-effects (applications being available on ports,
-    say).
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param dict expected_deployment: A mapping of IP addresses to set of
-        ``Application`` instances expected on the nodes with those IP
-        addresses.
-
-    :return Deferred: Fires on end of assertion.
-    """
-    d = get_test_cluster(reactor)
-
-    def got_cluster(cluster):
-        ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
-        uuid_to_ip = {node.uuid: node.address for node in cluster.nodes}
-
-        def got_results(existing_containers):
-            expected = []
-            for hostname, apps in expected_deployment.items():
-                node_uuid = ip_to_uuid[hostname]
-                expected += [container_configuration_response(app, node_uuid)
-                             for app in apps]
-            for app in expected:
-                app[u"running"] = True
-                app[u"host"] = uuid_to_ip[app["node_uuid"]]
-
-            return sorted(existing_containers) == sorted(expected)
-
-        def configuration_matches_state():
-            d = cluster.current_containers()
-            d.addCallback(got_results)
-            return d
-
-        return loop_until(configuration_matches_state)
-    d.addCallback(got_cluster)
     return d
 
 
@@ -718,6 +669,49 @@ class Cluster(PRecord):
             )
 
         return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+
+    def assert_expected_deployment(self, test_case, expected_deployment):
+        """
+        Assert that the expected set of ``Application`` instances on a set of
+        nodes is the same as the actual set of ``Application`` instance on
+        those nodes.
+
+        The tutorial looks at Docker output, but the acceptance tests are
+        intended to test high-level external behaviors. Since this is looking
+        at the output of the control service API it merely verifies what
+        Flocker believes the system state is, not the actual state.
+        The latter should be verified separately with additional tests
+        for external side-effects (applications being available on ports,
+        say).
+
+        :param test_case: The ``TestCase`` running this unit test.
+        :param dict expected_deployment: A mapping of IP addresses to set of
+            ``Application`` instances expected on the nodes with those IP
+            addresses.
+
+        :return Deferred: Fires on end of assertion.
+        """
+        ip_to_uuid = {node.address: node.uuid for node in self.nodes}
+        uuid_to_ip = {node.uuid: node.address for node in self.nodes}
+
+        def got_results(existing_containers):
+            expected = []
+            for hostname, apps in expected_deployment.items():
+                node_uuid = ip_to_uuid[hostname]
+                expected += [container_configuration_response(app, node_uuid)
+                             for app in apps]
+            for app in expected:
+                app[u"running"] = True
+                app[u"host"] = uuid_to_ip[app["node_uuid"]]
+
+            return sorted(existing_containers) == sorted(expected)
+
+        def configuration_matches_state():
+            d = self.current_containers()
+            d.addCallback(got_results)
+            return d
+
+        return loop_until(configuration_matches_state)
 
 
 def get_test_cluster(reactor, node_count=0):

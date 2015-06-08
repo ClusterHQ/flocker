@@ -5,7 +5,7 @@ Tests for moving applications between nodes.
 """
 from twisted.trial.unittest import TestCase
 
-from .testtools import (assert_expected_deployment, require_cluster,
+from .testtools import (require_cluster,
                         MONGO_APPLICATION, MONGO_IMAGE,
                         get_mongo_application, require_flocker_cli)
 
@@ -58,7 +58,7 @@ class MovingApplicationTests(TestCase):
         cluster.flocker_deploy(
             self, minimal_deployment_moved, minimal_application)
 
-        return assert_expected_deployment(self, {
+        return cluster.assert_expected_deployment(self, {
             node_1.address: set([]),
             node_2.address: set([get_mongo_application()])
         })

@@ -14,8 +14,7 @@ from twisted.trial.unittest import TestCase
 
 from ..control.httpapi import container_configuration_response
 
-from .testtools import (assert_expected_deployment,
-                        MONGO_APPLICATION, MONGO_IMAGE,
+from .testtools import (MONGO_APPLICATION, MONGO_IMAGE,
                         get_mongo_application, require_flocker_cli,
                         require_mongo, create_application,
                         create_attached_volume, require_cluster)
@@ -213,6 +212,6 @@ class DeploymentTests(TestCase):
 
         cluster.flocker_deploy(self, minimal_deployment, minimal_application)
 
-        return assert_expected_deployment(self, {
+        return cluster.assert_expected_deployment(self, {
             node_1.address: set([get_mongo_application()]),
         })
