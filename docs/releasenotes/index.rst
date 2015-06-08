@@ -9,7 +9,7 @@ Release Notes
 Next Release
 ============
 
-* Dataset backend support for OpenStack and AWS.
+* Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
   See :ref:`dataset-backend-plugins`.
 * It is now necessary to specify a dataset backend for each agent node.
