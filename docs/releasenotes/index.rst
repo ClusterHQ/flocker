@@ -16,7 +16,7 @@ Next Release
   See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
   See :ref:`authentication`.
-* ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
+* ``flocker-deploy`` now requires the hostname of the control service as its first argument.
 * Added REST API functions to manage containers in a cluster alongside datasets.
   See :ref:`api`.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
