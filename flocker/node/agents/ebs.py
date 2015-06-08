@@ -201,6 +201,10 @@ def _wait_for_volume(volume,
     :raises Exception: When input volume failed to reach
         expected destination status.
     """
+    # It typically takes a few seconds for anything to happen, so start
+    # out sleeping a little before doing initial check to reduce
+    # unnecessary polling of the API:
+    time.sleep(5.0)
 
     # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
     # volume status to transition from
