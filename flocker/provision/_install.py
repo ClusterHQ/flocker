@@ -503,7 +503,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
