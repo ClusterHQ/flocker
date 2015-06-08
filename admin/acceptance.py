@@ -154,6 +154,7 @@ RUNNER_ATTRIBUTES = [
 
     # dict giving configuration for the dataset backend the nodes use - eg
     # {"pool": "flocker"}
+    'dataset_backend_configuration',
 ]
 
 
@@ -446,15 +447,12 @@ class LibcloudRunner(object):
 
         yield perform(make_dispatcher(reactor), commands)
 
-        if self.dataset_backend == self.provisioner.native_backend:
-            dataset_backend_configuration = self.provisioner.native_backend_config
-
         cluster = yield configured_cluster_for_nodes(
             reactor,
             generate_certificates(self.nodes),
             self.nodes,
             self.dataset_backend,
-            dataset_backend_configuration,
+            self.dataset_backend_configuration,
         )
 
         returnValue(cluster)
@@ -536,6 +534,13 @@ class RunOptions(Options):
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
+    def dataset_backend_configuration(self):
+        """
+        Get the configuration corresponding to storage driver chosen by the
+        command line options.
+        """
+        return self['config']['storage-drivers'][self['dataset-backend']]
+
     def dataset_backend(self):
         """
         Get the storage driver the acceptance testing nodes will use.
@@ -543,7 +548,15 @@ class RunOptions(Options):
         :return: A constant from ``DatasetBackend`` matching the name of the
             backend chosen by the command-line options.
         """
-        dataset_backend_name = self["dataset-backend"]
+        configuration = self.dataset_backend_configuration()
+        # Avoid requiring repetition of the backend name when it is the same as
+        # the name of the configuration section.  But allow it so that there
+        # can be "great-openstack-provider" and "better-openstack-provider"
+        # sections side-by-side that both use "openstack" backend but configure
+        # it slightly differently.
+        dataset_backend_name = configuration.get(
+            "backend", self["dataset-backend"]
+        )
         try:
             return DatasetBackend.lookupByName(dataset_backend_name)
         except ValueError:
@@ -682,6 +695,7 @@ class RunOptions(Options):
             package_source=package_source,
             provisioner=provisioner,
             dataset_backend=dataset_backend,
+            dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
         )
 

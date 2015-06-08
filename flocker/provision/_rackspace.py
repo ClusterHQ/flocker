@@ -13,8 +13,6 @@ from ._ssh import run_remotely
 
 from ._effect import sequence
 
-from ..acceptance.testtools import DatasetBackend
-
 
 def get_default_username(distribution):
     """
@@ -83,15 +81,6 @@ def rackspace_provisioner(username, key, region, keyname):
         secret=key,
         region=region)
 
-    native_backend_config = {
-        'backend': 'openstack',
-        'region': 'region',
-        'auth_plugin': 'rackspace',
-        'username': username,
-        'api_key': key,
-        'auth_url': 'https://identity.api.rackspacecloud.com/v2.0',
-    }
-
     provisioner = LibcloudProvisioner(
         driver=driver,
         keyname=keyname,
@@ -102,8 +91,6 @@ def rackspace_provisioner(username, key, region, keyname):
         provision=provision_rackspace,
         default_size="performance1-8",
         get_default_user=get_default_username,
-        native_backend=DatasetBackend.openstack,
-        native_backend_config=native_backend_config,
     )
 
     return provisioner

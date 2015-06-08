@@ -242,8 +242,6 @@ class LibcloudNode(object):
     Attribute('provision'),
     Attribute('default_size'),
     Attribute('get_default_user'),
-    Attribute('native_backend'),
-    Attribute('native_backend_config'),
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
@@ -259,8 +257,6 @@ class LibcloudProvisioner(object):
     :ivar str default_size: Name of the default size of node to create.
     :ivar callable get_default_user: Function to provide the default
         username on the node.
-    :ivar DatasetBackend native_backend: The native backend of this provider.
-    :ivar dict native_backend_config: The configuration for the native backend configuraiton.
     """
 
     def create_node(self, name, distribution,
