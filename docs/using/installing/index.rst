@@ -217,22 +217,21 @@ Using Amazon Web Services
 Using Rackspace
 ---------------
 
-# TODO Change this to use CentOS 7
-
 # TODO Remove tasks only used by the Fedora 20 instructions
 
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
-#. Create a new Cloud Server running Fedora 20
+#. Create a new Cloud Server running CentOS 7:
 
    * Visit https://mycloud.rackspace.com
    * Click "Create Server".
-   * Choose the Fedora 20 Linux distribution as your image.
-   * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
-   * Add your SSH key
+   * Choose the CentOS 7 Linux distribution as your image.
+   * Choose a Flavor.
+     We recommend at least "8 GB General Purpose v1".
+   * Add your SSH key.
 
-#. SSH in
+#. SSH in:
 
    You can find the IP in the Server Details page after it is created.
 
@@ -240,7 +239,7 @@ You'll probably want to setup at least two nodes.
 
       ssh root@203.0.113.109
 
-#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+#. Follow the :ref:`generic CentOS 7 installation instructions <centos-7-install>` below.
 
 .. _centos-7-install:
 
@@ -265,7 +264,7 @@ The following commands will install the two repositories and the ``flocker-node`
 Paste them into a root console on the target node:
 
 .. task:: install_flocker centos-7
-   :prompt: [root@node]#
+   :prompt: [root@centos]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
