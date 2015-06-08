@@ -515,9 +515,12 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-@auto_openstack_logging(ICinderVolumeManager, "_logged_cinder")
-@auto_openstack_logging(INovaVolumeManager, "_logged_nova_volume_manager")
-@auto_openstack_logging(INovaServerManager, "_logged_nova_server_manager")
+# @auto_openstack_logging(ICinderVolumeManager, "_logged_cinder")
+# @auto_openstack_logging(INovaVolumeManager, "_logged_nova_volume_manager")
+# @auto_openstack_logging(INovaServerManager, "_logged_nova_server_manager")
+@auto_openstack_logging(ICinderVolumeManager, "cinder_client.volumes")
+@auto_openstack_logging(INovaVolumeManager, "nova_client.volumes")
+@auto_openstack_logging(INovaServerManager, "nova_client.servers")
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -535,9 +538,12 @@ def cinder_api(cinder_client, nova_client, cluster_id):
     _logged_nova_server_manager = nova_client.servers
 
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=_logged_cinder,
-        nova_volume_manager=_logged_nova_volume_manager,
-        nova_server_manager=_logged_nova_server_manager,
+        cinder_volume_manager=cinder_client.volumes,
+        nova_volume_manager=nova_client.volumes,
+        nova_server_manager=nova_client.servers,
+        # cinder_volume_manager=_logged_cinder,
+        # nova_volume_manager=_logged_nova_volume_manager,
+        # nova_server_manager=_logged_nova_server_manager,
         cluster_id=cluster_id,
     )
 
