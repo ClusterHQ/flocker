@@ -171,8 +171,8 @@ class ClusterStateServiceTests(SynchronousTestCase):
     def test_updates_different_key(self):
         """
         A wipe created by a ``IClusterStateChange`` with a given wipe key is
-        not overwritten by a later ``IClusterStateChange`` with a
-        different key.
+        not overwritten by a later ``IClusterStateChange`` with a different
+        key.
         """
         service = self.service()
         app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
@@ -185,12 +185,12 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service.apply_changes([app_node])
         self.clock.advance(1)
         service.apply_changes([app_node_2])
-        self.clock.advance(9)
-        ten_second_state = service.as_deployment()
+        self.clock.advance(EXPIRATION_TIME - 1)
+        before_wipe_state = service.as_deployment()
         self.clock.advance(1)
-        eleven_second_state = service.as_deployment()
+        after_wipe_state = service.as_deployment()
         self.assertEqual(
-            [ten_second_state, eleven_second_state],
+            [before_wipe_state, after_wipe_state],
             [DeploymentState(nodes=[app_node_2]), DeploymentState()])
 
     def test_update_with_same_key(self):
