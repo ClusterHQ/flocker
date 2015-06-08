@@ -43,6 +43,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             ),
             minimum_allocatable_size=get_minimum_allocatable_size(),
             device_allocation_unit=get_device_allocation_unit(),
+            unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):
 

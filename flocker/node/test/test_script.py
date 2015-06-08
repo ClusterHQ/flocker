@@ -34,6 +34,8 @@ from .._loop import AgentLoopService
 from ...testtools import MemoryCoreReactor, random_name
 from ...ca.testtools import get_credential_sets
 
+from .dummybackend import DUMMY_API
+
 
 def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
                  name=None):
@@ -350,6 +352,49 @@ class AgentServiceGetAPITests(SynchronousTestCase):
         )
         ebs = agent_service.get_api()
         self.assertIsInstance(ebs, EBSBlockDeviceAPI)
+
+    def test_3rd_party_backend(self):
+        """
+        If the backend name is not that of a pre-configured backend, the
+        backend name is treated as a Python import path, and the
+        ``FLOCKER_BACKEND`` attribute of that is used as the backend.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"flocker.node.test.dummybackend"
+        ).set(
+            "api_args", {
+                u"custom": u"arguments!",
+            }
+        )
+        api = agent_service.get_api()
+        # This backend is hardcoded to always return the same object:
+        self.assertIs(api, DUMMY_API)
+
+    def test_wrong_attribute_3rd_party_backend(self):
+        """
+        If the backend name refers to a bad attribute lookup path in an
+        importable package, an appropriate ``ValueError`` is raised.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"flocker.not.a.real.module",
+        )
+        exc = self.assertRaises(ValueError, agent_service.get_api)
+        self.assertEqual(str(exc),
+                         "'flocker.not.a.real.module' is neither a "
+                         "built-in backend nor a 3rd party module.")
+
+    def test_wrong_package_3rd_party_backend(self):
+        """
+        If the backend name refers to an unimportable package, an appropriate
+        ``ValueError`` is raised.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"notarealmoduleireallyhope",
+        )
+        exc = self.assertRaises(ValueError, agent_service.get_api)
+        self.assertEqual(str(exc),
+                         "'notarealmoduleireallyhope' is neither a "
+                         "built-in backend nor a 3rd party module.")
 
 
 class AgentServiceDeployerTests(SynchronousTestCase):

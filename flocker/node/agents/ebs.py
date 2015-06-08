@@ -23,7 +23,7 @@ from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume,
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
@@ -174,7 +174,6 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
 
     :return: Input volume in BlockDeviceVolume format.
     """
-    ebs_volume.update()
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
@@ -371,16 +370,25 @@ class EBSBlockDeviceAPI(object):
 
         :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
 
-        :returns boto.ec2.volume.Volume for the input id. ``None`` if
-            no boto.ec2.volume.Volume was found for the given id.
+        :returns: boto.ec2.volume.Volume for the input id.
+
+        :raise UnknownVolume: If no volume with a matching identifier can be
+             found.
         """
-        for volume in self.connection.get_all_volumes(
-                volume_ids=[blockdevice_id]):
+        try:
+            all_volumes = self.connection.get_all_volumes(
+                volume_ids=[blockdevice_id])
+        except EC2ResponseError as e:
+            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors
+            if e.error_code == "InvalidVolume.NotFound":
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise
+
+        for volume in all_volumes:
             if volume.id == blockdevice_id:
-                # Sync volume for uptodate metadata
-                volume.update()
                 return volume
-        return None
+        raise UnknownVolume(blockdevice_id)
 
     def _next_device(self, instance_id):
         """
@@ -457,7 +465,6 @@ class EBSBlockDeviceAPI(object):
                 )
         return volumes
 
-    # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach an EBS volume to given compute instance.
@@ -471,8 +478,8 @@ class EBSBlockDeviceAPI(object):
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
                 ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
@@ -530,8 +537,8 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the BlockDeviceVolume for the
             blockdevice_id is not currently 'in-use'.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is None or
                 ebs_volume.status != 'in-use'):
             raise UnattachedVolume(blockdevice_id)
@@ -581,11 +588,11 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
         try:
             device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
         except KeyError:
