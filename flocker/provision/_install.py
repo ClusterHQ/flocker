@@ -11,9 +11,12 @@ from urlparse import urljoin, urlparse
 from effect import Func, Effect
 import yaml
 
+from zope.interface import implementer
+
 from characteristic import attributes
 
 from flocker.acceptance.testtools import DatasetBackend
+from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
@@ -23,7 +26,17 @@ from ._ssh import (
 )
 from ._effect import sequence
 
+from flocker import __version__ as version
 from flocker.cli import configure_ssh
+from flocker.common.version import (
+    get_installable_version, get_package_key_suffix,
+)
+
+# A systemctl sub-command to start or restart a service.  We use restart here
+# so that if it is already running it gets restart (possibly necessary to
+# respect updated configuration) and because restart will also start it if it
+# is not running.
+START = "restart"
 
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
@@ -34,21 +47,64 @@ ZFS_REPO = {
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
-CLUSTERHQ_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
-                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                     archive_bucket=ARCHIVE_BUCKET,
-                 ),
-    'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
-                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                    archive_bucket=ARCHIVE_BUCKET,
-                    ),
-    # FLOC-1828 TODO - use ubuntu rather than ubuntu-testing
-    'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/'
-                'ubuntu-testing/14.04/$(ARCH)'.format(
-                    archive_bucket=ARCHIVE_BUCKET
-                    ),
-}
+
+def get_repository_url(distribution, flocker_version):
+    """
+    Return the URL for the repository of a given distribution.
+
+    For ``yum``-using distributions this gives the URL to a package that adds
+    entries to ``/etc/yum.repos.d``. For ``apt``-using distributions, this
+    gives the URL for a repo containing a Packages(.gz) file.
+
+    :param bytes distribution: The Linux distribution to get a repository for.
+    :param bytes flocker_version: The version of Flocker to get a repository
+        for.
+
+    :return bytes: The URL pointing to a repository of packages.
+    :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
+    """
+    distribution_to_url = {
+        # XXX Use testing repositories when appropriate for CentOS.
+        # See FLOC-2080.
+        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/{key}"
+                     "/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                         archive_bucket=ARCHIVE_BUCKET,
+                         key='fedora',
+                     ),
+        'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
+                    "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                        archive_bucket=ARCHIVE_BUCKET,
+                        key='centos',
+                        ),
+
+        # This could hardcode the version number instead of using
+        # ``lsb_release`` but that allows instructions to be shared between
+        # versions, and for earlier error reporting if you try to install on a
+        # separate version. The $(ARCH) part must be left unevaluated, hence
+        # the backslash escapes (one to make shell ignore the $ as a
+        # substitution marker, and then doubled to make Python ignore the \ as
+        # an escape marker). The output of this value then goes into
+        # /etc/apt/sources.list which does its own substitution on $(ARCH)
+        # during a subsequent apt-get update
+
+        'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
+    }
+
+    try:
+        return distribution_to_url[distribution]
+    except KeyError:
+        raise UnsupportedDistribution()
+
+
+class UnsupportedDistribution(Exception):
+    """
+    Raised if trying to support a distribution which is not supported.
+    """
 
 
 @attributes(['distribution'])
@@ -61,6 +117,15 @@ class DistributionNotSupported(NotImplementedError):
     """
     def __str__(self):
         return "Distribution not supported: %s" % (self.distribution,)
+
+
+@implementer(INode)
+@attributes(['address', 'distribution'], apply_immutable=True)
+class ManagedNode(object):
+    """
+    A node managed by some other system (eg by hand or by another piece of
+    orchestration software).
+    """
 
 
 def task_client_installation_test():
@@ -93,8 +158,11 @@ def install_cli_commands_yum(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
+
     commands = [
-        sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        sudo(command="yum install -y " + get_repository_url(
+            distribution=distribution,
+            flocker_version=get_installable_version(version))),
     ]
 
     if use_development_branch:
@@ -156,10 +224,10 @@ def install_cli_commands_ubuntu(distribution, package_source):
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
         # Add ClusterHQ repo for installation of Flocker packages.
-        sudo_from_args([
-            'add-apt-repository', '-y',
-            'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-            ])
+        sudo(command='add-apt-repository -y "deb {} /"'.format(
+            get_repository_url(
+                distribution=distribution,
+                flocker_version=get_installable_version(version))))
         ]
 
     if use_development_branch:
@@ -408,7 +476,7 @@ def task_enable_flocker_control(distribution):
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', 'start', 'flocker-control']),
+            run_from_args(['systemctl', START, 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
@@ -449,14 +517,24 @@ def task_open_control_firewall(distribution):
 
 
 def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs):
+                              dataset_backend=DatasetBackend.zfs,
+                              dataset_backend_configuration=dict(
+                                  pool=u'flocker'
+                              )):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with. (This has a default for use in the documentation).
+        configured with.  (This has a default for use in the documentation).
+    :param dict dataset_backend_configuration: The backend specific
+        configuration options.
     """
+    dataset_backend_configuration = dataset_backend_configuration.copy()
+    dataset_backend_configuration.update({
+        u"backend": dataset_backend.name,
+    })
+
     put_config_file = put(
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(
@@ -466,9 +544,7 @@ def task_enable_flocker_agent(distribution, control_node,
                     "hostname": control_node,
                     "port": 4524,
                 },
-                "dataset": {
-                    "backend": dataset_backend.name,
-                },
+                "dataset": dataset_backend_configuration,
             },
         ),
     )
@@ -476,9 +552,9 @@ def task_enable_flocker_agent(distribution, control_node,
         return sequence([
             put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
-            run_from_args(['systemctl', 'start', 'flocker-dataset-agent']),
+            run_from_args(['systemctl', START, 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
-            run_from_args(['systemctl', 'start', 'flocker-container-agent']),
+            run_from_args(['systemctl', START, 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
@@ -581,9 +657,60 @@ def configure_zfs(node, variants):
     ])
 
 
+def _uninstall_flocker_ubuntu1404():
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
+    14.04 machine.
+    """
+    return run_from_args([
+        b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
+    ])
+
+
+def _uninstall_flocker_centos7():
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
+    machine.
+    """
+    return sequence([
+        run_from_args([
+            b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
+        ]),
+        run_from_args([
+            b"yum", b"erase", b"-y", b"clusterhq-release",
+        ]),
+    ])
+
+
+_flocker_uninstallers = {
+    "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
+    "centos-7": _uninstall_flocker_centos7,
+}
+
+
+def task_uninstall_flocker(distribution):
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from the given
+    distribution.
+    """
+    return _flocker_uninstallers[distribution]()
+
+
+def uninstall_flocker(nodes):
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from all of the
+    given nodes.
+    """
+    return _run_on_all_nodes(
+        nodes,
+        task=lambda node: task_uninstall_flocker(node.distribution)
+    )
+
+
 def task_install_flocker(
-        distribution=None,
-        package_source=PackageSource()):
+    distribution=None,
+    package_source=PackageSource(),
+):
     """
     Install flocker cluster on a distribution.
 
@@ -616,11 +743,11 @@ def task_install_flocker(
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
-            run_from_args([
-                'add-apt-repository', '-y',
-                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-                ])
-            ]
+            run(command='add-apt-repository -y "deb {} /"'.format(
+                get_repository_url(
+                    distribution=distribution,
+                    flocker_version=get_installable_version(version)))),
+        ]
 
         if use_development_branch:
             # Add BuildBot repo for testing
@@ -658,7 +785,10 @@ def task_install_flocker(
         return sequence(commands)
     else:
         commands = [
-            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+            run(command="yum clean all"),
+            run(command="yum install -y " + get_repository_url(
+                distribution=distribution,
+                flocker_version=get_installable_version(version)))
         ]
 
         if use_development_branch:
@@ -782,27 +912,67 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes,
-                      certificates, dataset_backend):
+def _run_on_all_nodes(nodes, task):
+    """
+    Run some commands on some nodes.
+
+    :param nodes: An iterable of ``Node`` instances where the commands should
+        be run.
+    :param task: A one-argument callable which is called with each ``Node`` and
+        should return the ``Effect`` to run on that node.
+
+    :return: An ``Effect`` that runs the commands on a group of nodes.
+    """
+    return sequence(list(
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=task(node),
+        )
+        for node in nodes
+    ))
+
+
+def install_flocker(nodes, package_source):
+    """
+    Return an ``Effect`` that installs a certain version of Flocker on the
+    given nodes.
+
+    :param nodes: An iterable of ``Node`` instances on which to install
+        Flocker.
+    :param PackageSource package_source: The version of Flocker to install.
+
+    :return: An ``Effect`` which installs Flocker on the nodes.
+    """
+    return _run_on_all_nodes(
+        nodes,
+        task=lambda node: task_install_flocker(
+            distribution=node.distribution,
+            package_source=package_source,
+        )
+    )
+
+
+def configure_cluster(cluster, dataset_backend_configuration):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
 
-    :param INode control_node: The control node.
-    :param INode agent_nodes: List of agent nodes.
-    :param Certificates certificates: Certificates to upload.
-    :param DatasetBackend dataset_backend: Dataset backend to configure.
+    :param Cluster cluster: Description of the cluster to configure.
+
+    :param dict dataset_backend_configuration: Configuration parameters to
+        supply to the dataset backend.
     """
     return sequence([
         run_remotely(
             username='root',
-            address=control_node.address,
+            address=cluster.control_node.address,
             commands=sequence([
                 task_install_control_certificates(
-                    certificates.cluster.certificate,
-                    certificates.control.certificate,
-                    certificates.control.key),
-                task_enable_flocker_control(control_node.distribution),
+                    cluster.certificates.cluster.certificate,
+                    cluster.certificates.control.certificate,
+                    cluster.certificates.control.key),
+                task_enable_flocker_control(cluster.control_node.distribution),
                 ]),
         ),
         sequence([
@@ -812,15 +982,19 @@ def configure_cluster(control_node, agent_nodes,
                     address=node.address,
                     commands=sequence([
                         task_install_node_certificates(
-                            certificates.cluster.certificate,
+                            cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
-                            control_node=control_node.address,
-                            dataset_backend=dataset_backend,
+                            control_node=cluster.control_node.address,
+                            dataset_backend=cluster.dataset_backend,
+                            dataset_backend_configuration=(
+                                dataset_backend_configuration
+                            ),
                         )]),
                     ),
-            ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
+            ]) for certnkey, node
+            in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])

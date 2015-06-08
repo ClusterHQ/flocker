@@ -721,6 +721,7 @@ class ApplicationNodeDeployer(object):
                     links=frozenset(links),
                     restart_policy=unit.restart_policy,
                     running=(unit.activation_state == u"active"),
+                    command_line=unit.command_line,
                 ))
 
             return [NodeState(
@@ -886,7 +887,9 @@ def find_dataset_changes(uuid, current_state, desired_state):
                         for node in desired_state.nodes}
     current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
-                            in node.manifestations.values())
+                            # We pretend ignorance is equivalent to no
+                            # datasets; this is wrong. See FLOC-2060.
+                            in (node.manifestations or {}).values())
                         for node in current_state.nodes}
     local_desired_datasets = desired_datasets.get(uuid, set())
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
@@ -930,15 +933,11 @@ def find_dataset_changes(uuid, current_state, desired_state):
                     going.add(DatasetHandoff(
                         dataset=dataset, hostname=hostname))
 
-    # Look at each dataset that is going to be hosted on this node.  If it
-    # was running somewhere else, we want that dataset to be in `coming`.
-    coming_dataset_ids = local_desired_dataset_ids.intersection(
-        remote_current_dataset_ids)
-    coming = set(dataset for dataset in local_desired_datasets
-                 if dataset.dataset_id in coming_dataset_ids)
-
     # For each dataset that is going to be hosted on this node and did not
     # exist previously, make sure that dataset is in `creating`.
+    # Unfortunately the logic for "did not exist previously" is wrong; our
+    # knowledge of other nodes' state may be lacking if they are
+    # offline. See FLOC-2060.
     creating_dataset_ids = local_desired_dataset_ids.difference(
         local_current_dataset_ids | remote_current_dataset_ids)
     creating = set(dataset for dataset in local_desired_datasets
@@ -946,5 +945,5 @@ def find_dataset_changes(uuid, current_state, desired_state):
 
     deleting = set(dataset for dataset in chain(*desired_datasets.values())
                    if dataset.deleted)
-    return DatasetChanges(going=going, coming=coming, deleting=deleting,
+    return DatasetChanges(going=going, deleting=deleting,
                           creating=creating, resizing=resizing)

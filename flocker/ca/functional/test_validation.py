@@ -16,7 +16,6 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred, gatherResults
 from twisted.internet.protocol import Protocol, ServerFactory
 
-
 from ...testtools import find_free_port
 from .._validation import (
     ControlServicePolicy, amp_server_context_factory, rest_api_context_factory,
@@ -97,6 +96,26 @@ class WaitForDisconnectsFactory(ServerFactory):
         return gatherResults(self.disconnects)
 
 
+def start_tls_server(test, port, context_factory):
+    """
+    Start a TLS server on the given port.
+
+    :param test: The test this is being run in.
+    :param int port: Port to listen on.
+    :param context_factory: Context factory to use.
+
+    :return: ``Deferred`` that fires when port is open to connections.
+    """
+    server_endpoint = SSL4ServerEndpoint(reactor, port,
+                                         context_factory,
+                                         interface='127.0.0.1')
+    server_factory = WaitForDisconnectsFactory.forProtocol(SendingProtocol)
+    test.addCleanup(lambda: server_factory.wait_for_disconnects())
+    d = server_endpoint.listen(server_factory)
+    d.addCallback(lambda port: test.addCleanup(port.stopListening))
+    return d
+
+
 def make_validation_tests(context_factory_fixture,
                           good_certificate_name,
                           validator_is_client):
@@ -158,19 +177,12 @@ def make_validation_tests(context_factory_fixture,
                 server_context_factory = validating_context_factory
                 client_context_factory = peer_context_factory
 
-            server_endpoint = SSL4ServerEndpoint(reactor, port,
-                                                 server_context_factory,
-                                                 interface='127.0.0.1')
-            server_factory = WaitForDisconnectsFactory.forProtocol(
-                SendingProtocol
-            )
-            self.addCleanup(lambda: server_factory.wait_for_disconnects())
-            d = server_endpoint.listen(server_factory)
-            d.addCallback(lambda port: self.addCleanup(port.stopListening))
+            result = start_tls_server(self, port, server_context_factory)
             validating_endpoint = SSL4ClientEndpoint(
                 reactor, "127.0.0.1", port, client_context_factory)
             client_protocol = ReceivingProtocol()
-            result = connectProtocol(validating_endpoint, client_protocol)
+            result.addCallback(lambda _: connectProtocol(validating_endpoint,
+                                                         client_protocol))
             result.addCallback(lambda _: client_protocol.result)
             return result
 

@@ -1,7 +1,10 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 from characteristic import attributes, Attribute
+from pyrsistent import PRecord, field
 from twisted.python.constants import Values, ValueConstant
+
+from ._ca import Certificates
 
 
 @attributes([
@@ -37,3 +40,29 @@ class Variants(Values):
     DISTRO_TESTING = ValueConstant("distro-testing")
     DOCKER_HEAD = ValueConstant("docker-head")
     ZFS_TESTING = ValueConstant("zfs-testing")
+
+
+class Cluster(PRecord):
+    """
+    Description of the components of a cluster.
+
+    :ivar list all_nodes: List of all nodes in the cluster.
+    :ivar INode control_node: The control node of the cluster.
+        tests against.
+    :ivar list agent_nodes: The list of INode nodes running flocker
+        agent in the cluster.
+    :ivar DatasetBackend dataset_backend: The volume backend the nodes are
+        configured with.
+    :ivar FilePath certificates_path: Directory where certificates can be
+        found; specifically the directory used by ``Certificates``.
+    :ivar Certificates certificates: Certificates to for the cluster.
+    """
+    all_nodes = field(mandatory=True)
+    control_node = field(mandatory=True)
+    agent_nodes = field(mandatory=True)
+    dataset_backend = field(mandatory=True)
+    certificates = field(type=Certificates, mandatory=True)
+
+    @property
+    def certificates_path(self):
+        return self.certificates.directory

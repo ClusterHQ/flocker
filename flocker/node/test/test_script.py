@@ -27,10 +27,14 @@ from ..script import (
     AgentService, BackendDescription, get_configuration,
     DeployerType,
 )
+from ..agents.cinder import CinderBlockDeviceAPI
+from ..agents.ebs import EBSBlockDeviceAPI
 
 from .._loop import AgentLoopService
 from ...testtools import MemoryCoreReactor, random_name
 from ...ca.testtools import get_credential_sets
+
+from .dummybackend import DUMMY_API
 
 
 def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
@@ -312,6 +316,85 @@ class AgentServiceGetAPITests(SynchronousTestCase):
             API(cluster_id=self.ca_set.node.cluster_uuid),
             api,
         )
+
+    def test_default_openstack(self):
+        """
+        An OpenStack backend is available by default.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"openstack"
+        ).set(
+            "api_args", {
+                "region": "abc",
+                "auth_plugin": "password",
+                "auth_url": "http://example.invalid/",
+                "username": "allison",
+                "password": "123",
+            }
+        )
+        cinder = agent_service.get_api()
+        self.assertIsInstance(cinder, CinderBlockDeviceAPI)
+
+    def test_default_aws(self):
+        """
+        An AWS backend is available by default.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"aws"
+        ).set(
+            "api_args", {
+                "region": "aq-south-1",
+                "zone": "aq-south-1g",
+                "access_key_id": "XXXXXXXXXX",
+                "secret_access_key": "YYYYYYYYYY",
+                "cluster_id": "123456789",
+            }
+        )
+        ebs = agent_service.get_api()
+        self.assertIsInstance(ebs, EBSBlockDeviceAPI)
+
+    def test_3rd_party_backend(self):
+        """
+        If the backend name is not that of a pre-configured backend, the
+        backend name is treated as a Python import path, and the
+        ``FLOCKER_BACKEND`` attribute of that is used as the backend.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"flocker.node.test.dummybackend"
+        ).set(
+            "api_args", {
+                u"custom": u"arguments!",
+            }
+        )
+        api = agent_service.get_api()
+        # This backend is hardcoded to always return the same object:
+        self.assertIs(api, DUMMY_API)
+
+    def test_wrong_attribute_3rd_party_backend(self):
+        """
+        If the backend name refers to a bad attribute lookup path in an
+        importable package, an appropriate ``ValueError`` is raised.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"flocker.not.a.real.module",
+        )
+        exc = self.assertRaises(ValueError, agent_service.get_api)
+        self.assertEqual(str(exc),
+                         "'flocker.not.a.real.module' is neither a "
+                         "built-in backend nor a 3rd party module.")
+
+    def test_wrong_package_3rd_party_backend(self):
+        """
+        If the backend name refers to an unimportable package, an appropriate
+        ``ValueError`` is raised.
+        """
+        agent_service = self.agent_service.set(
+            "backend_name", u"notarealmoduleireallyhope",
+        )
+        exc = self.assertRaises(ValueError, agent_service.get_api)
+        self.assertEqual(str(exc),
+                         "'notarealmoduleireallyhope' is neither a "
+                         "built-in backend nor a 3rd party module.")
 
 
 class AgentServiceDeployerTests(SynchronousTestCase):
@@ -721,40 +804,6 @@ class ValidateConfigurationTests(SynchronousTestCase):
         # Nothing is raised
         validate_configuration(self.configuration)
 
-    def test_zfs_pool_optional(self):
-        """
-        No exception is raised when validating a ZFS backend but a ZFS
-        pool is not specified.
-        """
-        self.configuration['dataset'] = {
-            u"backend": u"zfs",
-        }
-        # Nothing is raised
-        validate_configuration(self.configuration)
-
-    def test_loopback_compute_instance_id_optional(self):
-        """
-        No exception is raised when validating a loopback backend but a
-        compute_instance_id is not specified.
-        """
-        self.configuration['dataset'] = {
-            u"backend": u"loopback",
-            u"root_path": u"/tmp",
-        }
-        # Nothing is raised
-        validate_configuration(self.configuration)
-
-    def test_loopback_root_path_optional(self):
-        """
-        No exception is raised when validating a loopback backend but a
-        root_path is not specified.
-        """
-        self.configuration['dataset'] = {
-            u"backend": u"loopback",
-        }
-        # Nothing is raised
-        validate_configuration(self.configuration)
-
     def test_error_on_invalid_configuration_type(self):
         """
         A ``ValidationError`` is raised if the config file is not formatted
@@ -847,7 +896,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
         """
         The dataset key must contain a valid dataset type.
         """
-        self.configuration['dataset'] = {"backend": "invalid"}
+        self.configuration['dataset'] = "invalid"
         self.assertRaises(
             ValidationError, validate_configuration, self.configuration)
 
