@@ -39,7 +39,7 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
-VOLUME_STATE_CHANGE_TIMEOUT = 600
+VOLUME_STATE_CHANGE_TIMEOUT = 300
 
 
 class EliotLogHandler(logging.Handler):
