@@ -10,10 +10,12 @@ node-specific, but that will likely change and involve additinal commands.
 Interactions:
 
 * The control service knows the desired configuration for the cluster.
-  Every time it changes it notifies the convergence agents using the
-  ClusterStatusCommand.
+  Every time the configuration changes the control service notifies the
+  convergence agents using the ``ClusterStatusCommand``.
+
 * The convergence agents know the state of nodes. Whenever node state
   changes they notify the control service with a NodeStateCommand.
+
 * The control service caches the current state of all nodes. Whenever the
   control service receives an update to the state of a specific node via a
   NodeStateCommand, the control service then aggregates that update with
