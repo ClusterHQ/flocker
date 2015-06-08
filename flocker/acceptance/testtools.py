@@ -271,7 +271,7 @@ def log_method(function):
 
     def log_result(result):
         Message.new(
-            action_type=label + ":result",
+            message_type=label + ":result",
             value=result,
         ).write()
         return result
