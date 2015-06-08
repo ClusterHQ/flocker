@@ -473,7 +473,7 @@ def task_enable_flocker_control(distribution):
     """
     Enable flocker-control service.
     """
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', START, 'flocker-control']),
