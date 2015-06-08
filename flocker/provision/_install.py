@@ -548,7 +548,7 @@ def task_enable_flocker_agent(distribution, control_node,
             },
         ),
     )
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         return sequence([
             put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
