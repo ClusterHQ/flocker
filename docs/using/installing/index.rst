@@ -130,7 +130,7 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 - :ref:`Using Amazon Web Services <aws-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any CentOS 7, or Ubuntu 14.04 machine.
+It is also possible to install Flocker on any CentOS 7 or Ubuntu 14.04 machine.
 
 - :ref:`Installing on CentOS 7 <centos-7-install>`
 - :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
