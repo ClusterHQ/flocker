@@ -813,8 +813,7 @@ def require_cluster(num_nodes):
                 reactor, node_count=num_nodes)
 
             def clean(cluster):
-                cluster.clean_nodes()
-                return cluster
+                return cluster.clean_nodes().addCallback(lambda _: cluster)
 
             waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
