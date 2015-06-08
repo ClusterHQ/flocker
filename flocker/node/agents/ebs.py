@@ -39,7 +39,7 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
-VOLUME_STATE_CHANGE_TIMEOUT = 300
+VOLUME_STATE_CHANGE_TIMEOUT = 600
 
 
 class EliotLogHandler(logging.Handler):
@@ -225,7 +225,19 @@ def _wait_for_volume(volume,
     # start_status -> transient_status -> end_status.
     start_time = time.time()
     while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
-        volume.update()
+        try:
+            volume.update()
+        except EC2ResponseError as e:
+            # If the volume is being deleted, upon successful deletion,
+            # we will fail to see the volume, as indicated by
+            # ``EC2ResponseError`` code ``InvalidVolume.NotFound``.
+            # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
+            # for error details).
+            if (transient_status == u'deleting' and
+                    e.code == u'InvalidVolume.NotFound'):
+                return
+            else:
+                raise
         if volume.status == end_status:
             return
         elif volume.status not in [start_status, transient_status]:
@@ -590,6 +602,11 @@ class EBSBlockDeviceAPI(object):
                         'Failed to delete volume: {!r}'.format(blockdevice_id)
                     )
                 else:
+                    ebs_volume = self._get_ebs_volume(blockdevice_id)
+                    _wait_for_volume(ebs_volume,
+                                     start_status=u'available',
+                                     transient_status=u'deleting',
+                                     end_status='')
                     return
         raise UnknownVolume(blockdevice_id)
 
