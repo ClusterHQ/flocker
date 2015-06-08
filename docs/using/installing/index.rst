@@ -426,19 +426,22 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-To enable the Flocker control service on Fedora / CentOS
---------------------------------------------------------
+To enable the Flocker control service on CentOS 7
+-------------------------------------------------
 
-.. task:: enable_flocker_control fedora-20
+# TODO remove enable_flocker_control fedora-20 branch
+
+.. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
 To configure FirewallD to allow access to the control service HTTP API, and for agent connections:
 
-.. task:: open_control_firewall fedora-20
+.. task:: open_control_firewall centos-7
    :prompt: [root@control-node]#
 
-For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
+# TODO Firewa
+For more details on configuring the firewall, see the `FirewallD documentation <https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html>`_.
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
@@ -592,12 +595,12 @@ The configuration item to use Loopback should look like:
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
 
-Fedora / CentOS
-...............
+CentOS 7
+........
 
 Run the following commands to enable the agent service:
 
-.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
+.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
 Ubuntu
