@@ -326,6 +326,7 @@ class CinderBlockDeviceAPI(object):
         """
         local_ips = get_all_ips()
         api_ip_map = {}
+        import pdb; pdb.set_trace()
         for server in self.nova_server_manager.list():
             api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses.issubset(local_ips):
@@ -512,6 +513,9 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
+@auto_openstack_logging(ICinderVolumeManager, "_logged_cinder")
+@auto_openstack_logging(INovaVolumeManager, "_logged_nova_volume_manager")
+@auto_openstack_logging(INovaServerManager, "_logged_nova_server_manager")
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -524,24 +528,13 @@ def cinder_api(cinder_client, nova_client, cluster_id):
 
     :returns: A ``CinderBlockDeviceAPI``.
     """
-    logging_cinder = auto_openstack_logging(
-        ICinderVolumeManager,
-        cinder_client.volumes
-    )
-
-    logging_nova_volume_manager = auto_openstack_logging(
-        INovaVolumeManager,
-        nova_client.volumes
-    )
-
-    logging_nova_server_manager = auto_openstack_logging(
-        INovaServerManager,
-        nova_client.servers
-    )
+    _logged_cinder = cinder_client.volumes
+    _logged_nova_volume_manager = nova_client.volumes
+    _logged_nova_server_manager = nova_client.servers
 
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=logging_cinder,
-        nova_volume_manager=logging_nova_volume_manager,
-        nova_server_manager=logging_nova_server_manager,
+        cinder_volume_manager=_logged_cinder,
+        nova_volume_manager=_logged_nova_volume_manager,
+        nova_server_manager=_logged_nova_server_manager,
         cluster_id=cluster_id,
     )
