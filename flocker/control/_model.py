@@ -849,14 +849,15 @@ class DeploymentState(PRecord):
         """
         Create new ``DeploymentState`` based on this one which updates an
         existing ``NodeState`` with any known information from the given
-        ``NodeState``. Attributes which are set to ``None` on the given
+        ``NodeState``.  Attributes which are set to ``None` on the given
         update, indicating ignorance, will not be changed in the result.
 
-        The given ``NodeState`` will simply be added if no existing ones
-        have matching hostname.
+        The given ``NodeState`` will simply be added if it doesn't represent a
+        node that is already part of the ``DeploymentState`` (based on UUID
+        comparison).
 
-        :param NodeState node: An update for ``NodeState`` with same
-             hostname in this ``DeploymentState``.
+        :param NodeState node: An update for ``NodeState`` with same hostname
+            in this ``DeploymentState``.
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
