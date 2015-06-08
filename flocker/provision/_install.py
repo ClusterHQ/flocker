@@ -783,7 +783,7 @@ def task_install_flocker(
             'apt-get', '-y', '--force-yes', 'install', package]))
 
         return sequence(commands)
-    else:
+    elif distribution in ('centos-7',):
         commands = [
             run(command="yum clean all"),
             run(command="yum install -y " + get_repository_url(
