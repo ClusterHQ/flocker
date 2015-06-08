@@ -214,8 +214,6 @@ Using Amazon Web Services
 Using Rackspace
 ---------------
 
-# TODO Remove tasks only used by the Fedora 20 instructions
-
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
@@ -427,8 +425,6 @@ So ensure that the firewall allows access to TCP port 22 on each node from the e
 To enable the Flocker control service on CentOS 7
 -------------------------------------------------
 
-# TODO remove enable_flocker_control fedora-20 branch
-
 .. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
 
@@ -438,7 +434,6 @@ To configure FirewallD to allow access to the control service HTTP API, and for 
 .. task:: open_control_firewall centos-7
    :prompt: [root@control-node]#
 
-# TODO Firewa
 For more details on configuring the firewall, see the `FirewallD documentation <https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html>`_.
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
