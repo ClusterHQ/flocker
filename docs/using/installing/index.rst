@@ -173,7 +173,7 @@ Using Amazon Web Services
 
    * Choose instance type. We recommend at least the ``m3.large`` instance size.
    * Configure instance details. You will need to configure a minimum of 2 instances.
-   * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential diskspace problems.
+   * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
    * Tag instance.
    * Configure security group.
       
@@ -185,7 +185,7 @@ Using Amazon Web Services
      * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
      * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
 
-   * Review to ensure your instances have sufficient storage and your security groups have the required ports (as the previous screenshot illustrates).
+   * Review to ensure your instances have sufficient storage and your security groups have the required ports.
 
    Launch when you are happy to proceed.
 
