@@ -714,7 +714,7 @@ class Cluster(PRecord):
         return loop_until(configuration_matches_state)
 
 
-def _get_test_cluster(reactor, node_count=0):
+def _get_test_cluster(reactor, node_count):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
