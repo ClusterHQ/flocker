@@ -594,21 +594,18 @@ class EBSBlockDeviceAPI(object):
         :raises Exception: If we failed to destroy Flocker cluster volume
             corresponding to input blockdevice_id.
         """
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                ret_val = self.connection.delete_volume(blockdevice_id)
-                if ret_val is False:
-                    raise Exception(
-                        'Failed to delete volume: {!r}'.format(blockdevice_id)
-                    )
-                else:
-                    ebs_volume = self._get_ebs_volume(blockdevice_id)
-                    _wait_for_volume(ebs_volume,
-                                     start_status=u'available',
-                                     transient_status=u'deleting',
-                                     end_status='')
-                    return
-        raise UnknownVolume(blockdevice_id)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        destroy_result = self.connection.delete_volume(blockdevice_id)
+        if destroy_result:
+            _wait_for_volume(ebs_volume,
+                             start_status=u'available',
+                             transient_status=u'deleting',
+                             end_status='')
+            return
+        else:
+            raise Exception(
+                'Failed to delete volume: {!r}'.format(blockdevice_id)
+            )
 
     def get_device_path(self, blockdevice_id):
         """
