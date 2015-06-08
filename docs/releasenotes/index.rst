@@ -21,6 +21,8 @@ Next Release
   See :ref:`installing-flocker-cli-ubuntu-14.04`.
 * Dataset backend support for OpenStack and AWS.
 * Bug fixes and improvements focused on security and stability across platforms.
+* Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
+  See :ref:`dataset-backend-plugins`.
 
 v0.4
 ====
