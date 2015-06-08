@@ -21,7 +21,12 @@ from ._model import (
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
     RestartAlways, DeploymentState, NonManifestDatasets, same_node,
     IClusterStateWipe,
-    )
+)
+from ._protocol import (
+    IConvergenceAgent,
+    NodeStateCommand,
+    AgentAMP,
+)
 
 __all__ = [
     'same_node',
@@ -46,4 +51,8 @@ __all__ = [
     'RestartOnFailure',
     'RestartAlways',
     'NonManifestDatasets',
+
+    'IConvergenceAgent',
+    'NodeStateCommand',
+    'AgentAMP',
 ]

@@ -32,9 +32,9 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change
 
-from ..control._protocol import (
+from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
-    )
+)
 
 
 class ClusterStatusInputs(Names):
