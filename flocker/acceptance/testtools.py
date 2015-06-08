@@ -610,7 +610,7 @@ class Cluster(PRecord):
         application = temp.child(b"application.yml")
         application.setContent(safe_dump(application_config))
         check_call([b"flocker-deploy",
-                    b"--certificates-directory", self.certificate_path.path,
+                    b"--certificates-directory", self.certificates_path.path,
                     self.control_node.address,
                     deployment.path, application.path])
 
