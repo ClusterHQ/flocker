@@ -158,7 +158,7 @@ class MakeRstTests(SynchronousTestCase):
             pass
 
         app.route(b"/g", methods=[b"GET"])(g)
-        rest = list(makeRst(b"/", app, None, {}))
+        rest = list(makeRst(b"/", "section", app, None, {}))
         self.assertEqual(rest, [])
 
     def test_example(self):

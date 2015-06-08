@@ -258,3 +258,12 @@ def user_documentation(text, header, section, examples=None):
             header=header, section=section)
         return f
     return deco
+
+
+def private_api(f):
+    """
+    Annotate a klein-style endpoint to indicate it should not be included
+    in user-facing API documentation.
+    """
+    f.private_api = True
+    return f
