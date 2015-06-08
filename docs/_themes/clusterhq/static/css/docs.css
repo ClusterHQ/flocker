@@ -12,14 +12,12 @@ nav ul {
     font-family: lato;
     min-height: 40px;
     padding-top: 0px;
-    padding-left: 20%;
 }
 
 nav li {
     display: block;
     width: 100%;
     height: 40px;
-    display: inline;
     padding: 0 16px 0 0;
     font-size: 0.85em;
 }
@@ -37,27 +35,6 @@ nav a:hover, nav a:focus {
 
 ul.menu li:last-of-type {
     padding: 0;
-}
-
-ul.menu li:last-of-type a {
-    background-color: #3d7c77;
-    border: 1px solid #fff;
-    padding: 8px 15px;
-    display: inline-block;
-    margin-top: -8px;
-    border-radius: 6px;
-    float: right;
-    text-transform: uppercase;
-    font-size: 12px;
-
-    position: absolute;
-    top: -30px;
-    right: 15px;
-}
-
-ul.menu li:last-of-type a:hover {
-    color: #fff;
-    background-color: #f15c30;
 }
 
 nav li.current-menu-item a {
@@ -394,6 +371,27 @@ a.download:before {
         word-wrap: normal;
         display: inline;
         padding-left: 0;
+    }
+
+    ul.menu li:last-of-type a {
+        background-color: #3d7c77;
+        border: 1px solid #fff;
+        padding: 8px 15px;
+        display: inline-block;
+        margin-top: -8px;
+        border-radius: 6px;
+        float: right;
+        text-transform: uppercase;
+        font-size: 12px;
+
+        position: absolute;
+        top: -30px;
+        right: 15px;
+    }
+
+    ul.menu li:last-of-type a:hover {
+        color: #fff;
+        background-color: #f15c30;
     }
 }
 @media all and (min-width: 992px) {
