@@ -434,7 +434,7 @@ def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
-    if distribution in ('fedora-20', 'centos-7'):
+    if distribution in ('centos-7',):
         return sequence([
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
