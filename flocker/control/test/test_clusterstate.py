@@ -152,19 +152,20 @@ class ClusterStateServiceTests(SynchronousTestCase):
 
     def test_expiration(self):
         """
-        Information updates that are more than 10 seconds old are wiped.
+        Information updates that are more than the hard-coded expiration period
+        (in seconds) old are wiped.
         """
         service = self.service()
         app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
                              manifestations=None, devices=None, paths=None,
                              applications=[APP1], used_ports=[])
         service.apply_changes([app_node])
-        self.clock.advance(9)
-        nine_second_state = service.as_deployment()
+        self.clock.advance(EXPIRATION_TIME - 1)
+        before_wipe_state = service.as_deployment()
         self.clock.advance(1)
-        ten_second_state = service.as_deployment()
+        after_wipe_state = service.as_deployment()
         self.assertEqual(
-            [nine_second_state, ten_second_state],
+            [before_wipe_state, after_wipe_state],
             [DeploymentState(nodes=[app_node]), DeploymentState()])
 
     def test_updates_different_key(self):
