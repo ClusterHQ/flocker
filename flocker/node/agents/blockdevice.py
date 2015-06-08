@@ -354,7 +354,7 @@ class NodeSnapshot(PRecord):
     If unattached, this field is ``None``.
     """
     instance_id = field(type=unicode, mandatory=True)
-    volumes = field(type=pmap, mandatory=False)
+    volumes = field(type=PMap, mandatory=False)
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
