@@ -19,8 +19,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    InvariantException, PRecord, field, ny as match_anything, discard, pmap,
-    pvector,
+    PRecord, field, discard, pmap, pvector,
 )
 
 from twisted.python.runtime import platform
