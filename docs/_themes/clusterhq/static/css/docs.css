@@ -27,7 +27,7 @@ nav a {
     padding-bottom: 4px;
 }
 
-nav a:hover, nav a:focus {
+nav a:hover, nav a:focus, nav a.active {
     border-bottom: 1px solid white;
     text-decoration: none;
     color: #fff;
