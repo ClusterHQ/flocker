@@ -255,7 +255,7 @@
 
   response: |
     HTTP/1.1 200 OK
-
+    # FLOC-2160 Add a non-manifest dataset here.
     [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
       "primary": "%(NODE_0)s",
       "maximum_size": 1073741824,

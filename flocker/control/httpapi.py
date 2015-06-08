@@ -385,6 +385,10 @@ class ConfigurationAPIUserV1(object):
     )
     def state_datasets(self):
         """
+        # FLOC-2160 Start here. It's not only primary datasets but "primary"
+        # (if there is such a thing with block device datasets) plus
+        # non-manifest datasets.
+
         Return the current primary datasets in the cluster.
 
         :return: A ``list`` containing all datasets in the cluster.
@@ -938,10 +942,16 @@ def datasets_from_deployment(deployment):
 
     :return: Iterable returning all datasets.
     """
+    # FLOC-2160 This needs to report all datasets including non-manifest
+    # datasets.  And happily there's a new ``DeploymentState.all_datasets()``
+    # method which does this for us...
     for node in deployment.nodes:
         if node.manifestations is None:
             continue
         for manifestation in node.manifestations.values():
+            # FLOC-2160 Whether it's important to only report "primary"
+            # manifestations, I don't know? It probably is important for users
+            # of the ZFS convergence agent...so we'll keep this.
             if manifestation.primary:
                 # There may be multiple datasets marked as primary until we
                 # implement consistency checking when state is reported by each

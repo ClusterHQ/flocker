@@ -2639,6 +2639,10 @@ class DatasetsStateTestsMixin(APITestsMixin):
     Tests for the service datasets state description endpoint at
     ``/state/datasets``.
     """
+    # FLOC-2160 Add a test for non-manifest datasets only
+    # And a test for a mixture of manifest and non-manifest datasets
+    # And maybe a test to show that only primary manifestations of datasets are
+    # reported, although that's not really related to this branch.
     def test_empty(self):
         """
         When the cluster state includes no datasets, the endpoint

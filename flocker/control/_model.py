@@ -877,6 +877,7 @@ class DeploymentState(PRecord):
         :returns: A generator of all the manifest and non-manifest datasets in
             the ``DeploymentState``.
         """
+        # FLOC-2160 Use this when reporting /state/datasets
         for node in self.nodes:
             if node.manifestations is None:
                 continue
