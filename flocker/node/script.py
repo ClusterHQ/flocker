@@ -13,6 +13,8 @@ from jsonschema import FormatChecker, Draft4Validator
 
 from pyrsistent import PRecord, field, PMap, pmap, pvector
 
+from eliot import ActionType, fields
+
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
@@ -78,24 +80,34 @@ def flocker_container_agent_main():
     ).main()
 
 
+LOG_GET_EXTERNAL_IP = ActionType(u"flocker:node:script:get_external_ip",
+                                 fields(host=unicode, port=int),
+                                 fields(local_ip=unicode),
+                                 "An attempt to discover the local IP.")
+
+
 def _get_external_ip(host, port):
     """
     Get an external IP address for this node that can in theory connect to
     the given host and port.
 
-    See https://clusterhq.atlassian.net/browse/FLOC-1751 for better solution.
+    See https://clusterhq.atlassian.net/browse/FLOC-1751 for a possibly
+    better solution.
+
     :param host: A host to connect to.
     :param port: The port to connect to.
 
     :return unicode: IP address of external interface on this node.
     """
-    sock = socket()
-    try:
-        sock.setblocking(False)
-        sock.connect_ex((host, port))
-        return unicode(sock.getsockname()[0], "ascii")
-    finally:
-        sock.close()
+    with LOG_GET_EXTERNAL_IP(host=unicode(host), port=port) as ctx:
+        sock = socket()
+        try:
+            sock.connect((host, port))
+            result = unicode(sock.getsockname()[0], "ascii")
+            ctx.addSuccessFields(local_ip=result)
+            return result
+        finally:
+            sock.close()
 
 
 class _TLSContext(PRecord):

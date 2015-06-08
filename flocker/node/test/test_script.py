@@ -3,12 +3,17 @@
 """
 Tests for :module:`flocker.node.script`.
 """
+
+import socket
+
 import yaml
 from ipaddr import IPAddress
 
 from pyrsistent import PRecord, field
 
 from jsonschema.exceptions import ValidationError
+
+from eliot.testing import assertHasAction, capture_logging
 
 from zope.interface.verify import verifyObject
 
@@ -25,7 +30,7 @@ from ..script import (
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
     AgentService, BackendDescription, get_configuration,
-    DeployerType,
+    DeployerType, _get_external_ip, LOG_GET_EXTERNAL_IP
 )
 from ..agents.cinder import CinderBlockDeviceAPI
 from ..agents.ebs import EBSBlockDeviceAPI
@@ -915,3 +920,35 @@ class ContainerAgentOptionsTests(
     """
     Tests for ``ContainerAgentOptions``.
     """
+
+
+class GetExternalIPTests(SynchronousTestCase):
+    """
+    Tests for ``_get_external_ip``.
+    """
+    @capture_logging(lambda test, logger:
+                     assertHasAction(test, logger, LOG_GET_EXTERNAL_IP, True,
+                                     {u"host": u"localhost",
+                                      u"port": test.destination_port},
+                                     {u"local_ip": u"127.0.0.1"}))
+    def test_successful_get_external_ip(self, logger):
+        """
+        A successful external IP lookup returns the local interface's IP.
+        """
+        server = socket.socket()
+        server.bind(('127.0.0.1', 0))
+        server.listen(5)
+        self.destination_port = server.getsockname()[1]
+        self.addCleanup(server.close)
+        self.assertEqual(u"127.0.0.1",
+                         _get_external_ip(u"localhost", self.destination_port))
+
+    @capture_logging(assertHasAction, LOG_GET_EXTERNAL_IP, False,
+                     {u"host": u"127.0.0.1", u"port": 1},
+                     {u"exception": u"socket.error"})
+    def test_failed_get_external_ip(self, logger):
+        """
+        A failed external IP lookup raises an exception (and logs the problem).
+        """
+        self.assertRaises(socket.error, _get_external_ip,
+                          u"127.0.0.1", 1)  # Port 1 should always be refused.
