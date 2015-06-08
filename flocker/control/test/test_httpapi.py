@@ -3048,7 +3048,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
@@ -3098,7 +3097,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
@@ -3132,7 +3130,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:latest",
             running=False,
@@ -3172,7 +3169,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict1 = dict(
             name=u"myapp",
-            host=expected_hostname1,
             node_uuid=unicode(expected_uuid1),
             image=u"busybox:latest",
             running=True,
@@ -3180,7 +3176,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         )
         expected_dict2 = dict(
             name=u"myapp2",
-            host=expected_hostname2,
             node_uuid=unicode(expected_uuid2),
             image=u"busybox2:latest",
             running=True,

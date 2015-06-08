@@ -17,7 +17,9 @@ from eliot.testing import LoggedMessage, capture_logging
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
                    BOTO_EC2RESPONSE_ERROR, UnattachedVolume)
 
-from .._logging import (AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID)
+from .._logging import (
+    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
+)
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
@@ -43,22 +45,13 @@ class EBSBlockDeviceAPIInterfaceTests(
             ),
             minimum_allocatable_size=get_minimum_allocatable_size(),
             device_allocation_unit=get_device_allocation_unit(),
+            unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):
 
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
-    # We haven't implemented resize functionality yet.
-    def test_resize_destroyed_volume(self):
-        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
-
-    def test_resize_unknown_volume(self):
-        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
-
-    def test_resize_volume_listed(self):
-        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
-
     def test_foreign_volume(self):
         """
         Test that ``list_volumes`` lists only those volumes
@@ -150,3 +143,24 @@ class EBSBlockDeviceAPIInterfaceTests(
             key_subset = set(key for key in expected_message_keys
                              if key in logged.message.keys())
             self.assertEqual(expected_message_keys, key_subset)
+
+    @capture_logging(None)
+    def test_boto_request_logging(self, logger):
+        """
+        Boto is configured to send log events to Eliot when it makes an AWS API
+        request.
+        """
+        self.api.list_volumes()
+
+        messages = list(
+            message
+            for message
+            in logger.messages
+            if message.get("message_type") == BOTO_LOG_HEADER
+        )
+        self.assertNotEqual(
+            [], messages,
+            "Didn't find Boto messages in logged messages {}".format(
+                messages
+            )
+        )

@@ -6,10 +6,12 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 from errno import ENOTDIR
 from functools import partial
-from os import getuid, statvfs
+from os import getuid
 import time
 from uuid import UUID, uuid4
-from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from subprocess import (
+    STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError,
+)
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -19,7 +21,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    InvariantException, PRecord, field, ny as match_anything, discard, pmap,
+    PRecord, field, discard, pmap,
 )
 
 from twisted.python.runtime import platform
@@ -39,15 +41,13 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    ResizeBlockDeviceDataset, ResizeVolume, AttachVolume, CreateFilesystem,
-    DestroyVolume, MountBlockDevice, ResizeFilesystem,
+    AttachVolume, CreateFilesystem,
+    DestroyVolume, MountBlockDevice,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
-    RESIZE_BLOCK_DEVICE_DATASET, RESIZE_VOLUME, ATTACH_VOLUME,
-    RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE, CREATE_BLOCK_DEVICE_DATASET,
-
+    CREATE_BLOCK_DEVICE_DATASET,
     INVALID_DEVICE_PATH,
 
     IBlockDeviceAsyncAPI,
@@ -73,9 +73,7 @@ from ....common.test.test_thread import NonThreadPool, NonReactor
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
-# Enough space for the Ext4 journal
-# And enough space for predictable inode counts after resize in
-# ResizeFilesystemTests.test_shrink
+# Enough space for the ext4 journal:
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -876,24 +874,6 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             changes
         )
 
-    def test_delete_before_resize(self):
-        """
-        If a dataset has been marked as deleted *and* its maximum_size has
-        changed, only a ``DestroyBlockDeviceDataset`` state change is returned.
-        """
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset"],
-            # Delete and resize the dataset.
-            lambda d: d.set(deleted=True, maximum_size=d.maximum_size * 2)
-        )
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
-            ])
-        )
-
     def test_no_delete_if_in_use(self):
         """
         If a dataset has been marked as deleted *and* it is in use by an
@@ -1346,121 +1326,6 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         )
 
 
-class BlockDeviceDeployerResizeCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to resizing a dataset.
-    """
-    def _maximum_size_change_test(self, size_factor):
-        """
-        Assert that if the size of an existing dataset is changed by the
-        configuration, ``BlockDeviceDeployer.calculate_changes`` computes a
-        ``ResizeBlockDeviceDataset`` which will change that dataset's size to
-        the size in the configuration.
-
-        :param size_factor: A multiplier to apply to the current size of the
-            dataset to determine the new size that will appear in the
-            configuration used by the test.  For example, a value greater than
-            1 to test growing and a value between 0 and 1 to test shrinking.
-
-        :raise: A test-failing exception if a change to resize the dataset to
-            its new size is not calculated.
-        """
-        new_size = int(REALISTIC_BLOCKDEVICE_SIZE * size_factor)
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset",
-             "maximum_size"],
-            new_size,
-        )
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[
-                ResizeBlockDeviceDataset(
-                    dataset_id=self.DATASET_ID,
-                    size=new_size,
-                )]
-            )
-        )
-
-    def test_maximum_size_increased(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ResizeBlockDeviceDataset`` state change operation if the
-        ``maximum_size`` of the configured ``Dataset`` is larger than the size
-        reported in the local node state.
-        """
-        self._maximum_size_change_test(2)
-
-    def test_maximum_size_decreased(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ResizeBlockDeviceDataset`` state change operation if the
-        ``maximum_size`` of the configured ``Dataset`` is smaller than the size
-        reported in the local node state.
-        """
-        self._maximum_size_change_test(0.5)
-
-    def test_multiple_resize(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ResizeBlockDeviceDataset`` state change operation for each configured
-        dataset which has a different maximum_size in the local state.
-        """
-        dataset_id = uuid4()
-        dataset = Dataset(
-            dataset_id=dataset_id,
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
-        )
-        manifestation = Manifestation(dataset=dataset, primary=True)
-        # Put another dataset into the state.
-        local_state = self.ONE_DATASET_STATE.transform(
-            ["manifestations", unicode(dataset_id)], manifestation
-        )
-        local_config = to_node(local_state).transform(
-            ["manifestations", match_anything, "dataset"],
-            lambda dataset: dataset.set(maximum_size=dataset.maximum_size * 2)
-        )
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[
-                ResizeBlockDeviceDataset(
-                    dataset_id=dataset_id,
-                    size=REALISTIC_BLOCKDEVICE_SIZE * 4,
-                ),
-                ResizeBlockDeviceDataset(
-                    dataset_id=self.DATASET_ID,
-                    size=REALISTIC_BLOCKDEVICE_SIZE * 2,
-                ),
-            ])
-        )
-
-    def test_no_resize_if_in_use(self):
-        """
-        If a dataset should be resized *and* it is in use by an application,
-        no changes are made.
-        """
-        def double_size(dataset):
-            return dataset.set(maximum_size=dataset.maximum_size * 2)
-
-        # State has a dataset in use by application
-        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
-
-        # Give it a configuration that says it should be resized:
-        node_config = add_application_with_volume(
-            to_node(self.ONE_DATASET_STATE).transform(
-                ["manifestations", match_anything, "dataset"], double_size))
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]),
-        )
-
-
 class BlockDeviceInterfaceTests(SynchronousTestCase):
     """
     Tests for ``IBlockDeviceAPI`` and ``IBlockDeviceAsyncAPI``.
@@ -1628,7 +1493,7 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertRaises(
             UnknownVolume,
             self.api.attach_volume,
-            blockdevice_id=unicode(uuid4()),
+            blockdevice_id=self.unknown_blockdevice_id,
             attach_to=self.this_node,
         )
 
@@ -1782,7 +1647,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``get_device_path`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` has not been created.
         """
-        unknown_blockdevice_id = unicode(uuid4())
+        unknown_blockdevice_id = self.unknown_blockdevice_id
         exception = self.assertRaises(
             UnknownVolume,
             self.api.get_device_path,
@@ -1904,7 +1769,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``detach_volume`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` does not exist.
         """
-        blockdevice_id = unicode(uuid4)
+        blockdevice_id = self.unknown_blockdevice_id
         exception = self.assertRaises(
             UnknownVolume,
             self.api.detach_volume, blockdevice_id=blockdevice_id
@@ -2013,58 +1878,6 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
-    def test_resize_unknown_volume(self):
-        """
-        ``resize_volume`` raises ``UnknownVolume`` if passed a
-        ``blockdevice_id`` does not exist.
-        """
-        blockdevice_id = unicode(uuid4())
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.resize_volume,
-            blockdevice_id=blockdevice_id,
-            size=self.minimum_allocatable_size * 10,
-        )
-        self.assertEqual(exception.args, (blockdevice_id,))
-
-    def test_resize_volume_listed(self):
-        """
-        ``resize_volume`` returns when the ``BlockDeviceVolume`` has been
-        resized and ``list_volumes`` then reports the ``BlockDeviceVolume``
-        with the new size.
-        """
-        unrelated_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        original_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        new_size = self.minimum_allocatable_size * 8
-        self.api.resize_volume(original_volume.blockdevice_id, new_size)
-        larger_volume = original_volume.set(size=new_size)
-
-        self.assertItemsEqual(
-            [unrelated_volume, larger_volume],
-            self.api.list_volumes()
-        )
-
-    def test_resize_destroyed_volume(self):
-        """
-        ``resize_volume`` raises ``UnknownVolume`` if the supplied
-        ``blockdevice_id`` was associated with a volume but that volume has
-        been destroyed.
-        """
-        volume = self._destroyed_volume()
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.resize_volume,
-            blockdevice_id=volume.blockdevice_id,
-            size=self.minimum_allocatable_size,
-        )
-        self.assertEqual(exception.args, (volume.blockdevice_id,))
-
     def assert_foreign_volume(self, flocker_volume):
         """
         Assert that a volume does not belong to the API object under test.
@@ -2084,7 +1897,8 @@ class IBlockDeviceAPITestsMixin(object):
 def make_iblockdeviceapi_tests(
         blockdevice_api_factory,
         minimum_allocatable_size,
-        device_allocation_unit
+        device_allocation_unit,
+        unknown_blockdevice_id_factory
 ):
     """
     :param blockdevice_api_factory: A factory which will be called
@@ -2099,12 +1913,18 @@ def make_iblockdeviceapi_tests(
         allows sizes to be supplied in GiB, but certain Cinder storage
         drivers may be constrained to create sizes with 8GiB
         intervals.
+    :param unknown_blockdevice_id_factory: A factory which will be called
+        with an an instance of the generated ``TestCase``, and should
+        return a ``blockdevice_id`` which is valid but unknown, i.e. does
+        not match any actual volume in the backend.
+
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
+            self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
             check_allocatable_size(
                 self.api.allocation_unit(),
                 minimum_allocatable_size
@@ -2218,6 +2038,7 @@ class LoopbackBlockDeviceAPITests(
             ),
             minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             device_allocation_unit=None,
+            unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
     """
@@ -2345,78 +2166,6 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size + 1,
         )
-
-    def test_resize_grow_sparse(self):
-        """
-        ``resize_volume`` extends backing files sparsely.
-        """
-        requested_size = self.minimum_allocatable_size
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=requested_size
-        )
-
-        larger_size = requested_size * 2
-        self.api.resize_volume(
-            volume.blockdevice_id, larger_size,
-        )
-        [volume] = self.api.list_volumes()
-        allocated_size_2 = volume.size
-        size = get_size_info(self.api, volume)
-        self.assertEqual(
-            (0, allocated_size_2),
-            (size.actual, size.reported)
-        )
-
-    def test_resize_with_non_allocation_unit(self):
-        """
-        ``resize_volume`` raises ``ValueError`` unless the supplied
-        ``size`` is a multiple of
-        ``IBlockDeviceAPI.allocated_unit()``.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-
-        self.assertRaises(
-            ValueError,
-            self.api.resize_volume,
-            blockdevice_id=volume.blockdevice_id,
-            size=self.minimum_allocatable_size + 1,
-        )
-
-    def test_resize_data_preserved(self):
-        """
-        ``resize_volume`` does not modify the data contained inside the backing
-        file.
-        """
-        start_size = self.minimum_allocatable_size
-        end_size = start_size * 2
-        volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
-        backing_file = self.api._root_path.descendant(
-            ['unattached', _backing_file_name(volume)]
-        )
-        # Make up a bit pattern that seems kind of interesting.  Not being
-        # particularly rigorous here.  Assuming any failures will be pretty
-        # obvious.
-        pattern = b"\x00\x0f\xf0\xff"
-        expected_data = pattern * (start_size / len(pattern))
-
-        # Make sure we didn't do something insane:
-        self.assertEqual(len(expected_data), start_size)
-
-        with backing_file.open("w") as fObj:
-            fObj.write(expected_data)
-
-        self.api.resize_volume(volume.blockdevice_id, end_size)
-        [volume] = self.api.list_volumes()
-
-        backing_file = self.api._root_path.descendant(
-            ['unattached', _backing_file_name(volume)]
-        )
-        with backing_file.open("r") as fObj:
-            data_after_resize = fObj.read(start_size)
-
-        self.assertEqual(expected_data, data_after_resize)
 
     def test_list_unattached_volumes(self):
         """
@@ -2851,7 +2600,8 @@ class MountBlockDeviceTests(
     )
 ):
     """
-    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation.
+    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation, as
+    well as ``CreateFilesystem`` testing.
     """
     def _run_test(self, mountpoint):
         """
@@ -2890,6 +2640,25 @@ class MountBlockDeviceTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(b"mount-test")
         self._run_success_test(mountpoint)
+
+    def test_create_fails_on_mounted_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a filesystem mounted with
+        ``MountBlockDevice`` fails in a non-destructive manner.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Try recreating mounted filesystem; this should fail.
+        self.failureResultOf(scenario.create(), CalledProcessError)
+        # Unmounting and remounting, but our data still exists:
+        check_output([b"umount", mountpoint.path])
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+        self.assertEqual(afile.getContent(), b"data")
 
     def test_mountpoint_exists(self):
         """
@@ -3342,217 +3111,6 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
                          ('rwx------', 'rwxrwxrwx'))
 
 
-class ResizeBlockDeviceDatasetInitTests(
-    make_with_init_tests(
-        ResizeBlockDeviceDataset,
-        dict(dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE),
-        dict(),
-    )
-):
-    """
-    Tests for ``ResizeBlockDeviceDataset`` initialization.
-    """
-
-
-class ResizeBlockDeviceDatasetTests(
-    make_istatechange_tests(
-        ResizeBlockDeviceDataset,
-        lambda _uuid=uuid4(): dict(
-            dataset_id=_uuid, size=REALISTIC_BLOCKDEVICE_SIZE
-        ),
-        lambda _uuid=uuid4(): dict(
-            dataset_id=_uuid, size=REALISTIC_BLOCKDEVICE_SIZE
-        ),
-    )
-):
-    """
-    Tests for ``ResizeBlockDeviceDataset``.
-    """
-    def test_dataset_id_required(self):
-        """
-        If ``dataset_id`` is not supplied when initializing
-        ``ResizeBlockDeviceDataset``, ``InvariantException`` is raised.
-        """
-        self.assertRaises(
-            InvariantException,
-            ResizeBlockDeviceDataset, size=REALISTIC_BLOCKDEVICE_SIZE
-        )
-
-    def test_size_required(self):
-        """
-        If ``size`` is not supplied when initializing
-        ``ResizeBlockDeviceDataset``, ``InvariantException`` is raised.
-        """
-        self.assertRaises(
-            InvariantException,
-            ResizeBlockDeviceDataset, dataset_id=uuid4()
-        )
-
-    def test_dataset_id_must_be_uuid(self):
-        """
-        If the value given for ``dataset_id`` is not an instance of ``UUID``
-        when initializing ``ResizeBlockDeviceDataset``, ``TypeError`` is
-        raised.
-        """
-        self.assertRaises(
-            TypeError,
-            ResizeBlockDeviceDataset,
-            dataset_id=object(), size=REALISTIC_BLOCKDEVICE_SIZE
-        )
-
-    def test_size_must_be_int(self):
-        """
-        If the value given for ``size`` is not an instance of ``int`` when
-        initializing ``ResizeBlockDeviceDataset``, ``TypeError`` is raised.
-        """
-        self.assertRaises(
-            TypeError,
-            ResizeBlockDeviceDataset,
-            dataset_id=uuid4(), size=object()
-        )
-
-    def test_ordering(self):
-        """
-        Instances of ``ResizeBlockDeviceDataset`` are ordered as tuples
-        consisting of their ``dataset_id`` and ``size`` fields would be.
-        """
-        uuids = sorted([uuid4(), uuid4()])
-        a = ResizeBlockDeviceDataset(
-            dataset_id=uuids[0],
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-        b = ResizeBlockDeviceDataset(
-            dataset_id=uuids[1],
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-        c = ResizeBlockDeviceDataset(
-            dataset_id=uuids[1],
-            size=REALISTIC_BLOCKDEVICE_SIZE * 2,
-        )
-        resizes = [c, b, a]
-        self.assertEqual([a, b, c], sorted(resizes))
-
-    def _run_resize_test(self, logger, size_factor):
-        """
-        Assert that ``ResizeBlockDeviceDataset`` changes the size of the
-        dataset's volume to the specified size.
-        """
-        self.patch(blockdevice, "_logger", logger)
-
-        node = u"192.0.2.3"
-        dataset_id = uuid4()
-        deployer = create_blockdevicedeployer(self, hostname=node)
-        api = deployer.block_device_api
-        new_size = int(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * size_factor)
-
-        dataset = Dataset(
-            dataset_id=dataset_id,
-            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        )
-        creating = run_state_change(
-            CreateBlockDeviceDataset(
-                dataset=dataset,
-                mountpoint=deployer._mountpath_for_manifestation(
-                    Manifestation(dataset=dataset, primary=True),
-                ),
-            ),
-            deployer,
-        )
-
-        def created(ignored):
-            return run_state_change(
-                ResizeBlockDeviceDataset(
-                    dataset_id=dataset_id,
-                    size=new_size,
-                ),
-                deployer,
-            )
-        resizing = creating.addCallback(created)
-
-        def resized(ignored):
-            [volume] = api.list_volumes()
-            self.assertEqual(new_size, volume.size)
-            # FLOC-1807 Make an assertion about filesystem size and mounted
-            # state here, too.
-        resizing.addCallback(resized)
-        return resizing
-
-    @validate_logging(multistep_change_log(
-        RESIZE_BLOCK_DEVICE_DATASET,
-        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,
-         RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE]
-    ))
-    def test_run_grow(self, logger):
-        """
-        After running ``ResizeBlockDeviceDataset`` configured with a size
-        larger than the dataset's existing size, the dataset's volume has been
-        increased in size.
-        """
-        return self._run_resize_test(logger, 2)
-
-    @validate_logging(multistep_change_log(
-        RESIZE_BLOCK_DEVICE_DATASET,
-        [UNMOUNT_BLOCK_DEVICE, RESIZE_FILESYSTEM, DETACH_VOLUME, RESIZE_VOLUME,
-         ATTACH_VOLUME, MOUNT_BLOCK_DEVICE]
-    ))
-    def test_run_shrink(self, logger):
-        """
-        After running ``ResizeBlockDeviceDataset`` configured with a size
-        smaller than the dataset's existing size, the dataset's volume has been
-        decreased in size.
-        """
-        return self._run_resize_test(logger, 0.5)
-
-
-class ResizeVolumeInitTests(
-    make_with_init_tests(
-        ResizeVolume,
-        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE),
-        dict(),
-    )
-):
-    """
-    Tests for ``ResizeVolume`` initialization.
-    """
-
-
-class ResizeVolumeTests(
-    make_istatechange_tests(
-        ResizeVolume,
-        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE * 2),
-        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE * 3),
-    )
-):
-    """
-    Tests for ``ResizeVolume``\ 's ``IStateChange`` implementation.
-    """
-    def test_run_grow(self):
-        """
-        ``ResizeVolume.run`` increases the size of the volume it refers to when
-        its ``size`` is greater than the volume's current size.
-        """
-        dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
-        volume = api.create_volume(
-            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        )
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=u"192.0.7.8",
-            block_device_api=api,
-            mountroot=mountroot_for_test(self),
-        )
-        change = ResizeVolume(
-            volume=volume, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2
-        )
-        self.successResultOf(change.run(deployer))
-
-        expected_volume = volume.set(
-            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE * 2
-        )
-        self.assertEqual([expected_volume], api.list_volumes())
-
-
 class AttachVolumeInitTests(
     make_with_init_tests(
         record_type=AttachVolume,
@@ -3609,167 +3167,6 @@ class AttachVolumeTests(
         self.assertEqual(
             DatasetWithoutVolume(dataset_id=dataset_id), failure.value
         )
-
-
-class ResizeFilesystemInitTests(
-    make_with_init_tests(
-        ResizeFilesystem,
-        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE),
-        dict(),
-    ),
-):
-    """
-    Tests for ``ResizeFilesystem`` initialization.
-    """
-
-
-def get_filesystem_inodes(case, deployer, dataset_id):
-    """
-    Get the number of inodes in the filesystem associated with the given
-    mountpoint.
-
-    :param TestCase case: The running test method (used to resolve
-        synchronously fired Deferreds).
-    :param IDeployer deployer: A deployer to use to run changes.
-    :param UUID dataset_id: An existing dataset the filesystem of which to
-        inspect.
-
-    :return: An ``int`` giving the number of inodes in the dataset's filesystem
-        (via the ``f_files`` field of an ``os.statvfs`` result).
-    """
-    mountpoint = deployer.mountroot.child(b"resized-filesystem")
-    case.successResultOf(
-        run_state_change(
-            MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint),
-            deployer
-        ),
-    )
-    try:
-        return statvfs(mountpoint.path).f_files
-    finally:
-        case.successResultOf(
-            run_state_change(
-                UnmountBlockDevice(dataset_id=dataset_id),
-                deployer
-            ),
-        )
-
-
-class ResizeFilesystemTests(
-    make_istatechange_tests(
-        ResizeFilesystem,
-        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE),
-        dict(
-            volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz"),
-            size=REALISTIC_BLOCKDEVICE_SIZE
-        ),
-    ),
-):
-    """
-    Tests for ``ResizeFilesystem``\ 's ``IStateChange`` implementation.
-    """
-    def test_size_invariant(self):
-        """
-        ``ResizeFilesystem.size`` must be a multiple of 1024.
-        """
-        self.assertRaises(
-            InvariantException,
-            ResizeFilesystem,
-            volume=_ARBITRARY_VOLUME, size=1025,
-        )
-
-    def _resize_test(self, size_factor):
-        """
-        Assert that ``ResizeFilesystem`` can change the size of an existing
-        dataset's filesystem.
-
-        :param size_factor: A multiplier to apply to the current size of the
-            filesystem to determine the new size that ``ResizeFilesystem`` will
-            be told to use.
-
-        :raise: A test-failing exception if ``ResizeFilesystem`` produces a
-            filesystem in which the number of inodes has not changed by a
-            factor of ``size_factor``.
-        """
-        dataset_id = uuid4()
-
-        filesystem = u"ext4"
-
-        deployer = create_blockdevicedeployer(self)
-        api = deployer.block_device_api
-        this_node = api.compute_instance_id()
-
-        volume = api.create_volume(
-            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        )
-        original_size = volume.size
-        new_size = int(original_size * size_factor)
-        new_allocated_size = allocated_size(api.allocation_unit(), new_size)
-        api.attach_volume(
-            volume.blockdevice_id, attach_to=this_node,
-        )
-
-        self.successResultOf(run_state_change(
-            CreateFilesystem(
-                volume=volume, filesystem=filesystem,
-            ),
-            deployer
-        ))
-
-        if new_size > original_size:
-            api.detach_volume(volume.blockdevice_id)
-            api.resize_volume(volume.blockdevice_id, new_size)
-            api.attach_volume(volume.blockdevice_id, this_node)
-
-        before = get_filesystem_inodes(self, deployer, dataset_id)
-
-        # Test the state change.
-        self.successResultOf(run_state_change(
-            ResizeFilesystem(volume=volume, size=new_allocated_size),
-            deployer
-        ))
-
-        after = get_filesystem_inodes(self, deployer, dataset_id)
-
-        expected_inodes_after = float(size_factor * before)
-
-        # The error should be less than one percent.  This is not an exact
-        # comparison because it's really hard to accurately measure the size of
-        # a filesystem, as it turns out.  Depending on irrelevant internal ext4
-        # details, we can easily mispredict what it means to "double" the size
-        # of a filesystem by as much as 4096 or 8192 inodes (which is how we're
-        # measuring size because it seems to be the *least* inaccurate).  Maybe
-        # this is because inodes get allocated to backup superblocks (just a
-        # guess).  So: accept some error, as long as it's not much we probably
-        # managed to accomplish the resize we wanted.
-        self.assertLess(
-            abs(after - expected_inodes_after) / expected_inodes_after,
-            0.01,
-            msg=(
-                "Unexpected inode count. "
-                "Before: {}, "
-                "After: {}, "
-                "Expected: {}.".format(
-                    before, after, expected_inodes_after
-                )
-            )
-        )
-
-    def test_grow(self):
-        """
-        ``ResizeFilesystem`` increases the size of the filesystem on a block
-        device if the ``size`` it is configured with is greater than the
-        current size of the filesystem.
-        """
-        self._resize_test(2)
-
-    def test_shrink(self):
-        """
-        ``ResizeFilesystem`` decreases the size of the filesystem on a block
-        device if the ``size`` it is configured with is less than the current
-        size of the filesystem.
-        """
-        self._resize_test(0.5)
 
 
 class AllocatedSizeTypeTests(SynchronousTestCase):
