@@ -153,11 +153,12 @@ Using Amazon Web Services
           You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
 
 #. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard.
-   These launch CentOS 7 AMIs but it is possible to use any operating system supported by Flocker with AWS.
+   These launch instances using CentOS 7 AMIs (in particular "CentOS 7 (x86_64) with Updates HVM") but it is possible to use any operating system supported by Flocker with AWS.
 
-# TODO change these to use CentOS 7 AMIs
+   * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
 
-   * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-6ceebe3e>`_
+.. TODO List after here
+
    * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-eba038d1>`_
    * `Asia Pacific (Tokyo) <https://console.aws.amazon.com/ec2/v2/home?region=ap-northeast-1#LaunchInstanceWizard:ami=ami-9583fd94>`_
    * `EU (Ireland) <https://console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:ami=ami-a5ad56d2>`_
