@@ -9,7 +9,9 @@ from functools import partial
 from os import getuid
 import time
 from uuid import UUID, uuid4
-from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from subprocess import (
+    STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError,
+)
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -2598,7 +2600,8 @@ class MountBlockDeviceTests(
     )
 ):
     """
-    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation.
+    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation, as
+    well as ``CreateFilesystem`` testing.
     """
     def _run_test(self, mountpoint):
         """
@@ -2637,6 +2640,25 @@ class MountBlockDeviceTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(b"mount-test")
         self._run_success_test(mountpoint)
+
+    def test_create_fails_on_mounted_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a filesystem mounted with
+        ``MountBlockDevice`` fails in a non-destructive manner.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Try recreating mounted filesystem; this should fail.
+        self.failureResultOf(scenario.create(), CalledProcessError)
+        # Unmounting and remounting, but our data still exists:
+        check_output([b"umount", mountpoint.path])
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+        self.assertEqual(afile.getContent(), b"data")
 
     def test_mountpoint_exists(self):
         """
