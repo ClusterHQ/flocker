@@ -64,7 +64,7 @@ class DeploymentTests(TestCase):
         node to the next.
         """
         (node_1, node_1_uuid), (node_2, node_2_uuid) = [
-            (node.address, node.uuid) for node in cluster.nodes]
+            (node.hostname, node.uuid) for node in cluster.nodes]
         mongo_dataset_id = unicode(uuid4())
 
         # A mongo db without a quota
@@ -197,7 +197,7 @@ class DeploymentTests(TestCase):
         minimal_deployment = {
             u"version": 1,
             u"nodes": {
-                node_1.address: [MONGO_APPLICATION],
+                node_1.hostname: [MONGO_APPLICATION],
             },
         }
 
@@ -213,5 +213,5 @@ class DeploymentTests(TestCase):
         cluster.flocker_deploy(self, minimal_deployment, minimal_application)
 
         return cluster.assert_expected_deployment(self, {
-            node_1.address: set([get_mongo_application()]),
+            node_1.hostname: set([get_mongo_application()]),
         })

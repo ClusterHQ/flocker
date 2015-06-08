@@ -71,16 +71,16 @@ class PostgresTests(TestCase):
         postgres_deployment = {
             u"version": 1,
             u"nodes": {
-                self.node_1.address: [POSTGRES_APPLICATION_NAME],
-                self.node_2.address: [],
+                self.node_1.hostname: [POSTGRES_APPLICATION_NAME],
+                self.node_2.hostname: [],
             },
         }
 
         self.postgres_deployment_moved = {
             u"version": 1,
             u"nodes": {
-                self.node_1.address: [],
-                self.node_2.address: [POSTGRES_APPLICATION_NAME],
+                self.node_1.hostname: [],
+                self.node_2.hostname: [POSTGRES_APPLICATION_NAME],
             },
         }
 
@@ -122,8 +122,8 @@ class PostgresTests(TestCase):
         not another.
         """
         return self.cluster.assert_expected_deployment(self, {
-            self.node_1.address: set([POSTGRES_APPLICATION]),
-            self.node_2.address: set([]),
+            self.node_1.hostname: set([POSTGRES_APPLICATION]),
+            self.node_2.hostname: set([]),
         })
 
     @require_moving_backend
@@ -135,8 +135,8 @@ class PostgresTests(TestCase):
             self, self.postgres_deployment_moved, self.postgres_application)
 
         return self.cluster.assert_expected_deployment(self, {
-            self.node_1.address: set([]),
-            self.node_2.address: set([POSTGRES_APPLICATION]),
+            self.node_1.hostname: set([]),
+            self.node_2.hostname: set([POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):

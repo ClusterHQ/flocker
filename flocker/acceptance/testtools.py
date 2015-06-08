@@ -10,6 +10,7 @@ from subprocess import check_call
 from unittest import SkipTest, skipUnless
 
 from yaml import safe_dump
+import json
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -218,6 +219,7 @@ class Node(PRecord):
     :ivar bytes address: The IPv4 address of the node.
     :ivar unicode uuid: The UUID of the node.
     """
+    hostname = field(type=bytes)
     address = field(type=bytes)
     uuid = field(type=unicode)
 
@@ -752,6 +754,12 @@ def _get_test_cluster(reactor, node_count=0):
         certificates_path=certificates_path,
     )
 
+    host_mapping_env_var = environ.get("FLOCKER_ACCEPTANCE_HOST_MAPPING")
+    if host_mapping_env_var is None:
+        host_mapping = {}
+    else:
+        host_mapping = json.loads(host_mapping_env_var)
+
     # Wait until nodes are up and running:
     def nodes_available():
         Message.new(
@@ -779,10 +787,17 @@ def _get_test_cluster(reactor, node_count=0):
     # happen know these in advance, but in FLOC-1631 node identification
     # will switch to UUIDs instead.
     agents_connected.addCallback(lambda _: cluster.current_nodes())
+
+    def node_from_dict(node):
+        hostname = node["host"].encode("ascii")
+        address = host_mapping.get(hostname, hostname)
+        return Node(
+            uuid=node[u"uuid"],
+            address=address,
+            hostname=hostname,
+        )
     agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
-        "nodes", [Node(uuid=node[u"uuid"],
-                       address=node["host"].encode("ascii"))
-                  for node in nodes]))
+        "nodes", map(node_from_dict, nodes)))
     return agents_connected
 
 

@@ -31,8 +31,8 @@ class MovingApplicationTests(TestCase):
         minimal_deployment = {
             u"version": 1,
             u"nodes": {
-                node_1.address: [MONGO_APPLICATION],
-                node_2.address: [],
+                node_1.hostname: [MONGO_APPLICATION],
+                node_2.hostname: [],
             },
         }
 
@@ -50,8 +50,8 @@ class MovingApplicationTests(TestCase):
         minimal_deployment_moved = {
             u"version": 1,
             u"nodes": {
-                node_1.address: [],
-                node_2.address: [MONGO_APPLICATION],
+                node_1.hostname: [],
+                node_2.hostname: [MONGO_APPLICATION],
             },
         }
 
@@ -59,6 +59,6 @@ class MovingApplicationTests(TestCase):
             self, minimal_deployment_moved, minimal_application)
 
         return cluster.assert_expected_deployment(self, {
-            node_1.address: set([]),
-            node_2.address: set([get_mongo_application()])
+            node_1.hostname: set([]),
+            node_2.hostname: set([get_mongo_application()])
         })

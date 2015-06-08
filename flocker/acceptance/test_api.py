@@ -291,7 +291,7 @@ class ContainerAPITests(TestCase):
         def created(result):
             cluster, data = result
             data[u"running"] = True
-            data[u"host"] = cluster.nodes[0].address
+            data[u"host"] = cluster.nodes[0].hostname
 
             def in_current():
                 current = cluster.current_containers()

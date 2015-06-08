@@ -36,8 +36,8 @@ class PortsTests(TestCase):
         port_deployment = {
             u"version": 1,
             u"nodes": {
-                self.node_1.address: [MONGO_APPLICATION],
-                self.node_2.address: [],
+                self.node_1.hostname: [MONGO_APPLICATION],
+                self.node_2.hostname: [],
             },
         }
 
@@ -69,8 +69,8 @@ class PortsTests(TestCase):
         application = get_mongo_application().set("ports", ports)
 
         d = self.cluster.assert_expected_deployment(self, {
-            self.node_1.address: set([application]),
-            self.node_2.address: set([]),
+            self.node_1.hostname: set([application]),
+            self.node_2.hostname: set([]),
         })
 
         return d
