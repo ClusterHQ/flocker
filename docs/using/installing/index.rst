@@ -144,10 +144,6 @@ Vagrant
 The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
-.. warning:: These instructions describe the installation of ``clusterhq-flocker-node`` on a Fedora 20 operating system.
-             This is the only supported node operating system right now.
-
-
 .. _aws-install:
 
 Using Amazon Web Services
@@ -191,11 +187,11 @@ Using Amazon Web Services
       chmod 600 ~/.ssh/my-instance.pem
       ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user ``fedora``, ``centos``, or ``ubuntu`` e.g.:
+#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user ``centos``, or ``ubuntu`` e.g.:
 
    .. prompt:: bash alice@mercury:~$
 
-      ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh centos@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Allow SSH access for the ``root`` user, then log out.
 
@@ -222,7 +218,8 @@ Using Rackspace
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
-#. Create a new Cloud Server running CentOS 7:
+#. Create a new Cloud Server running a supported operating system.
+   For example, to create a Cloud Server running CentOS 7:
 
    * Visit https://mycloud.rackspace.com
    * Click "Create Server".
