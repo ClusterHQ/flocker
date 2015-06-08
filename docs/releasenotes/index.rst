@@ -14,9 +14,11 @@ Next Release
   See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
   See :ref:`authentication`.
-* Docker restart policies are adhered to.
 * New API endpoint: List the hosts currently in the cluster.
   See :ref:`api`.
+* Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
+  See :ref:`installing-flocker-cli-ubuntu-14.04`.
+* Dataset backend support for OpenStack and AWS.
 
 v0.4
 ====
