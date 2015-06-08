@@ -91,6 +91,8 @@ def _get_external_ip(host, port):
     Get an external IP address for this node that can in theory connect to
     the given host and port.
 
+    Failures are retried until a successful connect.
+
     See https://clusterhq.atlassian.net/browse/FLOC-1751 for a possibly
     better solution.
 
@@ -99,15 +101,20 @@ def _get_external_ip(host, port):
 
     :return unicode: IP address of external interface on this node.
     """
-    with LOG_GET_EXTERNAL_IP(host=unicode(host), port=port) as ctx:
-        sock = socket()
+    while True:
         try:
-            sock.connect((host, port))
-            result = unicode(sock.getsockname()[0], "ascii")
-            ctx.addSuccessFields(local_ip=result)
-            return result
-        finally:
-            sock.close()
+            with LOG_GET_EXTERNAL_IP(host=unicode(host), port=port) as ctx:
+                sock = socket()
+                try:
+                    sock.connect((host, port))
+                    result = unicode(sock.getsockname()[0], "ascii")
+                    ctx.addSuccessFields(local_ip=result)
+                    return result
+                finally:
+                    sock.close()
+        except:
+            # Error is logged by LOG_GET_EXTERNAL_IP.
+            pass
 
 
 class _TLSContext(PRecord):
