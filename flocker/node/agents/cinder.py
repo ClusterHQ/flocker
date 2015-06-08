@@ -331,7 +331,6 @@ class CinderBlockDeviceAPI(object):
         """
         local_ips = get_all_ips()
         api_ip_map = {}
-        import pdb; pdb.set_trace()
         for server in self.nova_server_manager.list():
             api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses.issubset(local_ips):
