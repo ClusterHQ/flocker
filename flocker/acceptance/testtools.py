@@ -729,20 +729,19 @@ def _get_test_cluster(reactor, node_count=0):
             "Set acceptance testing control node IP address using the " +
             "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
 
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODES')
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
 
     if agent_nodes_env_var is None:
         raise SkipTest(
-            "Set acceptance testing node IP addresses using the " +
-            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a " +
-            "colon separated list.")
+            "Set the number of configured acceptance testing nodes using the "
+            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
 
-    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
+    num_agent_nodes = int(agent_nodes_env_var)
 
-    if len(agent_nodes) < node_count:
+    if num_agent_nodes < node_count:
         raise SkipTest("This test requires a minimum of {necessary} nodes, "
                        "{existing} node(s) are set.".format(
-                           necessary=node_count, existing=len(agent_nodes)))
+                           necessary=node_count, existing=num_agent_nodes))
 
     certificates_path = FilePath(
         environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
