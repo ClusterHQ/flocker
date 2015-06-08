@@ -23,7 +23,7 @@ from characteristic import attributes
 from machinist import (
     trivialInput, TransitionTable, constructFiniteStateMachine,
     MethodSuffixOutputer,
-    )
+)
 
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant

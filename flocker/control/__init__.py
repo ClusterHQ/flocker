@@ -14,7 +14,7 @@ they match that configuration.
 from ._config import (
     FlockerConfiguration, ConfigurationError, FigConfiguration,
     model_from_configuration,
-    )
+)
 from ._model import (
     IClusterStateChange,
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
