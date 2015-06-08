@@ -11,7 +11,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 
 from .._clusterstate import EXPIRATION_TIME, ClusterStateService
-from .._model import (
+from .. import (
     Application, DockerImage, NodeState, DeploymentState, Manifestation,
     Dataset,
 )
