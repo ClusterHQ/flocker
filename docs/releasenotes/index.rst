@@ -19,6 +19,7 @@ Next Release
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
   See :ref:`installing-flocker-cli-ubuntu-14.04`.
 * Dataset backend support for OpenStack and AWS.
+* Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4
 ====
