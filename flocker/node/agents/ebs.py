@@ -15,7 +15,6 @@ from bitmath import Byte, GiB
 
 from pyrsistent import PRecord, field
 from zope.interface import implementer
-import boto
 from boto import ec2
 from boto import config
 from boto.ec2.connection import EC2Connection
@@ -42,8 +41,10 @@ ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 
+
 class EliotLogHandler(logging.Handler):
     _to_log = {"Method", "Path", "Params"}
+
     def emit(self, record):
         fields = vars(record)
         # Only log certain things.  The log is massively too verbose
@@ -52,6 +53,7 @@ class EliotLogHandler(logging.Handler):
             Message.new(
                 message_type=BOTO_LOG_HEADER, **fields
             ).write()
+
 
 def _enable_boto_logging():
     """
@@ -66,6 +68,7 @@ def _enable_boto_logging():
     logger.setLevel(logging.DEBUG)
 
 _enable_boto_logging()
+
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
