@@ -841,9 +841,16 @@ class OmnibusPackageBuilderTests(TestCase):
             expected_package_type=PackageTypes.DEB,
         )
 
+    def test_fedora_20(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='fedora', version='20'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+        )
+
     def assert_omnibus_steps(
             self,
-            distribution=Distribution(name='centos', version='7'),
+            distribution=Distribution(name='fedora', version='20'),
             expected_category='Applications/System',
             expected_package_type=PackageTypes.RPM,
             ):
@@ -1411,7 +1418,7 @@ class MakeDependenciesTests(TestCase):
                 version=expected_version
             ),
             make_dependencies('node', expected_version,
-                              Distribution(name='centos', version='7'))
+                              Distribution(name='fedora', version='20'))
         )
 
     def test_cli(self):

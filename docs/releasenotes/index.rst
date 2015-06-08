@@ -9,7 +9,6 @@ Release Notes
 Next Release
 ============
 
-# TODO Fedora removed
 * ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
 * It is now necessary to specify a dataset backend for each agent node.
   See :ref:`post-installation-configuration`.

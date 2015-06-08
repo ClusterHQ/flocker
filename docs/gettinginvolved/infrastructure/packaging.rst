@@ -1,13 +1,12 @@
 Building Omnibus Packages
 =========================
 
-Flocker depends on a number of Python packages which aren't available in supported distributions,
+Flocker depends on a number of Python packages which aren't available in Fedora,
 or newer versions than are available there.
 So the ``build-package`` script bundles those packages into the operating system package.
 We refer to these as "Omnibus" packages.
 
-To build omnibus packages for a particular distribution,
-create a VirtualEnv and install Flocker then its release dependencies:
+To build omnibus packages, create a VirtualEnv and install Flocker then its release dependencies:
 
 .. code-block:: sh
 
@@ -20,7 +19,7 @@ Then run the following command from a clean checkout of the Flocker repository:
 
 .. code-block:: sh
 
-   ./admin/build-package --distribution=centos-7 $PWD
+   ./admin/build-package --distribution=fedora-20 $PWD
 
 The distribution can be any of the supported distributions (see ``./admin/build-package --help`` for a list).
 This will generate three packages files in the current working directory. E.g.
@@ -43,7 +42,7 @@ This will generate three packages files in the current working directory. E.g.
 Instructions for Distribution Maintainers
 =========================================
 
-Flocker also includes a ``spec`` file for generating RPMs which comply with the CentOS packaging guidelines.
+Flocker also includes a ``spec`` file for generating RPMs which comply with the Fedora packaging guidelines.
 
 This is provided as a template for prospective maintainers who may wish to include Flocker in their RPM distribution.
 
@@ -59,8 +58,7 @@ To build Flocker RPMs from the ``spec`` file, run the following commands:
 
 The commands above require the ``rpmdevtools`` and ``yum-utils`` packages installed.
 
-# TODO something here
-Flocker depends on a number of packages which aren't available in Cent.
+Flocker depends on a number of packages which aren't available in fedora.
 These packages are available from `our Copr repository <https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/>`_.
 To enable yum to find them, put the `repo file <https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo>`_ in :file:`/etc/yum.repos.d/`.
 
@@ -72,7 +70,7 @@ New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive``
 
 The Homebrew installation script for OS X downloads packages from the ``python`` directory.
 
-CentOS and Ubuntu client and node packages are hosted on Amazon S3.
+Fedora, CentOS and Ubuntu client and node packages are hosted on Amazon S3.
 
 ``clusterhq-archive``
 ---------------------
@@ -131,7 +129,7 @@ There are meta-packages which contain the yum repository definitions for `archiv
 XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>`, see :issue:`1530`.
 
 To build and upload these packages, on a machine with the operating system which the package is for
-(an easy way to do this is to use the :doc:`Flocker development machine <vagrant>`),
+(an easy way to do this is to use the :doc:`Flocker development machine <vagrant>` and an old Fedora 20 version of it),
 set up `gsutil` with S3 credentials,
 go to the relevant directory in `admin/release-packaging` and run:
 
@@ -146,8 +144,6 @@ go to the relevant directory in `admin/release-packaging` and run:
 
 Legacy
 ------
-
-Before version 1.0.0 Flocker supported Fedora 20 packages.
 
 Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud Storage.
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.

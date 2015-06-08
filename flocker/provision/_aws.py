@@ -17,6 +17,7 @@ from ._effect import sequence
 
 
 _usernames = {
+    'fedora-20': 'fedora',
     'centos-7': 'centos',
     'ubuntu-14.04': 'ubuntu',
 }

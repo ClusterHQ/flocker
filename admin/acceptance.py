@@ -469,7 +469,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
+DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
 
 
 class RunOptions(Options):
@@ -848,7 +848,7 @@ def main(reactor, args, base_path, top_level):
     try:
         cluster = yield runner.start_cluster(reactor)
 
-        if options['distribution'] in ('centos-7'):
+        if options['distribution'] in ('fedora-20', 'centos-7'):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)

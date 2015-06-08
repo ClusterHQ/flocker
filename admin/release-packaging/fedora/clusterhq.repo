@@ -1,5 +1,3 @@
-# TODO Remove
-
 [clusterhq]
 name=ClusterHQ for Fedora $releasever
 baseurl=https://s3.amazonaws.com/clusterhq-archive/fedora/$releasever/$basearch/

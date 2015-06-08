@@ -225,7 +225,6 @@ def get_package_key_suffix(version):
 class RPMVersion(PRecord):
     """
     An RPM compatible version and a release version.
-    # TODO find a CentOS link?
     See: http://fedoraproject.org/wiki/Packaging:NamingGuidelines#Pre-Release_packages  # noqa
 
     :ivar bytes version: An RPM compatible version.

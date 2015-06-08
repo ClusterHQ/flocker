@@ -3,8 +3,6 @@
 # A Docker image for building RPMs in a clean Fedora 20 build environment.
 #
 
-# TODO Remove this?
-
 FROM fedora:20
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "ruby-devel", "libffi-devel", "openssl-devel", "python-devel", "python-pip", "rpmlint"]
