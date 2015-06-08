@@ -916,7 +916,7 @@ def omnibus_package_builder(
                 destination_path=destination_path,
                 source_paths={
                     flocker_node_path: FilePath("/usr/sbin"),
-                    # Fedora/CentOS firewall configuration
+                    # CentOS firewall configuration
                     package_files.child('firewalld-services'):
                         FilePath("/usr/lib/firewalld/services/"),
                     # Ubuntu firewall configuration

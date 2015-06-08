@@ -132,7 +132,7 @@ def task_client_installation_test():
 
 def install_cli_commands_yum(distribution, package_source):
     """
-    Install Flocker CLI on Fedora or CentOS.
+    Install Flocker CLI on CentOS.
 
     The ClusterHQ repo is added for downloading latest releases.  If
     ``package_source`` contains a branch, then a BuildBot repo will also
@@ -259,7 +259,6 @@ def install_cli_commands_ubuntu(distribution, package_source):
 
 _task_install_commands = {
     'centos-7': install_cli_commands_yum,
-    'fedora-20': install_cli_commands_yum,
     'ubuntu-14.04': install_cli_commands_ubuntu,
 }
 
@@ -372,8 +371,8 @@ def task_disable_selinux(distribution):
                 "'s/^SELINUX=.*$/SELINUX=disabled/g' "
                 "/etc/selinux/config"),
         ])
-    elif distribution in ('fedora-20', 'ubuntu-14.04'):
-        # Fedora and Ubuntu do not have SELinux enabled
+    elif distribution in ('ubuntu-14.04',):
+        # Ubuntu does not have SELinux enabled
         return sequence([])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -597,7 +596,7 @@ def task_install_zfs(distribution, variants=set()):
             run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
             ]
 
-    elif distribution in ('fedora-20', 'centos-7'):
+    elif distribution in ('centos-7',):
         commands += [
             run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
         ]
@@ -830,22 +829,6 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     ])
 
 
-def task_enable_updates_testing(distribution):
-    """
-    Enable the distribution's proposed updates repository.
-
-    :param bytes distribution: See func:`task_install_flocker`
-    """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager', '--enable', 'updates-testing'])
-        ])
-    else:
-        raise DistributionNotSupported(distribution=distribution)
-
-
 def task_enable_docker_head_repository(distribution):
     """
     Enable the distribution's repository containing in-development docker
@@ -853,16 +836,7 @@ def task_enable_docker_head_repository(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager',
-                '--add-repo',
-                'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
-            ])
-        ])
-    elif distribution == "centos-7":
+    if distribution == "centos-7":
         return sequence([
             put(content=dedent("""\
                 [virt7-testing]
@@ -881,8 +855,8 @@ def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
 
-    This drives all the common Fedora20 installation steps in:
-     * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20 # noqa
+    This drives all the common node installation steps in:
+     * http://doc-dev.clusterhq.com/gettingstarted/installation.html
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
@@ -893,8 +867,6 @@ def provision(distribution, package_source, variants):
     """
     commands = []
 
-    if Variants.DISTRO_TESTING in variants:
-        commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
 
