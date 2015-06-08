@@ -588,7 +588,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     def flocker_deploy(self, test_case, deployment_config, application_config):
@@ -770,7 +769,7 @@ def _get_test_cluster(reactor, node_count):
                     write_failure(reason, logger=None)
             return False
         d = cluster.current_nodes()
-        d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
+        d.addCallbacks(lambda nodes: len(nodes) >= node_count,
                        # Control service may not be up yet, keep trying:
                        failed_query)
         return d
@@ -780,7 +779,7 @@ def _get_test_cluster(reactor, node_count):
     # happen know these in advance, but in FLOC-1631 node identification
     # will switch to UUIDs instead.
     agents_connected.addCallback(lambda _: cluster.current_nodes())
-    agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
+    agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", [Node(uuid=node[u"uuid"],
                        address=node["host"].encode("ascii"))
                   for node in nodes]))
