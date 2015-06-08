@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output, call
+from subprocess import check_output
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -20,10 +20,9 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
-from characteristic import attributes, with_cmp
+from characteristic import attributes
 
 import psutil
-from bitmath import Byte
 
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
@@ -104,15 +103,6 @@ class DatasetExists(Exception):
         Exception.__init__(self, blockdevice)
         self.blockdevice = blockdevice
 
-
-OLD_SIZE = Field.for_types(
-    u"old_size", [int], u"The size of a volume prior to a resize operation."
-)
-
-NEW_SIZE = Field.for_types(
-    u"new_size", [int],
-    u"The intended size of a volume after resize operation."
-)
 
 DATASET = Field(
     u"dataset",
@@ -261,32 +251,11 @@ DESTROY_VOLUME = ActionType(
     u"The volume for a block-device-backed dataset is being destroyed."
 )
 
-RESIZE_VOLUME = ActionType(
-    u"agent:blockdevice:resize_volume",
-    [VOLUME, OLD_SIZE, NEW_SIZE],
-    [],
-    u"The volume for a block-device-backed dataset is being resized."
-)
-
 CREATE_FILESYSTEM = ActionType(
     u"agent:blockdevice:create_filesystem",
     [VOLUME, FILESYSTEM_TYPE],
     [],
     u"A block device is being initialized with a filesystem.",
-)
-
-RESIZE_FILESYSTEM = ActionType(
-    u"agent:blockdevice:resize_filesystem",
-    [VOLUME],
-    [],
-    u"The filesystem on a block-device-backed dataset is being resized."
-)
-
-RESIZE_BLOCK_DEVICE_DATASET = ActionType(
-    u"agent:blockdevice:resize",
-    [DATASET_ID],
-    [],
-    u"A block-device-backed dataset is being resized.",
 )
 
 INVALID_DEVICE_PATH_VALUE = Field(
@@ -400,31 +369,6 @@ class DestroyBlockDeviceDataset(PRecord):
 
 
 @implementer(IStateChange)
-class ResizeVolume(PRecord):
-    """
-    Change the size of a volume.
-
-    :ivar BlockDeviceVolume volume: The volume to resize.
-    :ivar int size: The size (in bytes) to which to resize the volume.
-    """
-    volume = _volume_field()
-    size = field(type=int, mandatory=True)
-
-    @property
-    def eliot_action(self):
-        return RESIZE_VOLUME(
-            _logger, volume=self.volume,
-            old_size=self.volume.size, new_size=self.size,
-        )
-
-    def run(self, deployer):
-        deployer.block_device_api.resize_volume(
-            self.volume.blockdevice_id, self.size
-        )
-        return succeed(None)
-
-
-@implementer(IStateChange)
 class CreateFilesystem(PRecord):
     """
     Create a filesystem on a block device.
@@ -448,9 +392,18 @@ class CreateFilesystem(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
-        check_output([
-            b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
-        ])
+        try:
+            check_output([
+                b"mkfs", b"-t", self.filesystem.encode("ascii"),
+                # This is ext4 specific, and ensures mke2fs doesn't ask
+                # user interactively about whether they really meant to
+                # format whole device rather than partition. It will be
+                # removed once upstream bug is fixed. See FLOC-2085.
+                b"-F",
+                device.path
+            ])
+        except:
+            return fail()
         return succeed(None)
 
 
@@ -464,138 +417,6 @@ def _valid_size(size):
     return (
         False, "Filesystem size must be multiple of 1024, not %d" % (size,)
     )
-
-
-@implementer(IStateChange)
-class ResizeFilesystem(PRecord):
-    """
-    Resize the filesystem on a volume.
-
-    This is currently limited to growing the filesystem to exactly the size of
-    the volume.
-
-    :ivar BlockDeviceVolume volume: The volume with an existing filesystem to
-        resize.
-    """
-    volume = _volume_field()
-
-    size = field(
-        type=int, mandatory=True,
-        # It would be nice to compute this invariant from the API schema.
-        invariant=_valid_size,
-    )
-
-    @property
-    def eliot_action(self):
-        return RESIZE_FILESYSTEM(_logger, volume=self.volume)
-
-    def run(self, deployer):
-        # FLOC-1817 Make this asynchronous
-        device = deployer.block_device_api.get_device_path(
-            self.volume.blockdevice_id
-        )
-        # resize2fs gets angry at us without an e2fsck pass first.  This is
-        # unfortunate because we don't really want to make random filesystem
-        # fixes at this point (there should really be nothing to fix).  This
-        # may merit further consideration.
-        #
-        # -f forces the check to run even if the filesystem appears "clean"
-        #     (which it ought to because we haven't corrupted it, just resized
-        #     the block device).
-        #
-        # -y automatically answers yes to every question.  There should be no
-        #     questions since the filesystem isn't corrupt.  Without this,
-        #     e2fsck refuses to run non-interactively, though.
-        #
-        # See FLOC-1814
-
-        # The first call will exit with non-zero exit code as it needs to
-        # recreate lost+found. The second call ought to succeed.
-        command_line = [b"e2fsck", b"-f", b"-y", device.path]
-        call(command_line)
-        check_output(command_line)
-
-        # When passed no explicit size argument, resize2fs resizes the
-        # filesystem to the size of the device it lives on.  Be sure to use
-        # 1024 byte KiB conversion because that's what "K" means to resize2fs.
-        # This will be come out as an integer because the API schema requires
-        # multiples of 1024 bytes for dataset sizes.  However, it would be nice
-        # the API schema could be informed by the backend somehow so that other
-        # constraints could be applied as well (for example, OpenStack volume
-        # sizes are in GB - so if you're using that the API should really
-        # require multiples of 1000000000).  See FLOC-1579.
-        new_size = int(Byte(self.size).to_KiB().value)
-        # The system could fail while this is running.  We don't presently have
-        # recovery logic for this case.  See FLOC-1815.
-        check_output([
-            b"resize2fs",
-            # The path to the device file referring to the filesystem to
-            # resize.
-            device.path,
-            # The desired new size of that filesystem in units of 1024 bytes.
-            u"{}K".format(new_size).encode("ascii"),
-        ])
-        return succeed(None)
-
-
-# Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes.  FLOC-1773
-@implementer(IStateChange)
-# Make them sort reasonably for ease of testing and because determinism is
-# generally pretty nice.
-@with_cmp(["dataset_id", "size"])
-class ResizeBlockDeviceDataset(PRecord):
-    """
-    Resize the volume for a dataset with a primary manifestation on the node
-    where this state change runs.
-
-    :ivar UUID dataset_id: The unique identifier of the dataset to which the
-        volume to be destroyed belongs.
-    :ivar int size: The size (in bytes) to which to resize the block device.
-    """
-    dataset_id = field(type=UUID, mandatory=True)
-    size = field(type=int, mandatory=True)
-
-    @property
-    def eliot_action(self):
-        return RESIZE_BLOCK_DEVICE_DATASET(_logger, dataset_id=self.dataset_id)
-
-    def run(self, deployer):
-        volume = _blockdevice_volume_from_datasetid(
-            deployer.block_device_api.list_volumes(), self.dataset_id
-        )
-        attach = AttachVolume(dataset_id=self.dataset_id)
-        mount = MountBlockDevice(
-            dataset_id=self.dataset_id,
-            mountpoint=deployer._mountpath_for_dataset_id(
-                unicode(self.dataset_id)
-            )
-        )
-        unmount = UnmountBlockDevice(dataset_id=self.dataset_id)
-        detach = DetachVolume(dataset_id=self.dataset_id)
-
-        resize_filesystem = ResizeFilesystem(volume=volume, size=self.size)
-        resize_volume = ResizeVolume(volume=volume, size=self.size)
-        if self.size < volume.size:
-            changes = [
-                unmount,
-                resize_filesystem,
-                detach,
-                resize_volume,
-                attach,
-                mount,
-            ]
-        else:
-            changes = [
-                unmount,
-                detach,
-                resize_volume,
-                attach,
-                resize_filesystem,
-                mount,
-            ]
-
-        return run_state_change(sequentially(changes=changes), deployer)
 
 
 @implementer(IStateChange)
@@ -900,12 +721,12 @@ class CreateBlockDeviceDataset(PRecord):
         )
         device = api.get_device_path(volume.blockdevice_id)
 
-        # This duplicates CreateFilesystem now.
-        check_output(["mkfs", "-t", "ext4", device.path])
+        create = CreateFilesystem(volume=volume, filesystem=u"ext4")
+        d = run_state_change(create, deployer)
 
         mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
                                  mountpoint=self.mountpoint)
-        d = mount.run(deployer)
+        d.addCallback(lambda _: run_state_change(mount, deployer))
 
         def passthrough(result):
             BLOCK_DEVICE_DATASET_CREATED(
@@ -970,13 +791,6 @@ class IBlockDeviceAsyncAPI(Interface):
         See ``BlockDeviceAPI.detach_volume``.
 
         :returns: A ``Deferred`` that fires when the volume has been detached.
-        """
-
-    def resize_volume(blockdevice_id, size):
-        """
-        See ``BlockDeviceAPI.resize_volume``.
-
-        :returns: A ``Deferred`` that fires when the volume has been resized.
         """
 
     def list_volumes():
@@ -1080,23 +894,6 @@ class IBlockDeviceAPI(Interface):
             exist.
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to anything.
-        :returns: ``None``
-        """
-
-    def resize_volume(blockdevice_id, size):
-        """
-        Resize an unattached ``blockdevice_id``.
-
-        This changes the amount of storage available.  It does not change the
-        data on the volume (including the filesystem).
-
-        :param unicode blockdevice_id: The unique identifier for the block
-            device being detached.
-        :param int size: The required size, in bytes, of the volume.
-
-        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
-            exist.
-
         :returns: ``None``
         """
 
@@ -1474,32 +1271,6 @@ class LoopbackBlockDeviceAPI(object):
         )
         volume_path.moveTo(new_path)
 
-    def resize_volume(self, blockdevice_id, size):
-        """
-        Change the size of the loopback backing file.
-
-        Sparseness is maintained by using ``truncate`` on the backing file.
-
-        This implementation is limited to being able to resize volumes only if
-        they are unattached.
-        """
-        check_allocatable_size(self.allocation_unit(), size)
-        volume = get_blockdevice_volume(self, blockdevice_id)
-        filename = _backing_file_name(volume)
-        backing_path = self._unattached_directory.child(filename)
-        try:
-            backing_file = backing_path.open("r+")
-        except IOError:
-            raise UnknownVolume(blockdevice_id)
-        else:
-            try:
-                backing_file.truncate(size)
-            finally:
-                backing_file.close()
-        resized_volume = volume.set('size', size)
-        resized_filename = _backing_file_name(resized_volume)
-        backing_path.moveTo(backing_path.sibling(resized_filename))
-
     def list_volumes(self):
         """
         Return ``BlockDeviceVolume`` instances for all the files in the
@@ -1834,19 +1605,13 @@ class BlockDeviceDeployer(PRecord):
         ))
         deletes = self._calculate_deletes(configured_manifestations)
 
-        # FLOC-1484 Support resize for block storage backends. Teach
-        # resize about allocation_unit() when we re-introduce this.
-        # For now the REST API does not accept resize requests. See
+        # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
-        resizes = list(self._calculate_resizes(
-            configured_manifestations, local_state
-        ))
 
         return in_parallel(changes=(
             not_in_use(unmounts) + detaches +
             attaches + mounts +
-            creates + not_in_use(deletes) +
-            not_in_use(resizes)
+            creates + not_in_use(deletes)
         ))
 
     def _calculate_mounts(self, devices, paths, configured):
@@ -1964,36 +1729,3 @@ class BlockDeviceDeployer(PRecord):
             for dataset_id
             in delete_dataset_ids
         ]
-
-    def _calculate_resizes(self, configured_manifestations, local_state):
-        """
-        Determine what resizes need to be performed.
-
-        :param dict configured_manifestations: The manifestations configured
-            for this node (like ``Node.manifestations``).
-
-        :param NodeState local_state: The current state of this node.
-
-        :return: An iterator of ``ResizeBlockDeviceDataset`` instances for each
-            volume that needs to be resized based on the given configuration
-            and the actual state of volumes (ie which have a size that is
-            different to the configuration)
-        """
-        # This won't resize nonmanifest datasets.  See FLOC-1806.
-        for (dataset_id, manifestation) in local_state.manifestations.items():
-            try:
-                manifestation_config = configured_manifestations[dataset_id]
-            except KeyError:
-                continue
-            dataset_config = manifestation_config.dataset
-            if dataset_config.deleted:
-                continue
-            configured_size = dataset_config.maximum_size
-            # We only inspect volume size here.  A failure could mean the
-            # volume size is correct even though the filesystem size is not.
-            # See FLOC-1815.
-            if manifestation.dataset.maximum_size != configured_size:
-                yield ResizeBlockDeviceDataset(
-                    dataset_id=UUID(dataset_id),
-                    size=configured_size,
-                )

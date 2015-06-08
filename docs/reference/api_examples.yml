@@ -315,7 +315,6 @@
     [
       {
         "node_uuid": "%(NODE_0)s",
-        "host": "10.0.0.3",
         "name": "webserver",
         "image": "nginx:latest",
         "restart_policy": {"name": "never"},
@@ -323,7 +322,6 @@
       },
       {
         "node_uuid": "%(NODE_0)s",
-        "host": "10.0.0.3",
         "name": "database",
         "image": "postgres:latest",
         "restart_policy": {"name": "on-failure", "maximum_retry_count": 5},

@@ -733,22 +733,20 @@ StateContainersArrayTests = build_schema_test(
         # Wrong item type
         ["string"],
         # Failing dataset type (missing running)
-        [{u"host": u"10.0.0.1", u"node_uuid": a_uuid, u"name": u"lalala",
+        [{u"node_uuid": a_uuid, u"name": u"lalala",
           u"image": u"busybox:latest"}]
     ],
     passing_instances=[
         [],
-        [{u"host": u"10.0.0.1", u"name": u"lalala",
+        [{u"name": u"lalala",
           u"node_uuid": a_uuid,
           u"image": u"busybox:latest", u'running': True}],
         [{
-            u'host': u"10.0.0.1",
             u"node_uuid": a_uuid,
             u'image': u'nginx:latest',
             u'name': u'webserver2',
             u'running': True},
          {
-             u'host': u"10.0.0.2",
              u"node_uuid": unicode(uuid4()),
              u'image': u'nginx:latest',
              u'name': u'webserver',

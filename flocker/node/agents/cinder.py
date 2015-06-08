@@ -197,7 +197,7 @@ def wait_for_volume(volume_manager, expected_volume,
 
         elapsed_time = time.time() - start_time
         if elapsed_time < time_limit:
-            time.sleep(0.1)
+            time.sleep(1.0)
         else:
             raise Exception(
                 'Timed out while waiting for volume. '
@@ -332,9 +332,6 @@ class CinderBlockDeviceAPI(object):
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
 
-    def resize_volume(self, blockdevice_id, size):
-        pass
-
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach a volume to an instance using the Nova volume manager.
@@ -402,6 +399,7 @@ class CinderBlockDeviceAPI(object):
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 break
+            time.sleep(1.0)
 
     def get_device_path(self, blockdevice_id):
         try:
