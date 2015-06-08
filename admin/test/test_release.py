@@ -1239,9 +1239,6 @@ class UploadPackagesTests(SynchronousTestCase):
         distributions.
         """
         repo_contents = {
-            'results/omnibus/0.3.3dev1/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev1/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev1/fedora-20/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3dev1/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev1/centos-7/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev1/centos-7/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
@@ -1264,12 +1261,7 @@ class UploadPackagesTests(SynchronousTestCase):
         )
 
         expected_files = {
-            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm',  # noqa
-            'fedora-testing/20/x86_64/repodata/repomod.xml',  # noqa
-            'fedora-testing/20/x86_64/repodata/<newhash>-metadata.xml',  # noqa
-            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
+             'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
             'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm',  # noqa
             'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm',  # noqa
             'centos-testing/7/x86_64/repodata/repomod.xml',  # noqa
@@ -1296,9 +1288,6 @@ class UploadPackagesTests(SynchronousTestCase):
         in keys created for a marketing release.
         """
         repo_contents = {
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
