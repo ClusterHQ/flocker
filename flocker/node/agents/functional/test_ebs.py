@@ -50,16 +50,6 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
-    # We haven't implemented resize functionality yet.
-    def test_resize_destroyed_volume(self):
-        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
-
-    def test_resize_unknown_volume(self):
-        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
-
-    def test_resize_volume_listed(self):
-        raise SkipTest("Resize not implemented on AWS - FLOC-1985")
-
     def test_foreign_volume(self):
         """
         Test that ``list_volumes`` lists only those volumes
