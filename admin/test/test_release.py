@@ -927,7 +927,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distribution=Distribution(name='fedora', version='7'),
+            distribution=Distribution(name='centos', version='7'),
         )
 
         # The expected files are the new files plus the package which already
@@ -1045,7 +1045,7 @@ class UpdateRepoTests(SynchronousTestCase):
                     self, files={}),
                 packages=self.packages,
                 flocker_version='0.3.3dev7',
-                distribution=Distribution(name="fedora", version="7"),
+                distribution=Distribution(name="centos", version="7"),
             )
 
         self.assertEqual(404, exception.exception.response.status_code)
@@ -1083,7 +1083,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=repo_uri,
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distribution=Distribution(name='fedora', version='7'),
+            distribution=Distribution(name='centos', version='7'),
         )
 
         expected_files = {
