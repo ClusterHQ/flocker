@@ -17,6 +17,7 @@ Next Release
 * Docker restart policies are adhered to.
 * New API endpoint: List the hosts currently in the cluster.
   See :ref:`api`.
+* Removed support for installing ``flocker-node`` on Fedora 20.
 
 v0.4
 ====
@@ -31,14 +32,14 @@ v0.4
 v0.3.2
 ======
 
-* Documented how to :ref:`configure the Fedora firewall<fedora-20-install>` on certain cloud platforms.
+* Documented how to configure the Fedora firewall on certain cloud platforms.
 
 
 v0.3.1
 ======
 
 * Applications can now be :ref:`configured with a CPU and memory limit<configuration>`.
-* Documentation now includes :ref:`instructions for installing flocker-node on Fedora20<fedora-20-install>`.
+* Documentation now includes instructions for installing flocker-node on Fedora 20.
 * Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install>`, and DigitalOcean.
 
 
