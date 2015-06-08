@@ -87,7 +87,7 @@ Install the `Homebrew`_ package manager.
 
 Make sure Homebrew has no issues:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$ auto
 
    alice@mercury:~$ brew doctor
    ...
@@ -104,7 +104,7 @@ You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:
 
-.. version-code-block:: console
+.. version-prompt:: bash alice@mercury:~$ auto
 
    alice@mercury:~$ flocker-deploy --version
    |latest-installable|

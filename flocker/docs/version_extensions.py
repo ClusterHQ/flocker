@@ -5,6 +5,7 @@ Sphinx extension to add directives to allow files and code to include the
 latest installable version of Flocker.
 """
 
+import importlib
 import os
 
 from sphinx.directives.code import CodeBlock, LiteralInclude
@@ -111,7 +112,31 @@ class VersionCodeBlock(CodeBlock):
         return CodeBlock.run(self)
 
 
+# Due to the dash in the name, the sphinx-prompt module is unloadable
+# using a normal import - use the importlib machinery instead.
+sphinx_prompt = importlib.import_module('sphinx-prompt')
+
+
+class VersionPrompt(sphinx_prompt.PromptDirective):
+    """
+    Similar to PromptDirective but replaces a placeholder with the
+    latest installable version of Flocker.
+
+    Usage example:
+
+    .. version-prompt:: bash $
+
+       $ brew install flocker-|latest-installable|
+    """
+    def run(self):
+        latest = get_installable_version(version)
+        self.content = [item.replace(PLACEHOLDER, latest) for
+                        item in self.content]
+        return sphinx_prompt.PromptDirective.run(self)
+
+
 def setup(app):
     app.add_directive('version-code-block', VersionCodeBlock)
+    app.add_directive('version-prompt', VersionPrompt)
     app.add_directive('version-literalinclude', VersionLiteralInclude)
     app.add_role('version-download', VersionDownload())
