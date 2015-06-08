@@ -197,7 +197,7 @@ def wait_for_volume(volume_manager, expected_volume,
 
         elapsed_time = time.time() - start_time
         if elapsed_time < time_limit:
-            time.sleep(0.1)
+            time.sleep(1.0)
         else:
             raise Exception(
                 'Timed out while waiting for volume. '
@@ -399,6 +399,7 @@ class CinderBlockDeviceAPI(object):
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 break
+            time.sleep(1.0)
 
     def get_device_path(self, blockdevice_id):
         try:
