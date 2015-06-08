@@ -714,7 +714,7 @@ class Cluster(PRecord):
         return loop_until(configuration_matches_state)
 
 
-def get_test_cluster(reactor, node_count=0):
+def _get_test_cluster(reactor, node_count=0):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
@@ -810,7 +810,7 @@ def require_cluster(num_nodes):
             # reachable and clean them up prior to the test.
             # The nodes must already have been started and their flocker
             # services started.
-            waiting_for_cluster = get_test_cluster(
+            waiting_for_cluster = _get_test_cluster(
                 reactor, node_count=num_nodes)
 
             def clean(cluster):
