@@ -130,9 +130,8 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 - :ref:`Using Amazon Web Services <aws-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.04 machine.
+It is also possible to install Flocker on any CentOS 7, or Ubuntu 14.04 machine.
 
-- :ref:`Installing on Fedora 20 <fedora-20-install>`
 - :ref:`Installing on CentOS 7 <centos-7-install>`
 - :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
 
@@ -153,6 +152,8 @@ You can therefore skip this section unless you want to run Flocker on a cluster 
 
 Using Amazon Web Services
 -------------------------
+
+# TODO Change this to use CentOS 7
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
           You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
@@ -216,6 +217,10 @@ Using Amazon Web Services
 Using Rackspace
 ---------------
 
+# TODO Change this to use CentOS 7
+
+# TODO Remove tasks only used by the Fedora 20 instructions
+
 Another way to get a Flocker cluster running is to use Rackspace.
 You'll probably want to setup at least two nodes.
 
@@ -236,30 +241,6 @@ You'll probably want to setup at least two nodes.
       ssh root@203.0.113.109
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
-
-.. _fedora-20-install:
-
-Installing on Fedora 20
------------------------
-
-.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
-
-Now install the ``clusterhq-flocker-node`` package.
-To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
-The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
-Paste them into a root console on the target node:
-
-.. task:: install_flocker fedora-20
-   :prompt: [root@node]#
-
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
-To enable and start Docker, run the following commands in a root console:
-
-.. task:: enable_docker fedora-20
-   :prompt: [root@fedora]#
-
-Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _centos-7-install:
 
