@@ -20,6 +20,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client,
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
+- Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
