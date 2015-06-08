@@ -78,21 +78,18 @@ def get_trial_environment(cluster):
     :param Cluster cluster: Description of the cluster to get environment
         variables for.
     """
-    environ = {
+    return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
         'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': len(cluster.agent_nodes),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
         'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
             cluster.certificates_path.path,
-    }
-    # XXXXXXXXXXDXX
-    if 'aws' in sys.argv:
-        environ['FLOCKER_ACCEPTANCE_HOST_MAPPING'] = json.dumps({
-            node._node.private_ips[0]: node.address
+        'FLOCKER_ACCEPTANCE_HOST_MAPPING': json.dumps({
+            node.private_address: node.address
             for node in cluster.agent_nodes
+            if node.private_address is not None
         }),
-
-    return environ
+    }
 
 
 def run_tests(reactor, cluster, trial_args):
