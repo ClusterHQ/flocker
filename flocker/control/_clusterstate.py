@@ -13,7 +13,7 @@ from ._model import DeploymentState
 
 
 # Seconds until updates are expired:
-EXPIRATION_TIME = 10
+EXPIRATION_TIME = 120
 
 
 class ClusterStateService(MultiService):
