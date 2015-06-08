@@ -14,7 +14,8 @@ Next Release
   See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
   See :ref:`authentication`.
-* New API endpoint: List the hosts currently in the cluster.
+* Added an API endpoint to list the nodes currently in the cluster.
+  This will enable management of containers alongside datasets.
   See :ref:`api`.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
   See :ref:`installing-flocker-cli-ubuntu-14.04`.
