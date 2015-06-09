@@ -24,7 +24,8 @@ from klein import Klein
 from pyrsistent import discard
 
 from ..restapi import (
-    EndpointResponse, structured, user_documentation, make_bad_request
+    EndpointResponse, structured, user_documentation, make_bad_request,
+    private_api
 )
 from . import (
     Dataset, Manifestation, Application, DockerImage, Port,
@@ -458,7 +459,6 @@ class ConfigurationAPIUserV1(object):
             for application in node.applications:
                 container = container_configuration_response(
                     application, node.uuid)
-                container[u"host"] = node.hostname
                 container[u"running"] = application.running
                 result.append(container)
         return result
@@ -789,15 +789,7 @@ class ConfigurationAPIUserV1(object):
                 self.cluster_state_service.as_deployment().nodes]
 
     @app.route("/configuration/_compose", methods=['POST'])
-    @user_documentation(
-        """
-        Private API endpoint used by flocker-deploy.
-
-        Please do not use it as it may be removed in the near future.
-        """,
-        header=u"Private API endpoint used by flocker-deploy",
-        examples=[],
-    )
+    @private_api
     @structured(
         inputSchema={
             '$ref':

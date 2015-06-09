@@ -74,40 +74,6 @@ Getting started with Flocker
 
          Local
 
-      .. noscript-content::
-
-         OS X
-         ^^^^
-
-         Install the Flocker client on your Mac (requires Homebrew):
-
-         .. task:: test_homebrew flocker-|latest-installable|
-            :prompt: you@laptop:~$
-
-      .. noscript-content::
-
-         Ubuntu 14.04
-         ^^^^^^^^^^^^
-
-         Install the Flocker client on your Linux machine:
-
-         .. task:: install_cli ubuntu-14.04
-            :prompt: you@laptop:~$
-
-
-         Fedora 20
-         ^^^^^^^^^
-
-         Install the Flocker client on your Linux machine:
-
-         .. version-code-block:: console
-
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel && \
-              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/linux-install.sh && \
-              sh linux-install.sh && \
-              source flocker-tutorial/bin/activate
-
-
       .. tabs::
 
          OS X
@@ -126,17 +92,23 @@ Getting started with Flocker
          .. task:: install_cli ubuntu-14.04
             :prompt: you@laptop:~$
 
-         Fedora 20
-         ^^^^^^^^^
+      .. noscript-content::
+
+         OS X
+         ^^^^
+
+         Install the Flocker client on your Mac (requires Homebrew):
+
+         .. task:: test_homebrew flocker-|latest-installable|
+            :prompt: you@laptop:~$
+
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
-         .. version-code-block:: console
-
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel && \
-              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/linux-install.sh && \
-              sh linux-install.sh && \
-              source flocker-tutorial/bin/activate
+         .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
 
       .. empty-div:: arrow-down center-block invisible
 
@@ -149,25 +121,6 @@ Getting started with Flocker
 
          Live
 
-      .. noscript-content::
-
-         Vagrant
-         ^^^^^^^
-
-         Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
-
-         .. version-code-block:: console
-
-            you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
-              vagrant up && \
-              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
-              ssh-add ~/.vagrant.d/insecure_private_key
-
-         AWS
-         ^^^
-
-         Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
-
       .. tabs::
 
          Vagrant
@@ -178,6 +131,34 @@ Getting started with Flocker
          .. version-code-block:: console
 
             you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/cluster.crt && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.crt && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.key && \
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
+
+         AWS
+         ^^^
+
+         Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
+
+      .. noscript-content::
+
+         .. The noscript content must come after the tabs, because the prompt
+            command defines CSS styles on the first use of a prompt. See FLOC-2104.
+
+         Vagrant
+         ^^^^^^^
+
+         Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
+
+         .. version-code-block:: console
+
+            you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/cluster.crt && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.crt && \
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.key && \            
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key

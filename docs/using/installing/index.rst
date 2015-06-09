@@ -32,6 +32,8 @@ It also describes how to get Vagrant nodes started which already have these serv
 Installing ``flocker-cli``
 ==========================
 
+.. _installing-flocker-cli-ubuntu-14.04:
+
 Ubuntu 14.04
 ------------
 
@@ -173,19 +175,25 @@ Using Amazon Web Services
    * `US West (Northern California) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-1#LaunchInstanceWizard:ami=ami-f8f1c8bd>`_
    * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-cc8de6fc>`_
 
-#. Configure the instance
+#. Configure the instance.
+   Complete the configuration wizard; in general the default configuration should suffice.   
 
-   Complete the configuration wizard; in general the default configuration should suffice.
-   However, we do recommend at least the ``m3.large`` instance size.
+   * Choose instance type. We recommend at least the ``m3.large`` instance size.
+   * Configure instance details. You will need to configure a minimum of 2 instances.
+   * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
+   * Tag instance.
+   * Configure security group.
+      
+     * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
+     * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
+     * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
+     * For example, if you run the MongoDB tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
+     * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
+     * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
 
-   If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
+   * Review to ensure your instances have sufficient storage and your security groups have the required ports.
 
-   .. warning::
-
-      Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
-      E.g. if you run the tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
-      You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
-      Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
+   Launch when you are ready to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
@@ -195,25 +203,28 @@ Using Amazon Web Services
       chmod 600 ~/.ssh/my-instance.pem
       ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user ``fedora``, ``centos``, or ``ubuntu`` e.g.:
+#. Look up the public DNS name or public IP address of each new instance.
+   Log in as user ``centos`` (or the relevant user if you are using another AMI).
+   For example:
 
    .. prompt:: bash alice@mercury:~$
 
-      ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh centos@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Allow SSH access for the ``root`` user, then log out.
+#. Allow SSH access for the ``root`` user on each node, then log out.
 
    .. task:: install_ssh_key
       :prompt: [user@aws]$
 
-#. Log back into the instances as user "root", e.g.:
+#. Log back into the instances as user "root" on each node.
+   For example:
 
    .. prompt:: bash alice@mercury:~$
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 
-#. Follow the operating system specific installation instructions below.
+#. Follow the operating system specific installation instructions below on each node.
 
 
 .. _rackspace-install:
@@ -260,7 +271,7 @@ Paste them into a root console on the target node:
 
 .. task:: install_flocker fedora-20
    :prompt: [root@node]#
-   
+
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
@@ -300,7 +311,7 @@ To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker centos-7
    :prompt: [root@centos]#
-   
+
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
@@ -490,13 +501,13 @@ For more details on configuring the firewall, see Ubuntu's `UFW documentation <h
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
+.. _agent-yml:
+
 Enabling the Flocker agent service
 ----------------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
-This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to.
-The ZFS ``pool`` variable should match the pool name created in the ZFS section.
+The file must always include ``version`` and ``control-service`` items similar to these:
 
 .. code-block:: yaml
 
@@ -504,20 +515,125 @@ The ZFS ``pool`` variable should match the pool name created in the ZFS section.
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
+
+``${CONTROL_NODE}`` should be replaced with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to.
+This value must agree with the configuration for the control service telling it on what port to listen.
+Omit the ``port`` from both configurations and the services will automatically agree.
+
+The file must also include a ``dataset`` item.
+This selects and configures a dataset backend.
+All nodes must be configured to use the same dataset backend.
+
+.. _openstack-dataset-backend:
+
+OpenStack Block Device Backend Configuration
+............................................
+
+The OpenStack backend uses Cinder volumes as the storage for datasets.
+This backend can be used with Flocker dataset agent nodes run by OpenStack Nova.
+The configuration item to use OpenStack should look like:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "<region slug; for example, LON>"
+       auth_plugin: "<authentication plugin>"
+       ...
+
+Make sure that the ``region`` specified matches the region where the Flocker nodes run.
+OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
+
+.. FLOC-2091 - Fix up this section.
+
+Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
+(Flocker relies on these plugins; it does not provide them itself).
+
+Flocker does provide explicit support for a ``rackspace`` authentication plugin.
+This plugin requires ``username``, ``api_key``, and ``auth_url``.
+
+For example:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "<region slug; for example, LON>"
+       auth_plugin: "rackspace"
+       username: "<your rackspace username>"
+       api_key: "<your rackspace API key>"
+       auth_url: "https://identity.api.rackspacecloud.com/v2.0"
+
+To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
+
+.. _aws-dataset-backend:
+
+Amazon AWS / EBS Block Device Backend Configuration
+...................................................
+
+The AWS backend uses EBS volumes as the storage for datasets.
+This backend can be used when Flocker dataset agents are run on EC2 instances.
+The configuration item to use AWS should look like:
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "aws"
+       region: "<region slug; for example, us-west-1>"
+       zone: "<availability zone slug; for example, us-west-1a>"
+       access_key_id: "<AWS API key identifier>"
+       secret_access_key: "<Matching AWS API key>"
+
+Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
+AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
+
+.. _zfs-dataset-backend:
+
+ZFS Peer-to-Peer Backend Configuration (ALPHA)
+..............................................
+
+The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
+The ZFS backend remains under development,
+it is not expected to operate reliably in many situations,
+and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use ZFS should look like:
+
+.. code-block:: yaml
+
    "dataset":
       "backend": "zfs"
       "pool": "flocker"
 
-.. The following is put in to demonstrate how to format alternative backends.
-   Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
+.. This section could stand to be improved.
+   Some of the suggested steps are not straightforward.
+   FLOC-2092
 
-For a ``loopback`` device, change the ``dataset`` clause to:
+The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
+This requires first installing `ZFS on Linux <http://zfsonlinux.org/>`_.
+You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
+
+.. _loopback-dataset-backend:
+
+Loopback Block Device Backend Configuration (INTERNAL TESTING)
+..............................................................
+
+The Loopback backend uses node-local storage as storage for datasets.
+It has no data movement functionality.
+It serves primarily as a development and testing tool for the other block device backend implementations.
+You may find it useful if you plan to work on Flocker itself.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use Loopback should look like:
 
 .. code-block:: yaml
 
    "dataset":
       "backend": "loopback"
       "root_path": "/var/lib/flocker/loopback"
+
+The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
+
 
 Fedora / CentOS
 ...............
@@ -543,5 +659,3 @@ You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 Next, we will describe how to use cluster security and authentication.
 However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
 You can replace the IP addresses in the sample ``deployment.yml`` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
-
-

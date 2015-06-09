@@ -12,7 +12,6 @@ from pyrsistent import thaw, pmap
 
 from twisted.trial.unittest import TestCase
 
-from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
@@ -23,7 +22,7 @@ from ..testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
 )
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client, get_test_cluster,
+    MONGO_IMAGE, require_mongo, get_mongo_client,
     require_cluster, require_moving_backend,
 )
 
@@ -69,7 +68,7 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    def _create_container(self):
+    def _create_container(self, cluster):
         """
         Create a container listening on port 8080.
 
@@ -80,15 +79,11 @@ class ContainerAPITests(TestCase):
             u"name": random_name(self),
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
-            u'restart_policy': {u'name': u'never'}
+            u'restart_policy': {u'name': u'never'},
+            u"node_uuid": cluster.nodes[0].uuid,
         }
-        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
-        def create_container(cluster, data):
-            data[u"node_uuid"] = cluster.nodes[0].uuid
-            return cluster.create_container(data)
-
-        d = waiting_for_cluster.addCallback(create_container, data)
+        d = cluster.create_container(data)
 
         def check_result(result):
             cluster, response = result
@@ -96,17 +91,18 @@ class ContainerAPITests(TestCase):
 
             self.assertEqual(response, data)
             dl = verify_socket(cluster.nodes[0].address, 8080)
-            dl.addCallback(lambda _: (cluster, response))
+            dl.addCallback(lambda _: response)
             return dl
 
         d.addCallback(check_result)
         return d
 
-    def test_create_container_with_ports(self):
+    @require_cluster(1)
+    def test_create_container_with_ports(self, cluster):
         """
         Create a container including port mappings on a single-node cluster.
         """
-        return self._create_container()
+        return self._create_container(cluster)
 
     @require_cluster(1)
     def test_create_container_with_environment(self, cluster):
@@ -286,16 +282,15 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    def test_current(self):
+    @require_cluster(1)
+    def test_current(self, cluster):
         """
         The current container endpoint includes a currently running container.
         """
-        creating = self._create_container()
+        creating = self._create_container(cluster)
 
-        def created(result):
-            cluster, data = result
+        def created(data):
             data[u"running"] = True
-            data[u"host"] = cluster.nodes[0].address
 
             def in_current():
                 current = cluster.current_containers()
@@ -304,6 +299,74 @@ class ContainerAPITests(TestCase):
             return loop_until(in_current)
         creating.addCallback(created)
         return creating
+
+    def assert_busybox_http(self, host, port):
+        """
+        Assert that a HTTP serving a response with body ``b"hi"`` is running
+        at given host and port.
+
+        This can be coupled with code that only conditionally starts up
+        the HTTP server via Flocker in order to check if that particular
+        setup succeeded.
+
+        :param bytes host: Host to connect to.
+        :param int port: Port to connect to.
+        """
+        def query(host, port):
+            req = get(
+                "http://{host}:{port}".format(host=host, port=port),
+                persistent=False
+            ).addCallback(content)
+            return req
+
+        d = verify_socket(host, port)
+        d.addCallback(lambda _: query(host, port))
+        d.addCallback(self.assertEqual, b"hi")
+        return d
+
+    @require_cluster(1)
+    def test_non_root_container_can_access_dataset(self, cluster):
+        """
+        A container running as a user that is not root can write to a
+        dataset attached as a volume.
+        """
+        _, port = find_free_port()
+        node = cluster.nodes[0]
+        container = {
+            u"name": random_name(self),
+            u"node_uuid": node.uuid,
+            u"image": u"busybox",
+            u"ports": [{u"internal": 8080, u"external": port}],
+            u'restart_policy': {u'name': u'never'},
+            u"volumes": [{u"dataset_id": None,
+                          u"mountpoint": u"/data"}],
+            u"command_line": [
+                # Run as non-root user:
+                u"su", u"-", u"nobody", u"-c", u"sh", u"-c",
+                # Write something to volume we attached, and then
+                # expose what we wrote as a web server; for info on nc options
+                # you can do `docker run busybox man nc`.
+                u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /data/script.sh;
+chmod +x /data/script.sh;
+nc -ll -p 8080 -e /data/script.sh
+            """]}
+
+        creating_dataset = create_dataset(self, cluster)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            container[u"volumes"][0][u"dataset_id"] = dataset[u"dataset_id"]
+            return cluster.create_container(container)
+        creating_dataset.addCallback(created_dataset)
+
+        creating_dataset.addCallback(lambda _: self.addCleanup(
+            cluster.remove_container, container[u"name"]))
+        creating_dataset.addCallback(
+            lambda _: self.assert_busybox_http(node.address, port))
+        return creating_dataset
 
     @require_cluster(2)
     def test_linking(self, cluster):
@@ -359,24 +422,15 @@ nc -ll -p 9000 -e /tmp/script.sh
             verify_socket(origin.address, origin_port),
         ])
 
-        def query(host, port):
-            req = get(
-                "http://{host}:{port}".format(host=host, port=port),
-                persistent=False
-            ).addCallback(content)
-            return req
-
         running.addCallback(
-            lambda ignored: query(origin.address, origin_port)
-        )
-        running.addCallback(self.assertEqual, b"hi")
+            lambda _: self.assert_busybox_http(origin.address, origin_port))
         return running
 
 
 def create_dataset(test_case, cluster,
                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
     """
-    Create a dataset on a cluster.
+    Create a dataset on a cluster (on its first node, specifically).
 
     :param TestCase test_case: The test the API is running on.
     :param Cluster cluster: The test ``Cluster``.
@@ -415,25 +469,13 @@ class DatasetAPITests(TestCase):
         """
         return create_dataset(self, cluster)
 
-    @require_cluster(2)
     @require_moving_backend
+    @require_cluster(2)
     def test_dataset_move(self, cluster):
         """
         A dataset can be moved from one node to another.
         """
-        # Send a dataset creation request on node1.
-        requested_dataset = {
-            u"primary": cluster.nodes[0].uuid,
-            u"dataset_id": unicode(uuid4()),
-            u"metadata": {u"name": u"my_volume"}
-        }
-
-        configuring_dataset = cluster.create_dataset(requested_dataset)
-
-        # Wait for the dataset to be created
-        waiting_for_create = configuring_dataset.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
-        )
+        waiting_for_create = create_dataset(self, cluster)
 
         # Once created, request to move the dataset to node2
         def move_dataset((cluster, dataset)):

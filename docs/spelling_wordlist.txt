@@ -45,6 +45,7 @@ invalidations
 Kubernetes
 libswarm
 lifecycle
+loopback
 Mesos
 metadata
 microservices
@@ -59,6 +60,7 @@ petabyte
 petabytes
 plugin
 plugins
+pluggable
 pre
 programmatically
 proxied

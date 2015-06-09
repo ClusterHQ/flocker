@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 
 from pyrsistent import thaw, freeze
 
-from .testtools import (flocker_deploy, get_mongo_client, get_clean_nodes,
+from .testtools import (get_mongo_client, require_cluster,
                         MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
                         require_mongo, require_moving_backend)
 
@@ -19,15 +19,14 @@ class MovingDataTests(TestCase):
     @require_flocker_cli
     @require_mongo
     @require_moving_backend
-    def test_moving_data(self):
+    @require_cluster(2)
+    def test_moving_data(self, cluster):
         """
         Moving an application moves that application's data with it. In
         particular, if MongoDB is deployed to a node, and data added to it,
         and then the application is moved to another node, the data remains
         available.
         """
-        getting_nodes = get_clean_nodes(self, num_nodes=2)
-
         volume_application = {
             u"version": 1,
             u"applications": {
@@ -51,23 +50,19 @@ class MovingDataTests(TestCase):
                 [u"applications", MONGO_APPLICATION, u"ports", 0,
                  u"external"], 27018))
 
-        def deploy_data_application(node_ips):
-            self.node_1, self.node_2 = node_ips
+        node_1, node_2 = cluster.nodes
 
-            volume_deployment = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [MONGO_APPLICATION],
-                    self.node_2: [],
-                },
-            }
+        volume_deployment = {
+            u"version": 1,
+            u"nodes": {
+                node_1.address: [MONGO_APPLICATION],
+                node_2.address: [],
+            },
+        }
 
-            flocker_deploy(self, volume_deployment, volume_application)
+        cluster.flocker_deploy(self, volume_deployment, volume_application)
 
-        deploying = getting_nodes.addCallback(deploy_data_application)
-
-        getting_client = deploying.addCallback(
-            lambda _: get_mongo_client(self.node_1))
+        getting_client = get_mongo_client(node_1.address)
 
         def verify_data_moves(client_1):
             database_1 = client_1.example
@@ -77,17 +72,17 @@ class MovingDataTests(TestCase):
             volume_deployment_moved = {
                 u"version": 1,
                 u"nodes": {
-                    self.node_1: [],
-                    self.node_2: [MONGO_APPLICATION],
+                    node_1.address: [],
+                    node_2.address: [MONGO_APPLICATION],
                 },
             }
 
             # Use different port so we're sure it's new container we're
             # talking to:
-            flocker_deploy(self, volume_deployment_moved,
-                           volume_application_different_port)
+            cluster.flocker_deploy(self, volume_deployment_moved,
+                                   volume_application_different_port)
 
-            d = get_mongo_client(self.node_2, 27018)
+            d = get_mongo_client(node_2.address, 27018)
 
             d.addCallback(lambda client_2: self.assertEqual(
                 data,

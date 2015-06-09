@@ -20,6 +20,7 @@ from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
 from twisted.python.constants import Names, NamedConstant
+from twisted.python.reflect import namedAny
 
 from ..volume.filesystems import zfs
 from ..volume.service import (
@@ -401,6 +402,9 @@ class BackendDescription(PRecord):
         ),
     )
 
+from .agents.cinder import cinder_from_configuration
+from .agents.ebs import aws_from_configuration
+
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [
     # P2PManifestationDeployer doesn't currently know anything about
@@ -419,12 +423,16 @@ _DEFAULT_BACKENDS = [
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
     ),
-
-    # BackendDescription(
-    #     name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-    #     factory=cinder_from_configuration,
-    #     deployer_type=DeployerType.block,
-    # ),
+    BackendDescription(
+        name=u"openstack", needs_reactor=False, needs_cluster_id=True,
+        api_factory=cinder_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
+    BackendDescription(
+        name=u"aws", needs_reactor=False, needs_cluster_id=True,
+        api_factory=aws_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
 ]
 
 _DEFAULT_DEPLOYERS = {
@@ -512,9 +520,13 @@ class AgentService(PRecord):
         for backend in self.backends:
             if backend.name == self.backend_name:
                 return backend
-        raise ValueError(
-            "Backend named {!r} not available".format(self.backend_name),
-        )
+        try:
+            return namedAny(self.backend_name + ".FLOCKER_BACKEND")
+        except (AttributeError, ValueError):
+            raise ValueError(
+                "'{!s}' is neither a built-in backend nor a 3rd party "
+                "module.".format(self.backend_name),
+            )
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):

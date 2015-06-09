@@ -55,6 +55,10 @@ ARCH = {
     },
 }
 
+# Path from the root of the source tree to the directory holding possible build
+# targets.  A build target is a directory containing a Dockerfile.
+BUILD_TARGETS_SEGMENTS = [b"admin", b"build_targets"]
+
 PACKAGE_ARCHITECTURE = {
     'clusterhq-flocker-cli': 'all',
     'clusterhq-flocker-node': 'all',
@@ -96,6 +100,19 @@ class Distribution(object):
         else:
             raise ValueError("Unknown distribution.", distribution_name)
 
+    def native_package_architecture(self):
+        """
+        :return: The ``bytes`` representing the native package architecture for
+            this distribution.
+        """
+        return ARCH['native'][self.package_type()]
+
+DISTRIBUTION_NAME_MAP = {
+    'fedora-20': Distribution(name="fedora", version="20"),
+    'centos-7': Distribution(name="centos", version="7"),
+    'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
+    'ubuntu-15.04': Distribution(name="ubuntu", version="15.04"),
+}
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
 
@@ -1003,6 +1020,25 @@ class DockerRun(object):
             raise SystemExit(result)
 
 
+def available_distributions(flocker_source_path):
+    """
+    Determine the distributions for which packages can be built.
+
+    :param FilePath flocker_source_path: The top-level directory of a Flocker
+        source checkout.  Distributions will be inferred from the build targets
+        available in this checkout.
+
+    :return: A ``set`` of ``bytes`` giving distribution names which can be
+        used with ``build_in_docker`` (and therefore with the
+        ``--distribution`` command line option of ``build-package``).
+    """
+    return set(
+        path.basename()
+        for path
+        in flocker_source_path.descendant(BUILD_TARGETS_SEGMENTS).children()
+        if path.isdir() and path.child(b"Dockerfile").exists()
+    )
+
 def build_in_docker(destination_path, distribution, top_level, package_uri):
     """
     Build a flocker package for a given ``distribution`` inside a clean docker
@@ -1028,8 +1064,8 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
         package_uri = '/flocker'
 
     tag = "clusterhq/build-%s" % (distribution,)
-    build_targets_directory = top_level.descendant(
-        ['admin', 'build_targets'])
+
+    build_targets_directory = top_level.descendant(BUILD_TARGETS_SEGMENTS)
     build_directory = build_targets_directory.child(distribution)
     # The <src> path must be inside the context of the build; you cannot COPY
     # ../something /something, because the first step of a docker build is to
@@ -1147,8 +1183,8 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. '
-         'One of fedora-20, centos-7, or ubuntu-14.04.'],
+         # {} is formatted in __init__
+         'The target distribution. One of {}'],
     ]
 
     longdesc = dedent("""\
@@ -1156,6 +1192,16 @@ class BuildOptions(usage.Options):
 
     <package-uri>: The Python package url or path to install using ``pip``.
     """)
+
+    def __init__(self, distributions):
+        """
+        :param distributions: An iterable of the names of distributions which
+            are acceptable as values for the ``--distribution`` parameter.
+        """
+        usage.Options.__init__(self)
+        self.docs["distribution"] = self.docs["distribution"].format(
+            ', '.join(sorted(distributions))
+        )
 
     def parseArgs(self, package_uri):
         """
@@ -1203,8 +1249,9 @@ class BuildScript(object):
         :param base_path: ignored.
         """
         to_file(self.sys_module.stderr)
+        distributions = available_distributions(top_level)
 
-        options = BuildOptions()
+        options = BuildOptions(distributions)
 
         try:
             options.parseOptions(self.sys_module.argv[1:])
