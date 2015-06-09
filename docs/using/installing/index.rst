@@ -327,6 +327,9 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
 .. task:: install_flocker ubuntu-14.04
    :prompt: [root@ubuntu]#
 
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+
 .. _authentication:
 
 Cluster Authentication Layer Configuration
@@ -653,8 +656,6 @@ Run the following commands to enable the agent service:
 
 What to do next
 ===============
-
-You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 
 Next, we will describe how to use cluster security and authentication.
 However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
