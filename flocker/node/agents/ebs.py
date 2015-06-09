@@ -228,16 +228,11 @@ def _wait_for_volume(volume,
         try:
             volume.update()
         except EC2ResponseError as e:
-            # If the volume is being deleted, upon successful deletion,
-            # we will fail to see the volume, as indicated by
-            # ``EC2ResponseError`` code ``InvalidVolume.NotFound``.
+            # If AWS cannot find the volume, raise ``UnknownVolume``.
             # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
             # for error details).
-            if (transient_status == u'deleting' and
-                    e.code == u'InvalidVolume.NotFound'):
-                return
-            else:
-                raise
+            if e.code == u'InvalidVolume.NotFound':
+                raise UnknownVolume(volume.id)
         if volume.status == end_status:
             return
         elif volume.status not in [start_status, transient_status]:
@@ -597,11 +592,13 @@ class EBSBlockDeviceAPI(object):
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         destroy_result = self.connection.delete_volume(blockdevice_id)
         if destroy_result:
-            _wait_for_volume(ebs_volume,
-                             start_status=u'available',
-                             transient_status=u'deleting',
-                             end_status='')
-            return
+            try:
+                _wait_for_volume(ebs_volume,
+                                 start_status=u'available',
+                                 transient_status=u'deleting',
+                                 end_status='')
+            except UnknownVolume:
+                return
         else:
             raise Exception(
                 'Failed to delete volume: {!r}'.format(blockdevice_id)
