@@ -786,12 +786,12 @@ def _get_test_cluster(reactor, node_count):
     agents_connected.addCallback(lambda _: cluster.current_nodes())
 
     def node_from_dict(node):
-        hostname = node["host"].encode("ascii")
+        hostname = node["host"]
         address = host_mapping.get(hostname, hostname)
         return Node(
             uuid=node[u"uuid"],
-            address=address,
-            hostname=hostname,
+            address=address.encode("ascii"),
+            hostname=hostname.encode("ascii"),
         )
     agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", map(node_from_dict, nodes[:node_count])))
