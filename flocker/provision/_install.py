@@ -434,7 +434,7 @@ def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
-    if distribution in ('fedora-20', 'centos-7'):
+    if distribution in ('centos-7',):
         return sequence([
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
@@ -473,7 +473,7 @@ def task_enable_flocker_control(distribution):
     """
     Enable flocker-control service.
     """
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', START, 'flocker-control']),
@@ -503,7 +503,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
@@ -548,7 +548,7 @@ def task_enable_flocker_agent(distribution, control_node,
             },
         ),
     )
-    if distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7',):
         return sequence([
             put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
@@ -722,6 +722,8 @@ def task_install_flocker(
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
+
+    :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
     if package_source.branch:
         # A development branch has been selected - add its Buildbot repo
@@ -783,7 +785,7 @@ def task_install_flocker(
             'apt-get', '-y', '--force-yes', 'install', package]))
 
         return sequence(commands)
-    else:
+    elif distribution in ('centos-7',):
         commands = [
             run(command="yum clean all"),
             run(command="yum install -y " + get_repository_url(
@@ -815,6 +817,8 @@ def task_install_flocker(
             ["yum", "install"] + branch_opt + ["-y", package]))
 
         return sequence(commands)
+    else:
+        raise UnsupportedDistribution()
 
 
 ACCEPTANCE_IMAGES = [
