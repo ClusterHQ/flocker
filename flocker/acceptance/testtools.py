@@ -693,7 +693,7 @@ class Cluster(PRecord):
 
         :return Deferred: Fires on end of assertion.
         """
-        ip_to_uuid = {node.address: node.uuid for node in self.nodes}
+        ip_to_uuid = {node.hostname: node.uuid for node in self.nodes}
 
         def got_results(existing_containers):
             expected = []
