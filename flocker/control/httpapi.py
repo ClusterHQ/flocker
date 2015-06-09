@@ -385,24 +385,32 @@ class ConfigurationAPIUserV1(object):
     )
     def state_datasets(self):
         """
-        # FLOC-2160 Start here. It's not only primary datasets but "primary"
-        # (if there is such a thing with block device datasets) plus
-        # non-manifest datasets.
-
-        Return the current primary datasets in the cluster.
+        Return all primary manifest datasets and all non-manifest datasets in
+        the cluster.
 
         :return: A ``list`` containing all datasets in the cluster.
         """
+        response = []
         deployment_state = self.cluster_state_service.as_deployment()
-        datasets = list(datasets_from_deployment(deployment_state))
-        for dataset in datasets:
-            node_uuid = UUID(hex=dataset[u"primary"])
-            dataset[u"path"] = self.cluster_state_service.manifestation_path(
-                node_uuid, dataset[u"dataset_id"]).path.decode(
-                    "utf-8")
-            del dataset[u"metadata"]
-            del dataset[u"deleted"]
-        return datasets
+        get_manifestation_path = self.cluster_state_service.manifestation_path
+
+        for dataset, node in deployment_state.all_datasets():
+            response_dataset = dict(
+                dataset_id=dataset.dataset_id,
+            )
+
+            if node is not None:
+                response_dataset[u"primary"] = unicode(node.uuid)
+                response_dataset[u"path"] = get_manifestation_path(
+                    node.uuid,
+                    dataset[u"dataset_id"]
+                ).path.decode("utf-8")
+
+            if dataset.maximum_size is not None:
+                response_dataset[u"maximum_size"] = dataset.maximum_size
+
+            response.append(response_dataset)
+        return response
 
     @app.route("/configuration/containers", methods=['GET'])
     @user_documentation(
