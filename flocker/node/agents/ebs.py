@@ -8,6 +8,7 @@ An EBS implementation of the ``IBlockDeviceAPI``.
 from subprocess import check_output
 import threading
 import time
+import logging
 from uuid import UUID
 
 from bitmath import Byte, GiB
@@ -21,31 +22,52 @@ from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
 
+from eliot import Message
+
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume,
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
-    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE
+    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
+    BOTO_LOG_HEADER,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
-BOTO_NUM_RETRIES = u'10'
+BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 
-# Set Boto debug level to ``1``, requesting basic debug messages from Boto
-# to be printed.
-# See https://code.google.com/p/boto/wiki/BotoConfig#Boto
-# for available debug levels.
-# Warning: BotoConfig is a Boto global option, so, all Boto clients from
-# from this process will have their log levels modified. See
-# https://clusterhq.atlassian.net/browse/FLOC-1962
-# to track evaluation of impact of log level change.
-BOTO_DEBUG_LEVEL = u'1'
+
+class EliotLogHandler(logging.Handler):
+    _to_log = {"Method", "Path", "Params"}
+
+    def emit(self, record):
+        fields = vars(record)
+        # Only log certain things.  The log is massively too verbose
+        # otherwise.
+        if fields.get("msg", ":").split(":")[0] in self._to_log:
+            Message.new(
+                message_type=BOTO_LOG_HEADER, **fields
+            ).write()
+
+
+def _enable_boto_logging():
+    """
+    Make boto log activity using Eliot.
+    """
+    logger = logging.getLogger("boto")
+    logger.addHandler(EliotLogHandler())
+
+    # It seems as though basically all boto log messages are at the same
+    # level.  Either we can see all of them or we can see none of them.
+    # We'll do some extra filtering in the handler.
+    logger.setLevel(logging.DEBUG)
+
+_enable_boto_logging()
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -74,10 +96,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
         config.add_section('Boto')
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
-
-    # Set Boto debug level to BOTO_DEBUG_LEVEL:
-    # ``1``: log basic debug messages
-    config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
 
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
@@ -174,7 +192,6 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
 
     :return: Input volume in BlockDeviceVolume format.
     """
-    ebs_volume.update()
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
@@ -202,6 +219,10 @@ def _wait_for_volume(volume,
     :raises Exception: When input volume failed to reach
         expected destination status.
     """
+    # It typically takes a few seconds for anything to happen, so start
+    # out sleeping a little before doing initial check to reduce
+    # unnecessary polling of the API:
+    time.sleep(5.0)
 
     # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
     # volume status to transition from
@@ -371,16 +392,25 @@ class EBSBlockDeviceAPI(object):
 
         :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
 
-        :returns boto.ec2.volume.Volume for the input id. ``None`` if
-            no boto.ec2.volume.Volume was found for the given id.
+        :returns: boto.ec2.volume.Volume for the input id.
+
+        :raise UnknownVolume: If no volume with a matching identifier can be
+             found.
         """
-        for volume in self.connection.get_all_volumes(
-                volume_ids=[blockdevice_id]):
+        try:
+            all_volumes = self.connection.get_all_volumes(
+                volume_ids=[blockdevice_id])
+        except EC2ResponseError as e:
+            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors
+            if e.error_code == "InvalidVolume.NotFound":
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise
+
+        for volume in all_volumes:
             if volume.id == blockdevice_id:
-                # Sync volume for uptodate metadata
-                volume.update()
                 return volume
-        return None
+        raise UnknownVolume(blockdevice_id)
 
     def _next_device(self, instance_id):
         """
@@ -457,10 +487,6 @@ class EBSBlockDeviceAPI(object):
                 )
         return volumes
 
-    def resize_volume(self, blockdevice_id, size):
-        pass
-
-    # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach an EBS volume to given compute instance.
@@ -474,8 +500,8 @@ class EBSBlockDeviceAPI(object):
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
                 ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
@@ -533,8 +559,8 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the BlockDeviceVolume for the
             blockdevice_id is not currently 'in-use'.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is None or
                 ebs_volume.status != 'in-use'):
             raise UnattachedVolume(blockdevice_id)
@@ -584,11 +610,11 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
         try:
             device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
         except KeyError:

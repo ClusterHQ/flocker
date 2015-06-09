@@ -20,6 +20,7 @@ from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
 from twisted.python.constants import Names, NamedConstant
+from twisted.python.reflect import namedAny
 
 from ..volume.filesystems import zfs
 from ..volume.service import (
@@ -519,9 +520,13 @@ class AgentService(PRecord):
         for backend in self.backends:
             if backend.name == self.backend_name:
                 return backend
-        raise ValueError(
-            "Backend named {!r} not available".format(self.backend_name),
-        )
+        try:
+            return namedAny(self.backend_name + ".FLOCKER_BACKEND")
+        except (AttributeError, ValueError):
+            raise ValueError(
+                "'{!s}' is neither a built-in backend nor a 3rd party "
+                "module.".format(self.backend_name),
+            )
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):

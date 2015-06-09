@@ -23,6 +23,8 @@ from effect.do import do
 from characteristic import attributes
 from git import GitCommandError, Repo
 
+import requests
+
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
@@ -65,7 +67,7 @@ from .yum import (
 
 from .vagrant import vagrant_version
 from .homebrew import make_recipe
-from .packaging import Distribution
+from .packaging import available_distributions, DISTRIBUTION_NAME_MAP
 
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
@@ -412,7 +414,12 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
 
     homebrew_repo.index.add([recipe])
     homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
+
+    # Sometimes this raises an index error, and it seems to be a race
+    # condition. There should probably be a loop until push succeeds or
+    # whatever condition is necessary for it to succeed is met. FLOC-2043.
     push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+
     if (push_info.flags & push_info.ERROR) != 0:
         raise PushFailed()
 
@@ -482,7 +489,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
 
 @do
 def update_repo(package_directory, target_bucket, target_key, source_repo,
-                packages, flocker_version, distro_name, distro_version):
+                packages, flocker_version, distribution):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
@@ -497,16 +504,10 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         to upload to the repository.
     :param bytes flocker_version: The version of flocker to upload packages
         for.
-    :param distro_name: The name of the distribution to upload packages for.
-    :param distro_version: The distro_version of the distribution to upload
-        packages for.
+    :param Distribution distribution: The distribution to upload packages for.
     """
     package_directory.createDirectory()
 
-    distribution = Distribution(
-        name=distro_name,
-        version=distro_version,
-    )
     package_type = distribution.package_type()
 
     yield Effect(DownloadS3KeyRecursively(
@@ -520,14 +521,12 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         target_path=package_directory,
         packages=packages,
         flocker_version=flocker_version,
-        distro_name=distro_name,
-        distro_version=distro_version,
+        distribution=distribution,
         ))
 
     new_metadata = yield Effect(CreateRepo(
         repository_path=package_directory,
-        distro_name=distro_name,
-        distro_version=distro_version,
+        distribution=distribution,
         ))
 
     yield Effect(UploadToS3Recursively(
@@ -537,11 +536,13 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         files=downloaded_packages | new_metadata,
         ))
 
+
 @do
-def upload_rpms(scratch_directory, target_bucket, version, build_server):
+def upload_packages(scratch_directory, target_bucket, version, build_server,
+                    top_level):
     """
-    The ClusterHQ yum repository contains packages for Flocker, as well as the
-    dependencies which aren't available in Fedora 20 or CentOS 7. It is
+    The ClusterHQ yum and deb repositories contain packages for Flocker, as
+    well as the dependencies which aren't available in CentOS 7. It is
     currently hosted on Amazon S3. When doing a release, we want to add the
     new Flocker packages, while preserving the existing packages in the
     repository. To do this, we download the current repository, add the new
@@ -550,37 +551,36 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param FilePath scratch_directory: Temporary directory to download
         repository to.
     :param bytes target_bucket: S3 bucket to upload repository to.
-    :param bytes version: Version to download RPMs for.
-    :param bytes build_server: Server to download new RPMs from.
+    :param bytes version: Version to download packages for.
+    :param bytes build_server: Server to download new packages from.
+    :param FilePath top_level: The top-level of the flocker repository.
     """
-    operating_systems = [
-        {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
-        {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
-        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'amd64'},
-    ]
+    distribution_names = available_distributions(
+        flocker_source_path=top_level,
+    )
 
-    for operating_system in operating_systems:
+    for distribution_name in distribution_names:
+        distribution = DISTRIBUTION_NAME_MAP[distribution_name]
+        architecture = distribution.native_package_architecture()
+
         yield update_repo(
             package_directory=scratch_directory.child(
                 b'{}-{}-{}'.format(
-                    operating_system['distro'],
-                    operating_system['version'],
-                    operating_system['arch'])),
+                    distribution.name,
+                    distribution.version,
+                    architecture)),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                operating_system['distro'] + get_package_key_suffix(version),
-                operating_system['version'],
-                operating_system['arch']),
+                distribution.name + get_package_key_suffix(version),
+                distribution.version,
+                architecture),
             source_repo=os.path.join(
                 build_server, b'results/omnibus',
                 version,
-                b'{}-{}'.format(
-                    operating_system['distro'],
-                    operating_system['version'])),
+                b'{}-{}'.format(distribution.name, distribution.version)),
             packages=FLOCKER_PACKAGES,
             flocker_version=version,
-            distro_name=operating_system['distro'],
-            distro_version=operating_system['version'],
+            distribution=distribution,
         )
 
 
@@ -715,7 +715,7 @@ def publish_artifacts_main(args, base_path, top_level):
 
     scratch_directory = FilePath(tempfile.mkdtemp(
         prefix=b'flocker-upload-'))
-    scratch_directory.child('rpm').createDirectory()
+    scratch_directory.child('packages').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
     scratch_directory.child('vagrant').createDirectory()
@@ -738,11 +738,12 @@ def publish_artifacts_main(args, base_path, top_level):
         sync_perform(
             dispatcher=dispatcher,
             effect=sequence([
-                upload_rpms(
-                    scratch_directory=scratch_directory.child('rpm'),
+                upload_packages(
+                    scratch_directory=scratch_directory.child('packages'),
                     target_bucket=options['target'],
                     version=options['flocker-version'],
                     build_server=options['build-server'],
+                    flocker_source_path=top_level,
                 ),
                 upload_python_packages(
                     scratch_directory=scratch_directory.child('python'),
@@ -932,6 +933,94 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
+
+
+class TestRedirectsOptions(Options):
+    """
+    Arguments for ``test-redirects`` script.
+    """
+    optParameters = [
+        ["doc-version", None, None,
+         "The version which the documentation sites are expected to redirect "
+         "to.\n"
+        ],
+    ]
+
+    optFlags = [
+        ["production", None, "Check the production documentation site."],
+    ]
+
+    environment = Environments.STAGING
+
+    def parseArgs(self):
+        if self['doc-version'] is None:
+            self['doc-version'] = get_doc_version(flocker.__version__)
+
+        if self['production']:
+            self.environment = Environments.PRODUCTION
+
+
+def test_redirects_main(args, base_path, top_level):
+    """
+    Tests redirects to Flocker documentation.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = TestRedirectsOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    doc_version = options['doc-version']
+
+    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
+    base_url = 'https://' + document_configuration.cloudfront_cname
+
+    is_dev = not is_release(doc_version)
+    if is_dev:
+        expected_redirects = {
+            '/en/devel': '/en/' + doc_version + '/',
+            '/en/devel/faq/index.html':
+                '/en/' + doc_version + '/faq/index.html',
+        }
+    else:
+        expected_redirects = {
+            '/': '/en/' + doc_version + '/',
+            '/en/': '/en/' + doc_version + '/',
+            '/en/latest': '/en/' + doc_version + '/',
+            '/en/latest/faq/index.html':
+                '/en/' + doc_version + '/faq/index.html',
+        }
+
+    failed_redirects = []
+
+    for path in expected_redirects:
+        original_url = base_url + path
+        expected_url = base_url + expected_redirects[path]
+        final_url = requests.get(original_url).url
+
+        if expected_url != final_url:
+            failed_redirects.append(original_url)
+
+            message = (
+                "'{original_url}' expected to redirect to '{expected_url}', "
+                "instead redirects to '{final_url}'.\n").format(
+                    original_url=original_url,
+                    expected_url=expected_url,
+                    final_url=final_url,
+            )
+
+            sys.stderr.write(message)
+
+    if len(failed_redirects):
+         raise SystemExit(1)
+    else:
+        print 'All tested redirects work correctly.'
 
 
 class PublishDevBoxOptions(Options):

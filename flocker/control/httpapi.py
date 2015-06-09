@@ -459,7 +459,6 @@ class ConfigurationAPIUserV1(object):
             for application in node.applications:
                 container = container_configuration_response(
                     application, node.uuid)
-                container[u"host"] = node.hostname
                 container[u"running"] = application.running
                 result.append(container)
         return result

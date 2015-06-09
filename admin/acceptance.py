@@ -539,7 +539,9 @@ class RunOptions(Options):
         Get the configuration corresponding to storage driver chosen by the
         command line options.
         """
-        return self['config']['storage-drivers'][self['dataset-backend']]
+        drivers = self['config'].get('storage-drivers', {})
+        configuration = drivers.get(self['dataset-backend'], {})
+        return configuration
 
     def dataset_backend(self):
         """
