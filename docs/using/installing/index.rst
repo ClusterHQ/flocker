@@ -341,10 +341,10 @@ Please continue onto the next section, with the cluster authentication instructi
 
 .. _authentication:
 
-.. XXX: Improve the Installation doc with clear sections: https://clusterhq.atlassian.net/browse/FLOC-2169
-
 Cluster Authentication Layer Configuration
 ------------------------------------------
+
+.. XXX: Improve the Installation doc with clear sections: https://clusterhq.atlassian.net/browse/FLOC-2169
 
 Communication between the different parts of your cluster is secured and authenticated via TLS.
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
