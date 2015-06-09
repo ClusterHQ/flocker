@@ -14,9 +14,13 @@ from characteristic import attributes, Attribute
 from eliot import ActionType, start_action, MemoryLogger, Logger
 from eliot.testing import validate_logging, assertHasAction, LoggedAction
 
+from twisted.internet.error import ConnectionDone
+from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
-from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
+from twisted.protocols.amp import (
+    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP,
+)
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -27,7 +31,7 @@ from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from .._protocol import (
-    SerializableArgument,
+    PING_INTERVAL, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
@@ -521,7 +525,7 @@ class AgentClientTests(SynchronousTestCase):
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = AgentAMP(self.agent)
+        self.client = AgentAMP(Clock(), self.agent)
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
@@ -781,3 +785,67 @@ class SendStateToConnectionsTests(SynchronousTestCase):
             [action.end_message["exception"] for action in actions
              if not action.succeeded],
             [u"twisted.internet.error.ConnectionLost"])
+
+
+class _NoOpCounter(CommandLocator):
+    noops = 0
+
+    @NoOp.responder
+    def noop(self):
+        self.noops += 1
+        return {}
+
+
+class PingTestsMixin(object):
+    """
+    Mixin for ``TestCase`` defining tests for an ``AMP`` protocol that
+    periodically sends no-op ping messages.
+    """
+    def test_periodic_noops(self):
+        """
+        When connected, the protocol sends ``NoOp`` commands at a fixed
+        interval.
+        """
+        expected_pings = 3
+        reactor = Clock()
+        locator = _NoOpCounter()
+        peer = AMP(locator=locator)
+        protocol = self.build_protocol(reactor)
+        pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
+        for i in range(expected_pings):
+            reactor.advance(PING_INTERVAL.total_seconds())
+            pump.flush()
+        self.assertEqual(locator.noops, expected_pings)
+
+    def test_stop_pinging_on_connection_lost(self):
+        """
+        When the protocol loses its connection, it stops trying to send
+        ``NoOp`` commands.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        transport = StringTransport()
+        protocol.makeConnection(transport)
+        transport.clear()
+        protocol.connectionLost(Failure(ConnectionDone("test, simulated")))
+        reactor.advance(PING_INTERVAL.total_seconds())
+        self.assertEqual(b"", transport.value())
+
+
+class ControlAMPPingTests(SynchronousTestCase, PingTestsMixin):
+    """
+    Tests for pinging done by ``ControlAMP``.
+    """
+    def build_protocol(self, reactor):
+        control_amp_service = build_control_amp_service(
+            self, reactor,
+        )
+        return ControlAMP(reactor, control_amp_service)
+
+
+class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
+    """
+    Tests for pinging done by ``AgentAMP``.
+    """
+    def build_protocol(self, reactor):
+        return AgentAMP(reactor, FakeAgent())

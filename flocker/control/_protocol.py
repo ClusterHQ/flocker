@@ -28,6 +28,8 @@ of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
+from datetime import timedelta
+
 from eliot import Logger, ActionType, Action, Field
 from eliot.twisted import DeferredContext
 
@@ -39,6 +41,7 @@ from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
 )
+from twisted.internet.task import LoopingCall
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
@@ -48,6 +51,8 @@ from ._model import (
     Deployment, NodeState, DeploymentState, NonManifestDatasets,
     ChangeSource,
 )
+
+PING_INTERVAL = timedelta(seconds=30)
 
 
 class SerializableArgument(Argument):
@@ -106,6 +111,9 @@ class NoOp(Command):
     """
     Do nothing.  Return nothing.  This merely generates some traffic on the
     connection to support timely disconnection notification.
+
+    No-ops are one-way to force both sides to send them of their own volition
+    so that both sides will receive timely disconnection notification.
     """
     requiresAnswer = False
 
@@ -197,6 +205,9 @@ class ControlServiceLocator(CommandLocator):
 class ControlAMP(AMP):
     """
     AMP protocol for control service server.
+
+    :ivar Pinger _pinger: Helper which periodically pings this protocol's peer
+        to verify it's still alive.
     """
     def __init__(self, reactor, control_amp_service):
         """
@@ -207,14 +218,17 @@ class ControlAMP(AMP):
         locator = ControlServiceLocator(reactor, control_amp_service)
         AMP.__init__(self, locator=locator)
         self.control_amp_service = control_amp_service
+        self._pinger = Pinger(reactor)
 
     def connectionMade(self):
         AMP.connectionMade(self)
         self.control_amp_service.connected(self)
+        self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)
         self.control_amp_service.disconnected(self)
+        self._pinger.stop()
 
 
 DEPLOYMENT_CONFIG = Field(u"configuration", repr,
@@ -395,19 +409,57 @@ class AgentAMP(AMP):
     AMP protocol for convergence agent side of the protocol.
 
     This is the client protocol that will connect to the control service.
+
+    :ivar Pinger _pinger: Helper which periodically pings this protocol's peer
+        to verify it's still alive.
     """
-    def __init__(self, agent):
+    def __init__(self, reactor, agent):
         """
+        :param IReactorTime reactor: A reactor to use to schedule periodic ping
+            operations.
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         locator = _AgentLocator(agent)
         AMP.__init__(self, locator=locator)
         self.agent = agent
+        self._pinger = Pinger(reactor)
 
     def connectionMade(self):
         AMP.connectionMade(self)
         self.agent.connected(self)
+        self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)
         self.agent.disconnected()
+        self._pinger.stop()
+
+
+class Pinger(object):
+    """
+    An periodic AMP ping helper.
+    """
+    def __init__(self, reactor):
+        """
+        :param IReactorTime reactor: The reactor to use to schedule the pings.
+        """
+        self.reactor = reactor
+
+    def start(self, protocol, interval):
+        """
+        Start sending some pings.
+
+        :param AMP protocol: The protocol over which to send the pings.
+        :param timedelta interval: The interval at which to send the pings.
+        """
+        def ping():
+            protocol.callRemote(NoOp)
+        self._pinging = LoopingCall(ping)
+        self._pinging.clock = self.reactor
+        self._pinging.start(interval.total_seconds(), now=False)
+
+    def stop(self):
+        """
+        Stop sending the pings.
+        """
+        self._pinging.stop()
