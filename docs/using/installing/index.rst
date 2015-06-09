@@ -510,6 +510,11 @@ The file must always include ``version`` and ``control-service`` items similar t
       "hostname": "${CONTROL_NODE}"
       "port": 4524
 
+The value of the hostname field should be a hostname or IP that is routeable from all your node agents.
+
+When configuring node agents, consider whether the control service location you choose will have multiple possible addresses, and ensure the hostname you provide is the correct one.
+You should never choose 127.0.0.1 or localhost as the hostname, even if the control service is on same machine as the node agent.
+
 ``${CONTROL_NODE}`` should be replaced with the address of the control node.
 The optional ``port`` variable is the port on the control node to connect to.
 This value must agree with the configuration for the control service telling it on what port to listen.
