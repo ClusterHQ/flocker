@@ -250,8 +250,10 @@
   doc: |
     Get a list of all datasets in a deployment.
     This includes manifest (attached) and non-manifest (unattached) datasets.
-    A dataset is non-manifest when it is moving between nodes.
-    The ``primary`` and ``path`` values of non-manifest datasets will be ``null``.
+    Some examples of non-manifest datasets are datasets that are being created or
+    destroyed and datasets that are moving between nodes.
+    The ``primary`` and ``path`` values will not be present for non-manifest
+    datasets.
 
   request: |
     GET /v1/state/datasets HTTP/1.1
