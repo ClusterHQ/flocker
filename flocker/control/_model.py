@@ -17,6 +17,7 @@ There are different categories of classes:
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
+from datetime import datetime
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
@@ -681,6 +682,44 @@ class IClusterStateWipe(Interface):
         cover different information, so there is no need for the key to
         express that differentation.
         """
+
+
+class IClusterStateSource(Interface):
+    """
+    Represents where some cluster state (``IClusterStateChange``) came from.
+    This is presently used for activity/inactivity tracking to inform change
+    wiping.
+    """
+    def last_activity():
+        """
+        :return: The point in time at which the last activity was observed from
+            this source.
+        :rtype: ``datetime.datetime`` (in UTC)
+        """
+
+
+@implementer(IClusterStateSource)
+class ChangeSource(object):
+    """
+    An ``IClusterStateSource`` which reports whatever time it was last told to
+    report.
+
+    :ivar float _last_activity: Recorded activity time.
+    """
+    def __init__(self):
+        self.set_last_activity(0)
+
+    def set_last_activity(self, since_epoch):
+        """
+        Set the time of the last activity.
+
+        :param float since_epoch: Number of seconds since the epoch at which
+            point the activity occurred.
+        """
+        self._last_activity = since_epoch
+
+    def last_activity(self):
+        return datetime.utcfromtimestamp(self._last_activity)
 
 
 def ip_to_uuid(ip):

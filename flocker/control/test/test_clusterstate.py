@@ -10,6 +10,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 
+from .._model import ChangeSource
 from .._clusterstate import EXPIRATION_TIME, ClusterStateService
 from .. import (
     Application, DockerImage, NodeState, DeploymentState, Manifestation,
@@ -179,6 +180,37 @@ class ClusterStateServiceTests(SynchronousTestCase):
         before_wipe_state = service.as_deployment()
         advance_some(self.clock)
         after_wipe_state = service.as_deployment()
+        self.assertEqual(
+            [before_wipe_state, after_wipe_state],
+            [DeploymentState(nodes=[self.WITH_APPS]), DeploymentState()],
+        )
+
+    def test_expiration_from_inactivity(self):
+        """
+        Information updates from a source with no activity for more than the
+        hard-coded expiration period are wiped.
+        """
+        service = self.service()
+        source = ChangeSource()
+
+        # Apply some changes at T1
+        source.set_last_activity(self.clock.seconds())
+        service.apply_changes_from_source(source, [self.WITH_APPS])
+
+        # A little bit of time passes (T2) and there is some activity.
+        advance_some(self.clock)
+        source.set_last_activity(self.clock.seconds())
+
+        # Enough more time passes (T3) to reach EXPIRATION_TIME from T1
+        advance_rest(self.clock)
+        before_wipe_state = service.as_deployment()
+
+        # Enough more time passes (T4) to reach EXPIRATION_TIME from T2
+        advance_some(self.clock)
+        after_wipe_state = service.as_deployment()
+
+        # The activity at T2 prevents the state from being wiped at T3 but then
+        # it is wiped at T4.
         self.assertEqual(
             [before_wipe_state, after_wipe_state],
             [DeploymentState(nodes=[self.WITH_APPS]), DeploymentState()],
