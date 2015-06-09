@@ -285,7 +285,8 @@ To enable and start Docker, run the following commands in a root console:
    :prompt: [root@fedora]#
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
+Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _centos-7-install:
 
@@ -319,7 +320,8 @@ To enable and start Docker, run the following commands in a root console:
    :prompt: [root@centos]#
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
+Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _ubuntu-14.04-install:
 
@@ -334,7 +336,8 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
    :prompt: [root@ubuntu]#
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
+Please continue onto the next section, with the cluster authentication instructions.
 
 .. _authentication:
 
