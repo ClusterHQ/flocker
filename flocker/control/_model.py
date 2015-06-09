@@ -895,8 +895,8 @@ class DeploymentState(PRecord):
         node that is already part of the ``DeploymentState`` (based on UUID
         comparison).
 
-        :param NodeState node: An update for ``NodeState`` with same hostname
-            in this ``DeploymentState``.
+        :param NodeState node: An update for ``NodeState`` with same UUID in
+            this ``DeploymentState``.
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
