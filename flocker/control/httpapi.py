@@ -390,6 +390,12 @@ class ConfigurationAPIUserV1(object):
 
         :return: A ``list`` containing all datasets in the cluster.
         """
+        # XXX This duplicates code in datasets_from_deployment, but that
+        # function is designed to operate on a Deployment rather than a
+        # DeploymentState instance and the dataset configuration result
+        # includes metadata and deleted flags which should not be part of the
+        # dataset state response.
+        # Refactor.
         response = []
         deployment_state = self.cluster_state_service.as_deployment()
         get_manifestation_path = self.cluster_state_service.manifestation_path
