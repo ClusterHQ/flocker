@@ -9,14 +9,20 @@ Release Notes
 Next Release
 ============
 
-* ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
+* Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
+* Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
+  See :ref:`dataset-backend-plugins`.
 * It is now necessary to specify a dataset backend for each agent node.
   See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
   See :ref:`authentication`.
-* Docker restart policies are adhered to.
-* New API endpoint: List the hosts currently in the cluster.
+* ``flocker-deploy`` now requires the hostname of the control service as its first argument.
+* Added REST API functions to manage containers in a cluster alongside datasets.
   See :ref:`api`.
+* Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
+  See :ref:`installing-flocker-cli-ubuntu-14.04`.
+* Bug fixes and improvements focused on security and stability across platforms.
+
 
 v0.4
 ====

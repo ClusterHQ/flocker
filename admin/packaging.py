@@ -100,6 +100,19 @@ class Distribution(object):
         else:
             raise ValueError("Unknown distribution.", distribution_name)
 
+    def native_package_architecture(self):
+        """
+        :return: The ``bytes`` representing the native package architecture for
+            this distribution.
+        """
+        return ARCH['native'][self.package_type()]
+
+DISTRIBUTION_NAME_MAP = {
+    'fedora-20': Distribution(name="fedora", version="20"),
+    'centos-7': Distribution(name="centos", version="7"),
+    'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
+    'ubuntu-15.04': Distribution(name="ubuntu", version="15.04"),
+}
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
 
