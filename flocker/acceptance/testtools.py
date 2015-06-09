@@ -6,11 +6,8 @@ Testing utilities for ``flocker.acceptance``.
 from functools import wraps
 from json import dumps
 from os import environ
-from pipes import quote as shell_quote
-from socket import gaierror, socket
-from subprocess import check_call, PIPE, Popen
+from subprocess import check_call
 from unittest import SkipTest, skipUnless
-from contextlib import closing
 
 from yaml import safe_dump
 
@@ -45,7 +42,7 @@ except ImportError:
     PYMONGO_INSTALLED = False
 
 __all__ = [
-    'assert_expected_deployment', 'flocker_deploy', 'get_clean_nodes',
+    'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
     'create_attached_volume'
@@ -121,94 +118,6 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
-class SSHCommandFailed(Exception):
-    """
-    Exception raised when a command executed via SSH exits with error
-    status code.
-    """
-
-
-def run_SSH(port, user, node, command, input, key=None,
-            background=False):
-    """
-    Run a command via SSH.
-
-    :param int port: Port to connect to.
-    :param bytes user: User to run the command as.
-    :param bytes node: Node to run command on.
-    :param command: Command to run.
-    :type command: ``list`` of ``bytes``.
-    :param bytes input: Input to send to command.
-    :param FilePath key: If not None, the path to a private key to use.
-    :param background: If ``True``, don't block waiting for SSH process to
-         end or read its stdout. I.e. it will run "in the background".
-         Also ensures remote process has pseudo-tty so killing the local SSH
-         process will kill the remote one.
-
-    :return: stdout as ``bytes`` if ``background`` is false, otherwise
-        return the ``subprocess.Process`` object.
-    """
-    quotedCommand = ' '.join(map(shell_quote, command))
-    command = [
-        b'ssh',
-        b'-p', b'%d' % (port,),
-        ]
-
-    if key is not None:
-        command.extend([
-            b"-i",
-            key.path])
-
-    if background:
-        # Force pseudo-tty so that remote process exists when the ssh
-        # client does:
-        command.extend([b"-t", b"-t"])
-
-    command.extend([
-        b'@'.join([user, node]),
-        quotedCommand
-    ])
-    if background:
-        process = Popen(command, stdin=PIPE)
-        process.stdin.write(input)
-        return process
-    else:
-        process = Popen(command, stdout=PIPE, stdin=PIPE)
-
-    result = process.communicate(input)
-    if process.returncode != 0:
-        raise SSHCommandFailed('Command Failed', command, process.returncode)
-
-    return result[0]
-
-
-def _clean_node(test_case, node):
-    """
-    Remove all containers and zfs volumes on a node, given the IP address of
-    the node.
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param bytes node: The hostname or IP of the node.
-    """
-    # Without the below, deploying the same application with a data volume
-    # twice fails. See the error given with the tutorial's yml files:
-    #
-    #   $ flocker-deploy volume-deployment.yml volume-application.yml
-    #   $ ssh root@${NODE} docker ps -a -q # outputs an ID, ${ID}
-    #   $ ssh root@${NODE} docker stop ${ID}
-    #   $ ssh root@${NODE} docker rm ${ID}
-    #   $ flocker-deploy volume-deployment.yml volume-application.yml
-    #
-    # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
-    # A tool or flocker-deploy option to purge the state of a node does
-    # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    try:
-        run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-                [b"flocker"], None)
-    except SSHCommandFailed:
-        pass
-
-
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
@@ -265,166 +174,6 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
-def get_clean_nodes(test_case, num_nodes):
-    """
-    Create or get ``num_nodes`` nodes with no Docker containers on them.
-
-    This is an alternative to
-    http://doc-dev.clusterhq.com/gettingstarted/tutorial/
-    vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
-
-    XXX This pretends to be asynchronous because num_nodes Docker containers
-    will be created instead to replace this in some circumstances, see
-    https://clusterhq.atlassian.net/browse/FLOC-900
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param int num_nodes: The number of nodes to start up.
-
-    :return: A ``Deferred`` which fires with a set of IP addresses.
-    """
-
-    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_AGENT_NODES")
-
-    if nodes_env_var is None:
-        raise SkipTest(
-            "Set acceptance testing node IP addresses using the "
-            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a colon "
-            "separated list.")
-
-    # Remove any empty strings, for example if the list has ended with a colon
-    nodes = filter(None, nodes_env_var.split(':'))
-
-    if len(nodes) < num_nodes:
-        raise SkipTest("This test requires a minimum of {necessary} nodes, "
-                       "{existing} node(s) are set.".format(
-                           necessary=num_nodes, existing=len(nodes)))
-
-    Message.new(
-        message_type="acceptance:get_clean_nodes:seeking",
-        num_nodes=num_nodes
-    ).write()
-
-    reachable_nodes = set()
-
-    for node in nodes:
-        with closing(socket()) as sock:
-            try:
-                can_connect = not sock.connect_ex((node, 22))
-            except gaierror:
-                can_connect = False
-            finally:
-                if can_connect:
-                    reachable_nodes.add(node)
-
-    Message.new(
-        message_type="acceptance:get_clean_nodes:found",
-        nodes=reachable_nodes,
-    ).write()
-
-    if len(reachable_nodes) < num_nodes:
-        unreachable_nodes = set(nodes) - reachable_nodes
-        test_case.fail(
-            "At least {min} node(s) must be running and reachable on port 22. "
-            "The following node(s) are reachable: {reachable}. "
-            "The following node(s) are not reachable: {unreachable}.".format(
-                min=num_nodes,
-                reachable=", ".join(str(node) for node in reachable_nodes),
-                unreachable=", ".join(str(node) for node in unreachable_nodes),
-            )
-        )
-
-    # Only return the desired number of nodes
-    reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
-
-    getting = get_test_cluster(reactor, node_count=num_nodes)
-
-    def api_clean_state(cluster, configuration_method,
-                        state_method, delete_method):
-        """
-        Clean containers and datasets via the API.
-
-        :param Cluster cluster: The test cluster to act on.
-        :param configuration_method: The function to obtain the configured
-            entities.
-        :param delete_method: The method to delete an entity.
-
-        :return: A `Deferred` that fires with the cluster object.
-        """
-        get_items = configuration_method(cluster)
-
-        def delete_items(items):
-            return gather_deferreds(list(
-                delete_method(cluster, item)
-                for item in items
-            ))
-        get_items.addCallback(delete_items)
-        get_items.addCallback(
-            lambda ignored: loop_until(
-                lambda: state_method(cluster).addCallback(
-                    lambda result: [] == result
-                )
-            )
-        )
-        return get_items
-
-    def cleanup_containers(cluster):
-        return api_clean_state(
-            cluster,
-            lambda cluster: cluster.configured_containers(),
-            lambda cluster: cluster.current_containers(),
-            lambda cluster, item: cluster.remove_container(item[u"name"]),
-        ).addCallback(lambda ignored: cluster)
-
-    def cleanup_datasets(cluster):
-        return api_clean_state(
-            cluster,
-            lambda cluster: cluster.configured_datasets().addCallback(
-                lambda datasets: list(
-                    dataset
-                    for dataset
-                    in datasets
-                    if not dataset.get(u"deleted", False)
-                )
-            ),
-            lambda cluster: cluster.datasets_state(),
-            lambda cluster, item: cluster.delete_dataset(item[u"dataset_id"]),
-        )
-
-    getting.addCallback(cleanup_containers)
-    getting.addCallback(cleanup_datasets)
-    getting.addCallback(lambda _: reachable_nodes)
-    return getting
-
-
-def flocker_deploy(test_case, deployment_config, application_config):
-    """
-    Run ``flocker-deploy`` with given configuration files.
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param dict deployment_config: The desired deployment configuration.
-    :param dict application_config: The desired application configuration.
-    """
-    # This is duplicate code, see
-    # https://clusterhq.atlassian.net/browse/FLOC-1903
-    control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    certificate_path = environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"]
-    if control_node is None:
-        raise SkipTest("Set control node address using "
-                       "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    temp = FilePath(test_case.mktemp())
-    temp.makedirs()
-
-    deployment = temp.child(b"deployment.yml")
-    deployment.setContent(safe_dump(deployment_config))
-
-    application = temp.child(b"application.yml")
-    application.setContent(safe_dump(application_config))
-    check_call([b"flocker-deploy", b"--certificates-directory",
-               certificate_path, control_node, deployment.path,
-               application.path])
-
-
 def get_mongo_client(host, port=27017):
     """
     Returns a ``Deferred`` which fires with a ``MongoClient`` when one has been
@@ -450,55 +199,6 @@ def get_mongo_client(host, port=27017):
             return False
 
     d = loop_until(create_mongo_client)
-    return d
-
-
-def assert_expected_deployment(test_case, expected_deployment):
-    """
-    Assert that the expected set of ``Application`` instances on a set of
-    nodes is the same as the actual set of ``Application`` instance on
-    those nodes.
-
-    The tutorial looks at Docker output, but the acceptance tests are
-    intended to test high-level external behaviors. Since this is looking
-    at the output of the control service API it merely verifies what
-    Flocker believes the system state is, not the actual state.
-    The latter should be verified separately with additional tests
-    for external side-effects (applications being available on ports,
-    say).
-
-    :param test_case: The ``TestCase`` running this unit test.
-    :param dict expected_deployment: A mapping of IP addresses to set of
-        ``Application`` instances expected on the nodes with those IP
-        addresses.
-
-    :return Deferred: Fires on end of assertion.
-    """
-    d = get_test_cluster(reactor)
-
-    def got_cluster(cluster):
-        ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
-        uuid_to_ip = {node.uuid: node.address for node in cluster.nodes}
-
-        def got_results(existing_containers):
-            expected = []
-            for hostname, apps in expected_deployment.items():
-                node_uuid = ip_to_uuid[hostname]
-                expected += [container_configuration_response(app, node_uuid)
-                             for app in apps]
-            for app in expected:
-                app[u"running"] = True
-                app[u"host"] = uuid_to_ip[app["node_uuid"]]
-
-            return sorted(existing_containers) == sorted(expected)
-
-        def configuration_matches_state():
-            d = cluster.current_containers()
-            d.addCallback(got_results)
-            return d
-
-        return loop_until(configuration_matches_state)
-    d.addCallback(got_cluster)
     return d
 
 
@@ -571,7 +271,7 @@ def log_method(function):
 
     def log_result(result):
         Message.new(
-            action_type=label + ":result",
+            message_type=label + ":result",
             value=result,
         ).write()
         return result
@@ -604,6 +304,7 @@ class Cluster(PRecord):
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    certificates_path = field(FilePath, mandatory=True)
 
     @property
     def base_url(self):
@@ -887,11 +588,130 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
+    def flocker_deploy(self, test_case, deployment_config, application_config):
+        """
+        Run ``flocker-deploy`` with given configuration files.
 
-def get_test_cluster(reactor, node_count=0):
+        :param test_case: The ``TestCase`` running this unit test.
+        :param dict deployment_config: The desired deployment configuration.
+        :param dict application_config: The desired application configuration.
+        """
+        temp = FilePath(test_case.mktemp())
+        temp.makedirs()
+
+        deployment = temp.child(b"deployment.yml")
+        deployment.setContent(safe_dump(deployment_config))
+
+        application = temp.child(b"application.yml")
+        application.setContent(safe_dump(application_config))
+        check_call([b"flocker-deploy",
+                    b"--certificates-directory", self.certificates_path.path,
+                    self.control_node.address,
+                    deployment.path, application.path])
+
+    def clean_nodes(self):
+        """
+        Clean containers and datasets via the API.
+
+        :return: A `Deferred` that fires when the cluster is clean.
+        """
+        def api_clean_state(configuration_method, state_method, delete_method):
+            """
+            Clean entities from the cluster.
+
+            :param configuration_method: The function to obtain the configured
+                entities.
+            :param state_method: The function to get the current entities.
+            :param delete_method: The method to delete an entity.
+
+            :return: A `Deferred` that fires when the entities have been
+                deleted.
+            """
+            get_items = configuration_method()
+
+            def delete_items(items):
+                return gather_deferreds(list(
+                    delete_method(item)
+                    for item in items
+                ))
+            get_items.addCallback(delete_items)
+            get_items.addCallback(
+                lambda ignored: loop_until(
+                    lambda: state_method().addCallback(
+                        lambda result: [] == result
+                    )
+                )
+            )
+            return get_items
+
+        def cleanup_containers():
+            return api_clean_state(
+                self.configured_containers,
+                self.current_containers,
+                lambda item: self.remove_container(item[u"name"]),
+            )
+
+        def cleanup_datasets():
+            return api_clean_state(
+                lambda: self.configured_datasets().addCallback(
+                    lambda datasets: list(
+                        dataset
+                        for dataset
+                        in datasets
+                        if not dataset.get(u"deleted", False)
+                    )
+                ),
+                self.datasets_state,
+                lambda item: self.delete_dataset(item[u"dataset_id"]),
+            )
+
+        return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+
+    def assert_expected_deployment(self, test_case, expected_deployment):
+        """
+        Assert that the expected set of ``Application`` instances on a set of
+        nodes is the same as the actual set of ``Application`` instance on
+        those nodes.
+
+        The tutorial looks at Docker output, but the acceptance tests are
+        intended to test high-level external behaviors. Since this is looking
+        at the output of the control service API it merely verifies what
+        Flocker believes the system state is, not the actual state.
+        The latter should be verified separately with additional tests
+        for external side-effects (applications being available on ports,
+        say).
+
+        :param test_case: The ``TestCase`` running this unit test.
+        :param dict expected_deployment: A mapping of IP addresses to set of
+            ``Application`` instances expected on the nodes with those IP
+            addresses.
+
+        :return Deferred: Fires on end of assertion.
+        """
+        ip_to_uuid = {node.address: node.uuid for node in self.nodes}
+
+        def got_results(existing_containers):
+            expected = []
+            for hostname, apps in expected_deployment.items():
+                node_uuid = ip_to_uuid[hostname]
+                expected += [container_configuration_response(app, node_uuid)
+                             for app in apps]
+            for app in expected:
+                app[u"running"] = True
+
+            return sorted(existing_containers) == sorted(expected)
+
+        def configuration_matches_state():
+            d = self.current_containers()
+            d.addCallback(got_results)
+            return d
+
+        return loop_until(configuration_matches_state)
+
+
+def _get_test_cluster(reactor, node_count):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
@@ -926,7 +746,8 @@ def get_test_cluster(reactor, node_count=0):
     cluster = Cluster(
         control_node=ControlService(address=control_node),
         nodes=[],
-        treq=treq_with_authentication(reactor, certificates_path)
+        treq=treq_with_authentication(reactor, certificates_path),
+        certificates_path=certificates_path,
     )
 
     # Wait until nodes are up and running:
@@ -946,7 +767,7 @@ def get_test_cluster(reactor, node_count=0):
                     write_failure(reason, logger=None)
             return False
         d = cluster.current_nodes()
-        d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
+        d.addCallbacks(lambda nodes: len(nodes) >= node_count,
                        # Control service may not be up yet, keep trying:
                        failed_query)
         return d
@@ -956,10 +777,10 @@ def get_test_cluster(reactor, node_count=0):
     # happen know these in advance, but in FLOC-1631 node identification
     # will switch to UUIDs instead.
     agents_connected.addCallback(lambda _: cluster.current_nodes())
-    agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
+    agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", [Node(uuid=node[u"uuid"],
                        address=node["host"].encode("ascii"))
-                  for node in nodes]))
+                  for node in nodes[:node_count]]))
     return agents_connected
 
 
@@ -986,10 +807,13 @@ def require_cluster(num_nodes):
             # reachable and clean them up prior to the test.
             # The nodes must already have been started and their flocker
             # services started.
-            waiting_for_nodes = get_clean_nodes(test_case, num_nodes)
-            waiting_for_cluster = waiting_for_nodes.addCallback(
-                lambda nodes: get_test_cluster(reactor, node_count=num_nodes)
-            )
+            waiting_for_cluster = _get_test_cluster(
+                reactor, node_count=num_nodes)
+
+            def clean(cluster):
+                return cluster.clean_nodes().addCallback(lambda _: cluster)
+
+            waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs

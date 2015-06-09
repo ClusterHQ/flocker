@@ -14,8 +14,7 @@ from twisted.trial.unittest import TestCase
 
 from ..control.httpapi import container_configuration_response
 
-from .testtools import (assert_expected_deployment, flocker_deploy,
-                        get_clean_nodes, MONGO_APPLICATION, MONGO_IMAGE,
+from .testtools import (MONGO_APPLICATION, MONGO_IMAGE,
                         get_mongo_application, require_flocker_cli,
                         require_mongo, create_application,
                         create_attached_volume, require_cluster)
@@ -123,7 +122,7 @@ class DeploymentTests(TestCase):
         }
 
         # Do the first deployment
-        flocker_deploy(self, config_deployment_1, config_application_1)
+        cluster.flocker_deploy(self, config_deployment_1, config_application_1)
 
         # Wait for the agent on node1 to create a container with the expected
         # properties.
@@ -149,7 +148,8 @@ class DeploymentTests(TestCase):
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
                     (mongo_dataset_id, int(SIZE_100_MB))
                 )
-                flocker_deploy(self, config_deployment_2, config_application_1)
+                cluster.flocker_deploy(
+                    self, config_deployment_2, config_application_1)
                 return cluster.wait_for_container(expected_container_2)
             waiting_for_dataset.addCallback(got_dataset)
             return waiting_for_dataset
@@ -184,41 +184,34 @@ class DeploymentTests(TestCase):
 
     @require_flocker_cli
     @require_mongo
-    def test_deploy(self):
+    @require_cluster(1)
+    def test_deploy(self, cluster):
         """
         Deploying an application to one node and not another puts the
         application where expected. Where applicable, Docker has internal
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
-        getting_nodes = get_clean_nodes(self, num_nodes=1)
+        [node_1] = cluster.nodes
 
-        def deploy(node_ips):
-            [node_1] = node_ips
+        minimal_deployment = {
+            u"version": 1,
+            u"nodes": {
+                node_1.address: [MONGO_APPLICATION],
+            },
+        }
 
-            minimal_deployment = {
-                u"version": 1,
-                u"nodes": {
-                    node_1: [MONGO_APPLICATION],
+        minimal_application = {
+            u"version": 1,
+            u"applications": {
+                MONGO_APPLICATION: {
+                    u"image": MONGO_IMAGE,
                 },
-            }
+            },
+        }
 
-            minimal_application = {
-                u"version": 1,
-                u"applications": {
-                    MONGO_APPLICATION: {
-                        u"image": MONGO_IMAGE,
-                    },
-                },
-            }
+        cluster.flocker_deploy(self, minimal_deployment, minimal_application)
 
-            flocker_deploy(self, minimal_deployment, minimal_application)
-
-            d = assert_expected_deployment(self, {
-                node_1: set([get_mongo_application()]),
-            })
-
-            return d
-
-        getting_nodes.addCallback(deploy)
-        return getting_nodes
+        return cluster.assert_expected_deployment(self, {
+            node_1.address: set([get_mongo_application()]),
+        })

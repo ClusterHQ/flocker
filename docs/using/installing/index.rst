@@ -44,14 +44,20 @@ On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
 Other Linux Distributions
 -------------------------
 
+.. warning::
+
+   These are guidelines for installing Flocker on a Linux distribution which we do not provide native packages for.
+   These guidelines may require some tweaks, depending on the details of the Linux distribution in use.
+
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
-On Fedora 20 you can install these by running:
+
+To install these with the ``yum`` package manager, run:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
+   alice@mercury:~$ sudo yum install gcc python python-devel python-virtualenv libffi-devel openssl-devel
 
-On Ubuntu or Debian you can run:
+To install these with ``apt``, run:
 
 .. code-block:: console
 
@@ -180,19 +186,25 @@ Using Amazon Web Services
    * `US West (Northern California) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-1#LaunchInstanceWizard:ami=ami-f8f1c8bd>`_
    * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-cc8de6fc>`_
 
-#. Configure the instance
+#. Configure the instance.
+   Complete the configuration wizard; in general the default configuration should suffice.   
 
-   Complete the configuration wizard; in general the default configuration should suffice.
-   However, we do recommend at least the ``m3.large`` instance size.
+   * Choose instance type. We recommend at least the ``m3.large`` instance size.
+   * Configure instance details. You will need to configure a minimum of 2 instances.
+   * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
+   * Tag instance.
+   * Configure security group.
+      
+     * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
+     * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
+     * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
+     * For example, if you run the MongoDB tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
+     * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
+     * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
 
-   If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
+   * Review to ensure your instances have sufficient storage and your security groups have the required ports.
 
-   .. warning::
-
-      Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
-      E.g. if you run the tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
-      You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
-      Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
+   Launch when you are ready to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
@@ -202,25 +214,28 @@ Using Amazon Web Services
       chmod 600 ~/.ssh/my-instance.pem
       ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user ``fedora``, ``centos``, or ``ubuntu`` e.g.:
+#. Look up the public DNS name or public IP address of each new instance.
+   Log in as user ``centos`` (or the relevant user if you are using another AMI).
+   For example:
 
    .. prompt:: bash alice@mercury:~$
 
-      ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh centos@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Allow SSH access for the ``root`` user, then log out.
+#. Allow SSH access for the ``root`` user on each node, then log out.
 
    .. task:: install_ssh_key
       :prompt: [user@aws]$
 
-#. Log back into the instances as user "root", e.g.:
+#. Log back into the instances as user "root" on each node.
+   For example:
 
    .. prompt:: bash alice@mercury:~$
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 
-#. Follow the operating system specific installation instructions below.
+#. Follow the operating system specific installation instructions below on each node.
 
 
 .. _rackspace-install:
