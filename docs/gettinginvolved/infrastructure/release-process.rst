@@ -312,6 +312,7 @@ Release
       Connection to 127.0.0.1 closed.
       $ vagrant scp default:/home/vagrant/.aws ~/
 
+
 Improving the Release Process
 -----------------------------
 
