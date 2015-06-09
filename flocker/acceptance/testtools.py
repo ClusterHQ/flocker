@@ -793,7 +793,7 @@ def _get_test_cluster(reactor, node_count):
             address=address,
             hostname=hostname,
         )
-    agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
+    agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", map(node_from_dict, nodes[:node_count])))
     return agents_connected
 
