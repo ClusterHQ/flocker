@@ -33,7 +33,8 @@ from ...restapi.testtools import (
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways, RestartNever, Link, same_node, DeploymentState
+    RestartAlways, RestartNever, Link, same_node, DeploymentState,
+    NonManifestDatasets,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -2643,6 +2644,30 @@ class DatasetsStateTestsMixin(APITestsMixin):
     # And a test for a mixture of manifest and non-manifest datasets
     # And maybe a test to show that only primary manifestations of datasets are
     # reported, although that's not really related to this branch.
+    def test_nonmanifest_listed(self):
+        """
+        Non-manifest datasets are listed.  The ``primary`` and ``path`` values
+        of the returned ``dict`` are ``None``.
+        """
+        expected_dataset = Dataset(dataset_id=unicode(uuid4()))
+        self.cluster_state_service.apply_changes([
+            NonManifestDatasets(
+                datasets={
+                    expected_dataset.dataset_id: expected_dataset
+                }
+            )
+        ])
+        expected_dict = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=None,
+            path=None,
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+
     def test_empty(self):
         """
         When the cluster state includes no datasets, the endpoint
