@@ -21,7 +21,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PRecord, field, discard, pmap,
+    PRecord, field, discard, pmap, pvector,
 )
 
 from twisted.python.runtime import platform
@@ -57,6 +57,7 @@ from ..blockdevice import (
     check_allocatable_size,
     get_blockdevice_volume,
     _backing_file_name,
+    ProcessLifetimeCache,
 )
 
 from ... import run_state_change, in_parallel
@@ -3270,3 +3271,129 @@ def _make_allocated_size_testcases():
             globals()[test_case.__name__] = test_case
 _make_allocated_size_testcases()
 del _make_allocated_size_testcases
+
+
+class ProcessLifetimeCacheIBlockDeviceAPITests(
+        make_iblockdeviceapi_tests(
+            blockdevice_api_factory=lambda test_case: ProcessLifetimeCache(
+                loopbackblockdeviceapi_for_test(
+                    test_case, allocation_unit=LOOPBACK_ALLOCATION_UNIT
+                )),
+            minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            device_allocation_unit=None,
+            unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
+        )
+):
+    """
+    Interface adherence Tests for ``ProcessLifetimeCache``.
+    """
+
+
+class CountingProxy(object):
+    """
+    Transparent proxy that counts the number of calls to methods of the
+    wrapped object.
+
+    :ivar _wrapped: Wrapped object.
+    :ivar call_count: Mapping of (method name, args, kwargs) to number of
+        calls.
+    """
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
+        self.call_count = pmap()
+
+    def num_calls(self, name, *args, **kwargs):
+        """
+        Return the number of times the given method was called with given
+        arguments.
+
+        :param name: Method name.
+        :param args: Positional arguments it was called with.
+        :param kwargs: Keyword arguments it was called with.
+
+        :return: Number of calls.
+        """
+        return self.call_count.get(
+            pvector([name, pvector(args), pmap(kwargs)]), 0)
+
+    def __getattr__(self, name):
+        method = getattr(self._wrapped, name)
+
+        def counting_proxy(*args, **kwargs):
+            key = pvector([name, pvector(args), pmap(kwargs)])
+            current_count = self.call_count.get(key, 0)
+            self.call_count = self.call_count.set(key, current_count + 1)
+            return method(*args, **kwargs)
+        return counting_proxy
+
+
+class ProcessLifetimeCacheTests(SynchronousTestCase):
+    """
+    Tests for the caching logic in ``ProcessLifetimeCache``.
+    """
+    def setUp(self):
+        self.api = loopbackblockdeviceapi_for_test(self)
+        self.counting_proxy = CountingProxy(self.api)
+        self.cache = ProcessLifetimeCache(self.counting_proxy)
+
+    def test_compute_instance_id(self):
+        """
+        The result of ``compute_instance_id`` is cached indefinitely.
+        """
+        initial = self.cache.compute_instance_id()
+        later = [self.cache.compute_instance_id() for i in range(10)]
+        self.assertEqual(
+            (later, self.counting_proxy.num_calls("compute_instance_id")),
+            ([initial] * 10, 1))
+
+    def attached_volumes(self):
+        """
+        :return: A sequence of two attached volumes' ``blockdevice_id``.
+        """
+        dataset1 = uuid4()
+        dataset2 = uuid4()
+        this_node = self.cache.compute_instance_id()
+        attached_volume1 = self.cache.attach_volume(
+            self.cache.create_volume(
+                dataset_id=dataset1,
+                size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ).blockdevice_id,
+            attach_to=this_node)
+        attached_volume2 = self.cache.attach_volume(
+            self.cache.create_volume(
+                dataset_id=dataset2,
+                size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ).blockdevice_id,
+            attach_to=this_node)
+        return attached_volume1.blockdevice_id, attached_volume2.blockdevice_id
+
+    def test_get_device_path_cached_after_attach(self):
+        """
+        The result of ``get_device_path`` is cached after an ``attach_device``.
+        """
+        attached_id1, attached_id2 = self.attached_volumes()
+        path1 = self.cache.get_device_path(attached_id1)
+        path2 = self.cache.get_device_path(attached_id2)
+        path1again = self.cache.get_device_path(attached_id1)
+        path2again = self.cache.get_device_path(attached_id2)
+
+        self.assertEqual(
+            (path1again, path2again,
+             path1 == path2,
+             self.counting_proxy.num_calls("get_device_path", attached_id1),
+             self.counting_proxy.num_calls("get_device_path", attached_id2)),
+            (path1, path2, False, 1, 1))
+
+    def test_get_device_path_until_detach(self):
+        """
+        The result of ``get_device_path`` is no longer cached after an
+        ``detach_device`` call.
+        """
+        attached_id1, attached_id2 = self.attached_volumes()
+        # Warm up cache:
+        self.cache.get_device_path(attached_id1)
+        # Invalidate cache:
+        self.cache.detach_volume(attached_id1)
+
+        self.assertRaises(UnattachedVolume,
+                          self.cache.get_device_path, attached_id1)
