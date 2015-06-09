@@ -1739,7 +1739,7 @@ class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
 
     def compute_instance_id(self):
         """
-        Always return initial result, since this shouldn't change until a
+        Always return initial result since this shouldn't change until a
         reboot.
         """
         if self._instance_id is None:
