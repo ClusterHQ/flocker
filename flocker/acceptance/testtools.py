@@ -217,11 +217,12 @@ class Node(PRecord):
     A record of a cluster node.
 
     :ivar bytes public_address: The public address of the node.
-    :ivar bytes hostname: The address of the node, as reported by the API.
+    :ivar bytes reported_hostname: The address of the node, as reported by the
+        API.
     :ivar unicode uuid: The UUID of the node.
     """
     public_address = field(type=bytes)
-    hostname = field(type=bytes)
+    reported_hostname = field(type=bytes)
     uuid = field(type=unicode)
 
 
@@ -693,12 +694,12 @@ class Cluster(PRecord):
 
         :return Deferred: Fires on end of assertion.
         """
-        ip_to_uuid = {node.hostname: node.uuid for node in self.nodes}
+        ip_to_uuid = {node.reported_hostname: node.uuid for node in self.nodes}
 
         def got_results(existing_containers):
             expected = []
-            for hostname, apps in expected_deployment.items():
-                node_uuid = ip_to_uuid[hostname]
+            for reported_hostname, apps in expected_deployment.items():
+                node_uuid = ip_to_uuid[reported_hostname]
                 expected += [container_configuration_response(app, node_uuid)
                              for app in apps]
             for app in expected:
@@ -752,11 +753,9 @@ def _get_test_cluster(reactor, node_count):
         certificates_path=certificates_path,
     )
 
-    host_mapping_env_var = environ.get("FLOCKER_ACCEPTANCE_HOST_MAPPING")
-    if host_mapping_env_var is None:
-        host_mapping = {}
-    else:
-        host_mapping = json.loads(host_mapping_env_var)
+    hostname_to_public_address_env_var = environ.get(
+        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
+    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
 
     # Wait until nodes are up and running:
     def nodes_available():
@@ -787,12 +786,13 @@ def _get_test_cluster(reactor, node_count):
     agents_connected.addCallback(lambda _: cluster.current_nodes())
 
     def node_from_dict(node):
-        hostname = node["host"]
-        public_address = host_mapping.get(hostname, hostname)
+        reported_hostname = node["host"]
+        public_address = hostname_to_public_address.get(
+            reported_hostname, reported_hostname)
         return Node(
             uuid=node[u"uuid"],
             public_address=public_address.encode("ascii"),
-            hostname=hostname.encode("ascii"),
+            reported_hostname=reported_hostname.encode("ascii"),
         )
     agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", map(node_from_dict, nodes[:node_count])))

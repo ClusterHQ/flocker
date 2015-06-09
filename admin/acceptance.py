@@ -84,7 +84,7 @@ def get_trial_environment(cluster):
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
         'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
             cluster.certificates_path.path,
-        'FLOCKER_ACCEPTANCE_HOST_MAPPING': json.dumps({
+        'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': json.dumps({
             node.private_address: node.address
             for node in cluster.agent_nodes
             if node.private_address is not None

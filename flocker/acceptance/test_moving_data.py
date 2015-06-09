@@ -55,8 +55,8 @@ class MovingDataTests(TestCase):
         volume_deployment = {
             u"version": 1,
             u"nodes": {
-                node_1.hostname: [MONGO_APPLICATION],
-                node_2.hostname: [],
+                node_1.reported_hostname: [MONGO_APPLICATION],
+                node_2.reported_hostname: [],
             },
         }
 
@@ -72,8 +72,8 @@ class MovingDataTests(TestCase):
             volume_deployment_moved = {
                 u"version": 1,
                 u"nodes": {
-                    node_1.hostname: [],
-                    node_2.hostname: [MONGO_APPLICATION],
+                    node_1.reported_hostname: [],
+                    node_2.reported_hostname: [MONGO_APPLICATION],
                 },
             }
 
