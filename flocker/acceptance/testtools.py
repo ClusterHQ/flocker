@@ -782,7 +782,7 @@ def _get_test_cluster(reactor, node_count):
     agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", [Node(uuid=node[u"uuid"],
                        address=node["host"].encode("ascii"))
-                  for node in nodes]))
+                  for node in nodes[:node_count]]))
     return agents_connected
 
 
