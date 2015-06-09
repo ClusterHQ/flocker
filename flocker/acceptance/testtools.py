@@ -216,7 +216,8 @@ class Node(PRecord):
     """
     A record of a cluster node.
 
-    :ivar bytes address: The IPv4 address of the node.
+    :ivar bytes address: The public address of the node.
+    :ivar bytes hostname: The address of the node, as reported by the API.
     :ivar unicode uuid: The UUID of the node.
     """
     hostname = field(type=bytes)
