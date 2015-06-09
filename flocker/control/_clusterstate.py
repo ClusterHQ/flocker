@@ -27,9 +27,15 @@ class _WiperAndSource(PRecord):
     source = field()
 
     def last_activity(self):
+        """
+        Return the source's last activity time.
+        """
         return self.source.last_activity()
 
     def update_cluster_state(self, deployment_state):
+        """
+        Update the state according to the wiper.
+        """
         return self.wiper.update_cluster_state(deployment_state)
 
 
