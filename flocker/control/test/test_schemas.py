@@ -660,8 +660,12 @@ StateDatasetsArraySchemaTests = build_schema_test(
         # not an array
         {}, u"lalala", 123,
 
-        # missing primary
-        # FLOC-2160 This will now be expected to pass. Move it.
+        # primary without path
+        [{u"primary": a_uuid,
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # path without primary
         [{u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 1024,
           u"dataset_id": u"x" * 36}],
@@ -681,11 +685,25 @@ StateDatasetsArraySchemaTests = build_schema_test(
     ],
 
     passing_instances=[
-        # only maximum_size is optional
-        # FLOC-2160 This comment no longer applies.
-        [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
-          u"path": u"/123"}],
+        # missing primary and path
+        [{u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # null primary and path
+        [{u"path": None,
+          u"primary": None,
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # null primary and missing path
+        [{u"primary": None,
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # null path and missing primary
+        [{u"path": None,
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
 
         # maximum_size is integer
         [{u"primary": a_uuid,
