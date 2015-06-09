@@ -249,17 +249,24 @@
 
   doc: |
     Get a list of all datasets in a deployment.
+    This includes manifest (attached) and non-manifest (unattached) datasets.
+    A dataset is non-manifest when it is moving between nodes.
+    The ``primary`` and ``path`` values of non-manifest datasets will be ``null``.
 
   request: |
     GET /v1/state/datasets HTTP/1.1
 
   response: |
     HTTP/1.1 200 OK
-    # FLOC-2160 Add a non-manifest dataset here.
+
     [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
       "primary": "%(NODE_0)s",
       "maximum_size": 1073741824,
-      "path": "/flocker/somearbitrarypath"}]
+      "path": "/flocker/somearbitrarypath"},
+     {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+      "primary": None,
+      "maximum_size": 1073741824,
+      "path": None}]
 
 -
   id:
