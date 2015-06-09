@@ -5,6 +5,10 @@ AWS provisioner.
 """
 
 from textwrap import dedent
+from time import time
+
+from effect.retry import retry
+from effect import Effect, Constant
 
 from ._libcloud import LibcloudProvisioner
 from ._install import (
@@ -47,10 +51,17 @@ def provision_aws(node, package_source, distribution, variants):
 
     commands = []
 
+    # cloud-init may not have allowed sudo without tty yet, so try SSH key
+    # installation a few times in a row:
+    start = time()
+
+    def for_ten_seconds(*args, **kwargs):
+        return Effect(Constant((time() - start) < 10))
+
     commands.append(run_remotely(
         username=username,
         address=node.address,
-        commands=task_install_ssh_key(),
+        commands=retry(task_install_ssh_key(), for_ten_seconds),
     ))
 
     commands.append(run_remotely(
