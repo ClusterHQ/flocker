@@ -1,6 +1,6 @@
-===================
-Configuring Flocker
-===================
+==================
+Setting up Flocker
+==================
 
 .. toctree::
    :maxdepth: 2

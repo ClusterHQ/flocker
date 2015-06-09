@@ -1,6 +1,6 @@
-=============
-Using Flocker
-=============
+================================
+Controlling Flocker with the CLI
+================================
 
 Flocker manages which containers are running and on what hosts.
 It also manages network configuration for these containers (between them and between containers and the world).
