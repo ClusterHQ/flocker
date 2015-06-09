@@ -716,6 +716,8 @@ def task_install_flocker(
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
+
+    :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
     if package_source.branch:
         # A development branch has been selected - add its Buildbot repo
@@ -809,6 +811,8 @@ def task_install_flocker(
             ["yum", "install"] + branch_opt + ["-y", package]))
 
         return sequence(commands)
+    else:
+        raise UnsupportedDistribution()
 
 
 ACCEPTANCE_IMAGES = [

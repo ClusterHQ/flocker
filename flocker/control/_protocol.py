@@ -10,15 +10,18 @@ node-specific, but that will likely change and involve additinal commands.
 Interactions:
 
 * The control service knows the desired configuration for the cluster.
-  Every time it changes it notifies the convergence agents using the
-  ClusterStatusCommand.
-* The convergence agents know the state of nodes. Whenever node state
-  changes they notify the control service with a NodeStateCommand.
-* The control service caches the current state of all nodes. Whenever the
-  control service receives an update to the state of a specific node via a
-  NodeStateCommand, the control service then aggregates that update with
-  the rest of the nodes' state and sends a ClusterStatusCommand to all
-  convergence agents.
+  Every time the configuration changes the control service notifies the
+  convergence agents using the ``ClusterStatusCommand``.
+
+* The convergence agents can determine part of the state of the cluster
+  (usually their own local state).  Whenever node state changes they notify
+  the control service with a ``NodeStateCommand``.
+
+* The control service caches the most recent state from all nodes.  Whenever
+  the control service receives an update to the state of a specific node via a
+  ``NodeStateCommand``, the control service integrates that update into a
+  cluster-wide state representation (the state of all of the nodes) and sends a
+  ``ClusterStatusCommand`` to all convergence agents.
 
 Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see

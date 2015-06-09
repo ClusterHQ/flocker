@@ -12,7 +12,6 @@ from pyrsistent import thaw, pmap
 
 from twisted.trial.unittest import TestCase
 
-from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
@@ -23,7 +22,7 @@ from ..testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
 )
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client, get_test_cluster,
+    MONGO_IMAGE, require_mongo, get_mongo_client,
     require_cluster, require_moving_backend,
 )
 
@@ -69,7 +68,7 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    def _create_container(self):
+    def _create_container(self, cluster):
         """
         Create a container listening on port 8080.
 
@@ -80,15 +79,11 @@ class ContainerAPITests(TestCase):
             u"name": random_name(self),
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
-            u'restart_policy': {u'name': u'never'}
+            u'restart_policy': {u'name': u'never'},
+            u"node_uuid": cluster.nodes[0].uuid,
         }
-        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
-        def create_container(cluster, data):
-            data[u"node_uuid"] = cluster.nodes[0].uuid
-            return cluster.create_container(data)
-
-        d = waiting_for_cluster.addCallback(create_container, data)
+        d = cluster.create_container(data)
 
         def check_result(result):
             cluster, response = result
@@ -96,17 +91,18 @@ class ContainerAPITests(TestCase):
 
             self.assertEqual(response, data)
             dl = verify_socket(cluster.nodes[0].address, 8080)
-            dl.addCallback(lambda _: (cluster, response))
+            dl.addCallback(lambda _: response)
             return dl
 
         d.addCallback(check_result)
         return d
 
-    def test_create_container_with_ports(self):
+    @require_cluster(1)
+    def test_create_container_with_ports(self, cluster):
         """
         Create a container including port mappings on a single-node cluster.
         """
-        return self._create_container()
+        return self._create_container(cluster)
 
     @require_cluster(1)
     def test_create_container_with_environment(self, cluster):
@@ -286,16 +282,15 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    def test_current(self):
+    @require_cluster(1)
+    def test_current(self, cluster):
         """
         The current container endpoint includes a currently running container.
         """
-        creating = self._create_container()
+        creating = self._create_container(cluster)
 
-        def created(result):
-            cluster, data = result
+        def created(data):
             data[u"running"] = True
-            data[u"host"] = cluster.nodes[0].address
 
             def in_current():
                 current = cluster.current_containers()
@@ -474,8 +469,8 @@ class DatasetAPITests(TestCase):
         """
         return create_dataset(self, cluster)
 
-    @require_cluster(2)
     @require_moving_backend
+    @require_cluster(2)
     def test_dataset_move(self, cluster):
         """
         A dataset can be moved from one node to another.
