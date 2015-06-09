@@ -418,7 +418,8 @@ class AgentLoopService(object, MultiService):
         self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.reconnecting_factory = ReconnectingClientFactory.forProtocol(
-            lambda: AgentAMP(self))
+            lambda: AgentAMP(self.reactor, self)
+        )
         self.factory = TLSMemoryBIOFactory(context_factory, True,
                                            self.reconnecting_factory)
 
