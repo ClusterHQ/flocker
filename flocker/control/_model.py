@@ -874,15 +874,15 @@ class DeploymentState(PRecord):
 
     def all_datasets(self):
         """
-        :returns: A generator of all the manifest and non-manifest datasets in
-            the ``DeploymentState``.
+        :returns: A generator of all the primary manifest datasets and
+            non-manifest datasets in the ``DeploymentState``.
         """
-        # FLOC-2160 Use this when reporting /state/datasets
         for node in self.nodes:
             if node.manifestations is None:
                 continue
             for manifestation in node.manifestations.values():
-                yield manifestation.dataset, node
+                if manifestation.primary:
+                    yield manifestation.dataset, node
         for dataset in self.nonmanifest_datasets.values():
             yield dataset, None
 
