@@ -94,6 +94,10 @@ class VersionLiteralInclude(LiteralInclude):
         return LiteralInclude.run(self)
 
 
+# Currently, there is a mix of code-block and sphinx-prompt sections in
+# the docs.  This should be cleaned up (FLOC-1388) and then one of the
+# following directives can be removed.
+
 class VersionCodeBlock(CodeBlock):
     """
     Similar to CodeBlock but replaces a placeholder with the latest installable
