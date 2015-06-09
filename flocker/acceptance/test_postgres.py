@@ -86,7 +86,8 @@ class PostgresTests(TestCase):
                 lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
             )
             self.addCleanup(cluster.delete_dataset, new_dataset_id)
-            self.addCleanup(cluster.remove_container, POSTGRES_APPLICATION_NAME)
+            self.addCleanup(cluster.remove_container,
+                            POSTGRES_APPLICATION_NAME)
             return waiting_for_create
         getting_cluster.addCallback(create_dataset)
 
