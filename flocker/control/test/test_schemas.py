@@ -660,15 +660,20 @@ StateDatasetsArraySchemaTests = build_schema_test(
         # not an array
         {}, u"lalala", 123,
 
-        # primary without path
-        [{u"primary": a_uuid,
+        # null primary
+        [{u"primary": None,
           u"maximum_size": 1024 * 1024 * 1024,
           u"dataset_id": u"x" * 36}],
 
-        # path without primary
-        [{u"path": u"/123",
+        # null path
+        [{u"path": None,
           u"maximum_size": 1024 * 1024 * 1024,
           u"dataset_id": u"x" * 36}],
+
+        # XXX Ideally there'd be a couple more tests here:
+        # * primary without path
+        # * path without primary
+        # See FLOC-2170
 
         # missing dataset_id
         [{u"primary": a_uuid,
@@ -678,31 +683,11 @@ StateDatasetsArraySchemaTests = build_schema_test(
         [{u"primary": a_uuid,
           u"dataset_id": u"x" * 36,
           u"path": 123}],
-
-        # missing path
-        [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36}],
     ],
 
     passing_instances=[
         # missing primary and path
         [{u"maximum_size": 1024 * 1024 * 1024,
-          u"dataset_id": u"x" * 36}],
-
-        # null primary and path
-        [{u"path": None,
-          u"primary": None,
-          u"maximum_size": 1024 * 1024 * 1024,
-          u"dataset_id": u"x" * 36}],
-
-        # null primary and missing path
-        [{u"primary": None,
-          u"maximum_size": 1024 * 1024 * 1024,
-          u"dataset_id": u"x" * 36}],
-
-        # null path and missing primary
-        [{u"path": None,
-          u"maximum_size": 1024 * 1024 * 1024,
           u"dataset_id": u"x" * 36}],
 
         # maximum_size is integer

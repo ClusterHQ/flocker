@@ -182,11 +182,7 @@ definitions:
         path:
           '$ref': 'types.json#/definitions/node_path'
       required:
-      # FLOC-2160 - primary and path will no longer be required
-      # They will be ``None`` in non-manifest datasets
-        - primary
         - dataset_id
-        - path
       additionalProperties: false
 
   configuration_compose:
