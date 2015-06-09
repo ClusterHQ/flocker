@@ -68,7 +68,6 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    @require_cluster(1)
     def _create_container(self, cluster):
         """
         Create a container listening on port 8080.
@@ -92,17 +91,18 @@ class ContainerAPITests(TestCase):
 
             self.assertEqual(response, data)
             dl = verify_socket(cluster.nodes[0].address, 8080)
-            dl.addCallback(lambda _: (cluster, response))
+            dl.addCallback(lambda _: response)
             return dl
 
         d.addCallback(check_result)
         return d
 
-    def test_create_container_with_ports(self):
+    @require_cluster(1)
+    def test_create_container_with_ports(self, cluster):
         """
         Create a container including port mappings on a single-node cluster.
         """
-        return self._create_container()
+        return self._create_container(cluster)
 
     @require_cluster(1)
     def test_create_container_with_environment(self, cluster):
@@ -282,16 +282,15 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    def test_current(self):
+    @require_cluster(1)
+    def test_current(self, cluster):
         """
         The current container endpoint includes a currently running container.
         """
-        creating = self._create_container()
+        creating = self._create_container(cluster)
 
-        def created(result):
-            cluster, data = result
+        def created(data):
             data[u"running"] = True
-            data[u"host"] = cluster.nodes[0].hostname
 
             def in_current():
                 current = cluster.current_containers()
@@ -470,8 +469,8 @@ class DatasetAPITests(TestCase):
         """
         return create_dataset(self, cluster)
 
-    @require_cluster(2)
     @require_moving_backend
+    @require_cluster(2)
     def test_dataset_move(self, cluster):
         """
         A dataset can be moved from one node to another.

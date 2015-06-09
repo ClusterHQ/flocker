@@ -1,3 +1,5 @@
+.. _dataset-backend-plugins:
+
 =======================
 Dataset Backend Plugins
 =======================

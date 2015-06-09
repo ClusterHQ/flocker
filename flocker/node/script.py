@@ -31,7 +31,9 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
-from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
+from .agents.blockdevice import (
+    LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
+)
 from ..ca import ControlServicePolicy, NodeCredential
 
 
@@ -439,7 +441,8 @@ _DEFAULT_DEPLOYERS = {
     DeployerType.p2p: lambda api, **kw:
         P2PManifestationDeployer(volume_service=api, **kw),
     DeployerType.block: lambda api, **kw:
-        BlockDeviceDeployer(block_device_api=api, **kw),
+        BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
+                            **kw),
 }
 
 

@@ -273,7 +273,7 @@ def log_method(function):
 
     def log_result(result):
         Message.new(
-            action_type=label + ":result",
+            message_type=label + ":result",
             value=result,
         ).write()
         return result
@@ -590,7 +590,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     def flocker_deploy(self, test_case, deployment_config, application_config):
@@ -694,7 +693,6 @@ class Cluster(PRecord):
         :return Deferred: Fires on end of assertion.
         """
         ip_to_uuid = {node.address: node.uuid for node in self.nodes}
-        uuid_to_ip = {node.uuid: node.address for node in self.nodes}
 
         def got_results(existing_containers):
             expected = []
@@ -704,7 +702,6 @@ class Cluster(PRecord):
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
-                app[u"host"] = uuid_to_ip[app["node_uuid"]]
 
             return sorted(existing_containers) == sorted(expected)
 
@@ -716,7 +713,7 @@ class Cluster(PRecord):
         return loop_until(configuration_matches_state)
 
 
-def _get_test_cluster(reactor, node_count=0):
+def _get_test_cluster(reactor, node_count):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
@@ -777,7 +774,7 @@ def _get_test_cluster(reactor, node_count=0):
                     write_failure(reason, logger=None)
             return False
         d = cluster.current_nodes()
-        d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
+        d.addCallbacks(lambda nodes: len(nodes) >= node_count,
                        # Control service may not be up yet, keep trying:
                        failed_query)
         return d
@@ -797,7 +794,7 @@ def _get_test_cluster(reactor, node_count=0):
             hostname=hostname,
         )
     agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
-        "nodes", map(node_from_dict, nodes)))
+        "nodes", map(node_from_dict, nodes[:node_count])))
     return agents_connected
 
 
@@ -828,8 +825,7 @@ def require_cluster(num_nodes):
                 reactor, node_count=num_nodes)
 
             def clean(cluster):
-                cluster.clean_nodes()
-                return cluster
+                return cluster.clean_nodes().addCallback(lambda _: cluster)
 
             waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
