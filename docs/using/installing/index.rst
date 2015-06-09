@@ -177,9 +177,8 @@ Using Amazon Web Services
    * Tag instance.
    * Configure security group.
       
-     * If you wish to customize the instance's security settings, make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
-     * When you add a custom TCP rule, you will need to provide a port range of 4523-4524.
-     * This enables Flocker agents to communicate with the control service and for external access to the API.
+     * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
+     * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
      * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
      * For example, if you run the tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
      * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
@@ -187,7 +186,7 @@ Using Amazon Web Services
 
    * Review to ensure your instances have sufficient storage and your security groups have the required ports.
 
-   Launch when you are happy to proceed.
+   Launch when you are ready to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
