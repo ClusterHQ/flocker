@@ -180,7 +180,7 @@ Using Amazon Web Services
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
      * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
      * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
-     * For example, if you run the tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
+     * For example, if you run the MongoDB tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
      * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
      * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
 
