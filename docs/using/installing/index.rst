@@ -45,7 +45,7 @@ To install these with the ``yum`` package manager, run:
 
 .. code-block:: console
 
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel
+   alice@mercury:~$ sudo yum install gcc python python-devel python-virtualenv libffi-devel openssl-devel
 
 To install these with ``apt``, run:
 
