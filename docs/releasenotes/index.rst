@@ -4,8 +4,6 @@ Release Notes
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
-.. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
-
 Next Release
 ============
 
