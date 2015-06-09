@@ -18,7 +18,7 @@ class MovingApplicationTests(TestCase):
     moving-applications.html#moving-an-application
     """
     @require_flocker_cli
-    @require_cluster(1)
+    @require_cluster(2)
     def test_moving_application(self, cluster):
         """
         After deploying an application to one node and then moving it onto
