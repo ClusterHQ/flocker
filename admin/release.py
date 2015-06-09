@@ -743,7 +743,7 @@ def publish_artifacts_main(args, base_path, top_level):
                     target_bucket=options['target'],
                     version=options['flocker-version'],
                     build_server=options['build-server'],
-                    flocker_source_path=top_level,
+                    top_level=top_level,
                 ),
                 upload_python_packages(
                     scratch_directory=scratch_directory.child('python'),
