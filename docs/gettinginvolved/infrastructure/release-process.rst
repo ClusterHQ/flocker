@@ -223,9 +223,6 @@ Preparing For a Release
 
    Wait for an accepted code review before continuing.
 
-   .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
-
-
 .. _pre-tag-review:
 
 Pre-tag Review Process
@@ -250,9 +247,12 @@ So it is important to check that the code in the release branch is working befor
    If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
    Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
 
+#. Merge the release pull request.
+   Do not delete the release branch because it may be used as a base branch for future releases.
+
 #.  Reject the JIRA issue.
 
-    This is necessary because the release branch will need another review.
+    This is necessary because the release process is not "Done" even though no further changes will be made on the branch.
 
 .. _release:
 
@@ -302,7 +302,7 @@ Release
 
       ~/flocker-${VERSION}/admin/test-redirects --production
 
-#. Copy the AWS configuration to your local home directory:
+#. (Optional) Copy the AWS configuration to your local home directory:
 
    If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
 
@@ -311,24 +311,6 @@ Release
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
       $ vagrant scp default:/home/vagrant/.aws ~/
-
-#. Submit the release pull request for review again.
-
-Post-Release Review Process
----------------------------
-
-#. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
-
-   OS X and Ubuntu 14.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
-
-   Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
-
-   To create a testing environment for a supported platform, see :ref:`cli-testing`.
-
-   XXX: This step should be automated, see :issue:`1039`.
-
-#. Merge the release pull request.
-   Do not delete the release branch because it may be used as a base branch for future releases.
 
 
 Improving the Release Process
