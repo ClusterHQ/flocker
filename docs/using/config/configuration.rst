@@ -1,8 +1,8 @@
 .. _configuration:
 
-===============================
-Specifying your Flocker Cluster
-===============================
+=================================
+Using Flocker Configuration Files
+=================================
 
 Flocker operates on two configuration files: application and deployment.
 Together these configurations define a deployment.

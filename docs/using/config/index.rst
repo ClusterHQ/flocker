@@ -1,6 +1,6 @@
-==================
-Setting up Flocker
-==================
+====================================
+Setting up datasets and applications
+====================================
 
 .. toctree::
    :maxdepth: 2
