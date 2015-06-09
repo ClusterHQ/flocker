@@ -1,6 +1,6 @@
-====================================
-Setting up datasets and applications
-====================================
+================================
+Controlling Flocker with the CLI
+================================
 
 .. toctree::
    :maxdepth: 2
