@@ -20,7 +20,7 @@ Next Release
 * Added REST API functions to manage containers in a cluster alongside datasets.
   See :ref:`api`.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04`.
+  See :ref:`installing-flocker-cli-ubuntu-14.04` and :ref:`installing-flocker-cli-ubuntu-15.04`.
 * Bug fixes and improvements focused on security and stability across platforms.
 
 
