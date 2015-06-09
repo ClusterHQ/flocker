@@ -24,12 +24,30 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
 
+def advance_some(clock):
+    """
+    Move the clock forward by a little time.  Much less than
+    ``EXPIRATION_TIME``.
+    """
+    clock.advance(1)
+
+
+def advance_rest(clock):
+    """
+    Move the clock forward by a lot of time.  Enough to reach
+    ``EXPIRATION_TIME`` if ``advance_some`` is also used.
+    """
+    clock.advance(EXPIRATION_TIME.total_seconds() - 1)
+
+
 class ClusterStateServiceTests(SynchronousTestCase):
     """
     Tests for ``ClusterStateService``.
     """
-    WITH_APPS = NodeState(hostname=u"host1", applications=[APP1, APP2],
-                          used_ports=[])
+    WITH_APPS = NodeState(
+        hostname=u"192.0.2.56", uuid=uuid4(),
+        applications=[APP1, APP2], used_ports=[],
+    )
     WITH_MANIFESTATION = NodeState(
         hostname=u"host2",
         manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
@@ -156,17 +174,15 @@ class ClusterStateServiceTests(SynchronousTestCase):
         (in seconds) old are wiped.
         """
         service = self.service()
-        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
-                             manifestations=None, devices=None, paths=None,
-                             applications=[APP1], used_ports=[])
-        service.apply_changes([app_node])
-        self.clock.advance(EXPIRATION_TIME - 1)
+        service.apply_changes([self.WITH_APPS])
+        advance_rest(self.clock)
         before_wipe_state = service.as_deployment()
-        self.clock.advance(1)
+        advance_some(self.clock)
         after_wipe_state = service.as_deployment()
         self.assertEqual(
             [before_wipe_state, after_wipe_state],
-            [DeploymentState(nodes=[app_node]), DeploymentState()])
+            [DeploymentState(nodes=[self.WITH_APPS]), DeploymentState()],
+        )
 
     def test_updates_different_key(self):
         """
@@ -175,35 +191,51 @@ class ClusterStateServiceTests(SynchronousTestCase):
         key.
         """
         service = self.service()
-        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
-                             manifestations=None, devices=None, paths=None,
-                             applications=[APP1], used_ports=[])
+        app_node = self.WITH_APPS
         app_node_2 = NodeState(hostname=app_node.hostname, uuid=app_node.uuid,
                                manifestations={
                                    MANIFESTATION.dataset_id: MANIFESTATION},
                                devices={}, paths={})
+
+        # Some changes are applied at T1
         service.apply_changes([app_node])
-        self.clock.advance(1)
+
+        # A little time passes (T2) and some unrelated changes are applied.
+        advance_some(self.clock)
         service.apply_changes([app_node_2])
-        self.clock.advance(EXPIRATION_TIME - 1)
+
+        # Enough additional time passes (T3) to reach EXPIRATION_TIME from T1
+        advance_rest(self.clock)
         before_wipe_state = service.as_deployment()
-        self.clock.advance(1)
+
+        # Enough additional time passes (T4) to reach EXPIRATION_TIME from T2
+        advance_some(self.clock)
         after_wipe_state = service.as_deployment()
+
+        # The state applied at T1 is wiped at T3
+        # Separately, the state applied at T2 is wiped at T4
         self.assertEqual(
             [before_wipe_state, after_wipe_state],
-            [DeploymentState(nodes=[app_node_2]), DeploymentState()])
+            [DeploymentState(nodes=[app_node_2]), DeploymentState()],
+        )
 
     def test_update_with_same_key(self):
         """
         An update with the same key as a previous one delays wiping.
         """
         service = self.service()
-        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
-                             manifestations=None, devices=None, paths=None,
-                             applications=[APP1], used_ports=[])
-        service.apply_changes([app_node])
-        self.clock.advance(1)
-        service.apply_changes([app_node])
-        self.clock.advance(9)
-        self.assertEqual(service.as_deployment(),
-                         DeploymentState(nodes=[app_node]))
+        # Some changes are applied at T1
+        service.apply_changes([self.WITH_APPS])
+
+        # Some time passes (T2) and the same changes are re-applied
+        advance_some(self.clock)
+        service.apply_changes([self.WITH_APPS])
+
+        # Enough time passes (T3) to reach EXPIRATION_TIME from T1 but not T2
+        advance_rest(self.clock)
+
+        # The state applied at T1 and refreshed at T2 is not wiped at T3.
+        self.assertEqual(
+            service.as_deployment(),
+            DeploymentState(nodes=[self.WITH_APPS]),
+        )

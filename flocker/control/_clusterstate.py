@@ -4,6 +4,8 @@
 Combine and retrieve current cluster state.
 """
 
+from datetime import timedelta
+
 from twisted.application.service import MultiService
 from twisted.application.internet import TimerService
 
@@ -12,8 +14,8 @@ from pyrsistent import pmap
 from ._model import DeploymentState
 
 
-# Seconds until updates are expired:
-EXPIRATION_TIME = 120
+# Allowed inactivity period before updates are expired
+EXPIRATION_TIME = timedelta(seconds=120)
 
 
 class ClusterStateService(MultiService):
@@ -46,7 +48,7 @@ class ClusterStateService(MultiService):
         current_time = self._clock.seconds()
         evolver = self._information_wipers.evolver()
         for key, (wiper, timestamp) in self._information_wipers.items():
-            if current_time - EXPIRATION_TIME >= timestamp:
+            if current_time - EXPIRATION_TIME.total_seconds() >= timestamp:
                 self._deployment_state = wiper.update_cluster_state(
                     self._deployment_state)
                 evolver.remove(key)
