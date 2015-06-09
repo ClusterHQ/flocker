@@ -17,7 +17,8 @@ from ..control.httpapi import container_configuration_response
 from .testtools import (MONGO_APPLICATION, MONGO_IMAGE,
                         get_mongo_application, require_flocker_cli,
                         require_mongo, create_application,
-                        create_attached_volume, require_cluster)
+                        create_attached_volume, require_cluster,
+                        require_moving_backend)
 
 SIZE_100_MB = u"104857600"
 
@@ -51,6 +52,7 @@ class DeploymentTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#starting-an-application
     """
+    @require_moving_backend
     @require_flocker_cli
     @require_cluster(num_nodes=2)
     def test_application_volume_quotas(self, cluster):
