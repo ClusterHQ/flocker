@@ -2,6 +2,7 @@
 Description=Flocker Dataset Agent
 
 [Service]
+Restart=always
 ExecStart=/usr/sbin/flocker-dataset-agent
 
 # We can't have a private mount namespace, since we need to create mounts visible to Docker.

@@ -2,6 +2,7 @@
 Description=Flocker Container Agent
 
 [Service]
+Restart=always
 ExecStart=/usr/sbin/flocker-container-agent
 
 [Install]
