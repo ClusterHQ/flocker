@@ -264,9 +264,7 @@
       "maximum_size": 1073741824,
       "path": "/flocker/somearbitrarypath"},
      {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
-      "primary": None,
-      "maximum_size": 1073741824,
-      "path": None}]
+      "maximum_size": 1073741824}]
 
 -
   id:

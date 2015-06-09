@@ -2642,8 +2642,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
     """
     def test_nonmanifest_listed(self):
         """
-        Non-manifest datasets are listed.  The ``primary`` and ``path`` values
-        of the returned ``dict`` are ``None``.
+        Non-manifest datasets are listed.  The result does not include
+        ``primary`` and ``path`` values.
         """
         expected_dataset = Dataset(dataset_id=unicode(uuid4()))
         self.cluster_state_service.apply_changes([
@@ -2655,8 +2655,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=None,
-            path=None,
         )
         response = [expected_dict]
         return self.assertResult(
@@ -2698,8 +2696,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ])
         expected_nonmanifest_dict = dict(
             dataset_id=expected_nonmanifest_dataset.dataset_id,
-            primary=None,
-            path=None,
         )
 
         expected_manifest_dict = dict(
