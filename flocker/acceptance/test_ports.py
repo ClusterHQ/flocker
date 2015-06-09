@@ -110,7 +110,8 @@ class PortsTests(TestCase):
             posts_1 = client_1.example.posts
             posts_1.insert({u"the data": u"it moves"})
 
-            d = get_mongo_client(self.node_2.pubilc_address, self.external_port)
+            d = get_mongo_client(
+                self.node_2.pubilc_address, self.external_port)
             d.addCallback(lambda client_2: self.assertEqual(
                 posts_1.find_one(),
                 client_2.example.posts.find_one()
