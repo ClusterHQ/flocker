@@ -898,7 +898,8 @@ def main(reactor, args, base_path, top_level):
                 for environment_variable in environment_variables:
                     print "export {name}={value};".format(
                         name=environment_variable,
-                        value=environment_variables[environment_variable],
+                        value=shell_quote(
+                            environment_variables[environment_variable]),
                     )
 
     raise SystemExit(result)
