@@ -339,6 +339,7 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     "target_bucket",
     "target_key",
     "file",
+    Attribute("content_type", default_value=None),
 ])
 class UploadToS3(object):
     """
@@ -358,9 +359,12 @@ def perform_upload_s3_key(dispatcher, intent):
     """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.target_bucket)
+    headers = {}
+    if intent.content_type is not None:
+        headers['Content-Type'] = intent.content_type
     with intent.file.open() as source_file:
         key = bucket.new_key(intent.target_key)
-        key.set_contents_from_file(source_file)
+        key.set_contents_from_file(source_file, headers=headers)
         key.make_public()
 
 boto_dispatcher = TypeDispatcher({
