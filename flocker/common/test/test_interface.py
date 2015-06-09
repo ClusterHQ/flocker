@@ -108,7 +108,7 @@ class InterfaceDecoratorTests(SynchronousTestCase):
             "method": u"return_method",
         },
     )
-    def test_return(self):
+    def test_return(self, logger):
         """
         A decorated method returns the value returned by the original method,
         and logs expected text to Eliot.
@@ -123,7 +123,7 @@ class InterfaceDecoratorTests(SynchronousTestCase):
             "method": u"raise_method",
         },
     )
-    def test_raise(self):
+    def test_raise(self, logger):
         """
         A decorated method raises the same exception raised by the original
         method, and logs expected text to Eliot.
