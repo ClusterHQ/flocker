@@ -170,7 +170,7 @@ class PostgresTests(TestCase):
         user = b'postgres'
 
         connecting_to_application = self._get_postgres_connection(
-            host=self.node_1.address,
+            host=self.node_1.pubilc_address,
             user=user,
             port=POSTGRES_EXTERNAL_PORT,
         )
@@ -186,7 +186,7 @@ class PostgresTests(TestCase):
 
         def connect_to_database(ignored):
             return self._get_postgres_connection(
-                host=self.node_1.address,
+                host=self.node_1.pubilc_address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT,
                 database=database,
@@ -220,7 +220,7 @@ class PostgresTests(TestCase):
                 self.postgres_application_different_port)
 
             return self._get_postgres_connection(
-                host=self.node_2.address,
+                host=self.node_2.pubilc_address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT + 1,
                 database=database,

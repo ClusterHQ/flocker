@@ -207,21 +207,21 @@ class ControlService(PRecord):
     """
     A record of the cluster's control service.
 
-    :ivar bytes address: The IPv4 address of the control service.
+    :ivar bytes public_address: The public address of the control service.
     """
-    address = field(type=bytes)
+    public_address = field(type=bytes)
 
 
 class Node(PRecord):
     """
     A record of a cluster node.
 
-    :ivar bytes address: The public address of the node.
+    :ivar bytes public_address: The public address of the node.
     :ivar bytes hostname: The address of the node, as reported by the API.
     :ivar unicode uuid: The UUID of the node.
     """
+    public_address = field(type=bytes)
     hostname = field(type=bytes)
-    address = field(type=bytes)
     uuid = field(type=unicode)
 
 
@@ -316,7 +316,7 @@ class Cluster(PRecord):
             service.
         """
         return b"https://{}:{}/v1".format(
-            self.control_node.address, REST_API_PORT
+            self.control_node.public_address, REST_API_PORT
         )
 
     @log_method
@@ -611,7 +611,7 @@ class Cluster(PRecord):
         application.setContent(safe_dump(application_config))
         check_call([b"flocker-deploy",
                     b"--certificates-directory", self.certificates_path.path,
-                    self.control_node.address,
+                    self.control_node.public_address,
                     deployment.path, application.path])
 
     def clean_nodes(self):
@@ -788,10 +788,10 @@ def _get_test_cluster(reactor, node_count):
 
     def node_from_dict(node):
         hostname = node["host"]
-        address = host_mapping.get(hostname, hostname)
+        public_address = host_mapping.get(hostname, hostname)
         return Node(
             uuid=node[u"uuid"],
-            address=address.encode("ascii"),
+            public_address=public_address.encode("ascii"),
             hostname=hostname.encode("ascii"),
         )
     agents_connected.addCallback(lambda nodes: cluster.set(

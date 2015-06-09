@@ -62,7 +62,7 @@ class MovingDataTests(TestCase):
 
         cluster.flocker_deploy(self, volume_deployment, volume_application)
 
-        getting_client = get_mongo_client(node_1.address)
+        getting_client = get_mongo_client(node_1.pubilc_address)
 
         def verify_data_moves(client_1):
             database_1 = client_1.example
@@ -82,7 +82,7 @@ class MovingDataTests(TestCase):
             cluster.flocker_deploy(self, volume_deployment_moved,
                                    volume_application_different_port)
 
-            d = get_mongo_client(node_2.address, 27018)
+            d = get_mongo_client(node_2.pubilc_address, 27018)
 
             d.addCallback(lambda client_2: self.assertEqual(
                 data,
