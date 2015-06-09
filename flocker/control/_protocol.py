@@ -44,7 +44,10 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ._persistence import wire_encode, wire_decode
-from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
+from ._model import (
+    Deployment, NodeState, DeploymentState, NonManifestDatasets,
+    ChangeSource,
+)
 
 
 class SerializableArgument(Argument):
@@ -99,6 +102,14 @@ class VersionCommand(Command):
     response = [('major', Integer())]
 
 
+class NoOp(Command):
+    """
+    Do nothing.  Return nothing.  This merely generates some traffic on the
+    connection to support timely disconnection notification.
+    """
+    requiresAnswer = False
+
+
 class ClusterStatusCommand(Command):
     """
     Used by the control service to inform a convergence agent of the
@@ -128,18 +139,47 @@ class NodeStateCommand(Command):
 class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
+
+    :ivar IClusterStateSource _source: The change source uniquely representing
+        the AMP connection for which this locator is being used.
+    :ivar _reactor: See ``reactor`` parameter of ``__init__``
     """
-    def __init__(self, control_amp_service):
+    def __init__(self, reactor, control_amp_service):
         """
+        :param IReactorTime reactor: A reactor to use to tell the time for
+            activity/inactivity reporting.
         :param ControlAMPService control_amp_service: The service managing AMP
-             connections to the control service.
+            connections to the control service.
         """
         CommandLocator.__init__(self)
+
+        # Create a brand new source to associate with changes from this
+        # particular connection from an agent.  The lifetime of the source
+        # exactly matches the lifetime of the protocol.  This is good since
+        # after the connection is lost we can't receive any more changes from
+        # it.
+        self._source = ChangeSource()
+
+        self._reactor = reactor
         self.control_amp_service = control_amp_service
+
+    def locateResponder(self, name):
+        """
+        Do normal responder lookup and also record this activity.
+        """
+        self._source.set_last_activity(self._reactor.seconds())
+        return CommandLocator.locateResponder(self, name)
 
     @property
     def logger(self):
         return self.control_amp_service.logger
+
+    @NoOp.responder
+    def noop(self):
+        """
+        Perform no operation.
+        """
+        return {}
 
     @VersionCommand.responder
     def version(self):
@@ -148,7 +188,9 @@ class ControlServiceLocator(CommandLocator):
     @NodeStateCommand.responder
     def node_changed(self, eliot_context, state_changes):
         with eliot_context:
-            self.control_amp_service.node_changed(state_changes)
+            self.control_amp_service.node_changed(
+                self._source, state_changes,
+            )
             return {}
 
 
@@ -156,12 +198,14 @@ class ControlAMP(AMP):
     """
     AMP protocol for control service server.
     """
-    def __init__(self, control_amp_service):
+    def __init__(self, reactor, control_amp_service):
         """
+        :param reactor: See ``ControlServiceLocator.__init__``.
         :param ControlAMPService control_amp_service: The service managing AMP
-             connections to the control service.
+            connections to the control service.
         """
-        AMP.__init__(self, locator=ControlServiceLocator(control_amp_service))
+        locator = ControlServiceLocator(reactor, control_amp_service)
+        AMP.__init__(self, locator=locator)
         self.control_amp_service = control_amp_service
 
     def connectionMade(self):
@@ -201,9 +245,10 @@ class ControlAMPService(Service):
     """
     logger = Logger()
 
-    def __init__(self, cluster_state, configuration_service,
-                 endpoint, context_factory):
+    def __init__(self, reactor, cluster_state, configuration_service, endpoint,
+                 context_factory):
         """
+        :param reactor: See ``ControlServiceLocator.__init__``.
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         :param ConfigurationPersistenceService configuration_service:
@@ -219,7 +264,7 @@ class ControlAMPService(Service):
             TLSMemoryBIOFactory(
                 context_factory,
                 False,
-                ServerFactory.forProtocol(lambda: ControlAMP(self))
+                ServerFactory.forProtocol(lambda: ControlAMP(reactor, self))
             )
         )
         # When configuration changes, notify all connected clients:
@@ -274,15 +319,16 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    def node_changed(self, state_changes):
+    def node_changed(self, source, state_changes):
         """
         We've received a node state update from a connected client.
 
-        :param bytes hostname: The hostname of the node.
+        :param IClusterStateSource source: Representation of where these
+            changes were received from.
         :param list state_changes: One or more ``IClusterStateChange``
             providers representing the state change which has taken place.
         """
-        self.cluster_state.apply_changes(state_changes)
+        self.cluster_state.apply_changes_from_source(source, state_changes)
         self._send_state_to_connections(self.connections)
 
 

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.control._clusterstate``.
@@ -11,11 +11,12 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 
 from .._model import ChangeSource
-from .._clusterstate import EXPIRATION_TIME, ClusterStateService
+from .._clusterstate import ClusterStateService
 from .. import (
     Application, DockerImage, NodeState, DeploymentState, Manifestation,
     Dataset,
 )
+from .clusterstatetools import advance_some, advance_rest
 
 APP1 = Application(
     name=u"webserver", image=DockerImage.from_string(u"apache"))
@@ -23,22 +24,6 @@ APP2 = Application(
     name=u"database", image=DockerImage.from_string(u"postgresql"))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
-
-
-def advance_some(clock):
-    """
-    Move the clock forward by a little time.  Much less than
-    ``EXPIRATION_TIME``.
-    """
-    clock.advance(1)
-
-
-def advance_rest(clock):
-    """
-    Move the clock forward by a lot of time.  Enough to reach
-    ``EXPIRATION_TIME`` if ``advance_some`` is also used.
-    """
-    clock.advance(EXPIRATION_TIME.total_seconds() - 1)
 
 
 class ClusterStateServiceTests(SynchronousTestCase):
