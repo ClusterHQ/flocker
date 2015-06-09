@@ -332,6 +332,8 @@ This tool generates TLS certificates that are used to identify and authenticate 
 
 .. _authentication:
 
+.. XXX: Improve the Installation doc with clear sections: https://clusterhq.atlassian.net/browse/FLOC-2169
+
 Cluster Authentication Layer Configuration
 ------------------------------------------
 
