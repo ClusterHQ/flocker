@@ -13,23 +13,21 @@ from ._model import DeploymentState
 
 
 # Seconds until updates are expired:
-EXPIRATION_TIME = 10
+EXPIRATION_TIME = 120
 
 
 class ClusterStateService(MultiService):
     """
-    Store known current cluster state, and combine partial updates with
-    the existing known state.
+    Store known current cluster state, and combine partial updates with the
+    existing known state.
 
-    Data that hasn't been updated for 10 seconds is expired. Eventually
-    we'll probably want a better policy:
+    Data that hasn't been updated for ``EXPIRATION_TIME`` seconds is expired.
+    Eventually we'll probably want a better policy:
     https://clusterhq.atlassian.net/browse/FLOC-1896
 
-    :ivar DeploymentState _deployment_state: The current known cluster
-        state.
-    :ivar PMap _information_wipers: Map (wiper class, wiper key) to
-        (wiper, added timestamp), where wiper is a ``IClusterStateWipe``
-        provider.
+    :ivar DeploymentState _deployment_state: The current known cluster state.
+    :ivar PMap _information_wipers: Map (wiper class, wiper key) to (wiper,
+        added timestamp), where wiper is a ``IClusterStateWipe`` provider.
     :ivar _clock: ``IReactorTime`` provider.
     """
     def __init__(self, reactor):

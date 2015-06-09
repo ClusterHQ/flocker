@@ -7,9 +7,9 @@ from twisted.trial.unittest import TestCase
 
 from flocker.control import Port
 
-from .testtools import (assert_expected_deployment, flocker_deploy,
+from .testtools import (require_cluster,
                         get_mongo_client, get_mongo_application,
-                        get_clean_nodes, MONGO_APPLICATION, MONGO_IMAGE,
+                        MONGO_APPLICATION, MONGO_IMAGE,
                         require_flocker_cli, require_mongo)
 
 
@@ -21,44 +21,40 @@ class PortsTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/exposing-ports.html
     """
     @require_flocker_cli
-    def setUp(self):
+    @require_cluster(2)
+    def setUp(self, cluster):
         """
         Deploy an application with an internal port mapped to a different
         external port.
         """
-        getting_nodes = get_clean_nodes(self, num_nodes=2)
+        self.cluster = cluster
+        self.node_1, self.node_2 = cluster.nodes
 
-        def deploy_port_application(node_ips):
-            self.node_1, self.node_2 = node_ips
+        self.internal_port = 27017
+        self.external_port = 27018
 
-            self.internal_port = 27017
-            self.external_port = 27018
+        port_deployment = {
+            u"version": 1,
+            u"nodes": {
+                self.node_1.address: [MONGO_APPLICATION],
+                self.node_2.address: [],
+            },
+        }
 
-            port_deployment = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [MONGO_APPLICATION],
-                    self.node_2: [],
+        port_application = {
+            u"version": 1,
+            u"applications": {
+                MONGO_APPLICATION: {
+                    u"image": MONGO_IMAGE,
+                    u"ports": [{
+                        u"internal": self.internal_port,
+                        u"external": self.external_port,
+                    }],
                 },
-            }
+            },
+        }
 
-            port_application = {
-                u"version": 1,
-                u"applications": {
-                    MONGO_APPLICATION: {
-                        u"image": MONGO_IMAGE,
-                        u"ports": [{
-                            u"internal": self.internal_port,
-                            u"external": self.external_port,
-                        }],
-                    },
-                },
-            }
-
-            flocker_deploy(self, port_deployment, port_application)
-
-        getting_nodes.addCallback(deploy_port_application)
-        return getting_nodes
+        cluster.flocker_deploy(self, port_deployment, port_application)
 
     def test_deployment_with_ports(self):
         """
@@ -72,9 +68,9 @@ class PortsTests(TestCase):
 
         application = get_mongo_application().set("ports", ports)
 
-        d = assert_expected_deployment(self, {
-            self.node_1: set([application]),
-            self.node_2: set([]),
+        d = self.cluster.assert_expected_deployment(self, {
+            self.node_1.address: set([application]),
+            self.node_2.address: set([]),
         })
 
         return d
@@ -84,7 +80,8 @@ class PortsTests(TestCase):
         """
         The port is exposed on the host where Mongo was configured.
         """
-        getting_client = get_mongo_client(self.node_1, self.external_port)
+        getting_client = get_mongo_client(
+            self.node_1.address, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
@@ -106,13 +103,14 @@ class PortsTests(TestCase):
         node, and data added to it, that data is visible when a client connects
         to a different node on the cluster.
         """
-        getting_client = get_mongo_client(self.node_1, self.external_port)
+        getting_client = get_mongo_client(
+            self.node_1.address, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
             posts_1.insert({u"the data": u"it moves"})
 
-            d = get_mongo_client(self.node_2, self.external_port)
+            d = get_mongo_client(self.node_2.address, self.external_port)
             d.addCallback(lambda client_2: self.assertEqual(
                 posts_1.find_one(),
                 client_2.example.posts.find_one()
