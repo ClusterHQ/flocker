@@ -11,6 +11,9 @@ Flocker 0.4.1dev1 (2015-05-25)
 - There are new systemd units: ``flocker-zfs-agent`` is now ``flocker-container-agent`` and ``flocker-dataset-agent``. (FLOC-1554)
 - ``flocker-reportstate`` and ``flocker-changestate`` have been removed. (FLOC-1663)
 - Updated to Twisted 15.1. (FLOC-1707)
+- Dataset backend support for OpenStack and AWS. (FLOC-1925, FLOC-1743, FLOC-1745)
+- CentOS 7 tutorial environment. (FLOC-1510)
+- Ubuntu CLI installation instructions now use debian packages instead of pip packaging. (FLOC-1742)
 
 Flocker 0.4.0 (2015-04-07)
 ==========================

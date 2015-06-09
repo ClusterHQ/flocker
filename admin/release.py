@@ -542,9 +542,9 @@ def upload_packages(scratch_directory, target_bucket, version, build_server,
                     top_level):
     """
     The ClusterHQ yum and deb repositories contain packages for Flocker, as
-    well as the dependencies which aren't available in Fedora 20 or CentOS 7.
-    It is currently hosted on Amazon S3. When doing a release, we want to add
-    the new Flocker packages, while preserving the existing packages in the
+    well as the dependencies which aren't available in CentOS 7. It is
+    currently hosted on Amazon S3. When doing a release, we want to add the
+    new Flocker packages, while preserving the existing packages in the
     repository. To do this, we download the current repository, add the new
     package, update the metadata, and then upload the repository.
 
@@ -743,7 +743,7 @@ def publish_artifacts_main(args, base_path, top_level):
                     target_bucket=options['target'],
                     version=options['flocker-version'],
                     build_server=options['build-server'],
-                    flocker_source_path=top_level,
+                    top_level=top_level,
                 ),
                 upload_python_packages(
                     scratch_directory=scratch_directory.child('python'),
