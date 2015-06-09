@@ -84,20 +84,20 @@ Getting started with Flocker
          .. task:: test_homebrew flocker-|latest-installable|
             :prompt: you@laptop:~$
 
-         Ubuntu 15.04
-         ^^^^^^^^^^^^
-
-         Install the Flocker client on your Linux machine:
-
-         .. task:: install_cli ubuntu-15.04
-            :prompt: you@laptop:~$
-
          Ubuntu 14.04
          ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
          .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
+
+         Ubuntu 15.04
+         ^^^^^^^^^^^^
+
+         Install the Flocker client on your Linux machine:
+
+         .. task:: install_cli ubuntu-15.04
             :prompt: you@laptop:~$
 
       .. noscript-content::
@@ -108,6 +108,14 @@ Getting started with Flocker
          Install the Flocker client on your Mac (requires Homebrew):
 
          .. task:: test_homebrew flocker-|latest-installable|
+            :prompt: you@laptop:~$
+
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
+
+         Install the Flocker client on your Linux machine:
+
+         .. task:: install_cli ubuntu-14.04
             :prompt: you@laptop:~$
 
          Ubuntu 15.04
