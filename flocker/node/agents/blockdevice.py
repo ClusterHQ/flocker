@@ -1539,11 +1539,12 @@ class BlockDeviceDeployer(PRecord):
         local_state = cluster_state.get_node(self.node_uuid,
                                              hostname=self.hostname)
 
-        # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs. Eventually this will rely on leases instead.
-        # https://clusterhq.atlassian.net/browse/FLOC-1425.
+        # For now, in this branch, make the datasets agent able to proceed even
+        # with incomplete knowledge about application state. This is to avoid a
+        # flocker-plugin <=> docker deadlock.
+        # See https://clusterhq.atlassian.net/browse/FLOC-2163
         if local_state.applications is None:
-            return in_parallel(changes=[])
+            local_state = local_state.set(applications=set(), used_ports=set())
 
         not_in_use = NotInUseDatasets(local_state)
 
