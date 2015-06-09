@@ -882,9 +882,9 @@ class DeploymentState(PRecord):
             if node.manifestations is None:
                 continue
             for manifestation in node.manifestations.values():
-                yield manifestation.dataset
+                yield manifestation.dataset, node
         for dataset in self.nonmanifest_datasets.values():
-            yield dataset
+            yield dataset, None
 
 
 @implementer(IClusterStateChange)
