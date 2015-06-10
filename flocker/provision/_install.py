@@ -8,7 +8,7 @@ Install flocker on a remote node.
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect, parallel
+from effect import Func, Effect
 import yaml
 
 from zope.interface import implementer
