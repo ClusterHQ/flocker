@@ -135,6 +135,7 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         provision=provision_aws,
         default_size="m3.large",
         get_default_user=get_default_username,
+        use_private_addresses=True,
     )
 
     return provisioner

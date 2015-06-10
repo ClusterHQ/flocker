@@ -6,6 +6,7 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
+import json
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -79,11 +80,15 @@ def get_trial_environment(cluster):
     """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
-        'FLOCKER_ACCEPTANCE_AGENT_NODES':
-            ':'.join(node.address for node in cluster.agent_nodes),
+        'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': str(len(cluster.agent_nodes)),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
         'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
             cluster.certificates_path.path,
+        'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': json.dumps({
+            node.private_address: node.address
+            for node in cluster.agent_nodes
+            if node.private_address is not None
+        }),
     }
 
 
@@ -273,7 +278,8 @@ def configured_cluster_for_nodes(
     Get a ``Cluster`` with Flocker services running on the right nodes.
 
     :param reactor: The reactor.
-    :param Certificates certificates: The certificates to install on the cluster.
+    :param Certificates certificates: The certificates to install on the
+        cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
     :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
         representing the dataset backend that the nodes will be configured to
@@ -892,7 +898,8 @@ def main(reactor, args, base_path, top_level):
                 for environment_variable in environment_variables:
                     print "export {name}={value};".format(
                         name=environment_variable,
-                        value=environment_variables[environment_variable],
+                        value=shell_quote(
+                            environment_variables[environment_variable]),
                     )
 
     raise SystemExit(result)

@@ -36,8 +36,8 @@ class PortsTests(TestCase):
         port_deployment = {
             u"version": 1,
             u"nodes": {
-                self.node_1.address: [MONGO_APPLICATION],
-                self.node_2.address: [],
+                self.node_1.reported_hostname: [MONGO_APPLICATION],
+                self.node_2.reported_hostname: [],
             },
         }
 
@@ -69,8 +69,8 @@ class PortsTests(TestCase):
         application = get_mongo_application().set("ports", ports)
 
         d = self.cluster.assert_expected_deployment(self, {
-            self.node_1.address: set([application]),
-            self.node_2.address: set([]),
+            self.node_1.reported_hostname: set([application]),
+            self.node_2.reported_hostname: set([]),
         })
 
         return d
@@ -81,7 +81,7 @@ class PortsTests(TestCase):
         The port is exposed on the host where Mongo was configured.
         """
         getting_client = get_mongo_client(
-            self.node_1.address, self.external_port)
+            self.node_1.public_address, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
@@ -104,13 +104,14 @@ class PortsTests(TestCase):
         to a different node on the cluster.
         """
         getting_client = get_mongo_client(
-            self.node_1.address, self.external_port)
+            self.node_1.public_address, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
             posts_1.insert({u"the data": u"it moves"})
 
-            d = get_mongo_client(self.node_2.address, self.external_port)
+            d = get_mongo_client(
+                self.node_2.public_address, self.external_port)
             d.addCallback(lambda client_2: self.assertEqual(
                 posts_1.find_one(),
                 client_2.example.posts.find_one()
