@@ -410,6 +410,8 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
+Before you can use Flocker's API you will also need to `generate a client certificate <generate-api>`_.
+
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
 .. _post-installation-configuration:
