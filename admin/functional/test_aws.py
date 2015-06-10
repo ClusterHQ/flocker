@@ -15,7 +15,7 @@ from flocker.testtools import random_name
 bucket_name = 'clusterhq-archive-testing'
 
 try:
-    conn = boto.connect_s3().head_bucket(bucket_name)
+    boto.connect_s3().head_bucket(bucket_name)
     _can_connect = True
 except:
     _can_connect = False
@@ -36,8 +36,8 @@ class AWSTest(SynchronousTestCase):
         self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
         tmpfile = FilePath(tmpdir).child(filename)
         tmpfile.setContent('foo')
-        conn = boto.connect_s3()
-        bucket = boto.s3.bucket.Bucket(conn, bucket_name)
+        s3 = boto.connect_s3()
+        bucket = s3.get_bucket(bucket_name)
         self.addCleanup(bucket.delete_key, filename)
         sync_perform(
             dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
