@@ -92,18 +92,6 @@ Getting started with Flocker
          .. task:: install_cli ubuntu-14.04
             :prompt: you@laptop:~$
 
-         Fedora 20
-         ^^^^^^^^^
-
-         Install the Flocker client on your Linux machine:
-
-         .. version-code-block:: console
-
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel && \
-              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/linux-install.sh && \
-              sh linux-install.sh && \
-              source flocker-tutorial/bin/activate
-
       .. noscript-content::
 
          OS X
@@ -121,18 +109,6 @@ Getting started with Flocker
 
          .. task:: install_cli ubuntu-14.04
             :prompt: you@laptop:~$
-
-         Fedora 20
-         ^^^^^^^^^
-
-         Install the Flocker client on your Linux machine:
-
-         .. version-code-block:: console
-
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv libffi-devel openssl-devel && \
-              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/linux-install.sh && \
-              sh linux-install.sh && \
-              source flocker-tutorial/bin/activate
 
       .. empty-div:: arrow-down center-block invisible
 

@@ -127,7 +127,7 @@ Ensure that they all pass, with no skips:
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider vagrant
+  admin/run-acceptance-tests --distribution centos-7 --provider vagrant
 
 
 .. _acceptance-testing-rackspace-config:
@@ -160,7 +160,7 @@ Rackspace can use these dataset backends:
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider rackspace --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider rackspace --config-file config.yml
 
 
 .. _acceptance-testing-aws-config:
@@ -193,7 +193,7 @@ AWS can use these dataset backends:
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file config.yml
 
 .. _acceptance-testing-managed-config:
 

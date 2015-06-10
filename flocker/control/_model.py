@@ -874,16 +874,18 @@ class DeploymentState(PRecord):
 
     def all_datasets(self):
         """
-        :returns: A generator of all the manifest and non-manifest datasets in
-            the ``DeploymentState``.
+        :returns: A generator of 2-tuple(``Dataset``, ``Nodestate`` or
+            ``None``) for all the primary manifest datasets and non-manifest
+            datasets in the ``DeploymentState``.
         """
         for node in self.nodes:
             if node.manifestations is None:
                 continue
             for manifestation in node.manifestations.values():
-                yield manifestation.dataset
+                if manifestation.primary:
+                    yield manifestation.dataset, node
         for dataset in self.nonmanifest_datasets.values():
-            yield dataset
+            yield dataset, None
 
 
 @implementer(IClusterStateChange)
