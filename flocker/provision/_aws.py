@@ -52,11 +52,13 @@ def provision_aws(node, package_source, distribution, variants):
     commands = []
 
     # cloud-init may not have allowed sudo without tty yet, so try SSH key
-    # installation a few times in a row:
-    start = time()
+    # installation for a few more seconds:
+    start = []
 
     def for_ten_seconds(*args, **kwargs):
-        return Effect(Constant((time() - start) < 10))
+        if not start:
+            start.append(time())
+        return Effect(Constant((time() - start[0]) < 30))
 
     commands.append(run_remotely(
         username=username,
