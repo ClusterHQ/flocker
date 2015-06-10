@@ -894,6 +894,28 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             in_parallel(changes=[]),
         )
 
+    def test_deleted_dataset_volume_unmounted(self):
+        """
+        ``DestroyBlockDeviceDataset`` is a compound state change that first
+        attempts to unmount the block device.
+        Therefore do not calculate deletion for blockdevices that are attached
+        but unmounted.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        # Remove the mount path for the manifestation.
+        local_state = local_state.transform(
+            ['paths', unicode(self.DATASET_ID)],
+            discard
+        )
+        assert_calculated_changes(
+            self, local_state, local_config, set(),
+            in_parallel(changes=[]),
+        )
+
 
 class BlockDeviceDeployerAttachCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
