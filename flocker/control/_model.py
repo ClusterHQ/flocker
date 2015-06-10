@@ -874,8 +874,9 @@ class DeploymentState(PRecord):
 
     def all_datasets(self):
         """
-        :returns: A generator of all the primary manifest datasets and
-            non-manifest datasets in the ``DeploymentState``.
+        :returns: A generator of 2-tuple(``Dataset``, ``Nodestate`` or
+            ``None``) for all the primary manifest datasets and non-manifest
+            datasets in the ``DeploymentState``.
         """
         for node in self.nodes:
             if node.manifestations is None:
