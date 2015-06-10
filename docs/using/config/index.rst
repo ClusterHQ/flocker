@@ -1,6 +1,6 @@
-===================
-Configuring Flocker
-===================
+================================
+Controlling Flocker with the CLI
+================================
 
 .. toctree::
    :maxdepth: 2

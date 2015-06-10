@@ -249,6 +249,11 @@
 
   doc: |
     Get a list of all datasets in a deployment.
+    This includes manifest (attached) and non-manifest (unattached) datasets.
+    For example, a dataset on a block device that has been created, but is not
+    attached to any machine, is a non-manifest dataset.
+    The ``primary`` and ``path`` values will not be present for non-manifest
+    datasets.
 
   request: |
     GET /v1/state/datasets HTTP/1.1
@@ -259,7 +264,9 @@
     [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
       "primary": "%(NODE_0)s",
       "maximum_size": 1073741824,
-      "path": "/flocker/somearbitrarypath"}]
+      "path": "/flocker/somearbitrarypath"},
+     {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+      "maximum_size": 1073741824}]
 
 -
   id:
