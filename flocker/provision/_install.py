@@ -371,7 +371,7 @@ def task_upgrade_kernel(distribution):
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
-    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    elif distribution == 'ubuntu-14.04':
         # Not required.
         return sequence([])
     else:
@@ -392,7 +392,7 @@ def task_disable_selinux(distribution):
                 "'s/^SELINUX=.*$/SELINUX=disabled/g' "
                 "/etc/selinux/config"),
         ])
-    elif distribution in ('fedora-20', 'ubuntu-14.04', 'ubuntu-15.04'):
+    elif distribution in ('fedora-20', 'ubuntu-14.04'):
         # Fedora and Ubuntu do not have SELinux enabled
         return sequence([])
     else:
@@ -454,7 +454,7 @@ def task_enable_docker(distribution):
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
         ])
-    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    elif distribution == 'ubuntu-14.04':
         # Ubuntu enables docker service during installation
         return sequence([])
     else:
@@ -493,7 +493,7 @@ def task_enable_flocker_control(distribution):
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', START, 'flocker-control']),
         ])
-    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
         # alongside the flocker-dataset-agent service, the default control
         # service configuration does not automatically start the
@@ -520,7 +520,7 @@ def task_open_control_firewall(distribution):
     """
     if distribution in ('centos-7', 'fedora-20'):
         open_firewall = open_firewalld
-    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
     else:
         raise DistributionNotSupported(distribution=distribution)
