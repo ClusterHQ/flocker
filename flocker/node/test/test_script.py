@@ -942,6 +942,16 @@ class GetExternalIPTests(SynchronousTestCase):
         """
         A successful external IP lookup returns the local interface's IP.
         """
+        class FakeSocket(object):
+            def __init__(self, *args):
+                self.addr = (b"0.0.0.0", 0)
+
+            def getsockname(self):
+                return self.addr
+
+            def connect(self, addr):
+                self.addr = (addr[0], 12345)
+        self.patch(socket, "socket", FakeSocket())
         self.assertEqual(u"127.0.0.1",
                          _get_external_ip(u"localhost", self.destination_port))
 
