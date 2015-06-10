@@ -1731,7 +1731,7 @@ class BlockDeviceDeployer(PRecord):
             DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
             for dataset_id
             in delete_dataset_ids
-            # if dataset_id in local_state.manifestations
+            if dataset_id in local_state.manifestations
         ]
 
 
