@@ -328,9 +328,9 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
    - A control service certificate and key file, to be copied over to the machine running your :ref:`control service <architecture>`.
    - A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
 
-Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
+#. Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
 
-Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
+#. Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
 
 .. code-block:: console
 
