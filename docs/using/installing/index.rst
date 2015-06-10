@@ -317,18 +317,16 @@ Please continue onto the next section, with the cluster authentication instructi
 
 .. _authentication:
 
-Cluster Authentication Layer Configuration
-------------------------------------------
-
-.. XXX: Improve the Installation doc with clear sections: https://clusterhq.atlassian.net/browse/FLOC-2169
+Configuring Cluster Authentication
+----------------------------------
 
 Communication between the different parts of your cluster is secured and authenticated via TLS.
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
 
-Once you have installed the ``flocker-node`` package, you will need to generate:
+#. Once you have installed the ``flocker-node`` package, you will need to generate:
 
-- A control service certificate and key file, to be copied over to the machine running your :ref:`control service <architecture>`.
-- A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
+   - A control service certificate and key file, to be copied over to the machine running your :ref:`control service <architecture>`.
+   - A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
 
 Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
 
