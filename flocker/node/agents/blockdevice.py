@@ -1604,7 +1604,8 @@ class BlockDeviceDeployer(PRecord):
         detaches = list(self._calculate_detaches(
             local_state.devices, local_state.paths, configured_manifestations,
         ))
-        deletes = self._calculate_deletes(local_state, configured_manifestations)
+        deletes = self._calculate_deletes(
+            local_state, configured_manifestations)
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
