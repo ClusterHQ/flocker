@@ -71,7 +71,7 @@ class PostgresTests(TestCase):
         )
 
         requested_dataset = {
-            u"primary": cluster.nodes[0].uuid,
+            u"primary": self.node_1.uuid,
             u"dataset_id": new_dataset_id,
             u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
             u"metadata": {u"name": POSTGRES_APPLICATION_NAME},
@@ -128,8 +128,13 @@ class PostgresTests(TestCase):
                 [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                  u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
-        cluster.flocker_deploy(self, self.postgres_deployment,
-                               self.postgres_application)
+        def deploy_postgres(ignored):
+            cluster.flocker_deploy(
+                self, self.postgres_deployment, self.postgres_application
+            )
+
+        configuring_dataset.addCallback(deploy_postgres)
+        return configuring_dataset
 
     def test_deploy(self):
         """
