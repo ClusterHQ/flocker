@@ -115,7 +115,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
-            aws.get_contents('clusterhq-staging-docs'), {
+            aws.get_bucket_contents('clusterhq-staging-docs'), {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -154,7 +154,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
         self.assertEqual(
-            aws.get_contents('clusterhq-docs'), {
+            aws.get_bucket_contents('clusterhq-docs'), {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -194,7 +194,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
-            aws.get_contents('clusterhq-staging-docs'), {
+            aws.get_bucket_contents('clusterhq-staging-docs'), {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -956,7 +956,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
         self.assertEqual(
             expected_keys,
-            aws.get_contents(self.target_bucket))
+            aws.get_bucket_contents(self.target_bucket))
 
     def test_fake_deb(self):
         """
@@ -1023,7 +1023,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
         self.assertEqual(
             expected_keys,
-            aws.get_contents(self.target_bucket))
+            aws.get_bucket_contents(self.target_bucket))
 
     def test_package_not_available_exception(self):
         """
@@ -1097,7 +1097,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 'repodata/repomd.xml',
             ]
         }
-        files_on_s3 = aws.get_contents(self.target_bucket)
+        files_on_s3 = aws.get_bucket_contents(self.target_bucket)
 
         repodata_path = os.path.join(self.target_key, 'repodata')
 
@@ -1180,7 +1180,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 'Release',
             ]
         }
-        files_on_s3 = aws.get_contents(self.target_bucket)
+        files_on_s3 = aws.get_bucket_contents(self.target_bucket)
 
         # The original source repository contains no metadata.
         # This tests that CreateRepo creates the expected metadata files from
@@ -1281,7 +1281,7 @@ class UploadPackagesTests(SynchronousTestCase):
             'ubuntu-testing/15.04/amd64/Release',
         }
 
-        files_on_s3 = self.aws.get_contents(self.target_bucket).keys()
+        files_on_s3 = self.aws.get_bucket_keys(self.target_bucket)
         self.assertEqual(expected_files, set(files_on_s3))
 
     def test_key_suffixes(self):
@@ -1312,7 +1312,7 @@ class UploadPackagesTests(SynchronousTestCase):
             top_level=FLOCKER_PATH,
         )
 
-        files_on_s3 = self.aws.get_contents(self.target_bucket).keys()
+        files_on_s3 = self.aws.get_bucket_keys(self.target_bucket)
         self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 def create_fake_repository(test_case, files):
@@ -1394,7 +1394,7 @@ class UploadPythonPackagesTests(SynchronousTestCase):
 
         self.upload_python_packages()
 
-        aws_keys = self.aws.get_contents(self.target_bucket).keys()
+        aws_keys = self.aws.get_bucket_keys(self.target_bucket)
         self.assertEqual(
             sorted(aws_keys),
             ['python/Flocker-0.3.0-py2-none-any.whl',

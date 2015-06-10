@@ -482,7 +482,16 @@ class FakeAWS(object):
         with intent.file.open() as source_file:
             bucket[intent.target_key] = source_file.read(), intent.content_type
 
-    def get_contents(self, bucket):
+    def get_bucket_keys(self, bucket):
+        """
+        Retrieve the keys from a bucket in S3.
+
+        :param str bucket: name of the S3 bucket.
+        :returns: the keys present in the bucket.
+        """
+        return self.s3_buckets[bucket].keys()
+
+    def get_bucket_contents(self, bucket):
         """
         Retrieve the file keys and contents in S3.
 
