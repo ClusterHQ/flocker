@@ -144,9 +144,8 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 - :ref:`Using Amazon Web Services <aws-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.04 machine.
+It is also possible to install Flocker on any CentOS 7 or Ubuntu 14.04 machine.
 
-- :ref:`Installing on Fedora 20 <fedora-20-install>`
 - :ref:`Installing on CentOS 7 <centos-7-install>`
 - :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
 
@@ -159,9 +158,6 @@ Vagrant
 The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
 You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
-.. warning:: These instructions describe the installation of ``clusterhq-flocker-node`` on a Fedora 20 operating system.
-             This is the only supported node operating system right now.
-
 .. _aws-install:
 
 Using Amazon Web Services
@@ -170,16 +166,21 @@ Using Amazon Web Services
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
           You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
 
-#. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard
 
-   * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-6ceebe3e>`_
-   * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-eba038d1>`_
-   * `Asia Pacific (Tokyo) <https://console.aws.amazon.com/ec2/v2/home?region=ap-northeast-1#LaunchInstanceWizard:ami=ami-9583fd94>`_
-   * `EU (Ireland) <https://console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:ami=ami-a5ad56d2>`_
-   * `South America (Sao Paulo) <https://console.aws.amazon.com/ec2/v2/home?region=sa-east-1#LaunchInstanceWizard:ami=ami-2345e73e>`_
-   * `US East (Northern Virginia) <https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-21362b48>`_
-   * `US West (Northern California) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-1#LaunchInstanceWizard:ami=ami-f8f1c8bd>`_
-   * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-cc8de6fc>`_
+.. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
+
+#. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard.
+   These launch instances using CentOS 7 AMIs (in particular "CentOS 7 x86_64 (2014_09_29) EBS HVM") but it is possible to use any operating system supported by Flocker with AWS.
+
+   * `EU (Frankfurt) <https://console.aws.amazon.com/ec2/v2/home?region=eu-central-1#LaunchInstanceWizard:ami=ami-7cc4f661>`_
+   * `South America (Sao Paulo) <https://console.aws.amazon.com/ec2/v2/home?region=sa-east-1#LaunchInstanceWizard:ami=ami-bf9520a2>`_
+   * `Asia Pacific (Tokyo) <https://console.aws.amazon.com/ec2/v2/home?region=ap-northeast-1#LaunchInstanceWizard:ami=ami-89634988>`_
+   * `EU (Ireland) <https://console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:ami=ami-e4ff5c93>`_
+   * `US East (Northern Virginia) <https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-96a818fe>`_
+   * `US East (Northern California) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-1#LaunchInstanceWizard:ami=ami-6bcfc42e>`_
+   * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-c7d092f7>`_
+   * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-bd523087>`_
+   * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
 
 #. Configure the instance.
    Complete the configuration wizard; in general the default configuration should suffice.   
@@ -245,8 +246,9 @@ You'll probably want to setup at least two nodes.
 
    * Visit https://mycloud.rackspace.com
    * Click "Create Server".
-   * Choose a supported Linux distribution as your image. For available distributions, see the list of installation instructions in Step 3.
-   * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
+   * Choose a supported Linux distribution (either CentOS 7 or Ubuntu 14.04) as your image.
+   * Choose a Flavor.
+     We recommend at least "8 GB General Purpose v1".
    * Add your SSH key
 
 #. SSH in:
@@ -259,34 +261,8 @@ You'll probably want to setup at least two nodes.
 
 #. Follow the installation instructions for your chosen distribution:
 
-   * :ref:`fedora-20-install`
    * :ref:`centos-7-install`
    * :ref:`ubuntu-14.04-install`
-
-.. _fedora-20-install:
-
-Installing on Fedora 20
------------------------
-
-.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
-
-Now install the ``clusterhq-flocker-node`` package.
-To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
-The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
-Paste them into a root console on the target node:
-
-.. task:: install_flocker fedora-20
-   :prompt: [root@node]#
-
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
-To enable and start Docker, run the following commands in a root console:
-
-.. task:: enable_docker fedora-20
-   :prompt: [root@fedora]#
-
-Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
-Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _centos-7-install:
 
@@ -311,7 +287,7 @@ The following commands will install the two repositories and the ``flocker-node`
 Paste them into a root console on the target node:
 
 .. task:: install_flocker centos-7
-   :prompt: [root@node]#
+   :prompt: [root@centos]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
@@ -483,19 +459,19 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-Enabling the Flocker control service on Fedora / CentOS
--------------------------------------------------------
+Enabling the Flocker control service on CentOS 7
+-------------------------------------------------
 
-.. task:: enable_flocker_control fedora-20
+.. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
 To configure FirewallD to allow access to the control service HTTP API, and for agent connections:
 
-.. task:: open_control_firewall fedora-20
+.. task:: open_control_firewall centos-7
    :prompt: [root@control-node]#
 
-For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
+For more details on configuring the firewall, see the `FirewallD documentation <https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html>`_.
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
@@ -649,12 +625,12 @@ The configuration item to use Loopback should look like:
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
 
-Fedora / CentOS
-...............
+CentOS 7
+........
 
 Run the following commands to enable the agent service:
 
-.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
+.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
 Ubuntu

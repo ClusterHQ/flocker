@@ -27,6 +27,7 @@ import psutil
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
+from twisted.python.components import proxyForInterface
 
 from .. import (
     IDeployer, IStateChange, sequentially, in_parallel, run_state_change
@@ -1729,3 +1730,46 @@ class BlockDeviceDeployer(PRecord):
             for dataset_id
             in delete_dataset_ids
         ]
+
+
+class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
+    """
+    A transparent caching layer around an ``IBlockDeviceAPI`` instance,
+    intended to exist for the lifetime of the process.
+
+    :ivar _api: Wrapped ``IBlockDeviceAPI`` provider.
+    :ivar _instance_id: Cached result of ``compute_instance_id``.
+    :ivar _device_paths: Mapping from blockdevice ids to cached device path.
+    """
+    def __init__(self, api):
+        self._api = api
+        self._instance_id = None
+        self._device_paths = {}
+
+    def compute_instance_id(self):
+        """
+        Always return initial result since this shouldn't change until a
+        reboot.
+        """
+        if self._instance_id is None:
+            self._instance_id = self._api.compute_instance_id()
+        return self._instance_id
+
+    def get_device_path(self, blockdevice_id):
+        """
+        Load the device path from a cache if possible.
+        """
+        if blockdevice_id not in self._device_paths:
+            self._device_paths[blockdevice_id] = self._api.get_device_path(
+                blockdevice_id)
+        return self._device_paths[blockdevice_id]
+
+    def detach_volume(self, blockdevice_id):
+        """
+        Clear the cached device path, if it was cached.
+        """
+        try:
+            del self._device_paths[blockdevice_id]
+        except KeyError:
+            pass
+        return self._api.detach_volume(blockdevice_id)

@@ -1,4 +1,4 @@
-Flocker 0.4.1dev1 (2015-05-25)
+Flocker 0.4.1dev4 (2015-06-08)
 ==============================
 
 - It is now necessary to specify a dataset backend for each agent node. (FLOC-1420)
@@ -14,6 +14,10 @@ Flocker 0.4.1dev1 (2015-05-25)
 - Dataset backend support for OpenStack and AWS. (FLOC-1925, FLOC-1743, FLOC-1745)
 - CentOS 7 tutorial environment. (FLOC-1510)
 - Ubuntu CLI installation instructions now use debian packages instead of pip packaging. (FLOC-1742)
+- Removed support for Fedora 20 on nodes. (FLOC-2121)
+- Fixed a bug with prompts displaying incorrectly in some browsers. (FLOC-2102)
+- Allow third party dataset backend plugins. (FLOC-2111)
+- Fixed a bug which caused mkfs to hang on Ubuntu. (FLOC-2041)
 
 Flocker 0.4.0 (2015-04-07)
 ==========================
