@@ -903,6 +903,8 @@ class UpdateRepoTests(SynchronousTestCase):
                          '<oldhash>-metadata.xml'):
                 'metadata for: existing_package.rpm',
         }
+        # Copy before passing to FakeAWS
+        expected_keys = existing_s3_keys.copy()
 
         aws = FakeAWS(
             routing_rules={},
@@ -938,7 +940,6 @@ class UpdateRepoTests(SynchronousTestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
         }
 
-        expected_keys = existing_s3_keys.copy()
         expected_keys.update({
             'test/target/key/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm':
                 'cli-package',
@@ -973,6 +974,8 @@ class UpdateRepoTests(SynchronousTestCase):
             os.path.join(self.target_key, 'Packages.gz'):
                 'metadata for: existing_package.deb',
         }
+        # Copy before passing to FakeAWS
+        expected_keys = existing_s3_keys.copy()
 
         aws = FakeAWS(
             routing_rules={},
@@ -1008,8 +1011,8 @@ class UpdateRepoTests(SynchronousTestCase):
             'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
         }
 
-        expected_keys = existing_s3_keys.copy()
         expected_keys.update({
+            'test/target/key/Release': 'Origin: ClusterHQ\n',
             'test/target/key/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb':
                 'cli-package',
             'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
