@@ -1,3 +1,5 @@
+.. _contribute:
+
 =======================
 Contributing to Flocker
 =======================
@@ -51,7 +53,7 @@ Development Environment
 =======================
 
 * To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
-  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
+  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured CentOS 7 virtual machine.
   Vagrant 1.6.2 or later is required.
   Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going:
 

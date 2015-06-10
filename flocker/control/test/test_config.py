@@ -658,6 +658,35 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(exception.message, error_message)
 
+    def test_invalid_fig_config_hyphenated_link(self):
+        """
+        A ``ConfigurationError`` is raised if in a fig application config, the
+        "links" key contains an application name that has a hyphen.
+        """
+        config = {
+            u'postgres': {
+                u'environment': {u'PG_ROOT_PASSWORD': u'clusterhq'},
+                u'image': u'sample/postgres',
+                u'ports': [u'54320:5432'],
+                u'volumes': [u'/var/lib/postgres'],
+                u'links': [u'wordpress:wordpress-bad'],
+            },
+            u'wordpress': {
+                u'image': u'sample/wordpress',
+                u'ports': [u'8080:8080'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error: "
+            "Link aliases must be alphanumeric."
+        )
+        self.assertEqual(exception.message, error_message)
+
     def test_fig_config_environment_list_item_empty_value(self):
         """
         An entry in a list of environment variables that is just a label is
@@ -1825,6 +1854,27 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_links_alias_with_hyphen(self):
+        """
+        ``Configuration.applications`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        whose alias includes a hyphen.
+        """
+        config = dict(
+            version=1,
+            applications={'postgres': dict(
+                image='busybox',
+                links=[{'local_port': 90, 'remote_port': 100, 'alias': 'x-y'}],
+                )})
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'postgres' has a config error. "
+            "Invalid links specification. Link aliases must be alphanumeric.",
+            exception.message
+        )
+
     def test_links_extra_keys(self):
         """
         ``Configuration.applications`` raises a
@@ -2413,6 +2463,35 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             'Node node1.example.com has a config error. '
             'Unrecognised application name: site-hybridcluster.',
+            exception.message
+        )
+
+    def test_error_on_duplicate_application_name(self):
+        """
+        ``deployment_from_configuration`` raises a ``ConfigurationError`` if
+        the deployment_configuration refers to an application more than
+        once.
+        """
+        applications = {
+            u'app': Application(
+                name=u'app',
+                image=DockerImage.from_string(u'busybox'),
+            )
+        }
+        exception = self.assertRaises(
+            ConfigurationError,
+            deployment_from_configuration,
+            DeploymentState(
+                nodes=[NodeState(hostname=u'1.2.3.4', uuid=uuid4()),
+                       NodeState(hostname=u'1.2.3.5', uuid=uuid4())]),
+            dict(
+                version=1,
+                nodes={u'1.2.3.4': ['app'],
+                       u'1.2.3.5': ['app']}),
+            applications
+        )
+        self.assertEqual(
+            "Application 'app' appears more than once.",
             exception.message
         )
 

@@ -8,6 +8,8 @@ from klein import Klein
 
 from eliot.testing import assertHasAction
 
+from pyrsistent import pvector
+
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.failure import Failure
 from twisted.internet.defer import succeed, fail
@@ -19,7 +21,7 @@ from twisted.web.http import (
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._infrastructure import (
-    EndpointResponse, user_documentation, structured)
+    EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
 from .._error import (
     ILLEGAL_CONTENT_TYPE_DESCRIPTION, DECODING_ERROR_DESCRIPTION,
@@ -564,10 +566,17 @@ class UserDocumentationTests(SynchronousTestCase):
         C{user_documentation} attribute of the function to the passed
         argument.
         """
-        @user_documentation("Some text")
+        @user_documentation(u"Some text", u"Header", u"section")
         def f():
             pass
-        self.assertEqual(f.userDocumentation, "Some text")
+        self.assertEqual(
+            f.user_documentation,
+            UserDocumentation(
+                text=u"Some text",
+                header=u"Header",
+                section=u"section",
+                examples=pvector([]),
+            ))
 
 
 class NotAllowedTests(SynchronousTestCase):

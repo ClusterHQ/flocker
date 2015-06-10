@@ -18,6 +18,7 @@ from sphinxcontrib.autohttp.common import http_directive
 from sphinx.util.compat import Directive
 from sphinx.util.nodes import nested_parse_with_titles
 from sphinx.util.docstrings import prepare_docstring
+from sphinx.errors import SphinxError
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 
@@ -71,6 +72,8 @@ class Example(object):
 def getRoutes(app):
     """
     Get the routes assoicated with a L{klein} application.
+
+    Endpoints decorated with ``@private_api`` will be omitted.
 
     @param app: The L{klein} application to introspect.
     @type app: L{klein.Klein}
@@ -163,6 +166,10 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     @rtype: L{dict} with the following keys.
       - C{'description'}:
              L{list} of L{str} containing a prose description of the endpoint.
+      - C{'section'}:
+             Section identifier this route should be included in.
+      - C{'header'}:
+             Header for the route.
       - C{'input'} I{(optional)}:
              L{dict} describing the input schema. Has C{'properties'} key with
              a L{list} of L{dict} of L{dict} with keys C{'title'},
@@ -183,11 +190,14 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     """
     result = {}
 
-    result['header'] = route.attributes.get('header')
+    try:
+        user_documentation = route.attributes["user_documentation"]
+    except KeyError:
+        raise SphinxError("Undocumented route: {}".format(route))
 
-    userDocumentation = route.attributes.get(
-        "userDocumentation", "Undocumented.")
-    result['description'] = prepare_docstring(userDocumentation)
+    result['description'] = prepare_docstring(user_documentation.text)
+    result['header'] = user_documentation.header
+    result['section'] = user_documentation.section
 
     inputSchema = route.attributes.get('inputSchema', None)
     outputSchema = route.attributes.get('outputSchema', None)
@@ -199,7 +209,7 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
         result['output'] = _parseSchema(outputSchema, schema_store)
         result["output_schema"] = outputSchema
 
-    examples = route.attributes.get("examples") or []
+    examples = user_documentation.examples
     result['examples'] = list(
         Example.fromDictionary(exampleByIdentifier(identifier))
         for identifier in examples)
@@ -342,33 +352,38 @@ def _formatRouteBody(data, schema_store):
             yield line
 
 
-def makeRst(prefix, app, exampleByIdentifier, schema_store):
+def makeRst(prefix, section, app, exampleByIdentifier, schema_store):
     """
     Generate the sphinx documentation associated with a L{klein} application.
 
-    @param prefix: The URL prefix of the URLs in this application.
-    @type prefix: L{bytes}
+    :param bytes prefix: The URL prefix of the URLs in this application.
 
-    @param app: The L{klein} application to introspect.
-    @type app: L{klein.Klein}
+    :param unicode section: The section of documentation to generate.
 
-    @param exampleByIdentifier: A one-argument callable that accepts an example
+    :param klein.Klein app: The L{klein} application to introspect.
+
+    :param exampleByIdentifier: A one-argument callable that accepts an example
         identifier and returns an HTTP session example.
 
-    @param dict schema_store: A mapping between schema paths
+    :param dict schema_store: A mapping between schema paths
         (e.g. ``b/v1/types.json``) and the JSON schema structure.
 
-    @return: The lines of sphinx representing the generated documentation.
-    @rtype: A generator of L{str}s.
+    :return: A generator yielding the lines of sphinx representing the
+        generated documentation.
     """
     # Adapted from sphinxcontrib.autohttp.flask
     for route in sorted(getRoutes(app)):
+        if route.attributes.get("private_api", False):
+            continue
         data = _introspectRoute(route, exampleByIdentifier, schema_store)
+        if data['section'] != section:
+            continue
         for method in route.methods:
             if data['header'] is not None:
                 yield data['header']
-                yield '=' * len(data['header'])
+                yield '-' * len(data['header'])
                 yield ''
+
             body = _formatRouteBody(data, schema_store)
             for line in http_directive(method, prefix + route.path, body):
                 yield line
@@ -419,7 +434,9 @@ class AutoKleinDirective(Directive):
         # relative to sphinx-build working directory which may vary.
         'examples_path': directives.unchanged,
         # Python import path of schema store.
-        'schema_store_fqpn': directives.unchanged}
+        'schema_store_fqpn': directives.unchanged,
+        'section': directives.unchanged,
+        }
 
     def run(self):
         schema_store = namedAny(self.options["schema_store_fqpn"])
@@ -457,7 +474,9 @@ class AutoKleinDirective(Directive):
         node.document = self.state.document
         result = ViewList()
         restLines = makeRst(
-            prefix=self.options['prefix'], app=appContainer.app,
+            prefix=self.options['prefix'],
+            section=self.options['section'],
+            app=appContainer.app,
             exampleByIdentifier=self._exampleByIdentifier,
             schema_store=schema_store)
         for line in restLines:

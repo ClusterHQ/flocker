@@ -33,7 +33,8 @@ from ...restapi.testtools import (
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways, RestartNever, Link, same_node, DeploymentState
+    RestartAlways, RestartNever, Link, same_node, DeploymentState,
+    NonManifestDatasets,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -663,7 +664,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                         u"remote_port": 54320
                     },
                     {
-                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"alias": u"anotherpostgres", u"local_port": 5432,
                         u"remote_port": 54321
                     },
                 ]
@@ -2639,6 +2640,78 @@ class DatasetsStateTestsMixin(APITestsMixin):
     Tests for the service datasets state description endpoint at
     ``/state/datasets``.
     """
+    def test_nonmanifest_listed(self):
+        """
+        Non-manifest datasets are listed.  The result does not include
+        ``primary`` and ``path`` values.
+        """
+        expected_dataset = Dataset(dataset_id=unicode(uuid4()))
+        self.cluster_state_service.apply_changes([
+            NonManifestDatasets(
+                datasets={
+                    expected_dataset.dataset_id: expected_dataset
+                }
+            )
+        ])
+        expected_dict = dict(
+            dataset_id=expected_dataset.dataset_id,
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+    def test_nonmanifest_and_manifest(self):
+        """
+        Manifest and non-manifest datasets are listed.
+        """
+        expected_nonmanifest_dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifest_dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation = Manifestation(
+            dataset=expected_manifest_dataset, primary=True
+        )
+        expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
+        self.cluster_state_service.apply_changes([
+            NodeState(
+                hostname=expected_hostname,
+                uuid=expected_uuid,
+                manifestations={
+                    expected_manifest_dataset.dataset_id:
+                    expected_manifestation},
+                paths={
+                    expected_manifest_dataset.dataset_id:
+                    FilePath(b"/path/dataset")
+                },
+                devices={
+
+                },
+            ),
+            NonManifestDatasets(
+                datasets={
+                    expected_nonmanifest_dataset.dataset_id:
+                    expected_nonmanifest_dataset
+                }
+            )
+        ])
+        expected_nonmanifest_dict = dict(
+            dataset_id=expected_nonmanifest_dataset.dataset_id,
+        )
+
+        expected_manifest_dict = dict(
+            dataset_id=expected_manifest_dataset.dataset_id,
+            primary=unicode(expected_uuid),
+            path=u"/path/dataset",
+        )
+
+        response = [
+            expected_manifest_dict,
+            expected_nonmanifest_dict
+        ]
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
     def test_empty(self):
         """
         When the cluster state includes no datasets, the endpoint
@@ -3048,7 +3121,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
@@ -3098,7 +3170,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
@@ -3132,7 +3203,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:latest",
             running=False,
@@ -3172,7 +3242,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         ])
         expected_dict1 = dict(
             name=u"myapp",
-            host=expected_hostname1,
             node_uuid=unicode(expected_uuid1),
             image=u"busybox:latest",
             running=True,
@@ -3180,7 +3249,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         )
         expected_dict2 = dict(
             name=u"myapp2",
-            host=expected_hostname2,
             node_uuid=unicode(expected_uuid2),
             image=u"busybox2:latest",
             running=True,

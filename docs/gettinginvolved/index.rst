@@ -6,6 +6,9 @@ Getting Involved
    :maxdepth: 2
 
    contributing
+   plugins
    acceptance-testing
+   client-testing
    infrastructure/index
-
+   appendix
+   authors

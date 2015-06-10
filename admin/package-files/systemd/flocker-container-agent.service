@@ -3,6 +3,7 @@ Description=Flocker Container Agent
 
 [Service]
 ExecStart=/usr/sbin/flocker-container-agent
+Restart=always
 
 [Install]
 WantedBy=multi-user.target

@@ -4,6 +4,7 @@
 Tests for ``admin.release``.
 """
 
+import json
 import os
 
 from gzip import GzipFile
@@ -27,20 +28,24 @@ from twisted.trial.unittest import SynchronousTestCase
 from .. import release
 
 from ..release import (
-    upload_python_packages, upload_rpms, update_repo,
+    upload_python_packages, upload_packages, update_repo,
     publish_docs, Environments,
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion, copy_tutorial_vagrant_box,
+    IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
+    publish_vagrant_metadata
 )
 
+from ..packaging import Distribution
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
+
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 
 def hard_linking_possible():
@@ -853,7 +858,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
     def update_repo(self, aws, yum,
                     package_directory, target_bucket, target_key, source_repo,
-                    packages, flocker_version, distro_name, distro_version):
+                    packages, flocker_version, distribution):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -874,8 +879,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 source_repo=source_repo,
                 packages=packages,
                 flocker_version=flocker_version,
-                distro_name=distro_name,
-                distro_version=distro_version,
+                distribution=distribution,
             )
         )
 
@@ -923,8 +927,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='fedora',
-            distro_version='7',
+            distribution=Distribution(name='centos', version='7'),
         )
 
         # The expected files are the new files plus the package which already
@@ -994,8 +997,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='ubuntu',
-            distro_version='14.04',
+            distribution=Distribution(name='ubuntu', version='14.04'),
         )
 
         # The expected files are the new files plus the package which already
@@ -1043,8 +1045,7 @@ class UpdateRepoTests(SynchronousTestCase):
                     self, files={}),
                 packages=self.packages,
                 flocker_version='0.3.3dev7',
-                distro_name='fedora',
-                distro_version='7',
+                distribution=Distribution(name="centos", version="7"),
             )
 
         self.assertEqual(404, exception.exception.response.status_code)
@@ -1082,8 +1083,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=repo_uri,
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='fedora',
-            distro_version='7',
+            distribution=Distribution(name='centos', version='7'),
         )
 
         expected_files = {
@@ -1165,8 +1165,7 @@ class UpdateRepoTests(SynchronousTestCase):
             source_repo=repo_uri,
             packages=self.packages,
             flocker_version='0.3.3dev7',
-            distro_name='ubuntu',
-            distro_version='14.04',
+            distribution=Distribution(name="ubuntu", version="14.04"),
         )
 
         expected_files = {
@@ -1193,30 +1192,32 @@ class UpdateRepoTests(SynchronousTestCase):
         self.assertNotIn(self.package_directory.path, packages_metadata)
 
 
-class UploadRPMsTests(SynchronousTestCase):
+class UploadPackagesTests(SynchronousTestCase):
     """
-    Tests for :func:``upload_rpms``.
+    Tests for :func:``upload_packages``.
     """
-    def upload_rpms(self, aws, yum,
-                    scratch_directory, target_bucket, version, build_server):
+    def upload_packages(self, aws, yum,
+                        scratch_directory, target_bucket, version,
+                        build_server, top_level):
         """
-        Call :func:``upload_rpms``, interacting with a fake AWS and yum
+        Call :func:``upload_packages``, interacting with a fake AWS and yum
         utilities.
 
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
 
-        See :py:func:`upload_rpms` for other parameter documentation.
+        See :py:func:`upload_packages` for other parameter documentation.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
-            upload_rpms(
+            upload_packages(
                 scratch_directory=scratch_directory,
                 target_bucket=target_bucket,
                 version=version,
                 build_server=build_server,
+                top_level=top_level,
             ),
         )
 
@@ -1224,171 +1225,92 @@ class UploadRPMsTests(SynchronousTestCase):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.createDirectory()
         self.target_bucket = 'test-target-bucket'
-        self.build_server = 'http://test-build-server.example'
-
-    def test_development_repositories_created(self):
-        """
-        Calling :func:`upload_rpms` creates development repositories for
-        CentOS 7 and Fedora 20 for a development release.
-        """
-        aws = FakeAWS(
+        self.aws = FakeAWS(
             routing_rules={},
             s3_buckets={
                 self.target_bucket: {},
             },
         )
+        self.build_server = 'http://test-build-server.example'
 
+    def test_repositories_created(self):
+        """
+        Calling :func:`upload_packages` creates repositories for supported
+        distributions.
+        """
         repo_contents = {
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3dev1/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev1/centos-7/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev1/centos-7/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev1/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3dev1/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3dev1/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3dev1/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3dev1/ubuntu-15.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3dev1/ubuntu-15.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
-            aws=aws,
+        self.upload_packages(
+            aws=self.aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
-            version='0.3.3dev7',
+            version='0.3.3dev1',
             build_server=create_fake_repository(self, files=repo_contents),
+            top_level=FLOCKER_PATH,
         )
 
         expected_files = {
-            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
-            'fedora-testing/20/x86_64/repodata/repomod.xml',
-            'fedora-testing/20/x86_64/repodata/<newhash>-metadata.xml',
-            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
-            'centos-testing/7/x86_64/repodata/repomod.xml',
-            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/repomod.xml',  # noqa
+            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
             'ubuntu-testing/14.04/amd64/Packages.gz',
             'ubuntu-testing/14.04/amd64/Release',
+            'ubuntu-testing/15.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/Packages.gz',
+            'ubuntu-testing/15.04/amd64/Release',
         }
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
 
-    def test_development_repositories_created_for_pre_release(self):
+    def test_key_suffixes(self):
         """
-        Calling :func:`upload_rpms` creates development repositories for
-        CentOS 7 and Fedora 20 for a pre-release.
+        The OS part of the keys for created repositories have suffixes (or not)
+        appropriate for the release type. In particular there is no "-testing"
+        in keys created for a marketing release.
         """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
         repo_contents = {
-            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/centos-7/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-flocker-cli_0.3.0-0.pre.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-flocker-node_0.3.0-0.pre.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb': '',  # noqa
-        }
-
-        self.upload_rpms(
-            aws=aws,
-            yum=FakeYum(),
-            scratch_directory=self.scratch_directory,
-            target_bucket=self.target_bucket,
-            version='0.3.0pre1',
-            build_server=create_fake_repository(self, files=repo_contents),
-        )
-
-        expected_files = [
-            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
-            'fedora-testing/20/x86_64/repodata/repomod.xml',
-            'fedora-testing/20/x86_64/repodata/<newhash>-metadata.xml',
-            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
-            'centos-testing/7/x86_64/repodata/repomod.xml',
-            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.0-0.pre.1_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.0-0.pre.1_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/Packages.gz',
-            'ubuntu-testing/14.04/amd64/Release',
-        ]
-
-        self.assertEqual(
-            sorted(expected_files),
-            sorted(aws.s3_buckets[self.target_bucket].keys()))
-
-    def test_marketing_repositories_created(self):
-        """
-        Calling :func:`upload_rpms` creates marketing repositories for
-        CentOS 7 and Fedora 20 for a marketing release.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        repo_contents = {
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
-            aws=aws,
+        self.upload_packages(
+            aws=self.aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
             version='0.3.3',
             build_server=create_fake_repository(self, files=repo_contents),
+            top_level=FLOCKER_PATH,
         )
 
-        expected_files = {
-            'fedora/20/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-            'fedora/20/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-            'fedora/20/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
-            'fedora/20/x86_64/repodata/repomod.xml',
-            'fedora/20/x86_64/repodata/<newhash>-metadata.xml',
-            'centos/7/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-            'centos/7/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-            'centos/7/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
-            'centos/7/x86_64/repodata/repomod.xml',
-            'centos/7/x86_64/repodata/<newhash>-metadata.xml',
-            'ubuntu/14.04/amd64/clusterhq-flocker-cli_0.3.3-1_all.deb',
-            'ubuntu/14.04/amd64/clusterhq-flocker-node_0.3.3-1_all.deb',
-            'ubuntu/14.04/amd64/clusterhq-python-flocker_0.3.3-1_amd64.deb',
-            'ubuntu/14.04/amd64/Packages.gz',
-            'ubuntu/14.04/amd64/Release',
-        }
-
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertEqual(expected_files, set(files_on_s3))
-
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
+        self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 def create_fake_repository(test_case, files):
     """
@@ -1842,39 +1764,186 @@ class CalculateBaseBranchTests(SynchronousTestCase):
             self.calculate_base_branch, '0.3.0')
 
 
-class CopyTutorialVagrantBox(SynchronousTestCase):
+class PublishVagrantMetadataTests(SynchronousTestCase):
     """
-    Tests for :func:`copy_tutorial_vagrant_box`.
+    Tests for :func:`publish_vagrant_metadata`.
     """
 
-    def test_vagrant_box_copied(self):
+    def setUp(self):
+        self.target_bucket = 'clusterhq-archive'
+        self.metadata_key = 'vagrant/flocker-tutorial.json'
+
+
+    def metadata_version(self, version, box_filename, provider="virtualbox"):
         """
-        A Vagrant box for a given version of Flocker is copied to the
-        archive.
+        Create a version section for Vagrant metadata, for a given box, with
+        one provider: virtualbox.
+
+        :param bytes version: The version of the box, normalised for Vagrant.
+        :param bytes box_filename: The filename of the box.
+        :param bytes provider: The provider for the box.
+
+        :return: Dictionary to be used as a version section in Vagrant
+            metadata.
         """
-        target_bucket = 'clusterhq-archive'
-        dev_bucket = 'clusterhq-dev-archive'
+        return {
+            "version": version,
+            "providers": [
+                {
+                    "url": "https://example.com/" + box_filename,
+                    "name": provider,
+                }
+            ],
+        }
+
+    def tutorial_metadata(self, versions):
+        """
+        Create example tutorial metadata.
+
+        :param list versions: List of dictionaries of version sections.
+
+        :return: Dictionary to be used as Vagrant metadata.
+        """
+        return {
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": versions,
+        }
+
+    def publish_vagrant_metadata(self, aws, version):
+        """
+        Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param version: See :py:func:`publish_vagrant_metadata`.
+        """
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
+        box_name = 'flocker-tutorial'
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            publish_vagrant_metadata(
+                version=version,
+                box_url=box_url,
+                box_name =box_name,
+                target_bucket=self.target_bucket,
+                scratch_directory=scratch_directory))
+
+    def test_no_metadata_exists(self):
+        """
+        A metadata file is added when one does not exist.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        expected_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            self.tutorial_metadata(versions=[expected_version]),
+        )
+
+    def test_version_added(self):
+        """
+        A version is added to an existing metadata file.
+        """
+        existing_old_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_old_version])
+        )
 
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                target_bucket: {},
-                dev_bucket: {
-                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content',
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
                 },
-            })
-
-        sync_perform(
-            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            copy_tutorial_vagrant_box(
-                target_bucket=target_bucket,
-                dev_bucket=dev_bucket,
-                version='0.3.0'))
-
-        self.assertEqual(
-            aws.s3_buckets[target_bucket],
-            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content'}
+            },
         )
+
+        expected_new_version = self.metadata_version(
+            version="0.4.0",
+            box_filename="flocker-tutorial-0.4.0.box",
+        )
+
+        expected_metadata = self.tutorial_metadata(
+            versions=[existing_old_version, expected_new_version])
+
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0')
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            expected_metadata,
+        )
+
+    def test_version_normalised(self):
+        """
+        The version given is converted to a version number acceptable to
+        Vagrant.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
+        metadata = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])
+        # The underscore is converted to a period in the version.
+        self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
+
+
+    def test_version_already_exists(self):
+        """
+        If a version already exists then its data is overwritten by the new
+        metadata. This works even if the version is changed when being
+        normalised.
+        """
+        existing_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="old_filename",
+            provider="old_provider",
+        )
+
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_version])
+        )
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
+                },
+            },
+        )
+
+        expected_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="flocker-tutorial-0.4.0-2314-g941011b.box",
+            provider="virtualbox",
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
+
+        metadata_versions = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+
+        self.assertEqual(metadata_versions, [expected_version])
 
 
 class PublishHomebrewRecipeTests(SynchronousTestCase):

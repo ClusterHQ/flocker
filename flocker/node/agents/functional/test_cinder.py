@@ -26,9 +26,9 @@ from ..test.test_blockdevice import (
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup,
+    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
+    get_minimum_allocatable_size,
 )
-from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
 
 from ..cinder import wait_for_volume
 
@@ -54,23 +54,15 @@ class CinderBlockDeviceAPIInterfaceTests(
                 lambda test_case: cinderblockdeviceapi_for_test(
                     test_case=test_case,
                 )
-            )
+            ),
+            minimum_allocatable_size=get_minimum_allocatable_size(),
+            device_allocation_unit=get_device_allocation_unit(),
+            unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
     """
-
-    # We haven't implemented resize functionality yet.
-    def test_resize_destroyed_volume(self):
-        raise SkipTest("Resize not implemented on Cinder - FLOC-1484")
-
-    def test_resize_unknown_volume(self):
-        raise SkipTest("Resize not implemented on Cinder - FLOC-1484")
-
-    def test_resize_volume_listed(self):
-        raise SkipTest("Resize not implemented on Cinder - FLOC-1484")
-
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
@@ -81,7 +73,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         cinder_client = kwargs["cinder_client"]
         requested_volume = cinder_client.volumes.create(
-            size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
+            size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
         self.addCleanup(
             cinder_client.volumes.delete,
@@ -103,6 +95,6 @@ class CinderBlockDeviceAPIInterfaceTests(
             )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)

@@ -8,6 +8,7 @@ An EBS implementation of the ``IBlockDeviceAPI``.
 from subprocess import check_output
 import threading
 import time
+import logging
 from uuid import UUID
 
 from bitmath import Byte, GiB
@@ -16,19 +17,57 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
+from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
+from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
+
+from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume
+    UnattachedVolume,
+)
+from ._logging import (
+    AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
+    NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
+    BOTO_LOG_HEADER,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
-BOTO_NUM_RETRIES = u'10'
+BOTO_NUM_RETRIES = u'20'
+VOLUME_STATE_CHANGE_TIMEOUT = 300
+
+
+class EliotLogHandler(logging.Handler):
+    _to_log = {"Method", "Path", "Params"}
+
+    def emit(self, record):
+        fields = vars(record)
+        # Only log certain things.  The log is massively too verbose
+        # otherwise.
+        if fields.get("msg", ":").split(":")[0] in self._to_log:
+            Message.new(
+                message_type=BOTO_LOG_HEADER, **fields
+            ).write()
+
+
+def _enable_boto_logging():
+    """
+    Make boto log activity using Eliot.
+    """
+    logger = logging.getLogger("boto")
+    logger.addHandler(EliotLogHandler())
+
+    # It seems as though basically all boto log messages are at the same
+    # level.  Either we can see all of them or we can see none of them.
+    # We'll do some extra filtering in the handler.
+    logger.setLevel(logging.DEBUG)
+
+_enable_boto_logging()
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -45,11 +84,11 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     """
 
     # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
-    # 1. `num_retries`:
+    # 1. ``num_retries``:
     # Request automatic exponential backoff and retry
     # attempts by Boto if an EC2 API call fails with
-    # `RequestLimitExceeded` due to system load.
-    # 2. `metadata_service_num_attempts`:
+    # ``RequestLimitExceeded`` due to system load.
+    # 2. ``metadata_service_num_attempts``:
     # Request for retry attempts by Boto to
     # retrieve data from Metadata Service used to retrieve
     # credentials for IAM roles on EC2 instances.
@@ -58,11 +97,80 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
 
+    # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
+    connection = ec2.connect_to_region(region,
+                                       aws_access_key_id=access_key_id,
+                                       aws_secret_access_key=secret_access_key)
     return _EC2(zone=zone,
-                connection=ec2.connect_to_region(
-                    region,
-                    aws_access_key_id=access_key_id,
-                    aws_secret_access_key=secret_access_key))
+                connection=_LoggedBotoConnection(connection=connection))
+
+
+def _boto_logged_method(method_name, original_name):
+    """
+    Run a boto.ec2.connection.EC2Connection method and
+    log additional information about any exceptions that are raised.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        """
+        Run given boto.ec2.connection.EC2Connection method with exception
+        logging for ``EC2ResponseError``.
+        """
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+
+        # Trace IBlockDeviceAPI ``method`` as Eliot Action.
+        with AWS_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except EC2ResponseError as e:
+                BOTO_EC2RESPONSE_ERROR(
+                    aws_code=e.code,
+                    aws_message=e.message,
+                    aws_request_id=e.request_id,
+                ).write()
+                raise
+    return _run_with_logging
+
+
+def boto_logger(*args, **kwargs):
+    """
+    Decorator to log all callable boto.ec2.connection.EC2Connection
+    methods.
+
+    :return: A function that will decorate all methods of the given
+        class with Boto exception logging.
+    """
+    def _class_decorator(cls):
+        for attr in EC2Connection.__dict__:
+            # Log wrap all callable methods except `__init__`.
+            if attr != '__init__':
+                attribute = getattr(EC2Connection, attr)
+                if callable(attribute):
+                    setattr(cls, attr,
+                            _boto_logged_method(attr, *args, **kwargs))
+        return cls
+    return _class_decorator
+
+
+@boto_logger("connection")
+class _LoggedBotoConnection(PRecord):
+    """
+    Wrapper ``PRecord`` around ``boto.ec2.connection.EC2Connection``
+    to facilitate logging of exceptions from Boto APIs.
+
+    :ivar boto.ec2.connection.EC2Connection connection: Object
+        representing connection to an EC2 instance with logged
+        ``EC2ConnectionError``.
+    """
+    connection = field(mandatory=True)
 
 
 class _EC2(PRecord):
@@ -84,7 +192,6 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
 
     :return: Input volume in BlockDeviceVolume format.
     """
-    ebs_volume.update()
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
@@ -93,55 +200,83 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
-def _wait_for_volume(expected_volume,
-                     expected_status=u'available',
-                     time_limit=60):
+def _wait_for_volume(volume,
+                     start_status,
+                     transient_status,
+                     end_status):
     """
-    Helper function to wait for up to 60s for given volume
-    to be in 'available' state.
+    Helper function to wait for a given volume to change state
+    from ``start_status`` via ``transient_status`` to ``end_status``.
 
-    :param boto.ec2.volume expected_volume: Volume to check
+    :param boto.ec2.volume volume: Volume to check
         status for.
-    :param str expected_status: Target state of the input
-        volume. Default target state is ''available''.
-    :param int time_limit: Upper bound of wait time for input
-        volume to reach expected state. Defaults to 60 seconds.
+    :param unicode start_status: Volume status at starting point.
+    :param unicode transient_status: Allowed transient state for
+        volume to be in, on the way to ``end_status``.
+    :param unicode end_status: Expected destination status for
+        the input volume.
 
-    :raises Exception: When input volume did not reach
-        expected state within time limit.
+    :raises Exception: When input volume failed to reach
+        expected destination status.
     """
+    # It typically takes a few seconds for anything to happen, so start
+    # out sleeping a little before doing initial check to reduce
+    # unnecessary polling of the API:
+    time.sleep(5.0)
+
+    # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
+    # volume status to transition from
+    # start_status -> transient_status -> end_status.
     start_time = time.time()
-    expected_volume.update()
-    while expected_volume.status != expected_status:
-        elapsed_time = time.time() - start_time
-        if elapsed_time < time_limit:
-            time.sleep(0.1)
-            expected_volume.update()
-        else:
-            raise Exception(
-                'Timed out while waiting for volume. '
-                'Expected Volume: {!r}, '
-                'Expected Status: {!r}, '
-                'Actual Status: {!r}, '
-                'Elapsed Time: {!r}, '
-                'Time Limit: {!r}.'.format(
-                    expected_volume, expected_status,
-                    expected_volume.status, elapsed_time,
-                    time_limit
-                )
+    while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
+        try:
+            volume.update()
+        except EC2ResponseError as e:
+            # If AWS cannot find the volume, raise ``UnknownVolume``.
+            # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
+            # for error details).
+            if e.code == u'InvalidVolume.NotFound':
+                raise UnknownVolume(volume.id)
+        if volume.status == end_status:
+            return
+        elif volume.status not in [start_status, transient_status]:
+            break
+        time.sleep(1.0)
+
+        WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
+                                         status=volume.status,
+                                         target_status=end_status,
+                                         wait_time=(time.time() - start_time))
+
+    # We either:
+    # 1) Timed out waiting to reach ``end_status``, or,
+    # 2) Reached an unexpected status (state change did not
+    #    start, or failed).
+    # Raise an ``Exception`` in both cases.
+    raise Exception(
+        'Volume state transition failed. '
+        'Volume: {!r}, '
+        'Start Status: {!r}, '
+        'Transient Status: {!r}, '
+        'Expected End Status: {!r}, '
+        'Discovered End Status: {!r},'
+        'Wait time: {!r},'
+        'Time limit: {!r}.'.format(
+            volume, start_status, transient_status, end_status,
+            volume.status, time.time() - start_time,
+            VOLUME_STATE_CHANGE_TIMEOUT
             )
+        )
 
 
-def _check_blockdevice_size(device, size):
+def _get_device_size(device):
     """
-    Helper function to check if the size of block device with given
-    suffix matches the input size.
+    Helper function to fetch the size of given block device.
 
-    :param unicode device: Name of the block device to check for size.
-    :param int size: Size, in SI metric bytes, of device we are interested in.
+    :param unicode device: Name of the block device to fetch size for.
 
-    :returns: True if a block device with given name has given size.
-        False otherwise.
+    :returns: Size, in SI metric bytes, of device we are interested in.
+    :rtype: int
     """
     device_name = b"/dev/" + device.encode("ascii")
 
@@ -160,7 +295,7 @@ def _check_blockdevice_size(device, size):
     command_output = check_output(command).split(b'\n')[0]
     device_size = int(command_output.strip().decode("ascii"))
 
-    return size == device_size
+    return device_size
 
 
 def _wait_for_new_device(base, size, time_limit=60):
@@ -187,11 +322,21 @@ def _wait_for_new_device(base, size, time_limit=60):
                            set(base)):
             device_name = FilePath.basename(device)
             if (device_name.startswith((b"sd", b"xvd")) and
-                    _check_blockdevice_size(device_name, size)):
+                    _get_device_size(device_name) == size):
                 new_device = u'/dev/' + device_name.decode("ascii")
                 return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
+
+    # If we failed to find a new device of expected size,
+    # log sizes of all new devices on this compute instance,
+    # for debuggability.
+    new_devices = list(set(FilePath(b"/sys/block").children()) - set(base))
+    new_devices_size = [_get_device_size(device) for device in new_devices]
+    NO_NEW_DEVICE_IN_OS(new_devices=new_devices,
+                        new_devices_size=new_devices_size,
+                        expected_size=size,
+                        time_limit=time_limit).write()
     return None
 
 
@@ -235,6 +380,13 @@ class EBSBlockDeviceAPI(object):
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
 
+    def allocation_unit(self):
+        """
+        Return a fixed allocation_unit for now; one which we observe
+        to work on AWS.
+        """
+        return int(GiB(1).to_Byte().value)
+
     def compute_instance_id(self):
         """
         Look up the EC2 instance ID for this node.
@@ -247,16 +399,25 @@ class EBSBlockDeviceAPI(object):
 
         :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
 
-        :returns boto.ec2.volume.Volume for the input id. ``None`` if
-            no boto.ec2.volume.Volume was found for the given id.
+        :returns: boto.ec2.volume.Volume for the input id.
+
+        :raise UnknownVolume: If no volume with a matching identifier can be
+             found.
         """
-        for volume in self.connection.get_all_volumes(
-                volume_ids=[blockdevice_id]):
+        try:
+            all_volumes = self.connection.get_all_volumes(
+                volume_ids=[blockdevice_id])
+        except EC2ResponseError as e:
+            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors
+            if e.error_code == "InvalidVolume.NotFound":
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise
+
+        for volume in all_volumes:
             if volume.id == blockdevice_id:
-                # Sync volume for uptodate metadata
-                volume.update()
                 return volume
-        return None
+        raise UnknownVolume(blockdevice_id)
 
     def _next_device(self, instance_id):
         """
@@ -285,6 +446,10 @@ class EBSBlockDeviceAPI(object):
             file_name = u'/dev/sd' + suffix
             if file_name not in devices:
                 return file_name
+
+        # Could not find any suitable device that is available
+        # for attachment. Log to Eliot before giving up.
+        NO_AVAILABLE_DEVICE(devices=devices).write()
         return None
 
     def create_volume(self, dataset_id, size):
@@ -294,12 +459,6 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        # There could be difference between user-requested and
-        # created volume sizes due to several reasons:
-        # 1) Round off from converting user-supplied 'size' to 'GiB' int.
-        # 2) EBS-specific size constraints.
-        # XXX: Address size mistach (see
-        # (https://clusterhq.atlassian.net/browse/FLOC-1874).
         requested_volume = self.connection.create_volume(
             size=int(Byte(size).to_GiB().value), zone=self.zone)
 
@@ -313,29 +472,26 @@ class EBSBlockDeviceAPI(object):
                                     metadata)
 
         # Wait for created volume to reach 'available' state.
-        _wait_for_volume(requested_volume)
+        _wait_for_volume(requested_volume,
+                         start_status=u'',
+                         transient_status=u'creating',
+                         end_status=u'available')
 
         # Return created volume in BlockDeviceVolume format.
         return _blockdevicevolume_from_ebs_volume(requested_volume)
 
     def list_volumes(self):
         """
-        Return all volumes in {available, in-use} state that belong to
-        this Flocker cluster.
+        Return all volumes that belong to this Flocker cluster.
         """
         volumes = []
         for ebs_volume in self.connection.get_all_volumes():
-            if ((_is_cluster_volume(self.cluster_id, ebs_volume)) and
-               (ebs_volume.status in [u'available', u'in-use'])):
+            if _is_cluster_volume(self.cluster_id, ebs_volume):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
         return volumes
 
-    def resize_volume(self, blockdevice_id, size):
-        pass
-
-    # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach an EBS volume to given compute instance.
@@ -349,8 +505,10 @@ class EBSBlockDeviceAPI(object):
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
-        if volume.attached_to is not None:
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
+        if (volume.attached_to is not None or
+                ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         with self.lock:
@@ -382,13 +540,15 @@ class EBSBlockDeviceAPI(object):
         # If OS fails to see new block device in 60 seconds,
         # `new_device` is `None`, indicating the volume failed
         # to attach to the compute instance.
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
         metadata = {
             ATTACHED_DEVICE_LABEL: unicode(new_device),
         }
         if new_device is not None:
             self.connection.create_tags([ebs_volume.id], metadata)
-        _wait_for_volume(ebs_volume, expected_status=u'in-use')
+        _wait_for_volume(ebs_volume,
+                         start_status=u'available',
+                         transient_status=u'attaching',
+                         end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
         return attached_volume
@@ -404,14 +564,18 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the BlockDeviceVolume for the
             blockdevice_id is not currently 'in-use'.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
-        if volume.attached_to is None:
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
+        if (volume.attached_to is None or
+                ebs_volume.status != 'in-use'):
             raise UnattachedVolume(blockdevice_id)
 
         self.connection.detach_volume(blockdevice_id)
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        _wait_for_volume(ebs_volume, expected_status=u'available',
-                         time_limit=180)
+
+        _wait_for_volume(ebs_volume,
+                         start_status=u'in-use',
+                         transient_status=u'detaching',
+                         end_status=u'available')
 
         # Delete attached device metadata from EBS Volume
         self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
@@ -427,16 +591,20 @@ class EBSBlockDeviceAPI(object):
         :raises Exception: If we failed to destroy Flocker cluster volume
             corresponding to input blockdevice_id.
         """
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                ret_val = self.connection.delete_volume(blockdevice_id)
-                if ret_val is False:
-                    raise Exception(
-                        'Failed to delete volume: {!r}'.format(blockdevice_id)
-                    )
-                else:
-                    return
-        raise UnknownVolume(blockdevice_id)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        destroy_result = self.connection.delete_volume(blockdevice_id)
+        if destroy_result:
+            try:
+                _wait_for_volume(ebs_volume,
+                                 start_status=u'available',
+                                 transient_status=u'deleting',
+                                 end_status='')
+            except UnknownVolume:
+                return
+        else:
+            raise Exception(
+                'Failed to delete volume: {!r}'.format(blockdevice_id)
+            )
 
     def get_device_path(self, blockdevice_id):
         """
@@ -451,11 +619,11 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
         try:
             device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
         except KeyError:
@@ -463,3 +631,33 @@ class EBSBlockDeviceAPI(object):
         if device is None:
             raise UnattachedVolume(blockdevice_id)
         return FilePath(device)
+
+
+def aws_from_configuration(region, zone, access_key_id, secret_access_key,
+                           cluster_id):
+    """
+    Build an ``EBSBlockDeviceAPI`` instance using configuration and
+    credentials.
+
+    :param str region: The EC2 region slug.  Volumes will be manipulated in
+        this region.
+    :param str zone: The EC2 availability zone.  Volumes will be manipulated in
+        this zone.
+    :param str access_key_id: The EC2 API key identifier to use to make AWS API
+        calls.
+    :param str secret_access_key: The EC2 API key to use to make AWS API calls.
+    :param UUID cluster_id: The unique identifier of the cluster with which to
+        associate the resulting object.  It will only manipulate volumes
+        belonging to this cluster.
+
+    :return: A ``EBSBlockDeviceAPI`` instance using the given parameters.
+    """
+    return EBSBlockDeviceAPI(
+        ec2_client=ec2_client(
+            region=region,
+            zone=zone,
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        ),
+        cluster_id=cluster_id,
+    )

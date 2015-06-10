@@ -121,6 +121,7 @@ if platform.system() == 'Linux':
     install_requirements.extend([
         "python-cinderclient==1.1.1",
         "python-novaclient==2.24.1",
+        "python-keystoneclient==1.4.0",
         "python-keystoneclient-rackspace==0.1.3",
     ])
 
@@ -184,7 +185,7 @@ setup(
             "sphinx-rtd-theme==0.1.6",
             "pyenchant==1.6.6",
             "sphinxcontrib-spelling==2.1.1",
-            "sphinx-prompt==0.2.2",
+            "sphinx-prompt==1.0.0",
             "sphinxcontrib-httpdomain==1.3.0",
             ],
         # This extra is for developers who need to work on Flocker itself.
@@ -204,6 +205,8 @@ setup(
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
             "requests-file==1.0",
+            # TLS SNI Support is needed to test link redirects
+            "ndg-httpsclient==0.4.0",
             ],
         },
 

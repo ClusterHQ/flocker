@@ -197,7 +197,7 @@ def target_release(version):
     :param bytes version: A pre-release version of Flocker.
     :return bytes: The final marketing version the pre-release is for.
 
-    :raises UnparseableVersion: If the version is not a pre-release.
+    :raises NotAPreRelease: If the version is not a pre-release.
     """
     if not is_pre_release(version):
         raise NotAPreRelease(version)
@@ -205,6 +205,21 @@ def target_release(version):
     parsed_version = _parse_version(version)
 
     return parsed_version.release
+
+
+def get_package_key_suffix(version):
+    """
+    Return the suffix for the keys in which packages for a given version are
+    stored.
+
+    :param bytes version: A version of Flocker.
+    :return bytes: The suffix for the keys in which packages for a version are
+        stored.
+    """
+    if is_release(version):
+        return ""
+    else:
+        return "-testing"
 
 
 class RPMVersion(PRecord):
