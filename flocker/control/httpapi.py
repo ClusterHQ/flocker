@@ -392,20 +392,38 @@ class ConfigurationAPIUserV1(object):
     )
     def state_datasets(self):
         """
-        Return the current primary datasets in the cluster.
+        Return all primary manifest datasets and all non-manifest datasets in
+        the cluster.
 
         :return: A ``list`` containing all datasets in the cluster.
         """
+        # XXX This duplicates code in datasets_from_deployment, but that
+        # function is designed to operate on a Deployment rather than a
+        # DeploymentState instance and the dataset configuration result
+        # includes metadata and deleted flags which should not be part of the
+        # dataset state response.
+        # Refactor. See FLOC-2207.
+        response = []
         deployment_state = self.cluster_state_service.as_deployment()
-        datasets = list(datasets_from_deployment(deployment_state))
-        for dataset in datasets:
-            node_uuid = UUID(hex=dataset[u"primary"])
-            dataset[u"path"] = self.cluster_state_service.manifestation_path(
-                node_uuid, dataset[u"dataset_id"]).path.decode(
-                    "utf-8")
-            del dataset[u"metadata"]
-            del dataset[u"deleted"]
-        return datasets
+        get_manifestation_path = self.cluster_state_service.manifestation_path
+
+        for dataset, node in deployment_state.all_datasets():
+            response_dataset = dict(
+                dataset_id=dataset.dataset_id,
+            )
+
+            if node is not None:
+                response_dataset[u"primary"] = unicode(node.uuid)
+                response_dataset[u"path"] = get_manifestation_path(
+                    node.uuid,
+                    dataset[u"dataset_id"]
+                ).path.decode("utf-8")
+
+            if dataset.maximum_size is not None:
+                response_dataset[u"maximum_size"] = dataset.maximum_size
+
+            response.append(response_dataset)
+        return response
 
     @app.route("/configuration/containers", methods=['GET'])
     @user_documentation(

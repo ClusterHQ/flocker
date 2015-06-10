@@ -1206,10 +1206,27 @@ class DeploymentStateTests(SynchronousTestCase):
 
     def test_all_datasets(self):
         """
-        ``all_datasets`` returns an iterator of ``Dataset``\ s on any node in
-        the deployment and any that exist but have no manifestations.
+        ``all_datasets`` returns an iterator of
+        2-tuple(``Dataset``, ``Node`` or ``None``)
+        for all primary manifest datasets and all non-manifest datasets in the
+        ``DeploymentState``.
         """
         nonmanifest_id = unicode(uuid4())
+
+        expected_nodestate = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.5",
+            applications={}, used_ports={},
+            manifestations={
+                MANIFESTATION.dataset_id: MANIFESTATION,
+            },
+            paths={
+                MANIFESTATION.dataset_id: FilePath(b"/foo/bar"),
+            },
+            devices={
+                UUID(MANIFESTATION.dataset_id): FilePath(b"/dev/foo"),
+            },
+        )
+
         deployment = DeploymentState(
             nodes={
                 # A node for which we are ignorant of manifestations, should
@@ -1220,19 +1237,7 @@ class DeploymentStateTests(SynchronousTestCase):
                     manifestations=None, paths=None, devices=None,
                 ),
                 # A node with a manifestation.
-                NodeState(
-                    uuid=uuid4(), hostname=u"192.0.2.5",
-                    applications={}, used_ports={},
-                    manifestations={
-                        MANIFESTATION.dataset_id: MANIFESTATION,
-                    },
-                    paths={
-                        MANIFESTATION.dataset_id: FilePath(b"/foo/bar"),
-                    },
-                    devices={
-                        UUID(MANIFESTATION.dataset_id): FilePath(b"/dev/foo"),
-                    },
-                ),
+                expected_nodestate,
             },
             nonmanifest_datasets={
                 # And one dataset with no manifestation anywhere.
@@ -1240,9 +1245,41 @@ class DeploymentStateTests(SynchronousTestCase):
             },
         )
         self.assertEqual(
-            [MANIFESTATION.dataset, Dataset(dataset_id=nonmanifest_id)],
+            [
+                (MANIFESTATION.dataset, expected_nodestate),
+                (Dataset(dataset_id=nonmanifest_id), None),
+            ],
             list(deployment.all_datasets()),
         )
+
+    def test_all_datasets_excludes_replicas(self):
+        """
+        ``all_datasets`` does not return replica manifestations.
+        """
+        replica = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+        deployment = DeploymentState(
+            nodes={
+                # A node with a replica manifestation only.
+                NodeState(
+                    uuid=uuid4(), hostname=u"192.0.2.5",
+                    applications={}, used_ports={},
+                    manifestations={
+                        replica.dataset_id: replica,
+                    },
+                    paths={
+                        replica.dataset.dataset_id: FilePath(b"/foo/replica"),
+                    },
+                    devices={
+                        UUID(replica.dataset.dataset_id):
+                        FilePath(b"/dev/replica"),
+                    },
+                )
+            },
+        )
+        self.assertEqual([], list(deployment.all_datasets()))
 
 
 class SameNodeTests(SynchronousTestCase):

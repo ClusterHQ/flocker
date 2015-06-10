@@ -179,9 +179,7 @@ definitions:
         path:
           '$ref': 'types.json#/definitions/node_path'
       required:
-        - primary
         - dataset_id
-        - path
       additionalProperties: false
 
   configuration_compose:
