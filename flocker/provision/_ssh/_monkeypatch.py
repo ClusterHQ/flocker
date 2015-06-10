@@ -151,7 +151,7 @@ def _patch_7672_needed():
     is not a supported keyexchange.
     """
     return ('diffie-hellman-group-exchange-sha256'
-            in SSHClientTransport.supportedKeyExchanges)
+            not in SSHClientTransport.supportedKeyExchanges)
 
 patch_7672_applied = False
 
