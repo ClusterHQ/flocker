@@ -26,14 +26,38 @@ For more information, see the :ref:`API authentication guide <authenticate>`.
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
-.. XXX: Improvements to the API (split in sections, and create collapse directive), both require Engineering effort:
-.. https://clusterhq.atlassian.net/browse/FLOC-2093
-.. https://clusterhq.atlassian.net/browse/FLOC-2094
-
 REST API Endpoints
 ==================
+
+
+Common API Endpoints
+--------------------
 
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
     :prefix: /v1
     :examples_path: api_examples.yml
+    :section: common
+
+Dataset API Endpoints
+---------------------
+
+.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
+    :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
+    :prefix: /v1
+    :examples_path: api_examples.yml
+    :section: dataset
+
+
+Container API Endpoints
+-----------------------
+
+.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
+    :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
+    :prefix: /v1
+    :examples_path: api_examples.yml
+    :section: container
+
+
+.. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
+.. https://clusterhq.atlassian.net/browse/FLOC-2094

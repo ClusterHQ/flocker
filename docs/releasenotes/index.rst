@@ -17,10 +17,10 @@ Next Release
 * ``flocker-deploy`` now requires the hostname of the control service as its first argument.
 * Added REST API functions to manage containers in a cluster alongside datasets.
   See :ref:`api`.
+* Removed support for installing ``flocker-node`` on Fedora 20.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04`.
+  See :ref:`installing-flocker-cli-ubuntu-14.04` and :ref:`installing-flocker-cli-ubuntu-15.04`.
 * Bug fixes and improvements focused on security and stability across platforms.
-
 
 v0.4
 ====
@@ -35,14 +35,14 @@ v0.4
 v0.3.2
 ======
 
-* Documented how to :ref:`configure the Fedora firewall<fedora-20-install>` on certain cloud platforms.
+* Documented how to configure the Fedora firewall on certain cloud platforms.
 
 
 v0.3.1
 ======
 
 * Applications can now be :ref:`configured with a CPU and memory limit<configuration>`.
-* Documentation now includes :ref:`instructions for installing flocker-node on Fedora20<fedora-20-install>`.
+* Documentation now includes instructions for installing flocker-node on Fedora 20.
 * Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install>`, and DigitalOcean.
 
 

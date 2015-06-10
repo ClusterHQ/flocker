@@ -1562,7 +1562,7 @@ class BlockDeviceDeployer(PRecord):
         manifestations_to_create = set()
         all_dataset_ids = list(
             dataset.dataset_id
-            for dataset
+            for dataset, node
             in cluster_state.all_datasets()
         )
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):

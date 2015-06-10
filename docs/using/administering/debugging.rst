@@ -15,8 +15,8 @@ Ubuntu
 
 XXX This should be documented, see :issue:`1877`.
 
-Fedora / CentOS
-^^^^^^^^^^^^^^^
+CentOS 7
+^^^^^^^^
 
 Logs from the Flocker processes running on the nodes are written to `systemd's journal`_.
 They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flocker-dataset-agent``.
