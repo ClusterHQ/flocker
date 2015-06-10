@@ -338,7 +338,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
    .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
              Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
-  
+
    You will find the files :file:`cluster.key` and :file:`cluster.crt` have been created in your working directory.
 
 #. The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere.
@@ -360,7 +360,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 #. At this point you will need to create a :file:`/etc/flocker` directory:
 
-   .. prompt:: bash 
+   .. prompt:: bash
 
       mkdir /etc/flocker
 
@@ -387,7 +387,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
    .. code-block:: console
 
       $ flocker-ca create-node-certificate
-      
+
    This creates :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`. Copy it over to :file:`/etc/flocker/node.crt` on your node machine, and make sure to chmod 0600 it.
 
    The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
