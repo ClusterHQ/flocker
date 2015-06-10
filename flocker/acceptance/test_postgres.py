@@ -71,16 +71,16 @@ class PostgresTests(TestCase):
         postgres_deployment = {
             u"version": 1,
             u"nodes": {
-                self.node_1.address: [POSTGRES_APPLICATION_NAME],
-                self.node_2.address: [],
+                self.node_1.reported_hostname: [POSTGRES_APPLICATION_NAME],
+                self.node_2.reported_hostname: [],
             },
         }
 
         self.postgres_deployment_moved = {
             u"version": 1,
             u"nodes": {
-                self.node_1.address: [],
-                self.node_2.address: [POSTGRES_APPLICATION_NAME],
+                self.node_1.reported_hostname: [],
+                self.node_2.reported_hostname: [POSTGRES_APPLICATION_NAME],
             },
         }
 
@@ -122,8 +122,8 @@ class PostgresTests(TestCase):
         not another.
         """
         return self.cluster.assert_expected_deployment(self, {
-            self.node_1.address: set([POSTGRES_APPLICATION]),
-            self.node_2.address: set([]),
+            self.node_1.reported_hostname: set([POSTGRES_APPLICATION]),
+            self.node_2.reported_hostname: set([]),
         })
 
     @require_moving_backend
@@ -135,8 +135,8 @@ class PostgresTests(TestCase):
             self, self.postgres_deployment_moved, self.postgres_application)
 
         return self.cluster.assert_expected_deployment(self, {
-            self.node_1.address: set([]),
-            self.node_2.address: set([POSTGRES_APPLICATION]),
+            self.node_1.reported_hostname: set([]),
+            self.node_2.reported_hostname: set([POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):
@@ -170,7 +170,7 @@ class PostgresTests(TestCase):
         user = b'postgres'
 
         connecting_to_application = self._get_postgres_connection(
-            host=self.node_1.address,
+            host=self.node_1.public_address,
             user=user,
             port=POSTGRES_EXTERNAL_PORT,
         )
@@ -186,7 +186,7 @@ class PostgresTests(TestCase):
 
         def connect_to_database(ignored):
             return self._get_postgres_connection(
-                host=self.node_1.address,
+                host=self.node_1.public_address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT,
                 database=database,
@@ -220,7 +220,7 @@ class PostgresTests(TestCase):
                 self.postgres_application_different_port)
 
             return self._get_postgres_connection(
-                host=self.node_2.address,
+                host=self.node_2.public_address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT + 1,
                 database=database,
