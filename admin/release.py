@@ -484,7 +484,6 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         target_bucket=target_bucket,
         target_key='vagrant/' + metadata_filename,
         file=new_metadata_file,
-        content_type='application/json',
         ))
 
 

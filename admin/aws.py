@@ -166,6 +166,7 @@ EXTENSION_MIME_TYPES = {
     '.html': 'text/html',
     '.jpg': 'image/jpeg',
     '.js': 'application/javascript',
+    '.json': 'application/json',
     '.css': 'text/css',
     '.png': 'image/png',
     '.sh': 'text/plain',
@@ -339,7 +340,6 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     "target_bucket",
     "target_key",
     "file",
-    Attribute("content_type", default_value=None),
 ])
 class UploadToS3(object):
     """
@@ -359,11 +359,13 @@ def perform_upload_s3_key(dispatcher, intent):
     """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.target_bucket)
+    key = bucket.new_key(intent.target_key)
     headers = {}
-    if intent.content_type is not None:
-        headers['Content-Type'] = intent.content_type
+    for extension, content_type in EXTENSION_MIME_TYPES.items():
+        if key.endswith(extension):
+            headers['Content-Type'] = content_type
+            break
     with intent.file.open() as source_file:
-        key = bucket.new_key(intent.target_key)
         key.set_contents_from_file(source_file, headers=headers)
         key.make_public()
 
@@ -403,9 +405,14 @@ class FakeAWS(object):
         self.cloudfront_invalidations = []
         for bucket in self.s3_buckets.values():
             for key, contents in bucket.items():
-                if isinstance(contents, basestring):
-                    # Convert string content to tuple of (content, contentType)
-                    bucket[key] = (contents, None)
+                assert isinstance(contents, basestring), contents
+                # Convert string content to tuple of (content, contentType)
+                for extension, content_type in EXTENSION_MIME_TYPES.items():
+                    if key.endswith(extension):
+                        break
+                else:
+                    content_type = None
+                bucket[key] = (contents, content_type)
 
     @sync_performer
     def _perform_update_s3_routing_rule(self, dispatcher, intent):
@@ -480,7 +487,13 @@ class FakeAWS(object):
         """
         bucket = self.s3_buckets[intent.target_bucket]
         with intent.file.open() as source_file:
-            bucket[intent.target_key] = source_file.read(), intent.content_type
+            key = intent.target_key
+            for extension, content_type in EXTENSION_MIME_TYPES.items():
+                if key.endswith(extension):
+                    break
+            else:
+                content_type = None
+            bucket[intent.target_key] = source_file.read(), content_type
 
     def get_bucket_keys(self, bucket):
         """
