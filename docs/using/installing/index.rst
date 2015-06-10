@@ -318,7 +318,7 @@ Please continue onto the next section, with the cluster authentication instructi
 .. _authentication:
 
 Configuring Cluster Authentication
-----------------------------------
+==================================
 
 Communication between the different parts of your cluster is secured and authenticated via TLS.
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
@@ -336,7 +336,8 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
       flocker-ca initialize mycluster
 
-   .. note:: This command creates cluster.key and cluster.crt. Please keep cluster.key secret, as anyone who can access it will be able to control your cluster.
+   .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
+             Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
   
    You will find the files :file:`cluster.key` and :file:`cluster.crt` have been created in your working directory.
 
