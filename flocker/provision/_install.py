@@ -571,7 +571,7 @@ def task_enable_flocker_agent(distribution, control_node,
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
             run_from_args(['systemctl', START, 'flocker-container-agent']),
         ])
-    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    elif distribution == 'ubuntu-14.04':
         return sequence([
             put_config_file,
             run_from_args(['service', 'flocker-dataset-agent', 'start']),
@@ -600,7 +600,7 @@ def task_install_zfs(distribution, variants=set()):
     :param set variants: The set of variant configurations to use when
     """
     commands = []
-    if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    if distribution == 'ubuntu-14.04':
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
             run_from_args([
