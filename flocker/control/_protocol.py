@@ -390,6 +390,13 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
 
+    @NoOp.responder
+    def noop(self):
+        """
+        Perform no operation.
+        """
+        return {}
+
     @property
     def logger(self):
         """
