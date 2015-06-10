@@ -6,6 +6,8 @@ The command-line ``flocker-*-agent`` tools.
 """
 
 from socket import socket
+from contextlib import closing
+from time import sleep
 
 import yaml
 
@@ -104,17 +106,14 @@ def _get_external_ip(host, port):
     while True:
         try:
             with LOG_GET_EXTERNAL_IP(host=unicode(host), port=port) as ctx:
-                sock = socket()
-                try:
+                with closing(socket()) as sock:
                     sock.connect((host, port))
                     result = unicode(sock.getsockname()[0], "ascii")
                     ctx.addSuccessFields(local_ip=result)
                     return result
-                finally:
-                    sock.close()
         except:
             # Error is logged by LOG_GET_EXTERNAL_IP.
-            pass
+            sleep(0.1)
 
 
 class _TLSContext(PRecord):
