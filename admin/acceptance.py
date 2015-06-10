@@ -774,7 +774,10 @@ def eliot_output(message):
 
     format = ''
     if message_type is not None:
-        format = MESSAGE_FORMATS.get(message_type, '')
+        if message_type == 'twisted:log' and message.get('error'):
+            format = '%(message)s'
+        else:
+            format = MESSAGE_FORMATS.get(message_type, '')
     elif action_type is not None:
         if action_status == 'started':
             format = ACTION_START_FORMATS.get('action_type', '')
