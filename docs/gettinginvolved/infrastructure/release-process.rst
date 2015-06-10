@@ -247,12 +247,7 @@ So it is important to check that the code in the release branch is working befor
    If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
    Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
 
-#. Merge the release pull request.
-   Do not delete the release branch because it may be used as a base branch for future releases.
-
-#.  Reject the JIRA issue.
-
-    This is necessary because the release process is not "Done" even though no further changes will be made on the branch.
+#.  Accept the JIRA issue, and add a comment that the release process can continue.
 
 .. _release:
 
@@ -311,6 +306,9 @@ Release
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
       $ vagrant scp default:/home/vagrant/.aws ~/
+
+#. Merge the release pull request.
+   Do not delete the release branch because it may be used as a base branch for future releases.
 
 
 Improving the Release Process
