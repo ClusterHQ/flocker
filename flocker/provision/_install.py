@@ -16,7 +16,6 @@ from zope.interface import implementer
 from characteristic import attributes
 from pyrsistent import PRecord, field
 
-from flocker.acceptance.testtools import DatasetBackend
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (

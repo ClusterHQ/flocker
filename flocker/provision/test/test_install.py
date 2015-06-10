@@ -85,8 +85,6 @@ class EnableFlockerAgentTests(SynchronousTestCase):
         """
         distribution = u"centos-7"
         control_address = BASIC_AGENT_YML["control-service"]["hostname"]
-        expected_pool = u"some-test-pool"
-        expected_backend_configuration = dict(pool=expected_pool)
         commands = task_enable_flocker_agent(
             distribution=distribution,
             control_node=control_address
