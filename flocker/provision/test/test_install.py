@@ -77,6 +77,28 @@ class EnableFlockerAgentTests(SynchronousTestCase):
             put_agent_yml,
         )
 
+    def test_no_agent_yml(self):
+        """
+        ``task_enable_flocker_agent`` does not write a `agent.yml` file if no
+        dataset backend is supplied (as per the use case in the documentation
+        installation instructions).
+        """
+        distribution = u"centos-7"
+        control_address = BASIC_AGENT_YML["control-service"]["hostname"]
+        expected_pool = u"some-test-pool"
+        expected_backend_configuration = dict(pool=expected_pool)
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+            control_node=control_address
+        )
+        expected_sequence = sequence([
+            run(command="systemctl enable flocker-dataset-agent"),
+            run(command="systemctl restart flocker-dataset-agent"),
+            run(command="systemctl enable flocker-container-agent"),
+            run(command="systemctl restart flocker-container-agent"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
 
 def _centos7_install_commands(version):
     """
