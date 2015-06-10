@@ -31,7 +31,7 @@ from .blockdevice import (
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER,
+    BOTO_LOG_HEADER, IN_USE_DEVICES,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -442,6 +442,8 @@ class EBSBlockDeviceAPI(object):
         volumes = self.connection.get_all_volumes()
         devices = [v.attach_data.device for v in volumes
                    if v.attach_data.instance_id == instance_id]
+        IN_USE_DEVICES(devices=devices).write()
+
         for suffix in b"fghijklmonp":
             file_name = u'/dev/sd' + suffix
             if file_name not in devices:

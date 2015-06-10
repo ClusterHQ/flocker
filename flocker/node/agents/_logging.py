@@ -58,6 +58,11 @@ NO_AVAILABLE_DEVICE = MessageType(
     u"flocker:node:agents:blockdevice:aws:no_available_device",
     [DEVICES],
 )
+IN_USE_DEVICES = MessageType(
+    u"flocker:node:agents:blockdevice:aws:in_use_devices",
+    [DEVICES],
+    u"Log current devices.",
+)
 
 NEW_DEVICES = Field.forTypes(
     u"new_devices", [list],
