@@ -359,14 +359,20 @@ Using an IP address is not recommended as it may break some HTTPS clients.
 
    $ flocker-ca create-control-certificate example.org
 
+At this point you will need to create a :file:`/etc/flocker` directory:
+
+.. prompt:: bash 
+
+  mkdir /etc/flocker
+
 You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
 You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
 On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
 .. code-block:: console
 
-   root@mercury:~/$ chmod 0700 /etc/flocker
-   root@mercury:~/$ chmod 0600 /etc/flocker/control-service.key
+   root@centos-7:~/$ chmod 0700 /etc/flocker
+   root@centos-7:~/$ chmod 0600 /etc/flocker/control-service.key
 
 You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
 
