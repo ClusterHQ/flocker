@@ -1,5 +1,7 @@
 [Unit]
 Description=Flocker Dataset Agent
+After=network-online.target
+Requires=network-online.target
 
 [Service]
 ExecStart=/usr/sbin/flocker-dataset-agent

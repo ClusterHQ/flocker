@@ -1,5 +1,7 @@
 [Unit]
 Description=Flocker Control Service
+After=network-online.target
+Requires=network-online.target
 
 [Service]
 ExecStart=/usr/sbin/flocker-control -p systemd:INET:0 -a systemd:INET:1
