@@ -15,8 +15,7 @@ from flocker.testtools import random_name
 bucket_name = 'clusterhq-archive-testing'
 
 try:
-    conn = boto.connect_s3()
-    conn.head_bucket(bucket_name)
+    conn = boto.connect_s3().head_bucket(bucket_name)
     _can_connect = True
 except:
     _can_connect = False
@@ -29,7 +28,7 @@ class AWSTest(SynchronousTestCase):
     @if_aws
     def test_upload_content_type(self):
         """
-        Test that a content type is set for the Vagrant JSON file.
+        Test that a content type can be set for an uploaded file.
         """
         filename = random_name(self)
         tmpdir = self.mktemp()
