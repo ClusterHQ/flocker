@@ -25,6 +25,9 @@ from bitmath import GiB
 
 from pyrsistent import PRecord, field
 
+from eliot import ActionType, Field, MessageType
+from eliot.twisted import DeferredContext
+
 from docker import Client as DockerClient
 
 from zope.interface import implementer
@@ -34,7 +37,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import prefixedMethodNames
+from twisted.python.reflect import prefixedMethodNames, safe_str
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -45,7 +48,6 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
-from twisted.python.log import msg
 
 from .. import __version__
 from ..common.script import (
@@ -192,6 +194,32 @@ def assert_not_equal_comparison(case, a, b):
             "Expected a and b to be not-equal: " + "; ".join(messages))
 
 
+def function_serializer(function):
+    try:
+        return {
+            "function": str(function),
+            "file": getfile(function),
+            "line": getsourcelines(function)[1]
+        }
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        return {
+            "function": function,
+        }
+
+LOOP_UNTIL_ACTION = ActionType(
+    action_type="flocker:testtools:loop_until",
+    startFields=[Field("predicate", function_serializer)],
+    successFields=[Field("result", serializer=safe_str)],
+    description="Looping until predicate is true.")
+
+LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
+    message_type="flocker:testtools:loop_until:iteration",
+    fields=[Field("result", serializer=safe_str)],
+    description="Loop iteration.")
+
+
 def loop_until(predicate):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 
@@ -201,24 +229,23 @@ def loop_until(predicate):
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    try:
-        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                       getsourcelines(predicate)[1]))
-    except IOError:
-        # One debugging method involves changing .py files and is incompatible
-        # with inspecting the source.
-        msg("Looping on %s" % (predicate,))
+    action = LOOP_UNTIL_ACTION(predicate=predicate)
 
-    d = maybeDeferred(predicate)
+    d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
 
     def loop(result):
         if not result:
-            d = deferLater(reactor, 0.1, predicate)
+            LOOP_UNTIL_ITERATION_MESSAGE(
+                message_type="flocker:testtools:loop_until:iteration",
+                result=result
+            ).write()
+            d = deferLater(reactor, 0.1, action.run, predicate)
             d.addCallback(loop)
             return d
+        action.addSuccessFields(result=result)
         return result
     d.addCallback(loop)
-    return d
+    return d.addActionFinish()
 
 
 def random_name(case):
