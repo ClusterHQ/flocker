@@ -49,6 +49,14 @@ systemctl enable flocker-container-agent
 systemctl start flocker-container-agent
 EOF
 
+$always_run_on_startup = <<EOF
+# Fix networking configuration, and then restart the agents so that they pick
+# up the correct IPs. Fixes https://clusterhq.atlassian.net/browse/FLOC-2136
+ifup enp0s8
+systemctl restart flocker-dataset-agent
+systemctl restart flocker-container-agent
+EOF
+
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
   config.vm.box_url = "https://clusterhq-archive.s3.amazonaws.com/vagrant/flocker-tutorial.json"
@@ -61,6 +69,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     node1.vm.provision "shell", inline: $bootstrap_control, privileged: true
     node1.vm.provision "shell", inline: $bootstrap_node1_cert, privileged: true
     node1.vm.provision "shell", inline: $bootstrap_node, privileged: true
+    node1.vm.provision "shell", inline: $always_run_on_startup, run: "always", privileged: true
   end
 
   config.vm.define "node2" do |node2|
@@ -69,6 +78,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     node2.vm.provision "shell", inline: $bootstrap_common, privileged: true
     node2.vm.provision "shell", inline: $bootstrap_node2_cert, privileged: true
     node2.vm.provision "shell", inline: $bootstrap_node, privileged: true
+    node2.vm.provision "shell", inline: $always_run_on_startup, run: "always", privileged: true
   end
 
   # Don't use a shared folder.
