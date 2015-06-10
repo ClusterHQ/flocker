@@ -127,7 +127,8 @@ class ManagedNode(PRecord):
     orchestration software).
     """
     address = field(type=bytes, mandatory=True)
-    private_address = field(type=(bytes, type(None)), initial=None, mandatory=True)
+    private_address = field(type=(bytes, type(None)),
+                            initial=None, mandatory=True)
     distribution = field(type=bytes, mandatory=True)
 
 
