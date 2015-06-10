@@ -401,6 +401,11 @@ class FakeAWS(object):
     """
     def __init__(self):
         self.cloudfront_invalidations = []
+        for bucket in self.s3_buckets.values():
+            for key, contents in bucket.items():
+                if isinstance(contents, basestring):
+                    # Convert string content to tuple of (content, contentType)
+                    bucket[key] = (contents, None)
 
     @sync_performer
     def _perform_update_s3_routing_rule(self, dispatcher, intent):
@@ -466,7 +471,7 @@ class FakeAWS(object):
         See :class:`DownloadS3Key`.
         """
         bucket = self.s3_buckets[intent.source_bucket]
-        intent.target_path.setContent(bucket[intent.source_key])
+        intent.target_path.setContent(bucket[intent.source_key][0])
 
     @sync_performer
     def _perform_upload_s3_key(self, dispatcher, intent):
@@ -475,7 +480,36 @@ class FakeAWS(object):
         """
         bucket = self.s3_buckets[intent.target_bucket]
         with intent.file.open() as source_file:
-            bucket[intent.target_key] = source_file.read()
+            bucket[intent.target_key] = source_file.read(), intent.content_type
+
+    def get_contents(self, bucket):
+        """
+        Retrieve the file keys and contents in S3.
+
+        :param str bucket: name of the S3 bucket.
+        :returns: a dictionary mapping keys to file contents.
+        """
+        return {k: v[0] for k, v in self.s3_buckets[bucket].items()}
+
+    def get_content(self, bucket, key):
+        """
+        Retrieve the content of a file in S3.
+
+        :param str bucket: name of the S3 bucket.
+        :param str key: key for the S3 file.
+        :returns: the contents of the file.
+        """
+        return self.s3_buckets[bucket][key][0]
+
+    def get_content_type(self, bucket, key):
+        """
+        Retrieve the content of a file in S3.
+
+        :param str bucket: name of the S3 bucket.
+        :param str key: key for the S3 file.
+        :returns: the contents of the file.
+        """
+        return self.s3_buckets[bucket][key][1]
 
     def get_dispatcher(self):
         """
