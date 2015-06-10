@@ -363,37 +363,39 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
       mkdir /etc/flocker
 
-You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
-You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
-On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
+#. You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
+   You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
 
-.. code-block:: console
+#. On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
-   root@centos-7:~/$ chmod 0700 /etc/flocker
-   root@centos-7:~/$ chmod 0600 /etc/flocker/control-service.key
+   .. code-block:: console
 
-You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
+      root@centos-7:~/$ chmod 0700 /etc/flocker
+      root@centos-7:~/$ chmod 0600 /etc/flocker/control-service.key
 
-.. warning::
+   You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
 
-   Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file; this must kept only by the cluster administrator.
+   .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file; this must kept only by the cluster administrator.
 
-You will also need to generate authentication certificates for each of your nodes.
-Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
-This step should be followed for all nodes on the cluster, as well as the machine running the control service.
-Run the command in the same directory containing the certificate authority files you generated in the first step.
+#. You will also need to generate authentication certificates for each of your nodes.
+   Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
 
-.. code-block:: console
+   This step should be followed for all nodes on the cluster, as well as the machine running the control service.
+   Run the command in the same directory containing the certificate authority files you generated in the first step.
 
-   $ flocker-ca create-node-certificate
-   Created 8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt. Copy it over to /etc/flocker/node.crt on your node machine, and make sure to chmod 0600 it.
+   .. code-block:: console
 
-The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
+      $ flocker-ca create-node-certificate
+      
+   This creates :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`. Copy it over to :file:`/etc/flocker/node.crt` on your node machine, and make sure to chmod 0600 it.
 
-As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the :file:`cluster.crt` certificate.
-Copy the generated files to :file:`/etc/flocker` on the target node and name them :file:`node.crt` and :file:`node.key`.
-Perform the same :command:`chmod 600` commands on :file:`node.key` as you did for the control service in the instructions above.
-The :file:`/etc/flocker` directory should be set to ``chmod 700``.
+   The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
+
+#. As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the :file:`cluster.crt` certificate.
+
+   - Copy the generated files to :file:`/etc/flocker` on the target node and name them :file:`node.crt` and :file:`node.key`.
+   - Perform the same :command:`chmod 600` commands on :file:`node.key` as you did for the control service in the instructions above.
+   - The :file:`/etc/flocker` directory should be set to ``chmod 700``.
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
@@ -402,7 +404,7 @@ You can read more about how Flocker's authentication layer works in the :ref:`se
 .. _post-installation-configuration:
 
 Post-Installation Configuration
--------------------------------
+...............................
 
 Your firewall will need to allow access to the ports your applications are exposing.
 
@@ -410,58 +412,6 @@ Your firewall will need to allow access to the ports your applications are expos
 
    Keep in mind the consequences of exposing unsecured services to the Internet.
    Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
-
-ZFS Backend Configuration
--------------------------
-
-The ZFS backend requires ZFS to be installed.
-
-
-Installing ZFS on CentOS 7
-..........................
-
-Installing ZFS requires the kernel development headers for the running kernel.
-Since CentOS doesn't provide easy access to old package versions,
-the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
-
-.. task:: upgrade_kernel centos-7
-   :prompt: [root@centos-7]#
-
-You will need to reboot the node after updating the kernel.
-
-.. prompt:: bash [root@centos-7]#
-
-   shutdown -r now
-
-You must also install the ZFS package repository.
-
-.. task:: install_zfs centos-7
-   :prompt: [root@centos-7]#
-
-
-Installing ZFS on Ubuntu 14.04
-..............................
-
-.. task:: install_zfs ubuntu-14.04
-   :prompt: [root@ubuntu-14.04]#
-
-
-Creating a ZFS Pool
-...................
-
-Flocker requires a ZFS pool.
-The pool is typically named named ``flocker`` but this is not required.
-The following commands will create a 10 gigabyte ZFS pool backed by a file:
-
-.. task:: create_flocker_pool_file
-   :prompt: [root@node]#
-
-.. note:: It is also possible to create the pool on a block device.
-
-.. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
-
-To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
-So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
 Enabling the Flocker control service on CentOS 7
 -------------------------------------------------
@@ -655,6 +605,61 @@ Run the following commands to enable the agent service:
 
 What to do next
 ===============
+
+Optional ZFS Backend Configuration
+----------------------------------
+
+The ZFS backend requires ZFS to be installed.
+
+
+Installing ZFS on CentOS 7
+..........................
+
+Installing ZFS requires the kernel development headers for the running kernel.
+Since CentOS doesn't provide easy access to old package versions,
+the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
+
+.. task:: upgrade_kernel centos-7
+   :prompt: [root@centos-7]#
+
+You will need to reboot the node after updating the kernel.
+
+.. prompt:: bash [root@centos-7]#
+
+   shutdown -r now
+
+You must also install the ZFS package repository.
+
+.. task:: install_zfs centos-7
+   :prompt: [root@centos-7]#
+
+
+Installing ZFS on Ubuntu 14.04
+..............................
+
+.. task:: install_zfs ubuntu-14.04
+   :prompt: [root@ubuntu-14.04]#
+
+
+Creating a ZFS Pool
+...................
+
+Flocker requires a ZFS pool.
+The pool is typically named named ``flocker`` but this is not required.
+The following commands will create a 10 gigabyte ZFS pool backed by a file:
+
+.. task:: create_flocker_pool_file
+   :prompt: [root@node]#
+
+.. note:: It is also possible to create the pool on a block device.
+
+.. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
+
+To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
+So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
+
+Next Steps
+----------
 
 Next, we will describe how to use cluster security and authentication.
 However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
