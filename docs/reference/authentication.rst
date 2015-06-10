@@ -36,8 +36,11 @@ You should securely provide a copy of these files to the API end user, as well a
 Using an API certificate to authenticate
 ========================================
 
-Once in possession of an API user certificate and the cluster certificate, an end user must authenticate with those certificates in every request to the cluster REST API - the cluster certificate ensures the user is connecting to the genuine API of their cluster, while the client certificate allows the API server to ensure the request is from a genuine, authorised user.
-An example of performing this authentication with ``cURL`` is given below, where ``172.16.255.250`` represents the IP address of the control service.
+Once in possession of an API user certificate and the cluster certificate an end user must authenticate with those certificates in every request to the cluster REST API.
+The cluster certificate ensures the user is connecting to the genuine API of their cluster.
+The client certificate allows the API server to ensure the request is from a genuine, authorised user.
+An example of performing this authentication with ``cURL`` is given below.
+In this example, ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
 
 .. code-block:: console
