@@ -108,9 +108,10 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/version", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Get the version of Flocker being run.
         """,
+        section=u"common",
         header=u"Get Flocker version",
         examples=[u"get version"])
     @structured(
@@ -126,11 +127,12 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Get the cluster's dataset configuration.
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
+        section=u"dataset",
     )
     @structured(
         inputSchema={},
@@ -151,7 +153,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         Create a new dataset.
         """,
         header=u"Create new dataset",
@@ -161,7 +163,8 @@ class ConfigurationAPIUserV1(object):
             u"create dataset with duplicate dataset_id",
             u"create dataset with maximum_size",
             u"create dataset with metadata",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={
@@ -245,7 +248,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
-        """
+        u"""
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
         """,
@@ -253,7 +256,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"delete dataset",
             u"delete dataset with unknown dataset id",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={},
@@ -297,7 +301,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         This can be used to:
 
         * Move a dataset from one node to another by changing the
@@ -309,7 +313,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={
@@ -369,13 +374,15 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         The result reflects the control service's knowledge, which may be
         out of date or incomplete. E.g. a dataset agent has not connected
         or updated the control service yet.
         """,
         header=u"Get current cluster datasets",
-        examples=[u"get state datasets"])
+        examples=[u"get state datasets"],
+        section=u"dataset",
+    )
     @structured(
         inputSchema={},
         outputSchema={
@@ -402,12 +409,13 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         These containers may or may not actually exist on the
         cluster.
         """,
         header=u"Get the cluster's container configuration",
         examples=[u"get configured containers"],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -428,13 +436,14 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         This reflects the control service's knowledge of the cluster,
         which may be out of date or incomplete, e.g. if a container agent
         has not connected or updated the control service yet.
         """,
         header=u"Get the cluster's actual containers",
         examples=[u"get actual containers"],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -494,7 +503,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         The container will be automatically started once it is created on
         the cluster.
         """,
@@ -510,7 +519,8 @@ class ConfigurationAPIUserV1(object):
             u"create container with memory limit",
             u"create container with links",
             u"create container with command line",
-        ]
+        ],
+        section=u"container",
     )
     @structured(
         inputSchema={
@@ -668,13 +678,14 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers/<name>", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         This will lead to the container being relocated to the specified host
         and restarted. This will also update the primary host of any attached
         datasets.
         """,
         header=u"Update a named container's configuration",
         examples=[u"move container"],
+        section=u"container",
     )
     @structured(
         inputSchema={
@@ -725,7 +736,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers/<name>", methods=['DELETE'])
     @user_documentation(
-        """
+        u"""
         This will lead to the container being stopped and not being
         restarted again. Any datasets that were attached as volumes will
         continue to exist on the cluster.
@@ -734,7 +745,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"remove a container",
             u"remove a container with unknown name",
-        ]
+        ],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -767,7 +779,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/nodes", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Some nodes may not be listed if their agents are disconnected from
         the cluster. IP addresses may be private IP addresses that are not
         publicly routable.
@@ -775,7 +787,8 @@ class ConfigurationAPIUserV1(object):
         header=u"List known nodes in the cluster",
         examples=[
             u"list known nodes",
-        ]
+        ],
+        section=u"common",
     )
     @structured(
         inputSchema={},
