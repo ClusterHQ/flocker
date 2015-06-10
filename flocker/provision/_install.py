@@ -517,48 +517,48 @@ def task_open_control_firewall(distribution):
 
 
 def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs,
-                              dataset_backend_configuration=dict(
-                                  pool=u'flocker'
-                              )):
+                              dataset_backend=None,
+                              dataset_backend_configuration=None):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with.  (This has a default for use in the documentation).
+        configured with.
     :param dict dataset_backend_configuration: The backend specific
         configuration options.
     """
-    dataset_backend_configuration = dataset_backend_configuration.copy()
-    dataset_backend_configuration.update({
-        u"backend": dataset_backend.name,
-    })
+    initial_sequence = []
+    if dataset_backend is not None:
+        dataset_backend_configuration = dataset_backend_configuration.copy()
+        dataset_backend_configuration.update({
+            u"backend": dataset_backend.name,
+        })
 
-    put_config_file = put(
-        path='/etc/flocker/agent.yml',
-        content=yaml.safe_dump(
-            {
-                "version": 1,
-                "control-service": {
-                    "hostname": control_node,
-                    "port": 4524,
+        put_config_file = put(
+            path='/etc/flocker/agent.yml',
+            content=yaml.safe_dump(
+                {
+                    "version": 1,
+                    "control-service": {
+                        "hostname": control_node,
+                        "port": 4524,
+                    },
+                    "dataset": dataset_backend_configuration,
                 },
-                "dataset": dataset_backend_configuration,
-            },
-        ),
-    )
+            ),
+        )
+        initial_sequence.append(put_config_file)
+
     if distribution in ('centos-7',):
-        return sequence([
-            put_config_file,
+        return sequence(initial_sequence + [
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
             run_from_args(['systemctl', START, 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
             run_from_args(['systemctl', START, 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
-        return sequence([
-            put_config_file,
+        return sequence(initial_sequence + [
             run_from_args(['service', 'flocker-dataset-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
