@@ -482,13 +482,11 @@ class EBSBlockDeviceAPI(object):
 
     def list_volumes(self):
         """
-        Return all volumes in {available, in-use} state that belong to
-        this Flocker cluster.
+        Return all volumes that belong to this Flocker cluster.
         """
         volumes = []
         for ebs_volume in self.connection.get_all_volumes():
-            if ((_is_cluster_volume(self.cluster_id, ebs_volume)) and
-               (ebs_volume.status in [u'available', u'in-use'])):
+            if _is_cluster_volume(self.cluster_id, ebs_volume):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
