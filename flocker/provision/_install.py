@@ -93,6 +93,13 @@ def get_repository_url(distribution, flocker_version):
                             key='ubuntu' + get_package_key_suffix(
                                 flocker_version),
                         ),
+
+        'ubuntu-15.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
     }
 
     try:
@@ -217,12 +224,19 @@ def install_cli_commands_ubuntu(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
+
     commands = [
-        # Ensure add-apt-repository command and HTTPS URLs are supported
-        # FLOC-1880 will ensure these are necessary and sufficient
+        # Minimal images often have cleared apt caches and are missing
+        # packages that are common in a typical release.  These commands
+        # ensure that we start from a good base system with the required
+        # capabilities, particularly that the add-apt-repository command
+        # and HTTPS URLs are supported.
+        # FLOC-1880 will ensure these are necessary and sufficient.
+        sudo_from_args(["apt-get", "update"]),
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
+
         # Add ClusterHQ repo for installation of Flocker packages.
         sudo(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
@@ -266,6 +280,7 @@ _task_install_commands = {
     'centos-7': install_cli_commands_yum,
     'fedora-20': install_cli_commands_yum,
     'ubuntu-14.04': install_cli_commands_ubuntu,
+    'ubuntu-15.04': install_cli_commands_ubuntu,
 }
 
 
@@ -734,7 +749,7 @@ def task_install_flocker(
     else:
         use_development_branch = False
 
-    if distribution == 'ubuntu-14.04':
+    if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
             # FLOC-1880 will ensure these are necessary and sufficient

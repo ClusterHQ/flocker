@@ -57,7 +57,8 @@ def provision_rackspace(node, package_source, distribution, variants):
 IMAGE_NAMES = {
     'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
     'centos-7': u'CentOS 7 (PVHVM)',
-    'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)'
+    'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)',
+    'ubuntu-15.04': u'Ubuntu 15.04 (Vivid Vervet) (PVHVM)',
 }
 
 

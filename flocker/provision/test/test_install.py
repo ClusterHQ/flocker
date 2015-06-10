@@ -145,6 +145,20 @@ class GetRepositoryURL(SynchronousTestCase):
             expected
         )
 
+    def test_ubuntu_15_04(self):
+        """
+        It is possible to get a repository URL for Ubuntu 15.04 packages.
+        """
+        expected = ("https://clusterhq-archive.s3.amazonaws.com/ubuntu/"
+                    "$(lsb_release --release --short)/\\$(ARCH)")
+
+        self.assertEqual(
+            get_repository_url(
+                distribution='ubuntu-15.04',
+                flocker_version='0.3.0'),
+            expected
+        )
+
     def test_unsupported_distribution(self):
         """
         An ``UnsupportedDistribution`` error is thrown if a repository for the
