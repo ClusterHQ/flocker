@@ -413,8 +413,11 @@ Your firewall will need to allow access to the ports your applications are expos
    Keep in mind the consequences of exposing unsecured services to the Internet.
    Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
-Enabling the Flocker control service on CentOS 7
--------------------------------------------------
+Enabling the Flocker control service 
+------------------------------------
+
+On CentOS 7
+...........
 
 .. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
@@ -429,8 +432,8 @@ For more details on configuring the firewall, see the `FirewallD documentation <
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
-Enabling the Flocker control service on Ubuntu
-----------------------------------------------
+On Ubuntu
+.........
 
 .. task:: enable_flocker_control ubuntu-14.04
    :prompt: [root@control-node]#
@@ -609,7 +612,7 @@ What to do next
 Optional ZFS Backend Configuration
 ----------------------------------
 
-The ZFS backend requires ZFS to be installed.
+If you intend to use a ZFS backend, this requires ZFS to be installed.
 
 
 Installing ZFS on CentOS 7
