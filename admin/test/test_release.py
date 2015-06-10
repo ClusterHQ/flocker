@@ -1854,6 +1854,25 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             self.tutorial_metadata(versions=[expected_version]),
         )
 
+    def test_metadata_content_type(self):
+        """
+        Vagrant requires a JSON metadata file to have a Content-Type of
+        application/json.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+
+        self.assertEqual(
+            aws.get_content_type(self.target_bucket, self.metadata_key),
+            'application/json'
+        )
+
     def test_version_added(self):
         """
         A version is added to an existing metadata file.
