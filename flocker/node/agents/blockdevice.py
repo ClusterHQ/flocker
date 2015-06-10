@@ -1604,7 +1604,7 @@ class BlockDeviceDeployer(PRecord):
         detaches = list(self._calculate_detaches(
             local_state.devices, local_state.paths, configured_manifestations,
         ))
-        deletes = self._calculate_deletes(local_state.paths, configured_manifestations)
+        deletes = self._calculate_deletes(local_state, configured_manifestations)
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
@@ -1705,10 +1705,10 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id=UUID(manifestation.dataset_id),
                 )
 
-    def _calculate_deletes(self, paths, configured_manifestations):
+    def _calculate_deletes(self, local_state, configured_manifestations):
         """
-        :param PMap paths: The paths at which datasets' filesystems are mounted
-            on this node.  This is the same as ``NodeState.paths``.
+        :param NodeState: The local state discovered immediately prior to
+            calculation.
 
         :param dict configured_manifestations: The manifestations configured
             for this node (like ``Node.manifestations``).
@@ -1727,12 +1727,11 @@ class BlockDeviceDeployer(PRecord):
             for manifestation in configured_manifestations.values()
             if manifestation.dataset.deleted
         )
-
         return [
             DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
             for dataset_id
             in delete_dataset_ids
-#            if dataset_id in paths
+            # if dataset_id in local_state.manifestations
         ]
 
 

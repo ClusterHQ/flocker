@@ -898,22 +898,36 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         """
         ``DestroyBlockDeviceDataset`` is a compound state change that first
         attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are attached
-        but unmounted.
+        Therefore do not calculate deletion for blockdevices that are not
+        manifest.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
             True
         )
-        # Remove the mount path for the manifestation.
+        # Remove the manifestation and its mount path.
+        local_state = local_state.transform(
+            ['manifestations', unicode(self.DATASET_ID)],
+            discard
+        )
         local_state = local_state.transform(
             ['paths', unicode(self.DATASET_ID)],
             discard
         )
+
         assert_calculated_changes(
             self, local_state, local_config, set(),
-            in_parallel(changes=[]),
+            in_parallel(
+                changes=[
+                    MountBlockDevice(
+                        mountpoint=FilePath('/flocker/').child(
+                            unicode(self.DATASET_ID)
+                        ),
+                        dataset_id=self.DATASET_ID
+                    )
+                ]
+            ),
         )
 
 
