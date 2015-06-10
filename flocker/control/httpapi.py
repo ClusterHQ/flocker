@@ -395,7 +395,7 @@ class ConfigurationAPIUserV1(object):
         # DeploymentState instance and the dataset configuration result
         # includes metadata and deleted flags which should not be part of the
         # dataset state response.
-        # Refactor.
+        # Refactor. See FLOC-2207.
         response = []
         deployment_state = self.cluster_state_service.as_deployment()
         get_manifestation_path = self.cluster_state_service.manifestation_path
