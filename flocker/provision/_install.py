@@ -8,12 +8,13 @@ Install flocker on a remote node.
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect
+from effect import Func, Effect, parallel
 import yaml
 
 from zope.interface import implementer
 
 from characteristic import attributes
+from pyrsistent import PRecord, field
 
 from flocker.acceptance.testtools import DatasetBackend
 from ._libcloud import INode
@@ -120,12 +121,14 @@ class DistributionNotSupported(NotImplementedError):
 
 
 @implementer(INode)
-@attributes(['address', 'distribution'], apply_immutable=True)
-class ManagedNode(object):
+class ManagedNode(PRecord):
     """
     A node managed by some other system (eg by hand or by another piece of
     orchestration software).
     """
+    address = field(type=bytes, mandatory=True)
+    private_address = field(type=(bytes, type(None)), initial=None, mandatory=True)
+    distribution = field(type=bytes, mandatory=True)
 
 
 def task_client_installation_test():
