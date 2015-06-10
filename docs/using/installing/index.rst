@@ -363,7 +363,7 @@ At this point you will need to create a :file:`/etc/flocker` directory:
 
 .. prompt:: bash 
 
-  $ mkdir /etc/flocker
+  mkdir /etc/flocker
 
 You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
 You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
