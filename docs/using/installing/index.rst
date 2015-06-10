@@ -405,7 +405,7 @@ You can read more about how Flocker's authentication layer works in the :ref:`se
 .. _post-installation-configuration:
 
 Post-Installation Configuration
-...............................
+-------------------------------
 
 Your firewall will need to allow access to the ports your applications are exposing.
 
