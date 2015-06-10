@@ -121,7 +121,6 @@ def aws_provisioner(access_key, secret_access_token, keyname,
             # disable this, so we can use sudo with conch.
             "ex_userdata": dedent("""\
                 #!/bin/sh
-                sleep 3 # temporary slowdown to increase chance of triggering race condition
                 sed -i '/Defaults *requiretty/d' /etc/sudoers
                 """)
         }
