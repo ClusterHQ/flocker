@@ -433,8 +433,11 @@ On CentOS 7
 .. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
 
-The control service needs to accessible remotely.
-To configure FirewallD to allow access to the control service HTTP API, and for agent connections:
+The control service needs to be accessible remotely.
+You will need to configure FirewallD to allow access to the control service HTTP API and for agent connections.
+Note that on some environments, in particular AWS, the ``firewalld`` package is not installed and the ``firewall-cmd`` program will not be found.
+If that is the case then just skip these commands.
+Otherwise run:
 
 .. task:: open_control_firewall centos-7
    :prompt: [root@control-node]#
