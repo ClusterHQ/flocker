@@ -250,8 +250,8 @@
   doc: |
     Get a list of all datasets in a deployment.
     This includes manifest (attached) and non-manifest (unattached) datasets.
-    Some examples of non-manifest datasets are datasets that are being created or
-    destroyed and datasets that are moving between nodes.
+    For example, a dataset on a block device that has been created, but is not
+    attached to any machine, is a non-manifest dataset.
     The ``primary`` and ``path`` values will not be present for non-manifest
     datasets.
 
