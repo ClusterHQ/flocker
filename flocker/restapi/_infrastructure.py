@@ -13,6 +13,8 @@ from functools import wraps
 
 from json import loads, dumps
 
+from pyrsistent import PRecord, field, pvector
+
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
@@ -223,26 +225,37 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def user_documentation(doc, examples=None, header=None):
+class UserDocumentation(PRecord):
+    """
+    """
+    text = field(type=unicode, mandatory=True)
+    header = field(type=unicode, mandatory=True)
+    section = field(type=unicode, mandatory=True)
+    examples = field(mandatory=True)
+
+
+def user_documentation(text, header, section, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 
-    @param doc: The documentation to be included in the generated API
+    :param unicode text: The documentation to be included in the generated API
         documentation along with the decorated endpoint.
-    @type doc: L{str}
 
-    @param examples: The identifiers of any examples demonstrating the use of
-        this example to include in the generated API documentation along with
-        the decorated endpoint.
-    @type examples: L{list} of L{unicode}
+    :param unicode header: The header to be included in the generated API docs.
 
-    @param header: The header to be included in the generated API docs.
-    @type header: L{str}
+    :param unicode section: The section of the docs to include this route in.
+
+    :param list examples: The identifiers of any examples demonstrating the use
+        of this example to include in the generated API documentation along
+        with the decorated endpoint.
     """
+    if examples is None:
+        examples = []
+
     def deco(f):
-        f.userDocumentation = doc
-        f.header = header
-        f.examples = examples
+        f.user_documentation = UserDocumentation(
+            text=text, examples=pvector(examples),
+            header=header, section=section)
         return f
     return deco
 

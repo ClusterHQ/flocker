@@ -229,7 +229,14 @@ def _wait_for_volume(volume,
     # start_status -> transient_status -> end_status.
     start_time = time.time()
     while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
-        volume.update()
+        try:
+            volume.update()
+        except EC2ResponseError as e:
+            # If AWS cannot find the volume, raise ``UnknownVolume``.
+            # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
+            # for error details).
+            if e.code == u'InvalidVolume.NotFound':
+                raise UnknownVolume(volume.id)
         if volume.status == end_status:
             return
         elif volume.status not in [start_status, transient_status]:
@@ -475,13 +482,11 @@ class EBSBlockDeviceAPI(object):
 
     def list_volumes(self):
         """
-        Return all volumes in {available, in-use} state that belong to
-        this Flocker cluster.
+        Return all volumes that belong to this Flocker cluster.
         """
         volumes = []
         for ebs_volume in self.connection.get_all_volumes():
-            if ((_is_cluster_volume(self.cluster_id, ebs_volume)) and
-               (ebs_volume.status in [u'available', u'in-use'])):
+            if _is_cluster_volume(self.cluster_id, ebs_volume):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
@@ -586,16 +591,20 @@ class EBSBlockDeviceAPI(object):
         :raises Exception: If we failed to destroy Flocker cluster volume
             corresponding to input blockdevice_id.
         """
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                ret_val = self.connection.delete_volume(blockdevice_id)
-                if ret_val is False:
-                    raise Exception(
-                        'Failed to delete volume: {!r}'.format(blockdevice_id)
-                    )
-                else:
-                    return
-        raise UnknownVolume(blockdevice_id)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        destroy_result = self.connection.delete_volume(blockdevice_id)
+        if destroy_result:
+            try:
+                _wait_for_volume(ebs_volume,
+                                 start_status=u'available',
+                                 transient_status=u'deleting',
+                                 end_status='')
+            except UnknownVolume:
+                return
+        else:
+            raise Exception(
+                'Failed to delete volume: {!r}'.format(blockdevice_id)
+            )
 
     def get_device_path(self, blockdevice_id):
         """

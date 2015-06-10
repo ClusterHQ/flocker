@@ -14,9 +14,13 @@ from characteristic import attributes, Attribute
 from eliot import ActionType, start_action, MemoryLogger, Logger
 from eliot.testing import validate_logging, assertHasAction, LoggedAction
 
+from twisted.internet.error import ConnectionDone
+from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
-from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
+from twisted.protocols.amp import (
+    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP,
+)
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -27,17 +31,19 @@ from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from .._protocol import (
-    SerializableArgument,
+    PING_INTERVAL, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
+    NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
+from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService
+from .clusterstatetools import advance_some, advance_rest
 
 
 class LoopbackAMPClient(object):
@@ -95,6 +101,14 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
+
+# A very simple piece of node state that makes for nice-looking, easily-read
+# test failures.  It arbitrarily supplies only ports because integers have a
+# very simple representation.
+SIMPLE_NODE_STATE = NodeState(
+    hostname=u"192.0.2.17", uuid=uuid4(), applications=[], used_ports=[1],
+)
+
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
                        used_ports=[1, 2],
@@ -185,7 +199,7 @@ class SerializationTests(SynchronousTestCase):
             TypeError, SerializableArgument(NodeState).fromString, as_bytes)
 
 
-def build_control_amp_service(test):
+def build_control_amp_service(test, reactor=None):
     """
     Create a new ``ControlAMPService``.
 
@@ -193,14 +207,16 @@ def build_control_amp_service(test):
 
     :return ControlAMPService: Not started.
     """
-    cluster_state = ClusterStateService(Clock())
+    if reactor is None:
+        reactor = Clock()
+    cluster_state = ClusterStateService(reactor)
     cluster_state.startService()
     test.addCleanup(cluster_state.stopService)
     persistence_service = ConfigurationPersistenceService(
         None, FilePath(test.mktemp()))
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
-    return ControlAMPService(cluster_state, persistence_service,
+    return ControlAMPService(reactor, cluster_state, persistence_service,
                              TCP4ServerEndpoint(MemoryReactor(), 1234),
                              # Easiest TLS context factory to create:
                              ClientContextFactory())
@@ -245,8 +261,11 @@ class ControlAMPTests(ControlTestCase):
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
     """
     def setUp(self):
-        self.control_amp_service = build_control_amp_service(self)
-        self.protocol = ControlAMP(self.control_amp_service)
+        self.reactor = Clock()
+        self.control_amp_service = build_control_amp_service(
+            self, self.reactor,
+        )
+        self.protocol = ControlAMP(self.reactor, self.control_amp_service)
         self.client = LoopbackAMPClient(self.protocol.locator)
 
     def test_connection_made(self):
@@ -319,6 +338,42 @@ class ControlAMPTests(ControlTestCase):
             self.control_amp_service.cluster_state.as_deployment(),
         )
 
+    def test_activity_refreshes_node_state(self):
+        """
+        Any time commands are dispatched by ``ControlAMP`` its activity
+        timestamp is refreshed to prevent previously applied state from
+        expiring.
+        """
+        cluster_state = self.control_amp_service.cluster_state
+
+        # Deliver some initial state (T1) which can be expected to be
+        # preserved.
+        self.successResultOf(
+            self.client.callRemote(
+                NodeStateCommand,
+                state_changes=(SIMPLE_NODE_STATE,),
+                eliot_context=TEST_ACTION,
+            )
+        )
+        # Let a little time pass (T2) and then cause some activity.
+        advance_some(self.reactor)
+        self.client.callRemote(NoOp)
+
+        # Let enough time pass (T3) to reach EXPIRATION_TIME from T1
+        advance_rest(self.reactor)
+        before_wipe_state = cluster_state.as_deployment()
+
+        # Let enough time pass (T4) to reach EXPIRATION_TIME from T2
+        advance_some(self.reactor)
+        after_wipe_state = cluster_state.as_deployment()
+
+        # The state from T1 should not have been wiped at T3 but it should have
+        # been wiped at T4.
+        self.assertEqual(
+            (before_wipe_state, after_wipe_state),
+            (DeploymentState(nodes={SIMPLE_NODE_STATE}), DeploymentState()),
+        )
+
     def test_nodestate_notifies_all_connected(self):
         """
         ``NodeStateCommand`` results in all connected ``ControlAMP``
@@ -327,7 +382,7 @@ class ControlAMPTests(ControlTestCase):
         """
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.protocol.makeConnection(StringTransport())
-        another_protocol = ControlAMP(self.control_amp_service)
+        another_protocol = ControlAMP(self.reactor, self.control_amp_service)
         another_protocol.makeConnection(StringTransport())
         sent1 = []
         sent2 = []
@@ -382,7 +437,7 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         service = build_control_amp_service(self)
         service.startService()
-        connections = [ControlAMP(service) for i in range(3)]
+        connections = [ControlAMP(Clock(), service) for i in range(3)]
         initial_disconnecting = []
         for c in connections:
             c.makeConnection(StringTransport())
@@ -416,7 +471,7 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         service = build_control_amp_service(self)
         service.startService()
-        protocol = ControlAMP(service)
+        protocol = ControlAMP(Clock(), service)
         protocol.makeConnection(StringTransport())
         sent = []
         self.patch_call_remote(sent, protocol=protocol)
@@ -470,7 +525,7 @@ class AgentClientTests(SynchronousTestCase):
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = AgentAMP(self.agent)
+        self.client = AgentAMP(Clock(), self.agent)
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
@@ -645,6 +700,7 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         fake_control_amp_service = build_control_amp_service(self)
         self.patch(fake_control_amp_service, 'logger', logger)
         locator = ControlServiceLocator(
+            reactor=Clock(),
             control_amp_service=fake_control_amp_service
         )
         self.assertIs(logger, locator.logger)
@@ -664,7 +720,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         control_amp_service = build_control_amp_service(self)
         self.patch(control_amp_service, 'logger', logger)
 
-        connection_protocol = ControlAMP(control_amp_service)
+        connection_protocol = ControlAMP(Clock(), control_amp_service)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
@@ -704,13 +760,13 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         control_amp_service = build_control_amp_service(self)
         self.patch(control_amp_service, 'logger', logger)
 
-        connected_protocol = ControlAMP(control_amp_service)
+        connected_protocol = ControlAMP(Clock(), control_amp_service)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         error = ConnectionLost()
-        disconnected_protocol = ControlAMP(control_amp_service)
+        disconnected_protocol = ControlAMP(Clock(), control_amp_service)
         results = [succeed({}), fail(error)]
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
@@ -719,10 +775,77 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
         control_amp_service.connected(disconnected_protocol)
         control_amp_service.connected(connected_protocol)
-        control_amp_service.node_changed((NodeState(hostname=u"1.2.3.4"),))
+        control_amp_service.node_changed(
+            ChangeSource(),
+            (NodeState(hostname=u"1.2.3.4"),)
+        )
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
         self.assertEqual(
             [action.end_message["exception"] for action in actions
              if not action.succeeded],
             [u"twisted.internet.error.ConnectionLost"])
+
+
+class _NoOpCounter(CommandLocator):
+    noops = 0
+
+    @NoOp.responder
+    def noop(self):
+        self.noops += 1
+        return {}
+
+
+class PingTestsMixin(object):
+    """
+    Mixin for ``TestCase`` defining tests for an ``AMP`` protocol that
+    periodically sends no-op ping messages.
+    """
+    def test_periodic_noops(self):
+        """
+        When connected, the protocol sends ``NoOp`` commands at a fixed
+        interval.
+        """
+        expected_pings = 3
+        reactor = Clock()
+        locator = _NoOpCounter()
+        peer = AMP(locator=locator)
+        protocol = self.build_protocol(reactor)
+        pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
+        for i in range(expected_pings):
+            reactor.advance(PING_INTERVAL.total_seconds())
+            pump.flush()
+        self.assertEqual(locator.noops, expected_pings)
+
+    def test_stop_pinging_on_connection_lost(self):
+        """
+        When the protocol loses its connection, it stops trying to send
+        ``NoOp`` commands.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        transport = StringTransport()
+        protocol.makeConnection(transport)
+        transport.clear()
+        protocol.connectionLost(Failure(ConnectionDone("test, simulated")))
+        reactor.advance(PING_INTERVAL.total_seconds())
+        self.assertEqual(b"", transport.value())
+
+
+class ControlAMPPingTests(SynchronousTestCase, PingTestsMixin):
+    """
+    Tests for pinging done by ``ControlAMP``.
+    """
+    def build_protocol(self, reactor):
+        control_amp_service = build_control_amp_service(
+            self, reactor,
+        )
+        return ControlAMP(reactor, control_amp_service)
+
+
+class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
+    """
+    Tests for pinging done by ``AgentAMP``.
+    """
+    def build_protocol(self, reactor):
+        return AgentAMP(reactor, FakeAgent())

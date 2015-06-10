@@ -17,6 +17,7 @@ There are different categories of classes:
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
+from datetime import datetime
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
@@ -683,6 +684,44 @@ class IClusterStateWipe(Interface):
         """
 
 
+class IClusterStateSource(Interface):
+    """
+    Represents where some cluster state (``IClusterStateChange``) came from.
+    This is presently used for activity/inactivity tracking to inform change
+    wiping.
+    """
+    def last_activity():
+        """
+        :return: The point in time at which the last activity was observed from
+            this source.
+        :rtype: ``datetime.datetime`` (in UTC)
+        """
+
+
+@implementer(IClusterStateSource)
+class ChangeSource(object):
+    """
+    An ``IClusterStateSource`` which reports whatever time it was last told to
+    report.
+
+    :ivar float _last_activity: Recorded activity time.
+    """
+    def __init__(self):
+        self.set_last_activity(0)
+
+    def set_last_activity(self, since_epoch):
+        """
+        Set the time of the last activity.
+
+        :param float since_epoch: Number of seconds since the epoch at which
+            point the activity occurred.
+        """
+        self._last_activity = since_epoch
+
+    def last_activity(self):
+        return datetime.utcfromtimestamp(self._last_activity)
+
+
 def ip_to_uuid(ip):
     """
     Deterministically convert IP to UUID.
@@ -849,14 +888,15 @@ class DeploymentState(PRecord):
         """
         Create new ``DeploymentState`` based on this one which updates an
         existing ``NodeState`` with any known information from the given
-        ``NodeState``. Attributes which are set to ``None` on the given
+        ``NodeState``.  Attributes which are set to ``None` on the given
         update, indicating ignorance, will not be changed in the result.
 
-        The given ``NodeState`` will simply be added if no existing ones
-        have matching hostname.
+        The given ``NodeState`` will simply be added if it doesn't represent a
+        node that is already part of the ``DeploymentState`` (based on UUID
+        comparison).
 
-        :param NodeState node: An update for ``NodeState`` with same
-             hostname in this ``DeploymentState``.
+        :param NodeState node: An update for ``NodeState`` with same UUID in
+            this ``DeploymentState``.
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
@@ -874,16 +914,18 @@ class DeploymentState(PRecord):
 
     def all_datasets(self):
         """
-        :returns: A generator of all the manifest and non-manifest datasets in
-            the ``DeploymentState``.
+        :returns: A generator of 2-tuple(``Dataset``, ``Nodestate`` or
+            ``None``) for all the primary manifest datasets and non-manifest
+            datasets in the ``DeploymentState``.
         """
         for node in self.nodes:
             if node.manifestations is None:
                 continue
             for manifestation in node.manifestations.values():
-                yield manifestation.dataset
+                if manifestation.primary:
+                    yield manifestation.dataset, node
         for dataset in self.nonmanifest_datasets.values():
-            yield dataset
+            yield dataset, None
 
 
 @implementer(IClusterStateChange)
