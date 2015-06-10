@@ -177,14 +177,15 @@ Using Amazon Web Services
    * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
 
 #. Configure the instance.
-   Complete the configuration wizard; in general the default configuration should suffice.   
+   Complete the configuration wizard; in general the default configuration should suffice.
 
    * Choose instance type. We recommend at least the ``m3.large`` instance size.
    * Configure instance details. You will need to configure a minimum of 2 instances.
    * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
    * Tag instance.
+     No tags are required, but you may wish to add your own.
    * Configure security group.
-      
+
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
      * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
      * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
@@ -344,7 +345,7 @@ Using an IP address is not recommended as it may break some HTTPS clients.
    $ flocker-ca create-control-certificate example.org
 
 You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
-You should also copy the cluster's public certificate, the `cluster.crt` file.
+You should also copy the cluster's public certificate, the ``cluster.crt`` file.
 On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
 
 .. code-block:: console
