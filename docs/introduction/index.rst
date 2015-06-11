@@ -34,7 +34,7 @@ To interact with the Flocker API you can use the :ref:`Flocker CLI<cli>`, or acc
 With the Flocker API or CLI you can:
 
 * Deploy a multi-container application to multiple hosts
-* Move containers between hosts
+* Move containers between hosts along with their volumes
 * Attach and detach data volumes from containers as they change hosts
 * Migrate local data volumes between servers (currently Experimental)
 
