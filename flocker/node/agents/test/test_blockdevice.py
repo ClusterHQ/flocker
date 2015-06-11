@@ -894,6 +894,51 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             in_parallel(changes=[]),
         )
 
+    def test_deleted_dataset_volume_unmounted(self):
+        """
+        ``DestroyBlockDeviceDataset`` is a compound state change that first
+        attempts to unmount the block device.
+        Therefore do not calculate deletion for blockdevices that are not
+        manifest.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        # Remove the manifestation and its mount path.
+        local_state = local_state.transform(
+            ['manifestations', unicode(self.DATASET_ID)],
+            discard
+        )
+        local_state = local_state.transform(
+            ['paths', unicode(self.DATASET_ID)],
+            discard
+        )
+        # Local state shows that there is a device for the (now) non-manifest
+        # dataset. i.e it is attached.
+        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
+        assert_calculated_changes(
+            case=self,
+            node_state=local_state,
+            node_config=local_config,
+            # The unmounted dataset has been added back to the non-manifest
+            # datasets by discover_state.
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset
+            ],
+            expected_changes=in_parallel(
+                changes=[
+                    MountBlockDevice(
+                        mountpoint=FilePath('/flocker/').child(
+                            unicode(self.DATASET_ID)
+                        ),
+                        dataset_id=self.DATASET_ID
+                    )
+                ]
+            ),
+        )
+
 
 class BlockDeviceDeployerAttachCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
