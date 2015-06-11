@@ -242,16 +242,18 @@ So it is important to check that the code in the release branch is working befor
    * The build should be passing to the team's satisfaction.
      See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
 
-   For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
+   For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release branch was created,
+   for example a previous pre-release.
+   These fixes can be ignored in this review.
 
 #. Update GitHub and JIRA:
 
    If there were no problems spotted while checking the changes, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>`.
    Do not merge the Pull Request as this should happen after the branch has been tagged.
-   Also, accept the JIRA issue, and add a comment that the release process can continue.
+   Accept the JIRA issue, and add a comment that the release process can continue.
 
    If a problem was spotted, add comments to the Pull Request for each problem, and comment that they must be resolved before repeating this review process.
-   Also, reject the JIRA issue and assign it to the release engineer.
+   Reject the JIRA issue and assign it to the release engineer.
 
 
 .. _release:
