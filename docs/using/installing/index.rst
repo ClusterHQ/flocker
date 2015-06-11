@@ -466,8 +466,8 @@ On AWS, an external firewall is used instead, which will need to be configured s
 
 .. _agent-yml:
 
-Enabling the Flocker agent service
-----------------------------------
+Configuring the Flocker agent
+-----------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 The file must always include ``version`` and ``control-service`` items similar to these:
@@ -565,9 +565,7 @@ ZFS Peer-to-Peer Backend Configuration (Experimental)
 .....................................................
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
-The ZFS backend remains under development,
-it is not expected to operate reliably in many situations,
-and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
+The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
 This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
 The configuration item to use ZFS should look like:
 
@@ -605,17 +603,16 @@ The configuration item to use Loopback should look like:
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
-
-CentOS 7
-........
+Enabling the Flocker agent service on CentOS 7
+----------------------------------------------
 
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-Ubuntu
-......
+Enabling the Flocker agent service on Ubuntu
+--------------------------------------------
 
 Run the following commands to enable the agent service:
 
