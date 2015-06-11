@@ -21,7 +21,7 @@ from .. import (
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
-    EMPTY_STATE
+    EMPTY_STATE, assert_calculated_changes_for_deployer,
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
@@ -88,6 +88,28 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 # Placeholder in case at some point discovered application is different
 # than requested application:
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
+
+
+def assert_application_calculated_changes(
+    case, node_state, node_config, nonmanifest_datasets, expected_changes,
+    additional_node_states=frozenset(),
+):
+    """
+    Assert that ``ApplicationNodeDeployer`` calculates certain changes in a
+    certain circumstance.
+
+    :see: ``assert_calculated_changes_for_deployer``.
+    """
+    deployer = ApplicationNodeDeployer(
+        hostname=node_state.hostname,
+        node_uuid=node_state.uuid,
+        docker_client=FakeDockerClient(),
+        network=make_memory_network(),
+    )
+    return assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config, nonmanifest_datasets,
+        additional_node_states, expected_changes,
+    )
 
 
 class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
