@@ -641,7 +641,7 @@ APP2 = Application(
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
 )
 # https://clusterhq.atlassian.net/browse/FLOC-1926
-EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+EMPTY_NODESTATE = NodeState(hostname=u"example.com", uuid=uuid4(),
                             manifestations={}, devices={}, paths={},
                             applications=[], used_ports=[])
 
