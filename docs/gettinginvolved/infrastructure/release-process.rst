@@ -228,7 +228,7 @@ Preparing For a Release
 Pre-tag Review Process
 ----------------------
 
-A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
+A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
 
 .. note::
@@ -237,17 +237,22 @@ So it is important to check that the code in the release branch is working befor
 
 #. Check the changes in the Pull Request:
 
-   The "Files changed" should include changes to NEWS and Release Notes.
-   For some releases it may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
-   These fixes or documentation changes may have to be merged into ``master`` in order to merge the release branch into ``master``.
-   This should either block the acceptance of the release branch, or the team should discuss a workaround for that particular situation.
+   * The NEWS file has suitable changes.
+   * The release notes at :file:`docs/releasenotes/index.rst` should be up to date.
+   * The build should be passing to the team's satisfaction.
+     See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
 
-#. Update GitHub:
+   For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
 
-   If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
-   Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
+#. Update GitHub and JIRA:
 
-#.  Accept the JIRA issue, and add a comment that the release process can continue.
+   If there were no problems spotted while checking the changes, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>`.
+   Do not merge the Pull Request as this should happen after the branch has been tagged.
+   Also, accept the JIRA issue, and add a comment that the release process can continue.
+
+   If a problem was spotted, add comments to the Pull Request for each problem, and comment that they must be resolved before repeating this review process.
+   Also, reject the JIRA issue and assign it to the release engineer.
+
 
 .. _release:
 
