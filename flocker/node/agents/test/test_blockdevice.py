@@ -1299,6 +1299,26 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             changes
         )
 
+    def test_dataset_default_maximum_size_stable(self):
+        """
+        When supplied with a configuration containing a dataset with a null
+        size and operating against state where a volume of the default size
+        exists for that dataset, ``BlockDeviceDeployer.calculate_changes``
+        returns no changes.
+        """
+        # The state has a manifestation with a concrete size (as it must have).
+        local_state = self.ONE_DATASET_STATE
+        # The configuration is the same except it lacks a size.
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset",
+             "maximum_size"],
+            None,
+        )
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(), in_parallel(changes=[]),
+        )
+
     def test_dataset_exists_on_other_node(self):
         """
         ``calculate_changes`` does not attempt to create a new dataset if it is
