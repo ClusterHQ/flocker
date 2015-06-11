@@ -678,6 +678,6 @@ So ensure that the firewall allows access to TCP port 22 on each node from the e
 Next Steps
 ----------
 
-Next, we will describe how to use cluster security and authentication.
+Next, we will describe how to set up an :ref:`authenticated user<authenticate>`.
 However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
 You can replace the IP addresses in the sample ``deployment.yml`` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
