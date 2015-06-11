@@ -14,6 +14,8 @@ Unlike a Docker data volume which is tied to a single server, a Flocker data vol
 Flocker manages Docker containers and data volumes together.
 When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
 
+You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
+
 .. image:: images/flocker-v-native-containers.svg
    :alt: Migrating data: Native Docker versus Flocker.
          In native Docker, when a container moves, its data volume stays in place.
@@ -24,14 +26,14 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 Flocker Basics
 ==============
 
-Flocker works by exposing a simple REST API on its Control Service.
+Flocker works by exposing a simple :ref:`REST API<api>` on its Control Service.
 The Flocker Control Service communicates with Flocker Agents running on each node in the cluster to carry out commands.
 
-To interact with the Flocker API you can use the Flocker CLI, or access it directly in popular programming languages like Go, Python and Ruby.
+To interact with the Flocker API you can use the :ref:`Flocker CLI<cli>`, or access it directly in popular programming languages like Go, Python and Ruby.
 
 With the Flocker API or CLI you can:
 
-* Deploy a multi-container application to multi-hosts
+* Deploy a multi-container application to multiple hosts
 * Move containers between hosts
 * Attach and detach data volumes from containers as they change hosts
 * Migrate local data volumes between servers (currently Experimental)
@@ -54,7 +56,7 @@ Supported Operating Systems
 
 * CentOS 7
 * Ubuntu 14.04
-* Ubuntu 15.04
+* Ubuntu 15.04 (Command Line only)
 * OS X (Command Line only)
 
 Supported Cloud Providers
