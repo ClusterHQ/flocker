@@ -370,7 +370,11 @@ class Cluster(PRecord):
                 del expected_dataset[u"metadata"]
                 del expected_dataset[u"deleted"]
                 for dataset in body:
-                    dataset.pop("path")
+                    try:
+                        dataset.pop("path")
+                    except KeyError:
+                        # Non-manifest datasets don't have a path
+                        pass
                 return expected_dataset in body
             request.addCallback(got_body)
             return request
