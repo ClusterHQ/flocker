@@ -420,7 +420,7 @@ class EBSBlockDeviceAPI(object):
                 return volume
         raise UnknownVolume(blockdevice_id)
 
-    def _next_device(self, instance_id, ignore_devices):
+    def _next_device(self, instance_id, devices_in_use):
         """
         Get the next available EBS device name for a given EC2 instance.
         Algorithm:
@@ -443,7 +443,7 @@ class EBSBlockDeviceAPI(object):
         volumes = self.connection.get_all_volumes()
         devices = pset({v.attach_data.device for v in volumes
                        if v.attach_data.instance_id == instance_id})
-        devices.add(ignore_devices)
+        devices = devices.add(devices_in_use)
         IN_USE_DEVICES(devices=devices).write()
 
         for suffix in b"fghijklmonp":
@@ -549,12 +549,13 @@ class EBSBlockDeviceAPI(object):
 
                     # end lock scope
             except EC2ResponseError as e:
-                device_in_use = u"Invalid value \'%s\' for unixDevice. "
-                "Attachment point %s is already in use" % (device, device)
+                # If attach failed because selected device is currently in use,
+                # retry NUM_RETRIES times to find another unused device.
+                used = u"Attachment point {0} is already in use".format(device)
                 if (e.code == u'InvalidParameterValue' and
-                        e.message == device_in_use):
+                        used in e.message):
                     attach_attempts += 1
-                    ignore_devices.add(device)
+                    ignore_devices = ignore_devices.add(device)
                 else:
                     raise
 
