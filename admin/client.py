@@ -168,7 +168,8 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04', 'ubuntu-15.04')
+DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
+
 PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
 
 
