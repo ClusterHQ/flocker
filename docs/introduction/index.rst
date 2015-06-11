@@ -2,6 +2,44 @@
 Introduction to Flocker
 =======================
 
+What is Flocker?
+================
+
+Flocker is an open-source Container Data Volume Manager for your Dockerized applications.
+
+By providing tools for data migrations, Flocker gives ops teams the tools they need to run containerized stateful services like databases in production.
+
+Unlike a Docker data volume which is tied to a single server, a Flocker data volume, called a dataset, is portable and can be used with any container, no matter where that container is running.
+
+Flocker manages Docker containers and data volumes together.
+When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
+
+Controlling Flocker
+===================
+
+Flocker works by exposing a simple REST API on its Control Service.
+The Flocker Control Service communicates with Flocker Agents running on each node in the cluster to carry out commands.
+
+To interact with the Flocker API you can use the Flocker CLI, or access it directly in popular programming languages like Go, Python and Ruby.
+
+With the Flocker API or CLI you can:
+
+* Deploy a multi-container application to multi-hosts
+* Move containers between hosts
+* Attach and detach data volumes from containers as they change hosts
+* Migrate local data volumes between servers (currently Experimental)
+
+Storage and Orchestration
+=========================
+
+Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.
+
+.. XXX add link to choosing the best storage for your application marketing page (yet to be published)
+
+Flocker also has planned integrations with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos. More information on these integrations is coming soon.
+
+.. XXX add link to 3rd party orchestration docs. See FLOC 2229
+
 Motivation for Building Flocker
 ===============================
 Flocker lets you move your Docker containers and their data together between Linux hosts.
