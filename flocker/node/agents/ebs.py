@@ -550,7 +550,7 @@ class EBSBlockDeviceAPI(object):
                     # end lock scope
             except EC2ResponseError as e:
                 # If attach failed because selected device is currently in use,
-                # retry NUM_RETRIES times to find another unused device.
+                # retry MAX_RETRIES times to find another unused device.
                 used = u"Attachment point {0} is already in use".format(device)
                 if (e.code == u'InvalidParameterValue' and
                         used in e.message):
