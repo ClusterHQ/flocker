@@ -349,6 +349,7 @@ class UploadToS3(object):
     :ivar bytes target_bucket: See :class:`UploadToS3 Recursively`.
     :ivar bytes target_key: See :class:`UploadToS3Recursively`.
     :ivar FilePath file: Path to file to upload.
+    :ivar bytes content_type: Optional content-type for file contents.
     """
 
 
