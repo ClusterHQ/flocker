@@ -855,6 +855,15 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     ])
 
 
+def task_enable_updates_testing(distribution):
+    """
+    Enable the distribution's proposed updates repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    raise DistributionNotSupported(distribution=distribution)
+
+
 def task_enable_docker_head_repository(distribution):
     """
     Enable the distribution's repository containing in-development docker
@@ -893,6 +902,8 @@ def provision(distribution, package_source, variants):
     """
     commands = []
 
+    if Variants.DISTRO_TESTING in variants:
+        commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
 
