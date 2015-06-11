@@ -50,6 +50,12 @@ from ...volume._ipc import RemoteVolumeManager, standard_node
 
 from .istatechange import make_istatechange_tests
 
+# This models an application without a volume.
+APPLICATION_WITHOUT_VOLUME = Application(
+    name=u"stateless",
+    image=DockerImage.from_string(u"clusterhq/testing-stateless"),
+    volume=None,
+)
 
 # This models an application that has a volume.
 APPLICATION_WITH_VOLUME_NAME = u"psql-clusterhq"
@@ -1137,6 +1143,25 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         self.assertItemsEqual(
             self.successResultOf(d)[0].manifestations[self.DATASET_ID],
             manifestation)
+
+
+class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
+    """
+    Tests for ``ApplicationNodeDeployer.calculate_changes`` specifically as it
+    relates to volume state and configuration.
+    """
+    def test_no_volume_no_changes(self):
+        """
+        If an ``Application`` with no volume is configured and exists, no
+        changes are calculated.
+        """
+        local_state = EMPTY_NODESTATE.set(
+            "applications", [APPLICATION_WITHOUT_VOLUME]
+        )
+        local_config = to_node(local_state)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), sequentially(changes=[]),
+        )
 
 
 class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
