@@ -4,7 +4,7 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from eliot.testing import validate_logging
 
@@ -1105,6 +1105,14 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             manifestation)
 
 
+def no_change():
+    """
+    Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
+    returns when it doesn't want to make any changes.
+    """
+    return sequentially(changes=[])
+
+
 class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
     """
     Tests for ``ApplicationNodeDeployer.calculate_changes`` specifically as it
@@ -1116,11 +1124,11 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
         changes are calculated.
         """
         local_state = EMPTY_NODESTATE.set(
-            "applications", [APPLICATION_WITHOUT_VOLUME]
+            applications=[APPLICATION_WITHOUT_VOLUME],
         )
         local_config = to_node(local_state)
         assert_application_calculated_changes(
-            self, local_state, local_config, set(), sequentially(changes=[]),
+            self, local_state, local_config, set(), no_change(),
         )
 
     def test_has_volume_no_changes(self):
@@ -1131,12 +1139,14 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
         application = APPLICATION_WITH_VOLUME_SIZE
         manifestation = application.volume.manifestation
         local_state = EMPTY_NODESTATE.set(
-            "manifestations", {manifestation.dataset_id: manifestation},
-            "applications", [application],
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
         )
         local_config = to_node(local_state)
         assert_application_calculated_changes(
-            self, local_state, local_config, set(), sequentially(changes=[]),
+            self, local_state, local_config, set(), no_change(),
         )
 
 
