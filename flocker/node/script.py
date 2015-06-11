@@ -276,10 +276,13 @@ class AgentServiceFactory(PRecord):
         ``IDeployer`` provider for this script.  The arguments are a
         ``hostname`` keyword argument, a ``cluster_uuid`` keyword and a
         ``node_uuid`` keyword argument. They must be passed by keyword.
+    :ivar get_external_ip: Typically ``_get_external_ip``, but
+        overrideable for tests.
     """
     # This should have an explicit interface:
     # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
+    get_external_ip = field(initial=_get_external_ip, mandatory=True)
 
     def get_service(self, reactor, options):
         """
@@ -300,7 +303,7 @@ class AgentServiceFactory(PRecord):
         configuration = get_configuration(options)
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
-        ip = _get_external_ip(host, port)
+        ip = self.get_external_ip(host, port)
 
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
@@ -474,6 +477,8 @@ class AgentService(PRecord):
     :ivar backend_name: The name of the storage driver to instantiate.  This
         must name one of the items in ``backends``.
     :ivar api_args: Extra arguments to pass to the factory from ``backends``.
+    :ivar get_external_ip: Typically ``_get_external_ip``, but
+        overrideable for tests.
     """
     backends = field(
         factory=pvector, initial=_DEFAULT_BACKENDS, mandatory=True,
