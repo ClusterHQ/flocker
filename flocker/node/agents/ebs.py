@@ -519,23 +519,35 @@ class EBSBlockDeviceAPI(object):
         ignore_devices = pset([])
         attach_attempts = 0
         while (not attached and attach_attempts < MAX_RETRIES):
-            try:
-                with self.lock:
-                    # begin lock scope
+            with self.lock:
+                # begin lock scope
 
-                    blockdevices = FilePath(b"/sys/block").children()
-                    device = self._next_device(attach_to, ignore_devices)
+                blockdevices = FilePath(b"/sys/block").children()
+                device = self._next_device(attach_to, ignore_devices)
 
-                    if device is None:
-                        # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
-                        # (https://clusterhq.atlassian.net/browse/FLOC-1887).
-                        # No point in attempting an ``attach_volume``, return.
-                        return
+                if device is None:
+                    # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
+                    # (https://clusterhq.atlassian.net/browse/FLOC-1887).
+                    # No point in attempting an ``attach_volume``, return.
+                    return
 
+                try:
                     self.connection.attach_volume(blockdevice_id,
                                                   attach_to,
                                                   device)
-
+                except EC2ResponseError as e:
+                    # If attach failed because selected device is currently
+                    # in use, retry MAX_RETRIES times to find another
+                    # unused device.
+                    used = u"Attachment point {0} is already in use".format(
+                        device)
+                    if (e.code == u'InvalidParameterValue' and
+                            used in e.message):
+                        attach_attempts += 1
+                        ignore_devices = ignore_devices.add(device)
+                    else:
+                        raise
+                else:
                     # Wait for new device to manifest in the OS. Since there
                     # is currently no standardized protocol across Linux guests
                     # in EC2 for mapping `device` to the name device driver
@@ -546,18 +558,7 @@ class EBSBlockDeviceAPI(object):
                     new_device = _wait_for_new_device(blockdevices,
                                                       volume.size)
                     attached = True
-
-                    # end lock scope
-            except EC2ResponseError as e:
-                # If attach failed because selected device is currently in use,
-                # retry MAX_RETRIES times to find another unused device.
-                used = u"Attachment point {0} is already in use".format(device)
-                if (e.code == u'InvalidParameterValue' and
-                        used in e.message):
-                    attach_attempts += 1
-                    ignore_devices = ignore_devices.add(device)
-                else:
-                    raise
+                # end lock scope
 
         # Stamp EBS volume with attached device name tag.
         # If OS fails to see new block device in 60 seconds,
