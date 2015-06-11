@@ -48,3 +48,27 @@ Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud 
 Flocker also has planned integration with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos. More information on this integration is coming soon.
 
 .. XXX add link to 3rd party orchestration docs. See FLOC 2229
+
+Supported Operating Systems
+===========================
+
+* CentOS 7
+* Ubuntu 14.04
+* Ubuntu 15.04
+* OS X (Command Line only)
+
+Supported Cloud Providers
+=========================
+
+* AWS
+* Rackspace
+
+Supported Storage Backends
+==========================
+
+* AWS EBS
+* Rackspace Cloud Block Storage
+* Anything that supports the Openstack Cinder API
+* EMC ScaleIO 
+* EMC XtremIO
+* Local storage using our ZFS driver (currently Experimental)
