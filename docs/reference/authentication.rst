@@ -27,10 +27,10 @@ Run ``flocker-ca create-api-certificate <username>``, where ``<username>`` is a 
 
 .. code-block:: console
 
-   $ flocker-ca create-api-certificate alice
-   Created alice.crt and alice.key. You can now give these to your API end user so they can access the control service API.
+   $ flocker-ca create-api-certificate allison
+   Created allison.crt and allison.key. You can now give these to your API end user so they can access the control service API.
 
-The two files generated will correspond to the username you specified in the command, in this example ``alice.crt`` and ``alice.key``.
+The two files generated will correspond to the username you specified in the command, in this example ``allison.crt`` and ``allison.key``.
 You should securely provide a copy of these files to the API end user, as well as a copy of the cluster's public certificate, the ``cluster.crt`` file.
 
 Using an API certificate to authenticate
