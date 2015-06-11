@@ -559,8 +559,8 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 
 .. _zfs-dataset-backend:
 
-ZFS Peer-to-Peer Backend Configuration (ALPHA)
-..............................................
+ZFS Peer-to-Peer Backend Configuration (Experimental)
+.....................................................
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development,
