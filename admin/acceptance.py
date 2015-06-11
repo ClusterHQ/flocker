@@ -739,6 +739,7 @@ class RunOptions(Options):
 
                aws:
                  region: <aws region, e.g. "us-west-2">
+                 zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
                  keyname: <ssh-key-name>
