@@ -847,9 +847,9 @@ def calculate_base_branch(version, path):
     # tag.
     repo.git.checkout(base_branch_name)
 
-    return [
+    return (
         branch for branch in repo.branches if
-        branch.name == base_branch_name][0]
+        branch.name == base_branch_name).next()
 
 
 def create_release_branch(version, base_branch):
