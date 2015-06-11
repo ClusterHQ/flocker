@@ -69,6 +69,6 @@ Supported Storage Backends
 * AWS EBS
 * Rackspace Cloud Block Storage
 * Anything that supports the OpenStack Cinder API
-* EMC ScaleIO 
+* EMC ScaleIO
 * EMC XtremIO
 * Local storage using our ZFS driver (currently Experimental)
