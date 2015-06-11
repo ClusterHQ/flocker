@@ -92,7 +92,7 @@ DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 def assert_application_calculated_changes(
     case, node_state, node_config, nonmanifest_datasets, expected_changes,
-    additional_node_states=frozenset(),
+    additional_node_states=frozenset(), additional_node_config=frozenset(),
 ):
     """
     Assert that ``ApplicationNodeDeployer`` calculates certain changes in a
@@ -108,7 +108,7 @@ def assert_application_calculated_changes(
     )
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
-        additional_node_states, expected_changes,
+        additional_node_states, additional_node_config, expected_changes,
     )
 
 

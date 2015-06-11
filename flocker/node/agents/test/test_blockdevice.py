@@ -636,7 +636,7 @@ def assert_calculated_changes(
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
-        nonmanifest_datasets, additional_node_states,
+        nonmanifest_datasets, additional_node_states, set(),
         expected_changes,
     )
 

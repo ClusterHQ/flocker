@@ -232,7 +232,7 @@ def to_node(node_state):
 
 def assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
-        additional_node_states, expected_changes
+        additional_node_states, additional_node_config, expected_changes
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -249,6 +249,7 @@ def assert_calculated_changes_for_deployer(
     :param set nonmanifest_datasets: Datasets which will be presented as part
         of the cluster state without manifestations on any node.
     :param set additional_node_states: A set of ``NodeState`` for other nodes.
+    :param set additional_node_config: A set of ``Node`` for other nodes.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     """
     cluster_state = DeploymentState(
@@ -258,7 +259,9 @@ def assert_calculated_changes_for_deployer(
             for dataset in nonmanifest_datasets
         },
     )
-    cluster_configuration = Deployment(nodes={node_config})
+    cluster_configuration = Deployment(
+        nodes={node_config} | additional_node_config,
+    )
     changes = deployer.calculate_changes(
         cluster_configuration, cluster_state,
     )
