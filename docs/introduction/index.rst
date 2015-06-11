@@ -14,6 +14,13 @@ Unlike a Docker data volume which is tied to a single server, a Flocker data vol
 Flocker manages Docker containers and data volumes together.
 When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
 
+.. image:: images/flocker-v-native-containers.svg
+   :alt: Migrating data: Native Docker versus Flocker.
+         In native Docker, when a container moves, its data volume stays in place.
+		 Database starts on a new server without any data.
+		 When using Flocker, when a container moves, the data volume moves with it.
+		 Your database gets to keep its data!
+
 Controlling Flocker
 ===================
 
@@ -35,6 +42,11 @@ Storage and Orchestration
 Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.
 
 .. XXX add link to choosing the best storage for your application marketing page (yet to be published)
+
+.. image:: images/flocker-architecture.svg
+   :alt: Flocker architecture with shared storage backend.
+         The Flocker Control Service and containers hosts can run on a VM or bare metal servers.
+		 The Flocker Agent running on each host speaks to the shared storage backend to create and moutn volumes to individual containers.
 
 Flocker also has planned integrations with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos. More information on these integrations is coming soon.
 
