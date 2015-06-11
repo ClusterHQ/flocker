@@ -1163,43 +1163,38 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        api = ApplicationNodeDeployer(u'192.168.1.1',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network(),
-                                      node_uuid=uuid4())
-        expected_destination_port = 1001
-        expected_destination_host = u'192.168.1.2'
-        destination_node_uuid = uuid4()
-        port = Port(internal_port=3306,
-                    external_port=expected_destination_port)
+        port = Port(
+            internal_port=3306, external_port=1001,
+        )
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/mysql',
                               tag=u'release-14.0'),
             ports=frozenset([port]),
         )
+        local_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.100",
+            applications=[], used_ports=[],
+            manifestations={}, devices={}, paths={},
+        )
+        destination_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.101",
+            applications=[application], used_ports=[],
+            manifestations={}, devices={}, paths={},
+        )
+        local_config = to_node(local_state)
 
-        nodes = frozenset([
-            Node(
-                uuid=destination_node_uuid,
-                applications=frozenset([application])
-            )
-        ])
-
-        desired = Deployment(nodes=nodes)
-        current = DeploymentState(nodes=[
-            NodeState(
-                uuid=api.node_uuid, hostname=api.hostname, applications=[],
-                used_ports=[]),
-            NodeState(uuid=destination_node_uuid,
-                      hostname=expected_destination_host, manifestations={},
-                      devices={}, paths={}, applications=[], used_ports=[])])
-        result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=current)
-        proxy = Proxy(ip=expected_destination_host,
-                      port=expected_destination_port)
+        proxy = Proxy(
+            ip=destination_state.hostname,
+            port=port.external_port,
+        )
         expected = sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
-        self.assertEqual(expected, result)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            additional_node_states={destination_state},
+            additional_node_config={to_node(destination_state)},
+            expected_changes=expected,
+        )
 
     def test_no_proxy_if_node_state_unknown(self):
         """
