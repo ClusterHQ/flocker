@@ -588,46 +588,6 @@ class StopApplicationTests(SynchronousTestCase):
 
         self.assertIs(None, result)
 
-
-# This models an application that has a volume.
-
-APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
-DATASET_ID = unicode(uuid4())
-DATASET = Dataset(dataset_id=DATASET_ID)
-APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
-APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
-APPLICATION_WITH_VOLUME = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-    volume=AttachedVolume(
-        manifestation=Manifestation(dataset=DATASET, primary=True),
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
-
-DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
-                            metadata=DATASET.metadata,
-                            maximum_size=1024 * 1024 * 100)
-
-APPLICATION_WITH_VOLUME_SIZE = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-    volume=AttachedVolume(
-        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
-                                    primary=True),
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-
-MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
-
-# Placeholder in case at some point discovered application is different
-# than requested application:
-DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
-
 APP_NAME = u"site-example.com"
 UNIT_FOR_APP = Unit(name=APP_NAME,
                     container_name=APP_NAME,
