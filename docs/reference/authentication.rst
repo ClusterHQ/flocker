@@ -43,37 +43,35 @@ An example of performing this authentication with ``cURL`` is given below.
 In this example, ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
 
-.. tabs::
+OS X
+^^^^
 
-  OS X
-  ^^^^
+Make sure you know the common name of the client certificate you will use.
+If you just generated the certificate following the `instructions above <generate-api>`_,
+the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
+If you're not sure what the username is, you can find the common name like this:
 
-  Make sure you know the common name of the client certificate you will use.
-  If you just generated the certificate following the `instructions above <generate-api>`_,
-  the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
-  If you're not sure what the username is, you can find the common name like this:
+.. code-block:: console
 
-  .. code-block:: console
+    $ openssl x509 -in user.crt -noout -subject
+    subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
 
-      $ openssl x509 -in user.crt -noout -subject
-      subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
+In this example, ``user-allison`` is the common name.
+Import the client certificate into the ``Keychain`` and then refer to it by its common name:
 
-  In this example, ``user-allison`` is the common name.
-  Import the client certificate into the ``Keychain`` and then refer to it by its common name:
+.. code-block:: console
 
-  .. code-block:: console
+    $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
+    $ security import user.p12 -k ~/Library/Keychains/login.keychain
+    $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
+         https://172.16.255.250:4523/v1/configuration/containers
 
-      $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
-      $ security import user.p12 -k ~/Library/Keychains/login.keychain
-      $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
-           https://172.16.255.250:4523/v1/configuration/containers
+Linux
+^^^^^
 
-  Linux
-  ^^^^^
+.. code-block:: console
 
-  .. code-block:: console
-
-      $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
-          https://172.16.255.250:4523/v1/configuration/containers
+    $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
+        https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
