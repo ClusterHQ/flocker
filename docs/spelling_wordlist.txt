@@ -57,6 +57,7 @@ mv
 namespace
 NAT'd
 online
+OpenStack
 pem
 petabyte
 petabytes
