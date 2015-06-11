@@ -410,6 +410,8 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
+Before you can use Flocker's API you will also need to `generate a client certificate <generate-api>`_.
+
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
 .. _post-installation-configuration:
@@ -557,13 +559,13 @@ The configuration item to use AWS should look like:
 Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
 AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
 
-ZFS Peer-to-Peer Backend Configuration (ALPHA)
-..............................................
+.. _zfs-dataset-backend:
+
+ZFS Peer-to-Peer Backend Configuration (Experimental)
+.....................................................
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
-The ZFS backend remains under development,
-it is not expected to operate reliably in many situations,
-and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
+The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
 This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
 The configuration item to use ZFS should look like:
 
