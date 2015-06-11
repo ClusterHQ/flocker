@@ -1163,6 +1163,22 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
             self, local_state, local_config, set(), sequentially(changes=[]),
         )
 
+    def test_has_volume_no_changes(self):
+        """
+        If an ``Application`` with a volume (with a maximum size) is configured
+        and exists with that configuration, no changes are calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            "manifestations", {manifestation.dataset_id: manifestation},
+            "applications", [application],
+        )
+        local_config = to_node(local_state)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), sequentially(changes=[]),
+        )
+
 
 class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
     """
