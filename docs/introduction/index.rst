@@ -21,8 +21,8 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 		 When using Flocker, when a container moves, the data volume moves with it.
 		 Your database gets to keep its data!
 
-Controlling Flocker
-===================
+Flocker Basics
+==============
 
 Flocker works by exposing a simple REST API on its Control Service.
 The Flocker Control Service communicates with Flocker Agents running on each node in the cluster to carry out commands.
@@ -35,9 +35,6 @@ With the Flocker API or CLI you can:
 * Move containers between hosts
 * Attach and detach data volumes from containers as they change hosts
 * Migrate local data volumes between servers (currently Experimental)
-
-Storage and Orchestration
-=========================
 
 Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.
 
