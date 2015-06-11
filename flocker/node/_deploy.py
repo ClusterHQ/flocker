@@ -816,6 +816,46 @@ class ApplicationNodeDeployer(object):
         applications.addCallback(self._nodestate_from_applications)
         return applications
 
+    def _application_is_diverged(self, state, configuration):
+        """
+        Determine whether the current state of an application is divergent from
+        the desired configuration for that application.
+
+        Certain differences are not considered divergences:
+
+            - The running state of the application.  It may have exited
+              normally and correctly after completing its task.
+
+            - The metadata for any volume of the application.  Volume metadata
+              only exists in the configuration.  It is always missing from the
+              state object.
+
+        :param Application state: The current state of the application.
+        :param Application configuration: The desired configuration for the
+            application.
+
+        :return: If the state differs from the configuration in a way which
+                 needs to be corrected by the convergence agent (for example,
+                 different network ports should be exposed), ``True``.  If it
+                 does not differ or only differs in the allowed ways mentioned
+                 above, ``False``.
+        """
+        # For our purposes what we care about is if configuration has
+        # changed, so if it's not running but it's otherwise the same
+        # we don't want to do anything:
+        comparable_state = state.transform(["running"], True)
+
+        comparable_configuration = configuration
+
+        if comparable_configuration.volume is not None:
+            # State never has metadata on datasets so remove it from the
+            # configuration to avoid comparing it.
+            comparable_configuration = comparable_configuration.transform(
+                ["volume", "manifestation", "dataset", "metadata"], {}
+            )
+
+        return comparable_state != comparable_configuration
+
     def calculate_changes(self, desired_configuration, current_cluster_state):
         """
         Work out which changes need to happen to the local state to match
@@ -910,17 +950,8 @@ class ApplicationNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
-            # For our purposes what we care about is if configuration has
-            # changed, so if it's not running but it's otherwise the same
-            # we don't want to do anything:
-            comparable_current = inspect_current.transform(["running"], True)
-            # Current state never has metadata on datasets, so remove from
-            # configuration:
-            comparable_desired = inspect_desired
-            if comparable_desired.volume is not None:
-                comparable_desired = comparable_desired.transform(
-                    ["volume", "manifestation", "dataset", "metadata"], {})
-            if comparable_desired != comparable_current:
+
+            if self._application_is_diverged(inspect_current, inspect_desired):
                 restart_containers.append(sequentially(changes=[
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
