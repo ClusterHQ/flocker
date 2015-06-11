@@ -21,7 +21,7 @@ from .. import (
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
-    EMPTY_STATE, assert_calculated_changes_for_deployer,
+    EMPTY_STATE, assert_calculated_changes_for_deployer, to_node,
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
@@ -1151,14 +1151,10 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         applications running or desired, and no proxies exist or are
         desired.
         """
-        api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
-        result = api.calculate_changes(
-            desired_configuration=EMPTY,
-            current_cluster_state=EMPTY_STATE)
-        expected = sequentially(changes=[])
-        self.assertEqual(expected, result)
+        assert_application_calculated_changes(
+            self, EMPTY_NODESTATE, to_node(EMPTY_NODESTATE), set(),
+            sequentially(changes=[]),
+        )
 
     def test_proxy_needs_creating(self):
         """
