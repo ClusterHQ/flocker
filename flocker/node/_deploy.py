@@ -615,6 +615,158 @@ class ApplicationNodeDeployer(object):
             network = make_host_network()
         self.network = network
 
+    def _attached_volume_for_container(
+            self, container, path_to_manifestations
+    ):
+        """
+        Infer the Flocker manifestation which is in use by the given container.
+
+        :param flocker.node._docker.Unit container: The container to inspect.
+        :param dict path_to_manifestations: A mapping from mount points (as
+            ``FilePath``) to identifiers (as ``unicode``) of the datasets that
+            are mounted there.
+
+        :return: ``None`` if no Flocker manifestation can be associated with
+            the container state.  Otherwise an ``AttachedVolume`` referring to
+            that manifestation and the location in the container where it is
+            mounted.
+        """
+        if container.volumes:
+            # XXX https://clusterhq.atlassian.net/browse/FLOC-49
+            # we only support one volume per container
+            # at this time
+            # XXX https://clusterhq.atlassian.net/browse/FLOC-773
+            # we assume all volumes are datasets
+            docker_volume = list(container.volumes)[0]
+            try:
+                manifestation = path_to_manifestations[
+                    docker_volume.node_path]
+            except KeyError:
+                # Apparently not a dataset we're managing, give up.
+                return None
+            else:
+                return AttachedVolume(
+                    manifestation=manifestation,
+                    mountpoint=docker_volume.container_path,
+                )
+        return None
+
+    def _ports_for_container(self, container):
+        """
+        Determine the network ports that are exposed by the given container.
+
+        :param flocker.node._docker.Unit container: The container to inspect.
+
+        :return: A ``list`` of ``Port`` instances.
+        """
+        ports = []
+        for portmap in container.ports:
+            ports.append(Port(
+                internal_port=portmap.internal_port,
+                external_port=portmap.external_port
+            ))
+        return ports
+
+    def _environment_for_container(self, container):
+        """
+        Get the custom environment specified for the container and infer its
+        links.
+
+        It would be nice to do these two things separately but links are only
+        represented in the container's environment so both steps involve
+        inspecting the environment.
+
+        :param flocker.node._docker.Unit container: The container to inspect.
+
+        :return: A two-tuple of the container's links and environment.  Links
+            are given as a ``list`` of ``Link`` instances.  Environment is
+            given as a ``list`` of two-tuples giving the environment variable
+            name and value (as ``bytes``).
+        """
+        # Improve the factoring of this later.  Separate it into two methods.
+        links = []
+        environment = []
+        if container.environment:
+            environment_dict = container.environment.to_dict()
+            for label, value in environment_dict.items():
+                # <ALIAS>_PORT_<PORTNUM>_TCP_PORT=<value>
+                parts = label.rsplit(b"_", 4)
+                try:
+                    alias, pad_a, port, pad_b, pad_c = parts
+                    local_port = int(port)
+                except ValueError:
+                    # <ALIAS>_PORT_<PORT>_TCP
+                    parts = label.rsplit(b"_", 3)
+                    try:
+                        alias, pad_a, port, pad_b = parts
+                    except ValueError:
+                        environment.append((label, value))
+                        continue
+                    if not (pad_a, pad_b) == (b"PORT", b"TCP"):
+                        environment.append((label, value))
+                    continue
+                if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
+                    links.append(Link(
+                        local_port=local_port,
+                        remote_port=int(value),
+                        alias=alias,
+                    ))
+        return links, environment
+
+    def _applications_from_containers(
+            self, containers, path_to_manifestations
+    ):
+        """
+        Reconstruct the original application state from the container state
+        that resulted from it.
+
+        :param list containers: The Docker containers that exist here.
+        :param path_to_manifestations: See ``_attached_volume_for_container``.
+
+        :return: A ``list`` of ``Application`` instances inferred from
+            ``containers`` and ``path_to_manifestations``.
+        """
+        applications = []
+        for container in containers:
+            image = DockerImage.from_string(container.container_image)
+            volume = self._attached_volume_for_container(
+                container, path_to_manifestations,
+            )
+            ports = self._ports_for_container(container)
+            links, environment = self._environment_for_container(container)
+            applications.append(Application(
+                name=container.name,
+                image=image,
+                ports=frozenset(ports),
+                volume=volume,
+                environment=environment if environment else None,
+                links=frozenset(links),
+                restart_policy=container.restart_policy,
+                running=(container.activation_state == u"active"),
+                command_line=container.command_line,
+            ))
+        return applications
+
+    def _nodestate_from_applications(self, applications):
+        """
+        Construct a ``NodeState`` representing the state of this node given a
+        particular set of applications.
+
+        :param list applications: ``Application`` instances representing the
+            applications on this node.
+
+        :return: A ``list`` of a single ``NodeState`` representing the
+            application state only of this node.
+        """
+        return [NodeState(
+            uuid=self.node_uuid,
+            hostname=self.hostname,
+            applications=applications,
+            used_ports=self.network.enumerate_used_ports(),
+            manifestations=None,
+            paths=None,
+        )]
+
     def discover_state(self, local_state):
         """
         List all the ``Application``\ s running on this node.
@@ -651,89 +803,18 @@ class ApplicationNodeDeployer(object):
                 paths=None,
             )])
 
-        path_to_manifestations = {path: local_state.manifestations[dataset_id]
-                                  for (dataset_id, path)
-                                  in local_state.paths.items()}
-        d = self.docker_client.list()
+        path_to_manifestations = {
+            path: local_state.manifestations[dataset_id]
+            for (dataset_id, path)
+            in local_state.paths.items()
+        }
 
-        def applications_from_units(units):
-            applications = []
-            for unit in units:
-                image = DockerImage.from_string(unit.container_image)
-                if unit.volumes:
-                    # XXX https://clusterhq.atlassian.net/browse/FLOC-49
-                    # we only support one volume per container
-                    # at this time
-                    # XXX https://clusterhq.atlassian.net/browse/FLOC-773
-                    # we assume all volumes are datasets
-                    docker_volume = list(unit.volumes)[0]
-                    try:
-                        manifestation = path_to_manifestations[
-                            docker_volume.node_path]
-                    except KeyError:
-                        # Apparently not a dataset we're managing, give up.
-                        volume = None
-                    else:
-                        volume = AttachedVolume(
-                            manifestation=manifestation,
-                            mountpoint=docker_volume.container_path)
-                else:
-                    volume = None
-                ports = []
-                for portmap in unit.ports:
-                    ports.append(Port(
-                        internal_port=portmap.internal_port,
-                        external_port=portmap.external_port
-                    ))
-                links = []
-                environment = []
-                if unit.environment:
-                    environment_dict = unit.environment.to_dict()
-                    for label, value in environment_dict.items():
-                        # <ALIAS>_PORT_<PORTNUM>_TCP_PORT=<value>
-                        parts = label.rsplit(b"_", 4)
-                        try:
-                            alias, pad_a, port, pad_b, pad_c = parts
-                            local_port = int(port)
-                        except ValueError:
-                            # <ALIAS>_PORT_<PORT>_TCP
-                            parts = label.rsplit(b"_", 3)
-                            try:
-                                alias, pad_a, port, pad_b = parts
-                            except ValueError:
-                                environment.append((label, value))
-                                continue
-                            if not (pad_a, pad_b) == (b"PORT", b"TCP"):
-                                environment.append((label, value))
-                            continue
-                        if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
-                            links.append(Link(
-                                local_port=local_port,
-                                remote_port=int(value),
-                                alias=alias,
-                            ))
-                applications.append(Application(
-                    name=unit.name,
-                    image=image,
-                    ports=frozenset(ports),
-                    volume=volume,
-                    environment=environment if environment else None,
-                    links=frozenset(links),
-                    restart_policy=unit.restart_policy,
-                    running=(unit.activation_state == u"active"),
-                    command_line=unit.command_line,
-                ))
-
-            return [NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=applications,
-                used_ports=self.network.enumerate_used_ports(),
-                manifestations=None,
-                paths=None,
-            )]
-        d.addCallback(applications_from_units)
-        return d
+        applications = self.docker_client.list()
+        applications.addCallback(
+            self._applications_from_containers, path_to_manifestations
+        )
+        applications.addCallback(self._nodestate_from_applications)
+        return applications
 
     def calculate_changes(self, desired_configuration, current_cluster_state):
         """
