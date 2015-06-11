@@ -691,7 +691,6 @@ class Cluster(PRecord):
         :return Deferred: Fires on end of assertion.
         """
         ip_to_uuid = {node.address: node.uuid for node in self.nodes}
-        uuid_to_ip = {node.uuid: node.address for node in self.nodes}
 
         def got_results(existing_containers):
             expected = []
@@ -701,8 +700,6 @@ class Cluster(PRecord):
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
-                app[u"host"] = uuid_to_ip[app["node_uuid"]]
-
             return sorted(existing_containers) == sorted(expected)
 
         def configuration_matches_state():
