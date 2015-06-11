@@ -49,6 +49,7 @@ lifecycle
 loopback
 Mesos
 metadata
+microservice
 microservices
 mountpoint
 multi
