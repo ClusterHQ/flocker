@@ -140,7 +140,7 @@ go to the relevant directory in `admin/release-packaging` and run:
 Legacy
 ------
 
-Fedora packages were published to Amazon S3 until version 1.0.0.
+Fedora packages were published to Amazon S3 up to but not including version 0.9.0.
 
 Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud Storage.
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
