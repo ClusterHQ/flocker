@@ -915,10 +915,19 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ['paths', unicode(self.DATASET_ID)],
             discard
         )
-
+        # Local state shows that there is a device for the (now) non-manifest
+        # dataset. i.e it is attached.
+        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
         assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(
+            case=self,
+            node_state=local_state,
+            node_config=local_config,
+            # The unmounted dataset has been added back to the non-manifest
+            # datasets by discover_state.
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset
+            ],
+            expected_changes=in_parallel(
                 changes=[
                     MountBlockDevice(
                         mountpoint=FilePath('/flocker/').child(
