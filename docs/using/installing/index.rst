@@ -619,8 +619,6 @@ Run the following commands to enable the agent service:
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-.. _zfs-dataset-backend:
-
 What to do next
 ===============
 
