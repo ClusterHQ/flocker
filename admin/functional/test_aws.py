@@ -28,13 +28,12 @@ class AWSTest(SynchronousTestCase):
     @if_aws
     def test_upload_content_type(self):
         """
-        Test that a content type can be set for an uploaded file.
+        A content type can be set for an uploaded file.
         """
         filename = random_name(self)
-        tmpdir = self.mktemp()
-        os.mkdir(tmpdir)
-        self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
-        tmpfile = FilePath(tmpdir).child(filename)
+        tmpdir = FilePath(self.mktemp())
+        tmpdir.makedirs()
+        tmpfile = tmpdir.child(filename)
         tmpfile.setContent('foo')
         s3 = boto.connect_s3()
         bucket = s3.get_bucket(bucket_name)
@@ -42,7 +41,7 @@ class AWSTest(SynchronousTestCase):
         sync_perform(
             dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
             effect=Effect(UploadToS3(
-                source_path=FilePath(tmpdir),
+                source_path=tmpdir,
                 target_bucket=bucket_name,
                 target_key=filename,
                 file=tmpfile,
