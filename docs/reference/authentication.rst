@@ -72,6 +72,6 @@ Linux
 .. code-block:: console
 
     $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
-        https://172.16.255.250:4523/v1/configuration/containers
+         https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
