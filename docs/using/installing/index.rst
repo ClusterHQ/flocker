@@ -464,8 +464,8 @@ On AWS, an external firewall is used instead, which will need to be configured s
 
 .. _agent-yml:
 
-Enabling the Flocker agent service
-----------------------------------
+Configuring the Flocker agent
+-----------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 The file must always include ``version`` and ``control-service`` items similar to these:
@@ -557,24 +557,6 @@ The configuration item to use AWS should look like:
 Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
 AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
 
-CentOS 7
-........
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
-   :prompt: [root@agent-node]#
-
-Ubuntu
-......
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
-   :prompt: [root@agent-node]#
-
-.. _zfs-dataset-backend:
-
 ZFS Peer-to-Peer Backend Configuration (ALPHA)
 ..............................................
 
@@ -618,6 +600,24 @@ The configuration item to use Loopback should look like:
       "root_path": "/var/lib/flocker/loopback"
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
+
+Enabling the Flocker agent service on CentOS 7
+----------------------------------------------
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+Enabling the Flocker agent service on Ubuntu
+--------------------------------------------
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+.. _zfs-dataset-backend:
 
 What to do next
 ===============
