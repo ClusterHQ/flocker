@@ -557,6 +557,22 @@ The configuration item to use AWS should look like:
 Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
 AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
 
+CentOS 7
+........
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+Ubuntu
+......
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
 .. _zfs-dataset-backend:
 
 ZFS Peer-to-Peer Backend Configuration (ALPHA)
@@ -602,23 +618,6 @@ The configuration item to use Loopback should look like:
       "root_path": "/var/lib/flocker/loopback"
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
-
-
-CentOS 7
-........
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
-   :prompt: [root@agent-node]#
-
-Ubuntu
-......
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
-   :prompt: [root@agent-node]#
 
 What to do next
 ===============
