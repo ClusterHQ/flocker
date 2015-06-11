@@ -903,6 +903,8 @@ class UpdateRepoTests(SynchronousTestCase):
                          '<oldhash>-metadata.xml'):
                 'metadata for: existing_package.rpm',
         }
+        # Copy before passing to FakeAWS
+        expected_keys = existing_s3_keys.copy()
 
         aws = FakeAWS(
             routing_rules={},
@@ -938,7 +940,6 @@ class UpdateRepoTests(SynchronousTestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
         }
 
-        expected_keys = existing_s3_keys.copy()
         expected_keys.update({
             'test/target/key/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm':
                 'cli-package',
@@ -973,6 +974,8 @@ class UpdateRepoTests(SynchronousTestCase):
             os.path.join(self.target_key, 'Packages.gz'):
                 'metadata for: existing_package.deb',
         }
+        # Copy before passing to FakeAWS
+        expected_keys = existing_s3_keys.copy()
 
         aws = FakeAWS(
             routing_rules={},
@@ -1008,8 +1011,8 @@ class UpdateRepoTests(SynchronousTestCase):
             'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
         }
 
-        expected_keys = existing_s3_keys.copy()
         expected_keys.update({
+            'test/target/key/Release': 'Origin: ClusterHQ\n',
             'test/target/key/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb':
                 'cli-package',
             'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
@@ -1414,26 +1417,25 @@ class UploadOptionsTests(SynchronousTestCase):
     """
 
     def test_must_be_release_version(self):
-          """
-          Trying to upload artifacts for a version which is not a release
-          fails.
-          """
-          options = UploadOptions()
-          self.assertRaises(
-              NotARelease,
-              options.parseOptions,
-              ['--flocker-version', '0.3.0-444-gf05215b'])
-
+        """
+        Trying to upload artifacts for a version which is not a release
+        fails.
+        """
+        options = UploadOptions()
+        self.assertRaises(
+            NotARelease,
+            options.parseOptions,
+            ['--flocker-version', '0.3.0-444-gf05215b'])
 
     def test_documentation_release_fails(self):
-          """
-          Trying to upload artifacts for a documentation version fails.
-          """
-          options = UploadOptions()
-          self.assertRaises(
-              DocumentationRelease,
-              options.parseOptions,
-              ['--flocker-version', '0.3.0+doc1'])
+        """
+        Trying to upload artifacts for a documentation version fails.
+        """
+        options = UploadOptions()
+        self.assertRaises(
+            DocumentationRelease,
+            options.parseOptions,
+            ['--flocker-version', '0.3.0+doc1'])
 
 
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
@@ -1773,7 +1775,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.target_bucket = 'clusterhq-archive'
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
-
     def metadata_version(self, version, box_filename, provider="virtualbox"):
         """
         Create a version section for Vagrant metadata, for a given box, with
@@ -1826,7 +1827,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             publish_vagrant_metadata(
                 version=version,
                 box_url=box_url,
-                box_name =box_name,
+                box_name=box_name,
                 target_bucket=self.target_bucket,
                 scratch_directory=scratch_directory))
 
@@ -1850,6 +1851,25 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.assertEqual(
             json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
             self.tutorial_metadata(versions=[expected_version]),
+        )
+
+    def test_metadata_content_type(self):
+        """
+        Vagrant requires a JSON metadata file to have a Content-Type of
+        application/json.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+
+        self.assertEqual(
+            aws.s3_buckets[self.target_bucket][self.metadata_key].content_type,
+            'application/json'
         )
 
     def test_version_added(self):
@@ -1905,7 +1925,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             aws.s3_buckets[self.target_bucket][self.metadata_key])
         # The underscore is converted to a period in the version.
         self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
-
 
     def test_version_already_exists(self):
         """
@@ -1999,7 +2018,6 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             PushFailed,
             publish_homebrew_recipe,
             non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
-
 
     def test_recipe_already_exists(self):
         """
