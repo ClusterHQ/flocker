@@ -35,7 +35,8 @@ from .blockdevice import (
     UnattachedVolume, get_blockdevice_volume,
 )
 from ._logging import (
-    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
+    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR,
+    COMPUTE_INSTANCE_ID_NOT_FOUND, COMPUTE_INSTANCE_ID_FOUND,
     OPENSTACK_ACTION
 )
 
@@ -334,6 +335,9 @@ class CinderBlockDeviceAPI(object):
         for server in self.nova_server_manager.list():
             api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses.issubset(local_ips):
+                COMPUTE_INSTANCE_ID_FOUND(
+                    instance_id=server.id,
+                ).write()
                 return server.id
             else:
                 for ip in api_addresses:
@@ -341,7 +345,9 @@ class CinderBlockDeviceAPI(object):
 
         # If there was no match, log an error containing all the local
         # and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
+        COMPUTE_INSTANCE_ID_NOT_FOUND(
+            local_ips=local_ips, api_ips=api_ip_map
+        ).write()
 
     def create_volume(self, dataset_id, size):
         """

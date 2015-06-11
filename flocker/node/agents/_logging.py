@@ -135,6 +135,16 @@ API_IPS = Field(
     u"The IP addresses and instance_ids for all nodes."
 )
 
+INSTANCE_ID = Field(
+    u"instance_id",
+    [bytes, unicode],
+    u"The identifier of instance of interest.")
+
+COMPUTE_INSTANCE_ID_FOUND = MessageType(
+    u"flocker:node:agents:blockdevice:openstack:compute_instance_id:found",
+    [INSTANCE_ID],
+    u"Determined the instance ID of this node.",
+)
 COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
     u"flocker:node:agents:blockdevice:openstack:compute_instance_id:not_found",
     [LOCAL_IPS, API_IPS],
