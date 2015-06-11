@@ -381,6 +381,16 @@ boto_dispatcher = TypeDispatcher({
 })
 
 
+class ContentTypeUnicode(unicode):
+    """
+    A Unicode string with an additional content-type field.
+    """
+    def __new__(cls, value, content_type):
+        self = super(ContentTypeUnicode, cls).__new__(cls, unicode(value))
+        self.content_type = content_type
+        return self
+
+
 @attributes([
     Attribute('routing_rules'),
     Attribute('s3_buckets'),
@@ -401,11 +411,6 @@ class FakeAWS(object):
     """
     def __init__(self):
         self.cloudfront_invalidations = []
-        for bucket in self.s3_buckets.values():
-            for key, contents in bucket.items():
-                if isinstance(contents, basestring):
-                    # Convert string content to tuple of (content, contentType)
-                    bucket[key] = (contents, None)
 
     @sync_performer
     def _perform_update_s3_routing_rule(self, dispatcher, intent):
@@ -471,7 +476,7 @@ class FakeAWS(object):
         See :class:`DownloadS3Key`.
         """
         bucket = self.s3_buckets[intent.source_bucket]
-        intent.target_path.setContent(bucket[intent.source_key][0])
+        intent.target_path.setContent(bucket[intent.source_key])
 
     @sync_performer
     def _perform_upload_s3_key(self, dispatcher, intent):
@@ -480,45 +485,11 @@ class FakeAWS(object):
         """
         bucket = self.s3_buckets[intent.target_bucket]
         with intent.file.open() as source_file:
-            bucket[intent.target_key] = source_file.read(), intent.content_type
-
-    def get_bucket_keys(self, bucket):
-        """
-        Retrieve the keys from a bucket in S3.
-
-        :param str bucket: name of the S3 bucket.
-        :returns: the keys present in the bucket.
-        """
-        return self.s3_buckets[bucket].keys()
-
-    def get_bucket_contents(self, bucket):
-        """
-        Retrieve the file keys and contents in S3.
-
-        :param str bucket: name of the S3 bucket.
-        :returns: a dictionary mapping keys to file contents.
-        """
-        return {k: v[0] for k, v in self.s3_buckets[bucket].items()}
-
-    def get_content(self, bucket, key):
-        """
-        Retrieve the content of a file in S3.
-
-        :param str bucket: name of the S3 bucket.
-        :param str key: key for the S3 file.
-        :returns: the contents of the file.
-        """
-        return self.s3_buckets[bucket][key][0]
-
-    def get_content_type(self, bucket, key):
-        """
-        Retrieve the content of a file in S3.
-
-        :param str bucket: name of the S3 bucket.
-        :param str key: key for the S3 file.
-        :returns: the contents of the file.
-        """
-        return self.s3_buckets[bucket][key][1]
+            content = source_file.read()
+        content_type = intent.content_type
+        if content_type is not None:
+            content = ContentTypeUnicode(content, content_type)
+        bucket[intent.target_key] = content
 
     def get_dispatcher(self):
         """

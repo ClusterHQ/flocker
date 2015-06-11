@@ -115,7 +115,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
-            aws.get_bucket_contents('clusterhq-staging-docs'), {
+            aws.s3_buckets['clusterhq-staging-docs'], {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -154,7 +154,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
         self.assertEqual(
-            aws.get_bucket_contents('clusterhq-docs'), {
+            aws.s3_buckets['clusterhq-docs'], {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -194,7 +194,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
-            aws.get_bucket_contents('clusterhq-staging-docs'), {
+            aws.s3_buckets['clusterhq-staging-docs'], {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -956,7 +956,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
         self.assertEqual(
             expected_keys,
-            aws.get_bucket_contents(self.target_bucket))
+            aws.s3_buckets[self.target_bucket])
 
     def test_fake_deb(self):
         """
@@ -1023,7 +1023,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
         self.assertEqual(
             expected_keys,
-            aws.get_bucket_contents(self.target_bucket))
+            aws.s3_buckets[self.target_bucket])
 
     def test_package_not_available_exception(self):
         """
@@ -1097,7 +1097,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 'repodata/repomd.xml',
             ]
         }
-        files_on_s3 = aws.get_bucket_contents(self.target_bucket)
+        files_on_s3 = aws.s3_buckets[self.target_bucket]
 
         repodata_path = os.path.join(self.target_key, 'repodata')
 
@@ -1180,7 +1180,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 'Release',
             ]
         }
-        files_on_s3 = aws.get_bucket_contents(self.target_bucket)
+        files_on_s3 = aws.s3_buckets[self.target_bucket]
 
         # The original source repository contains no metadata.
         # This tests that CreateRepo creates the expected metadata files from
@@ -1281,7 +1281,7 @@ class UploadPackagesTests(SynchronousTestCase):
             'ubuntu-testing/15.04/amd64/Release',
         }
 
-        files_on_s3 = self.aws.get_bucket_keys(self.target_bucket)
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
 
     def test_key_suffixes(self):
@@ -1312,7 +1312,7 @@ class UploadPackagesTests(SynchronousTestCase):
             top_level=FLOCKER_PATH,
         )
 
-        files_on_s3 = self.aws.get_bucket_keys(self.target_bucket)
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 def create_fake_repository(test_case, files):
@@ -1394,7 +1394,7 @@ class UploadPythonPackagesTests(SynchronousTestCase):
 
         self.upload_python_packages()
 
-        aws_keys = self.aws.get_bucket_keys(self.target_bucket)
+        aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
             ['python/Flocker-0.3.0-py2-none-any.whl',
@@ -1631,7 +1631,7 @@ class UploadPipIndexTests(SynchronousTestCase):
                 target_bucket=bucket))
 
         self.assertEqual(
-            aws.get_content(bucket, 'python/index.html'),
+            aws.s3_buckets[bucket]['python/index.html'],
             (
                 '<html>\nThis is an index for pip\n<div>'
                 '<a href="Flocker-0.3.1-py2-none-any.whl">'
@@ -1775,7 +1775,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.target_bucket = 'clusterhq-archive'
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
-
     def metadata_version(self, version, box_filename, provider="virtualbox"):
         """
         Create a version section for Vagrant metadata, for a given box, with
@@ -1828,7 +1827,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             publish_vagrant_metadata(
                 version=version,
                 box_url=box_url,
-                box_name =box_name,
+                box_name=box_name,
                 target_bucket=self.target_bucket,
                 scratch_directory=scratch_directory))
 
@@ -1850,7 +1849,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         )
 
         self.assertEqual(
-            json.loads(aws.get_content(self.target_bucket, self.metadata_key)),
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
             self.tutorial_metadata(versions=[expected_version]),
         )
 
@@ -1869,7 +1868,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.publish_vagrant_metadata(aws=aws, version='0.3.0')
 
         self.assertEqual(
-            aws.get_content_type(self.target_bucket, self.metadata_key),
+            aws.s3_buckets[self.target_bucket][self.metadata_key].content_type,
             'application/json'
         )
 
@@ -1905,7 +1904,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
 
         self.publish_vagrant_metadata(aws=aws, version='0.4.0')
         self.assertEqual(
-            json.loads(aws.get_content(self.target_bucket, self.metadata_key)),
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
             expected_metadata,
         )
 
@@ -1923,10 +1922,9 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
 
         self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
         metadata = json.loads(
-            aws.get_content(self.target_bucket, self.metadata_key))
+            aws.s3_buckets[self.target_bucket][self.metadata_key])
         # The underscore is converted to a period in the version.
         self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
-
 
     def test_version_already_exists(self):
         """
@@ -1962,7 +1960,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
 
         metadata_versions = json.loads(
-            aws.get_content(self.target_bucket, self.metadata_key))['versions']
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
 
         self.assertEqual(metadata_versions, [expected_version])
 
@@ -2020,7 +2018,6 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             PushFailed,
             publish_homebrew_recipe,
             non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
-
 
     def test_recipe_already_exists(self):
         """
