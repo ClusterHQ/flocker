@@ -849,15 +849,15 @@ class ApplicationNodeDeployer(object):
             one), ``True``.  If it does not differ or only differs in the
             allowed ways mentioned above, ``False``.
         """
-        def log(diverged, reason=None):
+        def log(restart, reason=None):
             Message.new(
                 message_type=_eliot_system(u"restart_for_volume_change"),
-                volume_is_diverged=diverged,
+                restart=restart,
                 state_is_none=state is None,
                 configuration_is_none=configuration is None,
                 reason=reason,
             ).write()
-            return diverged
+            return restart
 
         def restart_if_available(dataset_id):
             """
@@ -876,10 +876,10 @@ class ApplicationNodeDeployer(object):
             """
             if dataset_id in node_state.manifestations:
                 # We want it and we have it.
-                return log(True)
+                return log(True, "have configured dataset")
             else:
                 # We want it but we don't have it.
-                return log(False)
+                return log(False, "missing configured dataset")
 
         state_id = getattr(
             getattr(state, "manifestation", None), "dataset_id", None
@@ -889,9 +889,9 @@ class ApplicationNodeDeployer(object):
         )
 
         if state_id == config_id:
-            return log(False)
+            return log(False, "dataset matches")
         elif config_id is None:
-            return log(True)
+            return log(True, "volume removed")
         else:
             return restart_if_available(config_id)
 
