@@ -7,6 +7,38 @@ Some interface-related tools.
 from zope.interface.interface import Method
 
 
+def interface_wrapper(wrapper_name, method_wrapper_factory):
+    """
+    """
+    def wrapper(interface, original):
+        if not interface.providedBy(original):
+            raise TypeError(
+                "Original {!r} "
+                "does not provide {!r} ".format(
+                    original, interface
+                )
+            )
+
+        for method_name in interface.names():
+            if not isinstance(interface[method_name], Method):
+                raise TypeError(
+                    "{} does not support interfaces with non-methods "
+                    "attributes".format(wrapper_name)
+                )
+
+        for name in interface.names():
+            original_method = getattr(original, name)
+            setattr(
+                original,
+                name,
+                method_wrapper_factory(original_method)
+            )
+        return original
+
+    wrapper.__name__ = wrapper_name
+    return wrapper
+
+
 def interface_decorator(decorator_name, interface, method_decorator,
                         *args, **kwargs):
     """

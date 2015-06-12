@@ -13,7 +13,7 @@ from eliot import Field, MessageType
 
 from zope.interface import Interface, implementer
 
-from .. import interface_decorator
+from .. import interface_decorator, interface_wrapper
 
 
 # Eliot structures for testing ``interface_decorator``.
@@ -96,6 +96,92 @@ class LoggingDummy(object):
     """
     def __init__(self, dummy):
         self._dummy = dummy
+
+
+from functools import wraps
+
+class IFooBar(Interface):
+    def foo():
+        pass
+
+    def bar():
+        pass
+
+
+@implementer(IFooBar)
+class QuietFooBarAPI(object):
+    def foo(self, number):
+        return number
+
+    def bar(self, number):
+        return number
+
+
+class InterfaceWrapperTests(SynchronousTestCase):
+    """
+    Tests for ``interface_wrapper``.
+    """
+    def test_object_instance_wrapper(self):
+        """
+        ``interface_wrapper`` returns a function which replaces all the
+        methods defined in ``interface`` with wrappers and returns the
+        modified object.
+        """
+        logger = []
+
+        def _make_logging_method(original_method):
+            @wraps(original_method)
+            def logging_method(*args, **kwargs):
+                logger.append((original_method, args, kwargs))
+                return original_method(*args, **kwargs)
+            return logging_method
+
+        log_interface_methods = interface_wrapper(
+            wrapper_name="log_interface_methods",
+            method_wrapper_factory=_make_logging_method
+        )
+
+        quiet_api = QuietFooBarAPI()
+        logging_api = log_interface_methods(
+            IFooBar,
+            quiet_api
+        )
+        return_values = [
+            logging_api.foo(1),
+            logging_api.bar(number=2)
+        ]
+        self.assertEqual([1, 2], return_values)
+        self.assertEqual(
+            [(logging_api.foo, (1,), {}),
+             (logging_api.bar, (), {"number": 2})],
+            logger
+        )
+
+    def test_non_provider_typeerror(self):
+        """
+        ``interface_decorator`` raises ``TypeError`` if supplied with a
+        ``function`` as the decoratee.
+        """
+        def method_wrapper_factory(original_method):
+            @wraps(original_method)
+            def method_wrapper(*args, **kwargs):
+                return original_method(*args, **kwargs)
+            return method_wrapper
+
+        pass_through_methods = interface_wrapper(
+            wrapper_name="pass_through_methods",
+            method_wrapper_factory=method_wrapper_factory
+        )
+
+        def some_undecorated_function():
+            pass
+
+        self.assertRaises(
+            TypeError,
+            pass_through_methods,
+            interface=IDummy,
+            original=some_undecorated_function
+        )
 
 
 class InterfaceDecoratorTests(SynchronousTestCase):
