@@ -816,10 +816,11 @@ class ApplicationNodeDeployer(object):
         applications.addCallback(self._nodestate_from_applications)
         return applications
 
-    def _volume_is_diverged(self, node_state, state, configuration):
+    def _restart_for_volume_change(self, node_state, state, configuration):
         """
         Determine whether the current volume state of an application is
-        divergent from the volume configuration for that application.
+        divergent from the volume configuration for that application in a way
+        that merits an application restart right now.
 
         Many actual divergences are allowed and ignored:
 
@@ -850,7 +851,7 @@ class ApplicationNodeDeployer(object):
         """
         def log(diverged, reason=None):
             Message.new(
-                message_type=_eliot_system(u"volume_is_diverged"),
+                message_type=_eliot_system(u"restart_for_volume_change"),
                 volume_is_diverged=diverged,
                 state_is_none=state is None,
                 configuration_is_none=configuration is None,
@@ -895,17 +896,20 @@ class ApplicationNodeDeployer(object):
         else:
             return want(config_id)
 
-    def _application_is_diverged(self, node_state, state, configuration):
+    def _restart_for_application_change(
+        self, node_state, state, configuration
+    ):
         """
         Determine whether the current state of an application is divergent from
-        the configuration for that application.
+        the configuration for that application in a way that merits an
+        application restart right now.
 
         Certain differences are not considered divergences:
 
             - The running state of the application.  It may have exited
               normally and correctly after completing its task.
 
-            - Certain volume differences.  See ``_volume_is_diverged``.
+            - Certain volume differences.  See ``_restart_for_volume_change``.
 
         :param Application state: The current state of the application.
         :param Application configuration: The desired configuration for the
@@ -932,7 +936,7 @@ class ApplicationNodeDeployer(object):
 
         return (
             comparable_state != comparable_configuration
-            or self._volume_is_diverged(
+            or self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )
         )
@@ -1032,8 +1036,8 @@ class ApplicationNodeDeployer(object):
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
 
-            if self._application_is_diverged(
-                    current_node_state, inspect_current, inspect_desired
+            if self._restart_for_application_change(
+                current_node_state, inspect_current, inspect_desired
             ):
                 restart_containers.append(sequentially(changes=[
                     StopApplication(application=inspect_current),
