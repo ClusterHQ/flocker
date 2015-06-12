@@ -70,20 +70,6 @@ class PostgresTests(TestCase):
             ),
         )
 
-        requested_dataset = {
-            u"primary": self.node_1.uuid,
-            u"dataset_id": new_dataset_id,
-            u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
-            u"metadata": {u"name": POSTGRES_APPLICATION_NAME},
-        }
-
-        configuring_dataset = cluster.create_dataset(requested_dataset)
-        configuring_dataset.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
-        )
-        self.addCleanup(cluster.delete_dataset, new_dataset_id)
-        self.addCleanup(cluster.remove_container, POSTGRES_APPLICATION_NAME)
-
         self.postgres_deployment = {
             u"version": 1,
             u"nodes": {
@@ -128,13 +114,15 @@ class PostgresTests(TestCase):
                 [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                  u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
-        def deploy_postgres(ignored):
-            cluster.flocker_deploy(
-                self, self.postgres_deployment, self.postgres_application
-            )
-
-        configuring_dataset.addCallback(deploy_postgres)
-        return configuring_dataset
+        cluster.flocker_deploy(
+            self, self.postgres_deployment, self.postgres_application
+        )
+        # We're only testing movement if we actually wait for Postgres to
+        # be running before proceeding with test:
+        return self.cluster.assert_expected_deployment(self, {
+            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
+            self.node_2.reported_hostname: set([]),
+        })
 
     def test_deploy(self):
         """
