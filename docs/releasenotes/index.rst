@@ -4,8 +4,8 @@ Release Notes
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
-Next Release
-============
+v0.9
+====
 
 * Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
