@@ -70,7 +70,7 @@ def _openstack_logged_method(method_name, original_name):
 
         # See https://clusterhq.atlassian.net/browse/FLOC-2054
         # for ensuring all method arguments are serializable.
-        with OPENSTACK_ACTION(operation=[attempt, method_name, args, kwargs]):
+        with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)
             except KeystoneOverLimit as e:
@@ -365,6 +365,7 @@ class CinderBlockDeviceAPI(object):
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
         )
+        Message.new(blockdevice_id=requested_volume.id).write()
         created_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
             expected_volume=requested_volume,
@@ -518,17 +519,14 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
 
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
-@auto_openstack_retry(ICinderVolumeManager, "_cinder_volumes")
 class _LoggingCinderVolumeManager(PRecord):
     _cinder_volumes = field(mandatory=True)
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
-@auto_openstack_retry(INovaVolumeManager, "_nova_volumes")
 class _LoggingNovaVolumeManager(PRecord):
     _nova_volumes = field(mandatory=True)
 
 @auto_openstack_logging(INovaServerManager, "_nova_servers")
-@auto_openstack_retry(INovaServerManager, "_nova_servers")
 class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
 
