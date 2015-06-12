@@ -164,3 +164,15 @@ class EBSBlockDeviceAPIInterfaceTests(
                 messages
             )
         )
+
+    def test_next_device_in_use(self):
+        """
+        ``_next_device`` skips devices indicated as being in use.
+
+        Ideally we'd have a test for this using the public API, but this
+        only occurs if we hit eventually consistent ignorance in the AWS
+        servers so it's hard to trigger deterministically.
+        """
+        result = self.api._next_device(self.api.compute_instance_id(), [],
+                                       {u"/dev/sdf"})
+        self.assertEqual(result, u"/dev/sdg")
