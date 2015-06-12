@@ -77,3 +77,10 @@ Linux
          https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+
+Next Steps
+==========
+
+The next section describes how to :ref:`control Flocker using the CLI<control-flocker>`.
+However, now you have set up an authenticated user you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
+You can replace the IP addresses in the sample :file:`deployment.yml` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.

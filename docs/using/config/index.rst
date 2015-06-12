@@ -1,3 +1,5 @@
+.. _control-flocker:
+
 ================================
 Controlling Flocker with the CLI
 ================================
