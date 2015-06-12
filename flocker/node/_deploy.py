@@ -14,7 +14,7 @@ from characteristic import attributes
 
 from pyrsistent import PRecord, field
 
-from eliot import write_failure, Logger, start_action
+from eliot import Message, write_failure, Logger, start_action
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -816,45 +816,125 @@ class ApplicationNodeDeployer(object):
         applications.addCallback(self._nodestate_from_applications)
         return applications
 
-    def _application_is_diverged(self, state, configuration):
+    def _volume_is_diverged(self, node_state, state, configuration):
+        """
+        Determine whether the current volume state of an application is
+        divergent from the volume configuration for that application.
+
+        Many actual divergences are allowed and ignored:
+
+            - The volume metadata.  This metadata only exists in the
+              configuration.  It is always missing from the state object.
+
+            - The volume size.  The dataset agent is not reliably capable of
+              performing resizes (if we wait for the actual and configured
+              sizes to match, we might have to wait forever).
+
+            - The volume's deleted state.  The application will be allowed to
+              continue to use a volume that has been marked for deletion until
+              the application is explicitly stopped.
+
+        :param NodeState node_state: The known local state of this node.
+        :param AttachedVolume state: The known state of the volume of an
+            application being considered.  Or ``None`` if it is known not to
+            have a volume.
+        :param AttachedVolume configuration: The configured state of the volume
+            of the application being considered.  Or ``None`` if it is
+            configured to not have a volume.
+
+        :return: If the state differs from the configuration in a way which
+            needs to be corrected by the convergence agent (for example, the
+            application is configured with a volume but is running without
+            one), ``True``.  If it does not differ or only differs in the
+            allowed ways mentioned above, ``False``.
+        """
+        def log(diverged, reason=None):
+            Message.new(
+                volume_is_diverged=diverged,
+                state_is_none=state is None,
+                configuration_is_none=configuration is None,
+                reason=reason,
+            ).write()
+            return diverged
+
+        def want(dataset_id):
+            """
+            Considering that we would like to restart the application with a
+            volume using the given dataset_id, determine whether we can
+            actually do so at this time.
+
+            If the indicated dataset has no manifestation on this node, we will
+            not be able to start the application again after stopping it.  So
+            leave it running (claim it is not diverged) until such a
+            manifestation exists.
+
+            :param unicode dataset_id: The identifier of the dataset we want.
+
+            :return: If there is a manifestation of the given dataset on this
+                node, ``True``.  Otherwise, ``False``.
+            """
+            if dataset_id in node_state.manifestations:
+                # We want it and we have it.
+                return log(True)
+            else:
+                # We want it but we don't have it.
+                return log(False)
+
+        state_id = getattr(
+            getattr(state, "manifestation", None), "dataset_id", None
+        )
+        config_id = getattr(
+            getattr(configuration, "manifestation", None), "dataset_id", None
+        )
+
+        if state_id == config_id:
+            return log(False)
+        elif config_id is None:
+            return log(True)
+        else:
+            return want(config_id)
+
+    def _application_is_diverged(self, node_state, state, configuration):
         """
         Determine whether the current state of an application is divergent from
-        the desired configuration for that application.
+        the configuration for that application.
 
         Certain differences are not considered divergences:
 
             - The running state of the application.  It may have exited
               normally and correctly after completing its task.
 
-            - The metadata for any volume of the application.  Volume metadata
-              only exists in the configuration.  It is always missing from the
-              state object.
+            - Certain volume differences.  See ``_volume_is_diverged``.
 
         :param Application state: The current state of the application.
         :param Application configuration: The desired configuration for the
             application.
 
         :return: If the state differs from the configuration in a way which
-                 needs to be corrected by the convergence agent (for example,
-                 different network ports should be exposed), ``True``.  If it
-                 does not differ or only differs in the allowed ways mentioned
-                 above, ``False``.
+            needs to be corrected by the convergence agent (for example,
+            different network ports should be exposed), ``True``.  If it does
+            not differ or only differs in the allowed ways mentioned above,
+            ``False``.
         """
+        volume_state = state.volume
+        volume_configuration = configuration.volume
+
+        # The volume comparison is too complicated to leave up to `!=` below.
+        # Check volumes separately.
+        comparable_state = state.set(volume=None)
+        comparable_configuration = configuration.set(volume=None)
+
         # For our purposes what we care about is if configuration has
         # changed, so if it's not running but it's otherwise the same
         # we don't want to do anything:
-        comparable_state = state.transform(["running"], True)
+        comparable_state = comparable_state.transform(["running"], True)
 
-        comparable_configuration = configuration
-
-        if comparable_configuration.volume is not None:
-            # State never has metadata on datasets so remove it from the
-            # configuration to avoid comparing it.
-            comparable_configuration = comparable_configuration.transform(
-                ["volume", "manifestation", "dataset", "metadata"], {}
+        return (
+            comparable_state != comparable_configuration
+            or self._volume_is_diverged(
+                node_state, volume_state, volume_configuration
             )
-
-        return comparable_state != comparable_configuration
+        )
 
     def calculate_changes(self, desired_configuration, current_cluster_state):
         """
@@ -951,7 +1031,9 @@ class ApplicationNodeDeployer(object):
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
 
-            if self._application_is_diverged(inspect_current, inspect_desired):
+            if self._application_is_diverged(
+                    current_node_state, inspect_current, inspect_desired
+            ):
                 restart_containers.append(sequentially(changes=[
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
