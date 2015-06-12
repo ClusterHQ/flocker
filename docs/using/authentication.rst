@@ -16,12 +16,14 @@ If you have not already followed these steps, see the :ref:`flocker-node install
 
 .. _generate-api:
 
-Generate an API user certificate
-================================
+Generating an API user certificate
+==================================
 
 The CLI package includes the ``flocker-ca`` program which is used to generate certificate and key files.
 
-You can run ``flocker-ca --help`` for a full list of available commands. For API user certificates, run the ``flocker-ca create-api-certificate`` command from the same directory containing the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
+.. note:: You can run ``flocker-ca --help`` for a full list of available commands.
+
+For API user certificates, run the ``flocker-ca create-api-certificate`` command from the directory which contains the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
 
 Run ``flocker-ca create-api-certificate <username>``, where ``<username>`` is a unique username for an API user.
 
@@ -75,3 +77,10 @@ Linux
          https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+
+Next Steps
+==========
+
+The next section describes how to :ref:`control Flocker using the CLI<cli>`.
+However, now you have set up an authenticated user you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
+You can replace the IP addresses in the sample :file:`deployment.yml` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
