@@ -71,10 +71,57 @@ def _openstack_logged_method(method_name, original_name):
 
         # See https://clusterhq.atlassian.net/browse/FLOC-2054
         # for ensuring all method arguments are serializable.
+        with OPENSTACK_ACTION(operation=[attempt, method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except KeystoneOverLimit as e:
+                raise
+            except NovaClientException as e:
+                NOVA_CLIENT_EXCEPTION(
+                    code=e.code,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                ).write()
+                raise
+            except KeystoneHttpError as e:
+                KEYSTONE_HTTP_ERROR(
+                    code=e.http_status,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                    response=e.response.text,
+                ).write()
+                raise
+    return _run_with_logging
+
+def _openstack_retry_method(method_name, original_name):
+    """
+    Run a method and log additional information about any exceptions that are
+    raised.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _sleep_and_retry(self, *args, **kwargs):
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
         retry = True
         attempt = 0
         while (retry and attempt < MAX_ATTEMPTS):
-            with OPENSTACK_ACTION(operation=[attempt, method_name, args, kwargs]):
+            with RETRY_ACTION(operation=[attempt, method_name, args, kwargs]):
                 try:
                     return method(*args, **kwargs)
                 except KeystoneOverLimit as e:
@@ -84,30 +131,34 @@ def _openstack_logged_method(method_name, original_name):
                     attempt += 1
                     if attempt == MAX_ATTEMPTS:
                         raise
-                except NovaClientException as e:
-                    NOVA_CLIENT_EXCEPTION(
-                        code=e.code,
-                        message=e.message,
-                        details=e.details,
-                        request_id=e.request_id,
-                        url=e.url,
-                        method=e.method,
-                    ).write()
-                    raise
-                except KeystoneHttpError as e:
-                    KEYSTONE_HTTP_ERROR(
-                        code=e.http_status,
-                        message=e.message,
-                        details=e.details,
-                        request_id=e.request_id,
-                        url=e.url,
-                        method=e.method,
-                        response=e.response.text,
-                    ).write()
-                    raise
                 else:
                     retry = False
-    return _run_with_logging
+    return _sleep_and_retry
+
+def auto_openstack_retry(interface, original):
+    """
+    Create a class decorator which will add OpenStack-specific exception
+    logging versions versions of all of the methods on ``interface``.
+    Specifically, some Nova and Cinder client exceptions will have all of their
+    details logged any time they are raised.
+
+    :param zope.interface.InterfaceClass interface: The interface from which to
+        take methods.
+    :param str original: The name of an attribute on instances of the decorated
+        class.  The attribute should refer to a provider of ``interface``.
+        That object will have all of its methods called with additional
+        exception logging to make more details of the underlying OpenStack API
+        calls available.
+
+    :return: The class decorator.
+    """
+    if exception.name == KeystoneOverLimit:
+        return interface_decorator(
+            "auto_openstack_retry",
+            interface,
+            _openstack_retry_method,
+            original,
+        )
 
 
 def auto_openstack_logging(interface, original):
@@ -530,14 +581,17 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
 
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
+@auto_openstack_retry(ICinderVolumeManager, "_cinder_volumes")
 class _LoggingCinderVolumeManager(PRecord):
     _cinder_volumes = field(mandatory=True)
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
+@auto_openstack_retry(INovaVolumeManager, "_nova_volumes")
 class _LoggingNovaVolumeManager(PRecord):
     _nova_volumes = field(mandatory=True)
 
 @auto_openstack_logging(INovaServerManager, "_nova_servers")
+@auto_openstack_retry(INovaServerManager, "_nova_servers")
 class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
 
