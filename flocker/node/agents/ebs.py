@@ -447,7 +447,7 @@ class EBSBlockDeviceAPI(object):
         """
         devices = pset({v.attach_data.device for v in volumes
                        if v.attach_data.instance_id == instance_id})
-        devices = devices.add(devices_in_use)
+        devices = devices | devices_in_use
         IN_USE_DEVICES(devices=devices).write()
 
         for suffix in b"fghijklmonp":
@@ -519,10 +519,9 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
 
-        attached = False
         ignore_devices = pset([])
         attach_attempts = 0
-        while (not attached and attach_attempts < MAX_ATTACH_RETRIES):
+        while True:
             with self.lock:
                 # begin lock scope
 
@@ -546,6 +545,8 @@ class EBSBlockDeviceAPI(object):
                     # fails:
                     if e.code == u'InvalidParameterValue':
                         attach_attempts += 1
+                        if attach_attempts == MAX_ATTACH_RETRIES:
+                            raise
                         ignore_devices = ignore_devices.add(device)
                     else:
                         raise
@@ -559,7 +560,7 @@ class EBSBlockDeviceAPI(object):
                     # Wait under lock scope to reduce false positives.
                     new_device = _wait_for_new_device(blockdevices,
                                                       volume.size)
-                    attached = True
+                    break
                 # end lock scope
 
         # Stamp EBS volume with attached device name tag.
