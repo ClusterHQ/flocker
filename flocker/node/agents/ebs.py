@@ -82,7 +82,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
-
     # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
     # 1. ``num_retries``:
     # Request automatic exponential backoff and retry
@@ -127,6 +126,8 @@ def _boto_logged_method(method_name, original_name):
         method = getattr(original, method_name)
 
         # Trace IBlockDeviceAPI ``method`` as Eliot Action.
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
         with AWS_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)

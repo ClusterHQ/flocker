@@ -55,14 +55,14 @@ class MovingDataTests(TestCase):
         volume_deployment = {
             u"version": 1,
             u"nodes": {
-                node_1.address: [MONGO_APPLICATION],
-                node_2.address: [],
+                node_1.reported_hostname: [MONGO_APPLICATION],
+                node_2.reported_hostname: [],
             },
         }
 
         cluster.flocker_deploy(self, volume_deployment, volume_application)
 
-        getting_client = get_mongo_client(node_1.address)
+        getting_client = get_mongo_client(node_1.public_address)
 
         def verify_data_moves(client_1):
             database_1 = client_1.example
@@ -72,8 +72,8 @@ class MovingDataTests(TestCase):
             volume_deployment_moved = {
                 u"version": 1,
                 u"nodes": {
-                    node_1.address: [],
-                    node_2.address: [MONGO_APPLICATION],
+                    node_1.reported_hostname: [],
+                    node_2.reported_hostname: [MONGO_APPLICATION],
                 },
             }
 
@@ -82,7 +82,7 @@ class MovingDataTests(TestCase):
             cluster.flocker_deploy(self, volume_deployment_moved,
                                    volume_application_different_port)
 
-            d = get_mongo_client(node_2.address, 27018)
+            d = get_mongo_client(node_2.public_address, 27018)
 
             d.addCallback(lambda client_2: self.assertEqual(
                 data,

@@ -90,7 +90,7 @@ class ContainerAPITests(TestCase):
             self.addCleanup(cluster.remove_container, data[u"name"])
 
             self.assertEqual(response, data)
-            dl = verify_socket(cluster.nodes[0].address, 8080)
+            dl = verify_socket(cluster.nodes[0].public_address, 8080)
             dl.addCallback(lambda _: response)
             return dl
 
@@ -141,7 +141,7 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
 
         def checked(cluster):
-            host = cluster.nodes[0].address
+            host = cluster.nodes[0].public_address
             d = verify_socket(host, 8081)
             d.addCallback(lambda _: query_environment(host, 8081))
             return d
@@ -179,7 +179,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0].address))
+                lambda _: get_mongo_client(cluster.nodes[0].public_address))
 
             def got_mongo_client(client):
                 database = client.example
@@ -219,7 +219,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(inserted)
 
             def moved(record):
-                d = get_mongo_client(cluster.nodes[1].address, 27018)
+                d = get_mongo_client(cluster.nodes[1].public_address, 27018)
                 d.addCallback(lambda client: client.example.posts.find_one())
                 d.addCallback(self.assertEqual, record)
                 return d
@@ -254,7 +254,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0].address))
+                lambda _: get_mongo_client(cluster.nodes[0].public_address))
 
             def got_mongo_client(client):
                 database = client.example
@@ -273,7 +273,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(inserted)
 
             def restarted(record):
-                d = get_mongo_client(cluster.nodes[0].address, 27018)
+                d = get_mongo_client(cluster.nodes[0].public_address, 27018)
                 d.addCallback(lambda client: client.example.posts.find_one())
                 d.addCallback(self.assertEqual, record)
                 return d
@@ -365,7 +365,7 @@ nc -ll -p 8080 -e /data/script.sh
         creating_dataset.addCallback(lambda _: self.addCleanup(
             cluster.remove_container, container[u"name"]))
         creating_dataset.addCallback(
-            lambda _: self.assert_busybox_http(node.address, port))
+            lambda _: self.assert_busybox_http(node.public_address, port))
         return creating_dataset
 
     @require_cluster(2)
@@ -417,13 +417,14 @@ nc -ll -p 9000 -e /tmp/script.sh
             cluster.create_container(thaw(destination_container)),
             cluster.create_container(thaw(origin_container)),
             # Wait for the link target container to be accepting connections.
-            verify_socket(destination.address, destination_port),
+            verify_socket(destination.public_address, destination_port),
             # Wait for the link source container to be accepting connections.
-            verify_socket(origin.address, origin_port),
+            verify_socket(origin.public_address, origin_port),
         ])
 
         running.addCallback(
-            lambda _: self.assert_busybox_http(origin.address, origin_port))
+            lambda _: self.assert_busybox_http(
+                origin.public_address, origin_port))
         return running
 
 
