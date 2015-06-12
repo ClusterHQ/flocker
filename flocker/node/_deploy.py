@@ -859,7 +859,7 @@ class ApplicationNodeDeployer(object):
             ).write()
             return diverged
 
-        def want(dataset_id):
+        def restart_if_available(dataset_id):
             """
             Considering that we would like to restart the application with a
             volume using the given dataset_id, determine whether we can
@@ -867,8 +867,7 @@ class ApplicationNodeDeployer(object):
 
             If the indicated dataset has no manifestation on this node, we will
             not be able to start the application again after stopping it.  So
-            leave it running (claim it is not diverged) until such a
-            manifestation exists.
+            leave it running until such a manifestation exists.
 
             :param unicode dataset_id: The identifier of the dataset we want.
 
@@ -894,7 +893,7 @@ class ApplicationNodeDeployer(object):
         elif config_id is None:
             return log(True)
         else:
-            return want(config_id)
+            return restart_if_available(config_id)
 
     def _restart_for_application_change(
         self, node_state, state, configuration
