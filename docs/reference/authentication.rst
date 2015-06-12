@@ -23,18 +23,18 @@ The CLI package includes the ``flocker-ca`` program which is used to generate ce
 
 You can run ``flocker-ca --help`` for a full list of available commands. For API user certificates, run the ``flocker-ca create-api-certificate`` command from the same directory containing the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
 
-Run ``flocker-ca create-api-certificate <username>``:
+Run ``flocker-ca create-api-certificate <username>`` where ``<username>`` is a unique username for an API user:
 
 .. code-block:: console
 
-   $ flocker-ca create-api-certificate user
-   Created user.crt and user.key. You can now give these to your API end user so they can access the control service API.
+   $ flocker-ca create-api-certificate alice
+   Created alice.crt and alice.key. You can now give these to your API end user so they can access the control service API.
 
 .. note:: In this command ``<username>`` is a unique username for an API user.
    Please note though that ``flocker-deploy`` requires these files to be named :file:`user.crt` and :file:`user.key`.
    If you intend on using ``flocker-deploy``, you will need to rename your files to :file:`user.crt` and :file:`user.key`.
 
-The two files generated will correspond to the username you specified in the command, in this example :file:`user.crt` and :file:`user.key`.
+The two files generated will correspond to the username you specified in the command, in this example :file:`alice.crt` and :file:`alice.key`.
 
 You should securely provide a copy of these files to the API end user, as well as a copy of the cluster's public certificate, the :file:`cluster.crt` file.
 
