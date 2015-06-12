@@ -19,6 +19,12 @@ from bitmath import Byte
 
 from twisted.trial.unittest import SkipTest
 
+from zope.interface import implementer
+
+from keystoneclient.openstack.common.apiclient.exceptions import (
+    RequestEntityTooLarge as KeystoneOverLimit
+)
+
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
@@ -30,7 +36,9 @@ from ..test.blockdevicefactory import (
     get_minimum_allocatable_size,
 )
 
-from ..cinder import wait_for_volume
+from ..cinder import (
+    wait_for_volume, INovaServerManager, auto_openstack_retry
+)
 
 
 def cinderblockdeviceapi_for_test(test_case):
@@ -98,3 +106,32 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)
+
+    def test_retry_decorator(self):
+        """
+        """
+        @implementer(INovaServerManager)
+        class DummyNovaServerManager(object):
+            """
+            """
+            def __init__(self, retry_limit):
+                """
+                """
+                self._counter = 0
+                self._retry_limit = retry_limit
+
+            def list():
+                self._counter += 1
+                if self._counter < self._retry_limit:
+                    raise KeystoneOverLimit()
+                else:
+                    return self._counter
+
+        retry_limit = 3
+        @auto_openstack_retry(INovaServerManager, "_dummy", num_retries=retry_limit, exception=KeystoneOverLimit)
+        class RetryDummy(object):
+            def __init__(self, dummy):
+                self._dummy = dummy
+
+        retry_dummy = RetryDummy(DummyNovaServerManager(retry_limit))
+        self.assertEqual(retry_limit, retry_dummy.list())
