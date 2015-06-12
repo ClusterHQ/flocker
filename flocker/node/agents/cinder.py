@@ -6,6 +6,7 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
+from functools import wraps
 
 from bitmath import Byte, GiB
 
@@ -28,7 +29,7 @@ from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from ...common import (
-    interface_decorator, get_all_ips, ipaddress_from_string
+    interface_wrapper, get_all_ips, ipaddress_from_string
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -48,28 +49,25 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
 
-def _openstack_logged_method(method_name, original_name):
+def _openstack_logged_method(original_method):
     """
     Run a method and log additional information about any exceptions that are
     raised.
 
-    :param str method_name: The name of the method of the wrapped object to
-        call.
-    :param str original_name: The name of the attribute of self where the
-        wrapped object can be found.
+    :param str original_method: The method to be wrapped.
 
-    :return: A function which will call the method of the wrapped object and do
+    :return: A function which will call the original_method and do
         the extra exception logging.
     """
+    @wraps(original_method)
     def _run_with_logging(self, *args, **kwargs):
-        original = getattr(self, original_name)
-        method = getattr(original, method_name)
-
         # See https://clusterhq.atlassian.net/browse/FLOC-2054
         # for ensuring all method arguments are serializable.
-        with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
+        with OPENSTACK_ACTION(
+                operation=[original_method.__name__, args, kwargs]
+        ):
             try:
-                return method(*args, **kwargs)
+                return original_method(*args, **kwargs)
             except NovaClientException as e:
                 NOVA_CLIENT_EXCEPTION(
                     code=e.code,
@@ -111,9 +109,8 @@ def auto_openstack_logging(interface, original):
 
     :return: The class decorator.
     """
-    return interface_decorator(
+    return interface_wrapper(
         "auto_openstack_logging",
-        interface,
         _openstack_logged_method,
         original,
     )
@@ -515,9 +512,6 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-@auto_openstack_logging(ICinderVolumeManager, "cinder_client.volumes")
-@auto_openstack_logging(INovaVolumeManager, "nova_client.volumes")
-@auto_openstack_logging(INovaServerManager, "nova_client.servers")
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -530,10 +524,23 @@ def cinder_api(cinder_client, nova_client, cluster_id):
 
     :returns: A ``CinderBlockDeviceAPI``.
     """
+
+    logging_cinder_volume_manager = auto_openstack_logging(
+        ICinderVolumeManager,
+        cinder_client.volumes,
+    )
+    logging_nova_volume_manager = auto_openstack_logging(
+        INovaVolumeManager,
+        nova_client.volumes,
+    )
+    logging_nova_server_manager = auto_openstack_logging(
+        INovaServerManager,
+        nova_client.servers
+    )
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
-        nova_server_manager=nova_client.servers,
+        cinder_volume_manager=logging_cinder_volume_manager,
+        nova_volume_manager=logging_nova_volume_manager,
+        nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
 
