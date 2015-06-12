@@ -4,7 +4,7 @@ Release Notes
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
-v0.9
+v1.0
 ====
 
 * Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
