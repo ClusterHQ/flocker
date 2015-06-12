@@ -79,7 +79,7 @@ Getting started with Flocker
          OS X
          ^^^^
 
-         Install the Flocker client on your Mac (requires Homebrew):
+         Install the Flocker client on your Mac (requires Homebrew and Xcode):
 
          .. task:: test_homebrew flocker-|latest-installable|
             :prompt: you@laptop:~$
@@ -174,7 +174,7 @@ Getting started with Flocker
             you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
               curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/cluster.crt && \
               curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.crt && \
-              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.key && \            
+              curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/user.key && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key
