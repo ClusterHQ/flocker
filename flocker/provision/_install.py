@@ -14,6 +14,7 @@ import yaml
 from zope.interface import implementer
 
 from characteristic import attributes
+from pyrsistent import PRecord, field
 
 from flocker.acceptance.testtools import DatasetBackend
 from ._libcloud import INode
@@ -39,8 +40,6 @@ from flocker.common.version import (
 START = "restart"
 
 ZFS_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
-                 "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
     'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                 "epel/zfs-release.el7.noarch.rpm",
 }
@@ -66,11 +65,8 @@ def get_repository_url(distribution, flocker_version):
     distribution_to_url = {
         # XXX Use testing repositories when appropriate for CentOS.
         # See FLOC-2080.
-        'fedora-20': "https://{archive_bucket}.s3.amazonaws.com/{key}"
-                     "/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
-                         archive_bucket=ARCHIVE_BUCKET,
-                         key='fedora',
-                     ),
+        # TODO instead of hardcoding keys, use the _to_Distribution map
+        # and then choose the name
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
                     "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
@@ -88,6 +84,13 @@ def get_repository_url(distribution, flocker_version):
         # during a subsequent apt-get update
 
         'ubuntu-14.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
+
+        'ubuntu-15.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
                         '$(lsb_release --release --short)/\\$(ARCH)'.format(
                             archive_bucket=ARCHIVE_BUCKET,
                             key='ubuntu' + get_package_key_suffix(
@@ -120,12 +123,15 @@ class DistributionNotSupported(NotImplementedError):
 
 
 @implementer(INode)
-@attributes(['address', 'distribution'], apply_immutable=True)
-class ManagedNode(object):
+class ManagedNode(PRecord):
     """
     A node managed by some other system (eg by hand or by another piece of
     orchestration software).
     """
+    address = field(type=bytes, mandatory=True)
+    private_address = field(type=(bytes, type(None)),
+                            initial=None, mandatory=True)
+    distribution = field(type=bytes, mandatory=True)
 
 
 def task_client_installation_test():
@@ -137,7 +143,7 @@ def task_client_installation_test():
 
 def install_cli_commands_yum(distribution, package_source):
     """
-    Install flocker CLI on Fedora or CentOS.
+    Install Flocker CLI on CentOS.
 
     The ClusterHQ repo is added for downloading latest releases.  If
     ``package_source`` contains a branch, then a BuildBot repo will also
@@ -217,12 +223,19 @@ def install_cli_commands_ubuntu(distribution, package_source):
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
+
     commands = [
-        # Ensure add-apt-repository command and HTTPS URLs are supported
-        # FLOC-1880 will ensure these are necessary and sufficient
+        # Minimal images often have cleared apt caches and are missing
+        # packages that are common in a typical release.  These commands
+        # ensure that we start from a good base system with the required
+        # capabilities, particularly that the add-apt-repository command
+        # and HTTPS URLs are supported.
+        # FLOC-1880 will ensure these are necessary and sufficient.
+        sudo_from_args(["apt-get", "update"]),
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
+
         # Add ClusterHQ repo for installation of Flocker packages.
         sudo(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
@@ -264,8 +277,8 @@ def install_cli_commands_ubuntu(distribution, package_source):
 
 _task_install_commands = {
     'centos-7': install_cli_commands_yum,
-    'fedora-20': install_cli_commands_yum,
     'ubuntu-14.04': install_cli_commands_ubuntu,
+    'ubuntu-15.04': install_cli_commands_ubuntu,
 }
 
 
@@ -377,8 +390,8 @@ def task_disable_selinux(distribution):
                 "'s/^SELINUX=.*$/SELINUX=disabled/g' "
                 "/etc/selinux/config"),
         ])
-    elif distribution in ('fedora-20', 'ubuntu-14.04'):
-        # Fedora and Ubuntu do not have SELinux enabled
+    elif distribution in ('ubuntu-14.04',):
+        # Ubuntu does not have SELinux enabled
         return sequence([])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -602,7 +615,7 @@ def task_install_zfs(distribution, variants=set()):
             run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
             ]
 
-    elif distribution in ('fedora-20', 'centos-7'):
+    elif distribution in ('centos-7',):
         commands += [
             run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
         ]
@@ -734,7 +747,7 @@ def task_install_flocker(
     else:
         use_development_branch = False
 
-    if distribution == 'ubuntu-14.04':
+    if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
             # FLOC-1880 will ensure these are necessary and sufficient
@@ -824,6 +837,9 @@ def task_install_flocker(
 ACCEPTANCE_IMAGES = [
     "postgres:latest",
     "clusterhq/mongodb:latest",
+    "clusterhq/flask",
+    "clusterhq/flaskenv",
+    "busybox",
 ]
 
 
@@ -845,14 +861,7 @@ def task_enable_updates_testing(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager', '--enable', 'updates-testing'])
-        ])
-    else:
-        raise DistributionNotSupported(distribution=distribution)
+    raise DistributionNotSupported(distribution=distribution)
 
 
 def task_enable_docker_head_repository(distribution):
@@ -862,16 +871,7 @@ def task_enable_docker_head_repository(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager',
-                '--add-repo',
-                'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
-            ])
-        ])
-    elif distribution == "centos-7":
+    if distribution == "centos-7":
         return sequence([
             put(content=dedent("""\
                 [virt7-testing]
@@ -890,8 +890,8 @@ def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
 
-    This drives all the common Fedora20 installation steps in:
-     * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20 # noqa
+    This drives all the common node installation steps in:
+     * http://doc-dev.clusterhq.com/gettingstarted/installation.html
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.

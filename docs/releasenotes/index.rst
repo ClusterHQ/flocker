@@ -4,8 +4,8 @@ Release Notes
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
-Next Release
-============
+v0.9
+====
 
 * Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
@@ -19,7 +19,7 @@ Next Release
   See :ref:`api`.
 * Removed support for installing ``flocker-node`` on Fedora 20.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04`.
+  See :ref:`installing-flocker-cli-ubuntu-14.04` and :ref:`installing-flocker-cli-ubuntu-15.04`.
 * Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4
