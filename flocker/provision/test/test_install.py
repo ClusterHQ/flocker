@@ -13,6 +13,7 @@ from pyrsistent import freeze, thaw
 from .. import PackageSource
 from .._install import (
     task_install_flocker,
+    task_configure_flocker_agent,
     task_enable_flocker_agent,
     run, put,
     get_repository_url, UnsupportedDistribution, get_installable_version,
@@ -37,21 +38,19 @@ BASIC_AGENT_YML = freeze({
 })
 
 
-class EnableFlockerAgentTests(SynchronousTestCase):
+class ConfigureFlockerAgentTests(SynchronousTestCase):
     """
-    Tests for ``task_enable_flocker_agent``.
+    Tests for ``task_configure_flocker_agent``.
     """
     def test_agent_yml(self):
         """
-        ```task_enable_flocker_agent`` writes a ``/etc/flocker/agent.yml`` file
-        which contains the backend configuration passed to it.
+        ```task_configure_flocker_agent`` writes a ``/etc/flocker/agent.yml``
+        file which contains the backend configuration passed to it.
         """
-        distribution = u"centos-7"
         control_address = BASIC_AGENT_YML["control-service"]["hostname"]
         expected_pool = u"some-test-pool"
         expected_backend_configuration = dict(pool=expected_pool)
-        commands = task_enable_flocker_agent(
-            distribution=distribution,
+        commands = task_configure_flocker_agent(
             control_node=control_address,
             dataset_backend=DatasetBackend.lookupByName(
                 BASIC_AGENT_YML["dataset"]["backend"]
@@ -77,23 +76,40 @@ class EnableFlockerAgentTests(SynchronousTestCase):
             put_agent_yml,
         )
 
-    def test_no_agent_yml(self):
+
+class EnableFlockerAgentTests(SynchronousTestCase):
+    """
+    Tests for ``task_enable_flocker_agent``.
+    """
+    def test_centos_sequence(self):
         """
-        ``task_enable_flocker_agent`` does not write a `agent.yml` file if no
-        dataset backend is supplied (as per the use case in the documentation
-        installation instructions).
+        ``task_enable_flocker_agent`` for the 'centos-7' distribution returns
+        a sequence of systemctl enable and restart commands for each agent.
         """
         distribution = u"centos-7"
-        control_address = BASIC_AGENT_YML["control-service"]["hostname"]
         commands = task_enable_flocker_agent(
             distribution=distribution,
-            control_node=control_address
         )
         expected_sequence = sequence([
             run(command="systemctl enable flocker-dataset-agent"),
             run(command="systemctl restart flocker-dataset-agent"),
             run(command="systemctl enable flocker-container-agent"),
             run(command="systemctl restart flocker-container-agent"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
+    def test_ubuntu_sequence(self):
+        """
+        ``task_enable_flocker_agent`` for the 'ubuntu-14.04' distribution
+        returns a sequence of 'service start' commands for each agent.
+        """
+        distribution = u"ubuntu-14.04"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+        )
+        expected_sequence = sequence([
+            run(command="service flocker-dataset-agent start"),
+            run(command="service flocker-container-agent start"),
         ])
         self.assertEqual(commands, expected_sequence)
 
