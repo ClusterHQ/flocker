@@ -41,6 +41,7 @@ hoc
 Homebrew
 hostname
 installable
+integrations
 internet
 invalidations
 Kubernetes

@@ -47,7 +47,7 @@ Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud 
          The Flocker Control Service and containers hosts can run on a VM or bare metal servers.
 		 The Flocker Agent running on each host speaks to the shared storage backend to create and moutn volumes to individual containers.
 
-Flocker also has planned integration with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos. More information on this integration is coming soon.
+Flocker also has planned integrations with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos. More information on this integration is coming soon.
 
 .. XXX add link to 3rd party orchestration docs. See FLOC 2229
 
