@@ -326,21 +326,26 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Find the Nova API server with a subset of the IPv4 and IPv6
+        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
         addresses on this node.
         """
         local_ips = get_all_ips()
         api_ip_map = {}
+        matching_instances = []
         for server in self.nova_server_manager.list():
+            if server.status != u'ACTIVE':
+                continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            if api_addresses.issubset(local_ips):
-                return server.id
+            if api_addresses and api_addresses.issubset(local_ips):
+                matching_instances.append(server.id)
             else:
                 for ip in api_addresses:
                     api_ip_map[ip] = server.id
 
-        # If there was no match, log an error containing all the local
-        # and remote IPs.
+        if len(matching_instances) == 1:
+            return matching_instances[0]
+        # If there was no match, or if multiple matches were found, log an
+        # error containing all the local and remote IPs.
         COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
 
     def create_volume(self, dataset_id, size):
