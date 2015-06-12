@@ -121,8 +121,6 @@ def in_parallel(changes):
     The order in which execution of the changes is started is unspecified.
     Comparison of the resulting object disregards the ordering of the changes.
     """
-    if len(changes) == 1:
-        return changes[0]
     return _InParallel(changes=changes)
 
 
@@ -144,6 +142,4 @@ def sequentially(changes):
 
     Failures in earlier changes stop later changes.
     """
-    if len(changes) == 1:
-        return changes[0]
     return _Sequentially(changes=changes)

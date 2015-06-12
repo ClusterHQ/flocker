@@ -1112,10 +1112,14 @@ def restart(old, new, node_state):
     node.
     """
     return sequentially(changes=[
-        StopApplication(application=old),
-        StartApplication(
-            application=new, node_state=node_state,
-        ),
+        in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old),
+                StartApplication(
+                    application=new, node_state=node_state,
+                ),
+            ]),
+        ]),
     ])
 
 
@@ -1244,7 +1248,11 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
         local_config = to_node(EMPTY_NODESTATE)
         assert_application_calculated_changes(
             self, local_state, local_config, set(),
-            sequentially(changes=[StopApplication(application=application)]),
+            sequentially(changes=[
+                in_parallel(changes=[
+                    StopApplication(application=application),
+                ]),
+            ]),
         )
 
     def test_different_volume_needs_change(self):
