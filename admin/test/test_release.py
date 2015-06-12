@@ -16,7 +16,7 @@ from unittest import skipUnless
 from setuptools import __version__ as setuptools_version
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
-from git import Repo
+from git import GitCommandError, Repo
 
 from requests.exceptions import HTTPError
 
@@ -33,7 +33,7 @@ from ..release import (
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
-    BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
+    MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
     IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
@@ -1752,7 +1752,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.repo.create_tag('0.3.0pre1')
 
         self.assertRaises(
-            BaseBranchDoesNotExist,
+            GitCommandError,
             self.calculate_base_branch, '0.3.0')
 
     def test_tag_exists_fails(self):
@@ -1764,6 +1764,22 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+    def test_branch_only_exists_remote(self):
+        """
+        If the test branch does not exist locally, but does exist as a remote
+        branch a base branch can still be calculated.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        directory = FilePath(self.mktemp())
+        clone = self.repo.clone(path=directory.path)
+
+        self.assertEqual(
+            calculate_base_branch(
+                    version='0.3.0pre2',
+                    path=clone.working_dir).name,
+            "release/flocker-0.3.0pre1")
 
 
 class PublishVagrantMetadataTests(SynchronousTestCase):
