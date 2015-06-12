@@ -845,6 +845,7 @@ def calculate_base_branch(version, path):
     # We create a new branch from a branch, not a tag, because a maintenance
     # or documentation change may have been applied to the branch and not the
     # tag.
+    # The branch must be available locally for the next step.
     repo.git.checkout(base_branch_name)
 
     return (
