@@ -528,11 +528,10 @@ def task_open_control_firewall(distribution):
     ])
 
 
-def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=None,
-                              dataset_backend_configuration=None):
+def task_configure_flocker_agent(control_node, dataset_backend,
+                                 dataset_backend_configuration):
     """
-    Configure and enable the flocker agents.
+    Configure the flocker agents by writing out the configuration file.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
@@ -540,37 +539,42 @@ def task_enable_flocker_agent(distribution, control_node,
     :param dict dataset_backend_configuration: The backend specific
         configuration options.
     """
-    initial_sequence = []
-    if dataset_backend is not None:
-        dataset_backend_configuration = dataset_backend_configuration.copy()
-        dataset_backend_configuration.update({
-            u"backend": dataset_backend.name,
-        })
+    dataset_backend_configuration = dataset_backend_configuration.copy()
+    dataset_backend_configuration.update({
+        u"backend": dataset_backend.name,
+    })
 
-        put_config_file = put(
-            path='/etc/flocker/agent.yml',
-            content=yaml.safe_dump(
-                {
-                    "version": 1,
-                    "control-service": {
-                        "hostname": control_node,
-                        "port": 4524,
-                    },
-                    "dataset": dataset_backend_configuration,
+    put_config_file = put(
+        path='/etc/flocker/agent.yml',
+        content=yaml.safe_dump(
+            {
+                "version": 1,
+                "control-service": {
+                    "hostname": control_node,
+                    "port": 4524,
                 },
-            ),
-        )
-        initial_sequence.append(put_config_file)
+                "dataset": dataset_backend_configuration,
+            },
+        ),
+    )
+    return sequence([put_config_file])
 
+
+def task_enable_flocker_agent(distribution):
+    """
+    Enable the flocker agents.
+
+    :param bytes distribution: The distribution name.
+    """
     if distribution in ('centos-7',):
-        return sequence(initial_sequence + [
+        return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
             run_from_args(['systemctl', START, 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
             run_from_args(['systemctl', START, 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
-        return sequence(initial_sequence + [
+        return sequence([
             run_from_args(['service', 'flocker-dataset-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
@@ -988,13 +992,15 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
+                        task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
                             ),
+                        ),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
                         )]),
                     ),
             ]) for certnkey, node
