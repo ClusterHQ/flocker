@@ -50,7 +50,6 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-MAX_ATTEMPTS = 3
 
 def _openstack_logged_method(method_name, original_name):
     """
@@ -98,67 +97,6 @@ def _openstack_logged_method(method_name, original_name):
                 ).write()
                 raise
     return _run_with_logging
-
-def _openstack_retry_method(method_name, original_name):
-    """
-    Run a method and log additional information about any exceptions that are
-    raised.
-
-    :param str method_name: The name of the method of the wrapped object to
-        call.
-    :param str original_name: The name of the attribute of self where the
-        wrapped object can be found.
-
-    :return: A function which will call the method of the wrapped object and do
-        the extra exception logging.
-    """
-    def _sleep_and_retry(self, *args, **kwargs):
-        original = getattr(self, original_name)
-        method = getattr(original, method_name)
-
-        # See https://clusterhq.atlassian.net/browse/FLOC-2054
-        # for ensuring all method arguments are serializable.
-        retry = True
-        attempt = 0
-        while (retry and attempt < MAX_ATTEMPTS):
-            with RETRY_ACTION(operation=[attempt, method_name, args, kwargs]):
-                try:
-                    return method(*args, **kwargs)
-                except KeystoneOverLimit as e:
-                    retry_after = int(e.retry_after)
-                    time.sleep(retry_after)
-                    retry = True
-                    attempt += 1
-                    if attempt == MAX_ATTEMPTS:
-                        raise
-                else:
-                    retry = False
-    return _sleep_and_retry
-
-def auto_openstack_retry(interface, original):
-    """
-    Create a class decorator which will add OpenStack-specific exception
-    logging versions versions of all of the methods on ``interface``.
-    Specifically, some Nova and Cinder client exceptions will have all of their
-    details logged any time they are raised.
-
-    :param zope.interface.InterfaceClass interface: The interface from which to
-        take methods.
-    :param str original: The name of an attribute on instances of the decorated
-        class.  The attribute should refer to a provider of ``interface``.
-        That object will have all of its methods called with additional
-        exception logging to make more details of the underlying OpenStack API
-        calls available.
-
-    :return: The class decorator.
-    """
-    if exception.name == KeystoneOverLimit:
-        return interface_decorator(
-            "auto_openstack_retry",
-            interface,
-            _openstack_retry_method,
-            original,
-        )
 
 
 def auto_openstack_logging(interface, original):
@@ -398,7 +336,6 @@ class CinderBlockDeviceAPI(object):
         """
         local_ips = get_all_ips()
         api_ip_map = {}
-        return u'cf3824fb-0342-4e3f-9dc6-b5d0bb4a97c3'
         for server in self.nova_server_manager.list():
             api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses.issubset(local_ips):
