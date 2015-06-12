@@ -12,6 +12,8 @@ from ipaddr import IPAddress
 
 from pyrsistent import pset, pvector
 
+from bitmath import GiB
+
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
@@ -1231,6 +1233,36 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
             restart(application, application_without_volume, local_state),
         )
 
+    def _resize_no_changes(self, state_size, config_size):
+        application_state = APPLICATION_WITH_VOLUME.transform(
+            ["volume", "manifestation", "dataset", "maximum_size"],
+            state_size,
+        )
+        application_config = application_state.transform(
+            ["volume", "manifestation", "dataset", "maximum_size"],
+            config_size,
+        )
+        manifestation_state = application_state.volume.manifestation
+        manifestation_config = application_config.volume.manifestation
+
+        # Both objects represent the same dataset so the id is the same on
+        # each.
+        dataset_id = manifestation_state.dataset_id
+
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(dataset_id): FilePath(b"/dev/foo")},
+            paths={dataset_id: FilePath(b"/foo/bar")},
+            manifestations={dataset_id: manifestation_state},
+            applications=[application_state],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application_config],
+            manifestations={dataset_id: manifestation_config},
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
     def test_resized_volume_no_changes(self):
         """
         If an ``Application`` is configured with a volume and exists with that
@@ -1238,28 +1270,25 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
         are calculated because ``ApplicationNodeDeployer`` doesn't trust the
         dataset agent to be able to resize volumes.
         """
-        application = APPLICATION_WITH_VOLUME_SIZE
-        manifestation = application.volume.manifestation
-        larger_manifestation = manifestation.transform(
-            ["dataset", "maximum_size"],
-            lambda size: size * 2,
-        )
-        application_with_larger_volume = application.transform(
-            ["volume", "manifestation"], larger_manifestation,
-        )
-        local_state = EMPTY_NODESTATE.set(
-            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
-            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
-            manifestations={manifestation.dataset_id: manifestation},
-            applications=[application],
-        )
-        local_config = to_node(local_state).set(
-            applications=[application_with_larger_volume],
-            manifestations={manifestation.dataset_id: larger_manifestation},
-        )
-        assert_application_calculated_changes(
-            self, local_state, local_config, set(), no_change(),
-        )
+        self._resize_no_changes(GiB(1).to_Byte().value, GiB(2).to_Byte().value)
+
+    def test_maximum_volume_size_applied_no_changes(self):
+        """
+        If an ``Application``\ 's volume exists without a maximum size and the
+        configuration for that volume indicates a size, no changes are
+        calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(None, GiB(1).to_Byte().value)
+
+    def test_maximum_volume_size_removed_no_changes(self):
+        """
+        If an ``Application``\ 's volume exists with a maximum size and the
+        configuration for that volume indicates no maximum size, no changes are
+        calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(GiB(1).to_Byte().value, None)
 
     def test_moved_volume_needs_changes(self):
         """
