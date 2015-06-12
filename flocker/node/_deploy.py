@@ -910,6 +910,7 @@ class ApplicationNodeDeployer(object):
 
             - Certain volume differences.  See ``_restart_for_volume_change``.
 
+        :param NodeState node_state: The known local state of this node.
         :param Application state: The current state of the application.
         :param Application configuration: The desired configuration for the
             application.
