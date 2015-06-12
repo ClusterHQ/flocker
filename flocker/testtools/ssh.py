@@ -89,7 +89,7 @@ class _FixedHomeConchUser(UnixConchUser):
 @implementer(ISession)
 class _EnvironmentSSHSessionForUnixConchUser(SSHSessionForUnixConchUser):
     """
-    SSH Session that correctly sets HOMe.
+    SSH Session that correctly sets HOME.
 
     Work-around for https://twistedmatrix.com/trac/ticket/7936.
     """
