@@ -526,7 +526,7 @@ class EBSBlockDeviceAPI(object):
                 # begin lock scope
 
                 blockdevices = FilePath(b"/sys/block").children()
-                volumes = [] #self.connection.get_all_volumes()
+                volumes = self.connection.get_all_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
 
                 if device is None:
