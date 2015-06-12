@@ -352,7 +352,9 @@ class CinderBlockDeviceAPI(object):
             return matching_instances[0]
         # If there was no match, or if multiple matches were found, log an
         # error containing all the local and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
+        COMPUTE_INSTANCE_ID_NOT_FOUND(
+            local_ips=local_ips, api_ips=api_ip_map
+        ).write()
 
     def create_volume(self, dataset_id, size):
         """
