@@ -708,6 +708,7 @@ class Cluster(PRecord):
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
+
             return sorted(existing_containers) == sorted(expected)
 
         def configuration_matches_state():
