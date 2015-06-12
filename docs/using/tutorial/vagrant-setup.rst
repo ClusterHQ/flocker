@@ -87,6 +87,11 @@ One important thing to note is that these VMs are statically assigned the IPs ``
 These two IP addresses will be used throughout the tutorial and configuration files.
 
 .. warning::
+
+   On some versions of Vagrant and Virtualbox, restarting the tutorial virtual machines via the ``vagrant halt`` and ``vagrant up`` commands can result in losing the static IP configuration, making the nodes unreachable on the assigned ``172.15.255.25x`` addresses.
+   In this case you should destroy and recreate the machines with the ``vagrant destroy`` and ``vagrant up`` commands.
+
+.. warning::
    
    If these addresses conflict with your local network configuration, you will need to edit the ``Vagrantfile`` to change the IP addresses.
    You will then need to generate a new set of certificates and keys using the Flocker CLI ``flocker-ca`` tool and copy these to the virtual machines.
