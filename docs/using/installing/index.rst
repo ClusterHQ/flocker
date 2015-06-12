@@ -110,7 +110,7 @@ You'll need to do this every time you start a new shell.
 OS X
 ----
 
-Install `Xcode`_ from the Mac App Store.
+Install `Xcode` from the Mac App Store.
 
 Install the `Homebrew`_ package manager.
 
