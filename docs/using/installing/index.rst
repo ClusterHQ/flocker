@@ -6,13 +6,13 @@ Installing Flocker
 
 .. XXX We will improve this introduction with an image. See FLOC-2077
 
-The Flocker CLI is installed on your local machine and provides command line tools to control the cluster. 
+The Flocker CLI is installed on your local machine and provides command line tools to control the cluster.
 This also includes the ``flocker-ca`` tool, which you use to generate certificates for all the Flocker components.
 
 The Flocker agents are installed on any number of nodes in the cluster where your containers will run.
 The agent software is included in the ``clusterhq-flocker-node`` package.
 
-There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. 
+There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine.
 The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
 
 .. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
@@ -110,6 +110,8 @@ You'll need to do this every time you start a new shell.
 OS X
 ----
 
+Install `Xcode`_ from the Mac App Store.
+
 Install the `Homebrew`_ package manager.
 
 Make sure Homebrew has no issues:
@@ -193,14 +195,14 @@ Using Amazon Web Services
    * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
 
 #. Configure the instance.
-   Complete the configuration wizard; in general the default configuration should suffice.   
+   Complete the configuration wizard; in general the default configuration should suffice.
 
    * Choose instance type. We recommend at least the ``m3.large`` instance size.
    * Configure instance details. You will need to configure a minimum of 2 instances.
    * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
    * Tag instance.
    * Configure security group.
-      
+
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
      * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
      * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
@@ -342,7 +344,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 #. Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
 
-   .. prompt:: bash 
+   .. prompt:: bash
 
       flocker-ca initialize mycluster
 
@@ -426,7 +428,7 @@ Your firewall will need to allow access to the ports your applications are expos
    Keep in mind the consequences of exposing unsecured services to the Internet.
    Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
-Enabling the Flocker control service 
+Enabling the Flocker control service
 ------------------------------------
 
 On CentOS 7
