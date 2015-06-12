@@ -149,4 +149,5 @@ OPENSTACK_ACTION = ActionType(
     u"An IBlockDeviceAPI operation is executing using OpenStack"
     u"storage driver.")
 
+CINDER_LOG_HEADER = u'flocker:node:agents:blockdevice:cinder'
 # End: Helper datastructures used by OpenStack storage driver.

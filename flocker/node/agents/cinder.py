@@ -39,7 +39,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION
+    OPENSTACK_ACTION, CINDER_LOG_HEADER
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -365,7 +365,8 @@ class CinderBlockDeviceAPI(object):
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
         )
-        Message.new(blockdevice_id=requested_volume.id).write()
+        Message.new(message_type=CINDER_LOG_HEADER,
+                    blockdevice_id=requested_volume.id).write()
         created_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
             expected_volume=requested_volume,
