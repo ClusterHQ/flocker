@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from bitmath import Byte
 
+from eliot.testing import assertHasAction, capture_logging
 from twisted.trial.unittest import SkipTest
 
 from zope.interface import implementer
@@ -37,9 +38,11 @@ from ..test.blockdevicefactory import (
 )
 
 from ..cinder import (
-    wait_for_volume, INovaServerManager, auto_openstack_retry
+    wait_for_volume, INovaServerManager, auto_openstack_retry,
+    MAX_OVERLIMIT_RETRIES
 )
 
+from .._logging import RETRY_ACTION
 
 def cinderblockdeviceapi_for_test(test_case):
     """
@@ -107,31 +110,49 @@ class CinderBlockDeviceAPIInterfaceTests(
             )
         self.assert_foreign_volume(flocker_volume)
 
-    def test_retry_decorator(self):
+
+    @capture_logging(assertHasAction, RETRY_ACTION,
+                     succeeded=True,
+                     startFields=dict(iteration=1))
+    def test_retry_decorator(self, logger):
         """
+        Test that ``auto_openstack_retry`` decorator reattempts
+        failed ``INovaServerManager`` class methods.
         """
         @implementer(INovaServerManager)
         class DummyNovaServerManager(object):
             """
+            Dummy class that implements ``INovaServerManager``.
             """
             def __init__(self, retry_limit):
                 """
+                Setup env to control success/failure of ``list``.
+
                 """
                 self._counter = 0
                 self._retry_limit = retry_limit
 
-            def list():
+            def list(self):
+                """
+                If the method is called up to _retry_limit times, raise
+                ``KeystoneOverLimit``. Beyond retry_limit, succeed.
+                """
                 self._counter += 1
                 if self._counter < self._retry_limit:
-                    raise KeystoneOverLimit()
+                    raise KeystoneOverLimit
                 else:
                     return self._counter
 
-        retry_limit = 3
-        @auto_openstack_retry(INovaServerManager, "_dummy", num_retries=retry_limit, exception=KeystoneOverLimit)
+        retry_limit = MAX_OVERLIMIT_RETRIES
+
+        @auto_openstack_retry(INovaServerManager, "_dummy")
         class RetryDummy(object):
             def __init__(self, dummy):
                 self._dummy = dummy
 
-        retry_dummy = RetryDummy(DummyNovaServerManager(retry_limit))
-        self.assertEqual(retry_limit, retry_dummy.list())
+        retry_dummy1 = RetryDummy(DummyNovaServerManager(MAX_OVERLIMIT_RETRIES))
+        self.assertEqual(retry_limit, retry_dummy1.list())
+
+        retry_dummy2 = RetryDummy(DummyNovaServerManager(
+                                  MAX_OVERLIMIT_RETRIES+1))
+        self.assertRaises(KeystoneOverLimit, retry_dummy2.list())

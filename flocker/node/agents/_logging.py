@@ -149,4 +149,19 @@ OPENSTACK_ACTION = ActionType(
     u"An IBlockDeviceAPI operation is executing using OpenStack"
     u"storage driver.")
 
+ITERATION = Field.for_types("iteration", [int],
+    u"The retry iteration attempt after RequestEntityTooLarge exception.")
+RETRY_ACTION = ActionType(
+    u"flocker:node:agents:blockdevice:openstack:retry",
+    [ITERATION, OPERATION],
+    [],
+    u"A failed OpenStack operation is being retried due to "
+    u"backend operation rate limiting.")
+RETRY_AFTER = Field.for_types("retry_after", [int],
+    u"The number of seconds recommended by storage backend to wait "
+    u"before attempting retry.")
+OPENSTACK_RETRY_AFTER = MessageType(
+    u"flocker:node:agents:blockdevice:openstack:waiting_to_retry",
+    [METHOD, RETRY_AFTER],
+)
 # End: Helper datastructures used by OpenStack storage driver.

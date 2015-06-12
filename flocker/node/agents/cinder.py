@@ -39,7 +39,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION
+    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -50,6 +50,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
+MAX_OVERLIMIT_RETRIES = 3
 
 def _openstack_logged_method(method_name, original_name):
     """
@@ -124,35 +125,36 @@ def auto_openstack_logging(interface, original):
     )
 
 
-def _openstack_retry_method(method_name, original_name, **kwargs):
+def _openstack_retry_method(method_name, original_name):
     """
     """
     def _sleep_and_retry(self, *args, **kwargs):
-        import pdb; pdb.set_trace()
-        max_attempts = kwargs[u'num_retries']
-        exception = kwargs[u'exception']
         original = getattr(self, original_name)
         method = getattr(original, method_name)
         retry = True
-        attempt = 0
-        while (retry and attempt < max_attempts):
-            with RETRY_ACTION(operation=[attempt, method_name, args, kwargs]):
+        attempt = 1
+        while (retry and attempt <= MAX_OVERLIMIT_RETRIES):
+            with RETRY_ACTION(operation=[method_name, args, kwargs],
+                              iteration=attempt):
                 try:
                     return method(*args, **kwargs)
                     retry = False
-                except exception as e:
+                except KeystoneOverLimit as e:
                     retry_after = int(e.retry_after)
+                    OPENSTACK_RETRY_AFTER(method=method_name,
+                                          retry_after=retry_after
+                                         ).write()
                     time.sleep(retry_after)
                     retry = True
                     attempt += 1
-                    if attempt == MAX_ATTEMPTS:
+                    if attempt > MAX_OVERLIMIT_RETRIES:
                         raise
                 else:
                     raise
     return _sleep_and_retry
 
 
-def auto_openstack_retry(interface, original, **kwargs):
+def auto_openstack_retry(interface, original):
     """
     """
     return interface_decorator(
@@ -160,7 +162,6 @@ def auto_openstack_retry(interface, original, **kwargs):
         interface,
         _openstack_retry_method,
         original,
-        **kwargs
     )
 
 
