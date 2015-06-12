@@ -517,7 +517,6 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 
-
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
 class _LoggingCinderVolumeManager(PRecord):
     _cinder_volumes = field(mandatory=True)
