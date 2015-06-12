@@ -363,12 +363,13 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        cluster = yield configured_cluster_for_nodes(
-            reactor,
-            Certificates(self.certificates_path),
-            nodes,
-            self.dataset_backend,
-            self.dataset_backend_configuration,
+        certificates = Certificates(self.certificates_path)
+        cluster = Cluster(
+            all_nodes=pvector(nodes),
+            control_node=nodes[0],
+            agent_nodes=nodes,
+            dataset_backend=self.dataset_backend,
+            certificates=certificates
         )
 
         returnValue(cluster)
