@@ -850,6 +850,7 @@ class ApplicationNodeDeployer(object):
         """
         def log(diverged, reason=None):
             Message.new(
+                message_type=_eliot_system(u"volume_is_diverged"),
                 volume_is_diverged=diverged,
                 state_is_none=state is None,
                 configuration_is_none=configuration is None,
