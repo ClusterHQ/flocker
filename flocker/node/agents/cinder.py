@@ -16,7 +16,6 @@ from pyrsistent import PRecord, field
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
     HttpError as KeystoneHttpError,
-    RequestEntityTooLarge as KeystoneOverLimit,
 )
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
@@ -39,7 +38,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION, CINDER_LOG_HEADER
+    OPENSTACK_ACTION, CINDER_LOG_HEADER, CINDER_CREATE_VOLUME
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -73,8 +72,6 @@ def _openstack_logged_method(method_name, original_name):
         with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)
-            except KeystoneOverLimit as e:
-                raise
             except NovaClientException as e:
                 NOVA_CLIENT_EXCEPTION(
                     code=e.code,
@@ -365,7 +362,7 @@ class CinderBlockDeviceAPI(object):
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
         )
-        Message.new(message_type=CINDER_LOG_HEADER,
+        Message.new(message_type=CINDER_CREATE_VOLUME,
                     blockdevice_id=requested_volume.id).write()
         created_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
@@ -518,17 +515,21 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 
+
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
 class _LoggingCinderVolumeManager(PRecord):
     _cinder_volumes = field(mandatory=True)
+
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
 class _LoggingNovaVolumeManager(PRecord):
     _nova_volumes = field(mandatory=True)
 
+
 @auto_openstack_logging(INovaServerManager, "_nova_servers")
 class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
+
 
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
