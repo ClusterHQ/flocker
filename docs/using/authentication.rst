@@ -23,7 +23,7 @@ The CLI package includes the ``flocker-ca`` program which is used to generate ce
 
 .. note:: You can run ``flocker-ca --help`` for a full list of available commands.
 
-For API user certificates, run the ``flocker-ca create-api-certificate`` command from the same directory containing the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
+For API user certificates, run the ``flocker-ca create-api-certificate`` command from the directory which contains the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
 
 Run ``flocker-ca create-api-certificate <username>``, where ``<username>`` is a unique username for an API user.
 
