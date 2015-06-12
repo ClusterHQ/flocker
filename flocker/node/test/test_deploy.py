@@ -1231,6 +1231,36 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
             restart(application, application_without_volume, local_state),
         )
 
+    def test_resized_volume_no_changes(self):
+        """
+        If an ``Application`` is configured with a volume and exists with that
+        volume but the volume is a different size than configured, no changes
+        are calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        larger_manifestation = manifestation.transform(
+            ["dataset", "maximum_size"],
+            lambda size: size * 2,
+        )
+        application_with_larger_volume = application.transform(
+            ["volume", "manifestation"], larger_manifestation,
+        )
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application_with_larger_volume],
+            manifestations={manifestation.dataset_id: larger_manifestation},
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
     def test_moved_volume_needs_changes(self):
         """
         If an ``Application`` is configured with a volume on a node but is no
