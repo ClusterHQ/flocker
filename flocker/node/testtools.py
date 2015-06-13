@@ -228,3 +228,41 @@ def to_node(node_state):
     return Node(uuid=node_state.uuid, hostname=node_state.hostname,
                 applications=node_state.applications or [],
                 manifestations=node_state.manifestations or {})
+
+
+def assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config, nonmanifest_datasets,
+        additional_node_states, additional_node_config, expected_changes
+):
+    """
+    Assert that ``calculate_changes`` returns certain changes when it is
+    invoked with the given state and configuration.
+
+    :param TestCase case: The ``TestCase`` to use to make assertions (typically
+        the one being run at the moment).
+    :param IDeployer deployer: The deployer provider which will be asked to
+        calculate the changes.
+    :param NodeState node_state: The deployer will be asked to calculate
+        changes for a node that has this state.
+    :param Node node_config: The deployer will be asked to calculate changes
+        for a node with this desired configuration.
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
+    :param set additional_node_states: A set of ``NodeState`` for other nodes.
+    :param set additional_node_config: A set of ``Node`` for other nodes.
+    :param expected_changes: The ``IStateChange`` expected to be returned.
+    """
+    cluster_state = DeploymentState(
+        nodes={node_state} | additional_node_states,
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
+    cluster_configuration = Deployment(
+        nodes={node_config} | additional_node_config,
+    )
+    changes = deployer.calculate_changes(
+        cluster_configuration, cluster_state,
+    )
+    case.assertEqual(expected_changes, changes)
