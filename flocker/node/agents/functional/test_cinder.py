@@ -17,7 +17,6 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from eliot.testing import assertHasAction, capture_logging
 from twisted.trial.unittest import SkipTest
 
 from zope.interface import implementer
