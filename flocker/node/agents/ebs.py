@@ -40,6 +40,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
+MAX_RETRIES = 3
 
 
 class EliotLogHandler(logging.Handler):
@@ -516,6 +517,7 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
 
+        attached = False
         ignore_devices = pset([])
         attach_attempts = 0
         while (not attached and attach_attempts < MAX_RETRIES):
@@ -539,8 +541,10 @@ class EBSBlockDeviceAPI(object):
                     # If attach failed because selected device is currently
                     # in use, retry MAX_RETRIES times to find another
                     # unused device.
+                    used = u"Attachment point {0} is already in use".format(
+                        device)
                     if (e.code == u'InvalidParameterValue' and
-                        used in e.message):
+                            used in e.message):
                         attach_attempts += 1
                         ignore_devices = ignore_devices.add(device)
                     else:
