@@ -172,6 +172,6 @@ OPENSTACK_RETRY_AFTER = MessageType(
     [METHOD, RETRY_AFTER],
 )
 
-CINDER_CREATE_VOLUME = u'flocker:node:agents:blockdevice:openstack:create_volume'
+CINDER_CREATE = u'flocker:node:agents:blockdevice:openstack:create_volume'
 
 # End: Helper datastructures used by OpenStack storage driver.

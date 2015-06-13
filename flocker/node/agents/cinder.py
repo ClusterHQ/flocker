@@ -39,7 +39,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER, CINDER_CREATE_VOLUME
+    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER, CINDER_CREATE
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -127,6 +127,17 @@ def auto_openstack_logging(interface, original):
 
 def _openstack_retry_method(method_name, original_name):
     """
+    Run a method and retry it if it encounters KeystoneOverLimit.
+    Limit total number of retries to MAX_OVERLIMIT_RETRIES.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object
+        MAX_OVERLIMIT_RETRIES times if it encounters KeystoneOverLimit
+        exception.
     """
     def _sleep_and_retry(self, *args, **kwargs):
         original = getattr(self, original_name)
@@ -148,7 +159,7 @@ def _openstack_retry_method(method_name, original_name):
                     retry = True
                     attempt += 1
                     if attempt > MAX_OVERLIMIT_RETRIES:
-                        raise
+                        raise e
                 else:
                     raise
     return _sleep_and_retry
@@ -156,6 +167,18 @@ def _openstack_retry_method(method_name, original_name):
 
 def auto_openstack_retry(interface, original):
     """
+    Create a class decorator which will retry all methods on ``interface``
+    failing due to KeystoneOverLimit expcetion MAX_OVERLIMIT_RETRIES
+    number of times.
+
+    :param zope.interface.InterfaceClass interface: The interface from which to
+        take methods.
+    :param str original: The name of an attribute on instances of the decorated
+        class.  The attribute should refer to a provider of ``interface``.
+        That object will have all of its methods retried, in case of
+        KeystoneOverLimit exception.
+
+    :return: The class decorator.
     """
     return interface_decorator(
         "auto_openstack_retry",
@@ -419,7 +442,7 @@ class CinderBlockDeviceAPI(object):
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
         )
-        Message.new(message_type=CINDER_CREATE_VOLUME,
+        Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
         created_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
