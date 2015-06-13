@@ -117,7 +117,8 @@ class CinderBlockDeviceAPIInterfaceTests(
     def test_retry_decorator(self, logger):
         """
         Test that ``auto_openstack_retry`` decorator reattempts
-        failed ``INovaServerManager`` class methods.
+        failed ``INovaServerManager`` methods MAX_OVERLIMIT_RETRIES
+        number of times.
         """
         @implementer(INovaServerManager)
         class DummyNovaServerManager(object):
@@ -150,9 +151,10 @@ class CinderBlockDeviceAPIInterfaceTests(
             def __init__(self, dummy):
                 self._dummy = dummy
 
-        retry_dummy1 = RetryDummy(DummyNovaServerManager(MAX_OVERLIMIT_RETRIES))
+        retry_dummy1 = RetryDummy(DummyNovaServerManager(
+            MAX_OVERLIMIT_RETRIES))
         self.assertEqual(retry_limit, retry_dummy1.list())
 
         retry_dummy2 = RetryDummy(DummyNovaServerManager(
-                                  MAX_OVERLIMIT_RETRIES+1))
-        self.assertRaises(KeystoneOverLimit, retry_dummy2.list())
+            MAX_OVERLIMIT_RETRIES+1))
+        self.assertRaises(KeystoneOverLimit, retry_dummy2.list)
