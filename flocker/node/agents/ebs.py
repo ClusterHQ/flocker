@@ -424,7 +424,6 @@ class EBSBlockDeviceAPI(object):
     def _next_device(self, instance_id, devices_in_use):
         """
         Get the next available EBS device name for a given EC2 instance.
-
         Algorithm:
         1. Get all ``Block devices`` currently in use by given instance:
             a) List all volumes visible to this instance.
