@@ -93,6 +93,11 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    This will also require you to start the node services manually.
    Therefore if your IP addresses conflict with the tutorial, please see the full :doc:`installation instructions <../installing/index>` for more information.
 
+.. note:: The two virtual machines are each assigned a 10GB virtual disk.
+
+   The underlying disk files grow to about 5GB.
+   So you will need at least 10GB of free disk space on your workstation.
+
 #. Create a tutorial directory:
 
    .. code-block:: console
