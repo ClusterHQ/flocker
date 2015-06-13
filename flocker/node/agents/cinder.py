@@ -151,7 +151,7 @@ def _openstack_retry_method(method_name, original_name):
                     return method(*args, **kwargs)
                     retry = False
                 except KeystoneOverLimit as e:
-                    retry_after = int(e.retry_after)
+                    retry_after = max(1, int(e.retry_after))
                     OPENSTACK_RETRY_AFTER(method=method_name,
                                           retry_after=retry_after
                                          ).write()
