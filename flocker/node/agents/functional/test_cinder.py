@@ -42,8 +42,6 @@ from ..cinder import (
     MAX_OVERLIMIT_RETRIES
 )
 
-from .._logging import RETRY_ACTION
-
 
 def cinderblockdeviceapi_for_test(test_case):
     """
@@ -111,10 +109,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             )
         self.assert_foreign_volume(flocker_volume)
 
-    @capture_logging(assertHasAction, RETRY_ACTION,
-                     succeeded=True,
-                     startFields=dict(iteration=1))
-    def test_retry_decorator(self, logger):
+    def test_retry_decorator(self):
         """
         Test that ``auto_openstack_retry`` decorator reattempts
         failed ``INovaServerManager`` methods MAX_OVERLIMIT_RETRIES

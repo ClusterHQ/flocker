@@ -39,7 +39,8 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER, CINDER_CREATE
+    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER, CINDER_CREATE,
+    KEYSTONE_OVERLIMIT
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -175,7 +176,7 @@ def _openstack_retry_method(method_name, original_name):
                         request_id=e.request_id,
                         url=e.url,
                         method=e.method,
-                        response=e.response.text,
+                        response=e.response,
                         retry_after=int(e.retry_after),
                     ).write()
                     _backoff(method_name, attempt, int(e.retry_after))
