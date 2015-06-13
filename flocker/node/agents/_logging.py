@@ -141,6 +141,7 @@ COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
     u"Unable to determine the instance ID of this node.",
 )
 
+# Log header for Cinder messages.
 CINDER_LOG_HEADER = u'flocker:node:agents:blockdevice:openstack'
 
 # ActionType used by OpenStack storage driver.
