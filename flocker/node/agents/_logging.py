@@ -152,7 +152,6 @@ OPENSTACK_ACTION = ActionType(
     u"An IBlockDeviceAPI operation is executing using OpenStack"
     u"storage driver.")
 
-CINDER_CREATE_VOLUME =
-    u'flocker:node:agents:blockdevice:openstack:create_volume'
+CINDER_CREATE = u'flocker:node:agents:blockdevice:openstack:create_volume'
 
 # End: Helper datastructures used by OpenStack storage driver.
