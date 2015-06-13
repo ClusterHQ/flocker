@@ -44,6 +44,7 @@ from ..cinder import (
 
 from .._logging import RETRY_ACTION
 
+
 def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
@@ -109,7 +110,6 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)
-
 
     @capture_logging(assertHasAction, RETRY_ACTION,
                      succeeded=True,
