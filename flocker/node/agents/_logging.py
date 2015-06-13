@@ -57,6 +57,11 @@ NO_AVAILABLE_DEVICE = MessageType(
     u"flocker:node:agents:blockdevice:aws:no_available_device",
     [DEVICES],
 )
+IN_USE_DEVICES = MessageType(
+    u"flocker:node:agents:blockdevice:aws:in_use_devices",
+    [DEVICES],
+    u"Log current devices.",
+)
 
 NEW_DEVICES = Field.for_types(
     u"new_devices", [list],
@@ -141,9 +146,11 @@ COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
     u"Unable to determine the instance ID of this node.",
 )
 
+CINDER_LOG_HEADER = u'flocker:node:agents:blockdevice:openstack'
+
 # ActionType used by OpenStack storage driver.
 OPENSTACK_ACTION = ActionType(
-    u"flocker:node:agents:blockdevice:openstack",
+    CINDER_LOG_HEADER,
     [OPERATION],
     [],
     u"An IBlockDeviceAPI operation is executing using OpenStack"
@@ -164,4 +171,7 @@ OPENSTACK_RETRY_AFTER = MessageType(
     u"flocker:node:agents:blockdevice:openstack:waiting_to_retry",
     [METHOD, RETRY_AFTER],
 )
+
+CINDER_CREATE_VOLUME = u'flocker:node:agents:blockdevice:openstack:create_volume'
+
 # End: Helper datastructures used by OpenStack storage driver.

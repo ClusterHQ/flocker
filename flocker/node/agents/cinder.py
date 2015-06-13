@@ -39,7 +39,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER
+    OPENSTACK_ACTION, RETRY_ACTION, OPENSTACK_RETRY_AFTER, CINDER_CREATE_VOLUME
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -406,7 +406,8 @@ class CinderBlockDeviceAPI(object):
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
         )
-        Message.new(blockdevice_id=requested_volume.id).write()
+        Message.new(message_type=CINDER_CREATE_VOLUME,
+                    blockdevice_id=requested_volume.id).write()
         created_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
             expected_volume=requested_volume,
@@ -569,6 +570,7 @@ class _LoggingNovaVolumeManager(PRecord):
 @auto_openstack_logging(INovaServerManager, "_nova_servers")
 class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
+
 
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
