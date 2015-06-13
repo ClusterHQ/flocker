@@ -9,7 +9,9 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message, start_action
+from eliot import Message
+
+from pyrsistent import PRecord, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
@@ -36,7 +38,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION
+    OPENSTACK_ACTION, CINDER_CREATE
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -369,17 +371,16 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        action_type = u"blockdevice:cinder:create_volume"
-        with start_action(action_type=action_type):
-            requested_volume = self.cinder_volume_manager.create(
-                size=int(Byte(size).to_GiB().value),
-                metadata=metadata,
-            )
-            Message.new(blockdevice_id=requested_volume.id).write()
-            created_volume = wait_for_volume(
-                volume_manager=self.cinder_volume_manager,
-                expected_volume=requested_volume,
-            )
+        requested_volume = self.cinder_volume_manager.create(
+            size=int(Byte(size).to_GiB().value),
+            metadata=metadata,
+        )
+        Message.new(message_type=CINDER_CREATE_VOLUME,
+                    blockdevice_id=requested_volume.id).write()
+        created_volume = wait_for_volume(
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=requested_volume,
+        )
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=created_volume,
         )
@@ -528,9 +529,21 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-@auto_openstack_logging(ICinderVolumeManager, "cinder_client.volumes")
-@auto_openstack_logging(INovaVolumeManager, "nova_client.volumes")
-@auto_openstack_logging(INovaServerManager, "nova_client.servers")
+@auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
+class _LoggingCinderVolumeManager(PRecord):
+    _cinder_volumes = field(mandatory=True)
+
+
+@auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
+class _LoggingNovaVolumeManager(PRecord):
+    _nova_volumes = field(mandatory=True)
+
+
+@auto_openstack_logging(INovaServerManager, "_nova_servers")
+class _LoggingNovaServerManager(PRecord):
+    _nova_servers = field(mandatory=True)
+
+
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -543,10 +556,19 @@ def cinder_api(cinder_client, nova_client, cluster_id):
 
     :returns: A ``CinderBlockDeviceAPI``.
     """
+    logging_cinder = _LoggingCinderVolumeManager(
+        _cinder_volumes=cinder_client.volumes
+    )
+    logging_nova_volume_manager = _LoggingNovaVolumeManager(
+        _nova_volumes=nova_client.volumes
+    )
+    logging_nova_server_manager = _LoggingNovaServerManager(
+        _nova_servers=nova_client.servers
+    )
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
-        nova_server_manager=nova_client.servers,
+        cinder_volume_manager=logging_cinder,
+        nova_volume_manager=logging_nova_volume_manager,
+        nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
 
