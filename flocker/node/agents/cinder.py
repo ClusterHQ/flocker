@@ -75,8 +75,6 @@ def _openstack_logged_method(method_name, original_name):
         with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)
-            except KeystoneOverLimit as e:
-                raise
             except NovaClientException as e:
                 NOVA_CLIENT_EXCEPTION(
                     code=e.code,
@@ -596,20 +594,20 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-@auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
 @auto_openstack_retry(ICinderVolumeManager, "_cinder_volumes")
+@auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
 class _LoggingCinderVolumeManager(PRecord):
     _cinder_volumes = field(mandatory=True)
 
 
-@auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
 @auto_openstack_retry(INovaVolumeManager, "_nova_volumes")
+@auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
 class _LoggingNovaVolumeManager(PRecord):
     _nova_volumes = field(mandatory=True)
 
 
-@auto_openstack_logging(INovaServerManager, "_nova_servers")
 @auto_openstack_retry(INovaServerManager, "_nova_servers")
+@auto_openstack_logging(INovaServerManager, "_nova_servers")
 class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
 
