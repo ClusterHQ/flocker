@@ -12,6 +12,8 @@ from ipaddr import IPAddress
 
 from pyrsistent import pset, pvector
 
+from bitmath import GiB
+
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
@@ -1105,6 +1107,24 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             manifestation)
 
 
+def restart(old, new, node_state):
+    """
+    Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
+    returns when it wants to restart a particular application on a particular
+    node.
+    """
+    return sequentially(changes=[
+        in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old),
+                StartApplication(
+                    application=new, node_state=node_state,
+                ),
+            ]),
+        ]),
+    ])
+
+
 def no_change():
     """
     Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
@@ -1147,6 +1167,189 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
         local_config = to_node(local_state)
         assert_application_calculated_changes(
             self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_has_volume_cant_change_yet(self):
+        """
+        If an ``Application`` is configured with a volume but exists without it
+        and the dataset for the volume isn't present on the node, no changes
+        are calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            applications=[application.set("volume", None)],
+        )
+        local_config = to_node(local_state).set(
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_has_volume_needs_changes(self):
+        """
+        If an ``Application`` is configured with a volume but exists without
+        the volume and the dataset for the volume is present on the node, a
+        change to restart that application is calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        application_without_volume = application.set(volume=None)
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application_without_volume],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            restart(application_without_volume, application, local_state),
+        )
+
+    def test_no_volume_needs_changes(self):
+        """
+        If an ``Application`` is configured with no volume but exists with one,
+        a change to restart that application is calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        application_without_volume = application.set(volume=None)
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application_without_volume],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            restart(application, application_without_volume, local_state),
+        )
+
+    def _resize_no_changes(self, state_size, config_size):
+        application_state = APPLICATION_WITH_VOLUME.transform(
+            ["volume", "manifestation", "dataset", "maximum_size"],
+            state_size,
+        )
+        application_config = application_state.transform(
+            ["volume", "manifestation", "dataset", "maximum_size"],
+            config_size,
+        )
+        manifestation_state = application_state.volume.manifestation
+        manifestation_config = application_config.volume.manifestation
+
+        # Both objects represent the same dataset so the id is the same on
+        # each.
+        dataset_id = manifestation_state.dataset_id
+
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(dataset_id): FilePath(b"/dev/foo")},
+            paths={dataset_id: FilePath(b"/foo/bar")},
+            manifestations={dataset_id: manifestation_state},
+            applications=[application_state],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application_config],
+            manifestations={dataset_id: manifestation_config},
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_resized_volume_no_changes(self):
+        """
+        If an ``Application`` is configured with a volume and exists with that
+        volume but the volume is a different size than configured, no changes
+        are calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(GiB(1).to_Byte().value, GiB(2).to_Byte().value)
+
+    def test_maximum_volume_size_applied_no_changes(self):
+        """
+        If an ``Application``\ 's volume exists without a maximum size and the
+        configuration for that volume indicates a size, no changes are
+        calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(None, GiB(1).to_Byte().value)
+
+    def test_maximum_volume_size_removed_no_changes(self):
+        """
+        If an ``Application``\ 's volume exists with a maximum size and the
+        configuration for that volume indicates no maximum size, no changes are
+        calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(GiB(1).to_Byte().value, None)
+
+    def test_moved_volume_needs_changes(self):
+        """
+        If an ``Application`` is configured with a volume on a node but is no
+        longer configured to on that node, a change to stop that application is
+        calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        local_config = to_node(EMPTY_NODESTATE)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            sequentially(changes=[
+                in_parallel(changes=[
+                    StopApplication(application=application),
+                ]),
+            ]),
+        )
+
+    def test_different_volume_needs_change(self):
+        """
+        If an ``Application`` is configured with a volume but exists with a
+        different volume, a change to restart that application is calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        another_manifestation = manifestation.transform(
+            ["dataset", "dataset_id"], uuid4(),
+        )
+        changed_application = application.transform(
+            ["volume", "manifestation"], another_manifestation,
+        )
+        local_state = EMPTY_NODESTATE.set(
+            devices={
+                UUID(manifestation.dataset_id): FilePath(b"/dev/foo"),
+                UUID(another_manifestation.dataset_id): FilePath(b"/dev/bar"),
+            },
+            paths={
+                manifestation.dataset_id: FilePath(b"/foo/bar"),
+                another_manifestation.dataset_id: FilePath(b"/bar/baz"),
+            },
+            manifestations={
+                manifestation.dataset_id: manifestation,
+                another_manifestation.dataset_id: another_manifestation,
+            },
+            applications=[application],
+        )
+        local_config = to_node(local_state).set(
+            applications=[
+                changed_application,
+            ],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            restart(application, changed_application, local_state),
         )
 
 
