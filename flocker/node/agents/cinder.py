@@ -375,7 +375,7 @@ class CinderBlockDeviceAPI(object):
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
         )
-        Message.new(message_type=CINDER_CREATE_VOLUME,
+        Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
         created_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
