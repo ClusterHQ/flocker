@@ -51,7 +51,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
 # Number of storage backend operation retry attempts in case of OverLimit.
-MAX_OVERLIMIT_RETRIES = 20
+MAX_OVERLIMIT_RETRIES = 3
 
 
 def _openstack_logged_method(method_name, original_name):
