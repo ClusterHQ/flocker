@@ -146,16 +146,12 @@ COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
     u"Unable to determine the instance ID of this node.",
 )
 
-CINDER_LOG_HEADER = u'flocker:node:agents:blockdevice:openstack'
-
 # ActionType used by OpenStack storage driver.
 OPENSTACK_ACTION = ActionType(
-    CINDER_LOG_HEADER,
+    u"flocker:node:agents:blockdevice:openstack",
     [OPERATION],
     [],
     u"An IBlockDeviceAPI operation is executing using OpenStack"
     u"storage driver.")
-
-CINDER_CREATE_VOLUME = u'flocker:node:agents:blockdevice:openstack:create_volume'
 
 # End: Helper datastructures used by OpenStack storage driver.
