@@ -52,6 +52,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 
 MAX_OVERLIMIT_RETRIES = 3
 
+
 def _openstack_logged_method(method_name, original_name):
     """
     Run a method and log additional information about any exceptions that are
@@ -153,8 +154,7 @@ def _openstack_retry_method(method_name, original_name):
                 except KeystoneOverLimit as e:
                     retry_after = max(1, int(e.retry_after))
                     OPENSTACK_RETRY_AFTER(method=method_name,
-                                          retry_after=retry_after
-                                         ).write()
+                                          retry_after=retry_after).write()
                     time.sleep(retry_after)
                     retry = True
                     attempt += 1
