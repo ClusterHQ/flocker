@@ -168,6 +168,16 @@ def _openstack_retry_method(method_name, original_name):
                     return method(*args, **kwargs)
                     retry = False
                 except KeystoneOverLimit as e:
+                    KEYSTONE_OVERLIMIT(
+                        code=e.http_status,
+                        message=e.message,
+                        details=e.details,
+                        request_id=e.request_id,
+                        url=e.url,
+                        method=e.method,
+                        response=e.response.text,
+                        retry_after=int(e.retry_after),
+                    ).write()
                     _backoff(method_name, attempt, int(e.retry_after))
                     retry = True
                     attempt += 1

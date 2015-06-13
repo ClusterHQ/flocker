@@ -172,6 +172,10 @@ OPENSTACK_RETRY_AFTER = MessageType(
     u"flocker:node:agents:blockdevice:openstack:waiting_to_retry",
     [METHOD, RETRY_AFTER],
 )
+KEYSTONE_OVERLIMIT = MessageType(
+    u"flocker:node:agents:blockdevice:openstack:keystone_overlimit",
+    [CODE, RESPONSE, MESSAGE, DETAILS, REQUEST_ID, URL, METHOD, RETRY_AFTER],
+)
 
 CINDER_CREATE = u'flocker:node:agents:blockdevice:openstack:create_volume'
 
