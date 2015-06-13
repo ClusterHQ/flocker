@@ -143,11 +143,11 @@ def _openstack_retry_method(method_name, original_name):
         def _backoff(method, iteration, retry_after):
             """
             Sleep for max of suggested ``retry_after`` second estimate from
-            storage backend, and and exponential backoff value determined by
+            storage backend, and an exponential backoff value determined by
             retry iteration count.
 
             :param str method: Name of the method that will be retried.
-            :param int iteration: Failed retry iteration count before backoff.
+            :param int iteration: Failed retry iteration count causing backoff.
             :param int retry_after: Suggested seconds after which backend
                 recommended retry.
             """
