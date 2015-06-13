@@ -8,7 +8,12 @@ from yaml import safe_dump
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.reflect import namedModule
-from sphinx.errors import SphinxError
+
+try:
+    from sphinx.errors import SphinxError
+    SPHINX_ERROR_AVAILABLE = True
+except:
+    SPHINX_ERROR_AVAILABLE = False
 
 from klein import Klein
 
@@ -58,6 +63,7 @@ class MakeRstTests(SynchronousTestCase):
     """
     Tests for L{makeRst}.
     """
+    @skipUnless(SPHINX_ERROR_AVAILABLE, "SphinxError must be available")
     def test_must_be_documented(self):
         """
         If any route doesn't have documentation, then ``SphinxError`` is
