@@ -167,8 +167,7 @@ RETRY_ACTION = ActionType(
     u"backend operation rate limiting.")
 RETRY_AFTER = Field.for_types(
     "retry_after", [int],
-    u"The number of seconds recommended by storage backend to wait "
-    u"before attempting retry.")
+    u"The number of paused seconds before attempting retry.")
 OPENSTACK_RETRY_AFTER = MessageType(
     u"flocker:node:agents:blockdevice:openstack:waiting_to_retry",
     [METHOD, RETRY_AFTER],

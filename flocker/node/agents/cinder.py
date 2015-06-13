@@ -50,7 +50,8 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-MAX_OVERLIMIT_RETRIES = 3
+# Number of storage backend operation retry attempts in case of OverLimit.
+MAX_OVERLIMIT_RETRIES = 20
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -139,6 +140,23 @@ def _openstack_retry_method(method_name, original_name):
         exception.
     """
     def _sleep_and_retry(self, *args, **kwargs):
+        def _backoff(method, iteration, retry_after):
+            """
+            Sleep for max of suggested ``retry_after`` second estimate from
+            storage backend, and and exponential backoff value determined by
+            retry iteration count.
+
+            :param str method: Name of the method that will be retried.
+            :param int iteration: Failed retry iteration count before backoff.
+            :param int retry_after: Suggested seconds after which backend
+                recommended retry.
+            """
+            exp_backoff = 2**iteration
+            sleep_time = max(exp_backoff, retry_after)
+            OPENSTACK_RETRY_AFTER(method=method,
+                                  retry_after=sleep_time).write()
+            time.sleep(sleep_time)
+
         original = getattr(self, original_name)
         method = getattr(original, method_name)
         retry = True
@@ -150,10 +168,7 @@ def _openstack_retry_method(method_name, original_name):
                     return method(*args, **kwargs)
                     retry = False
                 except KeystoneOverLimit as e:
-                    retry_after = max(1, int(e.retry_after))
-                    OPENSTACK_RETRY_AFTER(method=method_name,
-                                          retry_after=retry_after).write()
-                    time.sleep(retry_after)
+                    _backoff(method_name, attempt, int(e.retry_after))
                     retry = True
                     attempt += 1
                     if attempt > MAX_OVERLIMIT_RETRIES:
