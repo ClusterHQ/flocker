@@ -9,12 +9,6 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.reflect import namedModule
 
-try:
-    from sphinx.errors import SphinxError
-    SPHINX_ERROR_AVAILABLE = True
-except:
-    SPHINX_ERROR_AVAILABLE = False
-
 from klein import Klein
 
 try:
@@ -24,6 +18,8 @@ try:
 except ImportError:
     skip = "Sphinx not installed."
 else:
+    from sphinx.errors import SphinxError
+
     from ..publicapi import (
         Example, KleinRoute, getRoutes, _loadExamples, _formatExample, makeRst)
 
@@ -63,7 +59,6 @@ class MakeRstTests(SynchronousTestCase):
     """
     Tests for L{makeRst}.
     """
-    @skipUnless(SPHINX_ERROR_AVAILABLE, "SphinxError must be available")
     def test_must_be_documented(self):
         """
         If any route doesn't have documentation, then ``SphinxError`` is
