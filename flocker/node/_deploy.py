@@ -14,7 +14,7 @@ from characteristic import attributes
 
 from pyrsistent import PRecord, field
 
-from eliot import write_failure, Logger, start_action
+from eliot import Message, write_failure, Logger, start_action
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -615,6 +615,158 @@ class ApplicationNodeDeployer(object):
             network = make_host_network()
         self.network = network
 
+    def _attached_volume_for_container(
+            self, container, path_to_manifestations
+    ):
+        """
+        Infer the Flocker manifestation which is in use by the given container.
+
+        :param flocker.node._docker.Unit container: The container to inspect.
+        :param dict path_to_manifestations: A mapping from mount points (as
+            ``FilePath``) to identifiers (as ``unicode``) of the datasets that
+            are mounted there.
+
+        :return: ``None`` if no Flocker manifestation can be associated with
+            the container state.  Otherwise an ``AttachedVolume`` referring to
+            that manifestation and the location in the container where it is
+            mounted.
+        """
+        if container.volumes:
+            # XXX https://clusterhq.atlassian.net/browse/FLOC-49
+            # we only support one volume per container
+            # at this time
+            # XXX https://clusterhq.atlassian.net/browse/FLOC-773
+            # we assume all volumes are datasets
+            docker_volume = list(container.volumes)[0]
+            try:
+                manifestation = path_to_manifestations[
+                    docker_volume.node_path]
+            except KeyError:
+                # Apparently not a dataset we're managing, give up.
+                return None
+            else:
+                return AttachedVolume(
+                    manifestation=manifestation,
+                    mountpoint=docker_volume.container_path,
+                )
+        return None
+
+    def _ports_for_container(self, container):
+        """
+        Determine the network ports that are exposed by the given container.
+
+        :param flocker.node._docker.Unit container: The container to inspect.
+
+        :return: A ``list`` of ``Port`` instances.
+        """
+        ports = []
+        for portmap in container.ports:
+            ports.append(Port(
+                internal_port=portmap.internal_port,
+                external_port=portmap.external_port
+            ))
+        return ports
+
+    def _environment_for_container(self, container):
+        """
+        Get the custom environment specified for the container and infer its
+        links.
+
+        It would be nice to do these two things separately but links are only
+        represented in the container's environment so both steps involve
+        inspecting the environment.
+
+        :param flocker.node._docker.Unit container: The container to inspect.
+
+        :return: A two-tuple of the container's links and environment.  Links
+            are given as a ``list`` of ``Link`` instances.  Environment is
+            given as a ``list`` of two-tuples giving the environment variable
+            name and value (as ``bytes``).
+        """
+        # Improve the factoring of this later.  Separate it into two methods.
+        links = []
+        environment = []
+        if container.environment:
+            environment_dict = container.environment.to_dict()
+            for label, value in environment_dict.items():
+                # <ALIAS>_PORT_<PORTNUM>_TCP_PORT=<value>
+                parts = label.rsplit(b"_", 4)
+                try:
+                    alias, pad_a, port, pad_b, pad_c = parts
+                    local_port = int(port)
+                except ValueError:
+                    # <ALIAS>_PORT_<PORT>_TCP
+                    parts = label.rsplit(b"_", 3)
+                    try:
+                        alias, pad_a, port, pad_b = parts
+                    except ValueError:
+                        environment.append((label, value))
+                        continue
+                    if not (pad_a, pad_b) == (b"PORT", b"TCP"):
+                        environment.append((label, value))
+                    continue
+                if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
+                    links.append(Link(
+                        local_port=local_port,
+                        remote_port=int(value),
+                        alias=alias,
+                    ))
+        return links, environment
+
+    def _applications_from_containers(
+            self, containers, path_to_manifestations
+    ):
+        """
+        Reconstruct the original application state from the container state
+        that resulted from it.
+
+        :param list containers: The Docker containers that exist here.
+        :param path_to_manifestations: See ``_attached_volume_for_container``.
+
+        :return: A ``list`` of ``Application`` instances inferred from
+            ``containers`` and ``path_to_manifestations``.
+        """
+        applications = []
+        for container in containers:
+            image = DockerImage.from_string(container.container_image)
+            volume = self._attached_volume_for_container(
+                container, path_to_manifestations,
+            )
+            ports = self._ports_for_container(container)
+            links, environment = self._environment_for_container(container)
+            applications.append(Application(
+                name=container.name,
+                image=image,
+                ports=frozenset(ports),
+                volume=volume,
+                environment=environment if environment else None,
+                links=frozenset(links),
+                restart_policy=container.restart_policy,
+                running=(container.activation_state == u"active"),
+                command_line=container.command_line,
+            ))
+        return applications
+
+    def _nodestate_from_applications(self, applications):
+        """
+        Construct a ``NodeState`` representing the state of this node given a
+        particular set of applications.
+
+        :param list applications: ``Application`` instances representing the
+            applications on this node.
+
+        :return: A ``list`` of a single ``NodeState`` representing the
+            application state only of this node.
+        """
+        return [NodeState(
+            uuid=self.node_uuid,
+            hostname=self.hostname,
+            applications=applications,
+            used_ports=self.network.enumerate_used_ports(),
+            manifestations=None,
+            paths=None,
+        )]
+
     def discover_state(self, local_state):
         """
         List all the ``Application``\ s running on this node.
@@ -651,89 +803,143 @@ class ApplicationNodeDeployer(object):
                 paths=None,
             )])
 
-        path_to_manifestations = {path: local_state.manifestations[dataset_id]
-                                  for (dataset_id, path)
-                                  in local_state.paths.items()}
-        d = self.docker_client.list()
+        path_to_manifestations = {
+            path: local_state.manifestations[dataset_id]
+            for (dataset_id, path)
+            in local_state.paths.items()
+        }
 
-        def applications_from_units(units):
-            applications = []
-            for unit in units:
-                image = DockerImage.from_string(unit.container_image)
-                if unit.volumes:
-                    # XXX https://clusterhq.atlassian.net/browse/FLOC-49
-                    # we only support one volume per container
-                    # at this time
-                    # XXX https://clusterhq.atlassian.net/browse/FLOC-773
-                    # we assume all volumes are datasets
-                    docker_volume = list(unit.volumes)[0]
-                    try:
-                        manifestation = path_to_manifestations[
-                            docker_volume.node_path]
-                    except KeyError:
-                        # Apparently not a dataset we're managing, give up.
-                        volume = None
-                    else:
-                        volume = AttachedVolume(
-                            manifestation=manifestation,
-                            mountpoint=docker_volume.container_path)
-                else:
-                    volume = None
-                ports = []
-                for portmap in unit.ports:
-                    ports.append(Port(
-                        internal_port=portmap.internal_port,
-                        external_port=portmap.external_port
-                    ))
-                links = []
-                environment = []
-                if unit.environment:
-                    environment_dict = unit.environment.to_dict()
-                    for label, value in environment_dict.items():
-                        # <ALIAS>_PORT_<PORTNUM>_TCP_PORT=<value>
-                        parts = label.rsplit(b"_", 4)
-                        try:
-                            alias, pad_a, port, pad_b, pad_c = parts
-                            local_port = int(port)
-                        except ValueError:
-                            # <ALIAS>_PORT_<PORT>_TCP
-                            parts = label.rsplit(b"_", 3)
-                            try:
-                                alias, pad_a, port, pad_b = parts
-                            except ValueError:
-                                environment.append((label, value))
-                                continue
-                            if not (pad_a, pad_b) == (b"PORT", b"TCP"):
-                                environment.append((label, value))
-                            continue
-                        if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
-                            links.append(Link(
-                                local_port=local_port,
-                                remote_port=int(value),
-                                alias=alias,
-                            ))
-                applications.append(Application(
-                    name=unit.name,
-                    image=image,
-                    ports=frozenset(ports),
-                    volume=volume,
-                    environment=environment if environment else None,
-                    links=frozenset(links),
-                    restart_policy=unit.restart_policy,
-                    running=(unit.activation_state == u"active"),
-                    command_line=unit.command_line,
-                ))
+        applications = self.docker_client.list()
+        applications.addCallback(
+            self._applications_from_containers, path_to_manifestations
+        )
+        applications.addCallback(self._nodestate_from_applications)
+        return applications
 
-            return [NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=applications,
-                used_ports=self.network.enumerate_used_ports(),
-                manifestations=None,
-                paths=None,
-            )]
-        d.addCallback(applications_from_units)
-        return d
+    def _restart_for_volume_change(self, node_state, state, configuration):
+        """
+        Determine whether the current volume state of an application is
+        divergent from the volume configuration for that application in a way
+        that merits an application restart right now.
+
+        Many actual divergences are allowed and ignored:
+
+            - The volume metadata.  This metadata only exists in the
+              configuration.  It is always missing from the state object.
+
+            - The volume size.  The dataset agent is not reliably capable of
+              performing resizes (if we wait for the actual and configured
+              sizes to match, we might have to wait forever).
+
+            - The volume's deleted state.  The application will be allowed to
+              continue to use a volume that has been marked for deletion until
+              the application is explicitly stopped.
+
+        :param NodeState node_state: The known local state of this node.
+        :param AttachedVolume state: The known state of the volume of an
+            application being considered.  Or ``None`` if it is known not to
+            have a volume.
+        :param AttachedVolume configuration: The configured state of the volume
+            of the application being considered.  Or ``None`` if it is
+            configured to not have a volume.
+
+        :return: If the state differs from the configuration in a way which
+            needs to be corrected by the convergence agent (for example, the
+            application is configured with a volume but is running without
+            one), ``True``.  If it does not differ or only differs in the
+            allowed ways mentioned above, ``False``.
+        """
+        def log(restart, reason=None):
+            Message.new(
+                message_type=_eliot_system(u"restart_for_volume_change"),
+                restart=restart,
+                state_is_none=state is None,
+                configuration_is_none=configuration is None,
+                reason=reason,
+            ).write()
+            return restart
+
+        def restart_if_available(dataset_id):
+            """
+            Considering that we would like to restart the application with a
+            volume using the given dataset_id, determine whether we can
+            actually do so at this time.
+
+            If the indicated dataset has no manifestation on this node, we will
+            not be able to start the application again after stopping it.  So
+            leave it running until such a manifestation exists.
+
+            :param unicode dataset_id: The identifier of the dataset we want.
+
+            :return: If there is a manifestation of the given dataset on this
+                node, ``True``.  Otherwise, ``False``.
+            """
+            if dataset_id in node_state.manifestations:
+                # We want it and we have it.
+                return log(True, "have configured dataset")
+            else:
+                # We want it but we don't have it.
+                return log(False, "missing configured dataset")
+
+        state_id = getattr(
+            getattr(state, "manifestation", None), "dataset_id", None
+        )
+        config_id = getattr(
+            getattr(configuration, "manifestation", None), "dataset_id", None
+        )
+
+        if state_id == config_id:
+            return log(False, "dataset matches")
+        elif config_id is None:
+            return log(True, "volume removed")
+        else:
+            return restart_if_available(config_id)
+
+    def _restart_for_application_change(
+        self, node_state, state, configuration
+    ):
+        """
+        Determine whether the current state of an application is divergent from
+        the configuration for that application in a way that merits an
+        application restart right now.
+
+        Certain differences are not considered divergences:
+
+            - The running state of the application.  It may have exited
+              normally and correctly after completing its task.
+
+            - Certain volume differences.  See ``_restart_for_volume_change``.
+
+        :param NodeState node_state: The known local state of this node.
+        :param Application state: The current state of the application.
+        :param Application configuration: The desired configuration for the
+            application.
+
+        :return: If the state differs from the configuration in a way which
+            needs to be corrected by the convergence agent (for example,
+            different network ports should be exposed), ``True``.  If it does
+            not differ or only differs in the allowed ways mentioned above,
+            ``False``.
+        """
+        volume_state = state.volume
+        volume_configuration = configuration.volume
+
+        # The volume comparison is too complicated to leave up to `!=` below.
+        # Check volumes separately.
+        comparable_state = state.set(volume=None)
+        comparable_configuration = configuration.set(volume=None)
+
+        # For our purposes what we care about is if configuration has
+        # changed, so if it's not running but it's otherwise the same
+        # we don't want to do anything:
+        comparable_state = comparable_state.transform(["running"], True)
+
+        return (
+            comparable_state != comparable_configuration
+            or self._restart_for_volume_change(
+                node_state, volume_state, volume_configuration
+            )
+        )
 
     def calculate_changes(self, desired_configuration, current_cluster_state):
         """
@@ -829,17 +1035,10 @@ class ApplicationNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
-            # For our purposes what we care about is if configuration has
-            # changed, so if it's not running but it's otherwise the same
-            # we don't want to do anything:
-            comparable_current = inspect_current.transform(["running"], True)
-            # Current state never has metadata on datasets, so remove from
-            # configuration:
-            comparable_desired = inspect_desired
-            if comparable_desired.volume is not None:
-                comparable_desired = comparable_desired.transform(
-                    ["volume", "manifestation", "dataset", "metadata"], {})
-            if comparable_desired != comparable_current:
+
+            if self._restart_for_application_change(
+                current_node_state, inspect_current, inspect_desired
+            ):
                 restart_containers.append(sequentially(changes=[
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
