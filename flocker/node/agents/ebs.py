@@ -40,7 +40,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
-MAX_RETRIES = 3
+MAX_ATTACH_RETRIES = 3
 
 
 class EliotLogHandler(logging.Handler):
@@ -421,9 +421,10 @@ class EBSBlockDeviceAPI(object):
                 return volume
         raise UnknownVolume(blockdevice_id)
 
-    def _next_device(self, instance_id, devices_in_use):
+    def _next_device(self, instance_id, volumes, devices_in_use):
         """
         Get the next available EBS device name for a given EC2 instance.
+
         Algorithm:
         1. Get all ``Block devices`` currently in use by given instance:
             a) List all volumes visible to this instance.
@@ -435,16 +436,19 @@ class EBSBlockDeviceAPI(object):
         (see https://clusterhq.atlassian.net/browse/FLOC-1887).
 
         :param unicode instance_id: EC2 instance ID.
+        :param volumes: Collection of currently known
+            ``BlockDeviceVolume`` instances.
+        :param set devices_in_use: Unicode names of devices that are
+            probably in use based on observed behavior.
 
         :returns unicode file_name: available device name for attaching
             EBS volume.
         :returns ``None`` if suitable EBS device names on this EC2
             instance are currently occupied.
         """
-        volumes = self.connection.get_all_volumes()
         devices = pset({v.attach_data.device for v in volumes
                        if v.attach_data.instance_id == instance_id})
-        devices = devices.add(devices_in_use)
+        devices = devices | devices_in_use
         IN_USE_DEVICES(devices=devices).write()
 
         for suffix in b"fghijklmonp":
@@ -516,15 +520,15 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
 
-        attached = False
         ignore_devices = pset([])
         attach_attempts = 0
-        while (not attached and attach_attempts < MAX_RETRIES):
+        while True:
             with self.lock:
                 # begin lock scope
 
                 blockdevices = FilePath(b"/sys/block").children()
-                device = self._next_device(attach_to, ignore_devices)
+                volumes = self.connection.get_all_volumes()
+                device = self._next_device(attach_to, volumes, ignore_devices)
 
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
@@ -537,14 +541,13 @@ class EBSBlockDeviceAPI(object):
                                                   attach_to,
                                                   device)
                 except EC2ResponseError as e:
-                    # If attach failed because selected device is currently
-                    # in use, retry MAX_RETRIES times to find another
-                    # unused device.
-                    used = u"Attachment point {0} is already in use".format(
-                        device)
-                    if (e.code == u'InvalidParameterValue' and
-                            used in e.message):
+                    # If attach failed that is often because of eventual
+                    # consistency in AWS, so let's ignore this one if it
+                    # fails:
+                    if e.code == u'InvalidParameterValue':
                         attach_attempts += 1
+                        if attach_attempts == MAX_ATTACH_RETRIES:
+                            raise
                         ignore_devices = ignore_devices.add(device)
                     else:
                         raise
@@ -558,7 +561,7 @@ class EBSBlockDeviceAPI(object):
                     # Wait under lock scope to reduce false positives.
                     new_device = _wait_for_new_device(blockdevices,
                                                       volume.size)
-                    attached = True
+                    break
                 # end lock scope
 
         # Stamp EBS volume with attached device name tag.
