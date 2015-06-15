@@ -10,6 +10,7 @@ from pyrsistent import PRecord, field
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
+from twisted.python.components import proxyForInterface
 
 from eliot import ActionType
 from eliot.testing import validate_logging, assertHasAction
@@ -27,6 +28,52 @@ from .istatechange import (
 )
 
 DEPLOYER = ControllableDeployer(u"192.168.1.1", (), ())
+
+
+def _superlative(interface, comparison_result):
+    """
+    Create a proxy type for ``interface`` which also overrides comparison to
+    return a particular result.
+
+    :param zope.interface.Interface interface: The interface for which to
+        proxy.
+    :param int comparison_result: A value to return from ``__cmp__`` as
+        implemented on the proxy type.
+
+    :return: The new proxy type.
+    """
+    class ComparisonProxy(proxyForInterface(interface, "_original")):
+        def __cmp__(self, other):
+            return comparison_result
+    return ComparisonProxy
+
+
+def smallest(interface, instance):
+    """
+    Create a proxy for an instance which makes it sort smaller than anything it
+    is compared to.
+
+    :param zope.interface.Interface interface: The interface to proxy.
+    :param instance: Any object providing ``interface``.
+
+    :return: An object providing ``interface`` and also comparing as smaller
+        than anything else.
+    """
+    return _superlative(interface, -1)(instance)
+
+
+def largest(interface, instance):
+    """
+    Create a proxy for an instance which makes it sort larger than anything it
+    is compared to.
+
+    :param zope.interface.Interface interface: The interface to proxy.
+    :param instance: Any object providing ``interface``.
+
+    :return: An object providing ``interface`` and also comparing as larger
+        than anything else.
+    """
+    return _superlative(interface, 1)(instance)
 
 
 @implementer(IStateChange)
@@ -309,19 +356,22 @@ class InParallelTests(SynchronousTestCase):
         ``in_parallel`` raises an exception, ``run_state_changes`` nevertheless
         runs the other ``IStateChange`` implementations passed along with it.
         """
-        other = ControllableAction(result=None)
+        some_change = ControllableAction(result=None)
+        other_change = ControllableAction(result=None)
         subchanges = [
+            smallest(IStateChange, some_change),
             BrokenAction(exception=CustomException()),
-            other,
+            largest(IStateChange, other_change),
         ]
         change = in_parallel(changes=subchanges)
         result = run_state_change(change, DEPLOYER)
         self.failureResultOf(result, FirstError)
         self.flushLoggedErrors(CustomException)
-        self.assertTrue(
-            other.called,
-            "IStateChange following broken IStateChange not run by "
-            "in_parallel"
+        self.assertEqual(
+            (some_change.called, other_change.called),
+            (True, True),
+            "Other changes passed to in_parallel with a broken IStateChange "
+            "were not run."
         )
 
     def test_failure_result(self):
