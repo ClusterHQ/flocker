@@ -96,15 +96,37 @@ def _centos7_install_commands(version):
             flocker_version=get_installable_version(flocker_version),
         ))),
         run(command=(
-            "yum install {repo_enabling} -y "
+            "yum install {repo_options} -y "
             "clusterhq-flocker-node{version}").format(
-            repo_enabling=''.join(get_repo_options(flocker_version)),
+            repo_options=''.join(get_repo_options(flocker_version)),
             version=version,
         ))
     ])
 
 
-class GetRepositoryURL(SynchronousTestCase):
+class GetRepoOptionsTests(SynchronousTestCase):
+    """
+    Tests for ``get_repo_options``.
+    """
+
+    def test_marketing_release(self):
+        """
+        No special repositories are enabled if the latest installable version
+        is a marketing release.
+        """
+        self.assertEqual(get_repo_options(flocker_version='0.3.0'), [])
+
+    def test_development_release(self):
+        """
+        Enabling a testing repository is enabled if the latest installable
+        version is not a marketing release.
+        """
+        self.assertEqual(
+            get_repo_options(flocker_version='0.3.0dev1'),
+            ['--enablerepo=clusterhq-testing'])
+
+
+class GetRepositoryURLTests(SynchronousTestCase):
     """
     Tests for ``get_repository_url``.
     """
