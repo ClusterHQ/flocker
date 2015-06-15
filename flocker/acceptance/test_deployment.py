@@ -20,7 +20,9 @@ from .testtools import (MONGO_APPLICATION, MONGO_IMAGE,
                         create_attached_volume, require_cluster,
                         require_moving_backend)
 
-SIZE_100_MB = u"104857600"
+from ..testtools import (
+    REALISTIC_BLOCKDEVICE_SIZE,
+)
 
 
 def api_configuration_to_flocker_deploy_configuration(api_configuration):
@@ -75,7 +77,7 @@ class DeploymentTests(TestCase):
             volume=create_attached_volume(
                 dataset_id=mongo_dataset_id,
                 mountpoint=b'/data/db',
-                maximum_size=int(SIZE_100_MB),
+                maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
                 metadata=pmap({"name": MONGO_APPLICATION}),
             )
         )
@@ -105,7 +107,7 @@ class DeploymentTests(TestCase):
         }
 
         conf = config_application_1[u'applications'][MONGO_APPLICATION]
-        conf['volume']['maximum_size'] = SIZE_100_MB
+        conf['volume']['maximum_size'] = str(REALISTIC_BLOCKDEVICE_SIZE)
 
         config_deployment_1 = {
             u"version": 1,
@@ -139,7 +141,7 @@ class DeploymentTests(TestCase):
                     u"dataset_id": mongo_dataset_id,
                     u"metadata": None,
                     u"deleted": False,
-                    u"maximum_size": int(SIZE_100_MB),
+                    u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
                     u"primary": node_1_uuid
                 }
             )
@@ -148,7 +150,7 @@ class DeploymentTests(TestCase):
                 cluster, dataset = result
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
-                    (mongo_dataset_id, int(SIZE_100_MB))
+                    (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
                 )
                 cluster.flocker_deploy(
                     self, config_deployment_2, config_application_1)
@@ -166,7 +168,7 @@ class DeploymentTests(TestCase):
                     u"dataset_id": mongo_dataset_id,
                     u"metadata": None,
                     u"deleted": False,
-                    u"maximum_size": int(SIZE_100_MB),
+                    u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
                     u"primary": node_2_uuid
                 }
             )
@@ -175,7 +177,7 @@ class DeploymentTests(TestCase):
                 cluster, dataset = result
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
-                    (mongo_dataset_id, int(SIZE_100_MB))
+                    (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
                 )
             waiting_for_dataset.addCallback(got_dataset)
             self.assertTrue(actual_container['running'])
