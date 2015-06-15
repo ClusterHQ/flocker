@@ -20,7 +20,6 @@ from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 from flocker.testtools import FakeSysModule
 
 from .. import packaging
-
 from ..packaging import (
     omnibus_package_builder, InstallVirtualEnv, InstallApplication,
     BuildPackage, BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
@@ -31,10 +30,9 @@ from ..packaging import (
     make_dependencies, available_distributions,
     LintPackage,
 )
-
-from admin.testtools import FLOCKER_PATH
-
 from flocker.common.version import RPMVersion
+
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 require_fpm = skipIf(not which('fpm'), "Tests require the ``fpm`` command.")
 require_rpm = skipIf(not which('rpm'), "Tests require the ``rpm`` command.")
