@@ -2,13 +2,11 @@
 Using the API with Go
 =====================
 
-.. note:: If you are using cURL on OS X, you will need a version of cURL that supports OpenSSL. For more information see :ref:`authenticate-api`.
+#. Download the :file:`example.go` file:
 
-#. Download the :file:`example.sh` file:
+   :download:`example.go`
 
-   :download:`example.sh`
-
-   .. literalinclude:: example.sh
+   .. literalinclude:: example.go
 
 #. Before you run the example, you will need to change the following values (either by editing the source file or by setting environment variables):
 
@@ -22,4 +20,5 @@ Using the API with Go
 
    .. prompt:: bash
 
-      bash example.sh
+	  go build example.go
+	  ./example

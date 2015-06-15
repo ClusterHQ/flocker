@@ -13,3 +13,4 @@ Examples of using the Flocker API with languages such as `Go`, `Ruby`, and  will
 
    api-example-python
    api-example-curl
+   api-example-go
