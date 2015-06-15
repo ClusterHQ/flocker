@@ -674,9 +674,7 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-Next Steps
-----------
+Next Step
+---------
 
-Next, we will describe how to use cluster security and authentication.
-However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
-You can replace the IP addresses in the sample ``deployment.yml`` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.

@@ -1,5 +1,5 @@
-Flocker 0.9.0 (2015-06-11)
-==========================
+Flocker 1.0.0pre1 (2015-06-12)
+==============================
 
 - It is now necessary to specify a dataset backend for each agent node. (FLOC-1420)
 - Flocker-initiated communication is secured with TLS. (FLOC-1441)
