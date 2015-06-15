@@ -2,13 +2,13 @@
 Using the API with cURL
 =======================
 
-.. note:: You will need to have a running Flocker cluster set up, and at least `Python 2.7.9`_ to run this example.
+.. note:: If you are using cURL on OS X, you will need a version of cURL that supports OpenSSL. For more information see :ref:`authenticate-api`.
 
-#. Download the :file:`example.py` file:
+#. Download the :file:`example.sh` file:
 
-   :download:`example.py`
+   :download:`example.sh`
 
-   .. literalinclude:: example.py
+   .. literalinclude:: example.sh
 
 #. Before you run the example, you will need to change the following values (either by editing the source file or by setting environment variables):
 
@@ -22,6 +22,4 @@ Using the API with cURL
 
    .. prompt:: bash
 
-      python example.py
-
-.. _`Python 2.7.9`: https://www.python.org/downloads/
+      bash example.sh
