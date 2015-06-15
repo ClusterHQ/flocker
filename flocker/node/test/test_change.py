@@ -4,23 +4,50 @@
 Tests for ``flocker.node._change``.
 """
 
+from zope.interface import implementer
+
+from pyrsistent import PRecord, field
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
 
+from eliot import ActionType
 from eliot.testing import validate_logging, assertHasAction
 
 from ..testtools import (
     CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer,
     DummyDeployer
 )
+from ...testtools import CustomException
 
-from .. import sequentially, in_parallel, run_state_change
+from .. import IStateChange, sequentially, in_parallel, run_state_change
 
 from .istatechange import (
     DummyStateChange, RunSpyStateChange, make_istatechange_tests,
 )
 
 DEPLOYER = ControllableDeployer(u"192.168.1.1", (), ())
+
+
+@implementer(IStateChange)
+class BrokenAction(PRecord):
+    """
+    An ``IStateChange`` implementation that synchronously raised an exception
+    instead of returning a ``Deferred``.
+    """
+    exception = field(mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return ActionType(
+            u"flocker:test:broken_action",
+            [], [],
+            u"An action used by tests for handling of broken IStateChange "
+            u"implementations.",
+        )()
+
+    def run(self, deployer):
+        raise self.exception
 
 
 class DummyStateChangeIStateChangeTests(
@@ -262,6 +289,19 @@ class InParallelTests(SynchronousTestCase):
         called = [subchanges[0].called,
                   subchanges[1].called]
         self.assertEqual(called, [True, True])
+
+    def test_exception_result(self):
+        """
+        When called with the result of ``in_parallel``, ``run_state_changes``
+        returns a ``Deferred`` that fires with the first exception raised
+        (synchronously, not returned as a ``Failure``).
+        """
+        subchanges = [BrokenAction(exception=CustomException())]
+        change = in_parallel(changes=subchanges)
+        result = run_state_change(change, DEPLOYER)
+        failure = self.failureResultOf(result, FirstError)
+        self.assertEqual(failure.value.subFailure.type, CustomException)
+        self.flushLoggedErrors(CustomException)
 
     def test_failure_result(self):
         """
