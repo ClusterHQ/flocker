@@ -45,8 +45,6 @@ from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
 
-FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
-
 
 def hard_linking_possible():
     """

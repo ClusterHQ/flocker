@@ -4,12 +4,10 @@ Tests for LICENSE file.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.python.filepath import FilePath
 
 from datetime import datetime
 
-# TODO put this in a common test tools
-FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
+from admin.testtools import FLOCKER_PATH
 
 
 class LicenseTests(SynchronousTestCase):
