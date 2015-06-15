@@ -303,6 +303,27 @@ class InParallelTests(SynchronousTestCase):
         self.assertEqual(failure.value.subFailure.type, CustomException)
         self.flushLoggedErrors(CustomException)
 
+    def test_changes_run_after_exception(self):
+        """
+        If one of the ``IStateChange`` implementations passed to
+        ``in_parallel`` raises an exception, ``run_state_changes`` nevertheless
+        runs the other ``IStateChange`` implementations passed along with it.
+        """
+        other = ControllableAction(result=None)
+        subchanges = [
+            BrokenAction(exception=CustomException()),
+            other,
+        ]
+        change = in_parallel(changes=subchanges)
+        result = run_state_change(change, DEPLOYER)
+        self.failureResultOf(result, FirstError)
+        self.flushLoggedErrors(CustomException)
+        self.assertTrue(
+            other.called,
+            "IStateChange following broken IStateChange not run by "
+            "in_parallel"
+        )
+
     def test_failure_result(self):
         """
         When called with the result of ``in_parallel``, ``run_state_changes``
