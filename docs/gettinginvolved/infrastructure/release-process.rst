@@ -157,6 +157,16 @@ Preparing For a Release
 
       git commit -am "Updated Release Notes"
 
+#. Ensure copyright dates in :file:`LICENSE` are up-to-date:
+
+   - The list of years near the end of :file:`LICENSE` should include each year in which commits were made to the project.
+   - This is already the case up to and including 2015.
+   - If any such years are not present in the list, add them and commit the changes:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      git commit -am "Updated copyright"
+
 #. Push the changes:
 
    .. prompt:: bash [vagrant@localhost]$
