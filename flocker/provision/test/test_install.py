@@ -14,7 +14,7 @@ from .. import PackageSource
 from .._install import (
     task_install_flocker,
     task_enable_flocker_agent,
-    run, put,
+    run, put, run_from_args,
     get_repository_url, UnsupportedDistribution, get_installable_version,
     get_repo_options,
 )
@@ -96,12 +96,9 @@ def _centos7_install_commands(version):
             distribution='centos-7',
             flocker_version=installable_version,
         ))),
-        run(command=(
-            "yum install {repo_options} -y "
-            "clusterhq-flocker-node{version}").format(
-            repo_options=''.join(get_repo_options(installable_version)),
-            version=version,
-        ))
+        run_from_args(
+            ['yum', 'install'] + get_repo_options(installable_version) +
+            ['-y', 'clusterhq-flocker-node' + version])
     ])
 
 
