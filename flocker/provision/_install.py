@@ -198,7 +198,8 @@ def install_cli_commands_yum(distribution, package_source):
             '/etc/yum.repos.d/clusterhq-build.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
     else:
-        repo_options = get_repo_options(flocker_version)
+        repo_options = get_repo_options(
+                flocker_version=get_installable_version(version))
 
     if package_source.os_version:
         package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
@@ -831,7 +832,8 @@ def task_install_flocker(
                                 path='/etc/yum.repos.d/clusterhq-build.repo'))
             repo_options = ['--enablerepo=clusterhq-build']
         else:
-            repo_options = get_repo_options(version)
+            repo_options = get_repo_options(
+                flocker_version=get_installable_version(version))
 
         if package_source.os_version:
             package = 'clusterhq-flocker-node-%s' % (

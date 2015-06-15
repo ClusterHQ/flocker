@@ -89,16 +89,17 @@ def _centos7_install_commands(version):
     :return: The sequence of commands expected for installing Flocker on
         CentOS7.
     """
+    installable_version = get_installable_version(flocker_version)
     return sequence([
         run(command="yum clean all"),
         run(command="yum install -y {}".format(get_repository_url(
             distribution='centos-7',
-            flocker_version=get_installable_version(flocker_version),
+            flocker_version=installable_version,
         ))),
         run(command=(
             "yum install {repo_options} -y "
             "clusterhq-flocker-node{version}").format(
-            repo_options=''.join(get_repo_options(flocker_version)),
+            repo_options=''.join(get_repo_options(installable_version)),
             version=version,
         ))
     ])
