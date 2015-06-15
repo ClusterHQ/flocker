@@ -73,6 +73,8 @@ Import the client certificate into the ``Keychain`` and then refer to it by its 
     $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
          https://172.16.255.250:4523/v1/configuration/containers
 
+.. note:: You will need to input a password (of any length) when creating ``user.p12``.
+
 Linux
 ^^^^^
 
