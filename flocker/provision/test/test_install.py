@@ -16,6 +16,7 @@ from .._install import (
     task_enable_flocker_agent,
     run, put,
     get_repository_url, UnsupportedDistribution, get_installable_version,
+    get_repo_options,
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -94,7 +95,12 @@ def _centos7_install_commands(version):
             distribution='centos-7',
             flocker_version=get_installable_version(flocker_version),
         ))),
-        run(command="yum install -y clusterhq-flocker-node" + version)
+        run(command=(
+            "yum install {repo_enabling} -y "
+            "clusterhq-flocker-node{version}").format(
+            repo_enabling=''.join(get_repo_options(flocker_version)),
+            version=version,
+        ))
     ])
 
 
@@ -199,7 +205,10 @@ class InstallFlockerTests(SynchronousTestCase):
         """
         distribution = 'centos-7'
         commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, _centos7_install_commands(""))
+        self.assertEqual(
+            commands,
+            _centos7_install_commands("")
+        )
 
     def test_centos_with_version(self):
         """
