@@ -17,7 +17,7 @@ class LicenseTests(SynchronousTestCase):
     Tests for LICENSE.
     """
 
-    def test_year_in_license(self):
+    def test_current_year(self):
         """
         The current year is in a LICENSE file at the root of the Flocker
         directory.
