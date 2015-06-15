@@ -30,7 +30,7 @@ from ._effect import sequence
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
 from flocker.common.version import (
-    get_installable_version, get_package_key_suffix,
+    get_installable_version, get_package_key_suffix, is_release,
 )
 
 # A systemctl sub-command to start or restart a service.  We use restart here
@@ -63,8 +63,6 @@ def get_repository_url(distribution, flocker_version):
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
     distribution_to_url = {
-        # XXX Use testing repositories when appropriate for CentOS.
-        # See FLOC-2080.
         # TODO instead of hardcoding keys, use the _to_Distribution map
         # and then choose the name
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
@@ -102,6 +100,12 @@ def get_repository_url(distribution, flocker_version):
         return distribution_to_url[distribution]
     except KeyError:
         raise UnsupportedDistribution()
+
+
+def get_branch_opt(use_development_branch, flocker_version):
+    """
+    """
+    pass
 
 
 class UnsupportedDistribution(Exception):
@@ -171,6 +175,7 @@ def install_cli_commands_yum(distribution, package_source):
             flocker_version=get_installable_version(version))),
     ]
 
+    is_dev = not is_release(version)
     if use_development_branch:
         repo = dedent(b"""\
             [clusterhq-build]
@@ -185,6 +190,8 @@ def install_cli_commands_yum(distribution, package_source):
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
         branch_opt = ['--enablerepo=clusterhq-build']
+    elif is_dev:
+        branch_opt = ['--enablerepo=clusterhq-testing']
     else:
         branch_opt = []
 
@@ -806,6 +813,7 @@ def task_install_flocker(
                 flocker_version=get_installable_version(version)))
         ]
 
+        is_dev = not is_release(version)
         if use_development_branch:
             repo = dedent(b"""\
                 [clusterhq-build]
@@ -817,6 +825,8 @@ def task_install_flocker(
             commands.append(put(content=repo,
                                 path='/etc/yum.repos.d/clusterhq-build.repo'))
             branch_opt = ['--enablerepo=clusterhq-build']
+        elif is_dev:
+            branch_opt = ['--enablerepo=clusterhq-testing']
         else:
             branch_opt = []
 
