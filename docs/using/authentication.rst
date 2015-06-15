@@ -50,6 +50,8 @@ An example of performing this authentication with ``cURL`` is given below.
 In this example, ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
 
+.. _authenticate-api:
+
 OS X
 ^^^^
 
