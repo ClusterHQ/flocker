@@ -40,6 +40,8 @@ from ..release import (
     publish_vagrant_metadata
 )
 
+from admin.testtools import FLOCKER_PATH
+
 from ..packaging import Distribution
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
