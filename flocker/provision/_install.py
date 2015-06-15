@@ -630,7 +630,9 @@ def task_install_zfs(distribution, variants=set()):
                     'yum-config-manager', '--enable', 'zfs-testing'])
             ]
         commands += [
-            run_from_args(['yum', 'install', '-y', 'zfs']),
+            run_from_args(['yum', 'install',
+                           '--enablerepo=clusterhq-testing',
+                           '-y', 'flocker-zfs-0']),
         ]
     else:
         raise DistributionNotSupported(distribution)

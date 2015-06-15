@@ -44,10 +44,6 @@ if branch:
 else:
     branch_opt = []
 
-# The Flocker packages don't explicitly depend on ZFS because it is only
-# required when using the ZFS storage driver.  That's exactly what this box
-# wants to do.
-check_call(['yum', 'install', '-y', 'zfs'])
 
 # If a version is specifed, install that version.
 # Otherwise install whatever yum decides.
@@ -64,7 +60,12 @@ else:
 check_call(['yum', 'install', '-y'] + branch_opt + [package])
 
 # Install ZFS.
-check_call(['yum', 'install', '-y', 'zfs'])
+# The Flocker packages don't explicitly depend on ZFS because it is only
+# required when using the ZFS storage driver.  That's exactly what this box
+# wants to do.
+check_call(['yum', 'install',
+            '--enablerepo', 'clusterhq-testing',
+            '-y', 'flocker-zfs-0'])
 
 # Enable docker.
 # We don't need to start it, since when the box is packaged,
