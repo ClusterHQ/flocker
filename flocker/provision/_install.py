@@ -104,8 +104,10 @@ def get_repository_url(distribution, flocker_version):
 
 def get_repo_options(flocker_version):
     """
-    # TODO Docstring
-    # TODO Direct tests for this
+    Get a list of options for enabling necessary yum repositories.
+
+    :param bytes flocker_version: The version of Flocker to get options for.
+    :return: List of bytes for enabling (or not) a testing repository.
     """
     is_dev = not is_release(flocker_version)
     if is_dev:
