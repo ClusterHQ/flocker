@@ -40,6 +40,8 @@ The two files generated will correspond to the username you specified in the com
 
 You should securely provide a copy of these files to the API end user, as well as a copy of the cluster's public certificate, the :file:`cluster.crt` file.
 
+.. _authenticate-api:
+
 Using an API certificate to authenticate
 ========================================
 
@@ -49,8 +51,6 @@ The client certificate allows the API server to ensure the request is from a gen
 An example of performing this authentication with ``cURL`` is given below.
 In this example, ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
-
-.. _authenticate-api:
 
 OS X
 ^^^^
