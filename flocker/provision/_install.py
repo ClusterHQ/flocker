@@ -102,10 +102,16 @@ def get_repository_url(distribution, flocker_version):
         raise UnsupportedDistribution()
 
 
-def get_branch_opt(use_development_branch, flocker_version):
+def get_repo_options(flocker_version):
     """
+    # TODO Docstring
+    # TODO Direct tests for this
     """
-    pass
+    is_dev = not is_release(flocker_version)
+    if is_dev:
+        return ['--enablerepo=clusterhq-testing']
+    else:
+        return []
 
 
 class UnsupportedDistribution(Exception):
@@ -175,7 +181,6 @@ def install_cli_commands_yum(distribution, package_source):
             flocker_version=get_installable_version(version))),
     ]
 
-    is_dev = not is_release(version)
     if use_development_branch:
         repo = dedent(b"""\
             [clusterhq-build]
@@ -189,11 +194,9 @@ def install_cli_commands_yum(distribution, package_source):
         commands.append(sudo_from_args([
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
-        branch_opt = ['--enablerepo=clusterhq-build']
-    elif is_dev:
-        branch_opt = ['--enablerepo=clusterhq-testing']
+        repo_options = ['--enablerepo=clusterhq-build']
     else:
-        branch_opt = []
+        repo_options = get_repo_options(flocker_version)
 
     if package_source.os_version:
         package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
@@ -201,8 +204,9 @@ def install_cli_commands_yum(distribution, package_source):
         package = 'clusterhq-flocker-cli'
 
     # Install Flocker CLI and all dependencies
+
     commands.append(sudo_from_args(
-        ["yum", "install"] + branch_opt + ["-y", package]))
+        ["yum", "install"] + repo_options + ["-y", package]))
 
     return sequence(commands)
 
@@ -813,7 +817,6 @@ def task_install_flocker(
                 flocker_version=get_installable_version(version)))
         ]
 
-        is_dev = not is_release(version)
         if use_development_branch:
             repo = dedent(b"""\
                 [clusterhq-build]
@@ -824,11 +827,9 @@ def task_install_flocker(
                 """) % (base_url,)
             commands.append(put(content=repo,
                                 path='/etc/yum.repos.d/clusterhq-build.repo'))
-            branch_opt = ['--enablerepo=clusterhq-build']
-        elif is_dev:
-            branch_opt = ['--enablerepo=clusterhq-testing']
+            repo_options = ['--enablerepo=clusterhq-build']
         else:
-            branch_opt = []
+            repo_options = get_repo_options(version)
 
         if package_source.os_version:
             package = 'clusterhq-flocker-node-%s' % (
@@ -837,7 +838,7 @@ def task_install_flocker(
             package = 'clusterhq-flocker-node'
 
         commands.append(run_from_args(
-            ["yum", "install"] + branch_opt + ["-y", package]))
+            ["yum", "install"] + repo_options + ["-y", package]))
 
         return sequence(commands)
     else:
