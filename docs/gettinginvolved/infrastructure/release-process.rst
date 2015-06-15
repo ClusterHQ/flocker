@@ -171,7 +171,8 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push --set-upstream origin release/flocker-${VERSION}
+      git config push.default current
+      git push
 
 #. Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
