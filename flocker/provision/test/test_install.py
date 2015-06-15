@@ -111,7 +111,7 @@ class GetRepoOptionsTests(SynchronousTestCase):
 
     def test_marketing_release(self):
         """
-        No special repositories are enabled if the latest installable version
+        No extra repositories are enabled if the latest installable version
         is a marketing release.
         """
         self.assertEqual(get_repo_options(flocker_version='0.3.0'), [])
