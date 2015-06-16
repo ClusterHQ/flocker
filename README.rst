@@ -7,23 +7,19 @@ Flocker |coveralls|
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
 
-Flocker is an open-source Container Data Volume Manager for your Dockerized applications.
+Flocker is a data volume manager and multi-host Docker cluster management tool.
+With it you can control your data using the same tools you use for your stateless applications by harnessing the power of ZFS on Linux.
+This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 
-By providing tools for data migrations, Flocker gives ops teams the tools they need to run containerized stateful services like databases in production.
-
-Unlike a Docker data volume which is tied to a single server, a Flocker data volume, called a dataset, is portable and can be used with any container, no matter where that container is running.
-
-Flocker manages Docker containers and data volumes together. When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
-
-You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
-
-About Us
---------
+With Flocker's command line tools and a simple configuration language, you can deploy your Docker-based applications onto one or more Linux hosts.
+Once deployed, your applications will have access to the volumes you have configured for them.
+Those volumes will follow your containers when you use Flocker to move them between different hosts in your Flocker cluster.
 
 Flocker is being developed by `ClusterHQ`_.
 We are a small team of engineers with experience running distributed systems and many of us are core contributors to the `Twisted`_ project.
 
-This project is under active development; version 1.0.0 was released on June 17th, 2015.
+This project is under active development; version 0.1 was released on August 12th, 2014.
+You shouldn't use it in production yet.
 Contributions are welcome.
 If you have any issues or feedback, you can `talk to us`_.
 We're looking forward to working on this project with you.
