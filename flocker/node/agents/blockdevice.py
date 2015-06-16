@@ -202,7 +202,7 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
 
 UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
     u"agent:blockdevice:unmount:details",
-    [VOLUME, BLOCK_DEVICE_PATH],
+    [BLOCK_DEVICE_PATH],
     u"The device file for a block-device-backed dataset has been discovered."
 )
 
@@ -448,7 +448,7 @@ class MountBlockDevice(PRecord):
         volume = _blockdevice_volume_from_datasetid(
             api.list_volumes(), self.dataset_id
         )
-        device = api.get_device_path(volume.blockdevice_id)
+        device = get_device_for_dataset_id(self.dataset_id)
         MOUNT_BLOCK_DEVICE_DETAILS(
             volume=volume, block_device_path=device,
         ).write(_logger)
@@ -509,29 +509,18 @@ class UnmountBlockDevice(PRecord):
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        api = deployer.async_block_device_api
-        listing = api.list_volumes()
-        listing.addCallback(
-            _blockdevice_volume_from_datasetid, self.dataset_id
-        )
+        try:
+            device = get_device_for_dataset_id(self.dataset_id)
+        except KeyError:
+            # It was not actually found.
+            return fail(DatasetWithoutVolume(dataset_id=self.dataset_id))
 
-        def found(volume):
-            if volume is None:
-                # It was not actually found.
-                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-            d = api.get_device_path(volume.blockdevice_id)
-            d.addCallback(lambda device: (volume, device))
-            return d
-        listing.addCallback(found)
-
-        def got_device((volume, device)):
-            UNMOUNT_BLOCK_DEVICE_DETAILS(
-                volume=volume, block_device_path=device
-            ).write(_logger)
-            # This should be asynchronous. FLOC-1797
-            check_output([b"umount", device.path])
-        listing.addCallback(got_device)
-        return listing
+        UNMOUNT_BLOCK_DEVICE_DETAILS(
+            block_device_path=device
+        ).write(_logger)
+        # This should be asynchronous. FLOC-1797
+        check_output([b"umount", device.path])
+        return succeed(None)
 
 
 @implementer(IStateChange)

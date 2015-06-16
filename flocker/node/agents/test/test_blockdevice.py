@@ -167,6 +167,8 @@ def make_filesystem(device, block_device):
             # block device.
             b"-F",
         ])
+    # This should be the same as what CreateFilesystem does.  Or, better, it
+    # should share code with CreateFilesystem somehow.
     command = [b"mkfs"] + options + [b"-t", b"ext4", device.path]
     run_process(command)
 
@@ -2489,7 +2491,17 @@ class DestroyBlockDeviceDatasetTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
-        make_filesystem(device, block_device=True)
+
+        self.successResultOf(
+            run_state_change(
+                CreateFilesystem(
+                    volume=volume,
+                    filesystem=u"ext4"
+                ),
+                deployer
+            )
+        )
+
         mount(device, mountpoint)
 
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
@@ -2874,7 +2886,17 @@ class UnmountBlockDeviceTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
-        make_filesystem(device, block_device=True)
+
+        self.successResultOf(
+            run_state_change(
+                CreateFilesystem(
+                    volume=volume,
+                    filesystem=u"ext4"
+                ),
+                deployer
+            )
+        )
+
         check_output([b"mount", device.path, mountpoint.path])
 
         change = UnmountBlockDevice(dataset_id=dataset_id)
