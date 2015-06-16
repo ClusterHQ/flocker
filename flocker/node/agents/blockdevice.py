@@ -440,6 +440,9 @@ def _ensure_no_filesystem(device):
         # Experimentation shows that there is no output in the case of the
         # former, and an error printed to stderr in the case of the
         # latter.
+        #
+        # FLOC-2388: We're assuming an interface. We should test this
+        # assumption.
         if e.returncode == 2 and not e.output:
             # There is no filesystem on this device.
             return
