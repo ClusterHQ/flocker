@@ -89,7 +89,7 @@ func main() {
     handleRequest(client.Get(getUrl(config, "/v1/version")))
 
     // Create a volume.
-    var jsonStr = []byte(`{"primary": "5540d6e3-392b-4da0-828a-34b724c5bb80", "maximum_size": 107374182400, "metadata": {"name": "mongodb_data"}}`)
+    var jsonStr = []byte(`{"primary": "5540d6e3-392b-4da0-828a-34b724c5bb80", "maximum_size": 107374182400, "metadata": {"name": "example_dataset"}}`)
     req, err := http.NewRequest("POST", getUrl(config, "/v1/configuration/datasets"), bytes.NewBuffer(jsonStr))
     if err != nil {
         log.Fatal(err)
