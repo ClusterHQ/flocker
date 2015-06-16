@@ -17,7 +17,6 @@ export KEY_FILE=${KEY_FILE:="/Users/kai/projects/flocker-api-examples/flockerdem
 export CERT_FILE=${CERT_FILE:="/Users/kai/projects/flocker-api-examples/flockerdemo.crt"}
 export CA_FILE=${CA_FILE:="/Users/kai/projects/flocker-api-examples/cluster.crt"}
 
-
 function make-api-request() {
     local method="$1";
     local endpoint="$2";
@@ -42,4 +41,4 @@ make-api-request "GET" "/v1/version"
 
 # Create a volume.
 make-api-request "POST" "/v1/configuration/datasets" \
-    '{"primary": "5540d6e3-392b-4da0-828a-34b724c5bb80", "maximum_size": 107374182400, "metadata": {"name": "mongodb_data"}}'
+    '{"primary": "5540d6e3-392b-4da0-828a-34b724c5bb80", "maximum_size": 107374182400, "metadata": {"name": "example_dataset"}}'
