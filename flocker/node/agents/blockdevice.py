@@ -421,7 +421,11 @@ class CreateFilesystem(PRecord):
 
 def _ensure_no_filesystem(device):
     """
-    Raises an error if there's already a filesystem on 'device'.
+    Raises an error if there's already a filesystem on ``device``.
+
+    :raises: ``FilesystemExists`` if there is already a filesystem on
+        ``device``.
+    :return: ``None``
     """
     try:
         check_output(
