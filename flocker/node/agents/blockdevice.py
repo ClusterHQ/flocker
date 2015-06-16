@@ -407,8 +407,8 @@ class CreateFilesystem(PRecord):
             # that the previous 'mkfs' commands might not have taken effect by
             # the time we try to do things with the created filesystem.
 
-            # XXX: Replace this with an ioctl call, which is the more correct
-            # way of achieving same.
+            # XXX: Replace this with an ioctl call using BLKFLSBUF on the
+            # block device, which is the more correct way of achieving same.
             check_output(b"echo 1 > /proc/sys/vm/drop_caches", shell=True)
         except:
             return fail()
