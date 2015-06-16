@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 from subprocess import (
     STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError,
 )
+from stat import S_IRWXU
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -61,7 +62,9 @@ from ..blockdevice import (
 )
 
 from ... import run_state_change, in_parallel
-from ...testtools import ideployer_tests_factory, to_node
+from ...testtools import (
+    ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
+)
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
 )
@@ -619,29 +622,11 @@ def assert_calculated_changes(
     additional_node_states=frozenset(),
 ):
     """
-    Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
-    changes when it is invoked with the given state and configuration.
+    Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
+    circumstance.
 
-    :param TestCase case: The ``TestCase`` to use to make assertions (typically
-        the one being run at the moment).
-    :param NodeState node_state: The ``BlockDeviceDeployer`` will be asked to
-        calculate changes for a node that has this state.
-    :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
-        calculate changes for a node with this desired configuration.
-    :param set nonmanifest_datasets: Datasets which will be presented as part
-        of the cluster state without manifestations on any node.
-    :param expected_changes: The ``IStateChange`` expected to be returned.
-    :param set additional_node_states: A set of ``NodeState`` for other nodes.
+    :see: ``assert_calculated_changes_for_deployer``.
     """
-    cluster_state = DeploymentState(
-        nodes={node_state} | additional_node_states,
-        nonmanifest_datasets={
-            dataset.dataset_id: dataset
-            for dataset in nonmanifest_datasets
-        },
-    )
-    cluster_configuration = Deployment(nodes={node_config})
-
     api = UnusableAPI()
 
     deployer = BlockDeviceDeployer(
@@ -650,11 +635,11 @@ def assert_calculated_changes(
         block_device_api=api,
     )
 
-    changes = deployer.calculate_changes(
-        cluster_configuration, cluster_state,
+    return assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config,
+        nonmanifest_datasets, additional_node_states, set(),
+        expected_changes,
     )
-
-    case.assertEqual(expected_changes, changes)
 
 
 class ScenarioMixin(object):
@@ -1297,6 +1282,26 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     )
                 ]),
             changes
+        )
+
+    def test_dataset_default_maximum_size_stable(self):
+        """
+        When supplied with a configuration containing a dataset with a null
+        size and operating against state where a volume of the default size
+        exists for that dataset, ``BlockDeviceDeployer.calculate_changes``
+        returns no changes.
+        """
+        # The state has a manifestation with a concrete size (as it must have).
+        local_state = self.ONE_DATASET_STATE
+        # The configuration is the same except it lacks a size.
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset",
+             "maximum_size"],
+            None,
+        )
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(), in_parallel(changes=[]),
         )
 
     def test_dataset_exists_on_other_node(self):
@@ -2798,6 +2803,24 @@ class MountBlockDeviceTests(
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
+
+    def test_world_permissions_not_reset_if_other_files_exist(self):
+        """
+        If files exist in the filesystem, permissions are not reset when the
+        filesystem is remounted.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        mountpoint.child(b"file").setContent(b"stuff")
+        check_call([b"umount", mountpoint.path])
+        mountpoint.chmod(S_IRWXU)
+        mountpoint.restat()
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertEqual(mountpoint.getPermissions().shorthand(),
+                         'rwx------')
 
 
 class UnmountBlockDeviceInitTests(
