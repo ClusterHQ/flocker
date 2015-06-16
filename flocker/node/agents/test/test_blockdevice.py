@@ -44,7 +44,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
-    get_device_for_dataset_id,
+    get_device_for_dataset_id, DuplicateFilesystemId,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -3525,3 +3525,37 @@ class GetDeviceForDatasetIdTests(SynchronousTestCase):
         it raises a ``KeyError``.
         """
         self.assertRaises(KeyError, get_device_for_dataset_id, uuid4())
+
+    def test_duplicate(self):
+        """
+        Filesystems created with ``CreateFilesystem`` with duplicate dataset
+        IDs cause ``get_device_for_dataset_id`` to raise a
+        ``DuplicateFilesystemId`` exception.
+        """
+        dataset_id = uuid4()
+
+        deployer = create_blockdevicedeployer(self)
+        api = deployer.block_device_api
+
+        one_volume = api.create_volume(
+            dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+        )
+        # This volume has different UUID, but we'll trick CreateFilesystem
+        # into setting duplicate UUID when doing mkfs.
+        another_volume = api.create_volume(
+            uuid4(), REALISTIC_BLOCKDEVICE_SIZE
+        ).set(dataset_id=dataset_id)
+
+        for volume in [one_volume, another_volume]:
+            api.attach_volume(volume.blockdevice_id, api.compute_instance_id())
+
+        for volume in [one_volume, another_volume]:
+            self.successResultOf(
+                run_state_change(
+                    CreateFilesystem(volume=volume, filesystem=u"ext4"),
+                    deployer,
+                )
+            )
+
+        self.assertRaises(DuplicateFilesystemId, get_device_for_dataset_id,
+                          dataset_id)
