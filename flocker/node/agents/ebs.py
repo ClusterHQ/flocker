@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset
+from pyrsistent import PRecord, field, pset, pmap
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -366,8 +366,12 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 @implementer(IBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
     """
-    An EBS implementation of ``IBlockDeviceAPI`` which creates
-    block devices in an EC2 cluster using Boto APIs.
+    An EBS implementation of ``IBlockDeviceAPI`` which creates block devices in
+    an EC2 cluster using Boto APIs.
+
+    :ivar pmap _device_paths: A mapping with keys of ``blockdevice_id``\ s of
+        volumes attached to this node and values of ``FilePath`` instances
+        giving the OS device path where those volumes are accessible.
     """
     def __init__(self, ec2_client, cluster_id):
         """
@@ -381,6 +385,7 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
+        self._device_paths = pmap()
 
     def allocation_unit(self):
         """
@@ -579,6 +584,7 @@ class EBSBlockDeviceAPI(object):
                          end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
+        self._device_paths[blockdevice_id] = FilePath(new_device)
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
@@ -604,6 +610,8 @@ class EBSBlockDeviceAPI(object):
                          start_status=u'in-use',
                          transient_status=u'detaching',
                          end_status=u'available')
+
+        # XXX Clear _device_paths here?
 
         # Delete attached device metadata from EBS Volume
         self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
@@ -647,18 +655,17 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         """
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
-        if volume.attached_to is None:
-            raise UnattachedVolume(blockdevice_id)
-
         try:
-            device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
+            return self._device_paths[blockdevice_id]
         except KeyError:
+            # Maybe we screwed up.  Do a sanity check instead of just claiming
+            # the caller screwed up?
+            #
+            # ebs_volume = self._get_ebs_volume(blockdevice_id)
+            # volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
+            # if volume.attached_to is None:
+            #     raise UnattachedVolume(blockdevice_id)
             raise UnattachedVolume(blockdevice_id)
-        if device is None:
-            raise UnattachedVolume(blockdevice_id)
-        return FilePath(device)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
