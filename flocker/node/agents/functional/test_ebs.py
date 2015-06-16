@@ -89,27 +89,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         self.assert_foreign_volume(flocker_volume)
 
-    def test_attached_volume_missing_device_tag(self):
-        """
-        Test that missing ATTACHED_DEVICE_LABEL on an EBS
-        volume causes `UnattacheVolume` while attempting
-        `get_device_path()`.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.attach_volume(
-            volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-        self.api.connection.delete_tags([volume.blockdevice_id],
-                                        [ATTACHED_DEVICE_LABEL])
-
-        self.assertRaises(UnattachedVolume, self.api.get_device_path,
-                          volume.blockdevice_id)
-
     @capture_logging(lambda self, logger: None)
     def test_boto_ec2response_error(self, logger):
         """
