@@ -217,14 +217,17 @@ LOOP_UNTIL_ACTION = ActionType(
 LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
     message_type="flocker:testtools:loop_until:iteration",
     fields=[Field("result", serializer=safe_str)],
-    description="Loop iteration.")
+    description="Predicate failed, trying again.")
 
 
-def loop_until(predicate):
+def loop_until(predicate, reactor=reactor):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
+
+    :param reactor: The reactor implemetnation to use to delay.
+    :type reactor: ``IReactorTime``.
 
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
