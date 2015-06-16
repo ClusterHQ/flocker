@@ -64,16 +64,16 @@ If you're not sure what the username is, you can find the common name like this:
     subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
 
 In this example, ``user-allison`` is the common name.
-Import the client certificate into the ``Keychain`` and then refer to it by its common name:
+Import the client certificate into the ``Keychain`` and then refer to it by its common name (note that you will need to input a password of any length when creating ``user.p12``):
 
 .. code-block:: console
 
     $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
+	Enter Export Password:
+	Verifying - Enter Export Password:
     $ security import user.p12 -k ~/Library/Keychains/login.keychain
     $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
          https://172.16.255.250:4523/v1/configuration/containers
-
-.. note:: You will need to input a password (of any length) when creating ``user.p12``.
 
 Linux
 ^^^^^
