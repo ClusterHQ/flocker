@@ -424,7 +424,7 @@ def _ensure_no_filesystem(device):
     Raises an error if there's already a filesystem on 'device'.
     """
     try:
-        output = check_output(
+        check_output(
             [b"blkid", b"-p", b"-u", b"filesystem", device.path],
             stderr=STDOUT,
         )
