@@ -44,6 +44,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
+    get_device_for_dataset_id,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -2543,7 +2544,6 @@ class CreateFilesystemTests(
     See ``MountBlockDeviceTests`` for more ``CreateFilesystem`` tests.
     """
 
-
 class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
@@ -3465,3 +3465,63 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
+
+
+class GetDeviceForDatasetIdTests(SynchronousTestCase):
+    """
+    Tests for ``get_device_for_dataset_id``.
+    """
+
+    def test_found(self):
+        """
+        Filesystems created with ``CreateFilesystem`` can be looked up by
+        dataset ID using ``get_device_for_dataset_id``.
+        """
+        one_dataset_id = uuid4()
+        another_dataset_id = uuid4()
+        uninitialized_dataset_id = uuid4()
+
+        deployer = create_blockdevicedeployer(self)
+        api = deployer.block_device_api
+
+        # Here are a couple volumes that will have filesystems that the
+        # implementation will have to correctly identify.
+        one_volume = api.create_volume(
+            one_dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+        )
+        another_volume = api.create_volume(
+            another_dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+        # This is a trap.  Hopefully the implementation ignores it.
+        uninitialized_volume = api.create_volume(
+            uninitialized_dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+        for volume in [one_volume, another_volume, uninitialized_volume]:
+            api.attach_volume(volume.blockdevice_id, api.compute_instance_id())
+
+        for volume in [one_volume, another_volume]:
+            self.successResultOf(
+                run_state_change(
+                    CreateFilesystem(volume=volume, filesystem=u"ext4"),
+                    deployer,
+                )
+            )
+
+        expected = (
+            api.get_device_path(one_volume.blockdevice_id),
+            api.get_device_path(another_volume.blockdevice_id)
+        )
+        actual = (
+            get_device_for_dataset_id(one_dataset_id),
+            get_device_for_dataset_id(another_dataset_id)
+        )
+        self.assertEqual(expected, actual)
+
+    def test_not_found(self):
+        """
+        If a matching device cannot be found by ``get_device_for_dataset_id``
+        it raises a ``KeyError``.
+        """
+        self.assertRaises(KeyError, get_device_for_dataset_id, uuid4())
