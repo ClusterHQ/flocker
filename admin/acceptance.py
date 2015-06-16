@@ -363,12 +363,13 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        cluster = yield configured_cluster_for_nodes(
-            reactor,
-            Certificates(self.certificates_path),
-            nodes,
-            self.dataset_backend,
-            self.dataset_backend_configuration,
+        certificates = Certificates(self.certificates_path)
+        cluster = Cluster(
+            all_nodes=pvector(nodes),
+            control_node=nodes[0],
+            agent_nodes=nodes,
+            dataset_backend=self.dataset_backend,
+            certificates=certificates
         )
 
         returnValue(cluster)
@@ -475,7 +476,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
+DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
 
 
 class RunOptions(Options):
@@ -739,6 +740,7 @@ class RunOptions(Options):
 
                aws:
                  region: <aws region, e.g. "us-west-2">
+                 zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
                  keyname: <ssh-key-name>
@@ -774,7 +776,10 @@ def eliot_output(message):
 
     format = ''
     if message_type is not None:
-        format = MESSAGE_FORMATS.get(message_type, '')
+        if message_type == 'twisted:log' and message.get('error'):
+            format = '%(message)s'
+        else:
+            format = MESSAGE_FORMATS.get(message_type, '')
     elif action_type is not None:
         if action_status == 'started':
             format = ACTION_START_FORMATS.get('action_type', '')
@@ -856,7 +861,7 @@ def main(reactor, args, base_path, top_level):
     try:
         cluster = yield runner.start_cluster(reactor)
 
-        if options['distribution'] in ('fedora-20', 'centos-7'):
+        if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)

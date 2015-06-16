@@ -13,14 +13,19 @@ from zope.interface import implementer
 
 from ipaddr import IPAddress
 
+from twisted.python.components import registerAdapter
 from twisted.internet import reactor
 from twisted.cred.portal import IRealm, Portal
 
 try:
     from twisted.conch.ssh.keys import Key
     from twisted.conch.checkers import SSHPublicKeyDatabase
+    from twisted.conch.interfaces import ISession
     from twisted.conch.openssh_compat.factory import OpenSSHFactory
-    from twisted.conch.unix import UnixConchUser
+    from twisted.conch.unix import (
+        SSHSessionForUnixConchUser,
+        UnixConchUser,
+    )
     _have_conch = True
 except ImportError:
     SSHPublicKeyDatabase = UnixConchUser = object
@@ -79,6 +84,23 @@ class _FixedHomeConchUser(UnixConchUser):
         switch IDs (which it can't do if it is not running as root).
         """
         return None, None
+
+
+@implementer(ISession)
+class _EnvironmentSSHSessionForUnixConchUser(SSHSessionForUnixConchUser):
+    """
+    SSH Session that correctly sets HOME.
+
+    Work-around for https://twistedmatrix.com/trac/ticket/7936.
+    """
+
+    def execCommand(self, proto, cmd):
+        self.environ['HOME'] = self.avatar.getHomeDir()
+        return SSHSessionForUnixConchUser.execCommand(self, proto, cmd)
+
+
+registerAdapter(
+    _EnvironmentSSHSessionForUnixConchUser, _FixedHomeConchUser, ISession)
 
 
 @implementer(IRealm)

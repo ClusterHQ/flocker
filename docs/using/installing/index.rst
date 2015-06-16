@@ -410,6 +410,8 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
+Before you can use Flocker's API you will also need to `generate a client certificate <generate-api>`_.
+
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
 .. _post-installation-configuration:
@@ -433,8 +435,11 @@ On CentOS 7
 .. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
 
-The control service needs to accessible remotely.
-To configure FirewallD to allow access to the control service HTTP API, and for agent connections:
+The control service needs to be accessible remotely.
+You will need to configure FirewallD to allow access to the control service HTTP API and for agent connections.
+Note that on some environments, in particular AWS, the ``firewalld`` package is not installed and the ``firewall-cmd`` program will not be found.
+If that is the case then just skip these commands.
+Otherwise run:
 
 .. task:: open_control_firewall centos-7
    :prompt: [root@control-node]#
@@ -461,8 +466,8 @@ On AWS, an external firewall is used instead, which will need to be configured s
 
 .. _agent-yml:
 
-Enabling the Flocker agent service
-----------------------------------
+Configuring the Flocker agent
+-----------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 The file must always include ``version`` and ``control-service`` items similar to these:
@@ -556,13 +561,11 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 
 .. _zfs-dataset-backend:
 
-ZFS Peer-to-Peer Backend Configuration (ALPHA)
-..............................................
+ZFS Peer-to-Peer Backend Configuration (Experimental)
+.....................................................
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
-The ZFS backend remains under development,
-it is not expected to operate reliably in many situations,
-and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
+The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
 This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
 The configuration item to use ZFS should look like:
 
@@ -600,17 +603,16 @@ The configuration item to use Loopback should look like:
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
-
-CentOS 7
-........
+Enabling the Flocker agent service on CentOS 7
+----------------------------------------------
 
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-Ubuntu
-......
+Enabling the Flocker agent service on Ubuntu
+--------------------------------------------
 
 Run the following commands to enable the agent service:
 
@@ -672,9 +674,7 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-Next Steps
-----------
+Next Step
+---------
 
-Next, we will describe how to use cluster security and authentication.
-However, you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
-You can replace the IP addresses in the sample ``deployment.yml`` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.

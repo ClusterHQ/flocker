@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, pset
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -31,7 +31,7 @@ from .blockdevice import (
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER,
+    BOTO_LOG_HEADER, IN_USE_DEVICES,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -40,6 +40,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
+MAX_ATTACH_RETRIES = 3
 
 
 class EliotLogHandler(logging.Handler):
@@ -82,7 +83,6 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
-
     # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
     # 1. ``num_retries``:
     # Request automatic exponential backoff and retry
@@ -127,6 +127,8 @@ def _boto_logged_method(method_name, original_name):
         method = getattr(original, method_name)
 
         # Trace IBlockDeviceAPI ``method`` as Eliot Action.
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
         with AWS_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)
@@ -419,9 +421,10 @@ class EBSBlockDeviceAPI(object):
                 return volume
         raise UnknownVolume(blockdevice_id)
 
-    def _next_device(self, instance_id):
+    def _next_device(self, instance_id, volumes, devices_in_use):
         """
         Get the next available EBS device name for a given EC2 instance.
+
         Algorithm:
         1. Get all ``Block devices`` currently in use by given instance:
             a) List all volumes visible to this instance.
@@ -433,15 +436,21 @@ class EBSBlockDeviceAPI(object):
         (see https://clusterhq.atlassian.net/browse/FLOC-1887).
 
         :param unicode instance_id: EC2 instance ID.
+        :param volumes: Collection of currently known
+            ``BlockDeviceVolume`` instances.
+        :param set devices_in_use: Unicode names of devices that are
+            probably in use based on observed behavior.
 
         :returns unicode file_name: available device name for attaching
             EBS volume.
         :returns ``None`` if suitable EBS device names on this EC2
             instance are currently occupied.
         """
-        volumes = self.connection.get_all_volumes()
-        devices = [v.attach_data.device for v in volumes
-                   if v.attach_data.instance_id == instance_id]
+        devices = pset({v.attach_data.device for v in volumes
+                       if v.attach_data.instance_id == instance_id})
+        devices = devices | devices_in_use
+        IN_USE_DEVICES(devices=devices).write()
+
         for suffix in b"fghijklmonp":
             file_name = u'/dev/sd' + suffix
             if file_name not in devices:
@@ -511,30 +520,49 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != 'available'):
             raise AlreadyAttachedVolume(blockdevice_id)
 
-        with self.lock:
-            # begin lock scope
+        ignore_devices = pset([])
+        attach_attempts = 0
+        while True:
+            with self.lock:
+                # begin lock scope
 
-            blockdevices = FilePath(b"/sys/block").children()
-            device = self._next_device(attach_to)
+                blockdevices = FilePath(b"/sys/block").children()
+                volumes = self.connection.get_all_volumes()
+                device = self._next_device(attach_to, volumes, ignore_devices)
 
-            if device is None:
-                # XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
-                # (see https://clusterhq.atlassian.net/browse/FLOC-1887).
-                # No point in attempting an ``attach_volume``, so, return.
-                return
+                if device is None:
+                    # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
+                    # (https://clusterhq.atlassian.net/browse/FLOC-1887).
+                    # No point in attempting an ``attach_volume``, return.
+                    return
 
-            self.connection.attach_volume(blockdevice_id, attach_to, device)
-
-            # Wait for new device to manifest in the OS. Since there
-            # is currently no standardized protocol across Linux guests
-            # in EC2 for mapping `device` to the name device driver picked (see
-            # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html),
-            # let us wait for a new block device to be available to the OS,
-            # and interpret it as ours.
-            # Wait under lock scope to reduce false positives.
-            new_device = _wait_for_new_device(blockdevices, volume.size)
-
-            # end lock scope
+                try:
+                    self.connection.attach_volume(blockdevice_id,
+                                                  attach_to,
+                                                  device)
+                except EC2ResponseError as e:
+                    # If attach failed that is often because of eventual
+                    # consistency in AWS, so let's ignore this one if it
+                    # fails:
+                    if e.code == u'InvalidParameterValue':
+                        attach_attempts += 1
+                        if attach_attempts == MAX_ATTACH_RETRIES:
+                            raise
+                        ignore_devices = ignore_devices.add(device)
+                    else:
+                        raise
+                else:
+                    # Wait for new device to manifest in the OS. Since there
+                    # is currently no standardized protocol across Linux guests
+                    # in EC2 for mapping `device` to the name device driver
+                    # picked (http://docs.aws.amazon.com/AWSEC2/latest/
+                    # UserGuide/device_naming.html), wait for new block device
+                    # to be available to the OS, and interpret it as ours.
+                    # Wait under lock scope to reduce false positives.
+                    new_device = _wait_for_new_device(blockdevices,
+                                                      volume.size)
+                    break
+                # end lock scope
 
         # Stamp EBS volume with attached device name tag.
         # If OS fails to see new block device in 60 seconds,

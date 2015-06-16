@@ -103,20 +103,6 @@ class GetRepositoryURL(SynchronousTestCase):
     Tests for ``get_repository_url``.
     """
 
-    def test_fedora_20(self):
-        """
-        It is possible to get a repository URL for Fedora 20 packages.
-        """
-        expected = ("https://clusterhq-archive.s3.amazonaws.com/fedora/"
-                    "clusterhq-release$(rpm -E %dist).noarch.rpm")
-
-        self.assertEqual(
-            get_repository_url(
-                distribution='fedora-20',
-                flocker_version='0.3.0'),
-            expected
-        )
-
     def test_centos_7(self):
         """
         It is possible to get a repository URL for CentOS 7 packages.
@@ -196,21 +182,6 @@ class GetRepositoryURL(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='centos-7',
-                flocker_version='0.3.0dev1'),
-            expected
-        )
-
-    def test_non_release_fedora(self):
-        """
-        The operating system key for fedora stays the same non-marketing
-        releases.
-        """
-        expected = ("https://clusterhq-archive.s3.amazonaws.com/fedora/"
-                    "clusterhq-release$(rpm -E %dist).noarch.rpm")
-
-        self.assertEqual(
-            get_repository_url(
-                distribution='fedora-20',
                 flocker_version='0.3.0dev1'),
             expected
         )
