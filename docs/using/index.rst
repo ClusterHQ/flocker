@@ -24,3 +24,4 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    tutorial/index
    examples/apps
    examples/features
+   examples/api-examples
