@@ -64,7 +64,7 @@ If you're not sure what the username is, you can find the common name like this:
     subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
 
 In this example, ``user-allison`` is the common name.
-Import the client certificate into the ``Keychain`` and then refer to it by its common name (note that you will need to input a password of any length when creating ``user.p12``):
+Import the client certificate into the ``Keychain`` and then refer to it by its common name:
 
 .. code-block:: console
 
