@@ -9,6 +9,7 @@ Using the API with cURL
    :download:`example.sh`
 
    .. literalinclude:: example.sh
+      :language: bash
 
 #. Before you run the example, you will need to change the following values (either by editing the source file or by setting environment variables):
 
