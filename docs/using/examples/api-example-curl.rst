@@ -1,8 +1,8 @@
-=======================
-Using the API with cURL
-=======================
+==========================
+Using the API with ``cURL``
+==========================
 
-.. note:: If you are using cURL on OS X, you will need a version of cURL that supports OpenSSL. For more information see :ref:`authenticate-api`.
+.. note:: If you are using ``cURL`` on OS X, you will need a version of ``cURL`` that supports OpenSSL. For more information see :ref:`authenticate-api`.
 
 #. Download the :file:`example.sh` file:
 
