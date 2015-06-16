@@ -3488,15 +3488,15 @@ class GetDeviceForDatasetIdTests(SynchronousTestCase):
         # Here are a couple volumes that will have filesystems that the
         # implementation will have to correctly identify.
         one_volume = api.create_volume(
-            one_dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+            one_dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         another_volume = api.create_volume(
-            another_dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+            another_dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
         # This is a trap.  Hopefully the implementation ignores it.
         uninitialized_volume = api.create_volume(
-            uninitialized_dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+            uninitialized_dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
         for volume in [one_volume, another_volume, uninitialized_volume]:
@@ -3539,12 +3539,12 @@ class GetDeviceForDatasetIdTests(SynchronousTestCase):
         api = deployer.block_device_api
 
         one_volume = api.create_volume(
-            dataset_id, REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         # This volume has different UUID, but we'll trick CreateFilesystem
         # into setting duplicate UUID when doing mkfs.
         another_volume = api.create_volume(
-            uuid4(), REALISTIC_BLOCKDEVICE_SIZE
+            uuid4(), LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         ).set(dataset_id=dataset_id)
 
         for volume in [one_volume, another_volume]:
