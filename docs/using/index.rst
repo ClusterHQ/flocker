@@ -21,6 +21,7 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    authentication
    config/index
    administering/index
-   tutorial/index
+   tutorial/moving-volume-tutorial
+   tutorial/index  
    examples/apps
    examples/features

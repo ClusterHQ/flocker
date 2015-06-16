@@ -1,3 +1,5 @@
+.. _data-volumes:
+
 ============
 Data Volumes
 ============
