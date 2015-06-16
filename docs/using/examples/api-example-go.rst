@@ -7,6 +7,7 @@ Using the API with Go
    :download:`example.go`
 
    .. literalinclude:: example.go
+      :language: go
 
 #. Before you run the example, you will need to change the following values (either by editing the source file or by setting environment variables):
 
