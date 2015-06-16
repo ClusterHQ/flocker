@@ -584,7 +584,7 @@ class EBSBlockDeviceAPI(object):
                          end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
-        self._device_paths = self._devices_path.set(
+        self._device_paths = self._device_paths.set(
             blockdevice_id, FilePath(new_device)
         )
         return attached_volume
