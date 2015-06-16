@@ -2357,7 +2357,7 @@ def umount(device_file):
 
     :param FilePath device_file: The device file that is mounted.
     """
-    check_output(['umount', device_file.path])
+    run_process(['umount', device_file.path])
 
 
 def umount_all(root_path):
@@ -2703,7 +2703,7 @@ class MountBlockDeviceTests(
         # Try recreating mounted filesystem; this should fail.
         self.failureResultOf(scenario.create(), CalledProcessError)
         # Unmounting and remounting, but our data still exists:
-        check_output([b"umount", mountpoint.path])
+        umount(mountpoint)
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              mountpoint=mountpoint),
@@ -2765,7 +2765,7 @@ class MountBlockDeviceTests(
         """
         mountpoint = mountroot_for_test(self).child(b"mount-test")
         scenario = self._run_success_test(mountpoint)
-        check_call([b"umount", mountpoint.path])
+        umount(mountpoint)
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              mountpoint=scenario.mountpoint),
@@ -2778,7 +2778,7 @@ class MountBlockDeviceTests(
         mountpoint = mountroot_for_test(self).child(b"mount-test")
         scenario = self._run_success_test(mountpoint)
         check_call([b"mklost+found"], cwd=mountpoint.path)
-        check_call([b"umount", mountpoint.path])
+        umount(mountpoint)
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              mountpoint=scenario.mountpoint),
@@ -2794,7 +2794,7 @@ class MountBlockDeviceTests(
         scenario = self._run_success_test(mountpoint)
         mountpoint.child(b"file").setContent(b"stuff")
         check_call([b"mklost+found"], cwd=mountpoint.path)
-        check_call([b"umount", mountpoint.path])
+        umount(mountpoint)
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              mountpoint=scenario.mountpoint),
@@ -2856,7 +2856,7 @@ class UnmountBlockDeviceTests(
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
         make_filesystem(device, block_device=True)
-        check_output([b"mount", device.path, mountpoint.path])
+        mount(device, mountpoint)
 
         change = UnmountBlockDevice(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
