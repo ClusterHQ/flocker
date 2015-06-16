@@ -2727,6 +2727,12 @@ class MountBlockDeviceTests(
         run_process([b"umount", mountpoint.path])
         # Try recreating filesystem; this should fail.
         self.failureResultOf(scenario.create(), FilesystemExists)
+        # Remounting should succeed.
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+        self.assertEqual(afile.getContent(), b"data")
 
     def test_mountpoint_exists(self):
         """
