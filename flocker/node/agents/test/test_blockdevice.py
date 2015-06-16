@@ -2544,6 +2544,7 @@ class CreateFilesystemTests(
     See ``MountBlockDeviceTests`` for more ``CreateFilesystem`` tests.
     """
 
+
 class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
