@@ -368,11 +368,11 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
         $ flocker-ca create-control-certificate example.org
 
-#. At this point you will need to create a :file:`/etc/flocker` directory:
+#. At this point you will need to create a :file:`/etc/flocker` directory on each node:
 
-   .. prompt:: bash
+   .. code-block:: console
 
-      mkdir /etc/flocker
+      root@centos-7:~/$ mkdir /etc/flocker
 
 #. You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
    You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
@@ -410,7 +410,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
-Before you can use Flocker's API you will also need to `generate a client certificate <generate-api>`_.
+Before you can use Flocker's API you will also need to :ref:`generate a client certificate <generate-api>`.
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
