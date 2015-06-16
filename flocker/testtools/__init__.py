@@ -37,7 +37,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import prefixedMethodNames, safe_str
+from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -211,12 +211,12 @@ def function_serializer(function):
 LOOP_UNTIL_ACTION = ActionType(
     action_type="flocker:testtools:loop_until",
     startFields=[Field("predicate", function_serializer)],
-    successFields=[Field("result", serializer=safe_str)],
+    successFields=[Field("result", serializer=safe_repr)],
     description="Looping until predicate is true.")
 
 LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
     message_type="flocker:testtools:loop_until:iteration",
-    fields=[Field("result", serializer=safe_str)],
+    fields=[Field("result", serializer=safe_repr)],
     description="Predicate failed, trying again.")
 
 
