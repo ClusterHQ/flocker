@@ -569,15 +569,6 @@ class EBSBlockDeviceAPI(object):
                     break
                 # end lock scope
 
-        # Stamp EBS volume with attached device name tag.
-        # If OS fails to see new block device in 60 seconds,
-        # `new_device` is `None`, indicating the volume failed
-        # to attach to the compute instance.
-        metadata = {
-            ATTACHED_DEVICE_LABEL: unicode(new_device),
-        }
-        if new_device is not None:
-            self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume,
                          start_status=u'available',
                          transient_status=u'attaching',
@@ -613,10 +604,7 @@ class EBSBlockDeviceAPI(object):
                          transient_status=u'detaching',
                          end_status=u'available')
 
-        # XXX Clear _device_paths here?
-
-        # Delete attached device metadata from EBS Volume
-        self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
+        self._device_paths = self._device_paths.discard(blockdevice_id)
 
     def destroy_volume(self, blockdevice_id):
         """
