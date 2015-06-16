@@ -167,6 +167,13 @@ def make_filesystem(device, block_device):
         ])
     command = [b"mkfs"] + options + [b"-t", b"ext4", device.path]
     run_process(command)
+    # FLOC-2270: There's some kind of cache coherence issue that means that
+    # the previous 'mkfs' commands might not have taken effect by the time we
+    # try to do things with the created filesystem.
+
+    # XXX: Replace this with an ioctl call, which is the more correct way of
+    # achieving same.
+    run_process([b"sh", "-c", "echo 1 > /proc/sys/vm/drop_caches"])
 
 
 def mount(device, mountpoint):
