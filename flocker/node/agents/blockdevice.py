@@ -403,6 +403,13 @@ class CreateFilesystem(PRecord):
                 b"-F",
                 device.path
             ])
+            # FLOC-2270: There's some kind of cache coherence issue that means
+            # that the previous 'mkfs' commands might not have taken effect by
+            # the time we try to do things with the created filesystem.
+
+            # XXX: Replace this with an ioctl call, which is the more correct
+            # way of achieving same.
+            check_output(b"echo 1 > /proc/sys/vm/drop_caches", shell=True)
         except:
             return fail()
         return succeed(None)
