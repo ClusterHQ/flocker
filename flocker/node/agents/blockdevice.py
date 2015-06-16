@@ -1439,7 +1439,34 @@ class BlockDeviceDeployer(PRecord):
             dataset_id = volume.dataset_id
             u_dataset_id = unicode(dataset_id)
             if volume.attached_to == compute_instance_id:
-                device_path = api.get_device_path(volume.blockdevice_id)
+                try:
+                    device_path = get_device_for_dataset_id(volume.dataset_id)
+                except KeyError:
+                    # There is a volume attached to this instance which claims
+                    # to be associated with a particular dataset id.  However,
+                    # we we failed to determine what OS device is associated
+                    # with that attached volume.
+                    #
+                    # This could be because it is a 1.0.0 filesystem lacking a
+                    # UUID.  In this case, upgrade it by adding the UUID.
+                    # FLOC-2376.
+                    #
+                    # This could be because it has no filesystem on it at all,
+                    # perhaps because the system failed between
+                    # creating/attaching the volume and initializing it with a
+                    # filesystem.  In this case, we will in the future
+                    # initialize it with a filesystem (but we still don't know
+                    # which device it is - if the IBlockDeviceAPI
+                    # implementation is good, call get_device_path; if it is
+                    # bad, detach it, re-attach it, see what OS device appears
+                    # as a result; put a filesystem on it with good metadata).
+
+                    # Later this might be an invalid use of the API because
+                    # we're not going to require get_device_path to work if the
+                    # volume wasn't attached earlier in this process.
+                    # FLOC-2372.
+                    device_path = api.get_device_path(volume.blockdevice_id)
+
                 if is_existing_block_device(dataset_id, device_path):
                     devices[dataset_id] = device_path
                     manifestations[u_dataset_id] = _manifestation_from_volume(
