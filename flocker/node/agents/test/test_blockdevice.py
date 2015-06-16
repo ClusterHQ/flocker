@@ -9,9 +9,7 @@ from functools import partial
 from os import getuid
 import time
 from uuid import UUID, uuid4
-from subprocess import (
-    STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError,
-)
+from subprocess import STDOUT, PIPE, Popen, CalledProcessError
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -1455,7 +1453,7 @@ class IBlockDeviceAPITestsMixin(object):
 
         command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
                    b"--output", b"SIZE", device_path.encode("ascii")]
-        command_output = check_output(command).split(b'\n')[0]
+        command_output = run_process(command).output.split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
         if self.device_allocation_unit is None:
             expected_device_size = expected_volume_size
@@ -2045,7 +2043,7 @@ def losetup_detach(device_file):
     """
     Detach the supplied loopback ``device_file``.
     """
-    check_output(['losetup', '--detach', device_file.path])
+    run_process(['losetup', '--detach', device_file.path])
 
 
 def losetup_detach_all(root_path):
@@ -2784,7 +2782,7 @@ class MountBlockDeviceTests(
         """
         mountpoint = mountroot_for_test(self).child(b"mount-test")
         scenario = self._run_success_test(mountpoint)
-        check_call([b"mklost+found"], cwd=mountpoint.path)
+        run_process([b"mklost+found"], cwd=mountpoint.path)
         umount(mountpoint)
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
@@ -2800,7 +2798,7 @@ class MountBlockDeviceTests(
         mountpoint = mountroot_for_test(self).child(b"mount-test")
         scenario = self._run_success_test(mountpoint)
         mountpoint.child(b"file").setContent(b"stuff")
-        check_call([b"mklost+found"], cwd=mountpoint.path)
+        run_process([b"mklost+found"], cwd=mountpoint.path)
         umount(mountpoint)
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
