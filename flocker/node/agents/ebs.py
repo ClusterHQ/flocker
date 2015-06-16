@@ -584,7 +584,9 @@ class EBSBlockDeviceAPI(object):
                          end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
-        self._device_paths[blockdevice_id] = FilePath(new_device)
+        self._device_paths = self._devices_path.set(
+            blockdevice_id, FilePath(new_device)
+        )
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
