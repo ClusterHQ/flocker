@@ -59,6 +59,7 @@ from ..blockdevice import (
     get_blockdevice_volume,
     _backing_file_name,
     ProcessLifetimeCache,
+    FilesystemExists,
 )
 
 from ... import run_state_change, in_parallel
@@ -2702,7 +2703,7 @@ class MountBlockDeviceTests(
         afile = mountpoint.child(b"file")
         afile.setContent(b"data")
         # Try recreating mounted filesystem; this should fail.
-        self.failureResultOf(scenario.create(), CalledProcessError)
+        self.failureResultOf(scenario.create(), FilesystemExists)
         # Unmounting and remounting, but our data still exists:
         check_output([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
@@ -2710,6 +2711,24 @@ class MountBlockDeviceTests(
                              mountpoint=mountpoint),
             scenario.deployer))
         self.assertEqual(afile.getContent(), b"data")
+
+    def test_create_fails_on_existing_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a block device that already has a file
+        system fails with an exception and preserves the data.
+
+        This is because mkfs is a destructive operation that will destroy any
+        existing filesystem on that block device.
+        """
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Unmount the filesystem
+        run_process([b"umount", mountpoint.path])
+        # Try recreating filesystem; this should fail.
+        self.failureResultOf(scenario.create(), FilesystemExists)
 
     def test_mountpoint_exists(self):
         """
