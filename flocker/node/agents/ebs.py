@@ -663,7 +663,7 @@ class EBSBlockDeviceAPI(object):
             # Maybe we screwed up.  Do a sanity check instead of just claiming
             # the caller screwed up?
             #
-            # ebs_volume = self._get_ebs_volume(blockdevice_id)
+            ebs_volume = self._get_ebs_volume(blockdevice_id)
             # volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
             # if volume.attached_to is None:
             #     raise UnattachedVolume(blockdevice_id)
