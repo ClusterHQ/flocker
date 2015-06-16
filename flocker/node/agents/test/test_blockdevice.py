@@ -10,6 +10,7 @@ from os import getuid
 import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, CalledProcessError
+from stat import S_IRWXU
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -2807,6 +2808,24 @@ class MountBlockDeviceTests(
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
+
+    def test_world_permissions_not_reset_if_other_files_exist(self):
+        """
+        If files exist in the filesystem, permissions are not reset when the
+        filesystem is remounted.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        mountpoint.child(b"file").setContent(b"stuff")
+        check_call([b"umount", mountpoint.path])
+        mountpoint.chmod(S_IRWXU)
+        mountpoint.restat()
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertEqual(mountpoint.getPermissions().shorthand(),
+                         'rwx------')
 
 
 class UnmountBlockDeviceInitTests(

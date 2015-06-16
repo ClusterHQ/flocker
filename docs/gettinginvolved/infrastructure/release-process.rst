@@ -56,6 +56,8 @@ Access
 
 - SSH access to ClusterHQ's GitHub repositories.
 
+- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net>`_.
+
 .. _preparing-for-a-release:
 
 Preparing For a Release
