@@ -47,7 +47,6 @@ def make_api_request(method, endpoint, data=None):
     body = r.read()
     status = r.status
 
-    print "Got response", status
     print body
 
 # Make the first request to check the service is working.
@@ -57,5 +56,5 @@ make_api_request("GET", "/v1/version")
 # Create a volume.
 
 make_api_request("POST", "/v1/configuration/datasets",
-    data= r'{"primary": "%s", "maximum_size": 107374182400, "metadata": {"name": "mongodb_data"}}'
+    data= r'{"primary": "%s", "maximum_size": 107374182400, "metadata": {"name": "example_dataset"}}'
         % ("5540d6e3-392b-4da0-828a-34b724c5bb80",))
