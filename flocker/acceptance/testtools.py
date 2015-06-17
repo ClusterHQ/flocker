@@ -389,9 +389,9 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties has been
-            persisted to the cluster configuration.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets",
@@ -401,8 +401,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method

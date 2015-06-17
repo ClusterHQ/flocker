@@ -450,7 +450,7 @@ def create_dataset(test_case, cluster,
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
-        lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+        lambda dataset: cluster.wait_for_dataset(dataset)
     )
 
     return waiting_for_create
