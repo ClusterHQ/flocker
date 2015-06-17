@@ -199,7 +199,7 @@ def install_cli_commands_yum(distribution, package_source):
         repo_options = ['--enablerepo=clusterhq-build']
     else:
         repo_options = get_repo_options(
-                flocker_version=get_installable_version(version))
+            flocker_version=get_installable_version(version))
 
     if package_source.os_version:
         package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
