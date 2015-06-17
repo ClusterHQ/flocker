@@ -959,19 +959,18 @@ def get_expected_redirects(flocker_version):
     """
     published_version = get_doc_version(flocker_version)
 
-    is_dev = not is_release(published_version)
-    if is_dev:
-        expected_redirects = {
-            '/en/devel': '/en/' + published_version + '/',
-            '/en/devel/faq/index.html':
-                '/en/' + published_version + '/faq/index.html',
-        }
-    else:
+    if is_release(published_version):
         expected_redirects = {
             '/': '/en/' + published_version + '/',
             '/en/': '/en/' + published_version + '/',
             '/en/latest': '/en/' + published_version + '/',
             '/en/latest/faq/index.html':
+                '/en/' + published_version + '/faq/index.html',
+        }
+    else:
+        expected_redirects = {
+            '/en/devel': '/en/' + published_version + '/',
+            '/en/devel/faq/index.html':
                 '/en/' + published_version + '/faq/index.html',
         }
 
