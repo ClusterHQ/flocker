@@ -1110,6 +1110,58 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
 
+class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
+    """
+    Tests for automatic upgrade behavior of
+    ``BlockDeviceDeployer.discover_state``
+    """
+    def test_ext4_uuid(self):
+        """
+        When it discovers an ext4 filesystem that is missing the dataset
+        identifier in their UUID field, ``BlockDeviceDeployer.discover_state``
+        adds the UUID.
+        """
+        dataset_id = uuid4()
+        deployer = create_blockdevicedeployer(self)
+        api = deployer.block_device_api
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+        api.attach_volume(
+            blockdevice_id=volume.blockdevice_id,
+            attach_to=api.compute_instance_id(),
+        )
+        device_path = api.get_device_path(volume.blockdevice_id)
+        # Do exactly the same thing that 1.0.0 did so that we're exercising the
+        # upgrade code path we want to be exercising.
+        run_process([
+            b"mkfs", b"-t", b"ext4",
+            # This is ext4 specific, and ensures mke2fs doesn't ask user
+            # interactively about whether they really meant to format whole
+            # device rather than partition.  This stays here forever because
+            # 1.0.0 included it.  It probably doesn't make a difference to the
+            # resulting filesystem state but it's better to be safe.
+            b"-F",
+            device_path.path,
+        ])
+        mountpoint = deployer.mountroot.child(bytes(dataset_id))
+        mountpoint.makedirs()
+        mount(device_path, mountpoint)
+
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id,
+                maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ), primary=True,
+        )
+        assert_discovered_state(
+            self, deployer,
+            expected_manifestations={manifestation},
+            expected_devices={dataset_id: device_path},
+        )
+        self.assertEqual(device_path, get_device_for_dataset_id(dataset_id))
+
+
 class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase,
         ScenarioMixin
