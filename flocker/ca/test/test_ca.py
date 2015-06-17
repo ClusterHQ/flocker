@@ -141,7 +141,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             path.makedirs()
             crt_path = path.child(self.cert_file_name)
             crt_file = crt_path.open(b'w')
-            crt_file.write(b"dummy")
+            crt_file.write(self.credential.credential.certificate.dumpPEM())
             crt_file.close()
             e = self.assertRaises(
                 PathError, cls.from_path,
@@ -195,7 +195,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             path.makedirs()
             crt_path = path.child(self.cert_file_name)
             crt_file = crt_path.open(b'w')
-            crt_file.write(b"dummy")
+            crt_file.write(self.credential.credential.certificate.dumpPEM())
             crt_file.close()
             key_path = path.child(self.key_file_name)
             key_file = key_path.open(b'w')
@@ -316,6 +316,17 @@ class UserCredentialTests(
         """
         assert_has_extension(self, self.credential.credential,
                              b"extendedKeyUsage", b"clientAuth")
+
+    def test_from_files(self):
+        """
+        A certificate and keypair written by ``UserCredential.initialize``
+        can be loaded back from the individual files, with the username
+        extracted from the subject common name.
+        """
+        certificate_path = self.credential.credential.path.child(b"alice.crt")
+        key_path = self.credential.credential.path.child(b"alice.key")
+        user_credential = UserCredential.from_files(certificate_path, key_path)
+        self.assertEqual(u"alice", user_credential.username)
 
 
 class NodeCredentialTests(
