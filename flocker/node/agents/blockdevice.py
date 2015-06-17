@@ -107,6 +107,17 @@ class DatasetExists(Exception):
         self.blockdevice = blockdevice
 
 
+class InformationUnavailable(VolumeException):
+    """
+    An ``IBlockDeviceAPI.get_device_path`` was asked for the OS device path for
+    a block device but the implementation can't reliably provide that
+    information.
+
+    For example, this might happen when using AWS/EBS which can only accurately
+    report the OS device path on Amazon-provided AMIs.
+    """
+
+
 DATASET = Field(
     u"dataset",
     lambda dataset: dataset.dataset_id,

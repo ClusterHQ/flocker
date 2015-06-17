@@ -1997,6 +1997,7 @@ def make_iblockdeviceapi_tests(
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
+            self.blockdevice_api_factory = blockdevice_api_factory
             self.api = blockdevice_api_factory(test_case=self)
             self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
             check_allocatable_size(
