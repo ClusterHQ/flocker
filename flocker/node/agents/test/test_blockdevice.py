@@ -30,7 +30,7 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
-    LoggedAction, assertHasMessage, assertHasAction
+    LoggedMessage, LoggedAction, assertHasMessage, assertHasAction
 )
 
 from .. import blockdevice
@@ -42,6 +42,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
+    FLOCKER_1_0_0_FS_UPGRADED,
     get_device_for_dataset_id, DuplicateFilesystemId,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
@@ -389,7 +390,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             },
         )
 
-    def test_attached_with_filesystem_unmounted(self):
+    @capture_logging(
+        lambda self, logger:
+        self.assertEqual(
+            [],
+            LoggedMessage.of_type(logger.messages, FLOCKER_1_0_0_FS_UPGRADED)
+        )
+    )
+    def test_attached_with_filesystem_unmounted(self, logger):
         """
         If a volume is attached, has a filesystem, but is not mounted, it is
         included as a non-manifest dataset returned by
@@ -1115,17 +1123,14 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
     Tests for automatic upgrade behavior of
     ``BlockDeviceDeployer.discover_state``
     """
-    def test_ext4_uuid(self):
-        """
-        When it discovers an ext4 filesystem that is missing the dataset
-        identifier in their UUID field, ``BlockDeviceDeployer.discover_state``
-        adds the UUID.
-        """
-        dataset_id = uuid4()
+    # An id that tests and logging decorators can use.
+    dataset_id = uuid4()
+
+    def _upgrade_ext4_uuid_test(self, mounted, upgraded):
         deployer = create_blockdevicedeployer(self)
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+            dataset_id=self.dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
             blockdevice_id=volume.blockdevice_id,
@@ -1144,22 +1149,50 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
             b"-F",
             device_path.path,
         ])
-        mountpoint = deployer.mountroot.child(bytes(dataset_id))
-        mountpoint.makedirs()
-        mount(device_path, mountpoint)
+        if mounted:
+            mountpoint = deployer.mountroot.child(bytes(self.dataset_id))
+            mountpoint.makedirs()
+            mount(device_path, mountpoint)
 
         manifestation = Manifestation(
             dataset=Dataset(
-                dataset_id=dataset_id,
+                dataset_id=self.dataset_id,
                 maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             ), primary=True,
         )
         assert_discovered_state(
             self, deployer,
             expected_manifestations={manifestation},
-            expected_devices={dataset_id: device_path},
+            expected_devices={self.dataset_id: device_path},
         )
-        self.assertEqual(device_path, get_device_for_dataset_id(dataset_id))
+        if upgraded:
+            self.assertEqual(
+                device_path, get_device_for_dataset_id(self.dataset_id),
+            )
+
+    @capture_logging(
+        assertHasMessage,
+        FLOCKER_1_0_0_FS_UPGRADED, dict(dataset_id=dataset_id)
+    )
+    def test_unmounted_ext4_uuid(self, logger):
+        """
+        When it discovers an unmounted ext4 filesystem that is missing the
+        dataset identifier in their UUID field,
+        ``BlockDeviceDeployer.discover_state`` adds the UUID.
+        """
+        self._upgrade_ext4_uuid_test(mounted=False, upgraded=True)
+
+    @capture_logging(
+        assertHasMessage,
+        FLOCKER_1_0_0_FS_UPGRADED, dict(dataset_id=dataset_id)
+    )
+    def test_mounted_ext4_uuid(self, logger):
+        """
+        When it discovers a mounted ext4 filesystem that is missing the dataset
+        identifier in their UUID field, ``BlockDeviceDeployer.discover_state``
+        adds the UUID.
+        """
+        self._upgrade_ext4_uuid_test(mounted=True, upgraded=False)
 
 
 class BlockDeviceDeployerCreationCalculateChangesTests(

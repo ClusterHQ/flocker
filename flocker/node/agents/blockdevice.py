@@ -14,7 +14,7 @@ from errno import EEXIST
 
 from bitmath import GiB
 
-from eliot import MessageType, ActionType, Field, Logger
+from eliot import MessageType, ActionType, Field, Logger, fields
 from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
@@ -196,6 +196,14 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     [DATASET, MOUNTPOINT],
     [],
     u"A block-device-backed dataset is being created.",
+)
+
+FLOCKER_1_0_0_FS_UPGRADED = MessageType(
+    u"agent:blockdevice:upgrade:1.0.0:fs",
+    fields(block_device_id=unicode, dataset_id=unicode, old_fs_uuid=unicode),
+    u"A filesystem created by Flocker 1.0.0 was encountered and its "
+    u"filesystem UUID was changed to match the dataset id it is meant to "
+    u"represent.",
 )
 
 # Really this is the successful completion of CREATE_BLOCK_DEVICE_DATASET.  It
