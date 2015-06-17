@@ -165,7 +165,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         # first one can't have anything in its cache.
         another_api = self.blockdevice_api_factory(test_case=self)
         volume = another_api.create_volume(
-            dataset_isd=uuid4(), size=self.minimum_allocatable_size
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         another_api.attach_volume(
             volume.blockdevice_id, another_api.compute_instance_id()
