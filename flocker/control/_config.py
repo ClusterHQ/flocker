@@ -1259,11 +1259,17 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
     seen_applications = set()
     for hostname, application_names in (
             deployment_configuration['nodes'].items()):
+        # If application_names is a string type, convert to a list.
+        # This allows single a application name in a deployment configuration.
+        # The application will still be rejected if it does not exist in the
+        # application manifest.
+        if isinstance(application_names, (str, unicode)):
+            application_names = [application_names]
         if not isinstance(application_names, list):
             raise ConfigurationError(
                 "Node {node_name} has a config error. "
                 "Wrong value type: {value_type}. "
-                "Should be list.".format(
+                "Should be list or a single string.".format(
                     node_name=hostname,
                     value_type=application_names.__class__.__name__)
             )
