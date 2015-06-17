@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, CalledProcessError, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -116,6 +116,16 @@ class InformationUnavailable(VolumeException):
     For example, this might happen when using AWS/EBS which can only accurately
     report the OS device path on Amazon-provided AMIs.
     """
+
+
+class FilesystemExists(Exception):
+    """
+    A failed attempt to create a filesystem on a block device that already has
+    one.
+    """
+    def __init__(self, device):
+        Exception.__init__(self, device)
+        self.device = device
 
 
 DATASET = Field(
@@ -407,6 +417,7 @@ class CreateFilesystem(PRecord):
             self.volume.blockdevice_id
         )
         try:
+            _ensure_no_filesystem(device)
             check_output([
                 b"mkfs", b"-t", self.filesystem.encode("ascii"),
                 b"-U", bytes(self.volume.dataset_id),
@@ -420,6 +431,37 @@ class CreateFilesystem(PRecord):
         except:
             return fail()
         return succeed(None)
+
+
+def _ensure_no_filesystem(device):
+    """
+    Raises an error if there's already a filesystem on ``device``.
+
+    :raises: ``FilesystemExists`` if there is already a filesystem on
+        ``device``.
+    :return: ``None``
+    """
+    try:
+        check_output(
+            [b"blkid", b"-p", b"-u", b"filesystem", device.path],
+            stderr=STDOUT,
+        )
+    except CalledProcessError as e:
+        # According to the man page:
+        #   the specified token was not found, or no (specified) devices
+        #   could be identified
+        #
+        # Experimentation shows that there is no output in the case of the
+        # former, and an error printed to stderr in the case of the
+        # latter.
+        #
+        # FLOC-2388: We're assuming an interface. We should test this
+        # assumption.
+        if e.returncode == 2 and not e.output:
+            # There is no filesystem on this device.
+            return
+        raise
+    raise FilesystemExists(device)
 
 
 def _valid_size(size):
