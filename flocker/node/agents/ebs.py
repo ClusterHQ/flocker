@@ -26,7 +26,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    UnattachedVolume, InformationUnavailable,
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
@@ -648,14 +648,14 @@ class EBSBlockDeviceAPI(object):
         try:
             return self._device_paths[blockdevice_id]
         except KeyError:
-            # Maybe we screwed up.  Do a sanity check instead of just claiming
-            # the caller screwed up?
-            #
-            ebs_volume = self._get_ebs_volume(blockdevice_id)
+            # Maybe we screwed up.  Ask EBS if this is something that really
+            # exists.  This will raise UnknownVolume if it really was the
+            # caller who screwed up.
+            self._get_ebs_volume(blockdevice_id)
             # volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
             # if volume.attached_to is None:
             #     raise UnattachedVolume(blockdevice_id)
-            raise UnattachedVolume(blockdevice_id)
+            raise InformationUnavailable(blockdevice_id)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
