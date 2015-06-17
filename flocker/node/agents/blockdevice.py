@@ -929,10 +929,14 @@ class IBlockDeviceAPI(Interface):
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
+
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
-        :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
-            not attached to a host.
+        :raises InformationUnavailable: If the OS device path for the supplied
+            ``blockdevice_id`` isn't known by this implementation.  This is
+            allowed any time the Python object which attached the volume is not
+            the same Python object as ``get_device_path`` is called on.
+
         :returns: A ``FilePath`` for the device.
         """
 
