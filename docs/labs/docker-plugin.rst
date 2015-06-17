@@ -44,7 +44,7 @@ Then if you are on Ubuntu 14.04, the following instructions will configure an up
     EOF
     service flocker-plugin restart
 
-If you are on a systemd system (e.g. CentOS 7), the following instructions will configure a systemd unit to start the Flocker plugin before Docker::
+If you are on a ``systemd`` system (e.g. CentOS 7), the following instructions will configure a ``systemd`` unit to start the Flocker plugin before Docker::
 
     cat <<EOF > /etc/systemd/system/flocker-plugin.service
     [Unit]

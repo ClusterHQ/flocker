@@ -14,11 +14,11 @@ We intend to promote popular projects to be fully supported.
 
 We're working on a bunch of stuff, but this is the main picture:
 
-* managing volumes (cli/gui)
+* managing volumes (CLI/GUI)
 * using from containers (plugins)
 * other integrations
 
-really short asciicinema of ...
+really short ``asciicinema`` of ...
 https://github.com/ClusterHQ/unofficial-flocker-tools/blob/prototype-volumes-cli/design.md
 
 .. toctree::
