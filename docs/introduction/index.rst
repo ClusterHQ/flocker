@@ -51,6 +51,8 @@ Flocker also has planned integrations with major orchestration tools such as Doc
 
 .. XXX add link to 3rd party orchestration docs. See FLOC 2229
 
+.. _supported-operating-systems:
+
 Supported Operating Systems
 ===========================
 
