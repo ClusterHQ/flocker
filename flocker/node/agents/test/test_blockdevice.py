@@ -577,6 +577,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             unmounted.blockdevice_id,
             attach_to=self.this_node,
         )
+        create_filesystem(self, self.deployer, unmounted)
 
         assert_discovered_state(
             self, self.deployer,
