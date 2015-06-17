@@ -1395,6 +1395,16 @@ def _manifestation_from_volume(volume):
     return Manifestation(dataset=dataset, primary=True)
 
 
+def _attached_volumes(compute_instance_id, volumes):
+    """
+    Yield volumes from the given iterable which are attached to the given
+    instance.
+    """
+    for volume in volumes:
+        if volume.attached_to == compute_instance_id:
+            yield volume
+
+
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
     """
@@ -1453,13 +1463,15 @@ class BlockDeviceDeployer(PRecord):
             to ``volumes``.
         """
         partitions = psutil.disk_partitions()
-        device_to_dataset_id = {
-            self.block_device_api.get_device_path(volume.blockdevice_id):
-                volume.dataset_id
-            for volume
-            in volumes
-            if volume.attached_to == compute_instance_id
-        }
+        device_to_dataset_id = {}
+        for volume in _attached_volumes(compute_instance_id, volumes):
+            try:
+                device = get_device_for_dataset_id(volume.dataset_id)
+            except KeyError:
+                pass
+            else:
+                device_to_dataset_id[device] = volume.dataset_id
+
         return {
             FilePath(partition.mountpoint):
                 device_to_dataset_id[FilePath(partition.device)]
