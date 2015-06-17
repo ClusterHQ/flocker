@@ -72,8 +72,8 @@ class ContainerAPITests(TestCase):
         """
         Create a container listening on port 8080.
 
-        :return: ``Deferred`` firing with a tuple of ``Cluster`` instance
-        and container dictionary once the container is up and running.
+        :return: ``Deferred`` firing with a container dictionary once the
+            container is up and running.
         """
         data = {
             u"name": random_name(self),
