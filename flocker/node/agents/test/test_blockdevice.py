@@ -42,7 +42,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
-    FLOCKER_1_0_0_FS_UPGRADED,
+    FLOCKER_1_0_0_FS_UPGRADE,
     get_device_for_dataset_id, DuplicateFilesystemId,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
@@ -394,7 +394,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         lambda self, logger:
         self.assertEqual(
             [],
-            LoggedMessage.of_type(logger.messages, FLOCKER_1_0_0_FS_UPGRADED)
+            LoggedAction.of_type(logger.messages, FLOCKER_1_0_0_FS_UPGRADE)
         )
     )
     def test_attached_with_filesystem_unmounted(self, logger):
@@ -1155,16 +1155,24 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
             mountpoint.makedirs()
             mount(device_path, mountpoint)
 
-        manifestation = Manifestation(
-            dataset=Dataset(
-                dataset_id=self.dataset_id,
-                maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-            ), primary=True,
-        )
+        if mounted:
+            manifestation = Manifestation(
+                dataset=Dataset(
+                    dataset_id=self.dataset_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ), primary=True,
+            )
+            expected_manifestations = {manifestation}
+            expected_nonmanifest_datasets = []
+        else:
+            expected_manifestations = set()
+            expected_nonmanifest_datasets = [self.dataset_id]
+
         assert_discovered_state(
             self, deployer,
-            expected_manifestations={manifestation},
+            expected_manifestations=expected_manifestations,
             expected_devices={self.dataset_id: device_path},
+            expected_nonmanifest_datasets=expected_nonmanifest_datasets,
         )
         if upgraded:
             self.assertEqual(
@@ -1172,8 +1180,9 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
             )
 
     @capture_logging(
-        assertHasMessage,
-        FLOCKER_1_0_0_FS_UPGRADED, dict(dataset_id=dataset_id)
+        assertHasAction,
+        FLOCKER_1_0_0_FS_UPGRADE,
+        succeeded=True, startFields=dict(dataset_id=dataset_id)
     )
     def test_unmounted_ext4_uuid(self, logger):
         """
@@ -1185,7 +1194,7 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
 
     @capture_logging(
         assertHasMessage,
-        FLOCKER_1_0_0_FS_UPGRADED, dict(dataset_id=dataset_id)
+        FLOCKER_1_0_0_FS_MOUNTED, dict(dataset_id=dataset_id)
     )
     def test_mounted_ext4_uuid(self, logger):
         """
