@@ -118,7 +118,7 @@ def rest_api_context_factory(ca_certificate, control_credential):
         ca_certificate, control_credential, b"user-")
 
 
-def treq_with_authentication(reactor, certificates_path):
+def treq_with_authentication(reactor, ca_path, user_cert_path, user_key_path):
     """
     Create a ``treq``-API object that implements the REST API TLS
     authentication.
@@ -127,16 +127,14 @@ def treq_with_authentication(reactor, certificates_path):
     certificate to the control service for authentication.
 
     :param reactor: The reactor to use.
-    :param FilePath certificates_path: Directory where certificates and
-        private key can be found.
+    :param FilePath ca_path: Absolute path to the public cluster certificate.
+    :param FilePath user_cert_path: Absolute path to the user certificate.
+    :param FilePath user_key_path: Absolute path to the user private key.
 
     :return: ``treq`` compatible object.
     """
-    ca = Certificate.loadPEM(
-        certificates_path.child(b"cluster.crt").getContent())
-    # This is a hack; from_path should be more
-    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
-    user_credential = UserCredential.from_path(certificates_path, u"user")
+    ca = Certificate.loadPEM(ca_path.getContent())
+    user_credential = UserCredential.from_files(user_cert_path, user_key_path)
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=user_credential.credential)
     return HTTPClient(Agent(reactor, contextFactory=policy))

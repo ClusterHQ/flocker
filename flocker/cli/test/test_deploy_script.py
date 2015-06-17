@@ -42,6 +42,72 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertEqual(options.parseOptions(
             [CONTROL_HOST, deploy.path, app.path])["port"], REST_API_PORT)
 
+    def test_ca_must_exist(self):
+        """
+        A ``UsageError`` is raised if the specified ``cafile`` cluster
+        certificate does not exist.
+        """
+        options = self.options()
+        app = self.mktemp()
+        FilePath(app).touch()
+        deploy = self.mktemp()
+        FilePath(deploy).touch()
+        credential_path = b"/path/to/non-existent-cluster.crt"
+        options["cafile"] = credential_path
+        exception = self.assertRaises(UsageError, options.parseOptions,
+                                      [CONTROL_HOST, deploy, app])
+        self.assertEqual(
+            "File {file} does not exist.".format(file=credential_path),
+            str(exception)
+        )
+
+    def test_user_cert_must_exist(self):
+        """
+        A ``UsageError`` is raised if the specified ``cert`` user
+        certificate does not exist.
+        """
+        options = self.options()
+        app = self.mktemp()
+        FilePath(app).touch()
+        deploy = self.mktemp()
+        FilePath(deploy).touch()
+        ca = self.mktemp()
+        FilePath(ca).touch()
+        credential_path = b"/path/to/non-existent-user.crt"
+        options["cafile"] = ca
+        options["cert"] = credential_path
+        exception = self.assertRaises(UsageError, options.parseOptions,
+                                      [CONTROL_HOST, deploy, app])
+        self.assertEqual(
+            "File {file} does not exist.".format(file=credential_path),
+            str(exception)
+        )
+
+    def test_user_key_must_exist(self):
+        """
+        A ``UsageError`` is raised if the specified ``key`` user
+        private key does not exist.
+        """
+        options = self.options()
+        app = self.mktemp()
+        FilePath(app).touch()
+        deploy = self.mktemp()
+        FilePath(deploy).touch()
+        ca = self.mktemp()
+        FilePath(ca).touch()
+        user_cert = self.mktemp()
+        FilePath(user_cert).touch()
+        credential_path = b"/path/to/non-existent-user.key"
+        options["cafile"] = ca
+        options["cert"] = user_cert
+        options["key"] = credential_path
+        exception = self.assertRaises(UsageError, options.parseOptions,
+                                      [CONTROL_HOST, deploy, app])
+        self.assertEqual(
+            "File {file} does not exist.".format(file=credential_path),
+            str(exception)
+        )
+
     def test_deploy_must_exist(self):
         """
         A ``UsageError`` is raised if the ``deployment_config`` file does not

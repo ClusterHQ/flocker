@@ -65,9 +65,12 @@ class DeployOptions(Options):
     optParameters = [
         ["port", "p", REST_API_PORT,
          "The REST API port on the server.", int],
-        ["certificates-directory", "c",
-         None, ("Path to directory where TLS certificate and keys can be "
-                "found. Defaults to current directory.")],
+        ["cafile", None, b"cluster.crt",
+         "Path to cluster certificate file"],
+        ["cert", None, b"user.crt",
+         "Path to user certificate file"],
+        ["key", None, b"user.key",
+         "Path to user private key file"],
     ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
@@ -108,11 +111,14 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
-        if self["certificates-directory"] is None:
-            self["certificates-directory"] = FilePath(os.getcwd())
-        else:
-            self["certificates-directory"] = FilePath(
-                self["certificates-directory"])
+        self["cafile"] = FilePath(self["cafile"])
+        self["cert"] = FilePath(self["cert"])
+        self["key"] = FilePath(self["key"])
+        for credential in ["cafile", "cert", "key"]:
+            if not self[credential].isfile():
+                raise UsageError(
+                    "File " + self[credential].path + " does not exist."
+                )
 
 
 @implementer(ICommandLineScript)
@@ -131,7 +137,7 @@ class DeployScript(object):
                       "deployment": options["deployment_config"]})
 
         treq_client = treq_with_authentication(
-            reactor, options["certificates-directory"])
+            reactor, options["cafile"], options["cert"], options["key"])
         posted = treq_client.post(
             options["url"], data=body,
             headers={b"content-type": b"application/json"},

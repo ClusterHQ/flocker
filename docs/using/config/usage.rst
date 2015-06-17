@@ -44,10 +44,11 @@ To authenticate with the control service, you will need a copy of the public clu
 
 For ``flocker-deploy``, your API user certificate and key should be in files named ``user.crt`` and ``user.key`` and the cluster certificate in file ``cluster.crt``.
 
-By default, ``flocker-deploy`` will look for these certificate files in the current working directory.
-If this is not where the files are located, you may specify the ``--certificates-directory`` option to ``flocker-deploy``:
+By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named ``cluster.crt`` (the public cluster certificate), ``user.crt`` (the API user certificate) and ``user.key`` (the API user's private key).
+
+You can override any of these defaults with the ``--cafile`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
 
 .. code-block:: console
 
-   $ flocker-deploy --certificates-directory=/home/alice/flocker-credentials 172.16.255.250 clusterhq_deployment.yml clusterhq_app.yml
+   $ flocker-deploy --cafile=/home/alice/credentials/mycluster.crt --cert=/home/alice/credentials/alice.crt --key=/home/alice/credentials/alice.key 172.16.255.250 clusterhq_deployment.yml clusterhq_app.yml
 
