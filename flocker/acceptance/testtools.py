@@ -411,7 +411,8 @@ class Cluster(PRecord):
         :param unicode dataset_id: The uuid of the dataset to be modified.
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset update has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -423,8 +424,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method

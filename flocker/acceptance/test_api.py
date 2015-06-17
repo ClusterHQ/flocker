@@ -485,7 +485,7 @@ class DatasetAPITests(TestCase):
 
         # Wait for the dataset to be moved
         waiting_for_move = dataset_moving.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+            lambda dataset: cluster.wait_for_dataset(dataset)
         )
 
         return waiting_for_move
