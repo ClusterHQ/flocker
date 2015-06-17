@@ -7,10 +7,6 @@ FAQ
     :local:
     :backlinks: none
 
-Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.
-
-If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel ``#clusterhq`` or `the Flocker Google group`_.
-
 Functionality
 ~~~~~~~~~~~~~
 
@@ -19,10 +15,10 @@ Which operating systems are supported?
 
 Flocker manages Docker applications and Docker runs on Linux, so Flocker runs on Linux.
 However, you do not need to be running Linux on your development machine in order to manage Docker containers with the ``flocker-cli``.
-See :ref:`installing-flocker-cli` for installation instructions for various operating systems.
+See :ref:`supported-operating-systems` for a list of supported operating systems.
 
 How does Flocker integrate with Kubernetes / Mesos / Deis / CoreOS / my favorite orchestration framework?
-*********************************************************************************************************
+****************************************************************************************************************
 
 .. spelling::
 
@@ -49,20 +45,13 @@ ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize
 ZFS
 ~~~
 
-Flocker uses ZFS in experimental configurations. What about the ZFS licensing issues?
-**************************************************************************************
+What about the ZFS on Linux licensing issues?
+*********************************************
 
 There is a `good write up of the ZFS and Linux license issues`_ on the ZFS on Linux website.
 In short, while ZFS won't be able to make it into mainline Linux proper due to licensing issues, "there is nothing in either license that prevents distributing it in the form of a binary module or in the form of source code."
 
-
-But if ZFS isn't part of mainline Linux proper, it won't benefit from rigorous testing. How do you know it's stable?
-********************************************************************************************************************
-
-Note that Flocker only uses ZFS in experimental configurations.
-ZFS on Linux is already in use in companies and institutions all over the world to the tune of hundreds of petabytes of data.
-We are also rigorously testing ZFS on Linux to make sure it is stable.
-ZFS is production quality code.
+:note: The Flocker ZFS backend is Experimental, and should not be used in a production environment.
 
 .. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
 .. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
