@@ -12,7 +12,8 @@ By providing tools for data migrations, Flocker gives ops teams the tools they n
 
 Unlike a Docker data volume which is tied to a single server, a Flocker data volume, called a dataset, is portable and can be used with any container, no matter where that container is running.
 
-Flocker manages Docker containers and data volumes together. When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
+Flocker manages Docker containers and data volumes together.
+When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
 
