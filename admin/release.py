@@ -928,7 +928,7 @@ class TestRedirectsOptions(Options):
     Arguments for ``test-redirects`` script.
     """
     optParameters = [
-        ["doc-version", None, None,
+        ["doc-version", None, flocker.__version__,
          "The version which the documentation sites are expected to redirect "
          "to.\n"
         ],
@@ -941,9 +941,6 @@ class TestRedirectsOptions(Options):
     environment = Environments.STAGING
 
     def parseArgs(self):
-        if self['doc-version'] is None:
-            self['doc-version'] = get_doc_version(flocker.__version__)
-
         if self['production']:
             self.environment = Environments.PRODUCTION
 
@@ -964,25 +961,25 @@ def test_redirects_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    doc_version = options['doc-version']
+    published_version = get_doc_version(options['doc-version'])
 
     document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
     base_url = 'https://' + document_configuration.cloudfront_cname
 
-    is_dev = not is_release(doc_version)
+    is_dev = not is_release(published_version)
     if is_dev:
         expected_redirects = {
-            '/en/devel': '/en/' + doc_version + '/',
+            '/en/devel': '/en/' + published_version + '/',
             '/en/devel/faq/index.html':
-                '/en/' + doc_version + '/faq/index.html',
+                '/en/' + published_version + '/faq/index.html',
         }
     else:
         expected_redirects = {
-            '/': '/en/' + doc_version + '/',
-            '/en/': '/en/' + doc_version + '/',
-            '/en/latest': '/en/' + doc_version + '/',
+            '/': '/en/' + published_version + '/',
+            '/en/': '/en/' + published_version + '/',
+            '/en/latest': '/en/' + published_version + '/',
             '/en/latest/faq/index.html':
-                '/en/' + doc_version + '/faq/index.html',
+                '/en/' + published_version + '/faq/index.html',
         }
 
     failed_redirects = []

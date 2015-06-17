@@ -2073,9 +2073,3 @@ class TestRedirectsOptionsTests(SynchronousTestCase):
         options = TestRedirectsOptions()
         options.parseOptions(['--production'])
         self.assertEqual(options.environment, Environments.PRODUCTION)
-
-    def test_doc_version_default(self):
-        pass
-
-    def test_custom_doc_version(self):
-        pass
