@@ -498,7 +498,8 @@ class Cluster(PRecord):
 
         :param unicode name: The name of the container to remove.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container removal has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
@@ -507,7 +508,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
