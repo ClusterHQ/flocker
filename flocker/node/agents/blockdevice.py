@@ -212,7 +212,7 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
 
 UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
     u"agent:blockdevice:unmount:details",
-    [VOLUME, BLOCK_DEVICE_PATH],
+    [BLOCK_DEVICE_PATH],
     u"The device file for a block-device-backed dataset has been discovered."
 )
 
@@ -490,7 +490,7 @@ class MountBlockDevice(PRecord):
         volume = _blockdevice_volume_from_datasetid(
             api.list_volumes(), self.dataset_id
         )
-        device = api.get_device_path(volume.blockdevice_id)
+        device = get_device_for_dataset_id(self.dataset_id)
         MOUNT_BLOCK_DEVICE_DETAILS(
             volume=volume, block_device_path=device,
         ).write(_logger)
@@ -551,29 +551,18 @@ class UnmountBlockDevice(PRecord):
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        api = deployer.async_block_device_api
-        listing = api.list_volumes()
-        listing.addCallback(
-            _blockdevice_volume_from_datasetid, self.dataset_id
-        )
+        try:
+            device = get_device_for_dataset_id(self.dataset_id)
+        except KeyError:
+            # It was not actually found.
+            return fail(DatasetWithoutVolume(dataset_id=self.dataset_id))
 
-        def found(volume):
-            if volume is None:
-                # It was not actually found.
-                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-            d = api.get_device_path(volume.blockdevice_id)
-            d.addCallback(lambda device: (volume, device))
-            return d
-        listing.addCallback(found)
-
-        def got_device((volume, device)):
-            UNMOUNT_BLOCK_DEVICE_DETAILS(
-                volume=volume, block_device_path=device
-            ).write(_logger)
-            # This should be asynchronous. FLOC-1797
-            check_output([b"umount", device.path])
-        listing.addCallback(got_device)
-        return listing
+        UNMOUNT_BLOCK_DEVICE_DETAILS(
+            block_device_path=device
+        ).write(_logger)
+        # This should be asynchronous. FLOC-1797
+        check_output([b"umount", device.path])
+        return succeed(None)
 
 
 @implementer(IStateChange)
@@ -1492,7 +1481,34 @@ class BlockDeviceDeployer(PRecord):
             dataset_id = volume.dataset_id
             u_dataset_id = unicode(dataset_id)
             if volume.attached_to == compute_instance_id:
-                device_path = api.get_device_path(volume.blockdevice_id)
+                try:
+                    device_path = get_device_for_dataset_id(volume.dataset_id)
+                except KeyError:
+                    # There is a volume attached to this instance which claims
+                    # to be associated with a particular dataset id.  However,
+                    # we we failed to determine what OS device is associated
+                    # with that attached volume.
+                    #
+                    # This could be because it is a 1.0.0 filesystem lacking a
+                    # UUID.  In this case, upgrade it by adding the UUID.
+                    # FLOC-2376.
+                    #
+                    # This could be because it has no filesystem on it at all,
+                    # perhaps because the system failed between
+                    # creating/attaching the volume and initializing it with a
+                    # filesystem.  In this case, we will in the future
+                    # initialize it with a filesystem (but we still don't know
+                    # which device it is - if the IBlockDeviceAPI
+                    # implementation is good, call get_device_path; if it is
+                    # bad, detach it, re-attach it, see what OS device appears
+                    # as a result; put a filesystem on it with good metadata).
+
+                    # Later this might be an invalid use of the API because
+                    # we're not going to require get_device_path to work if the
+                    # volume wasn't attached earlier in this process.
+                    # FLOC-2372.
+                    device_path = api.get_device_path(volume.blockdevice_id)
+
                 if is_existing_block_device(dataset_id, device_path):
                     devices[dataset_id] = device_path
                     manifestations[u_dataset_id] = _manifestation_from_volume(
