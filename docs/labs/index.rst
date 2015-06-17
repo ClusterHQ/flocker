@@ -21,13 +21,17 @@ We're working on a bunch of stuff, but this is the main picture:
 really short ``asciicinema`` of ...
 https://github.com/ClusterHQ/unofficial-flocker-tools/blob/prototype-volumes-cli/design.md
 
+---
+
+Also check out https://plugin-demos-2015.github.io/ for a complete pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker.
+
 .. toctree::
    docker-plugin
    installer
    volumes-cli
    volumes-gui
    weave
-   mesosphere
    swarm
    compose
+   mesosphere
    kubernetes
