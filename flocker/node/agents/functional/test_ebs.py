@@ -14,8 +14,8 @@ from boto.exception import EC2ResponseError
 from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
 
-from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
-                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume)
+from ..ebs import _wait_for_volume, BOTO_EC2RESPONSE_ERROR
+from ..blockdevice import InformationUnavailable
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
@@ -89,27 +89,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         self.assert_foreign_volume(flocker_volume)
 
-    def test_attached_volume_missing_device_tag(self):
-        """
-        Test that missing ATTACHED_DEVICE_LABEL on an EBS
-        volume causes `UnattacheVolume` while attempting
-        `get_device_path()`.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.attach_volume(
-            volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-        self.api.connection.delete_tags([volume.blockdevice_id],
-                                        [ATTACHED_DEVICE_LABEL])
-
-        self.assertRaises(UnattachedVolume, self.api.get_device_path,
-                          volume.blockdevice_id)
-
     @capture_logging(lambda self, logger: None)
     def test_boto_ec2response_error(self, logger):
         """
@@ -176,3 +155,23 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+    def test_device_path_information_unavailable(self):
+        """
+        If ``get_device_path`` doesn't have the OS device path for an attached
+        volume cached then it raises ``InformationUnavailable``.
+        """
+        # Create and attach the volume using a second instance so that the
+        # first one can't have anything in its cache.
+        another_api = self.blockdevice_api_factory(test_case=self)
+        volume = another_api.create_volume(
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
+        )
+        another_api.attach_volume(
+            volume.blockdevice_id, another_api.compute_instance_id()
+        )
+        exception = self.assertRaises(
+            InformationUnavailable,
+            self.api.get_device_path, volume.blockdevice_id,
+        )
+        self.assertEqual(volume.blockdevice_id, exception.blockdevice_id)

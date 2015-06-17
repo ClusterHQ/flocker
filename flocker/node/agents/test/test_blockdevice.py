@@ -59,6 +59,7 @@ from ..blockdevice import (
     _backing_file_name,
     ProcessLifetimeCache,
     FilesystemExists,
+    InformationUnavailable,
 )
 
 from ... import run_state_change, in_parallel
@@ -1752,19 +1753,43 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_get_device_path_unattached_volume(self):
         """
-        ``get_device_path`` raises ``UnattachedVolume`` if the supplied
-        ``blockdevice_id`` corresponds to an unattached volume.
+        ``get_device_path`` raises ``UnattachedVolume`` or
+        ``InformationUnavailable`` if the supplied ``blockdevice_id``
+        corresponds to an unattached volume.
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size
         )
         exception = self.assertRaises(
-            UnattachedVolume,
+            (UnattachedVolume, InformationUnavailable),
             self.api.get_device_path,
             new_volume.blockdevice_id
         )
         self.assertEqual(new_volume.blockdevice_id, exception.blockdevice_id)
+
+    def test_get_device_path_detached_volume(self):
+        """
+        ``get_device_path`` raises ``UnattachedVolume`` or
+        ``InformationUnavailable`` if the supplied ``blockdevice_id``
+        corresponds to a volume that was attached to the node but has been
+        detached from it.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size
+        )
+        self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        self.api.detach_volume(volume.blockdevice_id)
+        exception = self.assertRaises(
+            (UnattachedVolume, InformationUnavailable),
+            self.api.get_device_path,
+            volume.blockdevice_id,
+        )
+        self.assertEqual(volume.blockdevice_id, exception.blockdevice_id)
 
     def test_get_device_path_device(self):
         """
@@ -2018,6 +2043,7 @@ def make_iblockdeviceapi_tests(
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
+            self.blockdevice_api_factory = blockdevice_api_factory
             self.api = blockdevice_api_factory(test_case=self)
             self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
             check_allocatable_size(
