@@ -551,9 +551,8 @@ class Cluster(PRecord):
         :param dict container_properties: The attributes of the container that
             we're waiting for. All the keys, values and those of nested
             dictionaries must match.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a container with the supplied properties appears
-            in the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            container with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -571,7 +570,7 @@ class Cluster(PRecord):
                         for item in expected_container.items()
                     ]):
                         # Return cluster and container state
-                        return self, container
+                        return container
                 return False
             request.addCallback(got_response)
             return request

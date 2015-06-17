@@ -133,8 +133,7 @@ class DeploymentTests(TestCase):
         waiting_for_container_1 = cluster.wait_for_container(
             expected_container_1)
 
-        def got_container_1(result):
-            cluster, actual_container = result
+        def got_container_1(actual_container):
             self.assertTrue(actual_container['running'])
             waiting_for_dataset = cluster.wait_for_dataset(
                 {
@@ -160,8 +159,7 @@ class DeploymentTests(TestCase):
         waiting_for_container_2 = waiting_for_container_1.addCallback(
             got_container_1)
 
-        def got_container_2(result):
-            cluster, actual_container = result
+        def got_container_2(actual_container):
             waiting_for_dataset = cluster.wait_for_dataset(
                 {
                     u"dataset_id": mongo_dataset_id,
