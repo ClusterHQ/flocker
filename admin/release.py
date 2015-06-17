@@ -945,26 +945,19 @@ class TestRedirectsOptions(Options):
             self.environment = Environments.PRODUCTION
 
 
-def test_redirects_main(args, base_path, top_level):
+def get_expected_redirects(flocker_version):
     """
-    Tests redirects to Flocker documentation.
+    Get the expected redirects for a given version of Flocker, if that version
+    has been published successfully. Documentation versions (e.g. 0.3.0+doc2)
+    are published to their release version counterparts (e.g. 0.3.0).
 
-    :param list args: The arguments passed to the script.
-    :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
+    :param bytes flocker_version: The version of Flocker for which to get
+        expected redirects.
+
+    :return: Dictionary mapping paths to the path to which they are expected to
+        redirect.
     """
-    options = TestRedirectsOptions()
-
-    try:
-        options.parseOptions(args)
-    except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
-
-    published_version = get_doc_version(options['doc-version'])
-
-    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
-    base_url = 'https://' + document_configuration.cloudfront_cname
+    published_version = get_doc_version(flocker_version)
 
     is_dev = not is_release(published_version)
     if is_dev:
@@ -981,6 +974,29 @@ def test_redirects_main(args, base_path, top_level):
             '/en/latest/faq/index.html':
                 '/en/' + published_version + '/faq/index.html',
         }
+
+    return expected_redirects
+
+def test_redirects_main(args, base_path, top_level):
+    """
+    Tests redirects to Flocker documentation.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = TestRedirectsOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    expected_redirects = get_expected_redirects(
+        flocker_version=options['doc-version'])
+    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
+    base_url = 'https://' + document_configuration.cloudfront_cname
 
     failed_redirects = []
 

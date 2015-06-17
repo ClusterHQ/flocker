@@ -2059,17 +2059,38 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
 
+class GetExpectedRedirectsTests(SynchronousTestCase):
+    """
+    Tests for :func:`get_expected_redirects`.
+    """
+
+    def test_marketing_release(self):
+        pass
+
+    def test_development_release(self):
+        pass
+
+    def test_documentation_release(self):
+        pass
+
+
 class TestRedirectsOptionsTests(SynchronousTestCase):
     """
     Tests for :class:`TestRedirectsOptions`.
     """
 
     def test_default_environment(self):
+        """
+        The default environment is a staging environment.
+        """
         options = TestRedirectsOptions()
         options.parseOptions([])
         self.assertEqual(options.environment, Environments.STAGING)
 
     def test_production_environment(self):
+        """
+        If "--production" is passed, a production environment is used.
+        """
         options = TestRedirectsOptions()
         options.parseOptions(['--production'])
         self.assertEqual(options.environment, Environments.PRODUCTION)
