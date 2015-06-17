@@ -45,13 +45,14 @@ ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize
 ZFS
 ~~~
 
+.. note:: The Flocker ZFS backend is Experimental, and should not be used in a production environment.
+
 What about the ZFS on Linux licensing issues?
 *********************************************
 
-There is a `good write up of the ZFS and Linux license issues`_ on the ZFS on Linux website.
+There is a good write up of the ZFS and Linux license issues on the `ZFS on Linux website`_.
+
 In short, while ZFS won't be able to make it into mainline Linux proper due to licensing issues, "there is nothing in either license that prevents distributing it in the form of a binary module or in the form of source code."
 
-.. note:: The Flocker ZFS backend is Experimental, and should not be used in a production environment.
-
-.. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
+.. _ZFS on Linux website: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
 .. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
