@@ -1188,9 +1188,9 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
     )
     def test_mounted_ext4_uuid(self, logger):
         """
-        When it discovers a mounted ext4 filesystem that is missing the dataset
-        identifier in their UUID field, ``BlockDeviceDeployer.discover_state``
-        adds the UUID.
+        ``BlockDeviceDeployer.discover_state`` considers mounted filesystems to
+        represent a manifestation of some dataset even if the filesystem is
+        missing the dataset identifier in its UUID field.
         """
         self._upgrade_ext4_uuid_test(mounted=True, upgraded=False)
 
