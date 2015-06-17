@@ -376,7 +376,7 @@ class UserCredential(PRecord):
         # except when we write the files, so for now we can set this to the
         # directory of the certificate path.
         # FlockerCredential should be modified to not work like this though.
-        # See FLOC-XXX
+        # See FLOC-2414
         credential = FlockerCredential(
             path=certificate_path.parent(),
             keypair=keypair,
