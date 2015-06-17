@@ -47,7 +47,7 @@ class RunTests(TestCase):
              CommandProtocol])
 
     @capture_logging(
-        assertHasMessage, RUN_OUTPUT_MESSAGE, {'line': 'hello'})
+        assertHasMessage, RUN_OUTPUT_MESSAGE, {'line': 'hello:test_runner.py'})
     def test_writes_output(self, logger):
         """
         Output of the spawned process is written to standard output.
@@ -55,7 +55,7 @@ class RunTests(TestCase):
         reactor = ProcessCoreReactor()
         run(reactor, ['command', 'and', 'args'])
         [process] = reactor.processes
-        process.processProtocol.childDataReceived(1, "hello\n")
+        process.processProtocol.childDataReceived(1, "hello:test_runner.py\n")
 
     def test_registers_killer(self):
         """

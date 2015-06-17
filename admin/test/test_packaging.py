@@ -27,7 +27,7 @@ from ..packaging import (
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
-    make_dependencies,
+    make_dependencies, available_distributions,
     LintPackage,
 )
 from flocker.common.version import RPMVersion
@@ -841,16 +841,9 @@ class OmnibusPackageBuilderTests(TestCase):
             expected_package_type=PackageTypes.DEB,
         )
 
-    def test_fedora_20(self):
-        self.assert_omnibus_steps(
-            distribution=Distribution(name='fedora', version='20'),
-            expected_category='Applications/System',
-            expected_package_type=PackageTypes.RPM,
-        )
-
     def assert_omnibus_steps(
             self,
-            distribution=Distribution(name='fedora', version='20'),
+            distribution=Distribution(name='centos', version='7'),
             expected_category='Applications/System',
             expected_package_type=PackageTypes.RPM,
             ):
@@ -1163,6 +1156,8 @@ class BuildOptionsTests(TestCase):
     Tests for ``BuildOptions``.
     """
 
+    DISTROS = [u"greatos"]
+
     def test_defaults(self):
         """
         ``BuildOptions`` destination path defaults to the current working
@@ -1172,14 +1167,28 @@ class BuildOptionsTests(TestCase):
             'destination-path': '.',
             'distribution': None,
         }
-        self.assertEqual(expected_defaults, BuildOptions())
+        self.assertEqual(expected_defaults, BuildOptions([]))
+
+    def test_possible_distributions(self):
+        """
+        ``BuildOptions`` offers as possible distributions all of the names
+        passed to its initializer.
+        """
+        options = BuildOptions([b"greatos", b"betteros"])
+        description = options.docs["distribution"]
+        self.assertNotIn(
+            -1,
+            (description.find(b"greatos"), description.find(b"betteros")),
+            "Supplied distribution names, greatos and betteros, not found in "
+            "--distribution parameter definition: {}".format(description)
+        )
 
     def test_distribution_missing(self):
         """
         ``BuildOptions.parseOptions`` raises ``UsageError`` if
         ``--distribution`` is not supplied.
         """
-        options = BuildOptions()
+        options = BuildOptions(self.DISTROS)
         self.assertRaises(
             UsageError,
             options.parseOptions,
@@ -1191,7 +1200,7 @@ class BuildOptionsTests(TestCase):
         the URI of the Python package which is being packaged.
         """
         exception = self.assertRaises(
-            UsageError, BuildOptions().parseOptions, [])
+            UsageError, BuildOptions(self.DISTROS).parseOptions, [])
         self.assertEqual('Wrong number of arguments.', str(exception))
 
     def test_package_options_supplied(self):
@@ -1200,13 +1209,41 @@ class BuildOptionsTests(TestCase):
         """
         expected_uri = 'http://www.example.com/foo-bar.whl'
         expected_distribution = 'ubuntu1404'
-        options = BuildOptions()
+        options = BuildOptions(self.DISTROS + [expected_distribution])
         options.parseOptions(
             ['--distribution', expected_distribution, expected_uri])
 
         self.assertEqual(
             (expected_distribution, expected_uri),
             (options['distribution'], options['package-uri'])
+        )
+
+
+class AvailableDistributionTests(TestCase):
+    """
+    Tests for ``available_distributions``.
+    """
+    def test_dockerfiles(self):
+        """
+        Directories in the ``admin/build_targets/`` sub-directory of the path
+        passed to ``available_distributions`` which themselves contain a
+        ``Dockerfile`` are considered distributions and included in the result.
+        """
+        root = FilePath(self.mktemp())
+        build_targets = root.descendant([b"admin", b"build_targets"])
+        build_targets.makedirs()
+        build_targets.child(b"foo").setContent(b"bar")
+        greatos = build_targets.child(b"greatos")
+        greatos.makedirs()
+        greatos.child(b"Dockerfile").setContent(
+            b"MAINTAINER example@example.invalid\n"
+        )
+        nothing = build_targets.child(b"nothing")
+        nothing.makedirs()
+
+        self.assertEqual(
+            {b"greatos"},
+            available_distributions(root),
         )
 
 
@@ -1221,7 +1258,9 @@ class BuildScriptTests(TestCase):
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = BuildScript(sys_module=fake_sys_module)
-        exception = self.assertRaises(SystemExit, script.main)
+        exception = self.assertRaises(
+            SystemExit,
+            script.main, top_level=FLOCKER_PATH)
         self.assertEqual(1, exception.code)
 
     def test_usage_error_message(self):
@@ -1231,8 +1270,9 @@ class BuildScriptTests(TestCase):
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = BuildScript(sys_module=fake_sys_module)
+
         try:
-            script.main()
+            script.main(top_level=FLOCKER_PATH)
         except SystemExit:
             pass
         self.assertEqual(
@@ -1269,13 +1309,13 @@ class BuildScriptTests(TestCase):
             arguments.append((args, kwargs))
             return build_step
         script.build_command = record_arguments
-        script.main()
+        script.main(top_level=FLOCKER_PATH)
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
                  distribution=expected_distribution,
                  package_uri=expected_package_uri,
-                 top_level=None)
+                 top_level=FLOCKER_PATH)
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
@@ -1323,7 +1363,7 @@ class BuildInDockerFunctionTests(TestCase):
                 destination_path=supplied_destination_path,
                 distribution=supplied_distribution,
                 top_level=supplied_top_level,
-                package_uri=expected_package_uri
+                package_uri=expected_package_uri,
             )
         )
 
@@ -1371,7 +1411,7 @@ class MakeDependenciesTests(TestCase):
                 version=expected_version
             ),
             make_dependencies('node', expected_version,
-                              Distribution(name='fedora', version='20'))
+                              Distribution(name='centos', version='7'))
         )
 
     def test_cli(self):
@@ -1387,5 +1427,5 @@ class MakeDependenciesTests(TestCase):
                 version=expected_version
             ),
             make_dependencies('cli', expected_version,
-                              Distribution(name='fedora', version='20'))
+                              Distribution(name='centos', version='7'))
         )

@@ -16,9 +16,8 @@ from flocker.control import (
     )
 from flocker.testtools import loop_until
 
-from .testtools import (assert_expected_deployment, flocker_deploy,
-                        get_clean_nodes, require_flocker_cli,
-                        require_moving_backend)
+from .testtools import (require_cluster,
+                        require_flocker_cli, require_moving_backend)
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE
 
@@ -36,98 +35,103 @@ POSTGRES_APPLICATION_NAME = u"postgres-volume-example"
 POSTGRES_IMAGE = u"postgres"
 POSTGRES_VOLUME_MOUNTPOINT = u'/var/lib/postgresql/data'
 
-POSTGRES_APPLICATION = Application(
-    name=POSTGRES_APPLICATION_NAME,
-    image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
-    ports=frozenset([
-        Port(internal_port=POSTGRES_INTERNAL_PORT,
-             external_port=POSTGRES_EXTERNAL_PORT),
-        ]),
-    volume=AttachedVolume(
-        manifestation=Manifestation(
-            dataset=Dataset(
-                dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
-                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
-            primary=True),
-        mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
-    ),
-)
-
 
 class PostgresTests(TestCase):
     """
     Tests for running and managing PostgreSQL with Flocker.
     """
     @require_flocker_cli
-    def setUp(self):
+    @require_cluster(2)
+    def setUp(self, cluster):
         """
         Deploy PostgreSQL to a node.
         """
-        getting_nodes = get_clean_nodes(self, num_nodes=2)
+        self.cluster = cluster
 
-        def deploy_postgres(node_ips):
-            self.node_1, self.node_2 = node_ips
+        self.node_1, self.node_2 = cluster.nodes
 
-            postgres_deployment = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [POSTGRES_APPLICATION_NAME],
-                    self.node_2: [],
-                },
-            }
+        new_dataset_id = unicode(uuid4())
 
-            self.postgres_deployment_moved = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [],
-                    self.node_2: [POSTGRES_APPLICATION_NAME],
-                },
-            }
+        self.POSTGRES_APPLICATION = Application(
+            name=POSTGRES_APPLICATION_NAME,
+            image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
+            ports=frozenset([
+                Port(internal_port=POSTGRES_INTERNAL_PORT,
+                     external_port=POSTGRES_EXTERNAL_PORT),
+                ]),
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(
+                        dataset_id=new_dataset_id,
+                        metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
+                    primary=True),
+                mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
+            ),
+        )
 
-            self.postgres_application = {
-                u"version": 1,
-                u"applications": {
-                    POSTGRES_APPLICATION_NAME: {
-                        u"image": POSTGRES_IMAGE,
-                        u"ports": [{
-                            u"internal": POSTGRES_INTERNAL_PORT,
-                            u"external": POSTGRES_EXTERNAL_PORT,
-                        }],
-                        u"volume": {
-                            u"dataset_id":
-                                POSTGRES_APPLICATION.volume.dataset.dataset_id,
-                            # The location within the container where the data
-                            # volume will be mounted; see:
-                            # https://github.com/docker-library/postgres/blob/
-                            # docker/Dockerfile.template
-                            u"mountpoint": POSTGRES_VOLUME_MOUNTPOINT,
-                            u"maximum_size":
-                                "%d" % (REALISTIC_BLOCKDEVICE_SIZE,),
-                        },
+        self.postgres_deployment = {
+            u"version": 1,
+            u"nodes": {
+                self.node_1.reported_hostname: [POSTGRES_APPLICATION_NAME],
+                self.node_2.reported_hostname: [],
+            },
+        }
+
+        self.postgres_deployment_moved = {
+            u"version": 1,
+            u"nodes": {
+                self.node_1.reported_hostname: [],
+                self.node_2.reported_hostname: [POSTGRES_APPLICATION_NAME],
+            },
+        }
+
+        self.postgres_application = {
+            u"version": 1,
+            u"applications": {
+                POSTGRES_APPLICATION_NAME: {
+                    u"image": POSTGRES_IMAGE,
+                    u"ports": [{
+                        u"internal": POSTGRES_INTERNAL_PORT,
+                        u"external": POSTGRES_EXTERNAL_PORT,
+                    }],
+                    u"volume": {
+                        u"dataset_id": new_dataset_id,
+                        # The location within the container where the data
+                        # volume will be mounted; see:
+                        # https://github.com/docker-library/postgres/blob/
+                        # docker/Dockerfile.template
+                        u"mountpoint": POSTGRES_VOLUME_MOUNTPOINT,
+                        u"maximum_size":
+                            "%d" % (REALISTIC_BLOCKDEVICE_SIZE,),
                     },
                 },
-            }
+            },
+        }
 
-            self.postgres_application_different_port = thaw(freeze(
-                self.postgres_application).transform(
-                    [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
-                     u"external"], POSTGRES_EXTERNAL_PORT + 1))
+        self.postgres_application_different_port = thaw(freeze(
+            self.postgres_application).transform(
+                [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
+                 u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
-            flocker_deploy(self, postgres_deployment,
-                           self.postgres_application)
-
-        getting_nodes.addCallback(deploy_postgres)
-        return getting_nodes
+        cluster.flocker_deploy(
+            self, self.postgres_deployment, self.postgres_application
+        )
+        # We're only testing movement if we actually wait for Postgres to
+        # be running before proceeding with test:
+        return self.cluster.assert_expected_deployment(self, {
+            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
+            self.node_2.reported_hostname: set([]),
+        })
 
     def test_deploy(self):
         """
         Verify that Docker reports that PostgreSQL is running on one node and
         not another.
         """
-        return assert_expected_deployment(self, {
-            self.node_1: set([POSTGRES_APPLICATION]),
-            self.node_2: set([]),
+        return self.cluster.assert_expected_deployment(self, {
+            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
+            self.node_2.reported_hostname: set([]),
         })
 
     @require_moving_backend
@@ -135,12 +139,12 @@ class PostgresTests(TestCase):
         """
         It is possible to move PostgreSQL to a new node.
         """
-        flocker_deploy(self, self.postgres_deployment_moved,
-                       self.postgres_application)
+        self.cluster.flocker_deploy(
+            self, self.postgres_deployment_moved, self.postgres_application)
 
-        return assert_expected_deployment(self, {
-            self.node_1: set([]),
-            self.node_2: set([POSTGRES_APPLICATION]),
+        return self.cluster.assert_expected_deployment(self, {
+            self.node_1.reported_hostname: set([]),
+            self.node_2.reported_hostname: set([self.POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):
@@ -174,7 +178,7 @@ class PostgresTests(TestCase):
         user = b'postgres'
 
         connecting_to_application = self._get_postgres_connection(
-            host=self.node_1,
+            host=self.node_1.public_address,
             user=user,
             port=POSTGRES_EXTERNAL_PORT,
         )
@@ -190,7 +194,7 @@ class PostgresTests(TestCase):
 
         def connect_to_database(ignored):
             return self._get_postgres_connection(
-                host=self.node_1,
+                host=self.node_1.public_address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT,
                 database=database,
@@ -219,11 +223,12 @@ class PostgresTests(TestCase):
             Move PostgreSQL to ``node_2`` and return a ``Deferred`` which fires
             with a connection to the previously created database on ``node_2``.
             """
-            flocker_deploy(self, self.postgres_deployment_moved,
-                           self.postgres_application_different_port)
+            self.cluster.flocker_deploy(
+                self, self.postgres_deployment_moved,
+                self.postgres_application_different_port)
 
             return self._get_postgres_connection(
-                host=self.node_2,
+                host=self.node_2.public_address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT + 1,
                 database=database,

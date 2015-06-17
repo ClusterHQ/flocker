@@ -18,7 +18,7 @@ from zope.interface import Interface, Attribute, implementer
 
 from pyrsistent import PVector, PRecord, pvector, field
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import maybeDeferred, succeed
 
 from eliot.twisted import DeferredContext
 
@@ -85,7 +85,7 @@ def run_state_change(change, deployer):
         return d
 
     with change.eliot_action.context():
-        context = DeferredContext(change.run(deployer))
+        context = DeferredContext(maybeDeferred(change.run, deployer))
         context.addActionFinish()
         return context.result
 

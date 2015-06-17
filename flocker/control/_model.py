@@ -17,6 +17,7 @@ There are different categories of classes:
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
+from datetime import datetime
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
@@ -600,7 +601,7 @@ class DatasetHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating", "resizing", "deleting"])
+@attributes(["going", "creating", "resizing", "deleting"])
 class DatasetChanges(object):
     """
     The dataset-related changes necessary to change the current state to
@@ -609,10 +610,6 @@ class DatasetChanges(object):
     :ivar frozenset going: The ``DatasetHandoff``\ s necessary to let
         other nodes take over hosting datasets being moved away from a
         node.  These must be handed off.
-
-    :ivar frozenset coming: The ``Dataset``\ s necessary to let this
-        node take over hosting of any datasets being moved to
-        this node.  These must be acquired.
 
     :ivar frozenset creating: The ``Dataset``\ s necessary to let this
         node create any new datasets meant to be hosted on
@@ -687,6 +684,44 @@ class IClusterStateWipe(Interface):
         """
 
 
+class IClusterStateSource(Interface):
+    """
+    Represents where some cluster state (``IClusterStateChange``) came from.
+    This is presently used for activity/inactivity tracking to inform change
+    wiping.
+    """
+    def last_activity():
+        """
+        :return: The point in time at which the last activity was observed from
+            this source.
+        :rtype: ``datetime.datetime`` (in UTC)
+        """
+
+
+@implementer(IClusterStateSource)
+class ChangeSource(object):
+    """
+    An ``IClusterStateSource`` which reports whatever time it was last told to
+    report.
+
+    :ivar float _last_activity: Recorded activity time.
+    """
+    def __init__(self):
+        self.set_last_activity(0)
+
+    def set_last_activity(self, since_epoch):
+        """
+        Set the time of the last activity.
+
+        :param float since_epoch: Number of seconds since the epoch at which
+            point the activity occurred.
+        """
+        self._last_activity = since_epoch
+
+    def last_activity(self):
+        return datetime.utcfromtimestamp(self._last_activity)
+
+
 def ip_to_uuid(ip):
     """
     Deterministically convert IP to UUID.
@@ -708,17 +743,18 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this
-        node, or ``None`` if the information is not known.
-    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
-        in use (by anything) on this node.
-    :ivar PMap manifestations: Mapping between dataset IDs and
-        corresponding ``Manifestation`` instances that are present on the
-        node. Includes both those attached as volumes to any applications,
-        and those that are unattached. ``None`` if this information is
-        unknown.
-    :ivar PMap paths: The filesystem paths of the manifestations on this
-        node. Maps ``dataset_id`` to a ``FilePath``.
+    :ivar applications: A ``PSet`` of ``Application`` instances on this node,
+        or ``None`` if the information is not known.
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers in
+        use (by anything) on this node.
+    :ivar PMap manifestations: Mapping between dataset IDs and corresponding
+        ``Manifestation`` instances that are present on the node.  Includes
+        both those attached as volumes to any applications, and those that are
+        unattached.  ``None`` if this information is unknown.
+    :ivar PMap paths: The filesystem paths of the manifestations on this node.
+        Maps ``dataset_id`` to a ``FilePath``.
+    :ivar PMap devices: The OS devices by which datasets are made manifest.
+        Maps ``dataset_id`` (as a ``UUID``) to a ``FilePath``.
     """
     # Attributes that may be set to None to indicate ignorance:
     _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
@@ -852,14 +888,15 @@ class DeploymentState(PRecord):
         """
         Create new ``DeploymentState`` based on this one which updates an
         existing ``NodeState`` with any known information from the given
-        ``NodeState``. Attributes which are set to ``None` on the given
+        ``NodeState``.  Attributes which are set to ``None` on the given
         update, indicating ignorance, will not be changed in the result.
 
-        The given ``NodeState`` will simply be added if no existing ones
-        have matching hostname.
+        The given ``NodeState`` will simply be added if it doesn't represent a
+        node that is already part of the ``DeploymentState`` (based on UUID
+        comparison).
 
-        :param NodeState node: An update for ``NodeState`` with same
-             hostname in this ``DeploymentState``.
+        :param NodeState node: An update for ``NodeState`` with same UUID in
+            this ``DeploymentState``.
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
@@ -874,6 +911,21 @@ class DeploymentState(PRecord):
         return self.set(
             "nodes", self.nodes.discard(original_node).add(
                 updated_node.persistent()))
+
+    def all_datasets(self):
+        """
+        :returns: A generator of 2-tuple(``Dataset``, ``Nodestate`` or
+            ``None``) for all the primary manifest datasets and non-manifest
+            datasets in the ``DeploymentState``.
+        """
+        for node in self.nodes:
+            if node.manifestations is None:
+                continue
+            for manifestation in node.manifestations.values():
+                if manifestation.primary:
+                    yield manifestation.dataset, node
+        for dataset in self.nonmanifest_datasets.values():
+            yield dataset, None
 
 
 @implementer(IClusterStateChange)

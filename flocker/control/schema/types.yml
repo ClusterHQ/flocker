@@ -280,4 +280,3 @@ definitions:
       primary:
         '$ref': '#/definitions/primary'
     additionalProperties: false
-

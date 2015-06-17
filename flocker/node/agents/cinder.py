@@ -9,25 +9,36 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message, MessageType, Field, start_action
+from eliot import Message
 
 from pyrsistent import PRecord, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
+    HttpError as KeystoneHttpError,
 )
+from keystoneclient.auth import get_plugin_class
+from keystoneclient.session import Session
+from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from cinderclient.client import Client as CinderClient
+from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
+from novaclient.exceptions import ClientException as NovaClientException
 
 from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
 from ...common import (
-    auto_openstack_logging, get_all_ips, ipaddress_from_string
+    interface_decorator, get_all_ips, ipaddress_from_string
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
+)
+from ._logging import (
+    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
+    OPENSTACK_ACTION, CINDER_CREATE
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -38,23 +49,76 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-LOCAL_IPS = Field(
-    u"local_ips",
-    repr,
-    u"The IP addresses found on the target node."
-)
 
-API_IPS = Field(
-    u"api_ips",
-    repr,
-    u"The IP addresses and instance_ids for all nodes."
-)
+def _openstack_logged_method(method_name, original_name):
+    """
+    Run a method and log additional information about any exceptions that are
+    raised.
 
-COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
-    u"blockdevice:cinder:compute_instance_id:not_found",
-    [LOCAL_IPS, API_IPS],
-    u"Unable to determine the instance ID of this node.",
-)
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
+        with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except NovaClientException as e:
+                NOVA_CLIENT_EXCEPTION(
+                    code=e.code,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                ).write()
+                raise
+            except KeystoneHttpError as e:
+                KEYSTONE_HTTP_ERROR(
+                    code=e.http_status,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                    response=e.response.text,
+                ).write()
+                raise
+    return _run_with_logging
+
+
+def auto_openstack_logging(interface, original):
+    """
+    Create a class decorator which will add OpenStack-specific exception
+    logging versions versions of all of the methods on ``interface``.
+    Specifically, some Nova and Cinder client exceptions will have all of their
+    details logged any time they are raised.
+
+    :param zope.interface.InterfaceClass interface: The interface from which to
+        take methods.
+    :param str original: The name of an attribute on instances of the decorated
+        class.  The attribute should refer to a provider of ``interface``.
+        That object will have all of its methods called with additional
+        exception logging to make more details of the underlying OpenStack API
+        calls available.
+
+    :return: The class decorator.
+    """
+    return interface_decorator(
+        "auto_openstack_logging",
+        interface,
+        _openstack_logged_method,
+        original,
+    )
 
 
 class ICinderVolumeManager(Interface):
@@ -192,7 +256,7 @@ def wait_for_volume(volume_manager, expected_volume,
 
         elapsed_time = time.time() - start_time
         if elapsed_time < time_limit:
-            time.sleep(0.1)
+            time.sleep(1.0)
         else:
             raise Exception(
                 'Timed out while waiting for volume. '
@@ -264,22 +328,35 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Find the Nova API server with a subset of the IPv4 and IPv6
+        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
         addresses on this node.
         """
         local_ips = get_all_ips()
         api_ip_map = {}
+        matching_instances = []
         for server in self.nova_server_manager.list():
+            # Servers which are not active will not have any IP addresses
+            if server.status != u'ACTIVE':
+                continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            if api_addresses.issubset(local_ips):
-                return server.id
+            # Only do subset comparison if there were *some* IP addresses;
+            # non-ACTIVE servers will have an empty list of IP addresses and
+            # lead to incorrect matches.
+            if api_addresses and api_addresses.issubset(local_ips):
+                matching_instances.append(server.id)
             else:
                 for ip in api_addresses:
                     api_ip_map[ip] = server.id
 
-        # If there was no match, log an error containing all the local
-        # and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
+        # If we've got this correct there should only be one matching instance.
+        # But we don't currently test this directly. See FLOC-2281.
+        if len(matching_instances) == 1:
+            return matching_instances[0]
+        # If there was no match, or if multiple matches were found, log an
+        # error containing all the local and remote IPs.
+        COMPUTE_INSTANCE_ID_NOT_FOUND(
+            local_ips=local_ips, api_ips=api_ip_map
+        ).write()
 
     def create_volume(self, dataset_id, size):
         """
@@ -294,17 +371,16 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        action_type = u"blockdevice:cinder:create_volume"
-        with start_action(action_type=action_type):
-            requested_volume = self.cinder_volume_manager.create(
-                size=int(Byte(size).to_GiB().value),
-                metadata=metadata,
-            )
-            Message.new(blockdevice_id=requested_volume.id).write()
-            created_volume = wait_for_volume(
-                volume_manager=self.cinder_volume_manager,
-                expected_volume=requested_volume,
-            )
+        requested_volume = self.cinder_volume_manager.create(
+            size=int(Byte(size).to_GiB().value),
+            metadata=metadata,
+        )
+        Message.new(message_type=CINDER_CREATE,
+                    blockdevice_id=requested_volume.id).write()
+        created_volume = wait_for_volume(
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=requested_volume,
+        )
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=created_volume,
         )
@@ -326,9 +402,6 @@ class CinderBlockDeviceAPI(object):
                 )
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
-
-    def resize_volume(self, blockdevice_id, size):
-        pass
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -397,6 +470,7 @@ class CinderBlockDeviceAPI(object):
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 break
+            time.sleep(1.0)
 
     def get_device_path(self, blockdevice_id):
         try:
@@ -495,5 +569,57 @@ def cinder_api(cinder_client, nova_client, cluster_id):
         cinder_volume_manager=logging_cinder,
         nova_volume_manager=logging_nova_volume_manager,
         nova_server_manager=logging_nova_server_manager,
+        cluster_id=cluster_id,
+    )
+
+
+def _openstack_auth_from_config(auth_plugin='password', **config):
+    """
+    Create an OpenStack authentication plugin from the given configuration.
+
+    :param str auth_plugin: The name of the authentication plugin to create.
+    :param config: Parameters to supply to the authentication plugin.  The
+        exact parameters depends on the authentication plugin selected.
+
+    :return: The authentication object.
+    """
+    if auth_plugin == 'rackspace':
+        plugin_class = RackspaceAuth
+    else:
+        plugin_class = get_plugin_class(auth_plugin)
+
+    plugin_options = plugin_class.get_options()
+    plugin_kwargs = {}
+    for option in plugin_options:
+        # option.dest is the python compatible attribute name in the plugin
+        # implementation.
+        # option.dest is option.name with hyphens replaced with underscores.
+        if option.dest in config:
+            plugin_kwargs[option.dest] = config[option.dest]
+
+    return plugin_class(**plugin_kwargs)
+
+
+def cinder_from_configuration(region, cluster_id, **config):
+    """
+    Build a ``CinderBlockDeviceAPI`` using configuration and credentials in
+    ``config``.
+
+    :param str region: The region "slug" for which to configure the object.
+    :param cluster_id: The unique cluster identifier for which to configure the
+        object.
+    """
+    auth = _openstack_auth_from_config(**config)
+    session = Session(auth=auth)
+    cinder_client = CinderClient(
+        session=session, region_name=region, version=1
+    )
+    nova_client = NovaClient(
+        session=session, region_name=region, version=2
+    )
+
+    return cinder_api(
+        cinder_client=cinder_client,
+        nova_client=nova_client,
         cluster_id=cluster_id,
     )
