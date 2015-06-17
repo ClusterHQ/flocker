@@ -37,7 +37,7 @@ from ..release import (
     UploadOptions, create_pip_index, upload_pip_index,
     IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
-    publish_vagrant_metadata, TestRedirectsOptions,
+    publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
 )
 
 from ..packaging import Distribution
@@ -2065,13 +2065,47 @@ class GetExpectedRedirectsTests(SynchronousTestCase):
     """
 
     def test_marketing_release(self):
-        pass
+        """
+        If a marketing release version is given, marketing release redirects
+        are returned.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0'),
+            {
+                '/': '/en/0.3.0/',
+                '/en/': '/en/0.3.0/',
+                '/en/latest': '/en/0.3.0/',
+                '/en/latest/faq/index.html': '/en/0.3.0/faq/index.html',
+            }
+        )
 
     def test_development_release(self):
-        pass
+        """
+        If a development release version is given, development release
+        redirects are returned.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0dev1'),
+            {
+                '/en/devel': '/en/0.3.0dev1/',
+                '/en/devel/faq/index.html': '/en/0.3.0dev1/faq/index.html',
+            }
+        )
 
     def test_documentation_release(self):
-        pass
+        """
+        If a documentation release version is given, marketing release
+        redirects are returned for the versions which is being updated.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0+doc1'),
+            {
+                '/': '/en/0.3.0/',
+                '/en/': '/en/0.3.0/',
+                '/en/latest': '/en/0.3.0/',
+                '/en/latest/faq/index.html': '/en/0.3.0/faq/index.html',
+            }
+        )
 
 
 class TestRedirectsOptionsTests(SynchronousTestCase):
