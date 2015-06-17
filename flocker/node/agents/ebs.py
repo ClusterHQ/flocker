@@ -652,9 +652,8 @@ class EBSBlockDeviceAPI(object):
             # exists.  This will raise UnknownVolume if it really was the
             # caller who screwed up.
             self._get_ebs_volume(blockdevice_id)
-            # volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
-            # if volume.attached_to is None:
-            #     raise UnattachedVolume(blockdevice_id)
+            # Okay.  It's a valid volume but we don't know about it.  Sorry,
+            # caller.
             raise InformationUnavailable(blockdevice_id)
 
 
