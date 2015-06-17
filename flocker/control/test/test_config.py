@@ -2419,11 +2419,12 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_error_on_non_list_applications(self):
+    def test_error_on_non_list_or_string_applications(self):
         """
         ``deployment_from_configuration`` raises a ``ValueError`` if the
         deployment_configuration contains application values not in the form of
-        a list.
+        either a list, or a single string (for one application) that can be
+        converted in to a list.
         """
         exception = self.assertRaises(
             ConfigurationError,
@@ -2435,9 +2436,41 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             'Node node1.example.com has a config error. '
             'Wrong value type: NoneType. '
-            'Should be list.',
+            'Should be list or a single string.',
             exception.message
         )
+
+    def test_single_application_deployment(self):
+        """
+        ``deployment_from_configuration`` parses a deployment configuration
+        where only a single application is given as a string.
+        """
+        applications = {
+            'app': Application(
+                name='app',
+                image=DockerImage.from_string(u'busybox'),
+            )
+        }
+        node_uuid = uuid4()
+        hostname = u'node1.example.com'
+
+        result = deployment_from_configuration(
+            DeploymentState(
+                nodes=[NodeState(hostname=hostname, uuid=node_uuid)]),
+            dict(
+                version=1,
+                nodes={hostname: 'app'}),
+            applications
+        )
+
+        expected = set([
+            Node(
+                uuid=node_uuid,
+                applications=frozenset(applications.values()),
+            )
+        ])
+
+        self.assertEqual(expected, result)
 
     def test_error_on_unrecognized_application_name(self):
         """
