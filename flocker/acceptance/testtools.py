@@ -353,9 +353,8 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The attributes of the dataset that
             we're waiting for.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties appears in
-            the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -380,7 +379,7 @@ class Cluster(PRecord):
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: (self, dataset_properties))
+        waiting.addCallback(lambda ignored: dataset_properties)
         return waiting
 
     @log_method

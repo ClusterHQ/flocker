@@ -164,8 +164,7 @@ class ContainerAPITests(TestCase):
         """
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
@@ -239,8 +238,7 @@ class ContainerAPITests(TestCase):
         """
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
@@ -356,8 +354,7 @@ nc -ll -p 8080 -e /data/script.sh
 
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             container[u"volumes"][0][u"dataset_id"] = dataset[u"dataset_id"]
             return cluster.create_container(container)
         creating_dataset.addCallback(created_dataset)
@@ -479,7 +476,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create = create_dataset(self, cluster)
 
         # Once created, request to move the dataset to node2
-        def move_dataset((cluster, dataset)):
+        def move_dataset(dataset):
             moved_dataset = {
                 u'primary': cluster.nodes[1].uuid
             }
@@ -500,8 +497,7 @@ class DatasetAPITests(TestCase):
         """
         created = create_dataset(self, cluster)
 
-        def delete_dataset(result):
-            cluster, dataset = result
+        def delete_dataset(dataset):
             deleted = cluster.delete_dataset(dataset["dataset_id"])
 
             def not_exists():

@@ -146,8 +146,7 @@ class DeploymentTests(TestCase):
                 }
             )
 
-            def got_dataset(result):
-                cluster, dataset = result
+            def got_dataset(dataset):
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
                     (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
@@ -173,8 +172,7 @@ class DeploymentTests(TestCase):
                 }
             )
 
-            def got_dataset(result):
-                cluster, dataset = result
+            def got_dataset(dataset):
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
                     (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
