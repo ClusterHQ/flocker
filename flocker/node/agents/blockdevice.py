@@ -8,9 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-
 from subprocess import CalledProcessError, check_output, STDOUT
-
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
