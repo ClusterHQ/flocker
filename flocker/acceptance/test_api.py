@@ -85,8 +85,7 @@ class ContainerAPITests(TestCase):
 
         d = cluster.create_container(data)
 
-        def check_result(result):
-            cluster, response = result
+        def check_result(response):
             self.addCleanup(cluster.remove_container, data[u"name"])
 
             self.assertEqual(response, data)
@@ -121,7 +120,7 @@ class ContainerAPITests(TestCase):
         data[u"node_uuid"] = cluster.nodes[0].uuid
         d = cluster.create_container(data)
 
-        def check_result((cluster, response)):
+        def check_result(response):
             self.addCleanup(cluster.remove_container, data[u"name"])
             self.assertEqual(response, data)
             return cluster

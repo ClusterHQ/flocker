@@ -455,7 +455,9 @@ class Cluster(PRecord):
         :param dict properties: A ``dict`` mapping to the API request fields
             to create a container.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers",
@@ -465,7 +467,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
