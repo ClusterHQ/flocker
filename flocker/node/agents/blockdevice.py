@@ -63,10 +63,12 @@ class DatasetWithoutVolume(Exception):
 class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.
-
-    :param unicode blockdevice_id: The unique identifier of the block device.
     """
     def __init__(self, blockdevice_id):
+        """
+        :param unicode blockdevice_id: The unique identifier of the block
+            device.
+        """
         if not isinstance(blockdevice_id, unicode):
             raise TypeError(
                 'Unexpected blockdevice_id type. '
