@@ -37,7 +37,7 @@ from ..release import (
     UploadOptions, create_pip_index, upload_pip_index,
     IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
-    publish_vagrant_metadata
+    publish_vagrant_metadata, TestRedirectsOptions,
 )
 
 from ..packaging import Distribution
@@ -2058,3 +2058,24 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
+
+class TestRedirectsOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`TestRedirectsOptions`.
+    """
+
+    def test_default_environment(self):
+        options = TestRedirectsOptions()
+        options.parseOptions([])
+        self.assertEqual(options.environment, Environments.STAGING)
+
+    def test_production_environment(self):
+        options = TestRedirectsOptions()
+        options.parseOptions(['--production'])
+        self.assertEqual(options.environment, Environments.PRODUCTION)
+
+    def test_doc_version_default(self):
+        pass
+
+    def test_custom_doc_version(self):
+        pass
