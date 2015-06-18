@@ -1419,6 +1419,16 @@ def _manifestation_from_volume(volume):
 
 
 def _ext4_fs_uuid(device_path):
+    """
+    Get the EXT4 filesystem UUID from the filesystem on the device at the given
+    path.
+
+    :param FilePath device_path: The path to the device on which the filesystem
+        resides.
+
+    :return: A ``UUID`` instance giving the UUID from the filesystem.
+    :rtype: ``UUID``
+    """
     blkid = _blkid(
         # Display a slightly more parseable format.
         b"-o", b"udev",
@@ -1441,6 +1451,15 @@ def _ext4_fs_uuid(device_path):
 
 
 def tune2fs(*argv):
+    """
+    Run the ``tune2fs`` utility with the given arguments and return its stdout
+    and stderr.
+
+    :param argv: ``bytes`` giving the argument vector to pass to the process.
+
+    :return: ``bytes`` giving the stdout and stderr of tune2fs (mixed
+        together).
+    """
     return check_output([b"tune2fs"] + list(argv), stderr=STDOUT)
 
 
