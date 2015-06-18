@@ -31,7 +31,7 @@ Multiple containers can use the same Flocker volume (by referencing the same vol
 Quickstart installation
 =======================
 
-You can use the ``flocker-plugin`` tool which is part of the :ref:`installer <labs-installer-plugin>` to quickly install the Flocker Docker Plugin on a cluster you set up with that tool.
+You can use the ``flocker-plugin`` tool which is part of the :ref:`installer <labs-installer>` to quickly install the Flocker Docker Plugin on a cluster you set up with that tool.
 
 Otherwise, if you want to install the Flocker Docker plugin manually, you can follow the following instructions.
 
@@ -60,7 +60,7 @@ We need to define some configuration which will make it into the environment of 
     FLOCKER_CONTROL_SERVICE_BASE_URL=https://your-control-service:4523/v1
     MY_NETWORK_IDENTITY=1.2.3.4
 
-Replace ``your-control-service`` with the hostname of the control service you specified :ref:`when you created your cluster <labs-installer>`.
+Replace ``your-control-service`` with the hostname of the control service you specified when you created your cluster.
 Replace ``1.2.3.4`` with the IP address of the host you are installing on (if your public and private IPs differ, it is generally best to use the *private* IP address of your hosts).
 
 Write out up an upstart script to automatically start the Flocker plugin on boot:
