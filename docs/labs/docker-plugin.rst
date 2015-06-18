@@ -18,13 +18,17 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
 How it works
 ============
 
+The Flocker Docker plugin means you can run containers with named volumes without worrying which server in your cluster the volume is on.
+
+The Flocker will create or move the volumes in place as necessary.
+
 The Flocker Docker plugin operates on the ``name`` passed to Docker in the ``docker run`` command and associates it with a Flocker dataset with the same name (i.e. with metadata ``name=foo``).
 
 There are three main cases:
 
 * If the volume does not exist at all on the Flocker cluster, it is created on the host which requested it.
 * If the volume exists on a different host, it is moved in-place before the container is started.
-* If the volume exists on the current host, the container can be started straight away.
+* If the volume exists on the current host, the container is started straight away.
 
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
