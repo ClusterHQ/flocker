@@ -553,6 +553,10 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
+        :raises AttachedUnexpectedDevice: If the attach operation fails to
+            associate the volume with the expected OS device file.  This
+            indicates use on an unsupported OS, a misunderstanding of the EBS
+            device assignment rules, or some other bug in this implementation.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
