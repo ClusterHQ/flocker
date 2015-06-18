@@ -1555,6 +1555,10 @@ class BlockDeviceDeployer(PRecord):
             # mounted filesystems.  They're not supposed to be mounted because
             # we told the user to restart the node.
             if device_path in mounted:
+                FLOCKER_1_0_0_FS_MOUNTED(
+                    block_device_id=volume.blockdevice_id,
+                    device_path=device_path.path,
+                ).write()
                 continue
 
             # Put the dataset id into the ext4 filesystem UUID field for future
