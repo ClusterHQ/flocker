@@ -536,9 +536,12 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
+        temp_path = FilePath(self.mktemp())
+        temp_path.makedirs()
+        ca = RootCredential.initialize(temp_path, b"mycluster")
         crt_path = path.child(AUTHORITY_CERTIFICATE_FILENAME)
         crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
+        crt_file.write(ca.credential.certificate.dumpPEM())
         crt_file.close()
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
@@ -559,9 +562,12 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
+        temp_path = FilePath(self.mktemp())
+        temp_path.makedirs()
+        ca = RootCredential.initialize(temp_path, b"mycluster")
         crt_path = path.child(AUTHORITY_CERTIFICATE_FILENAME)
         crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
+        crt_file.write(ca.credential.certificate.dumpPEM())
         crt_file.close()
         # make file unreadable
         crt_path.chmod(0o100)
@@ -589,9 +595,12 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
+        temp_path = FilePath(self.mktemp())
+        temp_path.makedirs()
+        ca = RootCredential.initialize(temp_path, b"mycluster")
         crt_path = path.child(AUTHORITY_CERTIFICATE_FILENAME)
         crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
+        crt_file.write(ca.credential.certificate.dumpPEM())
         crt_file.close()
         key_path = path.child(AUTHORITY_KEY_FILENAME)
         key_file = key_path.open(b'w')
