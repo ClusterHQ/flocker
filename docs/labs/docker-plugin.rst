@@ -28,8 +28,15 @@ There are three main cases:
 
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
-Installation on Ubuntu 14.04
-============================
+Quickstart installation
+=======================
+
+You can use the ``flocker-plugin`` tool which is part of the :ref:`installer <labs-installer-plugin>` to quickly install the Flocker Docker Plugin on a cluster you set up with that tool.
+
+Otherwise, if you want to install the Flocker Docker plugin manually, you can follow the following instructions.
+
+Manual Installation on Ubuntu 14.04
+===================================
 
 First :ref:`install Flocker <labs-installer>`.
 
@@ -39,10 +46,11 @@ Install the experimental build of Docker:
 
     wget -qO- https://experimental.docker.com/ | sudo sh
 
-On each of your container agent servers (Ubuntu 14.04 or CentOS 7), install the Flocker plugin:
+On each of your container agent servers, install the Flocker plugin:
 
 .. prompt:: bash $
 
+    sudo apt-get install -y python-pip python-dev
     sudo pip install git+https://github.com/clusterhq/flocker-docker-plugin.git
 
 We need to define some configuration which will make it into the environment of the plugin:
