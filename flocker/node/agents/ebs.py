@@ -708,6 +708,7 @@ class EBSBlockDeviceAPI(object):
 
         compute_instance_id = self.compute_instance_id()
         if volume.attached_to != compute_instance_id:
+            # This is untested.  See FLOC-2453.
             raise Exception(
                 "Volume is attached to {}, not to {}".format(
                     volume.attached_to, compute_instance_id
