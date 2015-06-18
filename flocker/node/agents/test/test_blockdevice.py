@@ -1127,7 +1127,14 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
     # An id that tests and logging decorators can use.
     dataset_id = uuid4()
 
-    def _upgrade_ext4_uuid_test(self, mounted, upgraded):
+    def _upgrade_ext4_uuid_test(self, mounted):
+        """
+        Test the handling of a Flocker 1.0.0-style filesystem by
+        ``BlockDeviceDeployer.discover_state``.
+
+        :param bool mounted: ``True`` to test the behavior when the filesystem
+            is mounted, ``False`` to tested it unmounted.
+        """
         deployer = create_blockdevicedeployer(self)
         api = deployer.block_device_api
         volume = api.create_volume(
@@ -1190,7 +1197,7 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
         dataset identifier in their UUID field,
         ``BlockDeviceDeployer.discover_state`` adds the UUID.
         """
-        self._upgrade_ext4_uuid_test(mounted=False, upgraded=True)
+        self._upgrade_ext4_uuid_test(mounted=False)
 
     @capture_logging(
         lambda self, logger:
@@ -1211,7 +1218,7 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
         represent a manifestation of some dataset even if the filesystem is
         missing the dataset identifier in its UUID field.
         """
-        self._upgrade_ext4_uuid_test(mounted=True, upgraded=False)
+        self._upgrade_ext4_uuid_test(mounted=True)
 
 
 class BlockDeviceDeployerCreationCalculateChangesTests(

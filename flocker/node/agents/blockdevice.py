@@ -1541,6 +1541,24 @@ class BlockDeviceDeployer(PRecord):
         }
 
     def _upgrade_1_0_0_filesystem(self, api, volumes):
+        """
+        Upgrade any old, Flocker 1.0.0-created filesystems.
+
+        Examine each volume attached to this host.  Determine if the filesystem
+        on the volume has the corresponding dataset_id recorded in its UUID.
+        This is how filesystems are created post-1.0.0 (see FLOC-2369).  If the
+        filesystem does not have this information recorded and the filesystem
+        is not mounted, put it there.  If the filesystem is mounted we cannot
+        modify it.  We will fix it when we notice it is unmounted.
+
+        The intent is for this to cause Flocker 1.0.0-created volumes to look
+        just like they would have if they had been created by Flocker >1.0.0.
+
+        :param IBlockDeviceAPI api: The storage driver responsible for the
+            volumes.
+        :param list volumes: The ``BlockDeviceVolumes`` that exist and will be
+            considered for upgrade.
+        """
         mounted = {
             FilePath(partition.device)
             for partition
