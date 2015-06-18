@@ -71,6 +71,9 @@ class DeployOptions(Options):
          "Path to user certificate file"],
         ["key", None, b"user.key",
          "Path to user private key file"],
+        ["certificates-directory", "c",
+         None, ("Path to directory where TLS certificate and keys can be "
+                "found. Defaults to current directory.")],
     ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
@@ -111,9 +114,23 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
+
         self["cafile"] = FilePath(self["cafile"])
         self["cert"] = FilePath(self["cert"])
         self["key"] = FilePath(self["key"])
+
+        if self["certificates-directory"] is None:
+            self["certificates-directory"] = FilePath(os.getcwd())
+        else:
+            self["certificates-directory"] = FilePath(
+                self["certificates-directory"])
+            self["cafile"] = self["certificates-directory"].child(
+                self["cafile"].basename())
+            self["cert"] = self["certificates-directory"].child(
+                self["cert"].basename())
+            self["key"] = self["certificates-directory"].child(
+                self["key"].basename())
+
         for credential in ["cafile", "cert", "key"]:
             if not self[credential].isfile():
                 raise UsageError(
