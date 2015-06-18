@@ -84,3 +84,9 @@ Here is the same example as above but in place of ``/var/lib/redis`` we provide 
 
 In this example - we have asked Flocker for a volume named ``demo``.
 Flocker will automatically migrate the volume to the host where Docker is running and mount the volume.
+
+Demo
+====
+
+Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
+This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
