@@ -50,13 +50,13 @@ Write out up an upstart script to automatically start the Flocker plugin on boot
 
 .. prompt:: bash $
 
-    cat <<EOF > /etc/init/flocker-plugin.conf
-    # flocker-plugin - flocker-plugin job file
+    cat <<EOF > /etc/init/flocker-docker-plugin.conf
+    # flocker-docker-plugin - flocker-docker-plugin job file
     description "Flocker Plugin service"
     author "ClusterHQ <support@clusterhq.com>"
     respawn
     env FLOCKER_CONTROL_SERVICE_BASE_URL=${FLOCKER_CONTROL_SERVICE_BASE_URL}
     env MY_NETWORK_IDENTITY=${MY_NETWORK_IDENTITY}
-    exec flocker-plugin
+    exec flocker-docker-plugin
     EOF
-    service flocker-plugin restart
+    service flocker-docker-plugin restart
