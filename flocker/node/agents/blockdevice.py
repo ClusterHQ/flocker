@@ -1432,7 +1432,7 @@ def _ext4_fs_uuid(device_path):
     for line in blkid.splitlines():
         key, value = line.split(b"=")
         if key == b"ID_FS_UUID":
-            return value.decode("ascii")
+            return UUID(value)
     raise ValueError(
         "Failed to find UUID on {} in output: {}".format(
             device_path.path, blkid
@@ -1582,7 +1582,7 @@ class BlockDeviceDeployer(PRecord):
                 block_device_id=volume.blockdevice_id,
                 dataset_id=volume.dataset_id
             ) as upgrade:
-                upgrade.addSuccessFields(old_fs_uuid=old_fs_uuid)
+                upgrade.addSuccessFields(old_fs_uuid=unicode(old_fs_uuid))
                 output = tune2fs(
                     # Change the UUID to this value
                     b"-U", bytes(volume.dataset_id),
