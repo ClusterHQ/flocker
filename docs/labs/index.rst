@@ -12,12 +12,12 @@ It is not built with production-readiness in mind.
 However, if you like one of these projects please let us know.
 We intend to promote popular projects to be fully supported.
 
-Example of what we're working on
---------------------------------
+Flocker Docker plugin with CLI and GUI
+--------------------------------------
 
-Here is a 55 second demo of the Flocker Docker plugin provisioning portable Flocker volumes and moving them between hosts directly from the Docker CLI.
+By way of example, here is a 55 second demo of the :ref:`Flocker Docker plugin <docker-plugin>` provisioning portable Flocker volumes and moving them between hosts directly from the Docker CLI.
 
-The video also shows the experimental GUI and CLI so you can see what's going on inside Flocker while this happens.
+The video also shows our experimental :ref:`Volumes GUI <volumes-gui>` and :ref:`Volumes CLI <volumes-cli>` enabling you can see what's going on inside Flocker while this happens.
 
 .. raw:: html
 
