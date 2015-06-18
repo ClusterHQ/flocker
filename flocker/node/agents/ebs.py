@@ -70,6 +70,35 @@ def _enable_boto_logging():
 _enable_boto_logging()
 
 
+class AttachedUnexpectedDevice(Exception):
+    """
+    A volume was attached to a device other than the one we expected.
+    """
+    def __init__(self, requested, discovered):
+        """
+        :param bytes requested: The requested device name.
+        :param bytes discovered: The device which was discovered on the system.
+        """
+        self.requested = requested
+        self.discovered = discovered
+
+
+def _expected_device(requested_device):
+    """
+    Given a device we requested from AWS EBS, determine the OS device path that
+    will actually be created.
+
+    This maps EBS required ``/dev/sdX`` names to ``/dev/vbdX`` names that are
+    used by currently supported platforms (Ubuntu 14.04 and CentOS 7).
+    """
+    prefix = b"/dev/sd"
+    if requested_device.startswith(prefix):
+        return FilePath(b"/dev").child(b"xvd" + requested_device[len(prefix):])
+    raise ValueError(
+        "Unsupported requested device {!r}".format(requested_device)
+    )
+
+
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
     Establish connection to EC2 client.
@@ -558,7 +587,14 @@ class EBSBlockDeviceAPI(object):
                     # UserGuide/device_naming.html), wait for new block device
                     # to be available to the OS, and interpret it as ours.
                     # Wait under lock scope to reduce false positives.
-                    _wait_for_new_device(blockdevices, volume.size)
+                    device_path = _wait_for_new_device(
+                        blockdevices, volume.size
+                    )
+                    # We do, however, expect the attached device name to follow
+                    # a certain simple pattern.  Verify that now and signal an
+                    # error immediately if the assumption is violated.
+                    if _expected_device(device) != device_path:
+                        raise AttachedUnexpectedDevice(device, device_path)
                     break
                 # end lock scope
 
@@ -638,7 +674,15 @@ class EBSBlockDeviceAPI(object):
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
-        raise NotImplementedError()
+        compute_instance_id = self.compute_instance_id()
+        if volume.attached_to != compute_instance_id:
+            raise Exception(
+                "Volume is attached to {}, not to {}".format(
+                    volume.attached_to, compute_instance_id
+                )
+            )
+
+        return _expected_device(ebs_volume.attach_data.device)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
