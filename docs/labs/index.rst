@@ -40,8 +40,8 @@ Our biggest step towards this goal so far is the :ref:`Flocker Docker plugin <la
 Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
 
-Complete list of Labs projects
-------------------------------
+List of Labs projects
+---------------------
 
 .. toctree::
    docker-plugin
