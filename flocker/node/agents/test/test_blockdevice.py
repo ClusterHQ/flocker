@@ -1162,7 +1162,6 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
             mountpoint.makedirs()
             mount(device_path, mountpoint)
 
-        if mounted:
             manifestation = Manifestation(
                 dataset=Dataset(
                     dataset_id=self.dataset_id,
@@ -1181,7 +1180,8 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
             expected_devices={self.dataset_id: device_path},
             expected_nonmanifest_datasets=expected_nonmanifest_datasets,
         )
-        if upgraded:
+        if not mounted:
+            # Only unmounted filesystems are upgraded.
             self.assertEqual(
                 device_path, get_device_for_dataset_id(self.dataset_id),
             )
