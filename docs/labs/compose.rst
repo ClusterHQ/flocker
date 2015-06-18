@@ -4,16 +4,14 @@
 Flocker with Compose
 ====================
 
-With Flocker as a Docker plugin, and with Compose ``volume-driver`` support, 
-you can use Flocker together with Docker Compose.
+With the :ref:`Flocker Docker plugin <labs-docker-plugin>`, and with Compose support for the ``volume_driver``, you can use Flocker together with Docker Compose.
 
-First, you need to install Flocker and the Flocker Docker Plugin.
-You can use our experimental  :ref:`Flocker Installer <labs-installer>` 
-to do this.
+First, you need to :ref:`install Flocker <labs-installer>` and the :ref:`Flocker Docker plugin <labs-docker-plugin>`.
+You can use our experimental  :ref:`Flocker Installer <labs-installer>` to do this.
 
 Then, you need a version of compose that supports Flocker volumes.
 
-Run the following command to do this:
+Run the following command to do this (this branch that will be installed corresponds to `this pull request <https://github.com/docker/compose/pull/1502>`_):
 
 .. prompt:: bash $
 
@@ -23,12 +21,9 @@ Run the following command to do this:
 docker-compose.yml
 ==================
 
-To make use of Flocker volumes with compose, you will need to specify a
-``volume_driver`` field in your ``docker-compose.yml`` file.
+To make use of Flocker volumes with compose, you will need to specify a ``volume_driver`` field in your ``docker-compose.yml`` file.
 
-Here is an example of a simple application that has 2 containers ``web`` and 
-``redis``.  Notice how the ``redis`` container has a data volume and has the
-``volume_driver`` field set to ``flocker``.
+Here is an example of a simple application that has 2 containers ``web`` and ``redis``.  Notice how the ``redis`` container has a data volume and has the ``volume_driver`` field set to ``flocker``.
 
 .. code-block:: yaml
 
@@ -41,6 +36,9 @@ Here is an example of a simple application that has 2 containers ``web`` and
       volume_driver: flocker
       volumes:
          - 'demo:/data'
+
+Note that ``data`` here corresponds to the name given to the Flocker plugin.
+The name will show up in the Flocker dataset metadata.
 
 docker-compose up
 =================
@@ -55,11 +53,9 @@ you can run a ``docker-compose up`` command as you would normally.
 Data volume format - standard
 =============================
 
-When you use Flocker to manage data volumes with Compose - the format of the 
-data volume is slightly different than normal Docker volumes.
+When you use Flocker to manage data volumes with Compose the format of the data volume is slightly different than normal Docker volumes.
 
-For a normal Docker volume - you would provide the ``host path`` and 
-``container path`` as a composite value - here is an example:
+For a normal Docker volume - you would provide the ``host path`` and ``container path`` as a composite value - here is an example:
 
 .. code-block:: yaml
 
@@ -69,17 +65,14 @@ For a normal Docker volume - you would provide the ``host path`` and
       volumes:
          - '/var/lib/redis:/data'
 
-In this example ``/var/lib/redis`` is the host path and ``/data`` is the 
-container path.
+In this example ``/var/lib/redis`` is the host path and ``/data`` is the container path.
 
 Data volume format - Flocker
 ============================
 
-For a Flocker managed volume - you still provide the container path but instead
-of a host path, you provide a global name for the volume.
+For a Flocker managed volume - you still provide the container path but instead of a host path, you provide a global name for the volume.
 
-Here is the same example as above but in place of ``/var/lib/redis`` we provide
-a global name for the volume.
+Here is the same example as above but in place of ``/var/lib/redis`` we provide a global name for the volume.
 
 .. code-block:: yaml
 
@@ -89,5 +82,5 @@ a global name for the volume.
       volumes:
          - 'demo:/data'
 
-In this example - we have asked Flocker for a volume named ``demo``.  Flocker 
-will automatically migrate and mount the volume on a host path for you.
+In this example - we have asked Flocker for a volume named ``demo``.
+Flocker will automatically migrate the volume to the host where Docker is running and mount the volume.
