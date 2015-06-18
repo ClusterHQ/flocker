@@ -546,7 +546,7 @@ def remove_dataset_fields(content):
     dataset = content['dataset']
     for key in dataset:
         if key not in _ok_to_log:
-            dataset[key] = '********'
+            dataset[key] = 'REMOVED'
     return yaml.safe_dump(dataset)
 
 
