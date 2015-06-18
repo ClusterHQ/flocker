@@ -564,8 +564,13 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 EMC Block Device Backend Configuration
 ......................................
 
-* `EMC ScaleIO`_
-* `EMC XtremeIO`_
+EMC provide plugins for Flocker integration with `ScaleIO`_ and `XtremIO`_.
+For more information, including installation, testing and usage instructions, see the following links to their GitHub repositories:
+
+* `EMC ScaleIO Flocker driver on GitHub`_
+* `EMC XtremIO Flocker driver on GitHub`_
+
+.. XXX FLOC xxx to improve this EMC/Backend storage section
 
 .. _zfs-dataset-backend:
 
@@ -687,5 +692,7 @@ Next Step
 
 The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.
 
-.. _EMC ScaleIO: https://github.com/emccorp/scaleio-flocker-driver
-.. _EMC XtremIO: https://github.com/emccorp/xtremio-flocker-driver
+.. _ScaleIO: http://www.emc.com/storage/scaleio/index.htm
+.. _XtremIO: http://www.emc.com/storage/xtremio/overview.htm
+.. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
+.. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
