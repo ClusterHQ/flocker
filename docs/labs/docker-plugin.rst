@@ -23,8 +23,8 @@ The Flocker Docker plugin operates on the ``name`` passed to Docker in the ``doc
 There are three main cases:
 
 * If the volume does not exist at all on the Flocker cluster, it is created on the host which requested it.
-* If the volume exists on a different node, it is moved in-place before the container is started.
-* If the volume exists on the current node, the container can be started straight away.
+* If the volume exists on a different host, it is moved in-place before the container is started.
+* If the volume exists on the current host, the container can be started straight away.
 
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
@@ -73,4 +73,4 @@ Write out up an upstart script to automatically start the Flocker plugin on boot
 Known limitations
 =================
 
-If the volume exists on a different node and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
+If the volume exists on a different host and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
