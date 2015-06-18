@@ -1527,7 +1527,11 @@ class BlockDeviceDeployer(PRecord):
         compute_instance_id = api.compute_instance_id()
         for volume in _attached_volumes(compute_instance_id, volumes):
             try:
-                device_path = get_device_for_dataset_id(volume.dataset_id)
+                get_device_for_dataset_id(volume.dataset_id)
+                # If we found the dataset_id like this the filesystem is
+                # sufficiently new to not need any changes.  Proceed to the
+                # next volume.
+                continue
             except KeyError:
                 # There is no filesystem on the volume because volume setup
                 # failed partway through the process or there is no filesystem
