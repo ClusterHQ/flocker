@@ -5,6 +5,10 @@ Flocker Docker plugin
 The Flocker Docker is the first Docker volumes plugin, connecting Docker directly to the Flocker volumes API.
 It connects Flocker to Docker via the ``docker run -v name:path --volume-driver=flocker`` syntax.
 
+Using this integration, it then becomes possible to provision portable Flocker volumes directly from Docker's own orchestration and composition tools, Swarm and Compose.
+
+It will also enable integrations with Mesosphere/Marathon and eventually Kubernetes.
+
 See https://github.com/ClusterHQ/flocker-docker-plugin
 
 Installing the Flocker Docker plugin
