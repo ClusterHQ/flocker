@@ -4,14 +4,14 @@
 Flocker Docker plugin
 =====================
 
-The Flocker Docker plugin is a `Docker volumes plugin <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md#command-line-changes>`_, connecting Docker on a host directly to Flocker, which must have an agent running on the same host.
+The Flocker Docker plugin is a `Docker volumes plugin <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_, connecting Docker on a host directly to Flocker, which must have an agent running on the same host.
 
 As a user of Docker, it means you can use Flocker directly via:
 
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API.
 
-See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md#command-line-changes>`_.
+See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_.
 
 See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
