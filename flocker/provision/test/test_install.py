@@ -14,8 +14,9 @@ from .. import PackageSource
 from .._install import (
     task_install_flocker,
     task_enable_flocker_agent,
-    run, put,
+    run, put, run_from_args,
     get_repository_url, UnsupportedDistribution, get_installable_version,
+    get_repo_options,
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -88,17 +89,42 @@ def _centos7_install_commands(version):
     :return: The sequence of commands expected for installing Flocker on
         CentOS7.
     """
+    installable_version = get_installable_version(flocker_version)
     return sequence([
         run(command="yum clean all"),
         run(command="yum install -y {}".format(get_repository_url(
             distribution='centos-7',
-            flocker_version=get_installable_version(flocker_version),
+            flocker_version=installable_version,
         ))),
-        run(command="yum install -y clusterhq-flocker-node" + version)
+        run_from_args(
+            ['yum', 'install'] + get_repo_options(installable_version) +
+            ['-y', 'clusterhq-flocker-node' + version])
     ])
 
 
-class GetRepositoryURL(SynchronousTestCase):
+class GetRepoOptionsTests(SynchronousTestCase):
+    """
+    Tests for ``get_repo_options``.
+    """
+
+    def test_marketing_release(self):
+        """
+        No extra repositories are enabled if the latest installable version
+        is a marketing release.
+        """
+        self.assertEqual(get_repo_options(flocker_version='0.3.0'), [])
+
+    def test_development_release(self):
+        """
+        Enabling a testing repository is enabled if the latest installable
+        version is not a marketing release.
+        """
+        self.assertEqual(
+            get_repo_options(flocker_version='0.3.0dev1'),
+            ['--enablerepo=clusterhq-testing'])
+
+
+class GetRepositoryURLTests(SynchronousTestCase):
     """
     Tests for ``get_repository_url``.
     """
@@ -199,7 +225,10 @@ class InstallFlockerTests(SynchronousTestCase):
         """
         distribution = 'centos-7'
         commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, _centos7_install_commands(""))
+        self.assertEqual(
+            commands,
+            _centos7_install_commands("")
+        )
 
     def test_centos_with_version(self):
         """
