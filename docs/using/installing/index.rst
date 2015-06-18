@@ -686,3 +686,6 @@ Next Step
 ---------
 
 The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.
+
+.. _ScaleIO: https://github.com/emccorp/scaleio-flocker-driver
+.. _XtremIO: https://github.com/emccorp/xtremio-flocker-driver
