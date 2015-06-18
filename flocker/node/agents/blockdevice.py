@@ -1572,6 +1572,8 @@ class BlockDeviceDeployer(PRecord):
                 # filesystem it's meant to have.  This would be a good time
                 # to mark the volume for fixing (put a filesystem on it).
                 # For now, ignore it.
+                #
+                # FLOC-1576
                 continue
 
             # Put the dataset id into the ext4 filesystem UUID field for future
@@ -1610,6 +1612,15 @@ class BlockDeviceDeployer(PRecord):
             ).write(_logger)
             return False
 
+        # The state discovery method is basically the wrong place to do the
+        # filesystem upgrade.  Sadly, determining the necessity of each of
+        # these upgrades depends on more state than we can easily convey to
+        # `calculate_changes` (the technical term for this situation might be
+        # "design flaw").  Since we really do want to do these upgrades and
+        # we'd like to do them with a minimum of code churn, sticking this
+        # upgrade step into the discovery method makes the most sense.  This
+        # will be another datapoint to consider when revamping the way this
+        # IDeployer works.
         self._upgrade_1_0_0_filesystem(api, volumes)
 
         # Find the devices for any manifestations on this node.  Build up a
