@@ -87,6 +87,8 @@ class Sudo(PRecord):
         of the command output.
     """
     command = field(type=bytes, mandatory=True)
+    log_command_filter = field(mandatory=True)
+    log_output_filter = field(mandatory=True)
 
     @classmethod
     def from_args(
