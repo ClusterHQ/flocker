@@ -63,12 +63,10 @@ class DatasetWithoutVolume(Exception):
 class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.
+
+    :param unicode blockdevice_id: The unique identifier of the block device.
     """
     def __init__(self, blockdevice_id):
-        """
-        :param unicode blockdevice_id: The unique identifier of the block
-            device.
-        """
         if not isinstance(blockdevice_id, unicode):
             raise TypeError(
                 'Unexpected blockdevice_id type. '
@@ -105,17 +103,6 @@ class DatasetExists(Exception):
     def __init__(self, blockdevice):
         Exception.__init__(self, blockdevice)
         self.blockdevice = blockdevice
-
-
-class InformationUnavailable(VolumeException):
-    """
-    An ``IBlockDeviceAPI.get_device_path`` was asked for the OS device path for
-    a block device but the implementation can't reliably provide that
-    information.
-
-    For example, this might happen when using AWS/EBS which can only accurately
-    report the OS device path on Amazon-provided AMIs.
-    """
 
 
 class FilesystemExists(Exception):
@@ -960,14 +947,10 @@ class IBlockDeviceAPI(Interface):
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
-
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
-        :raises InformationUnavailable: If the OS device path for the supplied
-            ``blockdevice_id`` isn't known by this implementation.  This is
-            allowed any time the Python object which attached the volume is not
-            the same Python object as ``get_device_path`` is called on.
-
+        :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
+            not attached to a host.
         :returns: A ``FilePath`` for the device.
         """
 
