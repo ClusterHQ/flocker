@@ -32,6 +32,8 @@ There are three main cases:
 
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
+XXX link to demo
+
 Quickstart installation
 =======================
 
@@ -44,6 +46,7 @@ Manual Installation on Ubuntu 14.04
 
 First install Flocker on some hosts.
 These instructions assume you have followed the :ref:`official Flocker install instructions <installflocker>`.
+See the :ref:`unofficial installer <labs-installer>` for a quicker method.
 
 On the same machine where you ran ``flocker-ca`` while installing Flocker, :ref:`generate a new API user certificate and key <generate-api>` for a user named ``plugin``.
 Upload these files to ``/etc/flocker/plugin.key`` and ``/etc/flocker/plugin.crt`` on the hosts where you want to run the Flocker Docker plugin.
