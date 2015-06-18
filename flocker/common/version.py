@@ -1,4 +1,4 @@
-# -*- test-case-name: flocker.docs.test.test_version -*-
+# -*- test-case-name: flocker.common.test.test_version -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 import re
@@ -15,11 +15,11 @@ _VERSION_RE = re.compile(
     # Weekly release
     r"(dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
-    r"(\+doc(?P<documentation_revision>[0-9]+))?"
+    r"(\.post(?P<documentation_revision>[0-9]+))?"
     # Development version
-    r"(-(?P<commit_count>[0-9]+)-g(?P<commit_hash>[0-9a-f]+))?"
+    r"(\+(?P<commit_count>[0-9]+).g(?P<commit_hash>[0-9a-f]+))?"
     # Wether the tree is dirty.
-    r"((?P<dirty>-dirty))?"
+    r"((?P<dirty>.dirty))?"
     # Always match the entire version string.
     r"$"
     )
