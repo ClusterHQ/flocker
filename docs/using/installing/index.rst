@@ -559,6 +559,14 @@ The configuration item to use AWS should look like:
 Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
 AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
 
+.. _emc-dataset-backend:
+
+EMC Block Device Backend Configuration
+......................................
+
+
+
+
 .. _zfs-dataset-backend:
 
 ZFS Peer-to-Peer Backend Configuration (Experimental)
