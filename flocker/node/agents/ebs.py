@@ -342,8 +342,8 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param int time_limit: Time, in seconds, to wait for
         new device to manifest. Defaults to 60s.
 
-    :returns: formatted string name of the new block device.
-    :rtype: unicode
+    :returns: The path of the new block device file.
+    :rtype: ``FilePath``
     """
     start_time = time.time()
     elapsed_time = time.time() - start_time
@@ -353,8 +353,7 @@ def _wait_for_new_device(base, size, time_limit=60):
             device_name = FilePath.basename(device)
             if (device_name.startswith((b"sd", b"xvd")) and
                     _get_device_size(device_name) == size):
-                new_device = u'/dev/' + device_name.decode("ascii")
-                return new_device
+                return FilePath(b"/dev").child(device_name)
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
 
