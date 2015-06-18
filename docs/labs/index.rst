@@ -31,7 +31,7 @@ Make it possible to:
 * Integrate Flocker into other tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, via the :ref:`Flocker Docker plugin <labs-docker-plugin>`.
 * See what's happening in your Flocker cluster with a :ref:`CLI <labs-volumes-cli>` and a :ref:`GUI <labs-volumes-gui>`.
 * Make it easier to spin up a Flocker cluster in the first place with an :ref:`installer <labs-installer>`.
-* Integrate Flocker with other popular tools, like :ref:`Weave <weave>`, :ref:`Mesosphere <labs-mesosphere>` and :ref:`Kubernetes <labs-kubernetes>`.
+* Integrate Flocker with other popular tools, like :ref:`Weave <labs-weave>`, :ref:`Mesosphere <labs-mesosphere>` and :ref:`Kubernetes <labs-kubernetes>`.
 
 We believe that Flocker will be more successful if we focus on making it useful for managing data volumes *and* make it possible to be used as a tool which composes and integrates nicely with other components in the emerging new stack around Docker and containers.
 
