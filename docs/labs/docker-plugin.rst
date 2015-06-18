@@ -35,7 +35,7 @@ Multiple containers can use the same Flocker volume (by referencing the same vol
 Quickstart installation
 =======================
 
-You can use the ``flocker-plugin`` tool which is part of the :ref:`installer <labs-installer>` to quickly install the Flocker Docker Plugin on a cluster you set up with that tool.
+You can use the ``flocker-plugin-install`` tool which is part of the :ref:`installer <labs-installer>` to quickly install the Flocker Docker Plugin on a cluster you set up with that tool.
 
 Otherwise, if you want to install the Flocker Docker plugin manually, you can follow the following instructions.
 
