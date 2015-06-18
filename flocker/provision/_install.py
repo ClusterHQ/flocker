@@ -528,6 +528,28 @@ def task_open_control_firewall(distribution):
     ])
 
 
+# Set of dataset fields which are *not* sensitive.  Only fields in this
+# set are logged.  This should contain everything except usernames and
+# passwords (or equivalents).  Implemented as a whitelist in case new
+# security fields are added.
+_ok_to_log = frozenset((
+    'auth_plugin',
+    'auth_url',
+    'backend',
+    'region',
+    'zone',
+    ))
+
+
+def remove_dataset_fields(content):
+    content = yaml.safe_load(content)
+    dataset = content['dataset']
+    for key in dataset:
+        if key not in _ok_to_log:
+            dataset[key] = '********'
+    return yaml.safe_dump(dataset)
+
+
 def task_configure_flocker_agent(control_node, dataset_backend,
                                  dataset_backend_configuration):
     """
@@ -556,6 +578,7 @@ def task_configure_flocker_agent(control_node, dataset_backend,
                 "dataset": dataset_backend_configuration,
             },
         ),
+        log_content_filter=remove_dataset_fields
     )
     return sequence([put_config_file])
 

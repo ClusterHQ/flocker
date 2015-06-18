@@ -17,6 +17,7 @@ from .._install import (
     task_enable_flocker_agent,
     run, put,
     get_repository_url, UnsupportedDistribution, get_installable_version,
+    remove_dataset_fields,
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -72,6 +73,7 @@ class ConfigureFlockerAgentTests(SynchronousTestCase):
             put(
                 content=yaml.safe_dump(thaw(expected_agent_config)),
                 path=THE_AGENT_YML_PATH,
+                log_content_filter=remove_dataset_fields,
             ).intent,
             put_agent_yml,
         )
