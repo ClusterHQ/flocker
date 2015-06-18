@@ -117,9 +117,9 @@ Preparing For a Release
       # The following command means that you will not be asked whether
       # you want to continue connecting
       ssh-keyscan github.com >> ~/.ssh/known_hosts
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
-      mkvirtualenv flocker-release-${VERSION}
+      git clone git@github.com:ClusterHQ/flocker.git
+      cd flocker
+      mkvirtualenv flocker-release
       pip install --editable .[release]
       admin/create-release-branch --flocker-version="${VERSION}"
 
@@ -173,7 +173,8 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push --set-upstream origin release/flocker-${VERSION}
+      git config push.default current
+      git push
 
 #. Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
@@ -206,7 +207,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
+      admin/publish-docs --doc-version ${VERSION}
 
 #. Check that the staging documentation is set up correctly:
 
@@ -216,7 +217,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      ~/flocker-${VERSION}/admin/test-redirects --doc-version ${VERSION}
+      admin/test-redirects --doc-version ${VERSION}
 
 #. Make a pull request on GitHub:
 
@@ -275,8 +276,8 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      cd flocker-${VERSION}
-      workon flocker-release-${VERSION}
+      cd flocker
+      workon flocker-release
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
@@ -304,7 +305,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      ~/flocker-${VERSION}/admin/test-redirects --production
+      admin/test-redirects --production
 
 #. (Optional) Copy the AWS configuration to your local home directory:
 
