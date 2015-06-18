@@ -37,7 +37,7 @@ Here is an example of a simple application that has 2 containers ``web`` and ``r
       volumes:
          - 'demo:/data'
 
-Note that ``data`` here corresponds to the name given to the Flocker plugin.
+Note that ``demo`` here corresponds to the name given to the Flocker plugin.
 The name will show up in the Flocker dataset metadata.
 
 docker-compose up
