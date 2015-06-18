@@ -128,6 +128,13 @@ class FilesystemExists(Exception):
         self.device = device
 
 
+class FilesystemMissing(Exception):
+    """
+    A block device on which a filesystem was anticipated did not have a
+    filesystem.
+    """
+
+
 DATASET = Field(
     u"dataset",
     lambda dataset: dataset.dataset_id,
@@ -1412,23 +1419,20 @@ def _manifestation_from_volume(volume):
 
 
 def _ext4_fs_uuid(device_path):
-    blkid = check_output([
-        b"blkid",
+    blkid = _blkid(
         # Display a slightly more parseable format.
         b"-o", b"udev",
         # Display information about this device
         device_path.path,
-    ])
+    )
     # Output is lines like:
     # ID_FS_UUID=a0d8c288-2dc9-4fa8-9039-f834d69730c6
     # ID_FS_UUID_ENC=a0d8c288-2dc9-4fa8-9039-f834d69730c6
     # ID_FS_TYPE=ext4
-
     for line in blkid.splitlines():
         key, value = line.split(b"=")
         if key == b"ID_FS_UUID":
             return value.decode("ascii")
-
     raise ValueError(
         "Failed to find UUID on {} in output: {}".format(
             device_path.path, blkid
@@ -1987,6 +1991,16 @@ class DuplicateFilesystemId(Exception):
     """
 
 
+def _blkid(*argv):
+    try:
+        return check_output([b"blkid"] + list(argv))
+    except CalledProcessError as e:
+        if e.returncode == 2:
+            raise FilesystemMissing()
+        # This code path is untested, unfortunately.
+        raise
+
+
 def get_device_for_dataset_id(dataset_id):
     """
     Lookup the path of the device for an attached dataset on this machine.
@@ -1999,17 +2013,14 @@ def get_device_for_dataset_id(dataset_id):
     :return: ``FilePath`` of device where the dataset is attached.
     """
     try:
-        result = check_output([b"blkid",
-                               # Only list the device:
-                               b"-o", b"device",
-                               # Search by UUID:
-                               b"-t", b'UUID="{}"'.format(dataset_id)])
-    except CalledProcessError as e:
-        if e.returncode == 2:
-            raise KeyError(dataset_id)
-        else:
-            # This code path is untested, unfortunately.
-            raise
+        result = _blkid(
+            # Only list the device:
+            b"-o", b"device",
+            # Search by UUID:
+            b"-t", b'UUID="{}"'.format(dataset_id),
+        )
+    except FilesystemMissing:
+        raise KeyError(dataset_id)
     paths = result.splitlines()
     if len(paths) > 1:
         raise DuplicateFilesystemId(paths)
