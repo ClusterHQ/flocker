@@ -300,9 +300,9 @@ Deployment Configuration
 ------------------------
 
 The deployment configuration specifies which applications are run on what nodes.
-It consists of a version and a mapping from node names to application names.
+It consists of a version and a mapping from node IP addresses to application names.
 
-The required parameters are ``version`` and ``applications``.
+The required parameters are ``version`` and ``nodes``.
 For now the ``version`` must be ``1``.
 
 Here's an example of a simple but complete configuration defining a deployment of one application on one host:
@@ -311,7 +311,7 @@ Here's an example of a simple but complete configuration defining a deployment o
 
   "version": 1
   "nodes":
-    "node017.example.com":
+    "172.16.255.251":
       "site-clusterhq.com"
 
 .. _`Fig`: http://www.fig.sh/yml.html
