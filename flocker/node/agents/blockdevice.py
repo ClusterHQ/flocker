@@ -14,7 +14,7 @@ from errno import EEXIST
 
 from bitmath import GiB
 
-from eliot import MessageType, ActionType, Field, Logger
+from eliot import MessageType, ActionType, Field, Logger, fields
 from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
@@ -128,6 +128,13 @@ class FilesystemExists(Exception):
         self.device = device
 
 
+class FilesystemMissing(Exception):
+    """
+    A block device on which a filesystem was anticipated did not have a
+    filesystem.
+    """
+
+
 DATASET = Field(
     u"dataset",
     lambda dataset: dataset.dataset_id,
@@ -196,6 +203,22 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     [DATASET, MOUNTPOINT],
     [],
     u"A block-device-backed dataset is being created.",
+)
+
+FLOCKER_1_0_0_FS_MOUNTED = MessageType(
+    u"agent:blockdevice:1.0.0:mounted:fs",
+    [BLOCK_DEVICE_ID, BLOCK_DEVICE_PATH],
+    u"A filesystem created by Flocker 1.0.0 was encountered and was mounted "
+    u"so it could not be upgraded.",
+)
+
+FLOCKER_1_0_0_FS_UPGRADE = ActionType(
+    u"agent:blockdevice:1.0.0:upgrade:fs",
+    [BLOCK_DEVICE_ID, DATASET_ID],
+    fields(old_fs_uuid=unicode, tune2fs_output=unicode),
+    u"A filesystem created by Flocker 1.0.0 was encountered and its "
+    u"filesystem UUID was changed to match the dataset id it is meant to "
+    u"represent.",
 )
 
 # Really this is the successful completion of CREATE_BLOCK_DEVICE_DATASET.  It
@@ -1395,6 +1418,61 @@ def _manifestation_from_volume(volume):
     return Manifestation(dataset=dataset, primary=True)
 
 
+def _ext4_fs_uuid(device_path):
+    """
+    Get the EXT4 filesystem UUID from the filesystem on the device at the given
+    path.
+
+    :param FilePath device_path: The path to the device on which the filesystem
+        resides.
+
+    :return: A ``UUID`` instance giving the UUID from the filesystem.
+    :rtype: ``UUID``
+    """
+    blkid = _blkid(
+        # Display a slightly more parseable format.
+        b"-o", b"udev",
+        # Display information about this device
+        device_path.path,
+    )
+    # Output is lines like:
+    # ID_FS_UUID=a0d8c288-2dc9-4fa8-9039-f834d69730c6
+    # ID_FS_UUID_ENC=a0d8c288-2dc9-4fa8-9039-f834d69730c6
+    # ID_FS_TYPE=ext4
+    for line in blkid.splitlines():
+        key, value = line.split(b"=")
+        if key == b"ID_FS_UUID":
+            return UUID(value)
+    raise ValueError(
+        "Failed to find UUID on {} in output: {}".format(
+            device_path.path, blkid
+        )
+    )
+
+
+def tune2fs(*argv):
+    """
+    Run the ``tune2fs`` utility with the given arguments and return its stdout
+    and stderr.
+
+    :param argv: ``bytes`` giving the argument vector to pass to the process.
+
+    :return: ``bytes`` giving the stdout and stderr of tune2fs (mixed
+        together).
+    """
+    return check_output([b"tune2fs"] + list(argv), stderr=STDOUT)
+
+
+def _attached_volumes(compute_instance_id, volumes):
+    """
+    Yield volumes from the given iterable which are attached to the given
+    instance.
+    """
+    for volume in volumes:
+        if volume.attached_to == compute_instance_id:
+            yield volume
+
+
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
     """
@@ -1436,7 +1514,8 @@ class BlockDeviceDeployer(PRecord):
             )
         return self._async_block_device_api
 
-    def _get_system_mounts(self, volumes, compute_instance_id):
+    def _get_system_mounts(self, volumes, compute_instance_id,
+                           device_to_dataset_id):
         """
         Load information about mounted filesystems related to the given
         volumes.
@@ -1453,13 +1532,6 @@ class BlockDeviceDeployer(PRecord):
             to ``volumes``.
         """
         partitions = psutil.disk_partitions()
-        device_to_dataset_id = {
-            self.block_device_api.get_device_path(volume.blockdevice_id):
-                volume.dataset_id
-            for volume
-            in volumes
-            if volume.attached_to == compute_instance_id
-        }
         return {
             FilePath(partition.mountpoint):
                 device_to_dataset_id[FilePath(partition.device)]
@@ -1467,6 +1539,94 @@ class BlockDeviceDeployer(PRecord):
             in partitions
             if FilePath(partition.device) in device_to_dataset_id
         }
+
+    def _upgrade_1_0_0_filesystem(self, api, volumes):
+        """
+        Upgrade any old, Flocker 1.0.0-created filesystems.
+
+        Examine each volume attached to this host.  Determine if the filesystem
+        on the volume has the corresponding dataset_id recorded in its UUID.
+        This is how filesystems are created post-1.0.0 (see FLOC-2369).  If the
+        filesystem does not have this information recorded and the filesystem
+        is not mounted, put it there.  If the filesystem is mounted we cannot
+        modify it.  We will fix it when we notice it is unmounted.
+
+        The intent is for this to cause Flocker 1.0.0-created volumes to look
+        just like they would have if they had been created by Flocker >1.0.0.
+
+        :param IBlockDeviceAPI api: The storage driver responsible for the
+            volumes.
+        :param list volumes: The ``BlockDeviceVolumes`` that exist and will be
+            considered for upgrade.
+        """
+        mounted = {
+            FilePath(partition.device)
+            for partition
+            in psutil.disk_partitions()
+        }
+
+        compute_instance_id = api.compute_instance_id()
+        for volume in _attached_volumes(compute_instance_id, volumes):
+            try:
+                get_device_for_dataset_id(volume.dataset_id)
+                # If we found the dataset_id like this the filesystem is
+                # sufficiently new to not need any changes.  Proceed to the
+                # next volume.
+                continue
+            except KeyError:
+                # There is no filesystem on the volume because volume setup
+                # failed partway through the process or there is no filesystem
+                # with a UUID that matches the dataset id because the volume
+                # was created by 1.0.0.
+                #
+                # The filesystem isn't mounted because the 1.0.1 upgrade
+                # instructions tell the user to restart the node upon upgrade.
+                #
+                # Detach and then re-attach the volume so that get_device_path
+                # can tell us the device.  This is slow and we might be able to
+                # save time by calling get_device_path first.  It might give us
+                # an answer.  Maybe do that optimization.
+                api.detach_volume(volume.blockdevice_id)
+                api.attach_volume(volume.blockdevice_id, compute_instance_id)
+                device_path = api.get_device_path(volume.blockdevice_id)
+
+            # Find out of it is mounted.  Skip it (don't break the rest of the
+            # loop) if it is mounted because there's nothing we can do about
+            # mounted filesystems.  They're not supposed to be mounted because
+            # we told the user to restart the node.
+            if device_path in mounted:
+                FLOCKER_1_0_0_FS_MOUNTED(
+                    block_device_id=volume.blockdevice_id,
+                    block_device_path=device_path,
+                ).write()
+                continue
+
+            try:
+                old_fs_uuid = _ext4_fs_uuid(device_path)
+            except FilesystemMissing:
+                # The volume was most likely only partially initialized and
+                # then the system failed in some way leaving it without the
+                # filesystem it's meant to have.  This would be a good time
+                # to mark the volume for fixing (put a filesystem on it).
+                # For now, ignore it.
+                #
+                # FLOC-1576
+                continue
+
+            # Put the dataset id into the ext4 filesystem UUID field for future
+            # reference.
+            with FLOCKER_1_0_0_FS_UPGRADE(
+                block_device_id=volume.blockdevice_id,
+                dataset_id=volume.dataset_id
+            ) as upgrade:
+                upgrade.addSuccessFields(old_fs_uuid=unicode(old_fs_uuid))
+                output = tune2fs(
+                    # Change the UUID to this value
+                    b"-U", bytes(volume.dataset_id),
+                    # Change the filesystem on this device
+                    device_path.path,
+                )
+                upgrade.addSuccessFields(tune2fs_output=output.decode("ascii"))
 
     def discover_state(self, node_state):
         """
@@ -1488,6 +1648,17 @@ class BlockDeviceDeployer(PRecord):
                 dataset_id=dataset_id, invalid_value=path
             ).write(_logger)
             return False
+
+        # The state discovery method is basically the wrong place to do the
+        # filesystem upgrade.  Sadly, determining the necessity of each of
+        # these upgrades depends on more state than we can easily convey to
+        # `calculate_changes` (the technical term for this situation might be
+        # "design flaw").  Since we really do want to do these upgrades and
+        # we'd like to do them with a minimum of code churn, sticking this
+        # upgrade step into the discovery method makes the most sense.  This
+        # will be another datapoint to consider when revamping the way this
+        # IDeployer works.
+        self._upgrade_1_0_0_filesystem(api, volumes)
 
         # Find the devices for any manifestations on this node.  Build up a
         # collection of non-manifest dataset as well.  Anything that looks like
@@ -1538,7 +1709,14 @@ class BlockDeviceDeployer(PRecord):
                 # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[u_dataset_id] = Dataset(dataset_id=dataset_id)
 
-        system_mounts = self._get_system_mounts(volumes, compute_instance_id)
+        device_to_dataset_id = dict(
+            (device_path, dataset_id)
+            for (dataset_id, device_path)
+            in devices.items()
+        )
+        system_mounts = self._get_system_mounts(
+            volumes, compute_instance_id, device_to_dataset_id
+        )
 
         paths = {}
         for manifestation in manifestations.values():
@@ -1865,6 +2043,16 @@ class DuplicateFilesystemId(Exception):
     """
 
 
+def _blkid(*argv):
+    try:
+        return check_output([b"blkid"] + list(argv))
+    except CalledProcessError as e:
+        if e.returncode == 2:
+            raise FilesystemMissing()
+        # This code path is untested, unfortunately.
+        raise
+
+
 def get_device_for_dataset_id(dataset_id):
     """
     Lookup the path of the device for an attached dataset on this machine.
@@ -1877,17 +2065,14 @@ def get_device_for_dataset_id(dataset_id):
     :return: ``FilePath`` of device where the dataset is attached.
     """
     try:
-        result = check_output([b"blkid",
-                               # Only list the device:
-                               b"-o", b"device",
-                               # Search by UUID:
-                               b"-t", b'UUID="{}"'.format(dataset_id)])
-    except CalledProcessError as e:
-        if e.returncode == 2:
-            raise KeyError(dataset_id)
-        else:
-            # This code path is untested, unfortunately.
-            raise
+        result = _blkid(
+            # Only list the device:
+            b"-o", b"device",
+            # Search by UUID:
+            b"-t", b'UUID="{}"'.format(dataset_id),
+        )
+    except FilesystemMissing:
+        raise KeyError(dataset_id)
     paths = result.splitlines()
     if len(paths) > 1:
         raise DuplicateFilesystemId(paths)

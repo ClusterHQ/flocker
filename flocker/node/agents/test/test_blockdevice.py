@@ -30,7 +30,7 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
-    LoggedAction, assertHasMessage, assertHasAction
+    LoggedMessage, LoggedAction, assertHasMessage, assertHasAction
 )
 
 from .. import blockdevice
@@ -42,6 +42,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
+    FLOCKER_1_0_0_FS_UPGRADE, FLOCKER_1_0_0_FS_MOUNTED,
     get_device_for_dataset_id, DuplicateFilesystemId,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
@@ -389,7 +390,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             },
         )
 
-    def test_attached_with_filesystem_unmounted(self):
+    @capture_logging(
+        lambda self, logger:
+        self.assertEqual(
+            [],
+            LoggedAction.of_type(logger.messages, FLOCKER_1_0_0_FS_UPGRADE)
+        )
+    )
+    def test_attached_with_filesystem_unmounted(self, logger):
         """
         If a volume is attached, has a filesystem, but is not mounted, it is
         included as a non-manifest dataset returned by
@@ -569,6 +577,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             unmounted.blockdevice_id,
             attach_to=self.this_node,
         )
+        create_filesystem(self, self.deployer, unmounted)
 
         assert_discovered_state(
             self, self.deployer,
@@ -1108,6 +1117,108 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
             self, local_state, node_config, set(),
             in_parallel(changes=[]),
         )
+
+
+class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
+    """
+    Tests for automatic upgrade behavior of
+    ``BlockDeviceDeployer.discover_state``
+    """
+    # An id that tests and logging decorators can use.
+    dataset_id = uuid4()
+
+    def _upgrade_ext4_uuid_test(self, mounted):
+        """
+        Test the handling of a Flocker 1.0.0-style filesystem by
+        ``BlockDeviceDeployer.discover_state``.
+
+        :param bool mounted: ``True`` to test the behavior when the filesystem
+            is mounted, ``False`` to tested it unmounted.
+        """
+        deployer = create_blockdevicedeployer(self)
+        api = deployer.block_device_api
+        volume = api.create_volume(
+            dataset_id=self.dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+        api.attach_volume(
+            blockdevice_id=volume.blockdevice_id,
+            attach_to=api.compute_instance_id(),
+        )
+        device_path = api.get_device_path(volume.blockdevice_id)
+        # Do exactly the same thing that 1.0.0 did so that we're exercising the
+        # upgrade code path we want to be exercising.
+        run_process([
+            b"mkfs", b"-t", b"ext4",
+            # This is ext4 specific, and ensures mke2fs doesn't ask user
+            # interactively about whether they really meant to format whole
+            # device rather than partition.  This stays here forever because
+            # 1.0.0 included it.  It probably doesn't make a difference to the
+            # resulting filesystem state but it's better to be safe.
+            b"-F",
+            device_path.path,
+        ])
+        if mounted:
+            mountpoint = deployer.mountroot.child(bytes(self.dataset_id))
+            mountpoint.makedirs()
+            mount(device_path, mountpoint)
+
+            manifestation = Manifestation(
+                dataset=Dataset(
+                    dataset_id=self.dataset_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ), primary=True,
+            )
+            expected_manifestations = {manifestation}
+            expected_nonmanifest_datasets = []
+        else:
+            expected_manifestations = set()
+            expected_nonmanifest_datasets = [self.dataset_id]
+
+        assert_discovered_state(
+            self, deployer,
+            expected_manifestations=expected_manifestations,
+            expected_devices={self.dataset_id: device_path},
+            expected_nonmanifest_datasets=expected_nonmanifest_datasets,
+        )
+        if not mounted:
+            # Only unmounted filesystems are upgraded.
+            self.assertEqual(
+                device_path, get_device_for_dataset_id(self.dataset_id),
+            )
+
+    @capture_logging(
+        assertHasAction,
+        FLOCKER_1_0_0_FS_UPGRADE,
+        succeeded=True, startFields=dict(dataset_id=dataset_id)
+    )
+    def test_unmounted_ext4_uuid(self, logger):
+        """
+        When it discovers an unmounted ext4 filesystem that is missing the
+        dataset identifier in their UUID field,
+        ``BlockDeviceDeployer.discover_state`` adds the UUID.
+        """
+        self._upgrade_ext4_uuid_test(mounted=False)
+
+    @capture_logging(
+        lambda self, logger:
+        self.assertEqual(
+            ([], 1), (
+                LoggedAction.of_type(
+                    logger.messages, FLOCKER_1_0_0_FS_UPGRADE
+                ),
+                len(LoggedMessage.of_type(
+                    logger.messages, FLOCKER_1_0_0_FS_MOUNTED
+                ))
+            )
+        )
+    )
+    def test_mounted_ext4_uuid(self, logger):
+        """
+        ``BlockDeviceDeployer.discover_state`` considers mounted filesystems to
+        represent a manifestation of some dataset even if the filesystem is
+        missing the dataset identifier in its UUID field.
+        """
+        self._upgrade_ext4_uuid_test(mounted=True)
 
 
 class BlockDeviceDeployerCreationCalculateChangesTests(
