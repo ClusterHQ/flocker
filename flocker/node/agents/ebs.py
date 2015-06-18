@@ -73,14 +73,27 @@ _enable_boto_logging()
 class AttachedUnexpectedDevice(Exception):
     """
     A volume was attached to a device other than the one we expected.
+
+    :ivar str _template: A native string giving the template into which to
+        format attributes for the string representation.
     """
+    _template = "AttachedUnexpectedDevice(requested={!r}, discovered={!r})"
+
     def __init__(self, requested, discovered):
         """
-        :param bytes requested: The requested device name.
-        :param bytes discovered: The device which was discovered on the system.
+        :param FilePath requested: The requested device name.
+        :param FilePath discovered: The device which was discovered on the
+            system.
         """
         self.requested = requested
         self.discovered = discovered
+
+    def __str__(self):
+        return self._template.format(
+            self.requested.path, self.discovered.path,
+        )
+
+    __repr__ = __str__
 
 
 def _expected_device(requested_device):
