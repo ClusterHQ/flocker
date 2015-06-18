@@ -1560,7 +1560,7 @@ class BlockDeviceDeployer(PRecord):
             if device_path in mounted:
                 FLOCKER_1_0_0_FS_MOUNTED(
                     block_device_id=volume.blockdevice_id,
-                    device_path=device_path.path,
+                    block_device_path=device_path,
                 ).write()
                 continue
 

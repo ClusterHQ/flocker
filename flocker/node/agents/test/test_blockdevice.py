@@ -1193,8 +1193,17 @@ class BlockDeviceDeployerUpgradeFilesystemTests(SynchronousTestCase):
         self._upgrade_ext4_uuid_test(mounted=False, upgraded=True)
 
     @capture_logging(
-        assertHasMessage,
-        FLOCKER_1_0_0_FS_MOUNTED, dict(dataset_id=dataset_id)
+        lambda self, logger:
+        self.assertEqual(
+            ([], 1), (
+                LoggedAction.of_type(
+                    logger.messages, FLOCKER_1_0_0_FS_UPGRADE
+                ),
+                len(LoggedMessage.of_type(
+                    logger.messages, FLOCKER_1_0_0_FS_MOUNTED
+                ))
+            )
+        )
     )
     def test_mounted_ext4_uuid(self, logger):
         """
