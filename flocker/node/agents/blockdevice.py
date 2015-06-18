@@ -198,8 +198,15 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"A block-device-backed dataset is being created.",
 )
 
+FLOCKER_1_0_0_FS_MOUNTED = MessageType(
+    u"agent:blockdevice:1.0.0:mounted:fs",
+    [BLOCK_DEVICE_ID, BLOCK_DEVICE_PATH],
+    u"A filesystem created by Flocker 1.0.0 was encountered and was mounted "
+    u"so it could not be upgraded.",
+)
+
 FLOCKER_1_0_0_FS_UPGRADE = ActionType(
-    u"agent:blockdevice:upgrade:1.0.0:fs",
+    u"agent:blockdevice:1.0.0:upgrade:fs",
     [BLOCK_DEVICE_ID, DATASET_ID],
     fields(old_fs_uuid=unicode, tune2fs_output=unicode),
     u"A filesystem created by Flocker 1.0.0 was encountered and its "

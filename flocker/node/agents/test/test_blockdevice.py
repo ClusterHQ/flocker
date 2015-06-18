@@ -42,7 +42,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
-    FLOCKER_1_0_0_FS_UPGRADE,
+    FLOCKER_1_0_0_FS_UPGRADE, FLOCKER_1_0_0_FS_MOUNTED,
     get_device_for_dataset_id, DuplicateFilesystemId,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
