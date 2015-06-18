@@ -4,8 +4,14 @@
 Flocker Docker plugin
 =====================
 
-The Flocker Docker is the first Docker volumes plugin, connecting Docker directly to the Flocker volumes API.
-It connects Flocker to Docker via the ``docker run -v name:path --volume-driver=flocker`` syntax.
+The Flocker Docker plugin is a Docker volumes plugin, connecting Docker directly to the Flocker volumes API.
+
+It connects Flocker to Docker via:
+
+* The ``docker run -v name:path --volume-driver=flocker`` syntax.
+* The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API.
+
+See the `Docker documentation on experimental plugins <>`_.
 
 Using this integration, it then becomes possible to provision portable Flocker volumes directly from Docker's own orchestration and composition tools, Swarm and Compose.
 
@@ -13,30 +19,36 @@ It will also enable integrations with Mesosphere/Marathon and eventually Kuberne
 
 See https://github.com/ClusterHQ/flocker-docker-plugin
 
-Installing the Flocker Docker plugin
-====================================
+Installation on Ubuntu 14.04
+============================
 
-Since it's experimental, the Flocker Docker plugin does not yet come packaged for Ubuntu and CentOS.
+First :ref:`install Flocker <labs-installer>`.
 
-Flocker itself currently supports Ubuntu 14.04 and CentOS 7.
-So if you want to try the Flocker Docker plugin you'll need to be running Docker on one of these systems.
+Install the experimental build of Docker:
 
-You'll also need to follow the Flocker installation instructions, either the (LINK) official instructions or (LINK) experimental installer.
+.. prompt:: bash $
 
-You can easily install the flocker docker plugin using the following commands on each Docker node::
+    wget -qO- https://experimental.docker.com/ | sudo sh
 
-    sudo su -
-    mkdir -p /opt
-    cd /opt
-    git clone https://github.com/clusterhq/flocker-docker-plugin
-    cd flocker-docker-plugin
-    python setup.py install
+On each of your container agent servers (Ubuntu 14.04 or CentOS 7), install the Flocker plugin:
 
-Now you'll need to set some variables which will be used later::
+.. prompt:: bash $
 
-    FLOCKER_CONTROL_SERVICE_BASE_URL
+    sudo pip install git+https://github.com/clusterhq/flocker-docker-plugin.git
 
-Then if you are on Ubuntu 14.04, the following instructions will configure an upstart script to start the Flocker plugin before Docker::
+We need to define some configuration which will make it into the environment of the plugin:
+
+.. prompt:: bash $
+
+    FLOCKER_CONTROL_SERVICE_BASE_URL=https://your-control-service:4523/v1
+    MY_NETWORK_IDENTITY=1.2.3.4
+
+Replace ``your-control-service`` with the hostname of the control service you specified :ref:`when you created your cluster <labs-installer>`.
+Replace ``1.2.3.4`` with the IP address of the host you are installing on (if your public and private IPs differ, it is generally best to use the *private* IP address of your hosts).
+
+Write out up an upstart script to automatically start the Flocker plugin on boot:
+
+.. prompt:: bash $
 
     cat <<EOF > /etc/init/flocker-plugin.conf
     # flocker-plugin - flocker-plugin job file
@@ -45,23 +57,6 @@ Then if you are on Ubuntu 14.04, the following instructions will configure an up
     respawn
     env FLOCKER_CONTROL_SERVICE_BASE_URL=${FLOCKER_CONTROL_SERVICE_BASE_URL}
     env MY_NETWORK_IDENTITY=${MY_NETWORK_IDENTITY}
-    chdir /opt/flocker-docker-plugin
-    exec twistd -noy powerstripflocker.tac
+    exec flocker-plugin
     EOF
     service flocker-plugin restart
-
-If you are on a ``systemd`` system (e.g. CentOS 7), the following instructions will configure a ``systemd`` unit to start the Flocker plugin before Docker::
-
-    cat <<EOF > /etc/systemd/system/flocker-plugin.service
-    [Unit]
-    Description=flocker-plugin - flocker-plugin job file
-    [Service]
-    Environment=FLOCKER_CONTROL_SERVICE_BASE_URL=${FLOCKER_CONTROL_SERVICE_BASE_URL}
-    Environment=MY_NETWORK_IDENTITY=${MY_NETWORK_IDENTITY}
-    ExecStart=/usr/bin/twistd -noy powerstripflocker.tac
-    WorkingDirectory=/opty/flocker-docker-plugin
-    [Install]
-    WantedBy=multi-user.target
-    EOF
-    systemctl enable flocker-plugin.service
-    systemctl start flocker-plugin.service
