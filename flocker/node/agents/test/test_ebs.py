@@ -30,4 +30,3 @@ class AttachedUnexpectedDeviceTests(SynchronousTestCase):
             expected,
             repr(AttachedUnexpectedDevice(requested, discovered))
         )
-
