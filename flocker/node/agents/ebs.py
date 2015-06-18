@@ -608,8 +608,24 @@ class EBSBlockDeviceAPI(object):
                     )
                     # We do, however, expect the attached device name to follow
                     # a certain simple pattern.  Verify that now and signal an
-                    # error immediately if the assumption is violated.
+                    # error immediately if the assumption is violated.  If we
+                    # let it go by, a later call to ``get_device_path`` will
+                    # quietly produce the wrong results.
+                    #
+                    # To make this explicit, we *expect* that the device will
+                    # *always* be what we *expect* the device to be (sorry).
+                    # This check is only here in case we're wrong to make the
+                    # system fail in a less damaging way.
                     if _expected_device(device) != device_path:
+                        # We also don't want anything to re-discover the volume
+                        # in an attached state since that might also result in
+                        # use of ``get_device_path`` (producing an incorrect
+                        # result).  This is a best-effort.  It's possible the
+                        # agent will crash after attaching the volume and
+                        # before detaching it here, leaving the system in a bad
+                        # state.  This is one reason we need a better solution
+                        # in the long term.
+                        self.detach_volume(blockdevice_id)
                         raise AttachedUnexpectedDevice(device, device_path)
                     break
                 # end lock scope
