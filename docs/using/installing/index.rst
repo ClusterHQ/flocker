@@ -570,7 +570,7 @@ For more information, including installation, testing and usage instructions, se
 * `EMC ScaleIO Flocker driver on GitHub`_
 * `EMC XtremIO Flocker driver on GitHub`_
 
-.. XXX FLOC xxx to improve this EMC/Backend storage section
+.. XXX FLOC 2442 and 2443 to expand this EMC/Backend storage section
 
 .. _zfs-dataset-backend:
 
