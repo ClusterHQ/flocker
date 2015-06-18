@@ -11,7 +11,7 @@ It connects Flocker to Docker via:
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API.
 
-See the `Docker documentation on experimental plugins <>`_.
+See the `Docker documentation on experimental plugins <https://github.com/docker/docker/tree/master/experimental>`_.
 
 Using this integration, it then becomes possible to provision portable Flocker volumes directly from Docker's own orchestration and composition tools, Swarm and Compose.
 
