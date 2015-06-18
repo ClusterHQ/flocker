@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output, CalledProcessError, STDOUT
+from subprocess import CalledProcessError, check_output, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -407,7 +407,6 @@ class CreateFilesystem(PRecord):
             _ensure_no_filesystem(device)
             check_output([
                 b"mkfs", b"-t", self.filesystem.encode("ascii"),
-                b"-U", bytes(self.volume.dataset_id),
                 # This is ext4 specific, and ensures mke2fs doesn't ask
                 # user interactively about whether they really meant to
                 # format whole device rather than partition. It will be
@@ -1823,39 +1822,3 @@ class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
         except KeyError:
             pass
         return self._api.detach_volume(blockdevice_id)
-
-
-class DuplicateFilesystemId(Exception):
-    """
-    Two devices were found with filesystems that have the same UUID. It is
-    not clear which one is the actual dataset we are looking for.
-    """
-
-
-def get_device_for_dataset_id(dataset_id):
-    """
-    Lookup the path of the device for an attached dataset on this machine.
-
-    :param UUID dataset_id: The dataset we're looking up.
-
-    :raise KeyError: If device is not found.
-    :raise DuplicateFilesystemId: If more than one device is found.
-
-    :return: ``FilePath`` of device where the dataset is attached.
-    """
-    try:
-        result = check_output([b"blkid",
-                               # Only list the device:
-                               b"-o", b"device",
-                               # Search by UUID:
-                               b"-t", b'UUID="{}"'.format(dataset_id)])
-    except CalledProcessError as e:
-        if e.returncode == 2:
-            raise KeyError(dataset_id)
-        else:
-            # This code path is untested, unfortunately.
-            raise
-    paths = result.splitlines()
-    if len(paths) > 1:
-        raise DuplicateFilesystemId(paths)
-    return FilePath(paths[0])
