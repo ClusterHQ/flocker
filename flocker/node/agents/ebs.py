@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap
+from pyrsistent import PRecord, field, pset
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -26,7 +26,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, InformationUnavailable,
+    UnattachedVolume,
 )
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
@@ -366,12 +366,8 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 @implementer(IBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
     """
-    An EBS implementation of ``IBlockDeviceAPI`` which creates block devices in
-    an EC2 cluster using Boto APIs.
-
-    :ivar pmap _device_paths: A mapping with keys of ``blockdevice_id``\ s of
-        volumes attached to this node and values of ``FilePath`` instances
-        giving the OS device path where those volumes are accessible.
+    An EBS implementation of ``IBlockDeviceAPI`` which creates
+    block devices in an EC2 cluster using Boto APIs.
     """
     def __init__(self, ec2_client, cluster_id):
         """
@@ -385,7 +381,6 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
-        self._device_paths = pmap()
 
     def allocation_unit(self):
         """
@@ -569,15 +564,21 @@ class EBSBlockDeviceAPI(object):
                     break
                 # end lock scope
 
+        # Stamp EBS volume with attached device name tag.
+        # If OS fails to see new block device in 60 seconds,
+        # `new_device` is `None`, indicating the volume failed
+        # to attach to the compute instance.
+        metadata = {
+            ATTACHED_DEVICE_LABEL: unicode(new_device),
+        }
+        if new_device is not None:
+            self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume,
                          start_status=u'available',
                          transient_status=u'attaching',
                          end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
-        self._device_paths = self._device_paths.set(
-            blockdevice_id, FilePath(new_device)
-        )
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
@@ -604,7 +605,8 @@ class EBSBlockDeviceAPI(object):
                          transient_status=u'detaching',
                          end_status=u'available')
 
-        self._device_paths = self._device_paths.discard(blockdevice_id)
+        # Delete attached device metadata from EBS Volume
+        self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -645,16 +647,18 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         """
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
+        if volume.attached_to is None:
+            raise UnattachedVolume(blockdevice_id)
+
         try:
-            return self._device_paths[blockdevice_id]
+            device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
         except KeyError:
-            # Maybe we screwed up.  Ask EBS if this is something that really
-            # exists.  This will raise UnknownVolume if it really was the
-            # caller who screwed up.
-            self._get_ebs_volume(blockdevice_id)
-            # Okay.  It's a valid volume but we don't know about it.  Sorry,
-            # caller.
-            raise InformationUnavailable(blockdevice_id)
+            raise UnattachedVolume(blockdevice_id)
+        if device is None:
+            raise UnattachedVolume(blockdevice_id)
+        return FilePath(device)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
