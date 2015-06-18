@@ -1553,11 +1553,6 @@ class BlockDeviceDeployer(PRecord):
                 api.attach_volume(volume.blockdevice_id, compute_instance_id)
                 device_path = api.get_device_path(volume.blockdevice_id)
 
-            # Find out if it has a filesystem.  Skip it if it does not (missing
-            # filesystem is a problem to solve somewhere else).
-            #
-            # TODO
-
             # Find out of it is mounted.  Skip it (don't break the rest of the
             # loop) if it is mounted because there's nothing we can do about
             # mounted filesystems.  They're not supposed to be mounted because
@@ -1569,13 +1564,22 @@ class BlockDeviceDeployer(PRecord):
                 ).write()
                 continue
 
+            try:
+                old_fs_uuid = _ext4_fs_uuid(device_path)
+            except FilesystemMissing:
+                # The volume was most likely only partially initialized and
+                # then the system failed in some way leaving it without the
+                # filesystem it's meant to have.  This would be a good time
+                # to mark the volume for fixing (put a filesystem on it).
+                # For now, ignore it.
+                continue
+
             # Put the dataset id into the ext4 filesystem UUID field for future
             # reference.
             with FLOCKER_1_0_0_FS_UPGRADE(
                 block_device_id=volume.blockdevice_id,
                 dataset_id=volume.dataset_id
             ) as upgrade:
-                old_fs_uuid = _ext4_fs_uuid(device_path)
                 upgrade.addSuccessFields(old_fs_uuid=old_fs_uuid)
                 output = tune2fs(
                     # Change the UUID to this value
