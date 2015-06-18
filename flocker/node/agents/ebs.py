@@ -37,7 +37,6 @@ from ._logging import (
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
-ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
@@ -559,20 +558,10 @@ class EBSBlockDeviceAPI(object):
                     # UserGuide/device_naming.html), wait for new block device
                     # to be available to the OS, and interpret it as ours.
                     # Wait under lock scope to reduce false positives.
-                    new_device = _wait_for_new_device(blockdevices,
-                                                      volume.size)
+                    _wait_for_new_device(blockdevices, volume.size)
                     break
                 # end lock scope
 
-        # Stamp EBS volume with attached device name tag.
-        # If OS fails to see new block device in 60 seconds,
-        # `new_device` is `None`, indicating the volume failed
-        # to attach to the compute instance.
-        metadata = {
-            ATTACHED_DEVICE_LABEL: unicode(new_device),
-        }
-        if new_device is not None:
-            self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume,
                          start_status=u'available',
                          transient_status=u'attaching',
@@ -604,9 +593,6 @@ class EBSBlockDeviceAPI(object):
                          start_status=u'in-use',
                          transient_status=u'detaching',
                          end_status=u'available')
-
-        # Delete attached device metadata from EBS Volume
-        self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -652,13 +638,7 @@ class EBSBlockDeviceAPI(object):
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
-        try:
-            device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
-        except KeyError:
-            raise UnattachedVolume(blockdevice_id)
-        if device is None:
-            raise UnattachedVolume(blockdevice_id)
-        return FilePath(device)
+        raise NotImplementedError()
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
