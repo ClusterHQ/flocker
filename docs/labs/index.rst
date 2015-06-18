@@ -13,7 +13,7 @@ However, if you like one of these projects please let us know.
 We intend to promote popular projects to be fully supported.
 
 Flocker Docker plugin with CLI and GUI
---------------------------------------
+======================================
 
 By way of example, here is a 55 second demo of the :ref:`Flocker Docker plugin <labs-docker-plugin>` provisioning portable Flocker volumes and moving them between hosts directly from the Docker CLI.
 
@@ -24,7 +24,7 @@ The video also shows our experimental :ref:`Volumes GUI <labs-volumes-gui>` and 
    <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
 
 Goals of ClusterHQ Labs
------------------------
+=======================
 
 Make it possible to:
 
@@ -41,7 +41,7 @@ Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
 
 List of Labs projects
----------------------
+=====================
 
 .. toctree::
    docker-plugin
