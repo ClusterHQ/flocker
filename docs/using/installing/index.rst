@@ -692,7 +692,7 @@ Next Step
 
 The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.
 
-.. _ScaleIO: http://www.emc.com/storage/scaleio/index.htm
-.. _XtremIO: http://www.emc.com/storage/xtremio/overview.htm
+.. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
+.. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
 .. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
