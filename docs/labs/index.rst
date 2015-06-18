@@ -48,7 +48,7 @@ Getting in touch with ClusterHQ Labs
 
 Come and talk to us on our IRC channel which is on Freenode ``#clusterhq``.
 
-Or, file an issue on github for the respective project.
+Or, file an issue on GitHub for the respective project.
 
 List of Labs projects
 ---------------------
