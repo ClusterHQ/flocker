@@ -9,7 +9,7 @@ With the :ref:`Flocker Docker plugin <labs-docker-plugin>`, and with Compose sup
 First, you need to :ref:`install Flocker <labs-installer>` and the :ref:`Flocker Docker plugin <labs-docker-plugin>`.
 You can use our experimental  :ref:`Flocker Installer <labs-installer>` to do this.
 
-Then, you need a version of compose that supports Flocker volumes.
+Then, you need a version of Compose that supports Flocker volumes.
 
 Run the following command to do this (this branch that will be installed corresponds to `this pull request <https://github.com/docker/compose/pull/1502>`_):
 
@@ -21,7 +21,7 @@ Run the following command to do this (this branch that will be installed corresp
 docker-compose.yml
 ==================
 
-To make use of Flocker volumes with compose, you will need to specify a ``volume_driver`` field in your ``docker-compose.yml`` file.
+To make use of Flocker volumes with Compose, you will need to specify a ``volume_driver`` field in your ``docker-compose.yml`` file.
 
 Here is an example of a simple application that has 2 containers ``web`` and ``redis``.  Notice how the ``redis`` container has a data volume and has the ``volume_driver`` field set to ``flocker``.
 
