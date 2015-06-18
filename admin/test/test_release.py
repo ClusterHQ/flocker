@@ -104,15 +104,15 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': 'index-content',
-                    '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
-                    '0.3.0-444-gf05215b/other.html': 'other-content',
-                    '0.3.0-392-gd50b558/index.html': 'bad-index',
-                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0-392-gd50b558/other.html': 'bad-other',
+                    '0.3.0+444.gf05215b/index.html': 'index-content',
+                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    '0.3.0+444.gf05215b/other.html': 'other-content',
+                    '0.3.0+392.gd50b558/index.html': 'bad-index',
+                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0+392.gd50b558/other.html': 'bad-other',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
@@ -146,10 +146,10 @@ class PublishDocsTests(SynchronousTestCase):
                     '0.3.1/index.html': 'index-content',
                     '0.3.1/sub/index.html': 'sub-index-content',
                     '0.3.1/other.html': 'other-content',
-                    '0.3.0-392-gd50b558/index.html': 'bad-index',
-                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0-392-gd50b558/other.html': 'bad-other',
-                },
+                    '0.3.0+392.gd50b558/index.html': 'bad-index',
+                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
@@ -187,11 +187,11 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1/other.html': 'other-content',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': 'index-content',
-                    '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
+                    '0.3.0+444.gf05215b/index.html': 'index-content',
+                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
@@ -219,7 +219,7 @@ class PublishDocsTests(SynchronousTestCase):
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
@@ -246,7 +246,7 @@ class PublishDocsTests(SynchronousTestCase):
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf01215b', '0.3.1dev5',
+        self.publish_docs(aws, '0.3.0+444.gf01215b', '0.3.1dev5',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
@@ -306,12 +306,12 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': '',
-                    '0.3.0-444-gf05215b/sub/index.html': '',
-                    '0.3.0-444-gf05215b/sub/other.html': '',
+                    '0.3.0+444.gf05215b/index.html': '',
+                    '0.3.0+444.gf05215b/sub/index.html': '',
+                    '0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -349,10 +349,10 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/sub_index.html': '',
+                    '0.3.0+444.gf05215b/sub_index.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -390,7 +390,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -433,7 +433,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -474,12 +474,12 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1dev1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': '',
-                    '0.3.0-444-gf05215b/sub/index.html': '',
-                    '0.3.0-444-gf05215b/sub/other.html': '',
+                    '0.3.0+444.gf05215b/index.html': '',
+                    '0.3.0+444.gf05215b/sub/index.html': '',
+                    '0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -523,7 +523,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -566,7 +566,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -632,7 +632,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.assertRaises(
             NotTagged,
             self.publish_docs,
-            aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+            aws, '0.3.0+444.gf05215b', '0.3.1dev1',
             environment=Environments.PRODUCTION)
 
     def test_publish_to_doc_version(self):
@@ -652,7 +652,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
 
         self.publish_docs(
-            aws, '0.3.1-444-gf05215b', '0.3.1+doc1',
+            aws, '0.3.1+444.gf05215b', '0.3.1.post1',
             environment=Environments.STAGING)
 
         self.assertEqual(
@@ -679,7 +679,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
         # Does not raise:
         self.publish_docs(
-            aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
+            aws, '0.3.1.post1', '0.3.1', environment=Environments.PRODUCTION)
 
     def test_production_can_publish_prerelease(self):
         """
@@ -707,7 +707,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.assertRaises(
             NotARelease,
             self.publish_docs,
-            aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
+            aws, '0.3.0+444.gf05215b', '0.3.0+444.gf05215b',
             environment=Environments.STAGING)
 
     def assert_error_key_update(self, doc_version, environment, should_update):
@@ -1425,7 +1425,7 @@ class UploadOptionsTests(SynchronousTestCase):
         self.assertRaises(
             NotARelease,
             options.parseOptions,
-            ['--flocker-version', '0.3.0-444-gf05215b'])
+            ['--flocker-version', '0.3.0+444.gf05215b'])
 
     def test_documentation_release_fails(self):
         """
@@ -1435,7 +1435,7 @@ class UploadOptionsTests(SynchronousTestCase):
         self.assertRaises(
             DocumentationRelease,
             options.parseOptions,
-            ['--flocker-version', '0.3.0+doc1'])
+            ['--flocker-version', '0.3.0.post1'])
 
 
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
@@ -1658,7 +1658,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.assertRaises(
             NotARelease,
-            self.calculate_base_branch, '0.3.0-444-gf05215b')
+            self.calculate_base_branch, '0.3.0+444.gf05215b')
 
     def test_weekly_release_base(self):
         """
@@ -1675,7 +1675,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.repo.create_head('release/flocker-0.3.0')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0+doc1').name,
+            self.calculate_base_branch(version='0.3.0.post1').name,
             "release/flocker-0.3.0")
 
     def test_first_pre_release(self):
