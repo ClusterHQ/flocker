@@ -14,7 +14,7 @@ However, if you like one of these projects please :ref:`let us know <labs-contac
 If we get lots of positive feedback about any one of these projects then we will consider it for the main Flocker roadmap.
 
 Flocker Docker plugin with CLI and GUI
---------------------------------------
+======================================
 
 By way of example, here is a 55 second demo of the :ref:`Flocker Docker plugin <labs-docker-plugin>` provisioning portable Flocker volumes and moving them between hosts directly from the Docker CLI.
 
@@ -25,7 +25,7 @@ The video also shows our experimental :ref:`Volumes GUI <labs-volumes-gui>` and 
    <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
 
 Goals of ClusterHQ Labs
------------------------
+=======================
 
 Make it possible to:
 
@@ -44,14 +44,14 @@ This is the "ultimate integration demo" — a pre-built demo environment that in
 .. _labs-contact:
 
 Getting in touch with ClusterHQ Labs
-------------------------------------
+====================================
 
 Come and talk to us on our IRC channel which is on Freenode ``#clusterhq``.
 
 Or, file an issue on GitHub for the respective project.
 
 List of Labs projects
----------------------
+=====================
 
 .. toctree::
    docker-plugin

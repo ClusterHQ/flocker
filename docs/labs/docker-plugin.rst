@@ -4,20 +4,29 @@
 Flocker Docker plugin
 =====================
 
-The Flocker Docker plugin is a Docker volumes plugin, connecting Docker directly to the Flocker volumes API.
+The Flocker Docker plugin is a `Docker volumes plugin <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md#command-line-changes>`_, connecting Docker on a host directly to Flocker, which must have an agent running on the same host.
 
-It connects Flocker to Docker via:
+As a user of Docker, it means you can use Flocker directly via:
 
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API.
 
-See the `Docker documentation on experimental plugins <https://github.com/docker/docker/tree/master/experimental>`_.
+See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md#command-line-changes>`_.
 
-Using this integration, it then becomes possible to provision portable Flocker volumes directly from Docker's own orchestration and composition tools, Swarm and Compose.
+See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
-It will also enable integrations with Mesosphere/Marathon and eventually Kubernetes.
+How it works
+============
 
-See https://github.com/ClusterHQ/flocker-docker-plugin
+The Flocker Docker plugin operates on the ``name`` passed to Docker in the ``docker run`` command and associates it with a Flocker dataset with the same name (i.e. with metadata ``name=foo``).
+
+There are three main cases:
+
+* If the volume does not exist at all on the Flocker cluster, it is created on the host which requested it.
+* If the volume exists on a different node, it is moved in-place before the container is started.
+* If the volume exists on the current node, the container can be started straight away.
+
+Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
 Installation on Ubuntu 14.04
 ============================
@@ -60,3 +69,8 @@ Write out up an upstart script to automatically start the Flocker plugin on boot
     exec flocker-docker-plugin
     EOF
     service flocker-docker-plugin restart
+
+Known limitations
+=================
+
+If the volume exists on a different node and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
