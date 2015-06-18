@@ -7,19 +7,7 @@ Generate a Flocker package that can be deployed onto cluster nodes.
 import os
 import platform
 from setuptools import setup, find_packages
-
 import versioneer
-versioneer.vcs = "git"
-versioneer.versionfile_source = "flocker/_version.py"
-versioneer.versionfile_build = "flocker/_version.py"
-versioneer.tag_prefix = ""
-versioneer.parentdir_prefix = "flocker-"
-
-cmdclass = {}
-
-# Let versioneer hook into the various distutils commands so it can rewrite
-# certain data at appropriate times.
-cmdclass.update(versioneer.get_cmdclass())
 
 # Hard linking doesn't work inside VirtualBox shared folders. This means that
 # you can't use tox in a directory that is being shared with Vagrant,
@@ -44,10 +32,6 @@ dev_requirements = [
 
     # Run the test suite:
     "tox==1.7.1",
-
-    # versioneer is necessary in order to update (but *not* merely to
-    # use) the automatic versioning tools.
-    "versioneer==0.10",
 
     # Some of the tests use Conch:
     "PyCrypto==2.6.1",
@@ -83,7 +67,7 @@ install_requirements = [
     # This is necessary for a release because our version scheme does not
     # adhere to PEP440.
     # See https://clusterhq.atlassian.net/browse/FLOC-1373
-    "setuptools==3.6",
+    "setuptools==17.1.1",
     "eliot == 0.7.1",
     "machinist == 0.2.0",
     "zope.interface >= 4.0.5",
@@ -209,8 +193,6 @@ setup(
             "ndg-httpsclient==0.4.0",
             ],
         },
-
-    cmdclass=cmdclass,
 
     # Some "trove classifiers" which are relevant.
     classifiers=[
