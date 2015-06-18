@@ -396,6 +396,14 @@ def task_disable_selinux(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def _remove_private_key(content):
+    if (
+            content.startswith('-----BEGIN PRIVATE KEY-----') and
+            content.endswith('-----END PRIVATE KEY-----\n')):
+        return '-----BEGIN PRIVATE KEY-----\nREMOVED\n-----END PRIVATE KEY-----\n'  # noqa
+    return content
+
+
 def task_install_control_certificates(ca_cert, control_cert, control_key):
     """
     Install certificates and private key required by the control service.
@@ -415,7 +423,8 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         put(path="/etc/flocker/control-service.crt",
             content=control_cert.getContent()),
         put(path="/etc/flocker/control-service.key",
-            content=control_key.getContent()),
+            content=control_key.getContent(),
+            log_content_filter=_remove_private_key),
         ])
 
 
@@ -438,7 +447,8 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
         put(path="/etc/flocker/node.crt",
             content=node_cert.getContent()),
         put(path="/etc/flocker/node.key",
-            content=node_key.getContent()),
+            content=node_key.getContent(),
+            log_content_filter=_remove_private_key),
         ])
 
 
