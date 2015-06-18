@@ -6,4 +6,3 @@ Administering Flocker
    :maxdepth: 2
 
    debugging
-   cleanup
