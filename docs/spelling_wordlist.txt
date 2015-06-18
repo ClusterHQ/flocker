@@ -74,6 +74,7 @@ Rackspace
 Redis
 redis
 resize
+roadmap
 routable
 snapshotting
 stateful
