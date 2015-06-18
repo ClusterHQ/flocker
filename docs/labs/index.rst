@@ -44,7 +44,7 @@ This is the "ultimate integration demo" — a pre-built demo environment that in
 .. _labs-contact:
 
 Getting in touch with ClusterHQ Labs
-------------------------------------
+====================================
 
 Come and talk to us on our IRC channel which is on Freenode ``#clusterhq``.
 
