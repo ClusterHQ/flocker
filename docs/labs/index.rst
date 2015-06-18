@@ -19,7 +19,7 @@ The video also shows the experimental GUI and CLI so you can see what's going on
 
 .. raw:: html
 
-   <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:2em;"></iframe>
+   <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
 
 Goals of ClusterHQ Labs
 -----------------------
@@ -35,7 +35,7 @@ We believe that Flocker will be more successful if we focus on making it great a
 
 Our biggest step towards this goal so far is the Flocker Docker plugin, which makes Flocker pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
 
-Also check out the `DockerCon Plugin Demos landing page <https://plugin-demos-2015.github.io/>`_ to see a joint project between ClusterHQ and Weaveworks.
+Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working in harmony.
 
 Complete list of Labs projects
@@ -46,8 +46,8 @@ Complete list of Labs projects
    installer
    volumes-cli
    volumes-gui
-   weave
    swarm
    compose
+   weave
    mesosphere
    kubernetes
