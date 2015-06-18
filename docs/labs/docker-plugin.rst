@@ -1,3 +1,5 @@
+.. _labs-docker-plugin:
+
 =====================
 Flocker Docker plugin
 =====================

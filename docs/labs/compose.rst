@@ -1,3 +1,5 @@
+.. _labs-compose:
+
 ====================
 Flocker with Compose
 ====================

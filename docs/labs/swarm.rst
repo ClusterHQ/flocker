@@ -1,3 +1,5 @@
+.. _labs-swarm:
+
 ==================
 Flocker with Swarm
 ==================

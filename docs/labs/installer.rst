@@ -1,3 +1,5 @@
+.. _labs-installer:
+
 ======================
 Experimental installer
 ======================

@@ -1,3 +1,5 @@
+.. _labs-volumes-gui:
+
 ===========
 Volumes GUI
 ===========

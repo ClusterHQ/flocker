@@ -1,3 +1,5 @@
+.. _labs-mesosphere:
+
 =======================
 Flocker with Mesosphere
 =======================

@@ -1,3 +1,5 @@
+.. _labs-volumes-cli:
+
 =====================
 Prototype Volumes CLI
 =====================

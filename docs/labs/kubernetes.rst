@@ -1,3 +1,5 @@
+.. _labs-kubernetes:
+
 =======================
 Flocker with Kubernetes
 =======================

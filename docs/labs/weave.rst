@@ -1,3 +1,5 @@
+.. _labs-weave:
+
 ==================
 Flocker with Weave
 ==================
