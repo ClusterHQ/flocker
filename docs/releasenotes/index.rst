@@ -14,7 +14,7 @@ v1.0.1
 
 * The on-disk representation of filesystems for the AWS EBS and OpenStack Cinder storage drivers has changed.
   An upgrade, mostly automatic, of filesystems created using Flocker 1.0.0 is required.
-  See :ref:`upgrading-flocker-1.0.1` for details.
+  See :ref:`upgrading-flocker` for details.
 * The EBS storage driver now more reliably selects the correct OS device file corresponding to an EBS volume being used.
 
 v1.0
