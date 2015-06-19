@@ -122,8 +122,8 @@ Here is an example of a CLI command to create a volume:
 The above command will create a volume that is targeted to the ``172.16.70.251`` node (using it's ID).
 
 The node property instructs Flocker to attach the volume to the given node, use the ID of the node you want the volume attached to.
-The size property can either be a number (meaning bytes) or you can use 'Gb' or 'Mb'.
-The metadata property is a comma seperated string of ``key=value`` pairs.
+The size property can either be a number (meaning bytes) or you can use ``Gb`` or ``Mb``.
+The metadata property is a comma-separated string of ``key=value`` pairs.
 
 Here is the output of the help for ``create``
 

@@ -17,7 +17,8 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
 
 .. note::
     Note that you should *either* use the Flocker Docker plugin to associate containers with volumes (we call this the "integration" architecture), or you should use the Flocker containers API (``flocker-deploy`` ), but not both.
-    They are distinct architectures - the integration route allows Flocker to be used in conjunction with other ecosystem tools like Swarm and Compose, which is more experimental than ``flocker-deploy`` and the Flocker containers API, but we strongly believe that the integration route is the future.
+
+    They are distinct architectures - the integration route allows Docker to control Flocker via its dataset API. This allows Flocker to be used in conjunction with other ecosystem tools like `Swarm <labs-compose>` and `Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API, but we strongly believe that the integration route is the future.
 
 How it works
 ============

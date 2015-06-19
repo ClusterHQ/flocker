@@ -66,7 +66,7 @@ Make sure you create the servers a reasonable amount of disk space, since Docker
 * Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend (VMs must be deployed in the same region).
 
 .. warning::
-    Make sure you can log into the nodes as **root** with a private key. (e.g. on ubuntu on AWS, `sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys`)
+    Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu on AWS, `sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys`)
 
 You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider). Using a DNS name is optional, you can also just use its IP address.
 
@@ -82,7 +82,7 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
 This will create some sample configuration files that correspond to the backend Flocker will use - base your ``cluster.yml`` on one of these files:
 
 * AWS EBS: ``cluster.yml.ebs.sample``
-* Openstack ``cluster.yml.openstack.sample``
+* OpenStack ``cluster.yml.openstack.sample``
 * ZFS: ``cluster.yml.zfs.sample``
 
 Choose the one that's appropriate for you, and then customize it with your choice of text editor.
@@ -95,7 +95,7 @@ For example:
 
 Notes:
 
-* You need to ensure that machines can be SSH'd into as root.
+* You need to ensure that machines can be logged into via SSH as root.
 * You need a private key to access the machines - you can configure this in the ``private_key_path`` of ``cluster.yml``.
 
 Install
@@ -123,17 +123,13 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 this will configure certificates, push them to your nodes, and set up firewall rules for the control service
 
 .. warning::
-    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524 if you want to access the control service/API remotely.
+    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524 if you want to access the control service or API remotely.
 
 Install Flocker Docker plugin (optional)
 ========================================
 
 If you want to install the `Flocker Docker plugin <labs-docker-plugin>`_ then follow these steps.
 Currently this has only been tested on Ubuntu 14.04.
-
-.. note::
-    Note that you should *either* use the Flocker Docker plugin to associate containers with volumes (we call this the "integration" architecture), or you should use the Flocker containers API (``flocker-deploy`` ), but not both.
-    They are distinct architectures - the integration route allows Flocker to be used in conjunction with other ecosystem tools like Swarm and Compose, which is more experimental than ``flocker-deploy`` and the Flocker containers API, but we strongly believe that the integration route is the future.
 
 From the directory where your ``cluster.yml`` file is now, run the following command:
 
@@ -143,16 +139,16 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 
 This will configure api certificates for the Docker-plugin and push them to your nodes - it will name them ``/etc/flocker/plugin.{crt,key}`` on the nodes.
 
-It will install the Flocker Docker plugin, and write a service file (upstart/systemd) for the plugin (as described in the `manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
+It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the `manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
 
 It will also download and install an experimental Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
 
 It supports several optional environment variables:
 
- * ``DOCKER_BINARY_URL`` - the url to download a customized docker binary from
- * ``DOCKER_SERVICE_NAME`` - the name of the service docker is installed with (docker, docker.io etc)
- * ``PLUGIN_REPO`` - the repo to install the docker plugin from
- * ``PLUGIN_BRANCH`` - the branch of the plugin repo to use
+ * ``DOCKER_BINARY_URL`` - the URL to download a customized Docker binary from
+ * ``DOCKER_SERVICE_NAME`` - the name of the service docker is installed with (``docker``, ``docker.io`` etc)
+ * ``PLUGIN_REPO`` - the GitHub repository URL to install the docker plugin from
+ * ``PLUGIN_BRANCH`` - the branch of the plugin repository to use
 
 Once you've installed the Flocker Docker plugin, check out the experimental `volumes CLI <labs-volumes-cli>` and `GUI <labs-volumes-gui>`, and the `Swarm <labs-swarm>` and `Compose <labs-compose>` integrations.
 
