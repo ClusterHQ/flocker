@@ -17,13 +17,13 @@ Note that, as per this diagram, ref:`Docker Swarm <labs-swarm>` and Flocker must
 As a user of Docker, it means you can use Flocker directly via:
 
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
-* The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API.
+* The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API (set it to ``flocker``).
 
 See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_.
 
-See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
-
 This currently depends on the `experimental build of Docker <https://github.com/docker/docker/blob/master/experimental/>`_.
+
+See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
 .. _labs-architecture-note:
 
@@ -37,13 +37,13 @@ This currently depends on the `experimental build of Docker <https://github.com/
 How it works
 ============
 
-The Flocker Docker plugin means you can run containers with named volumes without worrying which server in your cluster the volume is on.
+The Flocker Docker plugin means you can run containers with named volumes without worrying which server your data is on.
 
-The Flocker will create or move the volumes in place as necessary.
+The plugin will create or move the volumes in place as necessary.
 
 The Flocker Docker plugin operates on the ``name`` passed to Docker in the ``docker run`` command and associates it with a Flocker dataset with the same name (i.e. with metadata ``name=foo``).
 
-There are three main cases:
+There are three main cases which the plugin handles:
 
 * If the volume does not exist at all on the Flocker cluster, it is created on the host which requested it.
 * If the volume exists on a different host, it is moved in-place before the container is started.
@@ -54,12 +54,14 @@ Multiple containers can use the same Flocker volume (by referencing the same vol
 Demo
 ====
 
-This demo shows both the Flocker Docker plugin and also the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
+This demo shows both the Flocker Docker plugin in conjunction with the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
 
 .. raw:: html
 
    <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
 
+Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
+This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
 
 Quickstart installation
 =======================
