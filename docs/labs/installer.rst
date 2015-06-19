@@ -148,10 +148,10 @@ It will also download and install an experimental Docker binary that supports th
 
 It supports several optional environment variables:
 
- * ``DOCKER_BINARY_URL`` - the URL to download a customized Docker binary from
- * ``DOCKER_SERVICE_NAME`` - the name of the service docker is installed with (``docker``, ``docker.io`` etc)
- * ``PLUGIN_REPO`` - the GitHub repository URL to install the docker plugin from
- * ``PLUGIN_BRANCH`` - the branch of the plugin repository to use
+* ``DOCKER_BINARY_URL`` - the URL to download a customized Docker binary from
+* ``DOCKER_SERVICE_NAME`` - the name of the service docker is installed with (``docker``, ``docker.io`` etc)
+* ``PLUGIN_REPO`` - the GitHub repository URL to install the docker plugin from
+* ``PLUGIN_BRANCH`` - the branch of the plugin repository to use
 
 Once you've installed the Flocker Docker plugin, check out the experimental `volumes CLI <labs-volumes-cli>` and `GUI <labs-volumes-gui>`, and the `Swarm <labs-swarm>` and `Compose <labs-compose>` integrations.
 
