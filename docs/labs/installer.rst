@@ -151,7 +151,7 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 
 This will configure API certificates for the Flocker Docker plugin and push them to your nodes - it will name them ``/etc/flocker/plugin.{crt,key}`` on the nodes.
 
-It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the `manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
+It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the :ref:`manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
 
 It will also download and install an experimental Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
 
