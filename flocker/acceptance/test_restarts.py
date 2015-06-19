@@ -5,6 +5,7 @@ Tests for restarting and reboots and their interactions.
 """
 
 from subprocess import call
+from unittest import SkipTest
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -29,6 +30,7 @@ class RestartTests(TestCase):
         to a dataset, on reboots it will only be restarted after the
         volume becomes available.
         """
+        raise SkipTest("Don't want to run this on buildbot, for now at least.")
         node = cluster.nodes[0]
         # Implicitly uses first node:
         creating_dataset = create_dataset(self, cluster)
