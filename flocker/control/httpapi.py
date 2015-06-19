@@ -531,7 +531,6 @@ class ConfigurationAPIUserV1(object):
             u"create container with duplicate name",
             u"create container with ports",
             u"create container with environment",
-            u"create container with restart policy",
             u"create container with attached volume",
             u"create container with cpu shares",
             u"create container with memory limit",
