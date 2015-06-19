@@ -129,7 +129,7 @@ this will configure certificates, push them to your nodes, and set up firewall r
 Install Flocker Docker plugin (optional)
 ========================================
 
-If you want to install the `Flocker Docker plugin <labs-docker-plugin>`_ then follow these steps.
+If you want to install the :ref:`Flocker Docker plugin <labs-docker-plugin>` then follow these steps.
 Currently this has only been tested on Ubuntu 14.04.
 
 Please keep in mind :ref:`this note on architecture <labs-architecture-note>`.
