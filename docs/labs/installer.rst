@@ -10,7 +10,7 @@ It also supports deploying the :ref:`Flocker Docker plugin <labs-docker-plugin>`
 
 See the :ref:`official Flocker install instructions <installflocker>` for the full long-form installation instructions.
 
-The installer is part of the ``unofficial-flocker-tools`` package, so we will install that to begin with.
+The installer is part of the `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ repository, so we will install that to begin with.
 
 .. _labs-installing-unofficial-flocker-tools:
 
@@ -20,8 +20,17 @@ Installing Unofficial Flocker Tools
 * Install :ref:`the Flocker CLI <installing-flocker-cli>` for your platform (in particular, we need the ``flocker-ca`` tool).
 * OS packages:
 
-  * Ubuntu/Debian: ``sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev``
-  * RHEL/Fedora: ``sudo yum install -y python-pip gcc libffi-devel python-devel openssl-devel``
+  * Ubuntu/Debian:
+
+    .. prompt:: bash $
+
+        sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev
+
+  * RHEL/Fedora:
+
+    .. prompt:: bash $
+
+        sudo yum install -y python-pip gcc libffi-devel python-devel openssl-devel
 
 Using pip, you can install ``unofficial-flocker-tools`` straight from GitHub:
 
