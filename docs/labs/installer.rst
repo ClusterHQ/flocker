@@ -153,7 +153,7 @@ It supports several optional environment variables:
 * ``PLUGIN_REPO`` - the GitHub repository URL to install the docker plugin from
 * ``PLUGIN_BRANCH`` - the branch of the plugin repository to use
 
-Once you've installed the Flocker Docker plugin, check out the experimental `volumes CLI <labs-volumes-cli>` and `GUI <labs-volumes-gui>`, and the `Swarm <labs-swarm>` and `Compose <labs-compose>` integrations.
+Once you've installed the Flocker Docker plugin, check out the experimental :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`, and the :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>` integrations.
 
 Print a simple tutorial
 =======================
