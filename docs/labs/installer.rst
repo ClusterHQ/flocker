@@ -26,7 +26,7 @@ Installing Unofficial Flocker Tools
 
         sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev
 
-  * RHEL/Fedora:
+  * RHEL/CentOS/Fedora:
 
     .. prompt:: bash $
 
