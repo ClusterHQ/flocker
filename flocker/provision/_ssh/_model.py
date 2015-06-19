@@ -18,20 +18,16 @@ class RunRemotely(PRecord):
     :ivar int port: The port of the ssh server to connect to.
     :ivar callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :ivar callable log_output_filter: A filter to apply to any logging
-        of the command output.
     """
     username = field(type=bytes, mandatory=True)
     address = field(type=bytes, mandatory=True)
     commands = field(type=Effect, mandatory=True)
     port = field(type=int, initial=22)
     log_command_filter = field(mandatory=True)
-    log_output_filter = field(mandatory=True)
 
 
 def run_remotely(
-        username, address, commands, port=22, log_command_filter=identity,
-        log_output_filter=identity):
+        username, address, commands, port=22, log_command_filter=identity):
     """
     Run some commands on a remote host.
 
@@ -41,15 +37,12 @@ def run_remotely(
     :param int port: The port of the ssh server to connect to.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :param callable log_output_filter: A filter to apply to any logging
-        of the command output.
 
     :return Effect:
     """
     return Effect(RunRemotely(
         username=username, address=address, commands=commands, port=port,
-        log_command_filter=log_command_filter,
-        log_output_filter=log_output_filter))
+        log_command_filter=log_command_filter))
 
 
 class Run(PRecord):
@@ -59,21 +52,15 @@ class Run(PRecord):
     :ivar bytes command: The command to run.
     :ivar callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :ivar callable log_output_filter: A filter to apply to any logging
-        of the command output.
     """
     command = field(type=bytes, mandatory=True)
     log_command_filter = field(mandatory=True)
-    log_output_filter = field(mandatory=True)
 
     @classmethod
-    def from_args(
-            cls, command_args, log_command_filter=identity,
-            log_output_filter=identity):
+    def from_args(cls, command_args, log_command_filter=identity):
         return cls(
             command=" ".join(map(shell_quote, command_args)),
-            log_command_filter=log_command_filter,
-            log_output_filter=log_output_filter)
+            log_command_filter=log_command_filter)
 
 
 class Sudo(PRecord):
@@ -83,21 +70,15 @@ class Sudo(PRecord):
     :ivar bytes command: The command to run.
     :ivar callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :ivar callable log_output_filter: A filter to apply to any logging
-        of the command output.
     """
     command = field(type=bytes, mandatory=True)
     log_command_filter = field(mandatory=True)
-    log_output_filter = field(mandatory=True)
 
     @classmethod
-    def from_args(
-            cls, command_args, log_command_filter=identity,
-            log_output_filter=identity):
+    def from_args(cls, command_args, log_command_filter=identity):
         return cls(
             command=" ".join(map(shell_quote, command_args)),
-            log_command_filter=log_command_filter,
-            log_output_filter=log_output_filter)
+            log_command_filter=log_command_filter)
 
 
 class Put(PRecord):
@@ -123,38 +104,28 @@ class Comment(PRecord):
     comment = field(type=bytes, mandatory=True)
 
 
-def run(command, log_command_filter=identity, log_output_filter=identity):
+def run(command, log_command_filter=identity):
     """
     Run a shell command on a remote host.
 
     :param bytes command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :param callable log_output_filter: A filter to apply to any logging
-        of the command output.
     """
-    return Effect(Run(
-        command=command,
-        log_command_filter=log_command_filter,
-        log_output_filter=log_output_filter))
+    return Effect(Run(command=command, log_command_filter=log_command_filter))
 
 
-def sudo(command, log_command_filter=identity, log_output_filter=identity):
+def sudo(command, log_command_filter=identity):
     """
     Run a shell command on a remote host with sudo.
 
     :param bytes command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :param callable log_output_filter: A filter to apply to any logging
-        of the command output.
 
     :return Effect:
     """
-    return Effect(Sudo(
-        command=command,
-        log_command_filter=log_command_filter,
-        log_output_filter=log_output_filter))
+    return Effect(Sudo(command=command, log_command_filter=log_command_filter))
 
 
 def put(content, path, log_content_filter=identity):
@@ -184,7 +155,7 @@ def comment(comment):
 
 
 def run_from_args(
-        command, log_command_filter=identity, log_output_filter=identity):
+        command, log_command_filter=identity):
     """
     Run a command on a remote host. This quotes the provided arguments, so they
     are not interpreted by the shell.
@@ -192,18 +163,15 @@ def run_from_args(
     :param list command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :param callable log_output_filter: A filter to apply to any logging
-        of the command output.
 
     :return Effect:
     """
-    return Effect(Run.from_args(
-        command, log_command_filter=log_command_filter,
-        log_output_filter=log_output_filter))
+    return Effect(
+        Run.from_args(command, log_command_filter=log_command_filter))
 
 
 def sudo_from_args(
-        command, log_command_filter=identity, log_output_filter=identity):
+        command, log_command_filter=identity):
     """
     Run a command on a remote host with sudo. This quotes the provided
     arguments, so they are not interpreted by the shell.
@@ -211,11 +179,8 @@ def sudo_from_args(
     :param list command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
-    :param callable log_output_filter: A filter to apply to any logging
-        of the command output.
 
     :return Effect:
     """
-    return Effect(Sudo.from_args(
-        command, log_command_filter=log_command_filter,
-        log_output_filter=log_output_filter))
+    return Effect(
+        Sudo.from_args(command, log_command_filter=log_command_filter))

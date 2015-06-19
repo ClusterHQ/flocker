@@ -95,8 +95,7 @@ def perform_sudo(dispatcher, intent):
     See :py:class:`Sudo`.
     """
     return Effect(Run(
-        command='sudo ' + intent.command,
-        log_command_filter=identity, log_output_filter=identity))
+        command='sudo ' + intent.command, log_command_filter=identity))
 
 
 @sync_performer
@@ -112,7 +111,7 @@ def perform_put(dispatcher, intent):
     return Effect(Run(
         command='printf -- %s > %s' % (
             shell_quote(intent.content), shell_quote(intent.path)),
-        log_command_filter=filter, log_output_filter=identity))
+        log_command_filter=filter))
 
 
 @sync_performer
