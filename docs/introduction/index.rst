@@ -42,6 +42,8 @@ Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud 
 
 .. XXX add link to choosing the best storage for your application marketing page (yet to be published)
 
+.. _flocker-containers-architecture:
+
 .. image:: images/flocker-architecture.svg
    :alt: Flocker architecture with shared storage backend.
          The Flocker Control Service and containers hosts can run on a VM or bare metal servers.
