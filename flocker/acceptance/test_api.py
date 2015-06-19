@@ -6,7 +6,6 @@ Tests for the control service REST API.
 
 import socket
 from contextlib import closing
-from uuid import uuid4
 
 from pyrsistent import thaw, pmap
 
@@ -19,10 +18,10 @@ from treq import get, json_content, content
 from eliot import Message
 
 from ..testtools import (
-    REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
+    loop_until, random_name, find_free_port,
 )
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client,
+    MONGO_IMAGE, require_mongo, get_mongo_client, create_dataset,
     require_cluster, require_moving_backend,
 )
 
@@ -422,37 +421,6 @@ nc -ll -p 9000 -e /tmp/script.sh
             lambda _: self.assert_busybox_http(
                 origin.public_address, origin_port))
         return running
-
-
-def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
-    """
-    Create a dataset on a cluster (on its first node, specifically).
-
-    :param TestCase test_case: The test the API is running on.
-    :param Cluster cluster: The test ``Cluster``.
-    :param int maximum_size: The size of the dataset to create on the test
-        cluster.
-    :return: ``Deferred`` firing with a tuple of (``Cluster``
-        instance, dataset dictionary) once the dataset is present in
-        actual cluster state.
-    """
-    # Configure a dataset on node1
-    requested_dataset = {
-        u"primary": cluster.nodes[0].uuid,
-        u"dataset_id": unicode(uuid4()),
-        u"maximum_size": maximum_size,
-        u"metadata": {u"name": u"my_volume"},
-    }
-
-    configuring_dataset = cluster.create_dataset(requested_dataset)
-
-    # Wait for the dataset to be created
-    waiting_for_create = configuring_dataset.addCallback(
-        lambda dataset: cluster.wait_for_dataset(dataset)
-    )
-
-    return waiting_for_create
 
 
 class DatasetAPITests(TestCase):
