@@ -103,10 +103,10 @@ For example:
     mv cluster.yml.ebs.sample cluster.yml
     vim cluster.yml # customize for your cluster
 
-Notes:
+.. note::
 
-* You need to ensure that machines can be logged into via SSH as root.
-* You need a private key to access the machines - you can configure this in the ``private_key_path`` of ``cluster.yml``.
+    * You need to ensure that machines can be logged into via SSH as root.
+    * You need a private key to access the machines - you can configure this in the ``private_key_path`` of ``cluster.yml``.
 
 Install
 =======
