@@ -25,6 +25,7 @@ Step 1 - run the container with your local keys
 Run this command from the directory where you created your cluster configuration and certificates, for example ``~/clusters/test``:
 
 .. prompt:: bash $
+
     cd ~/clusters/test
     export CERTS=$PWD
     export CONTROL_SERVICE=your.control.service
