@@ -331,7 +331,7 @@
         "node_uuid": "%(NODE_0)s",
         "name": "database",
         "image": "postgres:latest",
-        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5},
+        "restart_policy": {"name": "never"},
         "running": true
       },
     ]
