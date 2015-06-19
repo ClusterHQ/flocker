@@ -61,7 +61,6 @@ For a normal Docker volume - you would provide the ``host path`` and ``container
 
     redis:
       image: redis
-      volume_driver: flocker
       volumes:
          - '/var/lib/redis:/data'
 
