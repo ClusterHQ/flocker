@@ -73,6 +73,8 @@ So now let's use the tools we've just installed to deploy and configure a Flocke
 
 Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace).
 Use Ubuntu 14.04 or CentOS 7.
+We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
+
 Make sure you create the servers a reasonable amount of disk space, since Docker images will be stored on the VM root disk itself.
 
 * Use Amazon EC2 if you want to use our EBS backend (note VMs must be deployed in the same AZ).
@@ -133,7 +135,7 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 
     flocker-config cluster.yml
 
-this will configure certificates, push them to your nodes, and set up firewall rules for the control service
+This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
 
 .. warning::
     On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524 if you want to access the control service or API remotely.
