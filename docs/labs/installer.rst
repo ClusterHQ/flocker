@@ -105,8 +105,7 @@ For example:
 
 .. note::
 
-    * You need to ensure that machines can be logged into via SSH as root.
-    * You need a private key to access the machines - you can configure this in the ``private_key_path`` of ``cluster.yml``.
+    You need a private key which can access the machines **as root** - you can configure this in the ``private_key_path`` of ``cluster.yml``.
 
 Install
 =======
