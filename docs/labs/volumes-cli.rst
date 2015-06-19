@@ -28,9 +28,7 @@ Running the CLI
 
 The command for the CLI tool is ``flocker-volumes``.  If you run this command in the same folder as your ``cluster.yml`` file - it will use the settings in the file.  If you run it from elsewhere - you need to tell the CLI some additional options.
 
-Here is the output of the ``flocker-volumes --help`` command, where you can see the supported options.
-
-.. raw:: text
+Here is the output of the ``flocker-volumes --help`` command, where you can see the supported options::
 
     $ flocker-volumes --help
     Usage: flocker-volumes [options]
@@ -68,9 +66,7 @@ You can list the nodes in your cluster using this command:
 
     flocker-volumes list-nodes
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     SERVER     ADDRESS
     1acbab49   172.16.70.251
@@ -82,9 +78,7 @@ This shows short ID's for the nodes.  To show the full ID's for each node:
 
     flocker-volumes list-nodes -l
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     SERVER                                 ADDRESS
     1acbab49-877c-40d4-80c6-a78ba581df7a   172.16.70.251
@@ -96,9 +90,7 @@ Here is the output of the help for ``list-nodes``
 
     flocker-volumes list-nodes --help
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     Options:
     -l, --long     Show long UUIDs
@@ -131,9 +123,7 @@ Here is the output of the help for ``create``
 
     flocker-volumes create --help
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     Usage: flocker-volumes [options] create [options]
     Options:
@@ -147,14 +137,9 @@ It will produce output like this:
 List Volumes
 ============
 
-To list the volumes in your cluster - use the ``list`` command.
+To list the volumes in your cluster - use the ``list`` command::
 
-.. prompt:: bash $
-
-    flocker-volumes list
-
-.. raw:: text
-
+    $ flocker-volumes list
     DATASET                                SIZE      METADATA                  STATUS         SERVER
     9026a6f5-8c74-485d-84a9-a8b41e5b8e66   50.00G    name=apples,size=medium   attached       1acbab49 (172.16.70.251)
     b180f7bb-71f4-4acd-82c7-20f4bbd80a21   100.00G   name=apples               attached       1acbab49 (172.16.70.251)
@@ -165,9 +150,7 @@ Here is the output of the help for ``list``
 
     flocker-volumes list --help
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     Usage: flocker-volumes [options] list [options]
     Options:
@@ -196,9 +179,7 @@ Here is the output of the help for ``move``
 
     flocker-volumes move --help
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     Usage: flocker-volumes [options] move [options]
     Options:
@@ -218,18 +199,15 @@ To mark a volume as destroyed - use the ``destroy`` command.
     flocker-volumes destroy \
         --dataset 9026a6f5
 
-
 This command would destroy the ``9026a6f5`` dataset.
 
-Here is the output of the help for ``destroy``
+Here is the output of the help for ``destroy``.
 
 .. prompt:: bash $
 
     flocker-volumes destroy --help
 
-It will produce output like this:
-
-.. raw:: text
+It will produce output like this::
 
     Usage: flocker-volumes [options] destroy [options]
     Options:
