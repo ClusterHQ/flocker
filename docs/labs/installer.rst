@@ -82,8 +82,9 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
 This will create some sample configuration files that correspond to the backend Flocker will use - base your ``cluster.yml`` on one of these files:
 
 * AWS EBS: ``cluster.yml.ebs.sample``
-* OpenStack ``cluster.yml.openstack.sample``
-* ZFS: ``cluster.yml.zfs.sample``
+* OpenStack (including Rackspace): ``cluster.yml.openstack.sample``
+
+.. * ZFS: ``cluster.yml.zfs.sample`` XXX put this back when https://github.com/ClusterHQ/unofficial-flocker-tools/issues/2 lands
 
 Choose the one that's appropriate for you, and then customize it with your choice of text editor.
 For example:
