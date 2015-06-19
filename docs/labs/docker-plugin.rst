@@ -63,7 +63,7 @@ This demo shows both the Flocker Docker plugin in conjunction with the :ref:`Vol
 
    <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
 
-Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
+Also check out the `DockerCon Plugin Demos <https://plugins-demo-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
 
 Quickstart installation

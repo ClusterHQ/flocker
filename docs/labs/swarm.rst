@@ -63,5 +63,5 @@ In this scenario, Flocker will migrate the data from host1 to host2.
 Demo
 ====
 
-Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
+Also check out the `DockerCon Plugin Demos <https://plugins-demo-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
