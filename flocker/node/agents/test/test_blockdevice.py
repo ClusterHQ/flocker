@@ -1631,15 +1631,22 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size
         )
+        volume3 = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size
+        )
         attached_volume1 = self.api.attach_volume(
             volume1.blockdevice_id, attach_to=self.this_node,
         )
         attached_volume2 = self.api.attach_volume(
             volume2.blockdevice_id, attach_to=self.this_node,
         )
+        attached_volume3 = self.api.attach_volume(
+            volume3.blockdevice_id, attach_to=self.this_node,
+        )
 
         self.assertItemsEqual(
-            [attached_volume1, attached_volume2],
+            [attached_volume1, attached_volume2, attached_volume3],
             self.api.list_volumes()
         )
 
