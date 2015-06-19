@@ -13,6 +13,8 @@ However, if you like one of these projects please :ref:`let us know <labs-contac
 
 If we get lots of positive feedback about any one of these projects then we will consider it for the main Flocker roadmap.
 
+.. _labs-demo:
+
 Flocker Docker plugin with CLI and GUI
 ======================================
 
@@ -27,16 +29,22 @@ The video also shows our experimental :ref:`Volumes GUI <labs-volumes-gui>` and 
 Goals of ClusterHQ Labs
 =======================
 
-Make it possible to:
+Currently Flocker supports both volume-centric operation via the dataset API and container-centric operation via the container API and the ``flocker-deploy`` tooling.
+
+The goals of ClusterHQ Labs are to make it possible to:
 
 * Integrate Flocker into other tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, via the :ref:`Flocker Docker plugin <labs-docker-plugin>`.
 * See what's happening in your Flocker cluster with a :ref:`CLI <labs-volumes-cli>` and a :ref:`GUI <labs-volumes-gui>`.
 * Make it easier to spin up a Flocker cluster in the first place with an :ref:`installer <labs-installer>`.
-* Integrate Flocker with other popular tools, like :ref:`Weave <labs-weave>`, :ref:`Mesosphere <labs-mesosphere>` and :ref:`Kubernetes <labs-kubernetes>`.
+* Integrate Flocker with other popular tools, like :ref:`Weave <labs-weave>`, :ref:`Mesosphere <labs-mesosphere>` and eventually :ref:`Kubernetes <labs-kubernetes>`.
 
-We believe that Flocker will be more successful if, as well as focusing on making it useful for managing data volumes, we work on integrating it with other components in the emerging Docker and container ecosystem.
+**We believe that Flocker will be more successful if, as well as focusing on making it useful for managing data volumes, we work on integrating it with other components in the emerging Docker and container ecosystem.**
 
 Our biggest step towards this goal so far is the :ref:`Flocker Docker plugin <labs-docker-plugin>`, which makes Flocker pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
+
+.. note::
+    Note that you should *either* use the Flocker Docker plugin to associate containers with volumes (we call this the "integration" architecture), or you should use the Flocker containers API (``flocker-deploy`` ), but not both.
+    They are distinct architectures - the integration route allows Flocker to be used in conjunction with other ecosystem tools like Swarm and Compose, which is more experimental than ``flocker-deploy`` and the Flocker containers API, but we strongly believe that the integration route is the future.
 
 Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.

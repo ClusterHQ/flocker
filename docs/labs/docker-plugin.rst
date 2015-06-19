@@ -15,6 +15,10 @@ See the `Docker documentation on volume plugins <https://github.com/docker/docke
 
 See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
+.. note::
+    Note that you should *either* use the Flocker Docker plugin to associate containers with volumes (we call this the "integration" architecture), or you should use the Flocker containers API (``flocker-deploy`` ), but not both.
+    They are distinct architectures - the integration route allows Flocker to be used in conjunction with other ecosystem tools like Swarm and Compose, which is more experimental than ``flocker-deploy`` and the Flocker containers API, but we strongly believe that the integration route is the future.
+
 How it works
 ============
 
@@ -32,7 +36,7 @@ There are three main cases:
 
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
-XXX link to demo
+You can watch a `short video demo <labs-demo>`_ of this on the `introduction to labs <labs-projects>`_ page.
 
 Quickstart installation
 =======================
@@ -112,4 +116,5 @@ If all is well, the plugin is able to communicate with the Flocker control servi
 Known limitations
 =================
 
-If the volume exists on a different host and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
+* If the volume exists on a different host and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
+  See `#7 <https://github.com/ClusterHQ/flocker-docker-plugin/issues/7>`_.
