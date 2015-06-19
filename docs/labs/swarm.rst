@@ -17,8 +17,7 @@ You can use the following commands to install swarm from our uploaded binary.
 
 .. prompt:: bash $
 
-    sudo su -
-    wget -O /usr/bin/swarm http://storage.googleapis.com/experiments-clusterhq/docker-binaries/swarm-volume-driver
+    sudo wget -O /usr/bin/swarm http://storage.googleapis.com/experiments-clusterhq/docker-binaries/swarm-volume-driver
 
 Alternatively - you can `compile swarm from master <https://github.com/docker/swarm#development-installation>`_ and the resulting binary will also have ``--volume-driver`` support.
 

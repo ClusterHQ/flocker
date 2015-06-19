@@ -15,8 +15,7 @@ Run the following command to do this (this branch that will be installed corresp
 
 .. prompt:: bash $
 
-    sudo su -
-    pip install git+https://github.com/lukemarsden/compose.git@volume_driver
+    sudo pip install git+https://github.com/lukemarsden/compose.git@volume_driver
 
 docker-compose.yml
 ==================
