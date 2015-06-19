@@ -12,6 +12,8 @@ This diagram explains how the architecture of a Flocker cluster with the Docker 
 
 .. image:: docker-plugin-platform-architecture.png
 
+Note that, as per this diagram, ref:`Docker Swarm <labs-swarm>` and Flocker must be configured on the **same set of nodes**.
+
 As a user of Docker, it means you can use Flocker directly via:
 
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
