@@ -33,9 +33,9 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
 .. note::
     Note that you should either use the Flocker Docker plugin to associate containers with volumes (the integration architecture described above), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
 
-    They are distinct architectures - the integration approach allows Docker to control Flocker via the Flocker Dataset API.
-    The integration architecture allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
-    We believe that the integration route is the future.
+    They are distinct architectures.
+    The integration approach allows Docker to control Flocker via the Flocker Dataset API.
+    This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
 
 How it works
 ============
