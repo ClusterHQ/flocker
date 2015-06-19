@@ -9,6 +9,14 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+v1.0.1
+======
+
+Upgrading is strongly recommended for all users of 1.0.0.
+
+* The EBS storage driver now more reliably selects the correct OS device file corresponding to an EBS volume being used.
+* Additional safety checks were added to ensure only empty volumes are formatted.
+
 v1.0
 ====
 

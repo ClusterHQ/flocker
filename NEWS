@@ -1,3 +1,9 @@
+Flocker 1.0.1 (2015-06-XX)
+==========================
+
+- Fixed a bug where EBS volumes were mapped to the wrong device and therefore mounted in the wrong location. (FLOC-2329).
+- Added additional safety checks when formatting devices. (FLOC-2356)
+
 Flocker 1.0.0 (2015-06-15)
 ==========================
 
