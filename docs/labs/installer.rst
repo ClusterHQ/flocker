@@ -17,6 +17,8 @@ The installer is part of the `Unofficial Flocker Tools <https://github.com/clust
 Installing Unofficial Flocker Tools
 ===================================
 
+First we install the tools **on your local machine**.
+
 * Install :ref:`the Flocker CLI <installing-flocker-cli>` for your platform (in particular, we need the ``flocker-ca`` tool).
 * OS packages:
 
@@ -32,11 +34,13 @@ Installing Unofficial Flocker Tools
 
         sudo yum install -y python-pip gcc libffi-devel python-devel openssl-devel
 
-Using pip, you can install ``unofficial-flocker-tools`` straight from GitHub:
+Using ``pip``, you can install ``unofficial-flocker-tools`` straight from GitHub:
 
 .. prompt:: bash $
 
     sudo pip install git+https://github.com/clusterhq/unofficial-flocker-tools.git
+
+If you prefer to use a ``virtualenv``, just activate one and then run ``pip`` without ``sudo``.
 
 This will install the following tools on your machine:
 
