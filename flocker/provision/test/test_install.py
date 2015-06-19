@@ -456,7 +456,7 @@ class PrivateKeyLoggingTest(SynchronousTestCase):
 
     def test_no_end_key_removed(self):
         """
-        A missing end tag doe snot prevent removal working.
+        A missing end tag does not prevent removal working.
         """
         key = dedent('''
             -----BEGIN PRIVATE KEY-----
