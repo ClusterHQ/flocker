@@ -13,7 +13,7 @@ v1.0.2
 ======
 
 * The "on-failure" and "always" restart policies for containers have been disabled.
-  See :ref:`restart configuration`.
+  See :ref:`restart policy<restart configuration>`.
 
 v1.0.1
 ======
