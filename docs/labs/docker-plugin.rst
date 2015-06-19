@@ -20,7 +20,7 @@ This currently depends on the `experimental build of Docker <https://github.com/
 .. _labs-architecture-note:
 
 .. note::
-    Note that you should *either* use the Flocker Docker plugin to associate containers with volumes (the "integration" approach), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
+    Note that you should either use the Flocker Docker plugin to associate containers with volumes (the "integration" approach), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
 
     They are distinct architectures - the integration approach allows Docker to control Flocker via the Flocker Dataset API.
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
