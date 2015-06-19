@@ -94,7 +94,7 @@ Install the experimental build of Docker:
 
     wget -qO- https://experimental.docker.com/ | sudo sh
 
-You must ensure that Docker is using the aufs storage driver.
+You must ensure that Docker is using the `AUFS` storage driver.
 The easiest way to do this is to add a ``-s aufs`` option to the ``/etc/defaults/docker`` file.
 
 Here is an example::
