@@ -53,8 +53,8 @@ This will install the following tools on your machine:
 
 .. _labs-installer-certs-directory:
 
-Make a local directory for your cluster config & certs
-======================================================
+Make a local directory for your cluster files
+=============================================
 
 The tools will create some configuration files and certificate files for your cluster.
 It is convenient to keep these in a directory, so let's make a directory on your workstation (assuming Linux or OS X) like this:
