@@ -66,7 +66,7 @@ Make sure you create the servers a reasonable amount of disk space, since Docker
 * Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend (VMs must be deployed in the same region).
 
 .. warning::
-    Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu on AWS, `sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys`)
+    Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu on AWS, ``sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``)
 
 You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider). Using a DNS name is optional, you can also just use its IP address.
 
