@@ -10,6 +10,8 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from pyrsistent import freeze, thaw
 
+from textwrap import dedent
+
 from .. import PackageSource
 from .._install import (
     task_install_flocker,
@@ -17,7 +19,7 @@ from .._install import (
     task_enable_flocker_agent,
     run, put,
     get_repository_url, UnsupportedDistribution, get_installable_version,
-    remove_dataset_fields,
+    _remove_dataset_fields, _remove_private_key
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -73,7 +75,7 @@ class ConfigureFlockerAgentTests(SynchronousTestCase):
             put(
                 content=yaml.safe_dump(thaw(expected_agent_config)),
                 path=THE_AGENT_YML_PATH,
-                log_content_filter=remove_dataset_fields,
+                log_content_filter=_remove_dataset_fields,
             ).intent,
             put_agent_yml,
         )
@@ -413,3 +415,69 @@ enabled=0
             run(command="yum install --enablerepo=clusterhq-build "
                         "-y clusterhq-flocker-node-1.2.3-1")
         ]))
+
+
+class PrivateKeyLoggingTest(SynchronousTestCase):
+
+    def test_private_key_removed(self):
+        """
+        A private key is removed for logging.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            -----END PRIVATE KEY-----
+            ''')
+        self.assertIn('SENSITIVE', key)
+        logged = _remove_private_key(key)
+        self.assertIn('-----BEGIN PRIVATE KEY-----', logged)
+        self.assertNotIn('SENSITIVE', logged)
+        self.assertIn('-----END PRIVATE KEY-----', logged)
+
+    def test_non_key_kept(self):
+        """
+        Non-key data is kept for logging.
+        """
+        key = 'some random data, not a key'
+        self.assertEqual(key, _remove_private_key(key))
+
+    def test_short_key_kept(self):
+        """
+        A key that is suspiciously short is kept for logging.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            short
+            -----END PRIVATE KEY-----
+            ''')
+        self.assertEqual(key, _remove_private_key(key))
+
+    def test_no_end_key_removed(self):
+        """
+        A missing end tag doe snot prevent removal working.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            ''')
+        self.assertIn('SENSITIVE', key)
+        self.assertNotIn('SENSITIVE', _remove_private_key(key))
+
+
+class DatasetLoggingTest(SynchronousTestCase):
+
+    def test_dataset_logged_safely(self):
+        config = {
+            'dataset': {
+                'secret': 'SENSITIVE',
+                'zone': 'keep'
+                }
+            }
+        content = yaml.safe_dump(config)
+        logged = _remove_dataset_fields(content)
+        self.assertNotIn(logged, 'SENSITIVE')
+        self.assertEqual(yaml.safe_load(logged)['zone'], 'keep')

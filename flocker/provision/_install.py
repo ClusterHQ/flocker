@@ -397,11 +397,26 @@ def task_disable_selinux(distribution):
 
 
 def _remove_private_key(content):
-    if (
-            content.startswith('-----BEGIN PRIVATE KEY-----') and
-            content.endswith('-----END PRIVATE KEY-----\n')):
-        return '-----BEGIN PRIVATE KEY-----\nREMOVED\n-----END PRIVATE KEY-----\n'  # noqa
-    return content
+    """
+    Remove most of the contents of a private key file for logging.
+    """
+    prefix = '-----BEGIN PRIVATE KEY-----'
+    suffix = '-----END PRIVATE KEY-----'
+    start = content.find(prefix)
+    if start < 0:
+        # no private key
+        return content
+    # Keep prefix and next newline and 4 characters at start of key
+    trim_start = start + len(prefix) + 5
+    end = content.find(suffix, trim_start)
+    if end < 0:
+        end = len(content)
+    # Keep suffix and previous 4 characters and newline at end of key
+    trim_end = end - 5
+    if trim_end < trim_start:
+        # strangely short key, keep all content
+        return content
+    return content[:trim_start] + '...REMOVED...' + content[trim_end:]
 
 
 def task_install_control_certificates(ca_cert, control_cert, control_key):
@@ -551,7 +566,10 @@ _ok_to_log = frozenset((
     ))
 
 
-def remove_dataset_fields(content):
+def _remove_dataset_fields(content):
+    """
+    Remove non-whitelisted fields from dataset for logging.
+    """
     content = yaml.safe_load(content)
     dataset = content['dataset']
     for key in dataset:
@@ -588,7 +606,7 @@ def task_configure_flocker_agent(control_node, dataset_backend,
                 "dataset": dataset_backend_configuration,
             },
         ),
-        log_content_filter=remove_dataset_fields
+        log_content_filter=_remove_dataset_fields
     )
     return sequence([put_config_file])
 
