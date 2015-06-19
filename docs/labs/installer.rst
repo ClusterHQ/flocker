@@ -17,7 +17,7 @@ The installer is part of the ``unofficial-flocker-tools`` package, so we will in
 Installing Unofficial Flocker Tools
 ===================================
 
-* Install ``flocker-cli <installing-flocker-cli>`` for your platform.
+* Install :ref:`the Flocker CLI <installing-flocker-cli>` for your platform (in particular, we need the ``flocker-ca`` tool).
 * OS packages:
 
   * Ubuntu/Debian: ``sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev``
