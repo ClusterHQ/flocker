@@ -42,7 +42,15 @@ There are three main cases:
 
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
-You can watch a `short video demo <labs-demo>`_ of this on the `introduction to labs <labs-projects>`_ page.
+Demo
+====
+
+This demo shows both the Flocker Docker plugin and also the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
+
+.. raw:: html
+
+   <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
+
 
 Quickstart installation
 =======================
