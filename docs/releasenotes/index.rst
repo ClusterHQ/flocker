@@ -20,7 +20,7 @@ Upgrading is strongly recommended for all users of v1.0.0.
 v1.0
 ====
 
-* Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
+* Dataset backend support for :ref:`AWS Elastic Block Storage (EBS)<aws-dataset-backend>`, :ref:`OpenStack Cinder<openstack-dataset-backend>`, and :ref:`EMC ScaleIO and XtremIO<emc-dataset-backend>`.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
   See :ref:`dataset-backend-plugins`.
 * It is now necessary to specify a dataset backend for each agent node.
