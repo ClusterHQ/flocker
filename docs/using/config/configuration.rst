@@ -305,7 +305,7 @@ It consists of a version and a mapping from node names to application names.
 The required parameters are ``version`` and ``nodes``.
 For now the ``version`` must be ``1``.
 
-Each hostname in the deployment configuration should be either a single application name or a list of application names that match those defined in the application configuration.
+Each hostname in the deployment configuration should be a list of application names that match those defined in the application configuration.
 
 Here's an example of a simple but complete configuration defining a deployment of one application on one host:
 
