@@ -103,15 +103,13 @@ def perform_put(dispatcher, intent):
     """
     See :py:class:`Put`.
     """
-    # Create a command filter which applies any content filter
-    def filter(_ignored):
-        return 'printf -- %s > %s' % (
-            shell_quote(intent.log_content_filter(intent.content)),
-            shell_quote(intent.path))
+    def create_put_command(content, path):
+        return 'printf -- %s > %s' % (shell_quote(content), shell_quote(path))
     return Effect(Run(
-        command='printf -- %s > %s' % (
-            shell_quote(intent.content), shell_quote(intent.path)),
-        log_command_filter=filter))
+        command=create_put_command(intent.content, intent.path),
+        log_command_filter=lambda _: create_put_command(
+            intent.log_content_filter(intent.content), intent.path)
+        ))
 
 
 @sync_performer
