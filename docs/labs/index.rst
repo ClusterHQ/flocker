@@ -42,6 +42,9 @@ The goals of ClusterHQ Labs are to make it possible to:
 
 Our biggest step towards this goal so far is the :ref:`Flocker Docker plugin <labs-docker-plugin>`, which makes Flocker pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
 
+Mega demo
+=========
+
 Also check out the `DockerCon Plugin Demos <https://plugin-demos-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
 This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
 
