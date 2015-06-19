@@ -65,8 +65,8 @@ COMPLEX_APPLICATION_YAML = {
 COMPLEX_DEPLOYMENT_YAML = {
     'version': 1,
     'nodes': {
-        'node1.example.com': ['wordpress'],
-        'node2.example.com': ['mysql'],
+        '172.16.255.250': ['wordpress'],
+        '172.16.255.251': ['mysql'],
     }
 }
 
