@@ -12,7 +12,7 @@ This diagram explains how the architecture of a Flocker cluster with the Docker 
 
 .. image:: docker-plugin-platform-architecture.png
 
-Note that in contrast to the normal :ref:`Flocker container-centric architecture <flocker-containers-architecture>`, in this architecture, the Flocker volume manager is **being controlled by Docker**, rather than Flocker container manager controlling Docker.
+Note that in contrast to the normal :ref:`Flocker container-centric architecture <flocker-containers-architecture>`, in this architecture, the Flocker volume manager (control service + dataset agents) is **being controlled by Docker**, rather than Flocker container manager controlling Docker.
 This allows for easier integration with other Docker ecosystem tools.
 
 Also note that, as per this diagram, :ref:`Docker Swarm <labs-swarm>` and Flocker must be configured on the **same set of nodes**.
