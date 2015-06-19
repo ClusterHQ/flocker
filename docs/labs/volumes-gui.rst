@@ -15,7 +15,7 @@ Trying out the volumes GUI
 
 Prerequisites:
 
-* A Flocker cluster, if you don't have one of these then try the `experimental installer <labs-installer>`.
+* A Flocker cluster, if you don't have one of these then try the :ref:`experimental installer <labs-installer>`.
 * Docker (either locally or in `boot2docker <https://docs.docker.com/installation/mac/>`_ on OS X).
 * A web browser (tested on Google Chrome).
 
