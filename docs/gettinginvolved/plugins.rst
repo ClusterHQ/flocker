@@ -11,7 +11,7 @@ Block device backends
 =====================
 
 Flocker implements generic logic for network-based block device storage.
-Examples of such storage include Amazon EBS and EMC ScaleIO.
+Examples of such storage include :ref:`Amazon EBS<aws-dataset-backend>` and :ref:`EMC ScaleIO and XtremIO<emc-dataset-backend>`.
 If you wish to support a block device that is not supported by Flocker or an existing plugin you can implement this support yourself.
 
 In order to do so you must write a Python 2.7 library providing a class implementing the `flocker.node.agents.blockdevice.IBlockDeviceAPI <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ interface.
