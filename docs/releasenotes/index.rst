@@ -9,6 +9,12 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+v1.0.2
+======
+
+* The "on-failure" and "always" restart policies for containers have been disabled.
+  See :ref:`restart configuration`.
+
 v1.0.1
 ======
 
