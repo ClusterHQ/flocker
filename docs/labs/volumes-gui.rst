@@ -6,9 +6,9 @@ Prototype Volumes GUI
 
 .. image:: volumes-gui-screenshot.png
 
-This is a very simple web interface to view the current state of the volumes in your Flocker cluster.
+This is a very simple web interface to view the current state of the datasets (volumes) in your Flocker cluster.
 
-You can also create volumes with sizes and metadata, and move volumes around between hosts by changing their primary.
+You can also create volumes with sizes and metadata, and move datasets around between hosts by changing their primary.
 
 Trying out the volumes GUI
 ==========================
