@@ -27,7 +27,7 @@ from ..testtools import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState, DeploymentState, RestartAlways)
+    NodeState, DeploymentState, RestartNever, RestartAlways)
 
 from .. import sequentially, in_parallel
 
@@ -39,7 +39,9 @@ from .._deploy import (
 )
 from ...testtools import CustomException
 from .. import _deploy
-from ...control._model import AttachedVolume, Dataset, Manifestation
+from ...control._model import (
+    AttachedVolume, Dataset, Manifestation,
+)
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
@@ -464,10 +466,13 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_restart_policy(self):
         """
-        ``StartApplication.run()`` passes an ``Application``'s restart_policy
-        to ``DockerClient.add`` which is used when creating a Unit.
+        ``StartApplication.run()`` passes ``RestartNever`` to
+        ``DockerClient.add`` which is used when creating a Unit.
+
+        It doesn't pass the ``Application``\ 's ``restart_policy`` because
+        ``RestartNever`` is the only implemented policy.  See FLOC-2449.
         """
-        policy = object()
+        policy = RestartAlways()
         fake_docker = FakeDockerClient()
         deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
@@ -482,10 +487,7 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          node_state=EMPTY_NODESTATE).run(deployer)
 
-        self.assertIs(
-            policy,
-            fake_docker._units[application_name].restart_policy,
-        )
+        self.assertEqual(policy, RestartNever())
 
     def test_command_line(self):
         """
