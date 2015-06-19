@@ -406,14 +406,14 @@ def _remove_private_key(content):
     if start < 0:
         # no private key
         return content
-    # Keep prefix and next newline and 4 characters at start of key
+    # Keep prefix, subsequent newline, and 4 characters at start of key
     trim_start = start + len(prefix) + 5
     end = content.find(suffix, trim_start)
     if end < 0:
         end = len(content)
     # Keep suffix and previous 4 characters and newline at end of key
     trim_end = end - 5
-    if trim_end < trim_start:
+    if trim_end <= trim_start:
         # strangely short key, keep all content
         return content
     return content[:trim_start] + '...REMOVED...' + content[trim_end:]
