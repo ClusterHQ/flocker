@@ -100,6 +100,7 @@ The easiest way to do this is to add a ``-s aufs`` option to the ``/etc/defaults
 Here is an example::
 
     DOCKER_OPTS="-s aufs"
+
 Install the Flocker Docker plugin
 ---------------------------------
 
