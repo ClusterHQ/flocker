@@ -11,7 +11,7 @@ You can use our experimental  :ref:`Flocker Installer <labs-installer>` to do th
 
 Then, you need a version of Swarm that supports Flocker volumes.
 
-We have compiled a swarm binary for you and `uploaded it here <http://storage.googleapis.com/experiments-clusterhq/docker-binaries/swarm-volume-driver>`_
+We have compiled a swarm binary for you and `uploaded it here <http://storage.googleapis.com/experiments-clusterhq/docker-binaries/swarm-volume-driver>`_.
 
 You can use the following commands to install swarm from our uploaded binary.
 
