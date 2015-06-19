@@ -154,8 +154,7 @@ def comment(comment):
     return Effect(Comment(comment=comment))
 
 
-def run_from_args(
-        command, log_command_filter=identity):
+def run_from_args(command, log_command_filter=identity):
     """
     Run a command on a remote host. This quotes the provided arguments, so they
     are not interpreted by the shell.
@@ -170,8 +169,7 @@ def run_from_args(
         Run.from_args(command, log_command_filter=log_command_filter))
 
 
-def sudo_from_args(
-        command, log_command_filter=identity):
+def sudo_from_args(command, log_command_filter=identity):
     """
     Run a command on a remote host with sudo. This quotes the provided
     arguments, so they are not interpreted by the shell.
