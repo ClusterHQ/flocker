@@ -101,7 +101,7 @@ On each of your container agent servers, install the Flocker plugin:
 
 .. prompt:: bash $
 
-    sudo apt-get install -y python-pip python-dev
+    sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev
     sudo pip install git+https://github.com/clusterhq/flocker-docker-plugin.git
 
 Set up init scripts to run plugin on boot
@@ -117,11 +117,10 @@ We need to define some configuration which will make it into the environment of 
 Replace ``your-control-service`` with the hostname of the control service you specified when you created your cluster.
 Replace ``1.2.3.4`` with the IP address of the host you are installing on (if your public and private IPs differ, it is generally best to use the *private* IP address of your hosts).
 
-Write out up an upstart script to automatically start the Flocker plugin on boot, including the configuration we just wrote out:
+Write out up an upstart script to automatically start the Flocker plugin on boot, including the configuration we just wrote out::
 
-.. prompt:: bash $
-
-    cat <<EOF > /etc/init/flocker-docker-plugin.conf
+    $ sudo su -
+    # cat <<EOF > /etc/init/flocker-docker-plugin.conf
     # flocker-docker-plugin - flocker-docker-plugin job file
     description "Flocker Plugin service"
     author "ClusterHQ <support@clusterhq.com>"
@@ -130,7 +129,7 @@ Write out up an upstart script to automatically start the Flocker plugin on boot
     env MY_NETWORK_IDENTITY=${MY_NETWORK_IDENTITY}
     exec flocker-docker-plugin
     EOF
-    service flocker-docker-plugin restart
+    # service flocker-docker-plugin restart
 
 Now you should have the Flocker plugin running on this node, try running:
 
@@ -139,7 +138,7 @@ Now you should have the Flocker plugin running on this node, try running:
     docker run -ti -v test:/data --volume-driver=flocker busybox sh
 
 On this node.
-If all is well, the plugin is able to communicate with the Flocker control service, and the agents running on the hosts are able to interact with the underlying storage, then you should see the dataset ``test`` show up in the Flocker :ref:`CLI <labs-volumes-cli>` and/or :ref:`GUI <labs-volumes-gui>`.
+If all is well, the plugin is able to communicate with the Flocker control service, and the agents running on the hosts are able to interact with the underlying storage, then you should see the dataset ``test`` show up in the Flocker :ref:`CLI <labs-volumes-cli>` or the :ref:`GUI <labs-volumes-gui>`.
 
 Known limitations
 =================
