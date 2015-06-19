@@ -45,7 +45,7 @@ ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize
 ZFS
 ~~~
 
-.. note:: The Flocker ZFS backend is Experimental, and should not be used in a production environment.
+.. warning:: The Flocker ZFS backend is experimental, and should not be used in a production environment.
 
 What about the ZFS on Linux licensing issues?
 *********************************************
