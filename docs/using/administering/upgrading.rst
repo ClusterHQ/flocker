@@ -12,18 +12,18 @@ Flocker 1.0.1
 Recommended Steps
 ^^^^^^^^^^^^^^^^^
 
-  #. Stop the control service and the agent services on all nodes.
-  #. Install Flocker 1.0.1 on all hosts in the Flocker cluster.
-  #. If you are using the EBS storage backend reboot each of the agent nodes.
-  #. If you have not configured the Flocker agents to start automatically on boot,
-     restart the agent services on all nodes.
-  #. Restart the control service.
+#. Stop the agent services on all nodes, and then stop control service.
+#. Install Flocker 1.0.1 on all nodes in the Flocker cluster.
+#. Restart the control service.
+#. If you are using the EBS storage backend reboot each of the agent nodes.
+#. If you have not configured the Flocker agents to start automatically on boot,
+   restart the agent services on all nodes.
 
 Details
 ^^^^^^^
 
-The upgrade to Flocker 1.0.1 involves changing the way the EBS storage backend maps volumes to devices: in version 1.0.0 there were occasional errors in this mapping.
-As a result some devices may be mounted in the wrong location.
+The upgrade to Flocker 1.0.1 involves changing the way the EBS storage backend maps volumes to devices: in version 1.0.0, there were occasional errors in this mapping.
+As a result, some devices may be mounted in the wrong location.
 The easiest way to fix this problem is to restart the agent nodes with Flocker 1.0.1 installed.
 
 Other storage backends do not require a restart as they were unaffected by this bug.
