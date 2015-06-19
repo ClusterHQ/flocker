@@ -159,7 +159,7 @@ Print a simple tutorial
 
 .. prompt:: bash $
 
-    ./tutorial.py cluster.yml
+    flocker-tutorial cluster.yml
 
 This will print out a short tutorial on exercising the Flocker volumes and containers APIs, customized to your deployment.
 

@@ -54,6 +54,9 @@ Come and talk to us on our IRC channel which is on Freenode ``#clusterhq``.
 
 Or, file an issue on GitHub for the respective project:
 
+* `Flocker Docker plugin <https://github.com/clusterhq/flocker-docker-plugin>`_ for integration-related issues.
+* `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ for CLI, GUI, or installer issues.
+
 List of Labs projects
 =====================
 
