@@ -1,4 +1,4 @@
-Flocker 1.0.1 (2015-06-19)
+Flocker 1.0.1 (2015-06-20)
 ==========================
 
 - Fixed a bug where EBS volumes were mapped to the wrong device and therefore mounted in the wrong location. (FLOC-2329).
