@@ -406,7 +406,8 @@ class CreateFilesystem(PRecord):
         try:
             _ensure_no_filesystem(device)
             check_output([
-                b"mkfs", b"-t", self.filesystem.encode("ascii"),
+                b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--", b"mkfs",
+                b"-t", self.filesystem.encode("ascii"),
                 # This is ext4 specific, and ensures mke2fs doesn't ask
                 # user interactively about whether they really meant to
                 # format whole device rather than partition. It will be
@@ -429,7 +430,8 @@ def _ensure_no_filesystem(device):
     """
     try:
         check_output(
-            [b"blkid", b"-p", b"-u", b"filesystem", device.path],
+            [b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--", b"blkid",
+                b"-p", b"-u", b"filesystem", device.path],
             stderr=STDOUT,
         )
     except CalledProcessError as e:
@@ -505,7 +507,7 @@ class MountBlockDevice(PRecord):
         self.mountpoint.parent().chmod(S_IRWXU)
 
         # This should be asynchronous.  FLOC-1797
-        check_output([b"mount", device.path, self.mountpoint.path])
+        check_output([b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--", b"mount", device.path, self.mountpoint.path])
 
         # Remove lost+found to ensure filesystems always start out empty.
         # Mounted filesystem is also made world
@@ -570,7 +572,8 @@ class UnmountBlockDevice(PRecord):
                 volume=volume, block_device_path=device
             ).write(_logger)
             # This should be asynchronous. FLOC-1797
-            check_output([b"umount", device.path])
+            check_output([b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--",
+                b"umount", device.path])
         listing.addCallback(got_device)
         return listing
 
@@ -1066,7 +1069,7 @@ def _losetup_list():
         2-tuple(FilePath(device_file), FilePath(backing_file))
     """
     output = check_output(
-        ["losetup", "--all"]
+        [b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--", "losetup", "--all"]
     ).decode('utf8')
     return _losetup_list_parse(output)
 
@@ -1255,7 +1258,8 @@ class LoopbackBlockDeviceAPI(object):
         """
         # The --find option allocates the next available /dev/loopX device
         # name to the device.
-        check_output(["losetup", "--find", backing_file_path.path])
+        check_output([b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--",
+            "losetup", "--find", backing_file_path.path])
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -1303,7 +1307,8 @@ class LoopbackBlockDeviceAPI(object):
         # ``losetup --detach`` only if the file was used for a loop device.
         if self.get_device_path(blockdevice_id) is not None:
             check_output([
-                b"losetup", b"--detach",
+                b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--", b"losetup",
+                b"--detach",
                 self.get_device_path(blockdevice_id).path
             ])
 
