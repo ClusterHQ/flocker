@@ -328,8 +328,9 @@ def _get_device_size(device):
     # util-linux on Ubuntu.
     # Required package is installed by default
     # on Ubuntu 14.04 and CentOS 7.
-    command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-               b"--output", b"SIZE", device_name]
+    command = [b"nsenter", b"--mount=/host/proc/1/ns/mnt", b"--",
+            b"/bin/lsblk", b"--noheadings", b"--bytes", b"--output", b"SIZE",
+            device_name]
 
     # Get the base device size, which is the first line in
     # `lsblk` output. Ignore partition sizes.
