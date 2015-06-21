@@ -1,0 +1,6 @@
+aws:
+  region: "us-west-2"
+  zone: "us-west-2b"
+  access_key: "AKIAIZHZQQF3IXRL3ONQ"
+  secret_access_token: "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"
+  profile: "gold"

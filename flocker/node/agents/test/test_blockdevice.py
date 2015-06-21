@@ -215,6 +215,7 @@ def detach_destroy_volumes(api):
     environment after each test run, so that future runs
     are not impacted.
     """
+    pass
     volumes = api.list_volumes()
     retry = 0
     action_type = u"agent:blockdevice:cleanup:details"
@@ -1487,6 +1488,17 @@ class IBlockDeviceAPITestsMixin(object):
         been created.
         """
         self.assertEqual([], self.api.list_volumes())
+
+    def test_profile(self):
+        """
+        ``create_volume`` returns a ``BlockDeviceVolume`` that is returned by
+        ``list_volumes``.
+        """
+        dataset_id = uuid4()
+        new_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=100)
+        self.assertIn(new_volume, self.api.list_volumes())
 
     def test_created_is_listed(self):
         """

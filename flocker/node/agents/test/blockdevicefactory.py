@@ -192,6 +192,7 @@ def _aws(**config):
             zone=zone,
             access_key_id=config['access_key'],
             secret_access_key=config['secret_access_token'],
+            profile=config['profile'],
         ),
     }
 

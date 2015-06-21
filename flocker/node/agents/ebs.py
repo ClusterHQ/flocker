@@ -112,7 +112,7 @@ def _expected_device(requested_device):
     )
 
 
-def ec2_client(region, zone, access_key_id, secret_access_key):
+def ec2_client(region, zone, access_key_id, secret_access_key, profile):
     """
     Establish connection to EC2 client.
 
@@ -143,7 +143,8 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
                                        aws_access_key_id=access_key_id,
                                        aws_secret_access_key=secret_access_key)
     return _EC2(zone=zone,
-                connection=_LoggedBotoConnection(connection=connection))
+                connection=_LoggedBotoConnection(connection=connection),
+                profile=profile)
 
 
 def _boto_logged_method(method_name, original_name):
@@ -224,6 +225,7 @@ class _EC2(PRecord):
     """
     zone = field(mandatory=True)
     connection = field(mandatory=True)
+    profile = field(mandatory=False, initial="silver")
 
 
 def _blockdevicevolume_from_ebs_volume(ebs_volume):
@@ -421,6 +423,7 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
+        self.profile = ec2_client.profile
 
     def allocation_unit(self):
         """
@@ -508,8 +511,26 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GiB().value), zone=self.zone)
+
+        # This is a hack to test the backend code. Storage profiles
+        # are intended to be tagged per volume, not per backend.
+        # Eventually, the profiles will be part of ``volume`` configuration
+        # subsection of application configuration
+        # (https://docs.clusterhq.com/en/1.0.1/using/config/configuration.html#application-configuration).
+        # For example, a MongoDB application can have ``volume1`` tagged
+        # as ``Gold`` for database files, and ``volume2`` tagged
+        # as ``Silver`` for journal files.
+        # An application, and its composer should be agnostic to
+        # how a storage driver guarantees the SLAs associated with a
+        # profile. (S)he would select a profile based on the application's
+        # volumes' performance needs.
+        if (self.profile == "silver"):
+            requested_volume = self.connection.create_volume(
+                size=int(Byte(size).to_GiB().value), zone=self.zone)
+        elif (self.profile == "gold"):
+            requested_volume = self.connection.create_volume(
+                size=int(Byte(size).to_GiB().value), zone=self.zone,
+                volume_type="io1", iops=1000)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
@@ -719,7 +740,7 @@ class EBSBlockDeviceAPI(object):
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
-                           cluster_id):
+                           cluster_id, profile):
     """
     Build an ``EBSBlockDeviceAPI`` instance using configuration and
     credentials.
@@ -743,6 +764,7 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
             zone=zone,
             access_key_id=access_key_id,
             secret_access_key=secret_access_key,
+            profile=profile,
         ),
         cluster_id=cluster_id,
     )
