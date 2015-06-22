@@ -194,6 +194,8 @@ setup(
             ],
         },
 
+    cmdclass=versioneer.get_cmdclass(),
+
     # Some "trove classifiers" which are relevant.
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
