@@ -7,6 +7,10 @@ Tests for :module:`flocker.docs.version`.
 
 from twisted.trial.unittest import SynchronousTestCase
 
+from packaging.version import Version as PEP440Version
+
+from pyrsistent import PRecord, field
+
 from ..version import (
     _parse_version, FlockerVersion,
     get_doc_version, get_installable_version, get_pre_release,
@@ -63,80 +67,10 @@ class MakeRpmVersionTests(SynchronousTestCase):
             make_rpm_version('0.1.2preX')
 
 
-class ParseVersionTests(SynchronousTestCase):
+class InvalidVersionTests(SynchronousTestCase):
     """
-    Tests for :function:`_parse_version`.
+    Tests for invalid versions.
     """
-    def assertParsedVersion(self, version, **expected_parts):
-        """
-        Assert that :function:`_parse_version` returns ``expected_parts``.
-        The release is expected to be `0.3.2`.
-        """
-        parts = {
-            'major': '0',
-            'minor': '3',
-            'micro': '2',
-        }
-        parts.update(expected_parts)
-        self.assertEqual(_parse_version(version), FlockerVersion(**parts))
-
-    def test_marketing_release(self):
-        """
-        When the version is from a marketing release, the documentation version
-        is left unchanged.
-        """
-        self.assertParsedVersion('0.3.2')
-
-    def test_weekly_release(self):
-        """
-        When the version is from a weekly release, the documentation version
-        is left unchanged.
-        """
-        self.assertParsedVersion('0.3.2dev1',
-                                 weekly_release='1')
-
-    def test_pre_release(self):
-        """
-        When the version is from a pre-release, the documentation version
-        is left unchanged.
-        """
-        self.assertParsedVersion('0.3.2pre1',
-                                 pre_release='1')
-
-    def test_development_vesion(self):
-        """
-        When the version is from a development version, the documentation
-        version is left unchanged.
-        """
-        self.assertParsedVersion('0.3.2+1.gf661a6a',
-                                 commit_count='1',
-                                 commit_hash='f661a6a')
-
-    def test_dirty(self):
-        """
-        When the version is dirty, the documentation version is left unchanged.
-        """
-        self.assertParsedVersion('0.3.2+1.gf661a6a.dirty',
-                                 commit_count='1',
-                                 commit_hash='f661a6a',
-                                 dirty='.dirty')
-
-    def test_doc(self):
-        """
-        When the documentation version is from a documentation release, the
-        trailing '.postX' is stripped.
-        """
-        self.assertParsedVersion('0.3.2.post11',
-                                 documentation_revision='11')
-
-    def test_doc_dirty(self):
-        """
-        When the version is from a documentation release but is dirty, the
-        documentation version is left unchanged.
-        """
-        self.assertParsedVersion('0.3.2.post11.dirty',
-                                 documentation_revision='11',
-                                 dirty='.dirty')
 
     def test_invalid_Version(self):
         """
@@ -146,271 +80,207 @@ class ParseVersionTests(SynchronousTestCase):
         self.assertRaises(UnparseableVersion, _parse_version, 'unparseable')
 
 
-class GetDocVersionTests(SynchronousTestCase):
+class VersionCase(PRecord):
     """
-    Tests for :function:`get_doc_version`.
-    """
+    Description of a version and its expected interpretations.
 
-    def test_marketing_release(self):
-        """
-        When the version is from a marketing release, the documentation version
-        is left unchanged.
-        """
-        self.assertEqual(get_doc_version('0.3.2'), '0.3.2')
+    :param bytes version: The version to parse.
 
-    def test_weekly_release(self):
-        """
-        When the version is from a weekly release, the documentation version
-        is left unchanged.
-        """
-        self.assertEqual(get_doc_version('0.3.2dev1'), '0.3.2dev1')
-
-    def test_pre_release(self):
-        """
-        When the version is from a pre-release, the documentation version
-        is left unchanged.
-        """
-        self.assertEqual(get_doc_version('0.3.2pre1'), '0.3.2pre1')
-
-    def test_development_vesion(self):
-        """
-        When the version is from a development version, the documentation
-        version is left unchanged.
-        """
-        self.assertEqual(get_doc_version('0.3.2+1.gf661a6a'),
-                         '0.3.2+1.gf661a6a')
-
-    def test_dirty(self):
-        """
-        When the version is dirty, the documentation version is left unchanged.
-        """
-        self.assertEqual(get_doc_version('0.3.2+1.gf661a6a.dirty'),
-                         '0.3.2+1.gf661a6a.dirty')
-
-    def test_doc(self):
-        """
-        When the documentation version is from a documentation release, the
-        trailing '.postX' is stripped.
-        """
-        self.assertEqual(get_doc_version('0.3.2.post11'), '0.3.2')
-
-    def test_doc_dirty(self):
-        """
-        When the version is from a documentation release but is dirty, the
-        documentation version is left unchanged.
-        """
-        self.assertEqual(get_doc_version('0.3.2.post11+1.gf661a6a.dirty'),
-                         '0.3.2.post11+1.gf661a6a.dirty')
-
-
-class GetInstallableVersionTests(SynchronousTestCase):
-    """
-    Tests for :function:`get_installable_version`.
-    """
-
-    def test_marketing_release(self):
-        """
-        When the version is from a marketing release, the installable version
-        is left unchanged.
-        """
-        self.assertEqual(get_installable_version('0.3.2'), '0.3.2')
-
-    def test_weekly_release(self):
-        """
-        When the version is from a weekly release, the installable version
-        is left unchanged.
-        """
-        self.assertEqual(get_installable_version('0.3.2dev1'), '0.3.2dev1')
-
-    def test_pre_release(self):
-        """
-        When the version is from a pre-release, the installable version
-        is left unchanged.
-        """
-        self.assertEqual(get_installable_version('0.3.2pre1'), '0.3.2pre1')
-
-    def test_development_version(self):
-        """
-        When the version is from a development version, the installable
-        version is changed to the latest marketing release.
-        """
-        self.assertEqual(get_installable_version('0.3.2+1.gf661a6a'), '0.3.2')
-
-    def test_dirty(self):
-        """
-        When the version is dirty, the installable version is changed to the
-        latest marketing release.
-        """
-        self.assertEqual(get_installable_version('0.3.2+1.gf661a6a.dirty'),
-                         '0.3.2')
-
-    def test_doc(self):
-        """
-        When the documentation version is from a documentation release, the
-        trailing '.postX' is stripped.
-        """
-        self.assertEqual(get_installable_version('0.3.2.post11'), '0.3.2')
-
-    def test_doc_dirty(self):
-        """
-        When the version is from a documentation release but is dirty, the
-        installable version is changed to the latest marketing release.
-        """
-        self.assertEqual(
-            get_installable_version('0.3.2.post11+1.gf661a6a.dirty'),
-            '0.3.2')
-
-
-class IsReleaseTests(SynchronousTestCase):
-    """
-    Tests for :function:`is_release`.
-    """
-
-    def test_marketing_release(self):
-        """
-        When the version is from a marketing release, it is a release.
-        """
-        self.assertTrue(is_release('0.3.2'))
-
-    def test_weekly_release(self):
-        """
-        When the version is from a weekly release, it isn't a release.
-        """
-        self.assertFalse(is_release('0.3.2dev1'))
-
-    def test_pre_release(self):
-        """
-        When the version is from a pre-release, it isn't a release.
-        """
-        self.assertFalse(is_release('0.3.2pre1'))
-
-    def test_development_version(self):
-        """
-        When the version is from a development version, it isn't a release.
-        """
-        self.assertFalse(is_release('0.3.2+1.gf661a6a'))
-
-    def test_dirty(self):
-        """
-        When the version is dirty, it isn't a release.
-        """
-        self.assertFalse(is_release('0.3.2+1.gf661a6a.dirty'))
-
-    def test_doc(self):
-        """
-        When the documentation version is from a documentation release, it is a
+    :param FlockerVersion flocker_version: The parsed version.
+    :param bytes doc_version: The corresponding doc version.
+    :param bytes installable_version: The corresponding doc version.
+    :param bool is_release: Whether the version corresponds to a
         release.
-        """
-        self.assertTrue(is_release('0.3.2.post11'))
-
-    def test_doc_dirty(self):
-        """
-        When the version is from a documentation release but is dirty, it isn't
-        a release.
-        """
-        self.assertFalse(is_release('0.3.2.post1+1.gf661a6a.dirty'))
-
-
-class IsWeeklyReleaseTests(SynchronousTestCase):
+    :param bool is_weekly_release: Whether the version corresponds
+        to a weekly release.
+    :param bool is_pre_release: Whether the version corresponds to
+        a pre-release.
     """
-    Tests for :function:`is_weekly_release`.
+    version = field(bytes, mandatory=True)
+    flocker_version = field(FlockerVersion, mandatory=True)
+    doc_version = field(bytes, mandatory=True)
+    installable_version = field(bytes, mandatory=True)
+    is_release = field(bool, mandatory=True)
+    is_weekly_release = field(bool, mandatory=True)
+    is_pre_release = field(bool, mandatory=True)
+
+
+def build_version_test(name, version_case):
     """
-
-    def test_marketing_release(self):
-        """
-        When the version is from a marketing release, it isn't a weekly
-        release.
-        """
-        self.assertFalse(is_weekly_release('0.3.2'))
-
-    def test_weekly_release(self):
-        """
-        When the version is from a weekly release, it is a weekly release.
-        """
-        self.assertTrue(is_weekly_release('0.3.2dev1'))
-
-    def test_pre_release(self):
-        """
-        When the version is from a pre-release, it isn't a weekly release.
-        """
-        self.assertFalse(is_weekly_release('0.3.2pre1'))
-
-    def test_development_vesion(self):
-        """
-        When the version is from a development version, it isn't a weekly
-        release.
-        """
-        self.assertFalse(is_weekly_release('0.3.2+1.gf661a6a'))
-
-    def test_dirty(self):
-        """
-        When the version is dirty, it isn't a weekly release.
-        """
-        self.assertFalse(is_weekly_release('0.3.2+1.gf661a6a.dirty'))
-
-    def test_doc(self):
-        """
-        When the documentation version is from a documentation release,
-        it isn't a weekly release.
-        """
-        self.assertFalse(is_weekly_release('0.3.2.post11'))
-
-    def test_weekly_dirty(self):
-        """
-        When the version is from a weekly release but is dirty, it isn't a
-        weekly release.
-        """
-        self.assertFalse(is_weekly_release('0.3.2dev1+1-gf661a6a.dirty'))
-
-
-class IsPreReleaseTests(SynchronousTestCase):
+    Create a test case that checks that a given version
+    is interpreted as expected.
     """
-    Tests for :function:`is_pre_release`.
-    """
+    class Tests(SynchronousTestCase):
+        def test_flocker_version(self):
+            self.assertEqual(
+                _parse_version(version_case.version),
+                version_case.flocker_version,
+                "Version doesn't match expected parsed version.",
+            )
 
-    def test_marketing_release(self):
-        """
-        When the version is from a marketing release, it isn't a pre-release.
-        """
-        self.assertFalse(is_pre_release('0.3.2'))
+        def test_doc_version(self):
+            self.assertEqual(
+                get_doc_version(version_case.version),
+                version_case.doc_version,
+                "Calculated doc version doesn't match expected doc version.",
+            )
 
-    def test_weekly_release(self):
-        """
-        When the version is from a weekly release, it isn't a pre-release.
-        """
-        self.assertFalse(is_pre_release('0.3.2dev1'))
+        def test_installable_version(self):
+            self.assertEqual(
+                get_installable_version(version_case.version),
+                version_case.installable_version,
+                "Calculated installable version doesn't match"
+                "expected installable version.",)
 
-    def test_pre_release(self):
-        """
-        When the version is from a pre-release, it is a pre-release.
-        """
-        self.assertTrue(is_pre_release('0.3.2pre1'))
+        def test_is_release(self):
+            self.assertEqual(
+                is_release(version_case.version),
+                version_case.is_release,
+            )
 
-    def test_development_vesion(self):
-        """
-        When the version is from a development version, it isn't a pre-release.
-        """
-        self.assertFalse(is_pre_release('0.3.2+1.gf661a6a'))
+        def test_is_weekly_release(self):
+            self.assertEqual(
+                is_weekly_release(version_case.version),
+                version_case.is_weekly_release,
+            )
 
-    def test_dirty(self):
-        """
-        When the version is dirty, it isn't a pre-release.
-        """
-        self.assertFalse(is_pre_release('0.3.2+1.gf661a6a.dirty'))
+        def test_is_pre_release(self):
+            self.assertEqual(
+                is_pre_release(version_case.version),
+                version_case.is_pre_release,
+            )
 
-    def test_doc(self):
-        """
-        When the documentation version is from a documentation release,
-        it isn't a pre-release.
-        """
-        self.assertFalse(is_pre_release('0.3.2.post11'))
+        def test_pep_440(self):
+            PEP440Version(version_case.version)
 
-    def test_pre_release_dirty(self):
-        """
-        When the version is from a pre-release but is dirty, it isn't a
-        pre-release.
-        """
-        self.assertFalse(is_pre_release('0.3.2pre1+1.gf661a6a.dirty'))
+    Tests.__name__ = name
+    return Tests
+
+
+MarkettingVersionTests = build_version_test(
+    "MarkettingVersionTests",
+    VersionCase(
+        version="0.3.2",
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+        ),
+        doc_version='0.3.2',
+        installable_version='0.3.2',
+        is_release=True,
+        is_weekly_release=False,
+        is_pre_release=False,
+    ),
+)
+WeeklyReleaseTests = build_version_test(
+    "WeeklyReleaseTests",
+    VersionCase(
+        version="0.3.2dev1",
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+            weekly_release="1",
+        ),
+        doc_version='0.3.2dev1',
+        installable_version='0.3.2dev1',
+        is_release=False,
+        is_weekly_release=True,
+        is_pre_release=False,
+    ),
+)
+PreReleaseTests = build_version_test(
+    "PreReleaseTests",
+    VersionCase(
+        version='0.3.2pre1',
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+            pre_release='1',
+        ),
+        doc_version="0.3.2pre1",
+        installable_version="0.3.2pre1",
+        is_release=False,
+        is_weekly_release=False,
+        is_pre_release=True,
+    ),
+)
+DevelopmentVersionTests = build_version_test(
+    "DevelopmentVersionTestss",
+    VersionCase(
+        version='0.3.2+1.gf661a6a',
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+            commit_count='1',
+            commit_hash='f661a6a',
+        ),
+        doc_version="0.3.2+1.gf661a6a",
+        installable_version="0.3.2",
+        is_release=False,
+        is_weekly_release=False,
+        is_pre_release=False,
+    ),
+)
+DirtyVersionTests = build_version_test(
+    "DirtyVersionTests",
+    VersionCase(
+        version='0.3.2+1.gf661a6a.dirty',
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+            commit_count='1',
+            commit_hash='f661a6a',
+            dirty='.dirty',
+        ),
+        doc_version="0.3.2+1.gf661a6a.dirty",
+        installable_version="0.3.2",
+        is_release=False,
+        is_weekly_release=False,
+        is_pre_release=False,
+    ),
+)
+DocReleaseTests = build_version_test(
+    "DocReleaseTests",
+    VersionCase(
+        version='0.3.2.post11',
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+            documentation_revision='11',
+        ),
+        doc_version="0.3.2",
+        installable_version="0.3.2",
+        is_release=True,
+        is_weekly_release=False,
+        is_pre_release=False,
+    ),
+)
+DocReleaseDirtyTests = build_version_test(
+    "DocReleaseDirtyTests",
+    VersionCase(
+        version='0.3.2.post11+1.gf661a6a.dirty',
+        flocker_version=FlockerVersion(
+            major="0",
+            minor="3",
+            micro="2",
+            documentation_revision='11',
+            commit_count='1',
+            commit_hash='f661a6a',
+            dirty='.dirty',
+        ),
+        doc_version="0.3.2.post11+1.gf661a6a.dirty",
+        installable_version="0.3.2",
+        is_release=False,
+        is_weekly_release=False,
+        is_pre_release=False,
+    ),
+)
 
 
 class GetPreReleaseTests(SynchronousTestCase):
