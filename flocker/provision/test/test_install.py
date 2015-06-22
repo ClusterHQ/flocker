@@ -430,11 +430,13 @@ class PrivateKeyLoggingTest(SynchronousTestCase):
             MDKODSFJOEWe
             -----END PRIVATE KEY-----
             ''')
-        self.assertIn('SENSITIVE', key)
-        logged = _remove_private_key(key)
-        self.assertIn('-----BEGIN PRIVATE KEY-----', logged)
-        self.assertNotIn('SENSITIVE', logged)
-        self.assertIn('-----END PRIVATE KEY-----', logged)
+        self.assertEqual(
+            dedent('''
+                -----BEGIN PRIVATE KEY-----
+                MFDk...REMOVED...OEWe
+                -----END PRIVATE KEY-----
+                '''),
+            _remove_private_key(key))
 
     def test_non_key_kept(self):
         """
@@ -464,8 +466,9 @@ class PrivateKeyLoggingTest(SynchronousTestCase):
             MFSENSITIVED
             MDKODSFJOEWe
             ''')
-        self.assertIn('SENSITIVE', key)
-        self.assertNotIn('SENSITIVE', _remove_private_key(key))
+        self.assertEqual(
+            '\n-----BEGIN PRIVATE KEY-----\nMFDk...REMOVED...OEWe\n',
+            _remove_private_key(key))
 
 
 class DatasetLoggingTest(SynchronousTestCase):
@@ -479,5 +482,5 @@ class DatasetLoggingTest(SynchronousTestCase):
             }
         content = yaml.safe_dump(config)
         logged = _remove_dataset_fields(content)
-        self.assertNotIn(logged, 'SENSITIVE')
-        self.assertEqual(yaml.safe_load(logged)['zone'], 'keep')
+        self.assertEqual(
+            yaml.safe_load(logged), {'secret': 'REMOVED', 'zone': 'keep'})
