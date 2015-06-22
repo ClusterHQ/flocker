@@ -18,7 +18,7 @@ _VERSION_RE = re.compile(
     r"(\.post(?P<documentation_revision>[0-9]+))?"
     # Development version
     r"(\+(?P<commit_count>[0-9]+).g(?P<commit_hash>[0-9a-f]+))?"
-    # Wether the tree is dirty.
+    # Whether the tree is dirty.
     r"((?P<dirty>.dirty))?"
     # Always match the entire version string.
     r"$"
