@@ -20,7 +20,7 @@ class Twisted7672Tests(TestCase):
         This will be the case if the patch is still needed, or if it has been
         applied.
         """
-        self.assertFalse(
+        self.assertTrue(
             # The patch is still needed
             _patch_7672_needed()
             # Or the patch has already been applied
