@@ -65,5 +65,5 @@ Flocker is also tested using `continuous integration`_.
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
-.. _uservoice: https://feedback.clusterhq.com/
-.. _github issue: https://github.com/clusterhq/flocker/issues
+.. _UserVoice: https://feedback.clusterhq.com/
+.. _GitHub issue: https://github.com/clusterhq/flocker/issues
