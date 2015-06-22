@@ -22,7 +22,7 @@ Feature Requests
 ----------------
 
 If you have any feature requests or suggestions, we would love to hear about them.
-Please add your ideas to our `UserVoice` forum, or file a `GitHub issue`.
+Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
 
 
 About Us
