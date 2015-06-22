@@ -16,7 +16,6 @@ from zope.interface import implementer
 from characteristic import attributes
 from pyrsistent import PRecord, field
 
-from flocker.acceptance.testtools import DatasetBackend
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -30,7 +29,7 @@ from ._effect import sequence
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
 from flocker.common.version import (
-    get_installable_version, get_package_key_suffix,
+    get_installable_version, get_package_key_suffix, is_release,
 )
 
 # A systemctl sub-command to start or restart a service.  We use restart here
@@ -63,8 +62,6 @@ def get_repository_url(distribution, flocker_version):
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
     distribution_to_url = {
-        # XXX Use testing repositories when appropriate for CentOS.
-        # See FLOC-2080.
         # TODO instead of hardcoding keys, use the _to_Distribution map
         # and then choose the name
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
@@ -102,6 +99,20 @@ def get_repository_url(distribution, flocker_version):
         return distribution_to_url[distribution]
     except KeyError:
         raise UnsupportedDistribution()
+
+
+def get_repo_options(flocker_version):
+    """
+    Get a list of options for enabling necessary yum repositories.
+
+    :param bytes flocker_version: The version of Flocker to get options for.
+    :return: List of bytes for enabling (or not) a testing repository.
+    """
+    is_dev = not is_release(flocker_version)
+    if is_dev:
+        return ['--enablerepo=clusterhq-testing']
+    else:
+        return []
 
 
 class UnsupportedDistribution(Exception):
@@ -184,9 +195,10 @@ def install_cli_commands_yum(distribution, package_source):
         commands.append(sudo_from_args([
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
-        branch_opt = ['--enablerepo=clusterhq-build']
+        repo_options = ['--enablerepo=clusterhq-build']
     else:
-        branch_opt = []
+        repo_options = get_repo_options(
+            flocker_version=get_installable_version(version))
 
     if package_source.os_version:
         package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
@@ -194,8 +206,9 @@ def install_cli_commands_yum(distribution, package_source):
         package = 'clusterhq-flocker-cli'
 
     # Install Flocker CLI and all dependencies
+
     commands.append(sudo_from_args(
-        ["yum", "install"] + branch_opt + ["-y", package]))
+        ["yum", "install"] + repo_options + ["-y", package]))
 
     return sequence(commands)
 
@@ -529,17 +542,14 @@ def task_open_control_firewall(distribution):
     ])
 
 
-def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs,
-                              dataset_backend_configuration=dict(
-                                  pool=u'flocker'
-                              )):
+def task_configure_flocker_agent(control_node, dataset_backend,
+                                 dataset_backend_configuration):
     """
-    Configure and enable the flocker agents.
+    Configure the flocker agents by writing out the configuration file.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with.  (This has a default for use in the documentation).
+        configured with.
     :param dict dataset_backend_configuration: The backend specific
         configuration options.
     """
@@ -561,9 +571,17 @@ def task_enable_flocker_agent(distribution, control_node,
             },
         ),
     )
+    return sequence([put_config_file])
+
+
+def task_enable_flocker_agent(distribution):
+    """
+    Enable the flocker agents.
+
+    :param bytes distribution: The distribution name.
+    """
     if distribution in ('centos-7',):
         return sequence([
-            put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
             run_from_args(['systemctl', START, 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
@@ -571,7 +589,6 @@ def task_enable_flocker_agent(distribution, control_node,
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put_config_file,
             run_from_args(['service', 'flocker-dataset-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
@@ -816,9 +833,10 @@ def task_install_flocker(
                 """) % (base_url,)
             commands.append(put(content=repo,
                                 path='/etc/yum.repos.d/clusterhq-build.repo'))
-            branch_opt = ['--enablerepo=clusterhq-build']
+            repo_options = ['--enablerepo=clusterhq-build']
         else:
-            branch_opt = []
+            repo_options = get_repo_options(
+                flocker_version=get_installable_version(version))
 
         if package_source.os_version:
             package = 'clusterhq-flocker-node-%s' % (
@@ -827,7 +845,7 @@ def task_install_flocker(
             package = 'clusterhq-flocker-node'
 
         commands.append(run_from_args(
-            ["yum", "install"] + branch_opt + ["-y", package]))
+            ["yum", "install"] + repo_options + ["-y", package]))
 
         return sequence(commands)
     else:
@@ -989,13 +1007,15 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
+                        task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
                             ),
+                        ),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
                         )]),
                     ),
             ]) for certnkey, node

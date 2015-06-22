@@ -13,9 +13,11 @@ from pyrsistent import freeze, thaw
 from .. import PackageSource
 from .._install import (
     task_install_flocker,
+    task_configure_flocker_agent,
     task_enable_flocker_agent,
-    run, put,
+    run, put, run_from_args,
     get_repository_url, UnsupportedDistribution, get_installable_version,
+    get_repo_options,
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -37,21 +39,19 @@ BASIC_AGENT_YML = freeze({
 })
 
 
-class EnableFlockerAgentTests(SynchronousTestCase):
+class ConfigureFlockerAgentTests(SynchronousTestCase):
     """
-    Tests for ``task_enable_flocker_agent``.
+    Tests for ``task_configure_flocker_agent``.
     """
     def test_agent_yml(self):
         """
-        ```task_enable_flocker_agent`` writes a ``/etc/flocker/agent.yml`` file
-        which contains the backend configuration passed to it.
+        ```task_configure_flocker_agent`` writes a ``/etc/flocker/agent.yml``
+        file which contains the backend configuration passed to it.
         """
-        distribution = u"centos-7"
         control_address = BASIC_AGENT_YML["control-service"]["hostname"]
         expected_pool = u"some-test-pool"
         expected_backend_configuration = dict(pool=expected_pool)
-        commands = task_enable_flocker_agent(
-            distribution=distribution,
+        commands = task_configure_flocker_agent(
             control_node=control_address,
             dataset_backend=DatasetBackend.lookupByName(
                 BASIC_AGENT_YML["dataset"]["backend"]
@@ -78,6 +78,43 @@ class EnableFlockerAgentTests(SynchronousTestCase):
         )
 
 
+class EnableFlockerAgentTests(SynchronousTestCase):
+    """
+    Tests for ``task_enable_flocker_agent``.
+    """
+    def test_centos_sequence(self):
+        """
+        ``task_enable_flocker_agent`` for the 'centos-7' distribution returns
+        a sequence of systemctl enable and restart commands for each agent.
+        """
+        distribution = u"centos-7"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+        )
+        expected_sequence = sequence([
+            run(command="systemctl enable flocker-dataset-agent"),
+            run(command="systemctl restart flocker-dataset-agent"),
+            run(command="systemctl enable flocker-container-agent"),
+            run(command="systemctl restart flocker-container-agent"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
+    def test_ubuntu_sequence(self):
+        """
+        ``task_enable_flocker_agent`` for the 'ubuntu-14.04' distribution
+        returns a sequence of 'service start' commands for each agent.
+        """
+        distribution = u"ubuntu-14.04"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+        )
+        expected_sequence = sequence([
+            run(command="service flocker-dataset-agent start"),
+            run(command="service flocker-container-agent start"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
+
 def _centos7_install_commands(version):
     """
     Construct the command sequence expected for installing Flocker on CentOS 7.
@@ -88,17 +125,42 @@ def _centos7_install_commands(version):
     :return: The sequence of commands expected for installing Flocker on
         CentOS7.
     """
+    installable_version = get_installable_version(flocker_version)
     return sequence([
         run(command="yum clean all"),
         run(command="yum install -y {}".format(get_repository_url(
             distribution='centos-7',
-            flocker_version=get_installable_version(flocker_version),
+            flocker_version=installable_version,
         ))),
-        run(command="yum install -y clusterhq-flocker-node" + version)
+        run_from_args(
+            ['yum', 'install'] + get_repo_options(installable_version) +
+            ['-y', 'clusterhq-flocker-node' + version])
     ])
 
 
-class GetRepositoryURL(SynchronousTestCase):
+class GetRepoOptionsTests(SynchronousTestCase):
+    """
+    Tests for ``get_repo_options``.
+    """
+
+    def test_marketing_release(self):
+        """
+        No extra repositories are enabled if the latest installable version
+        is a marketing release.
+        """
+        self.assertEqual(get_repo_options(flocker_version='0.3.0'), [])
+
+    def test_development_release(self):
+        """
+        Enabling a testing repository is enabled if the latest installable
+        version is not a marketing release.
+        """
+        self.assertEqual(
+            get_repo_options(flocker_version='0.3.0dev1'),
+            ['--enablerepo=clusterhq-testing'])
+
+
+class GetRepositoryURLTests(SynchronousTestCase):
     """
     Tests for ``get_repository_url``.
     """
@@ -199,7 +261,10 @@ class InstallFlockerTests(SynchronousTestCase):
         """
         distribution = 'centos-7'
         commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, _centos7_install_commands(""))
+        self.assertEqual(
+            commands,
+            _centos7_install_commands("")
+        )
 
     def test_centos_with_version(self):
         """

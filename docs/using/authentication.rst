@@ -68,6 +68,8 @@ Import the client certificate into the ``Keychain`` and then refer to it by its 
 .. code-block:: console
 
     $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
+	Enter Export Password:
+	Verifying - Enter Export Password:
     $ security import user.p12 -k ~/Library/Keychains/login.keychain
     $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
          https://172.16.255.250:4523/v1/configuration/containers
