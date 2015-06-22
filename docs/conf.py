@@ -321,5 +321,7 @@ linkcheck_ignore = [
     r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
     # Some Amazon EC2 links require a login and so
     # "HTTP Error 401: Unauthorized" is given.
-    r'https://console.aws.amazon.com/ec2/v2/home\S+'
+    r'https://console.aws.amazon.com/ec2/v2/home\S+',
+    # Internal ClusterHQ documents need a login to see
+    r'https://docs.google.com/a/clusterhq.com/\S+',
 ]
