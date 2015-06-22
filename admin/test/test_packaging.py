@@ -546,9 +546,9 @@ class GetPackageVersionTests(TestCase):
         versions = [
             '0.3.2',
             '0.3.3dev5',
-            '0.3.2+post1',
+            '0.3.2.post1',
             '0.3.2+1.gf661a6a',
-            '0.3.2+post1+1.gf661a6a',
+            '0.3.2.post1+1.gf661a6a',
             '0.3.2pre1',
             '0.3.2+1.gf661a6a.dirty'
             '0.3.2.post1+1.gf661a6a.dirty'
