@@ -198,7 +198,7 @@ Done
     The issue has been closed.
     Some final work may remain to address review comments; once this is done and the branch is merged the GitHub PR will be closed.
 
-.. _JIRA workflow: https://clusterhq.atlassian.net/
+.. _JIRA workflow: https://clusterhq.atlassian.net/secure/Dashboard.jspa
 
 
 .. _reporting-security-issues:
