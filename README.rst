@@ -25,7 +25,7 @@ We are a small team of engineers with experience running distributed systems and
 
 This project is under active development; version 1.0 was released on June 17th, 2015.
 Contributions are welcome.
-If you have any issues or feedback, you can `talk to us`_.
+If you have any issues, feedback or feature suggestions, you can `talk to us`_.
 We're looking forward to working on this project with you.
 
 
