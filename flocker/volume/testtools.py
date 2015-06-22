@@ -80,8 +80,10 @@ def create_zfs_pool(test_case):
     except OSError as e:
         if e.errno == errno.ENOENT:
             raise SkipTest(
-                "Install zpool to run these tests: https://docs.clusterhq.com"
-                "/en/latest/using/installing/index.html")
+                "Install zpool to run these tests: "
+                "http://doc-dev.clusterhq.com/using/installing/index.html"
+                "#optional-zfs-backend-configuration")
+
         raise
     test_case.addCleanup(run_process, [b"zpool", b"destroy", pool_name])
     return pool_name
