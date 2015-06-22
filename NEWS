@@ -1,7 +1,7 @@
 Flocker 1.0.2 (2015-06-XX)
 ==========================
 
-- Temporarily disabled "on-failure" and "always" restart policies which interact badly with node reboots for containers with volumes. (FLOC-2467)
+- The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes. (FLOC-2467)
 
 Flocker 1.0.1 (2015-06-19)
 ==========================

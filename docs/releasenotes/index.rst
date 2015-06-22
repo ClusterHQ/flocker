@@ -12,7 +12,7 @@ You can learn more about where we might be going with future releases by:
 v1.0.2
 ======
 
-* The "on-failure" and "always" restart policies for containers have been disabled.
+* The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes (FLOC-2467).
   See :ref:`restart policy<restart configuration>`.
 
 v1.0.1
