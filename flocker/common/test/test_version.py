@@ -7,6 +7,8 @@ Tests for :module:`flocker.docs.version`.
 
 from twisted.trial.unittest import SynchronousTestCase
 
+from packaging.version import Version as PEP440Version
+
 from pyrsistent import PRecord, field
 
 from ..version import (
@@ -147,6 +149,9 @@ def build_version_test(name, version_case):
                 is_pre_release(version_case.version),
                 version_case.is_pre_release,
             )
+
+        def test_pep_440(self):
+            PEP440Version(version_case.version)
 
     Tests.__name__ = name
     return Tests

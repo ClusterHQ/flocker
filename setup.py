@@ -65,6 +65,10 @@ dev_requirements = [
     "gitpython==1.0.0",
     "tl.eggdeps==0.4",
     "boto==2.30.0",
+
+    # We use packaging to verify that our version numbers are PEP440
+    # compatible.
+    "packaging==15.2"
 ]
 
 install_requirements = [
