@@ -295,7 +295,7 @@ class PublishDocsOptions(Options):
          "This will differ from \"flocker-version\" for staging uploads."
          "Attempting to publish documentation as a documentation version "
          "publishes it as the version being updated.\n"
-         "``doc-version`` is set to 0.3.0+doc1 the documentation will be "
+         "``doc-version`` is set to 0.3.0.post1 the documentation will be "
          "published as 0.3.0.\n"],
     ]
 
