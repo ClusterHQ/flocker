@@ -935,15 +935,20 @@ class ApplicationNodeDeployer(object):
         # we don't want to do anything:
         comparable_state = comparable_state.transform(["running"], True)
 
-        # Restart policies were briefly supported but they interact poorly with
-        # system restarts.  They're disabled now (except for the default
-        # policy, "never").  Ignore the Application's configured policy and
-        # enforce the "never" policy.  This will change any existing container
-        # that was configured with a different policy.  See FLOC-2449.
-        comparable_state = comparable_state.set(restart_policy=RestartNever())
-
         return (
             comparable_state != comparable_configuration
+
+            # Restart policies were briefly supported but they interact poorly
+            # with system restarts.  They're disabled now (except for the
+            # default policy, "never").  Ignore the Application's configured
+            # policy and enforce the "never" policy.  This will change any
+            # existing container that was configured with a different policy.
+            # See FLOC-2449.
+            #
+            # Also restart policies don't implement comparison usefully.  See
+            # FLOC-2500.
+            or not isinstance(comparable_state.restart_policy, RestartNever)
+
             or self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )

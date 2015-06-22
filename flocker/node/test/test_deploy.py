@@ -27,7 +27,8 @@ from ..testtools import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState, DeploymentState, RestartNever, RestartAlways)
+    NodeState, DeploymentState, RestartNever, RestartAlways, RestartOnFailure
+)
 
 from .. import sequentially, in_parallel
 
@@ -1995,6 +1996,52 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
+
+    def test_app_with_matching_restart_policy_restarted(self):
+        """
+        Restart policies interact poorly with containers with volumes.  If an
+        application state is found with a restart policy other than "never",
+        even if the application configuration matches that restart policy, it
+        is restarted with the "never" policy.  See FLOC-2449.
+        """
+        application = APPLICATION_WITHOUT_VOLUME.set(
+            restart_policy=RestartAlways()
+        )
+        state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.10",
+            applications={application}, used_ports=[],
+        )
+        config = to_node(state)
+        assert_application_calculated_changes(
+            self, state, config, set(),
+            restart(
+                application,
+                application.set(restart_policy=RestartNever()),
+                state,
+            ),
+        )
+
+    def test_app_with_mismatching_restart_policy_restarted(self):
+        """
+        Restart policies interact poorly with containers with volumes.  If an
+        application is found with a restart policy other than "never", it is
+        restarted with the "never" policy.  See FLOC-2449.
+        """
+        app_state = APPLICATION_WITHOUT_VOLUME.set(
+            restart_policy=RestartAlways()
+        )
+        app_config = app_state.set(
+            restart_policy=RestartOnFailure(maximum_retry_count=2)
+        )
+        state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.11",
+            applications={app_state}, used_ports=[],
+        )
+        config = to_node(state).set(applications={app_config})
+        assert_application_calculated_changes(
+            self, state, config, set(),
+            restart(app_state, app_config, state),
+        )
 
 
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
