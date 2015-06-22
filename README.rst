@@ -36,8 +36,10 @@ Documentation
 You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ in the docs.
 
 
-Feature Requests
-----------------
+Support
+-------
+
+If you need support to use Flocker, please check the `Flocker Support page`_.
 
 If you have any feature requests or suggestions, we would love to hear about them.
 Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
@@ -67,3 +69,4 @@ Flocker is also tested using `continuous integration`_.
 .. _flake8: https://pypi.python.org/pypi/flake8
 .. _UserVoice: https://feedback.clusterhq.com/
 .. _GitHub issue: https://github.com/clusterhq/flocker/issues
+.. _Flocker Support page: https://clusterhq.com/flocker/support/
