@@ -45,7 +45,7 @@ Software
 
      vagrant plugin install vagrant-scp
 
-.. _`Vagrant`: https://docs.vagrantup.com/
+.. _`Vagrant`: https://docs.vagrantup.com/v2/
 .. _`VirtualBox`: https://www.virtualbox.org/
 
 Access
