@@ -13,8 +13,6 @@ import tempfile
 from textwrap import dedent
 from unittest import skipUnless
 
-from setuptools import __version__ as setuptools_version
-
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import GitCommandError, Repo
 
@@ -35,7 +33,6 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
     publish_vagrant_metadata
 )
@@ -1373,7 +1370,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                 )
             )
 
-    @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
     @skipUnless(hard_linking_possible(),
                 "Hard linking is not possible in the current directory.")
     def test_distributions_uploaded(self):
@@ -1399,16 +1395,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             sorted(aws_keys),
             ['python/Flocker-0.3.0-py2-none-any.whl',
              'python/Flocker-0.3.0.tar.gz'])
-
-    def test_setuptools_version_requirement(self):
-        """
-        When setuptools' version is not 3.6, an error is raised.
-        """
-        self.patch(
-            release, 'setuptools_version', '15.1')
-        self.assertRaises(
-            IncorrectSetuptoolsVersion,
-            self.upload_python_packages)
 
 
 class UploadOptionsTests(SynchronousTestCase):

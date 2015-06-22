@@ -13,7 +13,6 @@ import os
 import sys
 import tempfile
 
-from setuptools import __version__ as setuptools_version
 from subprocess import check_call
 
 from effect import (
@@ -129,13 +128,6 @@ class NoPreRelease(Exception):
 class PushFailed(Exception):
     """
     Raised if pushing to Git fails.
-    """
-
-
-class IncorrectSetuptoolsVersion(Exception):
-    """
-    Raised if trying to create packages which require a specific version of
-    setuptools to be installed.
     """
 
 
@@ -658,11 +650,6 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
     :param bytes target_bucket: S3 bucket to upload packages to.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    if setuptools_version != '3.6':
-        # XXX Use PEP440 version system so new setuptools can be used.
-        # https://clusterhq.atlassian.net/browse/FLOC-1331.
-        raise IncorrectSetuptoolsVersion()
-
     # XXX This has a side effect so it should be an Effect
     # https://clusterhq.atlassian.net/browse/FLOC-1731
     check_call([
@@ -776,10 +763,6 @@ def publish_artifacts_main(args, base_path, top_level):
             scratch_directory=scratch_directory.child('homebrew'),
         )
 
-    except IncorrectSetuptoolsVersion:
-        sys.stderr.write("%s: setuptools version must be 3.6.\n"
-            % (base_path.basename(),))
-        raise SystemExit(1)
     finally:
         scratch_directory.remove()
 
