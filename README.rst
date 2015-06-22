@@ -18,7 +18,7 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
 
 
-Feature requests
+Feature Requests
 ----------------
 
 If you have any feature requests or suggestions, we would love to hear about them.
