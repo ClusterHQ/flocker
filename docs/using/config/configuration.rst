@@ -136,7 +136,8 @@ The following parameters are optional when defining an application:
   There must be a ``name`` sub-key whose value may be one of: ``never``, ``always``, or ``on-failure``.
   **The supplied policy is recorded but not not used.
   Containers will always behave as though created with the ``never`` restart policy.
-  It is recommended that all containers be created with this policy.**
+  It is recommended that all containers be created with this policy.
+  See <https://clusterhq.atlassian.net/browse/FLOC-2449> for the status of this feature.**
   The ``on-failure`` restart policy accepts an optional ``maximum_retry_count`` sub-key, which specifies how many times Docker will attempt to restart the application container in the event of repeated failures.
   See the `Docker Restart Policy reference <https://docs.docker.com/reference/commandline/cli/#restart-policies>`_ for more information on restart policies.
 
