@@ -17,7 +17,6 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
 
-
 About Us
 --------
 
@@ -58,4 +57,3 @@ Flocker is also tested using `continuous integration`_.
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
-.. _Flocker Support page: https://clusterhq.com/flocker/support/
