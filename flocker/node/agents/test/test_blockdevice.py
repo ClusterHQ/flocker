@@ -9,8 +9,8 @@ from functools import partial
 from os import getuid
 import time
 from uuid import UUID, uuid4
-from stat import S_IRWXU
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from stat import S_IRWXU
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
