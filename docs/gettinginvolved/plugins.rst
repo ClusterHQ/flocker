@@ -42,7 +42,7 @@ To test that your implementation is correct you can instantiate a generic test s
         Tests for your storage.
         """
 
-You can run these tests with ``trial`` test runner provided by `Twisted <https://twistedmatrix.com>`_, one of Flocker's dependencies:
+You can run these tests with ``trial`` test runner provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
 
 .. prompt:: bash $
 
