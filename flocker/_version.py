@@ -37,7 +37,7 @@ def get_config():
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = ""
-    cfg.parentdir_prefix = "flocker-"
+    cfg.parentdir_prefix = "Flocker-"
     cfg.versionfile_source = "flocker/_version.py"
     cfg.verbose = False
     return cfg
