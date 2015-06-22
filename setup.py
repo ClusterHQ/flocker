@@ -33,6 +33,10 @@ dev_requirements = [
     # Run the test suite:
     "tox==1.7.1",
 
+    # versioneer is necessary in order to update (but *not* merely to
+    # use) the automatic versioning tools.
+    "versioneer==0.15",
+
     # Some of the tests use Conch:
     "PyCrypto==2.6.1",
     "pyasn1",
