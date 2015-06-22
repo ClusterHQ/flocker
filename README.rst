@@ -17,6 +17,7 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
 
+
 About Us
 --------
 
@@ -25,7 +26,7 @@ We are a small team of engineers with experience running distributed systems and
 
 This project is under active development; version 1.0 was released on June 17th, 2015.
 Contributions are welcome.
-If you have any issues, feedback or feature suggestions, you can `talk to us`_.
+If you have any issues or feedback, you can `talk to us`_.
 We're looking forward to working on this project with you.
 
 
@@ -33,6 +34,13 @@ Documentation
 -------------
 
 You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ in the docs.
+
+
+Feature Requests
+----------------
+
+If you have any feature requests or suggestions, we would love to hear about them.
+Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
 
 
 Tests
@@ -57,3 +65,5 @@ Flocker is also tested using `continuous integration`_.
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
+.. _UserVoice: https://feedback.clusterhq.com/
+.. _GitHub issue: https://github.com/clusterhq/flocker/issues
