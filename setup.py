@@ -39,7 +39,7 @@ dev_requirements = [
 
     # Some of the tests use Conch:
     "PyCrypto==2.6.1",
-    "pyasn1",
+    "pyasn1==0.1.7",
 
     # The acceptance tests interact with MongoDB
     "pymongo>=2.7.2",
