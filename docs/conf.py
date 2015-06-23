@@ -327,4 +327,11 @@ linkcheck_ignore = [
     r'https://docs.google.com/a/clusterhq.com/\S+',
     # Example Flocker GUI local URL
     r'http://localhost/client/#/nodes/list',
+
+    # The following link checks fail because of a TLS handshake error.
+    # The link checking should be fixed and these ignores should be removed.
+    # See https://clusterhq.atlassian.net/browse/FLOC-1156.
+    r'https://docs.clusterhq.com/',
+    r'https://docs.staging.clusterhq.com/',
+    r'https://docs.docker.com/\S+',
 ]
