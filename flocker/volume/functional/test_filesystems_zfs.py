@@ -527,8 +527,6 @@ class FilesystemTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        # There is a lower-bound on the value of refquota in ZFS.  It seems to
-        # be 64MB (but perhaps this isn't universal).
         maximum_size = 64 * 1024 * 1024
         volume = service.get(
             MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
