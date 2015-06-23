@@ -36,17 +36,9 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A web browser,
-- `Vagrant`_ (1.6.2 or newer),
-- `VirtualBox`_,
-- ``vagrant-scp`` plugin:
-
-  .. prompt:: bash $
-
-     vagrant plugin install vagrant-scp
-
-.. _`Vagrant`: https://docs.vagrantup.com/
-.. _`VirtualBox`: https://www.virtualbox.org/
+- yum tools,
+- dpkg tools,
+- virtualenvwrapper,
 
 Access
 ~~~~~~
@@ -81,38 +73,9 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
-
-   This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
-
-   Add your SSH key to the ``sshd`` agent.
-   Note that the ssh key you use must be linked to your GitHub account.
-
-   .. prompt:: bash $
-
-      [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent)
-      ssh-add $HOME/.ssh/id_rsa
-
-   This copies your local git configuration from ``~/.gitconfig``.
-   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
-
-   This copies your local configuration for `S3`_ from ``~/.aws``.
-   If this does not exist, a later step will create it.
-
-   .. prompt:: bash $
-
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
-      vagrant up
-      vagrant scp default:/home/vagrant/.bashrc vagrant_bashrc
-      echo export VERSION=${VERSION} >> vagrant_bashrc
-      vagrant scp vagrant_bashrc /home/vagrant/.bashrc
-      if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
-      vagrant ssh -- -A
-
 #. Create a release branch, and create and activate a virtual environment:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: $
 
       # The following command means that you will not be asked whether
       # you want to continue connecting
@@ -133,13 +96,13 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash [vagrant@localhost]$
+      .. prompt:: bash $
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
           git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       git commit -am "Updated NEWS"
 
@@ -155,7 +118,7 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       git commit -am "Updated Release Notes"
 
@@ -165,13 +128,13 @@ Preparing For a Release
    - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       git commit -am "Updated copyright"
 
 #. Push the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       git config push.default current
       git push
@@ -180,10 +143,7 @@ Preparing For a Release
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       aws configure
 
@@ -205,7 +165,7 @@ Preparing For a Release
 
 #. Update the staging documentation:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       admin/publish-docs --doc-version ${VERSION}
 
@@ -215,7 +175,7 @@ Preparing For a Release
    It outputs a success message if the documentation does redirect correctly.
    It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       admin/test-redirects --doc-version ${VERSION}
 
@@ -264,20 +224,10 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. The following steps should be done in the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`.
-   If this is not running, start it again from the cloned Flocker repository created in :ref:`preparing-for-a-release`:
+#. Tag the version being released:
 
    .. prompt:: bash $
 
-      vagrant up
-      vagrant ssh -- -A
-
-#. Tag the version being released:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd flocker
-      workon flocker-release
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
@@ -292,7 +242,7 @@ Release
 
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       admin/publish-artifacts
       admin/publish-docs --production
@@ -303,19 +253,9 @@ Release
    It outputs a success message if the documentation does redirect correctly.
    It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       admin/test-redirects --production
-
-#. (Optional) Copy the AWS configuration to your local home directory:
-
-   If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
-
-   .. prompt:: bash [vagrant@localhost]$,$ auto
-
-      [vagrant@localhost]$ logout
-      Connection to 127.0.0.1 closed.
-      $ vagrant scp default:/home/vagrant/.aws ~/
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
