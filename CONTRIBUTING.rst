@@ -157,7 +157,7 @@ While we're happy to look at contributions in any state as GitHub PRs, the requi
    Documentation should be as accessible and inclusive as possible.
    Avoid language and markup which assumes the ability to precisely use a mouse and keyboard, or that the reader has perfect vision.
    Create alternative but equal documentation for the visually impaired, for example, by using alternative text on all images.
-   If in doubt, particularly about markup changes, use http://achecker.ca/ and fix any "Known Problems" and "Likely Problems".
+   If in doubt, particularly about markup changes, use http://achecker.ca/checker/index.php and fix any "Known Problems" and "Likely Problems".
 
 
 Project Development Process
