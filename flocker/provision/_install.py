@@ -29,7 +29,7 @@ from ._effect import sequence
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
 from flocker.common.version import (
-    get_installable_version, get_package_key_suffix,
+    get_installable_version, get_package_key_suffix, is_release,
 )
 
 # A systemctl sub-command to start or restart a service.  We use restart here
@@ -62,8 +62,6 @@ def get_repository_url(distribution, flocker_version):
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
     distribution_to_url = {
-        # XXX Use testing repositories when appropriate for CentOS.
-        # See FLOC-2080.
         # TODO instead of hardcoding keys, use the _to_Distribution map
         # and then choose the name
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
@@ -101,6 +99,20 @@ def get_repository_url(distribution, flocker_version):
         return distribution_to_url[distribution]
     except KeyError:
         raise UnsupportedDistribution()
+
+
+def get_repo_options(flocker_version):
+    """
+    Get a list of options for enabling necessary yum repositories.
+
+    :param bytes flocker_version: The version of Flocker to get options for.
+    :return: List of bytes for enabling (or not) a testing repository.
+    """
+    is_dev = not is_release(flocker_version)
+    if is_dev:
+        return ['--enablerepo=clusterhq-testing']
+    else:
+        return []
 
 
 class UnsupportedDistribution(Exception):
@@ -183,9 +195,10 @@ def install_cli_commands_yum(distribution, package_source):
         commands.append(sudo_from_args([
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
-        branch_opt = ['--enablerepo=clusterhq-build']
+        repo_options = ['--enablerepo=clusterhq-build']
     else:
-        branch_opt = []
+        repo_options = get_repo_options(
+            flocker_version=get_installable_version(version))
 
     if package_source.os_version:
         package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
@@ -193,8 +206,9 @@ def install_cli_commands_yum(distribution, package_source):
         package = 'clusterhq-flocker-cli'
 
     # Install Flocker CLI and all dependencies
+
     commands.append(sudo_from_args(
-        ["yum", "install"] + branch_opt + ["-y", package]))
+        ["yum", "install"] + repo_options + ["-y", package]))
 
     return sequence(commands)
 
@@ -870,9 +884,10 @@ def task_install_flocker(
                 """) % (base_url,)
             commands.append(put(content=repo,
                                 path='/etc/yum.repos.d/clusterhq-build.repo'))
-            branch_opt = ['--enablerepo=clusterhq-build']
+            repo_options = ['--enablerepo=clusterhq-build']
         else:
-            branch_opt = []
+            repo_options = get_repo_options(
+                flocker_version=get_installable_version(version))
 
         if package_source.os_version:
             package = 'clusterhq-flocker-node-%s' % (
@@ -881,7 +896,7 @@ def task_install_flocker(
             package = 'clusterhq-flocker-node'
 
         commands.append(run_from_args(
-            ["yum", "install"] + branch_opt + ["-y", package]))
+            ["yum", "install"] + repo_options + ["-y", package]))
 
         return sequence(commands)
     else:
