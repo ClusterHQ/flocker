@@ -281,7 +281,7 @@ Release
       admin/publish-artifacts
       admin/publish-docs --production
 
-#. Check that the staging documentation is set up correctly:
+#. Check that the documentation is set up correctly:
 
    The following command outputs error messages if the documentation does not redirect correctly.
    It outputs a success message if the documentation does redirect correctly.
