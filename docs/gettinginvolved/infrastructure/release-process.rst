@@ -21,13 +21,13 @@ By the end of the release process we will have:
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
 - an updated Homebrew recipe.
 
 For a maintenance or documentation release, we will have:
 
 - a tag in version control,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
 
 
 Prerequisites
