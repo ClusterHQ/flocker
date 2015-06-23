@@ -54,7 +54,7 @@ Ubuntu
 .. prompt:: bash $
 
    apt-get update
-   apt-get install -y createrepo
+   apt-get install -y dpkg-dev createrepo
 
 Fedora
 ******
