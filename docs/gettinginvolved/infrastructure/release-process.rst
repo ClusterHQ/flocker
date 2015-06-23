@@ -36,10 +36,34 @@ Prerequisites
 Software
 ~~~~~~~~
 
-# TODO Document how to do this on various platforms
-- yum tools,
-- dpkg tools,
-- virtualenvwrapper,
+- `virtualenvwrapper`_
+
+OS X
+*****
+
+Homebrew
+
+.. prompt:: bash $
+
+   brew tap stepanstipl/noop
+   brew install createrepo dpkg
+
+Ubuntu
+******
+
+.. prompt:: bash $
+
+   apt-get update
+   apt-get install -y createrepo
+
+Fedora
+******
+
+.. prompt:: bash $
+
+   XXX
+
+.. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.org/en/latest/install.html
 
 Access
 ~~~~~~
