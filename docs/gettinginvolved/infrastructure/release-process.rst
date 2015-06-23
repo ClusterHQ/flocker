@@ -75,7 +75,7 @@ Preparing For a Release
 
 #. Create a release branch, and create and activate a virtual environment:
 
-   .. prompt:: $
+   .. prompt:: bash $
 
       # The following command means that you will not be asked whether
       # you want to continue connecting
