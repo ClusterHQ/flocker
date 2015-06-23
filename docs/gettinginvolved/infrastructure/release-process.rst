@@ -36,6 +36,7 @@ Prerequisites
 Software
 ~~~~~~~~
 
+# TODO Document how to do this on various platforms
 - yum tools,
 - dpkg tools,
 - virtualenvwrapper,
@@ -206,6 +207,8 @@ Release
 
    .. prompt:: bash $
 
+      # TODO Create a tool which does this from the release branch, so that the
+      # environment variable does not have to stick around.
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
