@@ -41,7 +41,7 @@ Software
 OS X
 *****
 
-Homebrew
+`Homebrew <http://brew.sh>`_
 
 .. prompt:: bash $
 
@@ -63,6 +63,7 @@ Fedora
 
    XXX
 
+# TODO remove virtualenvwrapper requirement
 .. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.org/en/latest/install.html
 
 Access
