@@ -204,6 +204,7 @@ So it is important to check that the code in the release branch is working befor
 
 .. note::
 
+   # TODO link to latest version
    Make sure to follow the latest version of this documentation when reviewing a release.
 
 #. Check the changes in the Pull Request:
