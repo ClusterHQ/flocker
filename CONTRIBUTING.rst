@@ -41,7 +41,7 @@ Talk to Us
 
 Have questions or need help?
 
-* If you want to follow our development plans, our main issue tracker is https://clusterhq.atlassian.net.
+* If you want to follow our development plans, our main issue tracker is https://clusterhq.atlassian.net/secure/Dashboard.jspa.
 * You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports and :ref:`security issues should be reported directly to our security team<reporting-security-issues>`.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
