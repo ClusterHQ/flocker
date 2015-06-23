@@ -541,6 +541,6 @@ class FilesystemTests(TestCase):
             # Try to write more than 64MB of data.
             with path.child(b"ok").open("w") as fObj:
                 self.assertRaises(
-                    IOError, write_flush, fObj, b"x" * maximum_size)
+                    IOError, write_flush, fObj, b"x" * (maximum_size + 1))
         creating.addCallback(created)
         return creating
