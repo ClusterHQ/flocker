@@ -256,7 +256,7 @@ Release
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
-#. Go to the `BuildBot web status`_ and force a build on the tag.
+#. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
@@ -285,7 +285,7 @@ Release
 
    The following command outputs error messages if the documentation does not redirect correctly.
    It outputs a success message if the documentation does redirect correctly.
-   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   It takes some time for `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -313,11 +313,4 @@ If there is no existing issue for the planned improvements then a new one should
 Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
-
-.. _wheel: https://pypi.python.org/pypi/wheel
-.. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenv: https://pypi.python.org/pypi/virtualenv
-.. _Homebrew: http://brew.sh
-.. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
