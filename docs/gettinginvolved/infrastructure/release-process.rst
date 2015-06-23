@@ -71,7 +71,7 @@ Preparing For a Release
 
 #. Create an issue in JIRA:
 
-   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   This should be an "Improvement" in the current sprint, with "Release Flocker <version-being-released>" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create a release branch, and create and activate a virtual environment:
@@ -101,6 +101,7 @@ Preparing For a Release
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
+          # TODO just use the current branch name, instead of using the variable
           git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
    .. prompt:: bash $
