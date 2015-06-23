@@ -527,7 +527,7 @@ class FilesystemTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        maximum_size = 64 * 1024 * 1024
+        maximum_size = 40 * 1024 * 1024
         volume = service.get(
             MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
         creating = pool.create(volume)
