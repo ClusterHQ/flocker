@@ -164,6 +164,7 @@ Preparing For a Release
 
    .. prompt:: bash $
 
+      # TODO Don't change git config
       git config push.default current
       git push
 
