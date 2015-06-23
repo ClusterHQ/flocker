@@ -610,7 +610,7 @@ def cinder_from_configuration(region, cluster_id, **config):
         object.
     """
     auth = _openstack_auth_from_config(**config)
-    session = Session(auth=auth)
+    session = Session(auth=auth, verify=config.get('auth_verify', True))
     cinder_client = CinderClient(
         session=session, region_name=region, version=1
     )
