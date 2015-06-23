@@ -109,6 +109,7 @@ Preparing For a Release
       # TODO this could conflict, maybe make a temp directory, or call it something else
       git clone git@github.com:ClusterHQ/flocker.git
       cd flocker
+      # TODO change prompts to show the virtualenv
       mkvirtualenv flocker-release
       pip install --editable .[release]
       admin/create-release-branch --flocker-version="${VERSION}"
