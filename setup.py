@@ -52,6 +52,11 @@ dev_requirements = [
     # Some of the tests use Conch:
     "PyCrypto==2.6.1",
     "pyasn1==0.1.7",
+    # pyasn1-modules is tightly coupled to a certain version of pyasn1.
+    # Letting its version float while pyasn1 is pinned breaks things.  This is
+    # just the version of pyasn1-modules that works with the version of pyasn1
+    # pinned above.
+    "pyasn1-modules==0.0.5",
 
     # The acceptance tests interact with MongoDB
     "pymongo>=2.7.2",
