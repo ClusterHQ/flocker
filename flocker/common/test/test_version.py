@@ -88,7 +88,7 @@ class VersionCase(PRecord):
 
     :param FlockerVersion flocker_version: The parsed version.
     :param bytes doc_version: The corresponding doc version.
-    :param bytes installable_version: The corresponding doc version.
+    :param bytes installable_version: The corresponding installable version.
     :param bool is_release: Whether the version corresponds to a
         release.
     :param bool is_weekly_release: Whether the version corresponds
