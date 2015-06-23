@@ -529,8 +529,9 @@ class FilesystemTests(TestCase):
         service = service_for_pool(self, pool)
         # There is a lower-bound on the value of refquota in ZFS.  It seems to
         # be 64MB (but perhaps this isn't universal).
+        maximum_size = 64 * 1024 * 1024
         volume = service.get(
-            MY_VOLUME, size=VolumeSize(maximum_size=64 * 1024 * 1024))
+            MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
         creating = pool.create(volume)
 
         def write_flush(fObj, data):
@@ -542,6 +543,6 @@ class FilesystemTests(TestCase):
             # Try to write more than 64MB of data.
             with path.child(b"ok").open("w") as fObj:
                 self.assertRaises(
-                    IOError, write_flush, fObj, b"x" * 64 * 1024 * 1024)
+                    IOError, write_flush, fObj, b"x" * maximum_size)
         creating.addCallback(created)
         return creating
