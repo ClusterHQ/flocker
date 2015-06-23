@@ -203,22 +203,6 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
-#. Update the staging documentation:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      admin/publish-docs --doc-version ${VERSION}
-
-#. Check that the staging documentation is set up correctly:
-
-   The following command outputs error messages if the documentation does not redirect correctly.
-   It outputs a success message if the documentation does redirect correctly.
-   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      admin/test-redirects --doc-version ${VERSION}
-
 #. Make a pull request on GitHub:
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
