@@ -325,4 +325,6 @@ linkcheck_ignore = [
     r'https://console.aws.amazon.com/ec2/v2/home\S+',
     # Internal ClusterHQ documents need a login to see
     r'https://docs.google.com/a/clusterhq.com/\S+',
+    # Example Flocker GUI local URL
+    r'http://localhost/client/#/nodes/list',
 ]
