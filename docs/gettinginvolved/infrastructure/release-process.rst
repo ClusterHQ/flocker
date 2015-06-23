@@ -270,10 +270,7 @@ Look at `existing issues relating to the release process <https://clusterhq.atla
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
-.. _wheel: https://pypi.python.org/pypi/wheel
-.. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
