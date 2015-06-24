@@ -106,7 +106,8 @@ Preparing For a Release
       # The following command means that you will not be asked whether
       # you want to continue connecting
       ssh-keyscan github.com >> ~/.ssh/known_hosts
-      # TODO this could conflict, maybe make a temp directory, or call it something else
+      # Build release artifacts in a temporary directory
+      cd $(mktemp -d /tmp/temp.XXXX)
       git clone git@github.com:ClusterHQ/flocker.git
       cd flocker
       # TODO change prompts to show the virtualenv
