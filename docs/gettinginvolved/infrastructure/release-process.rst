@@ -61,7 +61,7 @@ Fedora
 
 .. prompt:: bash $
 
-   XXX
+   yum install -y dpkg-dev createrepo
 
 # TODO remove virtualenvwrapper requirement
 .. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.org/en/latest/install.html
