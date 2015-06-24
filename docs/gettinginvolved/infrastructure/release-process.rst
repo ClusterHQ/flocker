@@ -33,11 +33,10 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- `virtualenvwrapper`_
+All Platforms
+*************
 
-# TODO remove virtualenvwrapper requirement
-
-.. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.org/en/latest/install.html
+`virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
 OS X
 *****
@@ -63,7 +62,6 @@ Fedora
 .. prompt:: bash $
 
    yum install -y dpkg-dev createrepo
-
 
 
 Access
@@ -95,16 +93,15 @@ Preparing For a Release
 
 #. Create the environment to do a release in:
 
-   .. prompt:: bash $
+   .. prompt:: bash $,(flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$,(flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37/flocker$ auto
 
-      # TODO change prompts to show the virtualenv
-      mktmpenv --prompt="(flocker-release)"
+      $ mktmpenv --prompt="(flocker-release)"
       # The following command means that you will not be asked whether
       # you want to continue connecting
-      ssh-keyscan github.com >> ~/.ssh/known_hosts
-      git clone git@github.com:ClusterHQ/flocker.git
-      cd flocker
-      pip install --editable .[release]
+      $ ssh-keyscan github.com >> ~/.ssh/known_hosts
+      (flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$ git clone git@github.com:ClusterHQ/flocker.git
+      (flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$ cd flocker
+      (flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$ pip install --editable .[release]
 
 #. Create a release branch, using the version number of the release being created, e.g.:
 
