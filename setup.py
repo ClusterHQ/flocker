@@ -34,100 +34,16 @@ if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
 with open("README.rst") as readme:
     description = readme.read()
 
-dev_requirements = [
-    # flake8 is pretty critical to have around to help point out
-    # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
-    "pyflakes==0.8.1",
-    "pep8==1.5.7",
-    "mccabe==0.2.1",
-    "flake8==2.2.0",
-
-    # Run the test suite:
-    "tox==1.7.1",
-
-    # versioneer is necessary in order to update (but *not* merely to
-    # use) the automatic versioning tools.
-    "versioneer==0.10",
-
-    # Some of the tests use Conch:
-    "PyCrypto==2.6.1",
-    "pyasn1==0.1.7",
-    # pyasn1-modules is tightly coupled to a certain version of pyasn1.
-    # Letting its version float while pyasn1 is pinned breaks things.  This is
-    # just the version of pyasn1-modules that works with the version of pyasn1
-    # pinned above.
-    "pyasn1-modules==0.0.5",
-
-    # The acceptance tests interact with MongoDB
-    "pymongo>=2.7.2",
-
-    # The acceptance tests interact with PostgreSQL
-    "pg8000==1.10.1",
-
-    # The acceptance tests interact with MySQL
-    "PyMySQL==0.6.2",
-
-    # The acceptance tests interact with Kibana via WebKit
-    "selenium==2.44.0",
-
-    # The cloud acceptance test runner needs these
-    "fabric==1.10.0",
-    "apache-libcloud==0.16.0",
-
-    # Packages are downloaded from Buildbot
-    "requests==2.4.3",
-    "requests-file==1.0",
-
-    "wheel==0.24.0",
-    "gitpython==1.0.0",
-    "tl.eggdeps==0.4",
-    "boto==2.30.0",
-]
-
-install_requirements = [
-    # This is necessary for a release because our version scheme does not
-    # adhere to PEP440.
-    # See https://clusterhq.atlassian.net/browse/FLOC-1373
-    "setuptools==3.6",
-    "eliot == 0.7.1",
-    "machinist == 0.2.0",
-    "zope.interface >= 4.0.5",
-    "pytz",
-    "characteristic >= 14.1.0",
-    "Twisted == 15.1.0",
-    # TLS support libraries for Twisted:
-    "service_identity == 14.0.0",
-    "idna == 2.0",
-    "pyOpenSSL == 0.15.1",
-
-    "PyYAML == 3.10",
-
-    "treq == 0.2.1",
-
-    "psutil == 2.1.2",
-    "netifaces >= 0.8",
-    "ipaddr == 2.1.11",
-    "docker-py == 0.7.1",
-    "jsonschema == 2.4.0",
-    "klein == 0.2.3",
-    "pyrsistent == 0.9.2",
-    "pycrypto == 2.6.1",
-    "effect==0.1a13",
-    "bitmath==1.2.3-4",
-    "boto==2.38.0",
-]
+with open("requirements.txt") as requirements:
+    install_requires = requirements.readlines()
+with open("dev_requirements.txt") as dev_requirements:
+    dev_requires = dev_requirements.readlines()
 
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
 if platform.system() == 'Linux':
-    dev_requirements.extend([
+    dev_requires.extend([
         "nomenclature >= 0.1.0",
-    ])
-    install_requirements.extend([
-        "python-cinderclient==1.1.1",
-        "python-novaclient==2.24.1",
-        "python-keystoneclient==1.4.0",
-        "python-keystoneclient-rackspace==0.1.3",
     ])
 
 setup(
@@ -182,37 +98,11 @@ setup(
         ],
     },
 
-    install_requires=install_requirements,    extras_require={
-        # This extra allows you to build and check the documentation for
-        # Flocker.
-        "doc": [
-            "Sphinx==1.2.2",
-            "sphinx-rtd-theme==0.1.6",
-            "pyenchant==1.6.6",
-            "sphinxcontrib-spelling==2.1.1",
-            "sphinx-prompt==1.0.0",
-            "sphinxcontrib-httpdomain==1.3.0",
-            ],
-        # This extra is for developers who need to work on Flocker itself.
-        "dev": dev_requirements,
+    install_requires=install_requires,
 
-        # This extra is for Flocker release engineers to set up their release
-        # environment.
-        "release": [
-            "gitpython==1.0.0",
-            "awscli==1.7.25",
-            "wheel==0.24.0",
-            "virtualenv",
-            "PyCrypto",
-            "pyasn1",
-            "tl.eggdeps==0.4",
-            "boto==2.38.0",
-            # Packages are downloaded from Buildbot
-            "requests==2.4.3",
-            "requests-file==1.0",
-            # TLS SNI Support is needed to test link redirects
-            "ndg-httpsclient==0.4.0",
-            ],
+    extras_require={
+        # This extra is for developers who need to work on Flocker itself.
+        "dev": dev_requires,
         },
 
     cmdclass=cmdclass,
