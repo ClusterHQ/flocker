@@ -702,37 +702,44 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         docker_dir = FilePath(__file__).sibling('retry-docker')
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
+        outer_d = image.build()
 
-        name = random_name(self)
+        # TODO: This is horrible, but it's the simplest transformation to got
+        # from build() being pure to being monadic.
+        def image_built(image_name):
+            name = random_name(self)
+            data = FilePath(self.mktemp())
+            data.makedirs()
+            count = data.child('count')
+            count.setContent("0")
+            marker = data.child('marker')
 
-        data = FilePath(self.mktemp())
-        data.makedirs()
-        count = data.child('count')
-        count.setContent("0")
-        marker = data.child('marker')
+            if mode == u"success-then-sleep":
+                expected_states = (u'active',)
+            else:
+                expected_states = (u'inactive',)
 
-        if mode == u"success-then-sleep":
-            expected_states = (u'active',)
-        else:
-            expected_states = (u'inactive',)
+            d = self.start_container(
+                name, image_name=image_name,
+                restart_policy=restart_policy,
+                environment=Environment(variables={u'mode': mode}),
+                volumes=[
+                    Volume(node_path=data, container_path=FilePath(b"/data"))],
+                expected_states=expected_states)
 
-        d = self.start_container(
-            name, image_name=image_name,
-            restart_policy=restart_policy,
-            environment=Environment(variables={u'mode': mode}),
-            volumes=[
-                Volume(node_path=data, container_path=FilePath(b"/data"))],
-            expected_states=expected_states)
+            if mode == u"success-then-sleep":
+                # TODO: if the `run` script fails for any reason, then this will loop forever.
 
-        if mode == u"success-then-sleep":
-            def wait_for_marker(_):
-                while not marker.exists():
-                    time.sleep(0.01)
-            d.addCallback(wait_for_marker)
+                # TODO: use the "wait for predicate" helper
+                def wait_for_marker(_):
+                    while not marker.exists():
+                        time.sleep(0.01)
+                d.addCallback(wait_for_marker)
 
-        d.addCallback(lambda ignored: count.getContent())
-        return d
+            d.addCallback(lambda ignored: count.getContent())
+            return d
+
+        return outer_d.addCallback(image_built)
 
     def test_restart_policy_never(self):
         """

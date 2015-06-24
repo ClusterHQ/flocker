@@ -19,6 +19,7 @@ import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
+from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
 from bitmath import GiB
@@ -26,6 +27,7 @@ from bitmath import GiB
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
+from eliot import Message, start_action
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -40,7 +42,7 @@ from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
-from twisted.internet.protocol import Factory, Protocol
+from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
@@ -622,7 +624,7 @@ class DockerImageBuilder(PRecord):
             b'--tag=%s' % (tag,),
             docker_dir.path
         ]
-        run_process(command)
+        d = logged_run_process(reactor, command)
         if self.cleanup:
             def remove_image():
                 client = DockerClient(version="1.15")
@@ -631,7 +633,7 @@ class DockerImageBuilder(PRecord):
                         client.remove_container(container[u"Names"][0])
                 client.remove_image(tag, force=True)
             self.test.addCleanup(remove_image)
-        return tag
+        return d.addCallback(lambda ignored: tag)
 
 
 def skip_on_broken_permissions(test_method):
@@ -868,6 +870,54 @@ class _CalledProcessError(CalledProcessError):
         return base + " and output:\n" + lines
 
 
+# TODO: change the name
+class _WhateverProtocol(ProcessProtocol):
+
+    # TODO: docstrings
+
+    def __init__(self, deferred):
+        self._deferred = deferred
+        self._output_buffer = StringIO()
+
+    def _log_output(self, data):
+        # TODO: This should probably be within some sort of action context.
+        # TODO: Do we want to line buffer this?
+        Message.new(output=data).write()
+
+    def outReceived(self, data):
+        self._output_buffer.write(data)
+        self._log_output(data)
+
+    def errReceived(self, data):
+        self._output_buffer.write(data)
+        self._log_output(data)
+
+    def processExited(self, reason):
+        self._deferred.callback((reason, self._output_buffer.getvalue()))
+
+
+def logged_run_process(reactor, command):
+    """
+    Run a child process, and log the output as we get it.
+
+    :return: A ``Deferred _ProcessResult``
+    """
+    d = Deferred()
+    protocol = _WhateverProtocol(d)
+    reactor.spawnProcess(protocol, command[0], command)
+
+    # TODO: Should properly errback if process fails
+
+    def process_ended((reason, output)):
+        return _ProcessResult(
+            command=command,
+            status=reason.value.status,
+            output=output,
+        )
+
+    return d.addCallback(process_ended)
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -881,14 +931,23 @@ def run_process(command, *args, **kwargs):
     """
     kwargs["stdout"] = PIPE
     kwargs["stderr"] = STDOUT
-    process = Popen(command, *args, **kwargs)
-    output = process.stdout.read()
-    status = process.wait()
-    result = _ProcessResult(command=command, output=output, status=status)
-    if result.status:
-        raise _CalledProcessError(
-            returncode=status, cmd=command, output=output,
-        )
+    action = start_action(
+        action_type="run_process", command=command, args=args, kwargs=kwargs)
+    with action:
+        process = Popen(command, *args, **kwargs)
+        output = process.stdout.read()
+        status = process.wait()
+        result = _ProcessResult(command=command, output=output, status=status)
+        # TODO: We should be using a specific logging type for this.
+        Message.new(
+            command=result.command,
+            output=result.output,
+            status=result.status,
+        ).write()
+        if result.status:
+            raise _CalledProcessError(
+                returncode=status, cmd=command, output=output,
+            )
     return result
 
 
