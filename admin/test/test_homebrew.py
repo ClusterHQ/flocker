@@ -10,9 +10,10 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 
 from requests.exceptions import HTTPError
+from pkg_resources import Requirement
 
 from admin.homebrew import (
-    HomebrewOptions, get_checksum, get_dependency_graph, get_class_name,
+    HomebrewOptions, get_checksum, get_requirements, get_class_name,
     format_resource_stanzas, get_recipe,
 )
 
@@ -99,26 +100,29 @@ class GetChecksumTests(SynchronousTestCase):
         self.assertEqual(404, exception.exception.response.status_code)
 
 
-class GetDependencyGraphTests(SynchronousTestCase):
+class GetRequirementsTests(SynchronousTestCase):
     """
-    Tests for :func:`get_dependency_graph`.
+    Tests for :func:`get_requirements`.
     """
-    def test_get_dependency_graph(self):
+    def test_get_requirements(self):
         """
-        It is possible to get a tl.eggdeps graph for a given application.
+        It is possible to get a list of requirements from a requirements.txt
+        file.
         """
-        graph = get_dependency_graph(u'flocker')
-        # We can be sure that flocker is installed if we are running this,
-        # and pretty sure that setuptools is a dependency with no dependencies
-        # of its own.
-        # Perhaps a better test would install a canned package.
-        self.assertEqual(graph['setuptools'], {})
+        requirements_path = FilePath(self.mktemp())
+        requirements_path.setContent(
+            '\n'.join(["eliot==0.7.0", "Twisted==15.2.0"])
+        )
 
-    def test_application_removed(self):
-        """
-        Applications cannot depend on themselves so they are not in the graph.
-        """
-        self.assertNotIn(u'flocker', get_dependency_graph(u'flocker'))
+        requirements = get_requirements(requirements_path)
+
+        self.assertEqual(
+            requirements,
+            [
+                Requirement.parse("eliot==0.7.0"),
+                Requirement.parse("Twisted==15.2.0"),
+            ],
+        )
 
 
 class GetClassNameTests(SynchronousTestCase):
