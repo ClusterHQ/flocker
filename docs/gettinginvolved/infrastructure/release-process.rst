@@ -128,8 +128,8 @@ Preparing For a Release
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
-          # TODO just use the current branch name, instead of using the variable
-          git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git log --first-parent ${OLD_VERSION}..${BRANCH}
 
    .. prompt:: bash $
 
