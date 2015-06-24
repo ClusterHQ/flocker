@@ -11,7 +11,7 @@ import sys
 import os
 from subprocess import check_output, check_call, CalledProcessError, call
 from tempfile import mkdtemp
-from textwrap import dedent, fill
+from textwrap import fill
 
 from eliot import Logger, start_action, to_file
 
@@ -344,9 +344,12 @@ class VirtualEnv(object):
     """
     A model representing a virtualenv directory.
     """
-    def install(self, package_uri):
+    def install(self, arguments):
         """
         Install package and its dependencies into this virtualenv.
+
+        :param arguments: The aruguments to pass to pip.
+        :type arguments: ``list`` of ``bytes``
         """
         # We can't just call pip directly, because in the virtualenvs created
         # in tests, the shebang line becomes too long and triggers an
@@ -354,21 +357,22 @@ class VirtualEnv(object):
         python_path = self.root.child('bin').child('python').path
 
         run_command(
-            [python_path, '-m', 'pip', '--quiet', 'install', package_uri],
+            [python_path, '-m', 'pip', '--quiet', 'install'] + arguments,
         )
 
 
-@attributes(['virtualenv', 'package_uri'])
+@attributes(['virtualenv', 'arguments'])
 class InstallApplication(object):
     """
-    Install the supplied ``package_uri`` using the supplied ``virtualenv``.
+    Install the supplied package using the supplied ``virtualenv``.
 
     :ivar VirtualEnv virtualenv: The virtual environment in which to install
        ``package``.
-    :ivar bytes package_uri: A pip compatible URI.
+    :param arguments: The aruguments to pass to pip.
+    :type arguments: ``list`` of ``bytes``
     """
     def run(self):
-        self.virtualenv.install(self.package_uri)
+        self.virtualenv.install(self.arguments)
 
 
 @attributes(['links'])
@@ -761,11 +765,11 @@ class PACKAGE_NODE(PACKAGE):
 
 
 def omnibus_package_builder(
-        distribution, destination_path, package_uri,
+        distribution, destination_path,
         package_files, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
-    ``destination_path``, containing the package installed from ``package_uri``
+    ``destination_path``, containing the package installed from ``/flocker``
     and all its dependencies.
 
     The steps are:
@@ -821,8 +825,14 @@ def omnibus_package_builder(
     return BuildSequence(
         steps=(
             InstallVirtualEnv(virtualenv=virtualenv),
-            InstallApplication(virtualenv=virtualenv,
-                               package_uri=package_uri),
+            InstallApplication(
+                virtualenv=virtualenv,
+                arguments=[
+                    "--no-deps",
+                    "-r/flocker/requirements.txt",
+                    "/flocker",
+                ],
+            ),
             # get_package_version_step must be run before steps that reference
             # rpm_version
             get_package_version_step,
@@ -1017,7 +1027,8 @@ def available_distributions(flocker_source_path):
         if path.isdir() and path.child(b"Dockerfile").exists()
     )
 
-def build_in_docker(destination_path, distribution, top_level, package_uri):
+
+def build_in_docker(destination_path, distribution, top_level):
     """
     Build a flocker package for a given ``distribution`` inside a clean docker
     container of that ``distribution``.
@@ -1027,7 +1038,6 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     :param bytes distribution: The distribution name for which to build a
         package.
     :param FilePath top_level: The Flocker source code directory.
-    :param bytes package_uri: The ``pip`` style python package URI to install.
     """
     if destination_path.exists() and not destination_path.isdir():
         raise ValueError("go away")
@@ -1036,10 +1046,6 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
         FilePath('/output'): destination_path,
         FilePath('/flocker'): top_level,
     }
-
-    # Special case to allow building the currently checked out Flocker code.
-    if package_uri == top_level.path:
-        package_uri = '/flocker'
 
     tag = "clusterhq/build-%s" % (distribution,)
 
@@ -1063,7 +1069,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
             DockerRun(
                 tag=tag,
                 volumes=volumes,
-                command=[package_uri]
+                command=[],
             ),
         ])
 
@@ -1072,25 +1078,13 @@ class DockerBuildOptions(usage.Options):
     """
     Command line options for the ``build-package-entrypoint`` tool.
     """
-    synopsis = 'build-package-entrypoint [options] <package-uri>'
+    synopsis = 'build-package-entrypoint [options]'
 
     optParameters = [
         ['destination-path', 'd', '.',
          'The path to a directory in which to create package files and '
          'artifacts.'],
     ]
-
-    longdesc = dedent("""\
-    Arguments:
-
-    <package-uri>: The Python package url or path to install using ``pip``.
-    """)
-
-    def parseArgs(self, package_uri):
-        """
-        The Python package to install.
-        """
-        self['package-uri'] = package_uri
 
     def postOptions(self):
         """
@@ -1143,7 +1137,6 @@ class DockerBuildScript(object):
         self.build_command(
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
-            package_uri=options['package-uri'],
             package_files=top_level.descendant(['admin', 'package-files']),
         ).run()
 
@@ -1154,7 +1147,7 @@ class BuildOptions(usage.Options):
     """
     Command line options for the ``build-package`` tool.
     """
-    synopsis = 'build-package [options] <package-uri>'
+    synopsis = 'build-package [options]'
 
     optParameters = [
         ['destination-path', 'd', '.',
@@ -1164,12 +1157,6 @@ class BuildOptions(usage.Options):
          # {} is formatted in __init__
          'The target distribution. One of {}'],
     ]
-
-    longdesc = dedent("""\
-    Arguments:
-
-    <package-uri>: The Python package url or path to install using ``pip``.
-    """)
 
     def __init__(self, distributions):
         """
@@ -1181,11 +1168,16 @@ class BuildOptions(usage.Options):
             ', '.join(sorted(distributions))
         )
 
-    def parseArgs(self, package_uri):
+    def parseArgs(self, package_uri=None):
         """
         The Python package to install.
         """
-        self['package-uri'] = package_uri
+        if package_uri is not None:
+            # https://clusterhq.atlassian.net/browse/FLOC-2527
+            # This only exists to support the transition on buildbot.
+            # Once this is merged to all branches, this can be removed.
+            print "WARNING: build-package will no longer build from a URI."
+            print "It only builds from a flocker checkout."
 
     def postOptions(self):
         """
@@ -1240,7 +1232,6 @@ class BuildScript(object):
 
         self.build_command(
             destination_path=options['destination-path'],
-            package_uri=options['package-uri'],
             top_level=top_level,
             distribution=options['distribution'],
         ).run()

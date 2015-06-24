@@ -67,7 +67,7 @@ Development Environment
 
   .. code-block:: console
 
-     $ python setup.py install .[doc,dev]
+     $ pip install -r requirements.txt
 
 .. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
