@@ -165,9 +165,7 @@ Preparing For a Release
 
    .. prompt:: bash $
 
-      # TODO Don't change git config
-      git config push.default current
-      git push
+      git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
 #. Ensure all the required tests pass on BuildBot:
 
