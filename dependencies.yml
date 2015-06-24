@@ -1,0 +1,54 @@
+package:
+- setuptools < 8
+- eliot >= 0.7.1
+- machinist >= 0.2.0
+- zope.interface >= 4.0.5
+- pytz
+- characteristic >= 14.1.0
+- Twisted >= 15.1.0
+- service_identity >= 14.0.0
+- idna >= 2.0
+- pyOpenSSL >= 0.15.1
+- PyYAML >= 3.10
+- treq >= 0.2.1
+- psutil >= 2.1.2
+- netifaces >= 0.8
+- ipaddr >= 2.1.11
+- docker-py >= 0.7.1
+- jsonschema >= 2.4.0
+- klein >= 0.2.3
+- pyrsistent >= 0.9.2
+- pycrypto >= 2.6.1
+- effect>=0.1a13
+- bitmath>=1.2.3-4
+- boto>=2.38.0
+- python-cinderclient>=1.1.1
+- python-novaclient>=2.24.1
+- python-keystoneclient>=1.4.0
+- python-keystoneclient-rackspace>=0.1.3
+
+dev:
+- flake8>=2.2.0
+- tox>=1.7.1
+- versioneer==0.10
+- pyasn1>=0.1.7
+- pymongo>=2.7.2
+- pg8000>=1.10.1
+- PyMySQL>=0.6.2
+- fabric>=1.10.0
+- apache-libcloud>=0.16.0
+- requests>=2.4.3
+- requests-file>=1.0
+- wheel>=0.24.0
+- gitpython>=1.0.0
+- boto>=2.30.0
+- Sphinx>=1.2.2
+- sphinx-rtd-theme>=0.1.6
+- pyenchant>=1.6.6
+- sphinxcontrib-spelling>=2.1.1
+- sphinx-prompt>=1.0.0
+- sphinxcontrib-httpdomain>=1.3.0
+- awscli>=1.7.25
+- virtualenv==12.1.1
+- ndg-httpsclient>=0.4.0
+- nomenclature >= 0.1.0
