@@ -234,10 +234,11 @@ Release
 
    .. prompt:: bash $
 
-      # TODO Create a tool which does this from the release branch, so that the
-      # environment variable does not have to stick around.
-      git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
-      git push origin "${VERSION}"
+      BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      RELEASE_BRANCH_PREFIX="release\/flocker-"
+      TAG=${BRANCH/${RELEASE_BRANCH_PREFIX}}
+      git tag --annotate "${TAG}" "${BRANCH}" -m "Tag version ${TAG}"
+      git push origin "${TAG}"
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
