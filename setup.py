@@ -36,7 +36,7 @@ with open("README.rst") as readme:
 
 with open("requirements.txt") as requirements:
     install_requires = requirements.readlines()
-with open("dev_requirements.txt") as dev_requirements:
+with open("dev-requirements.txt") as dev_requirements:
     dev_requires = dev_requirements.readlines()
 
 # The test suite uses network namespaces
