@@ -93,19 +93,19 @@ Preparing For a Release
 
 #. Create the environment to do a release in:
 
-   .. prompt:: bash $,(flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$,(flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37/flocker$ auto
+   .. prompt:: bash $,(flocker-release)tmp-5234cf9a4c8fad37$,(flocker-release)flocker$ auto
 
-      $ mktmpenv --prompt="(flocker-release)"
+      $ mktmpenv --cd --prompt="(flocker-release)"
       # The following command means that you will not be asked whether
       # you want to continue connecting
       $ ssh-keyscan github.com >> ~/.ssh/known_hosts
-      (flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$ git clone git@github.com:ClusterHQ/flocker.git
-      (flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$ cd flocker
-      (flocker-release)~/.virtualenvs/tmp-5234cf9a4c8fad37$ pip install --editable .[release]
+      (flocker-release)tmp-5234cf9a4c8fad37$ git clone git@github.com:ClusterHQ/flocker.git
+      (flocker-release)tmp-5234cf9a4c8fad37$ cd flocker
+      (flocker-release)flocker$ pip install --editable .[release]
 
 #. Create a release branch, using the version number of the release being created, e.g.:
 
-   .. prompt:: bash $
+   .. prompt:: bash (flocker-release)flocker$
 
       admin/create-release-branch --flocker-version="0.1.2"
 
@@ -119,14 +119,14 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash $
+      .. prompt:: bash flocker-release)flocker$
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           git log --first-parent ${OLD_VERSION}..${BRANCH}
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       git commit -am "Updated NEWS"
 
@@ -142,7 +142,7 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       git commit -am "Updated Release Notes"
 
@@ -152,13 +152,13 @@ Preparing For a Release
    - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       git commit -am "Updated copyright"
 
 #. Push the changes:
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
@@ -227,7 +227,7 @@ Release
 
 #. Tag the version being released:
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       BRANCH=$(git rev-parse --abbrev-ref HEAD)
       RELEASE_BRANCH_PREFIX="release\/flocker-"
@@ -246,13 +246,13 @@ Release
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash flocker-release)flocker$
 
       aws configure
 
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       admin/publish-artifacts
       admin/publish-docs --production
@@ -263,7 +263,7 @@ Release
    It outputs a success message if the documentation does redirect correctly.
    It takes some time for `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
-   .. prompt:: bash $
+   .. prompt:: bash flocker-release)flocker$
 
       admin/test-redirects --production
 
