@@ -34,16 +34,7 @@ unless Vagrant.has_plugin?("vagrant-vbguest")
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "box-cutter/centos70"
-  # Update kernel and start to configure base system
-  config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
-  config.vm.provision :reload
-  # Finish configuring base system
-  config.vm.provision :shell, :path => "post-reboot-bootstrap.sh", :privileged => true
-  # Prepare caches
-  config.vm.provision :shell, :path => "cache.sh", :privileged => true
-  # Cleanup
-  config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
+  config.vm.box = "clusterhq/flocker-basebox"
 
   # Don't use a shared folder.
   # - It isn't used during the build.
