@@ -91,11 +91,11 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker <version-being-released>" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create the environment to do a release in:
+#. Create an environment to do a release in:
 
    .. prompt:: bash $,(flocker-release)tmp-5234cf9a4c8fad37$,(flocker-release)flocker$ auto
 
-      $ mktmpenv --cd --prompt="(flocker-release)"
+      $ mktmpenv --prompt="(flocker-release)"
       # The following command means that you will not be asked whether
       # you want to continue connecting
       $ ssh-keyscan github.com >> ~/.ssh/known_hosts
