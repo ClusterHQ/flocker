@@ -88,32 +88,29 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number of the release being created as an environment variable for later use:
-
-   .. prompt:: bash $
-
-      export VERSION=0.1.2
-
 #. Create an issue in JIRA:
 
    This should be an "Improvement" in the current sprint, with "Release Flocker <version-being-released>" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create a release branch, and create and activate a virtual environment:
+#. Create the environment to do a release in:
 
    .. prompt:: bash $
 
+      # TODO change prompts to show the virtualenv
+      mktmpenv --prompt="(flocker-release)"
       # The following command means that you will not be asked whether
       # you want to continue connecting
       ssh-keyscan github.com >> ~/.ssh/known_hosts
-      # Build release artifacts in a temporary directory
-      cd $(mktemp -d /tmp/temp.XXXX)
       git clone git@github.com:ClusterHQ/flocker.git
       cd flocker
-      # TODO change prompts to show the virtualenv
-      mkvirtualenv flocker-release
       pip install --editable .[release]
-      admin/create-release-branch --flocker-version="${VERSION}"
+
+#. Create a release branch, using the version number of the release being created, e.g.:
+
+   .. prompt:: bash $
+
+      admin/create-release-branch --flocker-version="0.1.2"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
