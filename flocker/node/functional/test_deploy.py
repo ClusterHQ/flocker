@@ -163,26 +163,25 @@ class DeployerTests(TestCase):
             d.addCallback(lambda volumes:
                         list(volumes)[0].get_filesystem().get_path().child(
                             b'env'))
+            def got_result_path(result_path):
+                d = loop_until(result_path.exists)
+                d.addCallback(lambda _: result_path)
+                return d
+            d.addCallback(got_result_path)
+
+            def started(result_path):
+                contents = result_path.getContent()
+
+                assertContainsAll(
+                    haystack=contents,
+                    test_case=self,
+                    needles=['{}={}\n'.format(k, v)
+                             for k, v in expected_variables])
+                d.addCallback(started)
             return d
 
         return outer_d.addCallback(image_built)
 
-        def got_result_path(result_path):
-            d = loop_until(result_path.exists)
-            d.addCallback(lambda _: result_path)
-            return d
-        d.addCallback(got_result_path)
-
-        def started(result_path):
-            contents = result_path.getContent()
-
-            assertContainsAll(
-                haystack=contents,
-                test_case=self,
-                needles=['{}={}\n'.format(k, v)
-                         for k, v in expected_variables])
-        d.addCallback(started)
-        return d
 
     @if_docker_configured
     def test_links(self):
@@ -242,27 +241,27 @@ class DeployerTests(TestCase):
             d.addCallback(lambda volumes:
                         list(volumes)[0].get_filesystem().get_path().child(
                             b'env'))
+
+            def got_result_path(result_path):
+                d = loop_until(result_path.exists)
+                d.addCallback(lambda _: result_path)
+                return d
+            d.addCallback(got_result_path)
+
+            def started(result_path):
+                contents = result_path.getContent()
+
+                assertContainsAll(
+                    haystack=contents,
+                    test_case=self,
+                    needles=['{}={}\n'.format(k, v)
+                             for k, v in expected_variables])
+            d.addCallback(started)
             return d
 
         return outer_d.addCallback(image_built)
 
 
-        def got_result_path(result_path):
-            d = loop_until(result_path.exists)
-            d.addCallback(lambda _: result_path)
-            return d
-        d.addCallback(got_result_path)
-
-        def started(result_path):
-            contents = result_path.getContent()
-
-            assertContainsAll(
-                haystack=contents,
-                test_case=self,
-                needles=['{}={}\n'.format(k, v)
-                         for k, v in expected_variables])
-        d.addCallback(started)
-        return d
 
     def _start_container_for_introspection(self, **kwargs):
         """

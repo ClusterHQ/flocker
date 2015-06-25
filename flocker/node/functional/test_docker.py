@@ -220,14 +220,18 @@ class GenericDockerClientTests(TestCase):
         path.makedirs()
         path.child(b"Dockerfile.in").setContent(
             b"FROM busybox\nCMD /bin/true\n")
-        # TODO: Update this now that build() returns a Deferred
-        image_name = DockerImageBuilder(test=self, source_dir=path,
-                                        cleanup=False).build()
-        name = random_name(self)
-        d = self.start_container(unit_name=name, image_name=image_name,
-                                 expected_states=(u'inactive',))
+        builder = DockerImageBuilder(test=self, source_dir=path, cleanup=False)
+        outer_d = builder.build()
 
-        def stopped_container_exists(_):
+        def image_built(image_name):
+            name = random_name(self)
+            d = self.start_container(
+                unit_name=name, image_name=image_name,
+                expected_states=(u'inactive',))
+            return d.addCallback(lambda ignored: (name, image_name))
+        outer_d.addCallback(image_built)
+
+        def stopped_container_exists((name, image_name)):
             # Remove the image:
             docker_client = Client()
             docker_client.remove_image(image_name, force=True)
@@ -239,8 +243,9 @@ class GenericDockerClientTests(TestCase):
                 (name, "inactive"),
                 [(unit.name, unit.activation_state) for unit in results]))
             return listed
-        d.addCallback(stopped_container_exists)
-        return d
+        outer_d.addCallback(stopped_container_exists)
+
+        return outer_d
 
     def test_dead_is_removed(self):
         """
