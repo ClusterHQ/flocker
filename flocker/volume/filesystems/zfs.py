@@ -7,10 +7,12 @@ ZFS APIs.
 from __future__ import absolute_import
 
 import os
+import libzfs_core
+
 from contextlib import contextmanager
 from uuid import uuid4
 from subprocess import (
-    CalledProcessError, STDOUT, PIPE, Popen, check_call, check_output
+    STDOUT, PIPE, Popen, check_call, check_output
 )
 
 from characteristic import attributes, with_cmp, with_repr
@@ -198,11 +200,7 @@ class Filesystem(object):
         :return: ``True`` if there is a filesystem with this name, ``False``
             otherwise.
         """
-        try:
-            check_output([b"zfs", b"list", self.name], stderr=STDOUT)
-        except CalledProcessError:
-            return False
-        return True
+        return libzfs_core.lzc_exists(self.name)
 
     def snapshots(self):
         if self._exists():
