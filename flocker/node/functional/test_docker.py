@@ -220,6 +220,7 @@ class GenericDockerClientTests(TestCase):
         path.makedirs()
         path.child(b"Dockerfile.in").setContent(
             b"FROM busybox\nCMD /bin/true\n")
+        # TODO: Update this now that build() returns a Deferred
         image_name = DockerImageBuilder(test=self, source_dir=path,
                                         cleanup=False).build()
         name = random_name(self)
