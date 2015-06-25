@@ -870,16 +870,31 @@ class _CalledProcessError(CalledProcessError):
         return base + " and output:\n" + lines
 
 
-# TODO: change the name
-class _WhateverProtocol(ProcessProtocol):
+class _LoggingProcessProtocol(ProcessProtocol):
+    """
+    A ``ProcessProtocol`` that stores output from the subprocess and also logs
+    output as its received as eliot messages.
 
-    # TODO: docstrings
+    Intended to be used by ``logged_run_process``.
+    """
 
     def __init__(self, deferred):
+        """
+        Construct a ``_LoggingProcessProtocol``.
+
+        :param deferred: A ``Deferred`` that will fire with ``(reason, output)``
+            when the process ends, where ``reason`` is a ``Failure`` with the
+            reason for the process ending (see ``IProcessProtocol``), and
+            ``output`` are the bytes outputted by the process (both to stdout
+            and stderr).
+        """
         self._deferred = deferred
         self._output_buffer = StringIO()
 
     def _log_output(self, data):
+        """
+        Log ``data`` as an eliot message.
+        """
         # TODO: This should probably be within some sort of action context.
         # TODO: Do we want to line buffer this?
         Message.new(output=data).write()
@@ -900,10 +915,13 @@ def logged_run_process(reactor, command):
     """
     Run a child process, and log the output as we get it.
 
+    :param reactor: An ``IReactorProcess`` to spawn the process on.
+    :param command: An argument list specifying the child process to run.
+
     :return: A ``Deferred _ProcessResult``
     """
     d = Deferred()
-    protocol = _WhateverProtocol(d)
+    protocol = _LoggingProcessProtocol(d)
     reactor.spawnProcess(protocol, command[0], command)
 
     # TODO: Should properly errback if process fails
