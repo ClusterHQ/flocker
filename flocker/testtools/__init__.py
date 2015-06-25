@@ -918,15 +918,19 @@ def logged_run_process(reactor, command):
     :param reactor: An ``IReactorProcess`` to spawn the process on.
     :param command: An argument list specifying the child process to run.
 
-    :return: A ``Deferred _ProcessResult``
+    :return: A ``Deferred`` that calls back with ``_ProcessResult`` if the
+        process exited successfully, or errbacks with
+        ``_CalledProcessError`` otherwise.
     """
     d = Deferred()
     protocol = _LoggingProcessProtocol(d)
     reactor.spawnProcess(protocol, command[0], command)
 
-    # TODO: Should properly errback if process fails
-
     def process_ended((reason, output)):
+        status = reason.value.status
+        if status:
+            raise _CalledProcessError(
+                returncode=status, cmd=command, output=output)
         return _ProcessResult(
             command=command,
             status=reason.value.status,
