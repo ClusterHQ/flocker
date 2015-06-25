@@ -324,24 +324,6 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    def build_slow_shutdown_image(self):
-        """
-        Create a Docker image that takes a while to shut down.
-
-        This should really use Python instead of shell:
-        https://clusterhq.atlassian.net/browse/FLOC-719
-
-        :return: The name of created Docker image.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        path.child(b"Dockerfile.in").setContent("""\
-FROM busybox
-CMD sh -c "trap \"\" 2; sleep 3"
-""")
-        image = DockerImageBuilder(test=self, source_dir=path)
-        return image.build()
-
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
@@ -355,31 +337,39 @@ CMD sh -c "trap \"\" 2; sleep 3"
             b'"while true; do env && echo WOOT && sleep 1; done"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        unit_name = random_name(self)
-        expected_variables = frozenset({
-            'key1': 'value1',
-            'key2': 'value2',
-        }.items())
-        d = self.start_container(
-            unit_name=unit_name,
-            image_name=image_name,
-            environment=Environment(variables=expected_variables),
-        )
+        outer_d = image.build()
 
-        def started(_):
-            output = ""
-            while True:
-                output += Client().logs(self.namespacing_prefix + unit_name)
-                if "WOOT" in output:
-                    break
-            assertContainsAll(
-                output, test_case=self,
-                needles=['{}={}\n'.format(k, v)
-                         for k, v in expected_variables],
+        # TODO: FLOC-2513
+        # This is horrible, but it's the simplest transformation to got
+        # from build() being pure to being monadic.
+        def image_built(image_name):
+
+            unit_name = random_name(self)
+            expected_variables = frozenset({
+                'key1': 'value1',
+                'key2': 'value2',
+            }.items())
+            d = self.start_container(
+                unit_name=unit_name,
+                image_name=image_name,
+                environment=Environment(variables=expected_variables),
             )
-        d.addCallback(started)
-        return d
+
+            def started(_):
+                output = ""
+                while True:
+                    output += Client().logs(self.namespacing_prefix + unit_name)
+                    if "WOOT" in output:
+                        break
+                assertContainsAll(
+                    output, test_case=self,
+                    needles=['{}={}\n'.format(k, v)
+                             for k, v in expected_variables],
+                )
+            d.addCallback(started)
+            return d
+
+        return outer_d.addCallback(image_built)
 
     def test_pull_image_if_necessary(self):
         """
@@ -495,18 +485,25 @@ CMD sh -c "trap \"\" 2; sleep 3"
             b'CMD ["/bin/doesnotexist"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        client = self.make_client()
-        name = random_name(self)
-        self.create_container(client, name, image_name)
-        self.addCleanup(client.remove, name)
-        d = client.list()
+        outer_d = image.build()
 
-        def got_list(units):
-            unit = [unit for unit in units if unit.name == name][0]
-            self.assertIsNone(unit.environment)
-        d.addCallback(got_list)
-        return d
+        # TODO: FLOC-2513
+        # This is horrible, but it's the simplest transformation to got
+        # from build() being pure to being monadic.
+        def image_built(image_name):
+            client = self.make_client()
+            name = random_name(self)
+            self.create_container(client, name, image_name)
+            self.addCleanup(client.remove, name)
+            d = client.list()
+
+            def got_list(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                self.assertIsNone(unit.environment)
+            d.addCallback(got_list)
+            return d
+
+        return outer_d.addCallback(image_built)
 
     def test_container_name(self):
         """
@@ -600,34 +597,41 @@ CMD sh -c "trap \"\" 2; sleep 3"
             b'"touch /mnt1/a; touch /mnt2/b"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        unit_name = random_name(self)
+        outer_d = image.build()
 
-        path1 = FilePath(self.mktemp())
-        path1.makedirs()
-        path2 = FilePath(self.mktemp())
-        path2.makedirs()
+        # TODO: FLOC-2513
+        # This is horrible, but it's the simplest transformation to got
+        # from build() being pure to being monadic.
+        def image_built(image_name):
+            unit_name = random_name(self)
 
-        d = self.start_container(
-            unit_name=unit_name,
-            image_name=image_name,
-            volumes=[
-                Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
-                Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
-            expected_states=(u'inactive',),
-        )
+            path1 = FilePath(self.mktemp())
+            path1.makedirs()
+            path2 = FilePath(self.mktemp())
+            path2.makedirs()
 
-        def started(_):
-            expected1 = path1.child(b"a")
-            expected2 = path2.child(b"b")
-            for i in range(100):
-                if expected1.exists() and expected2.exists():
-                    return
-                else:
-                    time.sleep(0.1)
-            self.fail("Files never created.")
-        d.addCallback(started)
-        return d
+            d = self.start_container(
+                unit_name=unit_name,
+                image_name=image_name,
+                volumes=[
+                    Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
+                    Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
+                expected_states=(u'inactive',),
+            )
+
+            def started(_):
+                expected1 = path1.child(b"a")
+                expected2 = path2.child(b"b")
+                for i in range(100):
+                    if expected1.exists() and expected2.exists():
+                        return
+                    else:
+                        time.sleep(0.1)
+                self.fail("Files never created.")
+            d.addCallback(started)
+            return d
+
+        return outer_d.addCallback(image_built)
 
     def test_add_with_memory_limit(self):
         """
@@ -704,7 +708,8 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         outer_d = image.build()
 
-        # TODO: This is horrible, but it's the simplest transformation to got
+        # TODO: FLOC-2513
+        # This is horrible, but it's the simplest transformation to got
         # from build() being pure to being monadic.
         def image_built(image_name):
             name = random_name(self)
@@ -728,7 +733,8 @@ CMD sh -c "trap \"\" 2; sleep 3"
                 expected_states=expected_states)
 
             if mode == u"success-then-sleep":
-                # TODO: if the `run` script fails for any reason, then this will loop forever.
+                # TODO: if the `run` script fails for any reason,
+                # then this will loop forever.
 
                 # TODO: use the "wait for predicate" helper
                 def wait_for_marker(_):

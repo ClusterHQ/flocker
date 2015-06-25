@@ -116,47 +116,56 @@ class DeployerTests(TestCase):
         """
         docker_dir = FilePath(__file__).sibling('env-docker')
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
 
-        application_name = random_name(self)
+        # TODO: convert this into a callback AZUL
+        outer_d = image.build()
 
-        docker_client = DockerClient()
-        self.addCleanup(docker_client.remove, application_name)
+        # TODO: FLOC-2513
+        # This is horrible, but it's the simplest transformation to got
+        # from build() being pure to being monadic.
+        def image_built(image_name):
+            application_name = random_name(self)
 
-        volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u"localhost", volume_service, docker_client,
-            make_memory_network(), node_uuid=uuid4())
+            docker_client = DockerClient()
+            self.addCleanup(docker_client.remove, application_name)
 
-        expected_variables = frozenset({
-            'key1': 'value1',
-            'key2': 'value2',
-        }.items())
+            volume_service = create_volume_service(self)
+            deployer = P2PNodeDeployer(
+                u"localhost", volume_service, docker_client,
+                make_memory_network(), node_uuid=uuid4())
 
-        dataset = Dataset(
-            dataset_id=unicode(uuid4()),
-            metadata=pmap({"name": application_name}))
-        manifestation = Manifestation(dataset=dataset, primary=True)
-        desired_state = Deployment(nodes=frozenset([
-            Node(uuid=deployer.node_uuid,
-                 applications=frozenset([Application(
-                     name=application_name,
-                     image=DockerImage.from_string(
-                         image_name),
-                     environment=expected_variables,
-                     volume=AttachedVolume(
-                         manifestation=manifestation,
-                         mountpoint=FilePath('/data'),
-                         ),
-                     links=frozenset(),
-                     )]),
-                 manifestations={manifestation.dataset_id: manifestation})]))
+            expected_variables = frozenset({
+                'key1': 'value1',
+                'key2': 'value2',
+            }.items())
 
-        d = change_node_state(deployer, desired_state)
-        d.addCallback(lambda _: volume_service.enumerate())
-        d.addCallback(lambda volumes:
-                      list(volumes)[0].get_filesystem().get_path().child(
-                          b'env'))
+            dataset = Dataset(
+                dataset_id=unicode(uuid4()),
+                metadata=pmap({"name": application_name}))
+            manifestation = Manifestation(dataset=dataset, primary=True)
+            desired_state = Deployment(nodes=frozenset([
+                Node(uuid=deployer.node_uuid,
+                    applications=frozenset([Application(
+                        name=application_name,
+                        image=DockerImage.from_string(
+                            image_name),
+                        environment=expected_variables,
+                        volume=AttachedVolume(
+                            manifestation=manifestation,
+                            mountpoint=FilePath('/data'),
+                            ),
+                        links=frozenset(),
+                        )]),
+                    manifestations={manifestation.dataset_id: manifestation})]))
+
+            d = change_node_state(deployer, desired_state)
+            d.addCallback(lambda _: volume_service.enumerate())
+            d.addCallback(lambda volumes:
+                        list(volumes)[0].get_filesystem().get_path().child(
+                            b'env'))
+            return d
+
+        return outer_d.addCallback(image_built)
 
         def got_result_path(result_path):
             d = loop_until(result_path.exists)
@@ -183,52 +192,60 @@ class DeployerTests(TestCase):
         """
         docker_dir = FilePath(__file__).sibling('env-docker')
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
+        outer_d = image.build()
 
-        application_name = random_name(self)
+        # TODO: FLOC-2513
+        # This is horrible, but it's the simplest transformation to got
+        # from build() being pure to being monadic.
+        def image_built(image_name):
+            application_name = random_name(self)
 
-        docker_client = DockerClient()
-        self.addCleanup(docker_client.remove, application_name)
+            docker_client = DockerClient()
+            self.addCleanup(docker_client.remove, application_name)
 
-        volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u"localhost", volume_service, docker_client,
-            make_memory_network(), node_uuid=uuid4())
+            volume_service = create_volume_service(self)
+            deployer = P2PNodeDeployer(
+                u"localhost", volume_service, docker_client,
+                make_memory_network(), node_uuid=uuid4())
 
-        expected_variables = frozenset({
-            'ALIAS_PORT_80_TCP': 'tcp://localhost:8080',
-            'ALIAS_PORT_80_TCP_PROTO': 'tcp',
-            'ALIAS_PORT_80_TCP_ADDR': 'localhost',
-            'ALIAS_PORT_80_TCP_PORT': '8080',
-        }.items())
+            expected_variables = frozenset({
+                'ALIAS_PORT_80_TCP': 'tcp://localhost:8080',
+                'ALIAS_PORT_80_TCP_PROTO': 'tcp',
+                'ALIAS_PORT_80_TCP_ADDR': 'localhost',
+                'ALIAS_PORT_80_TCP_PORT': '8080',
+            }.items())
 
-        link = Link(alias=u"alias",
-                    local_port=80,
-                    remote_port=8080)
+            link = Link(alias=u"alias",
+                        local_port=80,
+                        remote_port=8080)
 
-        dataset = Dataset(
-            dataset_id=unicode(uuid4()),
-            metadata=pmap({"name": application_name}))
-        manifestation = Manifestation(dataset=dataset, primary=True)
-        desired_state = Deployment(nodes=frozenset([
-            Node(uuid=deployer.node_uuid,
-                 applications=frozenset([Application(
-                     name=application_name,
-                     image=DockerImage.from_string(
-                         image_name),
-                     links=frozenset([link]),
-                     volume=AttachedVolume(
-                         manifestation=manifestation,
-                         mountpoint=FilePath('/data'),
-                         ),
-                     )]),
-                 manifestations={manifestation.dataset_id: manifestation})]))
+            dataset = Dataset(
+                dataset_id=unicode(uuid4()),
+                metadata=pmap({"name": application_name}))
+            manifestation = Manifestation(dataset=dataset, primary=True)
+            desired_state = Deployment(nodes=frozenset([
+                Node(uuid=deployer.node_uuid,
+                    applications=frozenset([Application(
+                        name=application_name,
+                        image=DockerImage.from_string(
+                            image_name),
+                        links=frozenset([link]),
+                        volume=AttachedVolume(
+                            manifestation=manifestation,
+                            mountpoint=FilePath('/data'),
+                            ),
+                        )]),
+                    manifestations={manifestation.dataset_id: manifestation})]))
 
-        d = change_node_state(deployer, desired_state)
-        d.addCallback(lambda _: volume_service.enumerate())
-        d.addCallback(lambda volumes:
-                      list(volumes)[0].get_filesystem().get_path().child(
-                          b'env'))
+            d = change_node_state(deployer, desired_state)
+            d.addCallback(lambda _: volume_service.enumerate())
+            d.addCallback(lambda volumes:
+                        list(volumes)[0].get_filesystem().get_path().child(
+                            b'env'))
+            return d
+
+        return outer_d.addCallback(image_built)
+
 
         def got_result_path(result_path):
             d = loop_until(result_path.exists)
