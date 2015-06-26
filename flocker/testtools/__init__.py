@@ -596,7 +596,7 @@ class DockerImageBuilder(PRecord):
             will be applied to a `Dockerfile.in` template file if such a file
             exists.
 
-        :return: ``bytes`` with the tag name applied to the built image.
+        :return: ``Deferred bytes`` with the tag name applied to the built image.
         """
         if dockerfile_variables is None:
             dockerfile_variables = {}
@@ -872,8 +872,8 @@ class _CalledProcessError(CalledProcessError):
 
 class _LoggingProcessProtocol(ProcessProtocol):
     """
-    A ``ProcessProtocol`` that stores output from the subprocess and also logs
-    output as its received as eliot messages.
+    A ``ProcessProtocol`` that both stores and logs output from the
+    subprocess. Output is logged as it is received.
 
     Intended to be used by ``logged_run_process``.
     """
@@ -891,21 +891,13 @@ class _LoggingProcessProtocol(ProcessProtocol):
         self._deferred = deferred
         self._output_buffer = StringIO()
 
-    def _log_output(self, data):
-        """
-        Log ``data`` as an eliot message.
-        """
-        # TODO: This should probably be within some sort of action context.
-        # TODO: Do we want to line buffer this?
-        Message.new(output=data).write()
-
     def outReceived(self, data):
         self._output_buffer.write(data)
-        self._log_output(data)
+        Message.new(output=data).write()
 
     def errReceived(self, data):
         self._output_buffer.write(data)
-        self._log_output(data)
+        Message.new(error=data).write()
 
     def processExited(self, reason):
         self._deferred.callback((reason, self._output_buffer.getvalue()))
