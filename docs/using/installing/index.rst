@@ -516,6 +516,17 @@ The configuration item to use OpenStack should look like:
 Make sure that the ``region`` specified matches the region where the Flocker nodes run.
 OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
 
+If the OpenStack cloud uses certificates that are issued by a private Certificate Authority (CA), add the field ``verify_ca_path`` to the dataset stanza, with the path to the CA certificate.
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "DFW"
+       verify_ca_path: "/etc/flocker/ca.crt"
+       auth_plugin: "password"
+       ...
+
 .. FLOC-2091 - Fix up this section.
 
 Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
