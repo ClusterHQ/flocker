@@ -158,9 +158,9 @@ class DeployerTests(TestCase):
 
         d.addCallback(image_built)
         d.addCallback(lambda _: volume_service.enumerate())
-        d.addCallback(lambda volumes:
-                      list(volumes)[0].get_filesystem().get_path().child(
-                            b'env'))
+        d.addCallback(
+            lambda volumes:
+            list(volumes)[0].get_filesystem().get_path().child(b'env'))
 
         def got_result_path(result_path):
             d = loop_until(result_path.exists)
