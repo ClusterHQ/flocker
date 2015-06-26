@@ -27,38 +27,37 @@ class VerifyTests(SynchronousTestCase):
 
     def test_verify_ca_path(self):
         """
-        HTTPS connections are verified using a CA bundle if ca_path is
-        provided.
+        HTTPS connections are verified using a CA bundle if
+        ``verify_ca_path`` is provided.
         """
         config = {
             'backend': 'openstack',
             'auth_plugin': 'password',
-            'peer_verify': True,
-            'ca_path': '/a/path'
+            'verify_peer': True,
+            'verify_ca_path': '/a/path'
         }
         self.assertEqual(_openstack_verify_from_config(**config), '/a/path')
 
     def test_verify_false(self):
         """
-        HTTPS connections are not verified if peer_verify is false.
+        HTTPS connections are not verified if ``verify_peer`` is false.
         """
         config = {
             'backend': 'openstack',
             'auth_plugin': 'password',
-            'peer_verify': False,
+            'verify_peer': False,
         }
         self.assertEqual(_openstack_verify_from_config(**config), False)
 
     def test_verify_false_ca_path(self):
         """
-        HTTPS connections are not verified if peer_verify is false, even
-        if a ca_path is provided.
+        HTTPS connections are not verified if ``verify_peer`` is false,
+        even if a ``verify_ca_path`` is provided.
         """
         config = {
             'backend': 'openstack',
             'auth_plugin': 'password',
-            'peer_verify': False,
-            'ca_path': '/a/path'
+            'verify_peer': False,
+            'verify_ca_path': '/a/path'
         }
         self.assertEqual(_openstack_verify_from_config(**config), False)
-
