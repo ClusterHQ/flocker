@@ -33,7 +33,8 @@ from keystoneclient.session import Session
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
-from ..cinder import _openstack_auth_from_config, cinder_api
+from ..cinder import (
+    _openstack_auth_from_config, _openstack_verify_from_config, cinder_api)
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 
@@ -159,7 +160,8 @@ def _openstack(**config):
     if region is not None:
         region = region.upper()
     auth = _openstack_auth_from_config(**config)
-    session = Session(auth=auth)
+    verify = _openstack_verify_from_config(**config)
+    session = Session(auth=auth, verify=verify)
     cinder_client = CinderClient(
         session=session, region_name=region, version=1
     )
