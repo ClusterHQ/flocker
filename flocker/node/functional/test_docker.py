@@ -221,7 +221,7 @@ class GenericDockerClientTests(TestCase):
         path.child(b"Dockerfile.in").setContent(
             b"FROM busybox\nCMD /bin/true\n")
         builder = DockerImageBuilder(test=self, source_dir=path, cleanup=False)
-        outer_d = builder.build()
+        d = builder.build()
 
         def image_built(image_name):
             name = random_name(self)
@@ -229,7 +229,7 @@ class GenericDockerClientTests(TestCase):
                 unit_name=name, image_name=image_name,
                 expected_states=(u'inactive',))
             return d.addCallback(lambda ignored: (name, image_name))
-        outer_d.addCallback(image_built)
+        d.addCallback(image_built)
 
         def stopped_container_exists((name, image_name)):
             # Remove the image:
@@ -243,9 +243,9 @@ class GenericDockerClientTests(TestCase):
                 (name, "inactive"),
                 [(unit.name, unit.activation_state) for unit in results]))
             return listed
-        outer_d.addCallback(stopped_container_exists)
+        d.addCallback(stopped_container_exists)
 
-        return outer_d
+        return d
 
     def test_dead_is_removed(self):
         """
@@ -342,40 +342,36 @@ class GenericDockerClientTests(TestCase):
             b'CMD ["/bin/sh",  "-c", '
             b'"while true; do env && echo WOOT && sleep 1; done"]'
         )
+        expected_variables = frozenset({
+            'key1': 'value1',
+            'key2': 'value2',
+        }.items())
+        unit_name = random_name(self)
+
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        outer_d = image.build()
+        d = image.build()
 
-        # TODO: FLOC-2513
-        # This is horrible, but it's the simplest transformation to got
-        # from build() being pure to being monadic.
         def image_built(image_name):
-
-            unit_name = random_name(self)
-            expected_variables = frozenset({
-                'key1': 'value1',
-                'key2': 'value2',
-            }.items())
-            d = self.start_container(
+            return self.start_container(
                 unit_name=unit_name,
                 image_name=image_name,
                 environment=Environment(variables=expected_variables),
             )
+        d.addCallback(image_built)
 
-            def started(_):
-                output = ""
-                while True:
-                    output += Client().logs(self.namespacing_prefix + unit_name)
-                    if "WOOT" in output:
-                        break
-                assertContainsAll(
-                    output, test_case=self,
-                    needles=['{}={}\n'.format(k, v)
-                             for k, v in expected_variables],
-                )
-            d.addCallback(started)
-            return d
-
-        return outer_d.addCallback(image_built)
+        def started(_):
+            output = ""
+            while True:
+                output += Client().logs(self.namespacing_prefix + unit_name)
+                if "WOOT" in output:
+                    break
+            assertContainsAll(
+                output, test_case=self,
+                needles=['{}={}\n'.format(k, v)
+                         for k, v in expected_variables],
+            )
+        d.addCallback(started)
+        return d
 
     def test_pull_image_if_necessary(self):
         """
@@ -490,26 +486,22 @@ class GenericDockerClientTests(TestCase):
             b'MAINTAINER info@clusterhq.com\n'
             b'CMD ["/bin/doesnotexist"]'
         )
+        name = random_name(self)
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        outer_d = image.build()
+        d = image.build()
 
-        # TODO: FLOC-2513
-        # This is horrible, but it's the simplest transformation to got
-        # from build() being pure to being monadic.
         def image_built(image_name):
             client = self.make_client()
-            name = random_name(self)
             self.create_container(client, name, image_name)
             self.addCleanup(client.remove, name)
-            d = client.list()
+            return client.list()
+        d.addCallback(image_built)
 
-            def got_list(units):
-                unit = [unit for unit in units if unit.name == name][0]
-                self.assertIsNone(unit.environment)
-            d.addCallback(got_list)
-            return d
-
-        return outer_d.addCallback(image_built)
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertIsNone(unit.environment)
+        d.addCallback(got_list)
+        return d
 
     def test_container_name(self):
         """
@@ -603,11 +595,8 @@ class GenericDockerClientTests(TestCase):
             b'"touch /mnt1/a; touch /mnt2/b"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        outer_d = image.build()
+        d = image.build()
 
-        # TODO: FLOC-2513
-        # This is horrible, but it's the simplest transformation to got
-        # from build() being pure to being monadic.
         def image_built(image_name):
             unit_name = random_name(self)
 
@@ -621,23 +610,23 @@ class GenericDockerClientTests(TestCase):
                 image_name=image_name,
                 volumes=[
                     Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
-                    Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
+                    Volume(
+                        node_path=path2, container_path=FilePath(b"/mnt2"))],
                 expected_states=(u'inactive',),
             )
+            return d.addCallback(lambda _: (path1, path2))
+        d.addCallback(image_built)
 
-            def started(_):
-                expected1 = path1.child(b"a")
-                expected2 = path2.child(b"b")
-                for i in range(100):
-                    if expected1.exists() and expected2.exists():
-                        return
-                    else:
-                        time.sleep(0.1)
-                self.fail("Files never created.")
-            d.addCallback(started)
-            return d
-
-        return outer_d.addCallback(image_built)
+        def started((path1, path2)):
+            expected1 = path1.child(b"a")
+            expected2 = path2.child(b"b")
+            for i in range(100):
+                if expected1.exists() and expected2.exists():
+                    return
+                else:
+                    time.sleep(0.1)
+            self.fail("Files never created.")
+        return d.addCallback(started)
 
     def test_add_with_memory_limit(self):
         """
@@ -711,47 +700,43 @@ class GenericDockerClientTests(TestCase):
             container was started.
         """
         docker_dir = FilePath(__file__).sibling('retry-docker')
+        name = random_name(self)
+        data = FilePath(self.mktemp())
+        data.makedirs()
+        count = data.child('count')
+        count.setContent("0")
+        marker = data.child('marker')
+
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        outer_d = image.build()
+        d = image.build()
 
-        # TODO: FLOC-2513
-        # This is horrible, but it's the simplest transformation to got
-        # from build() being pure to being monadic.
         def image_built(image_name):
-            name = random_name(self)
-            data = FilePath(self.mktemp())
-            data.makedirs()
-            count = data.child('count')
-            count.setContent("0")
-            marker = data.child('marker')
-
             if mode == u"success-then-sleep":
                 expected_states = (u'active',)
             else:
                 expected_states = (u'inactive',)
 
-            d = self.start_container(
+            return self.start_container(
                 name, image_name=image_name,
                 restart_policy=restart_policy,
                 environment=Environment(variables={u'mode': mode}),
                 volumes=[
                     Volume(node_path=data, container_path=FilePath(b"/data"))],
                 expected_states=expected_states)
+        d.addCallback(image_built)
 
-            if mode == u"success-then-sleep":
-                # TODO: if the `run` script fails for any reason,
-                # then this will loop forever.
+        if mode == u"success-then-sleep":
+            # TODO: if the `run` script fails for any reason,
+            # then this will loop forever.
 
-                # TODO: use the "wait for predicate" helper
-                def wait_for_marker(_):
-                    while not marker.exists():
-                        time.sleep(0.01)
-                d.addCallback(wait_for_marker)
+            # TODO: use the "wait for predicate" helper
+            def wait_for_marker(_):
+                while not marker.exists():
+                    time.sleep(0.01)
+            d.addCallback(wait_for_marker)
 
-            d.addCallback(lambda ignored: count.getContent())
-            return d
-
-        return outer_d.addCallback(image_built)
+        d.addCallback(lambda ignored: count.getContent())
+        return d
 
     def test_restart_policy_never(self):
         """
