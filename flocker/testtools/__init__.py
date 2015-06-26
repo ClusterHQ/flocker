@@ -27,7 +27,8 @@ from bitmath import GiB
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
-from eliot import Message, start_action
+from eliot import ActionType, Message, MessageType, start_action, fields
+from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -596,7 +597,8 @@ class DockerImageBuilder(PRecord):
             will be applied to a `Dockerfile.in` template file if such a file
             exists.
 
-        :return: ``Deferred bytes`` with the tag name applied to the built image.
+        :return: ``Deferred bytes`` with the tag name applied to the built
+            image.
         """
         if dockerfile_variables is None:
             dockerfile_variables = {}
@@ -849,6 +851,31 @@ class CustomException(Exception):
     """
 
 
+TWISTED_CHILD_PROCESS_ACTION = ActionType(
+    u'flocker:testtools:logged_run_process',
+    fields(command=list),
+    [],
+    u'A child process is spawned using Twisted',
+)
+
+STDOUT_RECEIVED = MessageType(
+    u'flocker:testtools:logged_run_process:stdout',
+    fields(output=str),
+    u'A chunk of stdout received from a child process',
+)
+
+STDERR_RECEIVED = MessageType(
+    u'flocker:testtools:logged_run_process:stdout',
+    fields(output=str),
+    u'A chunk of stderr received from a child process',
+)
+
+PROCESS_ENDED = MessageType(
+    u'flocker:testtools:logged_run_process:process_ended',
+    fields(status=int),
+    u'The process terminated')
+
+
 class _ProcessResult(PRecord):
     """
     The return type for ``run_process`` representing the outcome of the process
@@ -882,7 +909,8 @@ class _LoggingProcessProtocol(ProcessProtocol):
         """
         Construct a ``_LoggingProcessProtocol``.
 
-        :param deferred: A ``Deferred`` that will fire with ``(reason, output)``
+        :param deferred: A ``Deferred`` that will fire with
+            ``(reason, output)``
             when the process ends, where ``reason`` is a ``Failure`` with the
             reason for the process ending (see ``IProcessProtocol``), and
             ``output`` are the bytes outputted by the process (both to stdout
@@ -893,13 +921,14 @@ class _LoggingProcessProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         self._output_buffer.write(data)
-        Message.new(output=data).write()
+        STDOUT_RECEIVED(output=data).write()
 
     def errReceived(self, data):
         self._output_buffer.write(data)
-        Message.new(error=data).write()
+        STDERR_RECEIVED(output=data).write()
 
     def processExited(self, reason):
+        PROCESS_ENDED(status=reason.value.status).write()
         self._deferred.callback((reason, self._output_buffer.getvalue()))
 
 
@@ -915,21 +944,26 @@ def logged_run_process(reactor, command):
         ``_CalledProcessError`` otherwise.
     """
     d = Deferred()
-    protocol = _LoggingProcessProtocol(d)
-    reactor.spawnProcess(protocol, command[0], command)
+    action = TWISTED_CHILD_PROCESS_ACTION(command=command)
+    with action.context():
+        d2 = DeferredContext(d)
+        protocol = _LoggingProcessProtocol(d)
+        reactor.spawnProcess(protocol, command[0], command)
 
-    def process_ended((reason, output)):
-        status = reason.value.status
-        if status:
-            raise _CalledProcessError(
-                returncode=status, cmd=command, output=output)
-        return _ProcessResult(
-            command=command,
-            status=reason.value.status,
-            output=output,
-        )
+        def process_ended((reason, output)):
+            status = reason.value.status
+            if status:
+                raise _CalledProcessError(
+                    returncode=status, cmd=command, output=output)
+            return _ProcessResult(
+                command=command,
+                status=status,
+                output=output,
+            )
 
-    return d.addCallback(process_ended)
+        d2.addCallback(process_ended)
+        d2.addActionFinish()
+        return d2.result
 
 
 def run_process(command, *args, **kwargs):
