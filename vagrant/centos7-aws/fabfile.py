@@ -162,10 +162,17 @@ def load_state_from_disk():
 @task
 def print_ec2_info():
     """ outputs information about our EC2 instance """
-    data = load_state_from_disk()
-    print(_green("Instance state: %s" % data['state']))
-    print(_green("Public dns: %s" % data['public_dns_name']))
-    print(_green("Ip address: %s" % data['ip_address']))
+    _state = load_state_from_disk()
+    if _state:
+        data = get_ec2_info(_state['id'])
+        green("Instance state: %s" % data['state'])
+        green("Public dns: %s" % data['public_dns_name'])
+        green("Ip address: %s" % data['ip_address'])
+        green("volume: %s" % data['volume'])
+        green("user: %s" % env.user)
+        green("ssh -i %s %s@%s" % (env.key_filename,
+                                        env.user,
+                                        data['ip_address']))
 
 
 def get_ec2_info(instance_id):
@@ -176,13 +183,33 @@ def get_ec2_info(instance_id):
         filters={'instance_id': instance_id}
         )[0]
 
+
     data = {}
     data['public_dns_name'] = instance.public_dns_name
     data['id'] = instance.id
     data['ip_address'] = instance.ip_address
     data['architecture'] = instance.architecture
     data['state'] = instance.state
+    try:
+        volume = conn.get_all_volumes(
+            filters={'attachment.instance-id': instance.id})[0].id
+        data['volume'] = volume
+    except:
+        data['volume'] = ''
     return data
+
+
+@task
+def rsync():
+    """ syncs the src code to the remote box """
+    green('syncing code to remote box...')
+    data = load_state_from_disk()
+    local('rsync -a ../../ %s@%s' % (env.user, data['ip_address']))
+
+
+@task
+def status():
+    print_ec2_info()
 
 
 @task
@@ -242,8 +269,18 @@ def destroy():
         return True
     else:
         conn = connect_to_ec2()
-        data = load_state_from_disk()
-        conn.terminate_instances(instance_ids=[data['id']])
+        _state = load_state_from_disk()
+        data = get_ec2_info(_state['id'])
+        instance = conn.terminate_instances(instance_ids=[data['id']])[0]
+        yellow('destroying instance ...')
+        while instance.state != "terminated":
+            print(_yellow("Instance state: %s" % instance.state))
+            sleep(10)
+            instance.update()
+        volume = data['volume']
+        if volume:
+            yellow('destroying EBS volume ...')
+            conn.delete_volume(volume)
         os.unlink('data.json')
 
 
@@ -377,7 +414,7 @@ def install_development_packages():
     yum_install("kernel-devel",
                 "kernel",
                 "kernel-headers",
-                "dkms", "gcc", "make", "psutils-perl")
+                "dkms", "gcc", "make", "psutils-perl", "lsof", "rsync")
 
 
 def add_epel_yum_repository():
