@@ -157,5 +157,4 @@ OPENSTACK_ACTION = ActionType(
     u"storage driver.")
 
 CINDER_CREATE = u'flocker:node:agents:blockdevice:openstack:create_volume'
-
 # End: Helper datastructures used by OpenStack storage driver.

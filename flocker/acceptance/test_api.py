@@ -72,8 +72,8 @@ class ContainerAPITests(TestCase):
         """
         Create a container listening on port 8080.
 
-        :return: ``Deferred`` firing with a tuple of ``Cluster`` instance
-        and container dictionary once the container is up and running.
+        :return: ``Deferred`` firing with a container dictionary once the
+            container is up and running.
         """
         data = {
             u"name": random_name(self),
@@ -85,8 +85,7 @@ class ContainerAPITests(TestCase):
 
         d = cluster.create_container(data)
 
-        def check_result(result):
-            cluster, response = result
+        def check_result(response):
             self.addCleanup(cluster.remove_container, data[u"name"])
 
             self.assertEqual(response, data)
@@ -121,7 +120,7 @@ class ContainerAPITests(TestCase):
         data[u"node_uuid"] = cluster.nodes[0].uuid
         d = cluster.create_container(data)
 
-        def check_result((cluster, response)):
+        def check_result(response):
             self.addCleanup(cluster.remove_container, data[u"name"])
             self.assertEqual(response, data)
             return cluster
@@ -164,8 +163,7 @@ class ContainerAPITests(TestCase):
         """
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
@@ -239,8 +237,7 @@ class ContainerAPITests(TestCase):
         """
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
@@ -356,8 +353,7 @@ nc -ll -p 8080 -e /data/script.sh
 
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             container[u"volumes"][0][u"dataset_id"] = dataset[u"dataset_id"]
             return cluster.create_container(container)
         creating_dataset.addCallback(created_dataset)
@@ -453,7 +449,7 @@ def create_dataset(test_case, cluster,
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
-        lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+        lambda dataset: cluster.wait_for_dataset(dataset)
     )
 
     return waiting_for_create
@@ -479,7 +475,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create = create_dataset(self, cluster)
 
         # Once created, request to move the dataset to node2
-        def move_dataset((cluster, dataset)):
+        def move_dataset(dataset):
             moved_dataset = {
                 u'primary': cluster.nodes[1].uuid
             }
@@ -488,7 +484,7 @@ class DatasetAPITests(TestCase):
 
         # Wait for the dataset to be moved
         waiting_for_move = dataset_moving.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+            lambda dataset: cluster.wait_for_dataset(dataset)
         )
 
         return waiting_for_move
@@ -500,8 +496,7 @@ class DatasetAPITests(TestCase):
         """
         created = create_dataset(self, cluster)
 
-        def delete_dataset(result):
-            cluster, dataset = result
+        def delete_dataset(dataset):
             deleted = cluster.delete_dataset(dataset["dataset_id"])
 
             def not_exists():

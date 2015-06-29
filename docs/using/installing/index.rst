@@ -174,7 +174,7 @@ Using Amazon Web Services
 -------------------------
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
-          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
+          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
 
 
 .. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
@@ -410,7 +410,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
-Before you can use Flocker's API you will also need to `generate a client certificate <generate-api>`_.
+Before you can use Flocker's API you will also need to :ref:`generate a client certificate <generate-api>`.
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
