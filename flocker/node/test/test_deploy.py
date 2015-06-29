@@ -1997,51 +1997,111 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
-    def test_app_with_matching_restart_policy_restarted(self):
+    def _app_restart_policy_test(self, restart_state, restart_config,
+                                 expect_restart):
+        """
+        Verify that an application with a particular restart policy in its
+        state and in another (or the same) policy in its configuration is
+        either restarted or not.
+
+        :param IRestartPolicy restart_state: The policy to put into the
+            application state.
+        :param IRestartPolicy restart_config: The policy to put into the
+            application configuration.
+        :param bool expect_restart: ``True`` if the given combination must
+            provoke an application restart.  ``False`` if it must not.
+
+        :raise: A test-failing exception if the restart expection is not met.
+        """
+        app_state = APPLICATION_WITHOUT_VOLUME.set(
+            restart_policy=restart_state,
+        )
+        node_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.10",
+            applications={app_state}, used_ports=[],
+        )
+        app_config = app_state.set(
+            restart_policy=restart_config,
+        )
+        node_config = to_node(node_state.set(applications={app_config}))
+        if expect_restart:
+            expected_changes = restart(app_state, app_config, node_state)
+        else:
+            expected_changes = no_change()
+        assert_application_calculated_changes(
+            self, node_state, node_config, set(),
+            expected_changes,
+        )
+
+    def test_app_state_always_and_config_always_restarted(self):
         """
         Restart policies interact poorly with containers with volumes.  If an
         application state is found with a restart policy other than "never",
         even if the application configuration matches that restart policy, it
         is restarted with the "never" policy.  See FLOC-2449.
         """
-        application = APPLICATION_WITHOUT_VOLUME.set(
-            restart_policy=RestartAlways()
-        )
-        state = NodeState(
-            uuid=uuid4(), hostname=u"192.0.2.10",
-            applications={application}, used_ports=[],
-        )
-        config = to_node(state)
-        assert_application_calculated_changes(
-            self, state, config, set(),
-            restart(
-                application,
-                application.set(restart_policy=RestartNever()),
-                state,
-            ),
+        self._app_restart_policy_test(RestartAlways(), RestartAlways(), True)
+
+    def test_app_state_always_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartAlways(), RestartOnFailure(maximum_retry_count=2), True,
         )
 
-    def test_app_with_mismatching_restart_policy_restarted(self):
+    def test_app_state_always_and_config_never_restarted(self):
         """
-        Restart policies interact poorly with containers with volumes.  If an
-        application is found with a restart policy other than "never", it is
-        restarted with the "never" policy.  See FLOC-2449.
+        See ``test_app_state_always_and_config_always_restarted``
         """
-        app_state = APPLICATION_WITHOUT_VOLUME.set(
-            restart_policy=RestartAlways()
+        self._app_restart_policy_test(RestartAlways(), RestartNever(), True)
+
+    def test_app_state_never_and_config_never_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartNever(), False)
+
+    def test_app_state_never_and_config_always_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartAlways(), False)
+
+    def test_app_state_never_and_config_failure_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartNever(), RestartOnFailure(maximum_retry_count=2), False,
         )
-        app_config = app_state.set(
-            restart_policy=RestartOnFailure(maximum_retry_count=2)
+
+    def test_app_state_failure_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartNever(), True,
         )
-        state = NodeState(
-            uuid=uuid4(), hostname=u"192.0.2.11",
-            applications={app_state}, used_ports=[],
+
+    def test_app_state_failure_and_config_always_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartAlways(), True,
         )
-        config = to_node(state).set(applications={app_config})
-        assert_application_calculated_changes(
-            self, state, config, set(),
-            restart(app_state, app_config, state),
+
+    def test_app_state_failure_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2),
+            RestartOnFailure(maximum_retry_count=2),
+            True,
         )
+
 
 
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):

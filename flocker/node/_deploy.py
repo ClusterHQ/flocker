@@ -935,6 +935,13 @@ class ApplicationNodeDeployer(object):
         # we don't want to do anything:
         comparable_state = comparable_state.transform(["running"], True)
 
+        # Restart policies don't implement comparison usefully.  See FLOC-2500.
+        restart_state = comparable_state.restart_policy
+        comparable_state = comparable_state.set(restart_policy=RestartNever())
+        comparable_configuration = comparable_configuration.set(
+            restart_policy=RestartNever()
+        )
+
         return (
             comparable_state != comparable_configuration
 
@@ -947,7 +954,7 @@ class ApplicationNodeDeployer(object):
             #
             # Also restart policies don't implement comparison usefully.  See
             # FLOC-2500.
-            or not isinstance(comparable_state.restart_policy, RestartNever)
+            or not isinstance(restart_state, RestartNever)
 
             or self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
