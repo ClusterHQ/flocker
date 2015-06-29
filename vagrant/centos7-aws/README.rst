@@ -10,17 +10,17 @@ Usage:
 |
 |
 
-   * AWS_INSTANCE_TYPE
+   * AWS_INSTANCE_TYPE (defaults to t2.micro)
 
    * AWS_KEY_PAIR
 
-   * AWS_AMI
+   * AWS_AMI (defaults to ami-c7d092f7)
 
    * AWS_KEY_FILENAME
 
    * AWS_SECRET_ACCESS_KEY
 
-   * AWS_REGION
+   * AWS_REGION (defaults to us-west-2)
 
    * AWS_ACCESS_KEY_ID
 |
@@ -29,7 +29,7 @@ Usage:
 
 .. code-block:: bash
 
-    $ virtualenv2 venv
+    $ virtualenv2 venv # it might be named 'virtualenv' in some distributions
     $ source venv/bin/activate
     $ pip2 install -r requirements.txt
 

@@ -204,11 +204,13 @@ def rsync():
     """ syncs the src code to the remote box """
     green('syncing code to remote box...')
     data = load_state_from_disk()
-    local("rsync  -a "
-          "--exclude ../../.tox "
-          "--exclude ../../venv "
-          "--progress ../../ "
-          "-e 'ssh -C -i " + env.ec2_key_filename + "'",
+    local("rsync  -av "
+          "--exclude ../../.git/* "
+          "--exclude ../../.tox/* "
+          "--exclude ../../.vagrant/* "
+          "--exclude ../../venv/* "
+          "../../ "
+          "-e 'ssh -C -i " + env.ec2_key_filename + "' "
           "%s@%s" % (env.user, data['ip_address']))
 
 
@@ -620,12 +622,9 @@ def cache_docker_images():
 def check_for_missing_environment_variables():
     """ double checks that the minimum environment variables have been setup """
     env_var_missing = []
-    for env_var in ['AWS_INSTANCE_TYPE',
-                    'AWS_KEY_PAIR',
-                    'AWS_AMI',
+    for env_var in ['AWS_KEY_PAIR',
                     'AWS_KEY_FILENAME',
                     'AWS_SECRET_ACCESS_KEY',
-                    'AWS_REGION',
                     'AWS_ACCESS_KEY_ID']:
         if not env_var in os.environ:
             env_var_missing.append(env_var)
@@ -674,8 +673,6 @@ def main():
         times
     """
 
-    if check_for_missing_environment_variables():
-        exit(1)
 
     env.ec2_ami = os.getenv('AWS_AMI', 'ami-c7d092f7')
     env.ec2_instance_name = 'aws_centos7'
@@ -693,6 +690,9 @@ def main():
     env.user = 'centos'
     env.disable_known_hosts = True
     env.key_filename = env.ec2_key_filename
+
+    if check_for_missing_environment_variables():
+        exit(1)
 
     if is_there_state() is False:
         pass
