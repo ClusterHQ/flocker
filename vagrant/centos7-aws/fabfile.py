@@ -656,7 +656,7 @@ def trial(*args):
 def trial_as_root(*args):
     if args:
         from itertools import chain
-        sudo(ssh('/opt/flocker/bin/trial ', args))
+        ssh('sudo /opt/flocker/bin/trial ', args)
     else:
         yellow("give me a test to run, ex: fab trial:'flocker'")
 
