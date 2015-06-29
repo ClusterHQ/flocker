@@ -202,16 +202,19 @@ def get_ec2_info(instance_id):
 @task
 def rsync():
     """ syncs the src code to the remote box """
+    from fabric.context_managers import lcd
     green('syncing code to remote box...')
     data = load_state_from_disk()
-    local("rsync  -av "
-          "--exclude ../../.git/* "
-          "--exclude ../../.tox/* "
-          "--exclude ../../.vagrant/* "
-          "--exclude ../../venv/* "
-          "../../ "
-          "-e 'ssh -C -i " + env.ec2_key_filename + "' "
-          "%s@%s" % (env.user, data['ip_address']))
+    with lcd('../../'):
+        local("rsync  -a "
+            "--info=progress2 "
+            "--exclude .git "
+            "--exclude .tox "
+            "--exclude .vagrant "
+            "--exclude venv "
+            ". "
+            "-e 'ssh -C -i " + env.ec2_key_filename + "' "
+              "%s@%s:" % (env.user, data['ip_address']))
 
 
 @task
