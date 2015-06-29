@@ -7,7 +7,7 @@ import sys
 import os
 import yaml
 import json
-from uuid import UUID
+from uuid import UUID, uuid4
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
