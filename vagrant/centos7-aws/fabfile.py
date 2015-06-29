@@ -204,7 +204,7 @@ def rsync():
     """ syncs the src code to the remote box """
     green('syncing code to remote box...')
     data = load_state_from_disk()
-    local('rsync -a ../../ %s@%s' % (env.user, data['ip_address']))
+    local('rsync  -a --progress ../../ %s@%s' % (env.user, data['ip_address']))
 
 
 @task
