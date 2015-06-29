@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+from uuid import UUID
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -238,7 +239,7 @@ class ManagedRunner(object):
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
-                generate_certificates(self._nodes),
+                generate_certificates(_make_cluster_id(), self._nodes),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
@@ -252,10 +253,27 @@ class ManagedRunner(object):
         """
         return succeed(None)
 
+ACCEPTANCE_TESTS_CLUSTER_ID_MARKER = 42
 
-def generate_certificates(nodes):
+
+def _make_cluster_id():
+    c = uuid4()
+    tagged_cluster_id = UUID((
+        c.time_low, c.time_mid, c.time_hi_version,
+        c.clock_seq_hi_variant, c.clock_seq_low,
+        # Instead of node, a hard-coded magic constant.
+        ACCEPTANCE_TESTS_CLUSTER_ID_MARKER,
+    ))
+    return tagged_cluster_id
+
+
+def generate_certificates(cluster_id, nodes):
     """
     Generate a new set of certificates for the given nodes.
+
+    :param UUID cluster_id: The unique identifier of the cluster for which to
+        generate the certificates.
+    :param list nodes: The ``INode`` providers that make up the cluster.
 
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
@@ -265,7 +283,8 @@ def generate_certificates(nodes):
     certificates = Certificates.generate(
         certificates_path,
         nodes[0].address,
-        len(nodes)
+        len(nodes),
+        cluster_id=cluster_id,
     )
     return certificates
 
@@ -456,7 +475,7 @@ class LibcloudRunner(object):
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
-            generate_certificates(self.nodes),
+            generate_certificates(_make_cluster_id(), self.nodes),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
