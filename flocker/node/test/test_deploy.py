@@ -2103,7 +2103,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         )
 
 
-
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
     """
     Tests for
