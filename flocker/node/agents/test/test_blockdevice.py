@@ -9,9 +9,8 @@ from functools import partial
 from os import getuid
 import time
 from uuid import UUID, uuid4
-from subprocess import (
-    STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError,
-)
+from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from stat import S_IRWXU
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -58,10 +57,13 @@ from ..blockdevice import (
     get_blockdevice_volume,
     _backing_file_name,
     ProcessLifetimeCache,
+    FilesystemExists,
 )
 
 from ... import run_state_change, in_parallel
-from ...testtools import ideployer_tests_factory, to_node
+from ...testtools import (
+    ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
+)
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
 )
@@ -619,29 +621,11 @@ def assert_calculated_changes(
     additional_node_states=frozenset(),
 ):
     """
-    Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
-    changes when it is invoked with the given state and configuration.
+    Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
+    circumstance.
 
-    :param TestCase case: The ``TestCase`` to use to make assertions (typically
-        the one being run at the moment).
-    :param NodeState node_state: The ``BlockDeviceDeployer`` will be asked to
-        calculate changes for a node that has this state.
-    :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
-        calculate changes for a node with this desired configuration.
-    :param set nonmanifest_datasets: Datasets which will be presented as part
-        of the cluster state without manifestations on any node.
-    :param expected_changes: The ``IStateChange`` expected to be returned.
-    :param set additional_node_states: A set of ``NodeState`` for other nodes.
+    :see: ``assert_calculated_changes_for_deployer``.
     """
-    cluster_state = DeploymentState(
-        nodes={node_state} | additional_node_states,
-        nonmanifest_datasets={
-            dataset.dataset_id: dataset
-            for dataset in nonmanifest_datasets
-        },
-    )
-    cluster_configuration = Deployment(nodes={node_config})
-
     api = UnusableAPI()
 
     deployer = BlockDeviceDeployer(
@@ -650,11 +634,11 @@ def assert_calculated_changes(
         block_device_api=api,
     )
 
-    changes = deployer.calculate_changes(
-        cluster_configuration, cluster_state,
+    return assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config,
+        nonmanifest_datasets, additional_node_states, set(),
+        expected_changes,
     )
-
-    case.assertEqual(expected_changes, changes)
 
 
 class ScenarioMixin(object):
@@ -892,6 +876,51 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[]),
+        )
+
+    def test_deleted_dataset_volume_unmounted(self):
+        """
+        ``DestroyBlockDeviceDataset`` is a compound state change that first
+        attempts to unmount the block device.
+        Therefore do not calculate deletion for blockdevices that are not
+        manifest.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        # Remove the manifestation and its mount path.
+        local_state = local_state.transform(
+            ['manifestations', unicode(self.DATASET_ID)],
+            discard
+        )
+        local_state = local_state.transform(
+            ['paths', unicode(self.DATASET_ID)],
+            discard
+        )
+        # Local state shows that there is a device for the (now) non-manifest
+        # dataset. i.e it is attached.
+        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
+        assert_calculated_changes(
+            case=self,
+            node_state=local_state,
+            node_config=local_config,
+            # The unmounted dataset has been added back to the non-manifest
+            # datasets by discover_state.
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset
+            ],
+            expected_changes=in_parallel(
+                changes=[
+                    MountBlockDevice(
+                        mountpoint=FilePath('/flocker/').child(
+                            unicode(self.DATASET_ID)
+                        ),
+                        dataset_id=self.DATASET_ID
+                    )
+                ]
+            ),
         )
 
 
@@ -1252,6 +1281,26 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     )
                 ]),
             changes
+        )
+
+    def test_dataset_default_maximum_size_stable(self):
+        """
+        When supplied with a configuration containing a dataset with a null
+        size and operating against state where a volume of the default size
+        exists for that dataset, ``BlockDeviceDeployer.calculate_changes``
+        returns no changes.
+        """
+        # The state has a manifestation with a concrete size (as it must have).
+        local_state = self.ONE_DATASET_STATE
+        # The configuration is the same except it lacks a size.
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset",
+             "maximum_size"],
+            None,
+        )
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(), in_parallel(changes=[]),
         )
 
     def test_dataset_exists_on_other_node(self):
@@ -2640,6 +2689,17 @@ class MountBlockDeviceTests(
         self.assertIn(expected, mounted)
         return scenario
 
+    def _make_mounted_filesystem(self, path_segment=b"mount-test"):
+        mountpoint = mountroot_for_test(self).child(path_segment)
+        scenario = self._run_success_test(mountpoint)
+        return scenario, mountpoint
+
+    def _mount(self, scenario, mountpoint):
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+
     def test_run(self):
         """
         ``CreateFilesystem.run`` initializes a block device with a filesystem
@@ -2654,18 +2714,37 @@ class MountBlockDeviceTests(
         Running ``CreateFilesystem`` on a filesystem mounted with
         ``MountBlockDevice`` fails in a non-destructive manner.
         """
-        mountpoint = mountroot_for_test(self).child(b"mount-test")
-        scenario = self._run_success_test(mountpoint)
+        scenario, mountpoint = self._make_mounted_filesystem()
         afile = mountpoint.child(b"file")
         afile.setContent(b"data")
         # Try recreating mounted filesystem; this should fail.
-        self.failureResultOf(scenario.create(), CalledProcessError)
+        self.failureResultOf(scenario.create(), FilesystemExists)
         # Unmounting and remounting, but our data still exists:
-        check_output([b"umount", mountpoint.path])
+        umount(mountpoint)
+        self._mount(scenario, mountpoint)
+        self.assertEqual(afile.getContent(), b"data")
+
+    def test_create_fails_on_existing_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a block device that already has a file
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              mountpoint=mountpoint),
             scenario.deployer))
+        system fails with an exception and preserves the data.
+
+        This is because mkfs is a destructive operation that will destroy any
+        existing filesystem on that block device.
+        """
+        scenario, mountpoint = self._make_mounted_filesystem()
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Unmount the filesystem
+        umount(mountpoint)
+        # Try recreating filesystem; this should fail.
+        self.failureResultOf(scenario.create(), FilesystemExists)
+        # Remounting should succeed.
+        self._mount(scenario, mountpoint)
         self.assertEqual(afile.getContent(), b"data")
 
     def test_mountpoint_exists(self):
@@ -2760,6 +2839,24 @@ class MountBlockDeviceTests(
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
+
+    def test_world_permissions_not_reset_if_other_files_exist(self):
+        """
+        If files exist in the filesystem, permissions are not reset when the
+        filesystem is remounted.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        mountpoint.child(b"file").setContent(b"stuff")
+        check_call([b"umount", mountpoint.path])
+        mountpoint.chmod(S_IRWXU)
+        mountpoint.restat()
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertEqual(mountpoint.getPermissions().shorthand(),
+                         'rwx------')
 
 
 class UnmountBlockDeviceInitTests(

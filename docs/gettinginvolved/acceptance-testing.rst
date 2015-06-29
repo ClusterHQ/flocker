@@ -178,6 +178,7 @@ To run the acceptance tests on AWS, you need:
 
    aws:
      region: <aws region, e.g. "us-west-2">
+     zone: <aws zone, e.g. "us-west-2a">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
@@ -190,6 +191,8 @@ AWS can use these dataset backends:
   * :ref:`AWS<aws-dataset-backend>`.
   * :ref:`ZFS<zfs-dataset-backend>`.
   * :ref:`Loopback<loopback-dataset-backend>`.
+
+If you're using the AWS dataset backend make sure the regions and zones are the same both here and there!
 
 .. prompt:: bash $
 

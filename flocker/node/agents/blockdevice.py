@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output
+from subprocess import CalledProcessError, check_output, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -103,6 +103,16 @@ class DatasetExists(Exception):
     def __init__(self, blockdevice):
         Exception.__init__(self, blockdevice)
         self.blockdevice = blockdevice
+
+
+class FilesystemExists(Exception):
+    """
+    A failed attempt to create a filesystem on a block device that already has
+    one.
+    """
+    def __init__(self, device):
+        Exception.__init__(self, device)
+        self.device = device
 
 
 DATASET = Field(
@@ -394,6 +404,7 @@ class CreateFilesystem(PRecord):
             self.volume.blockdevice_id
         )
         try:
+            _ensure_no_filesystem(device)
             check_output([
                 b"mkfs", b"-t", self.filesystem.encode("ascii"),
                 # This is ext4 specific, and ensures mke2fs doesn't ask
@@ -406,6 +417,37 @@ class CreateFilesystem(PRecord):
         except:
             return fail()
         return succeed(None)
+
+
+def _ensure_no_filesystem(device):
+    """
+    Raises an error if there's already a filesystem on ``device``.
+
+    :raises: ``FilesystemExists`` if there is already a filesystem on
+        ``device``.
+    :return: ``None``
+    """
+    try:
+        check_output(
+            [b"blkid", b"-p", b"-u", b"filesystem", device.path],
+            stderr=STDOUT,
+        )
+    except CalledProcessError as e:
+        # According to the man page:
+        #   the specified token was not found, or no (specified) devices
+        #   could be identified
+        #
+        # Experimentation shows that there is no output in the case of the
+        # former, and an error printed to stderr in the case of the
+        # latter.
+        #
+        # FLOC-2388: We're assuming an interface. We should test this
+        # assumption.
+        if e.returncode == 2 and not e.output:
+            # There is no filesystem on this device.
+            return
+        raise
+    raise FilesystemExists(device)
 
 
 def _valid_size(size):
@@ -465,21 +507,24 @@ class MountBlockDevice(PRecord):
         # This should be asynchronous.  FLOC-1797
         check_output([b"mount", device.path, self.mountpoint.path])
 
-        # Mounted filesystem is world writeable/readable/executable since
-        # we can't predict what user a container will run as.  Make sure
-        # we change mounted filesystem's root directory permissions, so we
-        # only do this after the filesystem is mounted.
-        self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
-        self.mountpoint.restat()
-
         # Remove lost+found to ensure filesystems always start out empty.
-        # If other files exist we don't bother, since at that point user
-        # has modified the volume and we don't want to delete their data
-        # by mistake. A better way is described in
+        # Mounted filesystem is also made world
+        # writeable/readable/executable since we can't predict what user a
+        # container will run as.  We make sure we change mounted
+        # filesystem's root directory permissions, so we only do this
+        # after the filesystem is mounted.  If other files exist we don't
+        # bother with either change, since at that point user has modified
+        # the volume and we don't want to undo their changes by mistake
+        # (e.g. postgres doesn't like world-writeable directories once
+        # it's initialized).
+
+        # A better way is described in
         # https://clusterhq.atlassian.net/browse/FLOC-2074
         lostfound = self.mountpoint.child(b"lost+found")
         if self.mountpoint.children() == [lostfound]:
             lostfound.remove()
+            self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
+            self.mountpoint.restat()
 
         return succeed(None)
 
@@ -1604,7 +1649,8 @@ class BlockDeviceDeployer(PRecord):
         detaches = list(self._calculate_detaches(
             local_state.devices, local_state.paths, configured_manifestations,
         ))
-        deletes = self._calculate_deletes(configured_manifestations)
+        deletes = self._calculate_deletes(
+            local_state, configured_manifestations)
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
@@ -1705,8 +1751,11 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id=UUID(manifestation.dataset_id),
                 )
 
-    def _calculate_deletes(self, configured_manifestations):
+    def _calculate_deletes(self, local_state, configured_manifestations):
         """
+        :param NodeState: The local state discovered immediately prior to
+            calculation.
+
         :param dict configured_manifestations: The manifestations configured
             for this node (like ``Node.manifestations``).
 
@@ -1724,11 +1773,11 @@ class BlockDeviceDeployer(PRecord):
             for manifestation in configured_manifestations.values()
             if manifestation.dataset.deleted
         )
-
         return [
             DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
             for dataset_id
             in delete_dataset_ids
+            if dataset_id in local_state.manifestations
         ]
 
 

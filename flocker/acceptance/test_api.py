@@ -72,8 +72,8 @@ class ContainerAPITests(TestCase):
         """
         Create a container listening on port 8080.
 
-        :return: ``Deferred`` firing with a tuple of ``Cluster`` instance
-        and container dictionary once the container is up and running.
+        :return: ``Deferred`` firing with a container dictionary once the
+            container is up and running.
         """
         data = {
             u"name": random_name(self),
@@ -85,12 +85,11 @@ class ContainerAPITests(TestCase):
 
         d = cluster.create_container(data)
 
-        def check_result(result):
-            cluster, response = result
+        def check_result(response):
             self.addCleanup(cluster.remove_container, data[u"name"])
 
             self.assertEqual(response, data)
-            dl = verify_socket(cluster.nodes[0].address, 8080)
+            dl = verify_socket(cluster.nodes[0].public_address, 8080)
             dl.addCallback(lambda _: response)
             return dl
 
@@ -121,7 +120,7 @@ class ContainerAPITests(TestCase):
         data[u"node_uuid"] = cluster.nodes[0].uuid
         d = cluster.create_container(data)
 
-        def check_result((cluster, response)):
+        def check_result(response):
             self.addCleanup(cluster.remove_container, data[u"name"])
             self.assertEqual(response, data)
             return cluster
@@ -141,7 +140,7 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
 
         def checked(cluster):
-            host = cluster.nodes[0].address
+            host = cluster.nodes[0].public_address
             d = verify_socket(host, 8081)
             d.addCallback(lambda _: query_environment(host, 8081))
             return d
@@ -164,8 +163,7 @@ class ContainerAPITests(TestCase):
         """
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
@@ -179,7 +177,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0].address))
+                lambda _: get_mongo_client(cluster.nodes[0].public_address))
 
             def got_mongo_client(client):
                 database = client.example
@@ -219,7 +217,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(inserted)
 
             def moved(record):
-                d = get_mongo_client(cluster.nodes[1].address, 27018)
+                d = get_mongo_client(cluster.nodes[1].public_address, 27018)
                 d.addCallback(lambda client: client.example.posts.find_one())
                 d.addCallback(self.assertEqual, record)
                 return d
@@ -239,8 +237,7 @@ class ContainerAPITests(TestCase):
         """
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
@@ -254,7 +251,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0].address))
+                lambda _: get_mongo_client(cluster.nodes[0].public_address))
 
             def got_mongo_client(client):
                 database = client.example
@@ -273,7 +270,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(inserted)
 
             def restarted(record):
-                d = get_mongo_client(cluster.nodes[0].address, 27018)
+                d = get_mongo_client(cluster.nodes[0].public_address, 27018)
                 d.addCallback(lambda client: client.example.posts.find_one())
                 d.addCallback(self.assertEqual, record)
                 return d
@@ -356,8 +353,7 @@ nc -ll -p 8080 -e /data/script.sh
 
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(result):
-            cluster, dataset = result
+        def created_dataset(dataset):
             container[u"volumes"][0][u"dataset_id"] = dataset[u"dataset_id"]
             return cluster.create_container(container)
         creating_dataset.addCallback(created_dataset)
@@ -365,7 +361,7 @@ nc -ll -p 8080 -e /data/script.sh
         creating_dataset.addCallback(lambda _: self.addCleanup(
             cluster.remove_container, container[u"name"]))
         creating_dataset.addCallback(
-            lambda _: self.assert_busybox_http(node.address, port))
+            lambda _: self.assert_busybox_http(node.public_address, port))
         return creating_dataset
 
     @require_cluster(2)
@@ -417,13 +413,14 @@ nc -ll -p 9000 -e /tmp/script.sh
             cluster.create_container(thaw(destination_container)),
             cluster.create_container(thaw(origin_container)),
             # Wait for the link target container to be accepting connections.
-            verify_socket(destination.address, destination_port),
+            verify_socket(destination.public_address, destination_port),
             # Wait for the link source container to be accepting connections.
-            verify_socket(origin.address, origin_port),
+            verify_socket(origin.public_address, origin_port),
         ])
 
         running.addCallback(
-            lambda _: self.assert_busybox_http(origin.address, origin_port))
+            lambda _: self.assert_busybox_http(
+                origin.public_address, origin_port))
         return running
 
 
@@ -452,7 +449,7 @@ def create_dataset(test_case, cluster,
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
-        lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+        lambda dataset: cluster.wait_for_dataset(dataset)
     )
 
     return waiting_for_create
@@ -478,7 +475,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create = create_dataset(self, cluster)
 
         # Once created, request to move the dataset to node2
-        def move_dataset((cluster, dataset)):
+        def move_dataset(dataset):
             moved_dataset = {
                 u'primary': cluster.nodes[1].uuid
             }
@@ -487,7 +484,7 @@ class DatasetAPITests(TestCase):
 
         # Wait for the dataset to be moved
         waiting_for_move = dataset_moving.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+            lambda dataset: cluster.wait_for_dataset(dataset)
         )
 
         return waiting_for_move
@@ -499,8 +496,7 @@ class DatasetAPITests(TestCase):
         """
         created = create_dataset(self, cluster)
 
-        def delete_dataset(result):
-            cluster, dataset = result
+        def delete_dataset(dataset):
             deleted = cluster.delete_dataset(dataset["dataset_id"])
 
             def not_exists():

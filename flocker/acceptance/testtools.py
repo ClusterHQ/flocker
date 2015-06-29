@@ -10,6 +10,7 @@ from subprocess import check_call
 from unittest import SkipTest, skipUnless
 
 from yaml import safe_dump
+import json
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -206,19 +207,22 @@ class ControlService(PRecord):
     """
     A record of the cluster's control service.
 
-    :ivar bytes address: The IPv4 address of the control service.
+    :ivar bytes public_address: The public address of the control service.
     """
-    address = field(type=bytes)
+    public_address = field(type=bytes)
 
 
 class Node(PRecord):
     """
     A record of a cluster node.
 
-    :ivar bytes address: The IPv4 address of the node.
+    :ivar bytes public_address: The public address of the node.
+    :ivar bytes reported_hostname: The address of the node, as reported by the
+        API.
     :ivar unicode uuid: The UUID of the node.
     """
-    address = field(type=bytes)
+    public_address = field(type=bytes)
+    reported_hostname = field(type=bytes)
     uuid = field(type=unicode)
 
 
@@ -313,7 +317,7 @@ class Cluster(PRecord):
             service.
         """
         return b"https://{}:{}/v1".format(
-            self.control_node.address, REST_API_PORT
+            self.control_node.public_address, REST_API_PORT
         )
 
     @log_method
@@ -349,9 +353,8 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The attributes of the dataset that
             we're waiting for.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties appears in
-            the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -366,13 +369,17 @@ class Cluster(PRecord):
                 del expected_dataset[u"metadata"]
                 del expected_dataset[u"deleted"]
                 for dataset in body:
-                    dataset.pop("path")
+                    try:
+                        dataset.pop("path")
+                    except KeyError:
+                        # Non-manifest datasets don't have a path
+                        pass
                 return expected_dataset in body
             request.addCallback(got_body)
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: (self, dataset_properties))
+        waiting.addCallback(lambda ignored: dataset_properties)
         return waiting
 
     @log_method
@@ -382,9 +389,9 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties has been
-            persisted to the cluster configuration.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets",
@@ -394,8 +401,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -406,7 +411,8 @@ class Cluster(PRecord):
         :param unicode dataset_id: The uuid of the dataset to be modified.
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset update has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -418,8 +424,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -429,7 +433,8 @@ class Cluster(PRecord):
 
         :param unicode dataset_id: The uuid of the dataset to be modified.
 
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset deletion has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -440,8 +445,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -452,7 +455,9 @@ class Cluster(PRecord):
         :param dict properties: A ``dict`` mapping to the API request fields
             to create a container.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers",
@@ -462,7 +467,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -473,7 +477,8 @@ class Cluster(PRecord):
         :param unicode name: The name of the container to move.
         :param unicode node_uuid: The UUID to which the container should
             be moved.
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container move has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers/" +
@@ -484,7 +489,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -494,7 +498,8 @@ class Cluster(PRecord):
 
         :param unicode name: The name of the container to remove.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container removal has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
@@ -503,7 +508,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -547,9 +551,8 @@ class Cluster(PRecord):
         :param dict container_properties: The attributes of the container that
             we're waiting for. All the keys, values and those of nested
             dictionaries must match.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a container with the supplied properties appears
-            in the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            container with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -567,7 +570,7 @@ class Cluster(PRecord):
                         for item in expected_container.items()
                     ]):
                         # Return cluster and container state
-                        return self, container
+                        return container
                 return False
             request.addCallback(got_response)
             return request
@@ -608,7 +611,7 @@ class Cluster(PRecord):
         application.setContent(safe_dump(application_config))
         check_call([b"flocker-deploy",
                     b"--certificates-directory", self.certificates_path.path,
-                    self.control_node.address,
+                    self.control_node.public_address,
                     deployment.path, application.path])
 
     def clean_nodes(self):
@@ -690,12 +693,12 @@ class Cluster(PRecord):
 
         :return Deferred: Fires on end of assertion.
         """
-        ip_to_uuid = {node.address: node.uuid for node in self.nodes}
+        ip_to_uuid = {node.reported_hostname: node.uuid for node in self.nodes}
 
         def got_results(existing_containers):
             expected = []
-            for hostname, apps in expected_deployment.items():
-                node_uuid = ip_to_uuid[hostname]
+            for reported_hostname, apps in expected_deployment.items():
+                node_uuid = ip_to_uuid[reported_hostname]
                 expected += [container_configuration_response(app, node_uuid)
                              for app in apps]
             for app in expected:
@@ -726,29 +729,32 @@ def _get_test_cluster(reactor, node_count):
             "Set acceptance testing control node IP address using the " +
             "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
 
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODES')
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
 
     if agent_nodes_env_var is None:
         raise SkipTest(
-            "Set acceptance testing node IP addresses using the " +
-            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a " +
-            "colon separated list.")
+            "Set the number of configured acceptance testing nodes using the "
+            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
 
-    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
+    num_agent_nodes = int(agent_nodes_env_var)
 
-    if len(agent_nodes) < node_count:
+    if num_agent_nodes < node_count:
         raise SkipTest("This test requires a minimum of {necessary} nodes, "
                        "{existing} node(s) are set.".format(
-                           necessary=node_count, existing=len(agent_nodes)))
+                           necessary=node_count, existing=num_agent_nodes))
 
     certificates_path = FilePath(
         environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
     cluster = Cluster(
-        control_node=ControlService(address=control_node),
+        control_node=ControlService(public_address=control_node),
         nodes=[],
         treq=treq_with_authentication(reactor, certificates_path),
         certificates_path=certificates_path,
     )
+
+    hostname_to_public_address_env_var = environ.get(
+        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
+    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
 
     # Wait until nodes are up and running:
     def nodes_available():
@@ -777,10 +783,18 @@ def _get_test_cluster(reactor, node_count):
     # happen know these in advance, but in FLOC-1631 node identification
     # will switch to UUIDs instead.
     agents_connected.addCallback(lambda _: cluster.current_nodes())
+
+    def node_from_dict(node):
+        reported_hostname = node["host"]
+        public_address = hostname_to_public_address.get(
+            reported_hostname, reported_hostname)
+        return Node(
+            uuid=node[u"uuid"],
+            public_address=public_address.encode("ascii"),
+            reported_hostname=reported_hostname.encode("ascii"),
+        )
     agents_connected.addCallback(lambda nodes: cluster.set(
-        "nodes", [Node(uuid=node[u"uuid"],
-                       address=node["host"].encode("ascii"))
-                  for node in nodes[:node_count]]))
+        "nodes", map(node_from_dict, nodes[:node_count])))
     return agents_connected
 
 

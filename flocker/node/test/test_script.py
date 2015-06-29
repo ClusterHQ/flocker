@@ -3,12 +3,17 @@
 """
 Tests for :module:`flocker.node.script`.
 """
+
+import socket
+
 import yaml
 from ipaddr import IPAddress
 
 from pyrsistent import PRecord, field
 
 from jsonschema.exceptions import ValidationError
+
+from eliot.testing import assertHasAction, capture_logging
 
 from zope.interface.verify import verifyObject
 
@@ -25,7 +30,7 @@ from ..script import (
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
     AgentService, BackendDescription, get_configuration,
-    DeployerType,
+    DeployerType, _get_external_ip, LOG_GET_EXTERNAL_IP
 )
 from ..agents.cinder import CinderBlockDeviceAPI
 from ..agents.ebs import EBSBlockDeviceAPI
@@ -490,6 +495,18 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     def setUp(self):
         setup_config(self)
 
+    def service_factory(self, deployer_factory):
+        """
+        Create a new ``AgentServiceFactory`` suitable for unit-testing.
+
+        :param deployer_factory: ``deployer_factory`` to use.
+
+        :return: ``AgentServiceFactory`` instance.
+        """
+        return AgentServiceFactory(
+            deployer_factory=deployer_factory,
+            get_external_ip=lambda host, port: u"127.0.0.1")
+
     def test_uuids_from_certificate(self):
         """
         The created deployer got its node UUID and cluster UUID from the given
@@ -503,7 +520,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        service_factory = AgentServiceFactory(deployer_factory=factory)
+        service_factory = self.service_factory(deployer_factory=factory)
         service_factory.get_service(MemoryCoreReactor(), options)
         self.assertEqual(
             (self.ca_set.node.uuid,
@@ -519,7 +536,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        service_factory = AgentServiceFactory(
+        service_factory = self.service_factory(
             deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
@@ -553,7 +570,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        service_factory = AgentServiceFactory(
+        service_factory = self.service_factory(
             deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
@@ -576,7 +593,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        service_factory = AgentServiceFactory(
+        service_factory = self.service_factory(
             deployer_factory=deployer_factory_stub,
         )
 
@@ -599,7 +616,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        agent = AgentServiceFactory(deployer_factory=deployer_factory)
+        agent = self.service_factory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
 
@@ -611,7 +628,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
-        service_factory = AgentServiceFactory(
+        service_factory = self.service_factory(
             deployer_factory=deployer_factory_stub,
         )
 
@@ -915,3 +932,56 @@ class ContainerAgentOptionsTests(
     """
     Tests for ``ContainerAgentOptions``.
     """
+
+
+class GetExternalIPTests(SynchronousTestCase):
+    """
+    Tests for ``_get_external_ip``.
+    """
+    def setUp(self):
+        server = socket.socket()
+        server.bind(('127.0.0.1', 0))
+        server.listen(5)
+        self.destination_port = server.getsockname()[1]
+        self.addCleanup(server.close)
+
+    @capture_logging(lambda test, logger:
+                     assertHasAction(test, logger, LOG_GET_EXTERNAL_IP, True,
+                                     {u"host": u"localhost",
+                                      u"port": test.destination_port},
+                                     {u"local_ip": u"127.0.0.1"}))
+    def test_successful_get_external_ip(self, logger):
+        """
+        A successful external IP lookup returns the local interface's IP.
+        """
+        class FakeSocket(object):
+            def __init__(self, *args):
+                self.addr = (b"0.0.0.0", 0)
+
+            def getsockname(self):
+                return self.addr
+
+            def connect(self, addr):
+                self.addr = (addr[0], 12345)
+        self.patch(socket, "socket", FakeSocket())
+        self.assertEqual(u"127.0.0.1",
+                         _get_external_ip(u"localhost", self.destination_port))
+
+    @capture_logging(lambda test, logger:
+                     assertHasAction(test, logger, LOG_GET_EXTERNAL_IP, False,
+                                     {u"host": u"localhost",
+                                      u"port": test.destination_port},
+                                     {u"exception":
+                                      u"exceptions.RuntimeError"}))
+    def test_failed_get_external_ip(self, logger):
+        """
+        A failed external IP lookup is retried (and the error logged).
+        """
+        original_connect = socket.socket.connect
+
+        def fail_once(*args, **kwargs):
+            socket.socket.connect = original_connect
+            raise RuntimeError()
+        self.patch(socket.socket, "connect", fail_once)
+        self.assertEqual(u"127.0.0.1",
+                         _get_external_ip(u"localhost", self.destination_port))

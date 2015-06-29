@@ -339,6 +339,7 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     "target_bucket",
     "target_key",
     "file",
+    Attribute("content_type", default_value=None),
 ])
 class UploadToS3(object):
     """
@@ -348,6 +349,7 @@ class UploadToS3(object):
     :ivar bytes target_bucket: See :class:`UploadToS3 Recursively`.
     :ivar bytes target_key: See :class:`UploadToS3Recursively`.
     :ivar FilePath file: Path to file to upload.
+    :ivar bytes content_type: Optional content-type for file contents.
     """
 
 
@@ -358,9 +360,12 @@ def perform_upload_s3_key(dispatcher, intent):
     """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.target_bucket)
+    headers = {}
+    if intent.content_type is not None:
+        headers['Content-Type'] = intent.content_type
     with intent.file.open() as source_file:
         key = bucket.new_key(intent.target_key)
-        key.set_contents_from_file(source_file)
+        key.set_contents_from_file(source_file, headers=headers)
         key.make_public()
 
 boto_dispatcher = TypeDispatcher({
@@ -375,6 +380,16 @@ boto_dispatcher = TypeDispatcher({
     UploadToS3: perform_upload_s3_key,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
 })
+
+
+class ContentTypeUnicode(unicode):
+    """
+    A Unicode string with an additional content-type field.
+    """
+    def __new__(cls, value, content_type):
+        self = super(ContentTypeUnicode, cls).__new__(cls, unicode(value))
+        self.content_type = content_type
+        return self
 
 
 @attributes([
@@ -471,7 +486,11 @@ class FakeAWS(object):
         """
         bucket = self.s3_buckets[intent.target_bucket]
         with intent.file.open() as source_file:
-            bucket[intent.target_key] = source_file.read()
+            content = source_file.read()
+        content_type = intent.content_type
+        if content_type is not None:
+            content = ContentTypeUnicode(content, content_type)
+        bucket[intent.target_key] = content
 
     def get_dispatcher(self):
         """
