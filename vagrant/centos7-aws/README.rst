@@ -12,11 +12,11 @@ Usage:
 
    * AWS_INSTANCE_TYPE (defaults to t2.micro)
 
-   * AWS_KEY_PAIR
+   * AWS_KEY_PAIR (the EC2 key_pair used for your ec2 instance)
 
    * AWS_AMI (defaults to ami-c7d092f7)
 
-   * AWS_KEY_FILENAME
+   * AWS_KEY_FILENAME (this is the full path to your ssh private key file)
 
    * AWS_SECRET_ACCESS_KEY
 
@@ -59,6 +59,7 @@ Usage:
 .. code-block:: bash
 
     $ fab ssh
+    $ fab ssh:'ls -l'
 |
 |
 

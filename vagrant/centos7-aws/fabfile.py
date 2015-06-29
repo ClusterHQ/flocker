@@ -562,10 +562,13 @@ def grub2_fix_floc_235():
 
 
 @task
-def ssh():
+def ssh(*cli):
+    from itertools import chain
     """ opens a ssh shell to the host """
     data = load_state_from_disk()
-    local('ssh -i %s %s@%s' % (env['ec2_key_filename'],  env['user'], data['ip_address']))
+    local('ssh -i %s %s@%s %s' % (env['ec2_key_filename'],
+                               env['user'], data['ip_address'],
+                               "".join(chain.from_iterable(cli))))
 
 
 def create_zfs_storage_pool(name='flocker',
@@ -575,7 +578,8 @@ def create_zfs_storage_pool(name='flocker',
         p name: name of the zpool
         p filebased: True|False weather this zpool is using file backed vdevs
         p size: size of the file vdev
-        p dev: device file for real disk devices, or directory for file backed vdevs
+        p dev: device file for real disk devices,
+         or directory for file backed vdevs
     """
     if filebased:
         from fabric.contrib.files import exists
