@@ -53,8 +53,17 @@ Usage:
 |
 |
 
+5. Run your tests from your laptop
 
-5. ssh to it
+.. code-block:: bash
+
+    $ fab trial:flocker
+    $ fab trial_as_root:flocker
+|
+|
+
+
+6. ssh to it
 
 .. code-block:: bash
 
@@ -64,7 +73,7 @@ Usage:
 |
 
 
-6. details about the EC2 instable are available through:
+7. details about the EC2 instable are available through:
 
 .. code-block:: bash
 
@@ -73,7 +82,7 @@ Usage:
 |
 
 
-6. When done:
+8. When done:
 
 .. code-block:: bash
 

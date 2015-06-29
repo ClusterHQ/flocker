@@ -644,6 +644,24 @@ def check_for_missing_environment_variables():
 
 
 @task
+def trial(*args):
+    if args:
+        from itertools import chain
+        ssh('/opt/flocker/bin/trial ', args)
+    else:
+        yellow("give me a test to run, ex: fab trial:'flocker'")
+
+
+@task
+def trial_as_root(*args):
+    if args:
+        from itertools import chain
+        sudo(ssh('/opt/flocker/bin/trial ', args))
+    else:
+        yellow("give me a test to run, ex: fab trial:'flocker'")
+
+
+@task
 def it():
     """ runs the full stack """
     execute(up)
