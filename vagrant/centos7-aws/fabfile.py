@@ -204,7 +204,12 @@ def rsync():
     """ syncs the src code to the remote box """
     green('syncing code to remote box...')
     data = load_state_from_disk()
-    local('rsync  -a -e ssh --progress ../../ %s@%s' % (env.user, data['ip_address']))
+    local("rsync  -a "
+          "--exclude ../../.tox "
+          "--exclude ../../venv "
+          "--progress ../../ "
+          "-e 'ssh -C -i " + env.ec2_key_filename + "'",
+          "%s@%s" % (env.user, data['ip_address']))
 
 
 @task
@@ -309,14 +314,18 @@ def disable_selinux():
             'SELINUXTYPE=enforcing', 'SELINUX=targeted', use_sudo=True)
 
 
-def yum_install(*packages):
+def yum_install(**kwargs):
     """
         installs a yum package
     """
-    for pkg in list(packages):
+    for pkg in list(kwargs['packages']):
         if is_package_installed(pkg) is False:
-            green("installing %s ..." % pkg)
-            sudo("yum install -y --quiet %s" % pkg)
+            if 'repo' in kwargs:
+                green("installing %s from repo %s ..." % (pkg, repo))
+                sudo("yum install -y --quiet --enablerepo=%s %s" % (repo, pkg))
+            else:
+                green("installing %s ..." % pkg)
+                sudo("yum install -y --quiet %s" % pkg)
 
 
 def yum_install_from_url(pkg_name, url):
@@ -411,15 +420,13 @@ def add_zfs_yum_repository():
 def install_development_packages():
     """ Update the kernel and install some development tools necessary for
      building the ZFS kernel module. """
-    yum_install("kernel-devel",
-                "kernel",
-                "kernel-headers",
-                "dkms", "gcc", "make", "psutils-perl", "lsof", "rsync")
+    yum_install(packages = ["kernel-devel", "kernel", "kernel-headers",
+                "dkms", "gcc", "make", "psutils-perl", "lsof", "rsync"])
 
 
 def add_epel_yum_repository():
     """ Install a repository that provides epel packages/updates """
-    yum_install("epel-release")
+    yum_install(packages=["epel-release"])
 
 
 def arch():
@@ -446,29 +453,30 @@ def add_clusterhq_yum_repository():
     yum_install_from_url('clusterhq-release', clusterhq_repo_url())
 
 
-def add_build_branch_yum_repository(branch=None,
-                                    build_server='http://build.clusterhq.com/'):
+def add_build_branch_yum_repository():
     """ Install a repository that provides a specific set of binaries
         from a build branch
     """
-    if branch:
-        # If a branch is specified, add a repo pointing at the
-        # buildserver repository corresponding to that branch.
-        # This repo will be disabled by default.
-        with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
-            result_path = os.path.join('/results/omnibus', branch,
-                                    'centos-$releasever')
-            base_url = urljoin(build_server, result_path)
-            repo.write(dedent(b"""
-                [clusterhq-build]
-                name=clusterhq-build
-                baseurl=%s
-                gpgcheck=0
-                enabled=0
-                """) % (base_url,))
-        branch_opt = ['--enablerepo=clusterhq-build']
-    else:
-        branch_opt = []
+    from fabric.contrib.files import append
+    branch = env.flocker_branch
+    build_server = env.flocker_BUILD_SERVER
+    # If a branch is specified (defaults to master),
+    # add a repo pointing at the buildserver repository corresponding
+    # to that branch.
+    # This repo will be disabled by default.
+    result_path = os.path.join('/results/omnibus', branch,
+                            'centos-$releasever')
+    base_url = urljoin(build_server, result_path)
+    text = ['[clusterhq-build]',
+            'name=clusterhq-build',
+            'baseurl=%s' % base_url,
+            'gpgcheck=0',
+            'enabled=0']
+
+    append('/etc/yum.repos.d/clusterhq-build.repo',
+            text,
+            use_sudo=True,
+            shell=True)
 
 
 def create_docker_group():
@@ -482,11 +490,14 @@ def create_docker_group():
 def install_zfs():
     """ installs ZFSonLinux """
     add_zfs_yum_repository()
-    yum_install("zfs")
+    yum_install(packages=["zfs"])
 
 
-def install_flocker(rpm_version='', branch_opt=''):
+def install_flocker():
     """ installs Flocker """
+    rpm_version = env.flocker_rpm_version
+    branch_opt = env.flocker_branch
+
     add_clusterhq_yum_repository()
     add_build_branch_yum_repository()
     # If a version is specifed, install that version.
@@ -500,7 +511,7 @@ def install_flocker(rpm_version='', branch_opt=''):
     else:
         package = 'clusterhq-flocker-node'
 
-    yum_install(branch_opt + package)
+    yum_install(packages=[package])
     # configures the firewall for the flocker services
     for svc in ['flocker-control-api', 'flocker-control-agent']:
         add_firewall_service(svc)
@@ -508,13 +519,13 @@ def install_flocker(rpm_version='', branch_opt=''):
 
 def enable_firewalld_service():
     """ install and enables the firewalld service """
-    yum_install('firewalld')
+    yum_install(packages=['firewalld'])
     systemd(service='firewalld', unmask=True)
 
 
 def add_firewall_service(service, permanent=True):
     """ adds a firewall rule """
-    yum_install('firewalld')
+    yum_install(packages=['firewalld'])
     from fabric.api import settings
     from fabric.context_managers import hide
 
@@ -549,7 +560,7 @@ def grub2_fix_floc_235():
 def ssh():
     """ opens a ssh shell to the host """
     data = load_state_from_disk()
-    local('ssh %s@%s' % (env['user'], data['ip_address']))
+    local('ssh -i %s %s@%s' % (env['ec2_key_filename'],  env['user'], data['ip_address']))
 
 
 def create_zfs_storage_pool(name='flocker',
@@ -573,8 +584,7 @@ def create_zfs_storage_pool(name='flocker',
 
 def install_docker():
     """ installs docker """
-    yum_install('docker')
-    yum_install('docker-registry')
+    yum_install(packages=['docker', 'docker-registry'])
     systemd('docker.service')
 
 
@@ -667,18 +677,19 @@ def main():
     if check_for_missing_environment_variables():
         exit(1)
 
-    env.ec2_ami = os.environ['AWS_AMI'] # ami-c7d092f7
+    env.ec2_ami = os.getenv('AWS_AMI', 'ami-c7d092f7')
     env.ec2_instance_name = 'aws_centos7'
-    env.ec2_instancetype = os.environ['AWS_INSTANCE_TYPE'] # t2.micro
+    env.ec2_instancetype = os.getenv('AWS_INSTANCE_TYPE', 't2.micro')
     env.ec2_key = os.environ['AWS_ACCESS_KEY_ID']
     env.ec2_key_filename = os.environ['AWS_KEY_FILENAME'] # path to ssh key
     env.ec2_key_pair = os.environ['AWS_KEY_PAIR']
-    env.ec2_region = os.environ['AWS_REGION']
+    env.ec2_region = os.getenv('AWS_REGION', 'us-west-2')
     env.ec2_secret = os.environ['AWS_SECRET_ACCESS_KEY']
     env.ec2_security = ['ssh'] # list of ec2 security groups
-    env.flocker_BUILD_SERVER  = os.environ.get('FLOCKER_BUILD_SERVER')
-    env.flocker_branch = os.environ.get('FLOCKER_BRANCH')
-    env.flocker_rpm_version = os.environ.get('FLOCKER_RPM_VERSION')
+    env.flocker_BUILD_SERVER  = os.getenv('FLOCKER_BUILD_SERVER',
+                                          'http://build.clusterhq.com')
+    env.flocker_branch = os.getenv('FLOCKER_BRANCH', 'master')
+    env.flocker_rpm_version = os.getenv('FLOCKER_RPM_VERSION', '')
     env.user = 'centos'
     env.disable_known_hosts = True
     env.key_filename = env.ec2_key_filename
