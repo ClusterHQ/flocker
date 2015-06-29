@@ -1,3 +1,8 @@
+Flocker 1.0.2 (2015-06-XX)
+==========================
+
+- On CentOS 7 Flocker logs are no longer written to /var/log/messages since this fills up disk space quickly and the logs are already available via journald. (FLOC-2534)
+
 Flocker 1.0.1 (2015-06-20)
 ==========================
 
