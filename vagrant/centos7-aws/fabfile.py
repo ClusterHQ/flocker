@@ -566,7 +566,7 @@ def ssh(*cli):
     from itertools import chain
     """ opens a ssh shell to the host """
     data = load_state_from_disk()
-    local('ssh -i %s %s@%s %s' % (env['ec2_key_filename'],
+    local('ssh -t -i %s %s@%s %s' % (env['ec2_key_filename'],
                                env['user'], data['ip_address'],
                                "".join(chain.from_iterable(cli))))
 
