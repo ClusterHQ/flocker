@@ -674,7 +674,7 @@ Creating a ZFS Pool
 ...................
 
 Flocker requires a ZFS pool.
-The pool is typically named named ``flocker`` but this is not required.
+The pool is typically named ``flocker`` but this is not required.
 The following commands will create a 10 gigabyte ZFS pool backed by a file:
 
 .. task:: create_flocker_pool_file
