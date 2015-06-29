@@ -258,7 +258,7 @@ ACCEPTANCE_TESTS_CLUSTER_ID_MARKER = 42
 
 def _make_cluster_id():
     c = uuid4()
-    tagged_cluster_id = UUID((
+    tagged_cluster_id = UUID(fields=(
         c.time_low, c.time_mid, c.time_hi_version,
         c.clock_seq_hi_variant, c.clock_seq_low,
         # Instead of node, a hard-coded magic constant.
