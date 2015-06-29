@@ -607,6 +607,26 @@ def cache_docker_images():
         pull_docker_image(image)
 
 
+def check_for_missing_environment_variables():
+    """ double checks that the minimum environment variables have been setup """
+    env_var_missing = []
+    for env_var in ['AWS_INSTANCE_TYPE',
+                    'AWS_KEY_PAIR',
+                    'AWS_AMI',
+                    'AWS_KEY_FILENAME',
+                    'AWS_SECRET_ACCESS_KEY',
+                    'AWS_REGION',
+                    'AWS_ACCESS_KEY_ID']:
+        if not env_var in os.environ:
+            env_var_missing.append(env_var)
+
+    if env_var_missing:
+        print('the following environment variables must be set:')
+        for env_var in env_var_missing:
+            print(env_var)
+        return True
+
+
 @task
 def it():
     """ runs the full stack """
@@ -643,6 +663,10 @@ def main():
         ec2 instance id and ip_address so that we can run provision multiple
         times
     """
+
+    if check_for_missing_environment_variables():
+        exit(1)
+
     env.ec2_ami = os.environ['AWS_AMI'] # ami-c7d092f7
     env.ec2_instance_name = 'aws_centos7'
     env.ec2_instancetype = os.environ['AWS_INSTANCE_TYPE'] # t2.micro
@@ -662,8 +686,8 @@ def main():
     if is_there_state() is False:
         pass
     else:
-
         data = load_state_from_disk()
         env.hosts = data['ip_address']
+
 
 main()

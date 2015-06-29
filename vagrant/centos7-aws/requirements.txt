@@ -1,0 +1,8 @@
+awsfabrictasks==1.2.0
+boto==2.38.0
+ecdsa==0.13
+Fabric==1.10.2
+paramiko==1.15.2
+pycrypto==2.6.1
+python-vagrant==0.5.8
+wheel==0.24.0
