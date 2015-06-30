@@ -527,6 +527,21 @@ If the OpenStack cloud uses certificates that are issued by a private Certificat
        auth_plugin: "password"
        ...
 
+For testing purposes, it is possible to turn off certificate verification, by setting the ``verify_peer`` field to ``false``.
+
+.. warning::
+
+   Only use this setting for troubleshooting, as it is vulnerable to Man-in-the-Middle (MITM) attacks.
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "DFW"
+       verify_peer: false
+       auth_plugin: "password"
+       ...
+
 .. FLOC-2091 - Fix up this section.
 
 Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
