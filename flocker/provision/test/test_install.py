@@ -10,13 +10,17 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from pyrsistent import freeze, thaw
 
+from textwrap import dedent
+
 from .. import PackageSource
 from .._install import (
     task_install_flocker,
+    task_configure_flocker_agent,
     task_enable_flocker_agent,
     run, put, run_from_args,
     get_repository_url, UnsupportedDistribution, get_installable_version,
     get_repo_options,
+    _remove_dataset_fields, _remove_private_key,
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -38,21 +42,19 @@ BASIC_AGENT_YML = freeze({
 })
 
 
-class EnableFlockerAgentTests(SynchronousTestCase):
+class ConfigureFlockerAgentTests(SynchronousTestCase):
     """
-    Tests for ``task_enable_flocker_agent``.
+    Tests for ``task_configure_flocker_agent``.
     """
     def test_agent_yml(self):
         """
-        ```task_enable_flocker_agent`` writes a ``/etc/flocker/agent.yml`` file
-        which contains the backend configuration passed to it.
+        ```task_configure_flocker_agent`` writes a ``/etc/flocker/agent.yml``
+        file which contains the backend configuration passed to it.
         """
-        distribution = u"centos-7"
         control_address = BASIC_AGENT_YML["control-service"]["hostname"]
         expected_pool = u"some-test-pool"
         expected_backend_configuration = dict(pool=expected_pool)
-        commands = task_enable_flocker_agent(
-            distribution=distribution,
+        commands = task_configure_flocker_agent(
             control_node=control_address,
             dataset_backend=DatasetBackend.lookupByName(
                 BASIC_AGENT_YML["dataset"]["backend"]
@@ -74,9 +76,47 @@ class EnableFlockerAgentTests(SynchronousTestCase):
             put(
                 content=yaml.safe_dump(thaw(expected_agent_config)),
                 path=THE_AGENT_YML_PATH,
+                log_content_filter=_remove_dataset_fields,
             ).intent,
             put_agent_yml,
         )
+
+
+class EnableFlockerAgentTests(SynchronousTestCase):
+    """
+    Tests for ``task_enable_flocker_agent``.
+    """
+    def test_centos_sequence(self):
+        """
+        ``task_enable_flocker_agent`` for the 'centos-7' distribution returns
+        a sequence of systemctl enable and restart commands for each agent.
+        """
+        distribution = u"centos-7"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+        )
+        expected_sequence = sequence([
+            run(command="systemctl enable flocker-dataset-agent"),
+            run(command="systemctl restart flocker-dataset-agent"),
+            run(command="systemctl enable flocker-container-agent"),
+            run(command="systemctl restart flocker-container-agent"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
+    def test_ubuntu_sequence(self):
+        """
+        ``task_enable_flocker_agent`` for the 'ubuntu-14.04' distribution
+        returns a sequence of 'service start' commands for each agent.
+        """
+        distribution = u"ubuntu-14.04"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+        )
+        expected_sequence = sequence([
+            run(command="service flocker-dataset-agent start"),
+            run(command="service flocker-container-agent start"),
+        ])
+        self.assertEqual(commands, expected_sequence)
 
 
 def _centos7_install_commands(version):
@@ -404,3 +444,72 @@ enabled=0
             run(command="yum install --enablerepo=clusterhq-build "
                         "-y clusterhq-flocker-node-1.2.3-1")
         ]))
+
+
+class PrivateKeyLoggingTest(SynchronousTestCase):
+
+    def test_private_key_removed(self):
+        """
+        A private key is removed for logging.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            -----END PRIVATE KEY-----
+            ''')
+        self.assertEqual(
+            dedent('''
+                -----BEGIN PRIVATE KEY-----
+                MFDk...REMOVED...OEWe
+                -----END PRIVATE KEY-----
+                '''),
+            _remove_private_key(key))
+
+    def test_non_key_kept(self):
+        """
+        Non-key data is kept for logging.
+        """
+        key = 'some random data, not a key'
+        self.assertEqual(key, _remove_private_key(key))
+
+    def test_short_key_kept(self):
+        """
+        A key that is suspiciously short is kept for logging.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            short
+            -----END PRIVATE KEY-----
+            ''')
+        self.assertEqual(key, _remove_private_key(key))
+
+    def test_no_end_key_removed(self):
+        """
+        A missing end tag does not prevent removal working.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            ''')
+        self.assertEqual(
+            '\n-----BEGIN PRIVATE KEY-----\nMFDk...REMOVED...OEWe\n',
+            _remove_private_key(key))
+
+
+class DatasetLoggingTest(SynchronousTestCase):
+
+    def test_dataset_logged_safely(self):
+        config = {
+            'dataset': {
+                'secret': 'SENSITIVE',
+                'zone': 'keep'
+                }
+            }
+        content = yaml.safe_dump(config)
+        logged = _remove_dataset_fields(content)
+        self.assertEqual(
+            yaml.safe_load(logged), {'secret': 'REMOVED', 'zone': 'keep'})

@@ -9,10 +9,19 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+v1.0.1
+======
+
+Upgrading is strongly recommended for all users of v1.0.0.
+
+* The EBS storage driver now more reliably selects the correct OS device file corresponding to an EBS volume being used.
+* Additional safety checks were added to ensure only empty volumes are formatted.
+* ClusterHQ Labs projects, including the Flocker Docker Plugin and an experimental Volumes CLI and GUI are now documented in the :ref:`Labs section <labs-projects>`.
+
 v1.0
 ====
 
-* Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
+* Dataset backend support for :ref:`AWS Elastic Block Storage (EBS)<aws-dataset-backend>`, :ref:`OpenStack Cinder<openstack-dataset-backend>`, and :ref:`EMC ScaleIO and XtremIO<emc-dataset-backend>`.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
   See :ref:`dataset-backend-plugins`.
 * It is now necessary to specify a dataset backend for each agent node.

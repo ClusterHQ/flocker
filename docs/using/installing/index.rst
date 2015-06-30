@@ -174,7 +174,7 @@ Using Amazon Web Services
 -------------------------
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
-          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
+          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
 
 
 .. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
@@ -559,6 +559,19 @@ The configuration item to use AWS should look like:
 Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
 AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
 
+.. _emc-dataset-backend:
+
+EMC Block Device Backend Configuration
+......................................
+
+EMC provide plugins for Flocker integration with `ScaleIO`_ and `XtremIO`_.
+For more information, including installation, testing and usage instructions, visit the following links to their GitHub repositories:
+
+* `EMC ScaleIO Flocker driver on GitHub`_
+* `EMC XtremIO Flocker driver on GitHub`_
+
+.. XXX FLOC 2442 and 2443 to expand this EMC/Backend storage section
+
 .. _zfs-dataset-backend:
 
 ZFS Peer-to-Peer Backend Configuration (Experimental)
@@ -608,7 +621,7 @@ Enabling the Flocker agent service on CentOS 7
 
 Run the following commands to enable the agent service:
 
-.. task:: enable_flocker_agent centos-7 ${CONTROL_NODE}
+.. task:: enable_flocker_agent centos-7
    :prompt: [root@agent-node]#
 
 Enabling the Flocker agent service on Ubuntu
@@ -616,7 +629,7 @@ Enabling the Flocker agent service on Ubuntu
 
 Run the following commands to enable the agent service:
 
-.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
+.. task:: enable_flocker_agent ubuntu-14.04
    :prompt: [root@agent-node]#
 
 What to do next
@@ -678,3 +691,8 @@ Next Step
 ---------
 
 The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.
+
+.. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
+.. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
+.. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
+.. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver

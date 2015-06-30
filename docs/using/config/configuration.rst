@@ -305,6 +305,8 @@ It consists of a version and a mapping from node IP addresses to application nam
 The required parameters are ``version`` and ``nodes``.
 For now the ``version`` must be ``1``.
 
+Each entry under ``nodes`` should be a mapping of the desired deployment node's IP address to a list of application names that match those defined in the application configuration.
+
 Here's an example of a simple but complete configuration defining a deployment of one application on one host:
 
 .. code-block:: yaml
@@ -312,7 +314,8 @@ Here's an example of a simple but complete configuration defining a deployment o
   "version": 1
   "nodes":
     "172.16.255.251":
-      "site-clusterhq.com"
+      - "site-clusterhq.com"
+      - "postgresql"
 
 .. _`Fig`: http://www.fig.sh/yml.html
 .. _`Docker Run reference`: http://docs.docker.com/reference/run/#runtime-constraints-on-cpu-and-memory
