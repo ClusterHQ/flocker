@@ -12,6 +12,7 @@ from twisted.python.constants import Values, ValueConstant
 
 class TestTypes(Values):
     """
+    Supported test types.
     """
     FUNCTIONAL = ValueConstant("functional")
     ACCEPTANCE = ValueConstant("acceptance")
@@ -19,6 +20,7 @@ class TestTypes(Values):
 
 class Providers(Values):
     """
+    Supported storage providers.
     """
     AWS = ValueConstant("aws")
     OPENSTACK = ValueConstant("openstack")
@@ -26,6 +28,10 @@ class Providers(Values):
 
 class ClusterIdMarkers(PRecord):
     """
+    ``PRecord`` to hold data used to seed cluster id for test clusters.
+
+    Please increment ``version`` in case of changes to supported test types
+    and storage providers.
     """
     version = field(mandatory=True, type=long, initial=long(1))
     test_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
@@ -37,9 +43,12 @@ class ClusterIdMarkers(PRecord):
     unsupported_env = field(mandatory=True, type=long, initial=long(99))
 
 
-def make_cluster_id(test_type, provider):
+def make_cluster_id(test_type, provider='unknown'):
     """
-    Compose cluster ``UUID`` using test type, platform, and provider.
+    Compose cluster ``UUID`` using test type and storage provider.
+
+    :param TestTypes test_type: Intended type of test that will use cluster id.
+    :param str provider: Storage provider on which cluster will be deployed.
     """
     markers = ClusterIdMarkers()
     magic_marker = markers.version
@@ -58,6 +67,9 @@ def make_cluster_id(test_type, provider):
     tagged_cluster_id = UUID(fields=(
         tmp_uuid.time_low, tmp_uuid.time_mid, tmp_uuid.time_hi_version,
         # Special magic markers to identify test clusters.
+        # Use ``UUID``'s clock_seq_hi_variant field to store ClusterIdMarkers
+        # version, clock_seq_low field to store test type,
+        # and node field to store provider name.
         magic_marker, test_marker, provider_marker,
     ))
     return tagged_cluster_id

@@ -7,7 +7,6 @@ import sys
 import os
 import yaml
 import json
-from uuid import UUID, uuid4
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -43,6 +42,10 @@ from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
 from flocker.acceptance.testtools import DatasetBackend
+from flocker.testtools.cluster_utils import (
+    make_cluster_id, TestTypes
+)
+
 
 from .runner import run
 
@@ -239,7 +242,10 @@ class ManagedRunner(object):
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
-                generate_certificates(_make_cluster_id(), self._nodes),
+                generate_certificates(
+                    # XXX: Pass storage provider to ``make_cluster_id``.
+                    make_cluster_id(TestTypes.ACCEPTANCE,),
+                    self._nodes),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
@@ -252,19 +258,6 @@ class ManagedRunner(object):
         Don't stop any nodes.
         """
         return succeed(None)
-
-ACCEPTANCE_TESTS_CLUSTER_ID_MARKER = 42
-
-
-def _make_cluster_id():
-    c = uuid4()
-    tagged_cluster_id = UUID(fields=(
-        c.time_low, c.time_mid, c.time_hi_version,
-        c.clock_seq_hi_variant, c.clock_seq_low,
-        # Instead of node, a hard-coded magic constant.
-        ACCEPTANCE_TESTS_CLUSTER_ID_MARKER,
-    ))
-    return tagged_cluster_id
 
 
 def generate_certificates(cluster_id, nodes):
@@ -475,7 +468,10 @@ class LibcloudRunner(object):
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
-            generate_certificates(_make_cluster_id(), self.nodes),
+            generate_certificates(
+                # XXX: Pass storage provider to ``make_cluster_id``.
+                make_cluster_id(TestTypes.ACCEPTANCE,),
+                self.nodes),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,

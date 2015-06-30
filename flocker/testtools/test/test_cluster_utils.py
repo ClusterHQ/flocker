@@ -19,6 +19,7 @@ class ClusterUtilsTests(TestCase):
     """
     def test_invalid_test_type(self):
         """
+        Test if invalid test type is registered in cluster uuid.
         """
         test_type = INVALID_INPUT
         provider = 'openstack'
@@ -34,6 +35,7 @@ class ClusterUtilsTests(TestCase):
 
     def test_invalid_provider(self):
         """
+        Test if invalid provider type is registered in cluster uuid.
         """
         test_type = TestTypes.ACCEPTANCE
         provider = INVALID_INPUT
@@ -49,6 +51,7 @@ class ClusterUtilsTests(TestCase):
 
     def test_validate_cluster_id_marker(self):
         """
+        Test if valid test env results in valid markers in generated uuid.
         """
         test_type = TestTypes.FUNCTIONAL
         provider = 'aws'
@@ -57,7 +60,7 @@ class ClusterUtilsTests(TestCase):
         uuid = make_cluster_id(test_type, provider)
         version = markers.version
         test_id = markers.test_id[test_type]
-        provider_id = markers.provider_id[Providers.lookupByValue(provider)]
+        provider_id = 1
         self.assertEqual([uuid.clock_seq_hi_variant, uuid.clock_seq_low,
                           uuid.node],
                          [version, test_id, provider_id])
