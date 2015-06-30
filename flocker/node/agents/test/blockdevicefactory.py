@@ -35,7 +35,7 @@ from novaclient.client import Client as NovaClient
 from ..cinder import _openstack_auth_from_config, cinder_api
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
-from ......testtools import (
+from ....testtools.cluster_utils import (
     make_cluster_id, TestTypes
 )
 
