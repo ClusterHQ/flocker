@@ -523,7 +523,7 @@ If the OpenStack cloud uses certificates that are issued by a private Certificat
    dataset:
        backend: "openstack"
        region: "DFW"
-       verify_ca_path: "/etc/flocker/ca.crt"
+       verify_ca_path: "/etc/flocker/openstack-ca.crt"
        auth_plugin: "password"
        ...
 
