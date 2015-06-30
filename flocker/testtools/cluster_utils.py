@@ -4,7 +4,7 @@
 Utility functions for cluster lifecycle management in test env.
 """
 
-from uuid import UUID
+from uuid import uuid4, UUID
 
 from pyrsistent import PRecord, field, pmap, PMap
 from twisted.python.constants import Values, ValueConstant
@@ -36,31 +36,16 @@ class ClusterIdMarkers(PRecord):
     """
     """
     version = field(mandatory=True, type=long, initial=long(1))
-    env_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
-        [TestTypes.FUNCTIONAL, Platforms.CENTOS7, Providers.AWS]:
-            long(1),
-        [TestTypes.FUNCTIONAL, Platforms.CENTOS7, Providers.OPENSTACK]:
-            long(2),
-        [TestTypes.FUNCTIONAL, Platforms.UBUNTU14, Providers.AWS]:
-            long(3),
-        [TestTypes.FUNCTIONAL, Platforms.UBUNTU14, Providers.OPENSTACK]:
-            long(4),
-        [TestTypes.FUNCTIONAL, Platforms.UBUNTU15, Providers.AWS]:
-            long(5),
-        [TestTypes.FUNCTIONAL, Platforms.UBUNTU15, Providers.OPENSTACK]:
-            long(6),
-        [TestTypes.ACCEPTANCE, Platforms.CENTOS7, Providers.AWS]:
-            long(7),
-        [TestTypes.ACCEPTANCE, Platforms.CENTOS7, Providers.OPENSTACK]:
-            long(8),
-        [TestTypes.ACCEPTANCE, Platforms.UBUNTU14, Providers.AWS]:
-            long(9),
-        [TestTypes.ACCEPTANCE, Platforms.UBUNTU14, Providers.OPENSTACK]:
-            long(10),
-        [TestTypes.ACCEPTANCE, Platforms.UBUNTU15, Providers.AWS]:
-            long(11),
-        [TestTypes.ACCEPTANCE, Platforms.UBUNTU15, Providers.OPENSTACK]:
-            long(12)}))
+    test_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
+        TestTypes.FUNCTIONAL: long(1),
+        TestTypes.ACCEPTANCE: long(2)}))
+    platform_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
+        Platforms.CENTOS7: long(1),
+        Platforms.UBUNTU14: long(2),
+        Platforms.UBUNTU15: long(3)}))
+    provider_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
+        Providers.AWS: long(1),
+        Providers.OPENSTACK: long(2)}))
     unsupported_env = field(mandatory=True, type=long, initial=long(99))
 
 
@@ -68,14 +53,26 @@ def make_cluster_id(test_type, platform, provider):
     """
     Compose cluster ``UUID`` using test type, platform, and provider.
     """
-    magic_marker = ClusterIdMarkers.version
-    try:
-        env_marker = ClusterIdMarkers.env_id[[test_type, platform, provider]]
-    except KeyError:
-        env_marker = ClusterIdMarkers.unsupported_env
+    markers = ClusterIdMarkers()
+    magic_marker = markers.version
 
+    try:
+        test_marker = markers.test_id[test_type]
+    except KeyError:
+        test_marker = markers.unsupported_env
+    try:
+        platform_marker = markers.platform_id[platform]
+    except KeyError:
+        platform_marker = markers.unsupported_env
+    try:
+        provider_marker = markers.provider_id[provider]
+    except KeyError:
+        provider_marker = markers.unsupported_env
+
+    tmp_uuid = uuid4()
     tagged_cluster_id = UUID(fields=(
-        magic_marker, magic_marker, magic_marker, magic_marker, magic_marker,
-        env_marker,
+        tmp_uuid.time_low, tmp_uuid.time_mid,
+        # Special magic markers to identify test clusters.
+        magic_marker, test_marker, platform_marker, provider_marker,
     ))
     return tagged_cluster_id
