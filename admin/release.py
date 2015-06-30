@@ -113,6 +113,13 @@ class BranchExists(Exception):
     """
 
 
+class BaseBranchDoesNotExist(Exception):
+    """
+    Raised if trying to release a version for which the expected base branch
+    does not exist.
+    """
+
+
 class MissingPreRelease(Exception):
     """
     Raised if trying to release a pre-release for which the previous expected
@@ -477,7 +484,6 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         target_bucket=target_bucket,
         target_key='vagrant/' + metadata_filename,
         file=new_metadata_file,
-        content_type='application/json',
         ))
 
 
@@ -845,12 +851,14 @@ def calculate_base_branch(version, path):
     # We create a new branch from a branch, not a tag, because a maintenance
     # or documentation change may have been applied to the branch and not the
     # tag.
-    # The branch must be available locally for the next step.
-    repo.git.checkout(base_branch_name)
+    try:
+        base_branch = [
+            branch for branch in repo.branches if
+            branch.name == base_branch_name][0]
+    except IndexError:
+        raise BaseBranchDoesNotExist()
 
-    return (
-        branch for branch in repo.branches if
-        branch.name == base_branch_name).next()
+    return base_branch
 
 
 def create_release_branch(version, base_branch):
@@ -916,6 +924,10 @@ def create_release_branch_main(args, base_path, top_level):
     except NoPreRelease:
         sys.stderr.write("%s: No (previous) pre-release exists for this "
                          "release.\n" % (base_path.basename(),))
+        raise SystemExit(1)
+    except BaseBranchDoesNotExist:
+        sys.stderr.write("%s: The expected base branch does not exist.\n"
+                         % (base_path.basename(),))
         raise SystemExit(1)
     except BranchExists:
         sys.stderr.write("%s: The release branch already exists.\n"

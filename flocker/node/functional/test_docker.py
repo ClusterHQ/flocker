@@ -220,18 +220,13 @@ class GenericDockerClientTests(TestCase):
         path.makedirs()
         path.child(b"Dockerfile.in").setContent(
             b"FROM busybox\nCMD /bin/true\n")
-        builder = DockerImageBuilder(test=self, source_dir=path, cleanup=False)
-        d = builder.build()
+        image_name = DockerImageBuilder(test=self, source_dir=path,
+                                        cleanup=False).build()
+        name = random_name(self)
+        d = self.start_container(unit_name=name, image_name=image_name,
+                                 expected_states=(u'inactive',))
 
-        def image_built(image_name):
-            name = random_name(self)
-            d = self.start_container(
-                unit_name=name, image_name=image_name,
-                expected_states=(u'inactive',))
-            return d.addCallback(lambda ignored: (name, image_name))
-        d.addCallback(image_built)
-
-        def stopped_container_exists((name, image_name)):
+        def stopped_container_exists(_):
             # Remove the image:
             docker_client = Client()
             docker_client.remove_image(image_name, force=True)
@@ -244,7 +239,6 @@ class GenericDockerClientTests(TestCase):
                 [(unit.name, unit.activation_state) for unit in results]))
             return listed
         d.addCallback(stopped_container_exists)
-
         return d
 
     def test_dead_is_removed(self):
@@ -330,6 +324,24 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
+    def build_slow_shutdown_image(self):
+        """
+        Create a Docker image that takes a while to shut down.
+
+        This should really use Python instead of shell:
+        https://clusterhq.atlassian.net/browse/FLOC-719
+
+        :return: The name of created Docker image.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent("""\
+FROM busybox
+CMD sh -c "trap \"\" 2; sleep 3"
+""")
+        image = DockerImageBuilder(test=self, source_dir=path)
+        return image.build()
+
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
@@ -342,22 +354,18 @@ class GenericDockerClientTests(TestCase):
             b'CMD ["/bin/sh",  "-c", '
             b'"while true; do env && echo WOOT && sleep 1; done"]'
         )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        unit_name = random_name(self)
         expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
         }.items())
-        unit_name = random_name(self)
-
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        d = image.build()
-
-        def image_built(image_name):
-            return self.start_container(
-                unit_name=unit_name,
-                image_name=image_name,
-                environment=Environment(variables=expected_variables),
-            )
-        d.addCallback(image_built)
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            environment=Environment(variables=expected_variables),
+        )
 
         def started(_):
             output = ""
@@ -486,16 +494,13 @@ class GenericDockerClientTests(TestCase):
             b'MAINTAINER info@clusterhq.com\n'
             b'CMD ["/bin/doesnotexist"]'
         )
-        name = random_name(self)
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        d = image.build()
-
-        def image_built(image_name):
-            client = self.make_client()
-            self.create_container(client, name, image_name)
-            self.addCleanup(client.remove, name)
-            return client.list()
-        d.addCallback(image_built)
+        image_name = image.build()
+        client = self.make_client()
+        name = random_name(self)
+        self.create_container(client, name, image_name)
+        self.addCleanup(client.remove, name)
+        d = client.list()
 
         def got_list(units):
             unit = [unit for unit in units if unit.name == name][0]
@@ -595,29 +600,24 @@ class GenericDockerClientTests(TestCase):
             b'"touch /mnt1/a; touch /mnt2/b"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        d = image.build()
+        image_name = image.build()
+        unit_name = random_name(self)
 
-        def image_built(image_name):
-            unit_name = random_name(self)
+        path1 = FilePath(self.mktemp())
+        path1.makedirs()
+        path2 = FilePath(self.mktemp())
+        path2.makedirs()
 
-            path1 = FilePath(self.mktemp())
-            path1.makedirs()
-            path2 = FilePath(self.mktemp())
-            path2.makedirs()
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            volumes=[
+                Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
+                Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
+            expected_states=(u'inactive',),
+        )
 
-            d = self.start_container(
-                unit_name=unit_name,
-                image_name=image_name,
-                volumes=[
-                    Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
-                    Volume(
-                        node_path=path2, container_path=FilePath(b"/mnt2"))],
-                expected_states=(u'inactive',),
-            )
-            return d.addCallback(lambda _: (path1, path2))
-        d.addCallback(image_built)
-
-        def started((path1, path2)):
+        def started(_):
             expected1 = path1.child(b"a")
             expected2 = path2.child(b"b")
             for i in range(100):
@@ -626,7 +626,8 @@ class GenericDockerClientTests(TestCase):
                 else:
                     time.sleep(0.1)
             self.fail("Files never created.")
-        return d.addCallback(started)
+        d.addCallback(started)
+        return d
 
     def test_add_with_memory_limit(self):
         """
@@ -700,36 +701,31 @@ class GenericDockerClientTests(TestCase):
             container was started.
         """
         docker_dir = FilePath(__file__).sibling('retry-docker')
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+
         name = random_name(self)
+
         data = FilePath(self.mktemp())
         data.makedirs()
         count = data.child('count')
         count.setContent("0")
         marker = data.child('marker')
 
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        d = image.build()
+        if mode == u"success-then-sleep":
+            expected_states = (u'active',)
+        else:
+            expected_states = (u'inactive',)
 
-        def image_built(image_name):
-            if mode == u"success-then-sleep":
-                expected_states = (u'active',)
-            else:
-                expected_states = (u'inactive',)
-
-            return self.start_container(
-                name, image_name=image_name,
-                restart_policy=restart_policy,
-                environment=Environment(variables={u'mode': mode}),
-                volumes=[
-                    Volume(node_path=data, container_path=FilePath(b"/data"))],
-                expected_states=expected_states)
-        d.addCallback(image_built)
+        d = self.start_container(
+            name, image_name=image_name,
+            restart_policy=restart_policy,
+            environment=Environment(variables={u'mode': mode}),
+            volumes=[
+                Volume(node_path=data, container_path=FilePath(b"/data"))],
+            expected_states=expected_states)
 
         if mode == u"success-then-sleep":
-            # TODO: if the `run` script fails for any reason,
-            # then this will loop forever.
-
-            # TODO: use the "wait for predicate" helper
             def wait_for_marker(_):
                 while not marker.exists():
                     time.sleep(0.01)

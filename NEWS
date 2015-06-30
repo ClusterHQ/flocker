@@ -1,14 +1,5 @@
-Flocker 1.0.1 (2015-06-20)
-==========================
-
-- Fixed a bug where EBS volumes were mapped to the wrong device and therefore mounted in the wrong location. (FLOC-2329).
-- Added additional safety checks when formatting devices. (FLOC-2356)
-- ClusterHQ Labs documentation. (FLOC-2032)
-- Fixed error handling for ``in_parallel`` ``IStateChanges``. (FLOC-2327)
-- Clarify ``flocker-dataset-agent`` configuration documentation. (FLOC-2210)
-
-Flocker 1.0.0 (2015-06-15)
-==========================
+Flocker 0.4.1dev4 (2015-06-08)
+==============================
 
 - It is now necessary to specify a dataset backend for each agent node. (FLOC-1420)
 - Flocker-initiated communication is secured with TLS. (FLOC-1441)
@@ -27,7 +18,6 @@ Flocker 1.0.0 (2015-06-15)
 - Fixed a bug with prompts displaying incorrectly in some browsers. (FLOC-2102)
 - Allow third party dataset backend plugins. (FLOC-2111)
 - Fixed a bug which caused mkfs to hang on Ubuntu. (FLOC-2041)
-- Removed support for ``flocker-node`` on Fedora 20. (FLOC-2122)
 
 Flocker 0.4.0 (2015-04-07)
 ==========================

@@ -8,7 +8,7 @@ MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["yum", "groupinstall", "--assumeyes", "Development Tools"]
 RUN ["yum", "install", "--assumeyes", "epel-release"]
 RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "libffi-devel", "openssl-devel", "python-pip", "rpmlint"]
-# Despite being a packaging tool, fpm isn't yet packaged for CentOS.
+# Despite being a packaging tool, fpm isn't yet packaged for Fedora.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
 COPY requirements.txt /tmp/

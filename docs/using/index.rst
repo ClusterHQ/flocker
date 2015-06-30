@@ -18,7 +18,7 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    :maxdepth: 2
 
    installing/index
-   authentication
+   security
    config/index
    administering/index
    tutorial/index

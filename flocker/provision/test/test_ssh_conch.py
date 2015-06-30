@@ -17,8 +17,6 @@ from .._ssh._conch import make_dispatcher, RUN_OUTPUT_MESSAGE
 
 from flocker.testtools.ssh import create_ssh_server, create_ssh_agent
 
-skip = "See FLOC-1883. These tests don't properly clean up the reactor."
-
 
 class Tests(TestCase):
     """
@@ -78,8 +76,7 @@ class Tests(TestCase):
         return d
 
     @capture_logging(
-        assertHasMessage, RUN_OUTPUT_MESSAGE,
-        {'line': 'test_ssh_conch:test_run_logs_stdout'})
+        assertHasMessage, RUN_OUTPUT_MESSAGE, {'line': 'hello'})
     def test_run_logs_stdout(self, logger):
         """
         The ``Run`` intent logs the standard output of the specified command.
@@ -88,7 +85,7 @@ class Tests(TestCase):
             username="root",
             address=str(self.server.ip),
             port=self.server.port,
-            commands=run("echo test_ssh_conch:test_run_logs_stdout 1>&2"),
+            commands=run("echo hello 1>&2"),
         )
 
         d = perform(
@@ -98,8 +95,7 @@ class Tests(TestCase):
         return d
 
     @capture_logging(
-        assertHasMessage, RUN_OUTPUT_MESSAGE,
-        {'line': 'test_ssh_conch:test_run_logs_stderr'})
+        assertHasMessage, RUN_OUTPUT_MESSAGE, {'line': 'hello'})
     def test_run_logs_stderr(self, logger):
         """
         The ``Run`` intent logs the standard output of the specified command.
@@ -108,7 +104,7 @@ class Tests(TestCase):
             username="root",
             address=str(self.server.ip),
             port=self.server.port,
-            commands=run("echo test_ssh_conch:test_run_logs_stderr 1>&2"),
+            commands=run("echo hello 1>&2"),
         )
 
         d = perform(

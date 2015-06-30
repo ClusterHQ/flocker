@@ -3,11 +3,6 @@ from pyrsistent import PRecord, field
 from effect import Effect
 
 
-def identity(arg):
-    """Return argument untouched."""
-    return arg
-
-
 class RunRemotely(PRecord):
     """
     Run some commands on a remote host.
@@ -16,18 +11,14 @@ class RunRemotely(PRecord):
     :ivar bytes username: The user to connect as.
     :ivar Effect commands: The commands to run.
     :ivar int port: The port of the ssh server to connect to.
-    :ivar callable log_command_filter: A filter to apply to any logging
-        of the executed command.
     """
     username = field(type=bytes, mandatory=True)
     address = field(type=bytes, mandatory=True)
     commands = field(type=Effect, mandatory=True)
     port = field(type=int, initial=22)
-    log_command_filter = field(mandatory=True)
 
 
-def run_remotely(
-        username, address, commands, port=22, log_command_filter=identity):
+def run_remotely(username, address, commands, port=22):
     """
     Run some commands on a remote host.
 
@@ -35,14 +26,11 @@ def run_remotely(
     :param bytes username: The user to connect as.
     :param Effect commands: The commands to run.
     :param int port: The port of the ssh server to connect to.
-    :param callable log_command_filter: A filter to apply to any logging
-        of the executed command.
 
     :return Effect:
     """
     return Effect(RunRemotely(
-        username=username, address=address, commands=commands, port=port,
-        log_command_filter=log_command_filter))
+        username=username, address=address, commands=commands, port=port))
 
 
 class Run(PRecord):
@@ -50,17 +38,12 @@ class Run(PRecord):
     Run a shell command on a remote host.
 
     :ivar bytes command: The command to run.
-    :ivar callable log_command_filter: A filter to apply to any logging
-        of the executed command.
     """
     command = field(type=bytes, mandatory=True)
-    log_command_filter = field(mandatory=True)
 
     @classmethod
-    def from_args(cls, command_args, log_command_filter=identity):
-        return cls(
-            command=" ".join(map(shell_quote, command_args)),
-            log_command_filter=log_command_filter)
+    def from_args(cls, command_args):
+        return cls(command=" ".join(map(shell_quote, command_args)))
 
 
 class Sudo(PRecord):
@@ -68,17 +51,12 @@ class Sudo(PRecord):
     Run a shell command on a remote host with sudo.
 
     :ivar bytes command: The command to run.
-    :ivar callable log_command_filter: A filter to apply to any logging
-        of the executed command.
     """
     command = field(type=bytes, mandatory=True)
-    log_command_filter = field(mandatory=True)
 
     @classmethod
-    def from_args(cls, command_args, log_command_filter=identity):
-        return cls(
-            command=" ".join(map(shell_quote, command_args)),
-            log_command_filter=log_command_filter)
+    def from_args(cls, command_args):
+        return cls(command=" ".join(map(shell_quote, command_args)))
 
 
 class Put(PRecord):
@@ -87,12 +65,9 @@ class Put(PRecord):
 
     :ivar bytes content: The desired contents.
     :ivar bytes path: The remote path to create.
-    :ivar callable log_content_filter: A filter to apply to any logging
-        of the transferred content.
     """
     content = field(type=bytes, mandatory=True)
     path = field(type=bytes, mandatory=True)
-    log_content_filter = field(mandatory=True)
 
 
 class Comment(PRecord):
@@ -104,43 +79,36 @@ class Comment(PRecord):
     comment = field(type=bytes, mandatory=True)
 
 
-def run(command, log_command_filter=identity):
+def run(command):
     """
     Run a shell command on a remote host.
 
     :param bytes command: The command to run.
-    :param callable log_command_filter: A filter to apply to any logging
-        of the executed command.
     """
-    return Effect(Run(command=command, log_command_filter=log_command_filter))
+    return Effect(Run(command=command))
 
 
-def sudo(command, log_command_filter=identity):
+def sudo(command):
     """
     Run a shell command on a remote host with sudo.
 
     :param bytes command: The command to run.
-    :param callable log_command_filter: A filter to apply to any logging
-        of the executed command.
 
     :return Effect:
     """
-    return Effect(Sudo(command=command, log_command_filter=log_command_filter))
+    return Effect(Sudo(command=command))
 
 
-def put(content, path, log_content_filter=identity):
+def put(content, path):
     """
     Create a file with the given content on a remote host.
 
     :param bytes content: The desired contents.
     :param bytes path: The remote path to create.
-    :param callable log_content_filter: A filter to apply to any logging
-        of the transferred content.
 
     :return Effect:
     """
-    return Effect(Put(
-        content=content, path=path, log_content_filter=log_content_filter))
+    return Effect(Put(content=content, path=path))
 
 
 def comment(comment):
@@ -154,31 +122,25 @@ def comment(comment):
     return Effect(Comment(comment=comment))
 
 
-def run_from_args(command, log_command_filter=identity):
+def run_from_args(command):
     """
     Run a command on a remote host. This quotes the provided arguments, so they
     are not interpreted by the shell.
 
     :param list command: The command to run.
-    :param callable log_command_filter: A filter to apply to any logging
-        of the executed command.
 
     :return Effect:
     """
-    return Effect(
-        Run.from_args(command, log_command_filter=log_command_filter))
+    return Effect(Run.from_args(command))
 
 
-def sudo_from_args(command, log_command_filter=identity):
+def sudo_from_args(command):
     """
     Run a command on a remote host with sudo. This quotes the provided
     arguments, so they are not interpreted by the shell.
 
     :param list command: The command to run.
-    :param callable log_command_filter: A filter to apply to any logging
-        of the executed command.
 
     :return Effect:
     """
-    return Effect(
-        Sudo.from_args(command, log_command_filter=log_command_filter))
+    return Effect(Sudo.from_args(command))

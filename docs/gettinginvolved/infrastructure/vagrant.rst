@@ -69,8 +69,10 @@ If you pass a ``--branch`` argument to :file:`build`, then it will use the RPMs 
 Legacy
 ^^^^^^
 
-Metadata for Vagrant boxes was hosted on `Atlas <https://atlas.hashicorp.com>`_.
+Metadata for Vagrant boxes was hosted on `Atlas`_.
 
 The Vagrant boxes were hosted on Google Cloud Storage.
 
 The development box used to be based on Fedora 20.
+
+.. _`Atlas`: https://atlas.hashicorp.com/vagrant

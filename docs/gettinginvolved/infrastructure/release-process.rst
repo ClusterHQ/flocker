@@ -21,13 +21,13 @@ By the end of the release process we will have:
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
 For a maintenance or documentation release, we will have:
 
 - a tag in version control,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
 
 
 Prerequisites
@@ -45,7 +45,7 @@ Software
 
      vagrant plugin install vagrant-scp
 
-.. _`Vagrant`: https://docs.vagrantup.com/v2/
+.. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 
 Access
@@ -55,8 +55,6 @@ Access
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
 - SSH access to ClusterHQ's GitHub repositories.
-
-- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
 .. _preparing-for-a-release:
 
@@ -117,9 +115,9 @@ Preparing For a Release
       # The following command means that you will not be asked whether
       # you want to continue connecting
       ssh-keyscan github.com >> ~/.ssh/known_hosts
-      git clone git@github.com:ClusterHQ/flocker.git
-      cd flocker
-      mkvirtualenv flocker-release
+      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      cd flocker-${VERSION}
+      mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
       admin/create-release-branch --flocker-version="${VERSION}"
 
@@ -173,8 +171,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git config push.default current
-      git push
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
@@ -207,7 +204,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/publish-docs --doc-version ${VERSION}
+      ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
 
 #. Check that the staging documentation is set up correctly:
 
@@ -217,7 +214,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/test-redirects --doc-version ${VERSION}
+      ~/flocker-${VERSION}/admin/test-redirects --doc-version ${VERSION}
 
 #. Make a pull request on GitHub:
 
@@ -231,7 +228,7 @@ Preparing For a Release
 Pre-tag Review Process
 ----------------------
 
-A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
+A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
 
 .. note::
@@ -240,24 +237,22 @@ So it is important to check that the code in the release branch is working befor
 
 #. Check the changes in the Pull Request:
 
-   * The NEWS file has suitable changes.
-   * The release notes at :file:`docs/releasenotes/index.rst` should be up to date.
-   * The build should be passing to the team's satisfaction.
-     See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
+   The "Files changed" should include changes to NEWS and Release Notes.
+   For some releases it may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
+   These fixes or documentation changes may have to be merged into ``master`` in order to merge the release branch into ``master``.
+   This should either block the acceptance of the release branch, or the team should discuss a workaround for that particular situation.
 
-   For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release branch was created,
-   for example a previous pre-release.
-   These fixes can be ignored in this review.
+#. Update GitHub:
 
-#. Update GitHub and JIRA:
+   If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
 
-   If there were no problems spotted while checking the changes, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>`.
-   Do not merge the Pull Request as this should happen after the branch has been tagged.
-   Accept the JIRA issue, and add a comment that the release process can continue.
+#. Merge the release pull request.
+   Do not delete the release branch because it may be used as a base branch for future releases.
 
-   If a problem was spotted, add comments to the Pull Request for each problem, and comment that they must be resolved before repeating this review process.
-   Reject the JIRA issue and assign it to the release engineer.
+#.  Reject the JIRA issue.
 
+    This is necessary because the release process is not "Done" even though no further changes will be made on the branch.
 
 .. _release:
 
@@ -276,8 +271,8 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      cd flocker
-      workon flocker-release
+      cd flocker-${VERSION}
+      workon flocker-release-${VERSION}
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
@@ -305,7 +300,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/test-redirects --production
+      ~/flocker-${VERSION}/admin/test-redirects --production
 
 #. (Optional) Copy the AWS configuration to your local home directory:
 
@@ -316,9 +311,6 @@ Release
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
       $ vagrant scp default:/home/vagrant/.aws ~/
-
-#. Merge the release pull request.
-   Do not delete the release branch because it may be used as a base branch for future releases.
 
 
 Improving the Release Process

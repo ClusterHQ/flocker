@@ -35,7 +35,7 @@ class PackageTypes(Values):
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('centos',),
+    PackageTypes.RPM: ('fedora', 'centos'),
     PackageTypes.DEB: ('ubuntu',),
 }
 
@@ -108,6 +108,7 @@ class Distribution(object):
         return ARCH['native'][self.package_type()]
 
 DISTRIBUTION_NAME_MAP = {
+    'fedora-20': Distribution(name="fedora", version="20"),
     'centos-7': Distribution(name="centos", version="7"),
     'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
     'ubuntu-15.04': Distribution(name="ubuntu", version="15.04"),
@@ -218,6 +219,16 @@ class Dependency(object):
 # The minimum required version of Docker. The package names vary between
 # operating systems and are supplied later.
 DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
+# This ensures that servers with the broken docker-io-1.4.1 package get
+# upgraded when Flocker is installed.
+# See https://bugzilla.redhat.com/show_bug.cgi?id=1185423
+# The working 1.4.1-8 package is temporarily being hosted in the ClusterHQ
+# repo, but will soon be backported to Fedora20.
+# See https://admin.fedoraproject.org/updates/docker-io-1.4.1-8.fc20
+# In future this specific minimum version dependency can be removed.
+# See https://clusterhq.atlassian.net/browse/FLOC-1293
+FedoraDockerDependency = partial(
+    Dependency, package='docker-io', compare='>=', version='1.4.1-8.fc20')
 
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
 # code base.  ``clusterhq-flocker-cli`` and ``clusterhq-flocker-node`` are meta
@@ -227,6 +238,9 @@ DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
 # dependency package names and versions on various platforms.
 DEPENDENCIES = {
     'python': {
+        'fedora': (
+            Dependency(package='python'),
+        ),
         'centos': (
             Dependency(package='python'),
         ),
@@ -235,6 +249,11 @@ DEPENDENCIES = {
         ),
     },
     'node': {
+        'fedora': (
+            FedoraDockerDependency(),
+            Dependency(package='/usr/sbin/iptables'),
+            Dependency(package='openssh-clients'),
+        ),
         'centos': (
             DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
@@ -248,6 +267,9 @@ DEPENDENCIES = {
         ),
     },
     'cli': {
+        'fedora': (
+            Dependency(package='openssh-clients'),
+        ),
         'centos': (
             Dependency(package='openssh-clients'),
         ),
@@ -916,7 +938,7 @@ def omnibus_package_builder(
                 destination_path=destination_path,
                 source_paths={
                     flocker_node_path: FilePath("/usr/sbin"),
-                    # CentOS firewall configuration
+                    # Fedora/CentOS firewall configuration
                     package_files.child('firewalld-services'):
                         FilePath("/usr/lib/firewalld/services/"),
                     # Ubuntu firewall configuration

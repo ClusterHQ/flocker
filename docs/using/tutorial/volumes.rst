@@ -40,7 +40,7 @@ The application has moved but the data has been left behind.
 The Solution
 ============
 
-Unlike many other Docker frameworks Flocker has a solution for this problem, a data volume manager.
+Unlike many other Docker frameworks Flocker has a solution for this problem, a ZFS-based volume manager.
 An application with a Flocker volume configured will move the data along with the application, transparently and with no additional intervention on your part.
 
 We'll create a new configuration for the cluster, this time adding a volume to the MongoDB container.

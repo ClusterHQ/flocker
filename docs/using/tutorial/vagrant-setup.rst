@@ -93,11 +93,6 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    This will also require you to start the node services manually.
    Therefore if your IP addresses conflict with the tutorial, please see the full :doc:`installation instructions <../installing/index>` for more information.
 
-.. warning::
-
-   On some versions of Vagrant and VirtualBox, restarting the tutorial virtual machines via the ``vagrant halt`` and ``vagrant up`` commands can result in losing the static IP configuration, making the nodes unreachable on the assigned ``172.15.255.25x`` addresses.
-   In this case you should destroy and recreate the machines with the ``vagrant destroy`` and ``vagrant up`` commands.
-
 .. note:: The two virtual machines are each assigned a 10GB virtual disk.
           The underlying disk files grow to about 5GB.
           So you will need at least 10GB of free disk space on your workstation.
@@ -277,7 +272,7 @@ Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagra
 The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
 
 .. _`Homebrew`: http://brew.sh/
-.. _`Vagrant`: https://docs.vagrantup.com/v2/
+.. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
 .. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568

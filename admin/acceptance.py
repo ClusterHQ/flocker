@@ -6,7 +6,6 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
-import json
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -80,15 +79,11 @@ def get_trial_environment(cluster):
     """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
-        'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': str(len(cluster.agent_nodes)),
+        'FLOCKER_ACCEPTANCE_AGENT_NODES':
+            ':'.join(node.address for node in cluster.agent_nodes),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
         'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
             cluster.certificates_path.path,
-        'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': json.dumps({
-            node.private_address: node.address
-            for node in cluster.agent_nodes
-            if node.private_address is not None
-        }),
     }
 
 
@@ -278,8 +273,7 @@ def configured_cluster_for_nodes(
     Get a ``Cluster`` with Flocker services running on the right nodes.
 
     :param reactor: The reactor.
-    :param Certificates certificates: The certificates to install on the
-        cluster.
+    :param Certificates certificates: The certificates to install on the cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
     :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
         representing the dataset backend that the nodes will be configured to
@@ -363,13 +357,12 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        certificates = Certificates(self.certificates_path)
-        cluster = Cluster(
-            all_nodes=pvector(nodes),
-            control_node=nodes[0],
-            agent_nodes=nodes,
-            dataset_backend=self.dataset_backend,
-            certificates=certificates
+        cluster = yield configured_cluster_for_nodes(
+            reactor,
+            Certificates(self.certificates_path),
+            nodes,
+            self.dataset_backend,
+            self.dataset_backend_configuration,
         )
 
         returnValue(cluster)
@@ -476,7 +469,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
+DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
 
 
 class RunOptions(Options):
@@ -740,7 +733,6 @@ class RunOptions(Options):
 
                aws:
                  region: <aws region, e.g. "us-west-2">
-                 zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
                  keyname: <ssh-key-name>
@@ -776,10 +768,7 @@ def eliot_output(message):
 
     format = ''
     if message_type is not None:
-        if message_type == 'twisted:log' and message.get('error'):
-            format = '%(message)s'
-        else:
-            format = MESSAGE_FORMATS.get(message_type, '')
+        format = MESSAGE_FORMATS.get(message_type, '')
     elif action_type is not None:
         if action_status == 'started':
             format = ACTION_START_FORMATS.get('action_type', '')
@@ -861,7 +850,7 @@ def main(reactor, args, base_path, top_level):
     try:
         cluster = yield runner.start_cluster(reactor)
 
-        if options['distribution'] in ('centos-7',):
+        if options['distribution'] in ('fedora-20', 'centos-7'):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)
@@ -903,8 +892,7 @@ def main(reactor, args, base_path, top_level):
                 for environment_variable in environment_variables:
                     print "export {name}={value};".format(
                         name=environment_variable,
-                        value=shell_quote(
-                            environment_variables[environment_variable]),
+                        value=environment_variables[environment_variable],
                     )
 
     raise SystemExit(result)

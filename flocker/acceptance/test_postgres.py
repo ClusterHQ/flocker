@@ -35,6 +35,24 @@ POSTGRES_APPLICATION_NAME = u"postgres-volume-example"
 POSTGRES_IMAGE = u"postgres"
 POSTGRES_VOLUME_MOUNTPOINT = u'/var/lib/postgresql/data'
 
+POSTGRES_APPLICATION = Application(
+    name=POSTGRES_APPLICATION_NAME,
+    image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
+    ports=frozenset([
+        Port(internal_port=POSTGRES_INTERNAL_PORT,
+             external_port=POSTGRES_EXTERNAL_PORT),
+        ]),
+    volume=AttachedVolume(
+        manifestation=Manifestation(
+            dataset=Dataset(
+                dataset_id=unicode(uuid4()),
+                metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
+            primary=True),
+        mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
+    ),
+)
+
 
 class PostgresTests(TestCase):
     """
@@ -50,39 +68,19 @@ class PostgresTests(TestCase):
 
         self.node_1, self.node_2 = cluster.nodes
 
-        new_dataset_id = unicode(uuid4())
-
-        self.POSTGRES_APPLICATION = Application(
-            name=POSTGRES_APPLICATION_NAME,
-            image=DockerImage.from_string(POSTGRES_IMAGE + u':latest'),
-            ports=frozenset([
-                Port(internal_port=POSTGRES_INTERNAL_PORT,
-                     external_port=POSTGRES_EXTERNAL_PORT),
-                ]),
-            volume=AttachedVolume(
-                manifestation=Manifestation(
-                    dataset=Dataset(
-                        dataset_id=new_dataset_id,
-                        metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
-                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
-                    primary=True),
-                mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
-            ),
-        )
-
-        self.postgres_deployment = {
+        postgres_deployment = {
             u"version": 1,
             u"nodes": {
-                self.node_1.reported_hostname: [POSTGRES_APPLICATION_NAME],
-                self.node_2.reported_hostname: [],
+                self.node_1.address: [POSTGRES_APPLICATION_NAME],
+                self.node_2.address: [],
             },
         }
 
         self.postgres_deployment_moved = {
             u"version": 1,
             u"nodes": {
-                self.node_1.reported_hostname: [],
-                self.node_2.reported_hostname: [POSTGRES_APPLICATION_NAME],
+                self.node_1.address: [],
+                self.node_2.address: [POSTGRES_APPLICATION_NAME],
             },
         }
 
@@ -96,7 +94,8 @@ class PostgresTests(TestCase):
                         u"external": POSTGRES_EXTERNAL_PORT,
                     }],
                     u"volume": {
-                        u"dataset_id": new_dataset_id,
+                        u"dataset_id":
+                            POSTGRES_APPLICATION.volume.dataset.dataset_id,
                         # The location within the container where the data
                         # volume will be mounted; see:
                         # https://github.com/docker-library/postgres/blob/
@@ -114,15 +113,8 @@ class PostgresTests(TestCase):
                 [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                  u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
-        cluster.flocker_deploy(
-            self, self.postgres_deployment, self.postgres_application
-        )
-        # We're only testing movement if we actually wait for Postgres to
-        # be running before proceeding with test:
-        return self.cluster.assert_expected_deployment(self, {
-            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
-            self.node_2.reported_hostname: set([]),
-        })
+        cluster.flocker_deploy(self, postgres_deployment,
+                               self.postgres_application)
 
     def test_deploy(self):
         """
@@ -130,8 +122,8 @@ class PostgresTests(TestCase):
         not another.
         """
         return self.cluster.assert_expected_deployment(self, {
-            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
-            self.node_2.reported_hostname: set([]),
+            self.node_1.address: set([POSTGRES_APPLICATION]),
+            self.node_2.address: set([]),
         })
 
     @require_moving_backend
@@ -143,8 +135,8 @@ class PostgresTests(TestCase):
             self, self.postgres_deployment_moved, self.postgres_application)
 
         return self.cluster.assert_expected_deployment(self, {
-            self.node_1.reported_hostname: set([]),
-            self.node_2.reported_hostname: set([self.POSTGRES_APPLICATION]),
+            self.node_1.address: set([]),
+            self.node_2.address: set([POSTGRES_APPLICATION]),
         })
 
     def _get_postgres_connection(self, host, user, port, database=None):
@@ -178,7 +170,7 @@ class PostgresTests(TestCase):
         user = b'postgres'
 
         connecting_to_application = self._get_postgres_connection(
-            host=self.node_1.public_address,
+            host=self.node_1.address,
             user=user,
             port=POSTGRES_EXTERNAL_PORT,
         )
@@ -194,7 +186,7 @@ class PostgresTests(TestCase):
 
         def connect_to_database(ignored):
             return self._get_postgres_connection(
-                host=self.node_1.public_address,
+                host=self.node_1.address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT,
                 database=database,
@@ -228,7 +220,7 @@ class PostgresTests(TestCase):
                 self.postgres_application_different_port)
 
             return self._get_postgres_connection(
-                host=self.node_2.public_address,
+                host=self.node_2.address,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT + 1,
                 database=database,

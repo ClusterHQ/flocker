@@ -10,7 +10,6 @@ Btrfs
 bugfix
 Buildbot
 CentOS
-centric
 checksum
 chmod
 cli
@@ -24,7 +23,6 @@ Deis
 devel
 DigitalOcean
 dropdown
-Dockerized
 failover
 filename
 filesystem
@@ -41,9 +39,7 @@ handoffs
 hoc
 Homebrew
 hostname
-init
 installable
-integrations
 internet
 invalidations
 Kubernetes
@@ -52,7 +48,6 @@ lifecycle
 loopback
 Mesos
 metadata
-microservice
 microservices
 mountpoint
 multi
@@ -60,7 +55,6 @@ mv
 namespace
 NAT'd
 online
-OpenStack
 pem
 petabyte
 petabytes
@@ -71,13 +65,11 @@ pre
 programmatically
 proxied
 proxying
-Quickstart
 Rackspace
 Redis
 redis
 resize
 routable
-roadmap
 snapshotting
 stateful
 sysadmin
@@ -93,7 +85,6 @@ virtualization
 VMware
 webhook
 workflow
-Weaveworks
 yml
 yourlaptop
 ZFS
