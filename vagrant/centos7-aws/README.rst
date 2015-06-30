@@ -49,6 +49,7 @@ Usage:
 
 .. code-block:: bash
 
+    $ export SOURCE_PATH=~/gits/flocker
     $ fab rsync
 |
 |
