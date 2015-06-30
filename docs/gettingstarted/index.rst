@@ -185,20 +185,20 @@ Getting started with Flocker
 
          .. Create the files to be downloaded with curl, but don't show download links for them
 
-         :download:`fig.yml`
+         :download:`docker-compose.yml`
          :download:`deployment-node1.yml`
          :download:`deployment-node2.yml`
 
       .. version-code-block:: console
 
-         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/fig.yml
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/docker-compose.yml
          you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/deployment-node1.yml
          you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/deployment-node2.yml
 
-      fig.yml
-      -------
+      docker-compose.yml
+      ------------------
 
-      .. literalinclude:: fig.yml
+      .. literalinclude:: docker-compose.yml
          :language: yaml
 
       deployment-node1.yml
@@ -207,13 +207,13 @@ Getting started with Flocker
       .. literalinclude:: deployment-node1.yml
          :language: yaml
 
-      The ``fig.yml`` file describes your distributed application.
+      The ``docker-compose.yml`` file describes your distributed application.
       The ``deployment-node1.yml`` file describes which containers to deploy where.
       If you are using real servers on AWS, you'll need to change the IP addresses in the deployment file.
 
       .. code-block:: console
 
-         you@laptop:~$ flocker-deploy 172.16.255.250 deployment-node1.yml fig.yml
+         you@laptop:~$ flocker-deploy 172.16.255.250 deployment-node1.yml docker-compose.yml
 
       Now load http://172.16.255.250/ in a web browser or the external IP of one of your AWS nodes.
       It works!
@@ -241,7 +241,7 @@ Getting started with Flocker
 
       .. code-block:: console
 
-         you@laptop:~$ flocker-deploy 172.16.255.250 deployment-node2.yml fig.yml
+         you@laptop:~$ flocker-deploy 172.16.255.250 deployment-node2.yml docker-compose.yml
 
       .. image:: images/migration.png
          :class: img-responsive img-spaced

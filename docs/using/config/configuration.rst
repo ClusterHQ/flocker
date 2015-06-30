@@ -168,15 +168,15 @@ Here's an example of a simple but complete configuration defining one applicatio
 
 .. _fig-compatible-config:
 
-Fig-compatible Application Configuration
-----------------------------------------
+Docker-compose Compatible Application Configuration
+---------------------------------------------------
 
-As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s configuration syntax to define applications.
+As an alternative to Flocker's configuration syntax, you may also use `docker-compose`_'s configuration syntax to define applications.
 
 .. note::
 
-   Flocker does not yet support the entire range of configuration directives available in Fig.
-   The parameters currently supported to define an application in Fig syntax are:
+   Flocker does not yet support the entire range of configuration directives available in docker-compose.
+   The parameters currently supported to define an application in docker-compose syntax are:
 
 - ``image``
 
@@ -264,7 +264,7 @@ As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s c
   .. warning::
 
      Flocker only supports one volume per container at this time.
-     Therefore if using a Fig compatible configuration, the ``volumes`` list should contain only one entry.
+     Therefore if using a docker-compose compatible configuration, the ``volumes`` list should contain only one entry.
 
   The value for an entry in this list must be a string giving an absolute path.
 
@@ -281,7 +281,7 @@ As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s c
 
      "mem_limit": 100000000
 
-Here's a complete example of a Fig compatible application configuration for Flocker:
+Here's a complete example of a docker-compose compatible application configuration for Flocker:
 
 .. code-block:: yaml
 
@@ -314,5 +314,5 @@ Here's an example of a simple but complete configuration defining a deployment o
     "node017.example.com":
       "site-clusterhq.com"
 
-.. _`Fig`: http://www.fig.sh/yml.html
+.. _`docker-compose`: http://docs.docker.com/compose/yml/
 .. _`Docker Run reference`: http://docs.docker.com/reference/run/#runtime-constraints-on-cpu-and-memory
