@@ -1,8 +1,9 @@
-.. _authenticate:
+.. _api-authentication:
 
-==============
-Authentication
-==============
+==================
+API Authentication
+==================
+
 
 The Flocker REST API uses TLS to secure and authenticate requests.
 This ensures an API request is both encrypted, and verified to have come from an authorised user, while the corresponding response is verified to have come from the genuine cluster control service.
