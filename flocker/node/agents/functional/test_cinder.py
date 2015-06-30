@@ -108,7 +108,7 @@ class CinderHttpsTests(SynchronousTestCase):
     """
 
     @staticmethod
-    def _authenticates_ok(self, cinder_client):
+    def _authenticates_ok(cinder_client):
         """
         Check connection is authorized.
 
