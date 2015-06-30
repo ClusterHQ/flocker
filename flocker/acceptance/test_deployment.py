@@ -67,6 +67,9 @@ class DeploymentTests(TestCase):
         In other words, the defined volume quota size is preserved from one
         node to the next.
         """
+        raise SkipTest(
+            'Sometimes times out on acceptance/aws/centos-7/aws. '
+            'See FLOC-2555.')
         (node_1, node_1_uuid), (node_2, node_2_uuid) = [
             (node.reported_hostname, node.uuid) for node in cluster.nodes]
         mongo_dataset_id = unicode(uuid4())
