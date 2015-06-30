@@ -2,7 +2,8 @@
 Release Notes
 =============
 
-.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+See the :ref:`upgrading instructions <upgrading>` for information on upgrading Flocker clusters from earlier releases.
+If you have a Vagrant tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 You can learn more about where we might be going with future releases by:
 
@@ -12,7 +13,8 @@ You can learn more about where we might be going with future releases by:
 v1.0.2
 ======
 
-* On CentOS 7 Flocker logs are no longer written to /var/log/messages since this fills up disk space quickly and the logs are already available via journald.
+* On CentOS 7, Flocker logs are no longer written to /var/log/messages since this filled up disk space too quickly.
+  The logs are still available via journald.
 * The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes (FLOC-2467).
   See :ref:`restart policy<restart configuration>`.
 
