@@ -658,7 +658,7 @@ IGNORED_WARNINGS = {
         'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
 
         # rsyslog files are not installed as conffiles.
-        'file-in-etc-not-marked-as-conffile /etc/rsyslog.d/flocker.conf',
+        'file-in-etc-not-marked-as-conffile etc/rsyslog.d/flocker.conf',
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
