@@ -15,6 +15,7 @@ from uuid import uuid4
 from subprocess import (
     STDOUT, PIPE, Popen, check_call, check_output
 )
+from Queue import Queue
 
 from characteristic import attributes, with_cmp, with_repr
 
@@ -255,6 +256,7 @@ class Filesystem(object):
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
+        self._async_lzc = _async_lzc(self._reactor)
 
     def _exists(self):
         """
@@ -302,7 +304,7 @@ class Filesystem(object):
         # I'm just using UUIDs, and hopefully requirements will become
         # clearer as we iterate.
         snapshot = b"%s@%s" % (self.name, uuid4())
-        check_call([b"zfs", b"snapshot", snapshot])
+        libzfs_core.lzc_snapshot([snapshot])
 
         # Determine whether there is a shared snapshot which can be used as the
         # basis for an incremental send.
@@ -318,23 +320,29 @@ class Filesystem(object):
 
         latest_common_snapshot = _latest_common_snapshot(
             remote_snapshots, local_snapshots)
+        latest_common_name = None
+        if latest_common_snapshot is not None:
+            latest_common_name = b"%s@%s" % (self.name,
+                                             latest_common_snapshot.name)
 
-        if latest_common_snapshot is None:
-            identifier = [snapshot]
-        else:
-            identifier = [
-                b"-i",
-                u"{}@{}".format(
-                    self.name, latest_common_snapshot.name).encode("ascii"),
-                snapshot,
-            ]
+        (rfd, wfd) = os.pipe()
+        out = os.fdopen(rfd)
+        queue = Queue()
 
-        process = Popen([b"zfs", b"send"] + identifier, stdout=PIPE)
+        def send_and_close():
+            try:
+                libzfs_core.lzc_send(snapshot, latest_common_name, wfd)
+            finally:
+                os.close(wfd)
+                queue.put(None)
+
+        d = self._async_lzc.callDeferred(send_and_close)
+        d.addBoth(lambda _: None)
         try:
-            yield process.stdout
+            yield out
         finally:
-            process.stdout.close()
-            process.wait()
+            out.close()
+            queue.get()
 
     @contextmanager
     def writer(self):
@@ -350,27 +358,46 @@ class Filesystem(object):
             # a hack.  When we replace this mechanism with a proper API we
             # should make it include that information.
             #
-            # -F means force.  If the stream is based on not-quite-the-latest
+            # If the stream is based on not-quite-the-latest
             # snapshot then we have to throw away all the snapshots newer than
             # it in order to receive the stream.  To do that you have to
             # force.
             #
-            cmd = [b"zfs", b"receive", b"-F", self.name]
+            force = True
         else:
             # If the filesystem doesn't already exist then this is a complete
             # data stream.
-            cmd = [b"zfs", b"receive", self.name]
-        process = Popen(cmd, stdin=PIPE)
-        succeeded = False
+            force = False
+
+        (rfd, wfd) = os.pipe()
+        wfile = os.fdopen(wfd, "w")
+        queue = Queue()
+
+        def recv_and_close():
+            try:
+                libzfs_core.lzc_receive(self.name, rfd, force)
+                success = True
+            except Exception:
+                success = False
+            finally:
+                os.close(rfd)
+                queue.put(success)
+
+        d = self._async_lzc.callDeferred(recv_and_close)
+        d.addBoth(lambda _: None)
         try:
-            yield process.stdin
+            yield wfile
         finally:
-            process.stdin.close()
-            succeeded = not process.wait()
-        if succeeded:
-            check_call([b"zfs", b"set",
-                        b"mountpoint=" + self._mountpoint.path,
-                        self.name])
+            try:
+                wfile.close()
+            except:
+                pass
+            succeeded = queue.get()
+            if succeeded and not force:
+                # a new filesystem
+                libzfs_core.lzc_set_prop(self.name, b"mountpoint",
+                                         self._mountpoint.path)
+                check_call([b"zfs", b"mount", self.name])
 
 
 @implementer(IFilesystemSnapshots)
