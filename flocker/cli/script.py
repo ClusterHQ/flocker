@@ -171,7 +171,7 @@ class DeployScript(object):
                       "deployment": options["deployment_config"]})
 
         treq_client = treq_with_authentication(
-            reactor, options["cafile"], options["cert"], options["key"])
+            reactor, options["cacert"], options["cert"], options["key"])
         posted = treq_client.post(
             options["url"], data=body,
             headers={b"content-type": b"application/json"},
