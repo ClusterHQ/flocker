@@ -387,7 +387,7 @@ class UserCredential(PRecord):
     @classmethod
     def from_path(cls, path, username):
         """
-        Load a user certificate from a specified path.
+        Load a user certificate from a specified directory path.
 
         :param FilePath path: Directory where user certificate and key
             files are stored.

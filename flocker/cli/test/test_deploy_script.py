@@ -42,6 +42,30 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertEqual(options.parseOptions(
             [CONTROL_HOST, deploy.path, app.path])["port"], REST_API_PORT)
 
+    def test_cannot_mix_ca_path_options(self):
+        """
+        A ``UsageError`` is raised if the ``certificates-directory`` and any
+        of ``cacert``, ``cert`` or ``key`` options are mixed together.
+        """
+        options = self.options()
+        app = self.mktemp()
+        FilePath(app).touch()
+        deploy = self.mktemp()
+        FilePath(deploy).touch()
+        cacert_path = b"/path/to/cluster.crt"
+        certificates_directory = b"/path/to/certificates"
+        options["cacert"] = cacert_path
+        options["certificates-directory"] = certificates_directory
+        exception = self.assertRaises(UsageError, options.parseOptions,
+                                      [CONTROL_HOST, deploy, app])
+        self.assertEqual(
+            ("Cannot use --certificates-directory and --cacert options "
+             "together. Please specify either certificates directory or "
+             "full paths to each file via the --cacert, --cert and --key "
+             "options."),
+            str(exception)
+        )
+
     def test_ca_must_exist(self):
         """
         A ``UsageError`` is raised if the specified ``cafile`` cluster
@@ -53,7 +77,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         deploy = self.mktemp()
         FilePath(deploy).touch()
         credential_path = b"/path/to/non-existent-cluster.crt"
-        options["cafile"] = credential_path
+        options["cacert"] = credential_path
         exception = self.assertRaises(UsageError, options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         self.assertEqual(
@@ -74,7 +98,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         ca = self.mktemp()
         FilePath(ca).touch()
         credential_path = b"/path/to/non-existent-user.crt"
-        options["cafile"] = ca
+        options["cacert"] = ca
         options["cert"] = credential_path
         exception = self.assertRaises(UsageError, options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
@@ -98,7 +122,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         user_cert = self.mktemp()
         FilePath(user_cert).touch()
         credential_path = b"/path/to/non-existent-user.key"
-        options["cafile"] = ca
+        options["cacert"] = ca
         options["cert"] = user_cert
         options["key"] = credential_path
         exception = self.assertRaises(UsageError, options.parseOptions,
