@@ -350,12 +350,6 @@ class Filesystem(object):
             # a hack.  When we replace this mechanism with a proper API we
             # should make it include that information.
             #
-            # -e means "if the stream says it is for foo/bar/baz then receive
-            # into baz".  I don't know why self.name is also required,
-            # then. XXX try -d self.pool instead. XXX it works without -e w/
-            # self.name too. XXX Delete this paragraph if we go ahead with just
-            # `-F` in the implementation.
-            #
             # -F means force.  If the stream is based on not-quite-the-latest
             # snapshot then we have to throw away all the snapshots newer than
             # it in order to receive the stream.  To do that you have to
