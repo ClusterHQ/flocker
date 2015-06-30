@@ -385,11 +385,12 @@ class ZFSSnapshots(object):
 
     def __init__(self, reactor, filesystem):
         self._reactor = reactor
+        self._async_lzc = _async_lzc(self._reactor)
         self._filesystem = filesystem
 
     def create(self, name):
         encoded_name = b"%s@%s" % (self._filesystem.name, name)
-        d = zfs_command(self._reactor, [b"snapshot", encoded_name])
+        d = self._async_lzc.lzc_snapshot([encoded_name])
         d.addCallback(lambda _: None)
         return d
 

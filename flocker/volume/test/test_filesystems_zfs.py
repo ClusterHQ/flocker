@@ -24,7 +24,7 @@ from ...testtools import (
 
 from ..filesystems.zfs import (
     _DatasetInfo,
-    zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
+    zfs_command, CommandFailed, BadArguments, Filesystem,
     _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
     Snapshot,
 )
@@ -222,106 +222,6 @@ class SyncCommandTests(SynchronousTestCase):
             [b"python", b"-c", b""],
             Logger())
         self.assertIs(None, result)
-
-
-class ZFSSnapshotsTests(SynchronousTestCase):
-    """Unit tests for ``ZFSSnapshotsTests``."""
-
-    def test_create(self):
-        """
-        ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
-        given ``bytes`` as the snapshot name.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"pool", "fs"))
-        snapshots.create(b"myname")
-        arguments = reactor.processes[0]
-        self.assertEqual(arguments.args, [b"zfs", b"snapshot",
-                                          b"pool/fs@myname"])
-
-    def test_create_no_result_yet(self):
-        """
-        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does not
-        fire if the creation is unfinished.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        d = snapshots.create(b"name")
-        self.assertNoResult(d)
-
-    def test_create_result(self):
-        """
-        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
-        when creation has finished.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        d = snapshots.create(b"name")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), None)
-
-    def test_list(self):
-        """
-        ``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
-        name.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        snapshots.list()
-        self.assertEqual(reactor.processes[0].args,
-                         [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
-                          b"-o", b"name", b"-s", b"creation", b"mypool"])
-
-    def test_list_result_root_dataset(self):
-        """
-        ``ZFSSnapshots.list`` parses out the snapshot names of the root dataset
-        from the results of the command.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool@name\n")
-        process_protocol.childDataReceived(1, b"mypool@name2\n")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [b"name", b"name2"])
-
-    def test_list_result_child_dataset(self):
-        """
-        ``ZFSSnapshots.list`` parses out the snapshot names of a non-root
-        dataset from the results of the command.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", b"myfs"))
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool/myfs@name\n")
-        process_protocol.childDataReceived(1, b"mypool/myfs@name2\n")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [b"name", b"name2"])
-
-    def test_list_result_ignores_other_pools(self):
-        """
-        ``ZFSSnapshots.list`` skips snapshots of other pools.
-
-        In particular, we are likely to see snapshot names of sub-pools in
-        the output.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool/child@name\n")
-        process_protocol.childDataReceived(1, b"mypool@name2\n")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [b"name2"])
 
 
 class LatestCommonSnapshotTests(SynchronousTestCase):
