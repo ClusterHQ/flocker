@@ -13,6 +13,8 @@ v1.0.2
 ======
 
 * On CentOS 7 Flocker logs are no longer written to /var/log/messages since this fills up disk space quickly and the logs are already available via journald.
+* The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes (FLOC-2467).
+  See :ref:`restart policy<restart configuration>`.
 
 v1.0.1
 ======
