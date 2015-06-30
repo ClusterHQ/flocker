@@ -46,6 +46,7 @@ installable
 integrations
 internet
 invalidations
+journald
 Kubernetes
 libswarm
 lifecycle
