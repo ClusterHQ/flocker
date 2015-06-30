@@ -16,7 +16,6 @@ from zope.interface import implementer
 from characteristic import attributes
 from pyrsistent import PRecord, field
 
-from flocker.acceptance.testtools import DatasetBackend
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -411,6 +410,29 @@ def task_disable_selinux(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def _remove_private_key(content):
+    """
+    Remove most of the contents of a private key file for logging.
+    """
+    prefix = '-----BEGIN PRIVATE KEY-----'
+    suffix = '-----END PRIVATE KEY-----'
+    start = content.find(prefix)
+    if start < 0:
+        # no private key
+        return content
+    # Keep prefix, subsequent newline, and 4 characters at start of key
+    trim_start = start + len(prefix) + 5
+    end = content.find(suffix, trim_start)
+    if end < 0:
+        end = len(content)
+    # Keep suffix and previous 4 characters and newline at end of key
+    trim_end = end - 5
+    if trim_end <= trim_start:
+        # strangely short key, keep all content
+        return content
+    return content[:trim_start] + '...REMOVED...' + content[trim_end:]
+
+
 def task_install_control_certificates(ca_cert, control_cert, control_key):
     """
     Install certificates and private key required by the control service.
@@ -430,7 +452,8 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         put(path="/etc/flocker/control-service.crt",
             content=control_cert.getContent()),
         put(path="/etc/flocker/control-service.key",
-            content=control_key.getContent()),
+            content=control_key.getContent(),
+            log_content_filter=_remove_private_key),
         ])
 
 
@@ -453,7 +476,8 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
         put(path="/etc/flocker/node.crt",
             content=node_cert.getContent()),
         put(path="/etc/flocker/node.key",
-            content=node_key.getContent()),
+            content=node_key.getContent(),
+            log_content_filter=_remove_private_key),
         ])
 
 
@@ -543,17 +567,39 @@ def task_open_control_firewall(distribution):
     ])
 
 
-def task_enable_flocker_agent(distribution, control_node,
-                              dataset_backend=DatasetBackend.zfs,
-                              dataset_backend_configuration=dict(
-                                  pool=u'flocker'
-                              )):
+# Set of dataset fields which are *not* sensitive.  Only fields in this
+# set are logged.  This should contain everything except usernames and
+# passwords (or equivalents).  Implemented as a whitelist in case new
+# security fields are added.
+_ok_to_log = frozenset((
+    'auth_plugin',
+    'auth_url',
+    'backend',
+    'region',
+    'zone',
+    ))
+
+
+def _remove_dataset_fields(content):
     """
-    Configure and enable the flocker agents.
+    Remove non-whitelisted fields from dataset for logging.
+    """
+    content = yaml.safe_load(content)
+    dataset = content['dataset']
+    for key in dataset:
+        if key not in _ok_to_log:
+            dataset[key] = 'REMOVED'
+    return yaml.safe_dump(dataset)
+
+
+def task_configure_flocker_agent(control_node, dataset_backend,
+                                 dataset_backend_configuration):
+    """
+    Configure the flocker agents by writing out the configuration file.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with.  (This has a default for use in the documentation).
+        configured with.
     :param dict dataset_backend_configuration: The backend specific
         configuration options.
     """
@@ -574,10 +620,19 @@ def task_enable_flocker_agent(distribution, control_node,
                 "dataset": dataset_backend_configuration,
             },
         ),
+        log_content_filter=_remove_dataset_fields
     )
+    return sequence([put_config_file])
+
+
+def task_enable_flocker_agent(distribution):
+    """
+    Enable the flocker agents.
+
+    :param bytes distribution: The distribution name.
+    """
     if distribution in ('centos-7',):
         return sequence([
-            put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
             run_from_args(['systemctl', START, 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
@@ -585,7 +640,6 @@ def task_enable_flocker_agent(distribution, control_node,
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put_config_file,
             run_from_args(['service', 'flocker-dataset-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
@@ -1004,13 +1058,15 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
+                        task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
                             ),
+                        ),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
                         )]),
                     ),
             ]) for certnkey, node
