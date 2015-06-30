@@ -23,7 +23,7 @@ from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
-    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
+    pmap, PClass, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
     optional as optional_type, CheckedPVector,
     )
 
@@ -231,21 +231,21 @@ class IRestartPolicy(Interface):
 
 
 @implementer(IRestartPolicy)
-class RestartNever(PRecord):
+class RestartNever(PClass):
     """
     A restart policy that never restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-class RestartAlways(PRecord):
+class RestartAlways(PClass):
     """
     A restart policy that always restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-class RestartOnFailure(PRecord):
+class RestartOnFailure(PClass):
     """
     A restart policy that restarts an application when it fails.
 

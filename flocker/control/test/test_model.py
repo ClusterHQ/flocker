@@ -1460,3 +1460,16 @@ class LinkTests(SynchronousTestCase):
         link = Link(alias=u'myLINK', local_port=1, remote_port=1)
         link2 = link.set('alias', u'MYlink')
         self.assertEqual(link, link2)
+
+
+class RestartPolicyTests(SynchronousTestCase):
+    """
+    Tests for ``IRestartPolicy`` implementations.
+    """
+    def test_different_policies_not_equal(self):
+        """
+        Two restart policies of different types do not compare as equal.
+        """
+        never = RestartNever()
+        always = RestartAlways()
+        self.assertFalse(never == always)
