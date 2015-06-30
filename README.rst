@@ -17,6 +17,7 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
 
+
 About Us
 --------
 
@@ -35,6 +36,13 @@ Documentation
 You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ in the docs.
 
 
+Feature Requests
+----------------
+
+If you have any feature requests or suggestions, we would love to hear about them.
+Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
+
+
 Tests
 -----
 
@@ -47,7 +55,7 @@ You can run all of the tox environments using the command ``tox``.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
-.. _Twisted: https://twistedmatrix.com
+.. _Twisted: https://twistedmatrix.com/trac/
 .. _installing Flocker: https://docs.clusterhq.com/en/latest/using/installing/index.html
 .. _tutorial: https://docs.clusterhq.com/en/latest/using/tutorial/index.html
 .. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction/index.html
@@ -57,3 +65,5 @@ Flocker is also tested using `continuous integration`_.
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
+.. _UserVoice: https://feedback.clusterhq.com/
+.. _GitHub issue: https://github.com/clusterhq/flocker/issues

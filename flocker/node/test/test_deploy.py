@@ -27,7 +27,8 @@ from ..testtools import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState, DeploymentState, RestartAlways)
+    NodeState, DeploymentState, RestartNever, RestartAlways, RestartOnFailure
+)
 
 from .. import sequentially, in_parallel
 
@@ -39,7 +40,9 @@ from .._deploy import (
 )
 from ...testtools import CustomException
 from .. import _deploy
-from ...control._model import AttachedVolume, Dataset, Manifestation
+from ...control._model import (
+    AttachedVolume, Dataset, Manifestation,
+)
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
@@ -464,10 +467,13 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_restart_policy(self):
         """
-        ``StartApplication.run()`` passes an ``Application``'s restart_policy
-        to ``DockerClient.add`` which is used when creating a Unit.
+        ``StartApplication.run()`` passes ``RestartNever`` to
+        ``DockerClient.add`` which is used when creating a Unit.
+
+        It doesn't pass the ``Application``\ 's ``restart_policy`` because
+        ``RestartNever`` is the only implemented policy.  See FLOC-2449.
         """
-        policy = object()
+        policy = RestartAlways()
         fake_docker = FakeDockerClient()
         deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
@@ -482,10 +488,7 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          node_state=EMPTY_NODESTATE).run(deployer)
 
-        self.assertIs(
-            policy,
-            fake_docker._units[application_name].restart_policy,
-        )
+        self.assertEqual(policy, RestartNever())
 
     def test_command_line(self):
         """
@@ -1993,6 +1996,111 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
+
+    def _app_restart_policy_test(self, restart_state, restart_config,
+                                 expect_restart):
+        """
+        Verify that an application with a particular restart policy in its
+        state and in another (or the same) policy in its configuration is
+        either restarted or not.
+
+        :param IRestartPolicy restart_state: The policy to put into the
+            application state.
+        :param IRestartPolicy restart_config: The policy to put into the
+            application configuration.
+        :param bool expect_restart: ``True`` if the given combination must
+            provoke an application restart.  ``False`` if it must not.
+
+        :raise: A test-failing exception if the restart expection is not met.
+        """
+        app_state = APPLICATION_WITHOUT_VOLUME.set(
+            restart_policy=restart_state,
+        )
+        node_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.10",
+            applications={app_state}, used_ports=[],
+        )
+        app_config = app_state.set(
+            restart_policy=restart_config,
+        )
+        node_config = to_node(node_state.set(applications={app_config}))
+        if expect_restart:
+            expected_changes = restart(app_state, app_config, node_state)
+        else:
+            expected_changes = no_change()
+        assert_application_calculated_changes(
+            self, node_state, node_config, set(),
+            expected_changes,
+        )
+
+    def test_app_state_always_and_config_always_restarted(self):
+        """
+        Restart policies interact poorly with containers with volumes.  If an
+        application state is found with a restart policy other than "never",
+        even if the application configuration matches that restart policy, it
+        is restarted with the "never" policy.  See FLOC-2449.
+        """
+        self._app_restart_policy_test(RestartAlways(), RestartAlways(), True)
+
+    def test_app_state_always_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartAlways(), RestartOnFailure(maximum_retry_count=2), True,
+        )
+
+    def test_app_state_always_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartAlways(), RestartNever(), True)
+
+    def test_app_state_never_and_config_never_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartNever(), False)
+
+    def test_app_state_never_and_config_always_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartAlways(), False)
+
+    def test_app_state_never_and_config_failure_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartNever(), RestartOnFailure(maximum_retry_count=2), False,
+        )
+
+    def test_app_state_failure_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartNever(), True,
+        )
+
+    def test_app_state_failure_and_config_always_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartAlways(), True,
+        )
+
+    def test_app_state_failure_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2),
+            RestartOnFailure(maximum_retry_count=2),
+            True,
+        )
 
 
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):

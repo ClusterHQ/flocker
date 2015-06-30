@@ -10,6 +10,7 @@ Btrfs
 bugfix
 Buildbot
 CentOS
+centric
 checksum
 chmod
 cli
@@ -40,10 +41,13 @@ handoffs
 hoc
 Homebrew
 hostname
+init
 installable
 integrations
 internet
 invalidations
+IPv4
+IPv
 Kubernetes
 libswarm
 lifecycle
@@ -69,11 +73,13 @@ pre
 programmatically
 proxied
 proxying
+Quickstart
 Rackspace
 Redis
 redis
 resize
 routable
+roadmap
 snapshotting
 stateful
 sysadmin
@@ -89,6 +95,7 @@ virtualization
 VMware
 webhook
 workflow
+Weaveworks
 yml
 yourlaptop
 ZFS

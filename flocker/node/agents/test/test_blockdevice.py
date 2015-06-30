@@ -42,7 +42,6 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
-    get_device_for_dataset_id, DuplicateFilesystemId,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -3495,97 +3494,3 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
-
-
-class GetDeviceForDatasetIdTests(SynchronousTestCase):
-    """
-    Tests for ``get_device_for_dataset_id``.
-    """
-
-    def test_found(self):
-        """
-        Filesystems created with ``CreateFilesystem`` can be looked up by
-        dataset ID using ``get_device_for_dataset_id``.
-        """
-        one_dataset_id = uuid4()
-        another_dataset_id = uuid4()
-        uninitialized_dataset_id = uuid4()
-
-        deployer = create_blockdevicedeployer(self)
-        api = deployer.block_device_api
-
-        # Here are a couple volumes that will have filesystems that the
-        # implementation will have to correctly identify.
-        one_volume = api.create_volume(
-            one_dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-        another_volume = api.create_volume(
-            another_dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-
-        # This is a trap.  Hopefully the implementation ignores it.
-        uninitialized_volume = api.create_volume(
-            uninitialized_dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-
-        for volume in [one_volume, another_volume, uninitialized_volume]:
-            api.attach_volume(volume.blockdevice_id, api.compute_instance_id())
-
-        for volume in [one_volume, another_volume]:
-            self.successResultOf(
-                run_state_change(
-                    CreateFilesystem(volume=volume, filesystem=u"ext4"),
-                    deployer,
-                )
-            )
-
-        expected = (
-            api.get_device_path(one_volume.blockdevice_id),
-            api.get_device_path(another_volume.blockdevice_id)
-        )
-        actual = (
-            get_device_for_dataset_id(one_dataset_id),
-            get_device_for_dataset_id(another_dataset_id)
-        )
-        self.assertEqual(expected, actual)
-
-    def test_not_found(self):
-        """
-        If a matching device cannot be found by ``get_device_for_dataset_id``
-        it raises a ``KeyError``.
-        """
-        self.assertRaises(KeyError, get_device_for_dataset_id, uuid4())
-
-    def test_duplicate(self):
-        """
-        Filesystems created with ``CreateFilesystem`` with duplicate dataset
-        IDs cause ``get_device_for_dataset_id`` to raise a
-        ``DuplicateFilesystemId`` exception.
-        """
-        dataset_id = uuid4()
-
-        deployer = create_blockdevicedeployer(self)
-        api = deployer.block_device_api
-
-        one_volume = api.create_volume(
-            dataset_id, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-        # This volume has different UUID, but we'll trick CreateFilesystem
-        # into setting duplicate UUID when doing mkfs.
-        another_volume = api.create_volume(
-            uuid4(), LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        ).set(dataset_id=dataset_id)
-
-        for volume in [one_volume, another_volume]:
-            api.attach_volume(volume.blockdevice_id, api.compute_instance_id())
-
-        for volume in [one_volume, another_volume]:
-            self.successResultOf(
-                run_state_change(
-                    CreateFilesystem(volume=volume, filesystem=u"ext4"),
-                    deployer,
-                )
-            )
-
-        self.assertRaises(DuplicateFilesystemId, get_device_for_dataset_id,
-                          dataset_id)

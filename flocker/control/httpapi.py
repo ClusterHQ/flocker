@@ -531,12 +531,14 @@ class ConfigurationAPIUserV1(object):
             u"create container with duplicate name",
             u"create container with ports",
             u"create container with environment",
-            u"create container with restart policy",
             u"create container with attached volume",
             u"create container with cpu shares",
             u"create container with memory limit",
             u"create container with links",
             u"create container with command line",
+            # No example of creating a container with a different restart
+            # policy because only the "never" policy is supported.  See
+            # FLOC-2449.
         ],
         section=u"container",
     )
