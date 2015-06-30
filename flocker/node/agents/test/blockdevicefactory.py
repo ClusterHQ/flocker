@@ -66,13 +66,15 @@ def get_blockdeviceapi(provider):
     return cls(**args)
 
 
-def get_blockdeviceapi_args(provider):
+def get_blockdeviceapi_args(provider, **override):
     """
     Get initializer arguments suitable for use in the instantiation of an
     ``IBlockDeviceAPI`` implementation compatible with the given provider.
 
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
+
+    :param override: Block Device parameters to override.
 
     :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
@@ -111,6 +113,7 @@ def get_blockdeviceapi_args(provider):
             "Platform: %s, "
             "Configuration File: %s" % (platform_name, config_file_path)
         )
+    section.update(override)
 
     provider_name = section.get('provider', platform_name)
     try:
