@@ -46,6 +46,7 @@ installable
 integrations
 internet
 invalidations
+IPv4
 Kubernetes
 libswarm
 lifecycle
