@@ -1265,8 +1265,8 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
             IPv4Address(hostname)
         except AddressValueError:
             raise ConfigurationError(
-                ("Node {node_name} specified, but deployment configuration "
-                 "expects an IPv4 address.").format(node_name=hostname)
+                ('Node "{node_name}" specified, but deployment configuration '
+                 'expects an IPv4 address.').format(node_name=hostname)
             )
         if not isinstance(application_names, list):
             raise ConfigurationError(

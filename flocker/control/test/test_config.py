@@ -2386,8 +2386,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                                       deployment_from_configuration,
                                       DeploymentState(), config, set())
         self.assertEqual(
-            "Node node1.example.com specified, but deployment configuration "
-            "expects an IPv4 address.",
+            'Node "node1.example.com" specified, but deployment configuration '
+            'expects an IPv4 address.',
             exception.message
         )
 
