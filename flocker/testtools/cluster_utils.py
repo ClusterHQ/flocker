@@ -31,9 +31,9 @@ class ClusterIdMarkers(PRecord):
     ``PRecord`` to hold data used to seed cluster id for test clusters.
 
     Please increment ``version`` in case of changes to supported test types
-    and storage providers.
+    and/or storage providers.
     """
-    version = field(mandatory=True, type=long, initial=long(1))
+    version = long(1)
     test_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
         TestTypes.FUNCTIONAL: long(1),
         TestTypes.ACCEPTANCE: long(2)}))
