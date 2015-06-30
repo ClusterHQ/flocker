@@ -32,10 +32,11 @@ import os
 
 from flocker.testtools import loop_until
 
-from ._model import Run, Sudo, Put, Comment, RunRemotely
+from ._model import Run, Sudo, Put, Comment, RunRemotely, identity
 
 from .._effect import dispatcher as base_dispatcher
 
+from ._monkeypatch import patch_twisted_7672
 
 RUN_OUTPUT_MESSAGE = MessageType(
     message_type="flocker.provision.ssh:run:output",
@@ -93,7 +94,8 @@ def perform_sudo(dispatcher, intent):
     """
     See :py:class:`Sudo`.
     """
-    return Effect(Run(command='sudo ' + intent.command))
+    return Effect(Run(
+        command='sudo ' + intent.command, log_command_filter=identity))
 
 
 @sync_performer
@@ -101,9 +103,13 @@ def perform_put(dispatcher, intent):
     """
     See :py:class:`Put`.
     """
-    return Effect(Run(command='printf -- %s > %s'
-                              % (shell_quote(intent.content),
-                                 shell_quote(intent.path))))
+    def create_put_command(content, path):
+        return 'printf -- %s > %s' % (shell_quote(content), shell_quote(path))
+    return Effect(Run(
+        command=create_put_command(intent.content, intent.path),
+        log_command_filter=lambda _: create_put_command(
+            intent.log_content_filter(intent.content), intent.path)
+        ))
 
 
 @sync_performer
@@ -123,7 +129,7 @@ def get_ssh_dispatcher(connection, context):
     def perform_run(dispatcher, intent):
         context.bind(
             message_type="flocker.provision.ssh:run",
-            command=intent.command,
+            command=intent.log_command_filter(intent.command),
         ).write()
         endpoint = SSHCommandClientEndpoint.existingConnection(
             connection, intent.command)
@@ -197,6 +203,7 @@ def perform_run_remotely(base_dispatcher, intent):
 
 
 def make_dispatcher(reactor):
+    patch_twisted_7672()
     return ComposedDispatcher([
         TypeDispatcher({
             RunRemotely: perform_run_remotely,

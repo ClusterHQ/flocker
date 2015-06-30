@@ -168,7 +168,8 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
+DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
+
 PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
 
 
@@ -232,6 +233,11 @@ class RunOptions(Options):
             build_server=self['build-server'],
         )
 
+        if self['distribution'] not in DISTRIBUTIONS:
+            raise UsageError(
+                "Distribution %r not supported. Available distributions: %s"
+                % (self['distribution'], ', '.join(DISTRIBUTIONS)))
+
         if self['provider'] not in PROVIDERS:
             raise UsageError(
                 "Provider %r not supported. Available providers: %s"
@@ -257,25 +263,7 @@ class RunOptions(Options):
                 provisioner=provisioner,
             )
 
-MESSAGE_FORMATS = {
-    "flocker.provision.ssh:run":
-        "[%(username)s@%(address)s]: Running %(command)s\n",
-    "flocker.provision.ssh:run:output":
-        "[%(username)s@%(address)s]: %(line)s\n",
-    "admin.runner:run":
-        "Running %(command)s\n",
-    "admin.runner:run:output":
-        "%(line)s\n",
-}
-
-
-def eliot_output(message):
-    """
-    Write pretty versions of eliot log messages to stdout.
-    """
-    message_type = message.get('message_type', message.get('action_type'))
-    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
-    sys.stdout.flush()
+from .acceptance import eliot_output
 
 
 @inlineCallbacks
@@ -296,6 +284,16 @@ def main(reactor, args, base_path, top_level):
         raise SystemExit(1)
 
     runner = options.runner
+
+    from flocker.common.script import eliot_logging_service
+    log_file = open("%s.log" % base_path.basename(), "a")
+    log_writer = eliot_logging_service(
+        log_file=log_file,
+        reactor=reactor,
+        capture_stdout=False)
+    log_writer.startService()
+    reactor.addSystemEventTrigger(
+        'before', 'shutdown', log_writer.stopService)
 
     try:
         nodes = yield runner.start_nodes(reactor, node_count=1)

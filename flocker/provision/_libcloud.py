@@ -139,7 +139,8 @@ class INode(Interface):
     """
     Interface for node for running acceptance tests.
     """
-    address = InterfaceAttribute('ip address for node')
+    address = InterfaceAttribute('Public IP address for node')
+    private_address = InterfaceAttribute('Private IP address for node')
     distribution = InterfaceAttribute('distribution on node')
 
     def get_default_username():
@@ -168,6 +169,7 @@ class INode(Interface):
     Attribute('_node'),
     Attribute('_provisioner'),
     'address',
+    'private_address',
     'distribution',
 ])
 class LibcloudNode(object):
@@ -242,6 +244,7 @@ class LibcloudNode(object):
     Attribute('provision'),
     Attribute('default_size'),
     Attribute('get_default_user'),
+    Attribute('use_private_addresses', instance_of=bool, default_value=False),
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
@@ -257,6 +260,9 @@ class LibcloudProvisioner(object):
     :ivar str default_size: Name of the default size of node to create.
     :ivar callable get_default_user: Function to provide the default
         username on the node.
+    :ivar bool use_private_addresses: Whether the `private_address` of nodes
+        should be populated. This should be specified if the cluster nodes
+        use the private address for inter-node communication.
     """
 
     def create_node(self, name, distribution,
@@ -301,7 +307,13 @@ class LibcloudProvisioner(object):
 
         public_address = addresses[0]
 
+        if self.use_private_addresses:
+            private_address = node.private_ips[0]
+        else:
+            private_address = None
+
         return LibcloudNode(
             provisioner=self,
             node=node, address=public_address,
+            private_address=private_address,
             distribution=distribution)
