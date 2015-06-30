@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from pyrsistent import pmap
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 from ..control.httpapi import container_configuration_response
 
