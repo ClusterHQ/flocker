@@ -508,6 +508,7 @@ class StoragePool(Service):
             mounted.
         """
         self._reactor = reactor
+        self._async_lzc = _async_lzc(self._reactor)
         self._name = name
         self._mount_root = mount_root
 
@@ -554,17 +555,15 @@ class StoragePool(Service):
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
-        properties = [b"-o", b"mountpoint=" + mount_path]
+        properties = {b"mountpoint": mount_path}
         if volume.locally_owned():
-            properties.extend([b"-o", b"readonly=off"])
+            properties[b"readonly"] = 0
         if volume.size.maximum_size is not None:
-            properties.extend([
-                b"-o", u"refquota={0}".format(
-                    volume.size.maximum_size).encode("ascii")
-            ])
-        d = zfs_command(self._reactor,
-                        [b"create"] + properties + [filesystem.name])
+            properties[b"refquota"] = volume.size.maximum_size
+        d = self._async_lzc.lzc_create(filesystem.name, False, properties)
         d.addErrback(self._check_for_out_of_space)
+        d.addCallback(
+            lambda _: zfs_command(self._reactor, [b"mount", filesystem.name]))
         d.addCallback(lambda _: filesystem)
         return d
 
