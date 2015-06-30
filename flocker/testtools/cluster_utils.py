@@ -17,14 +17,6 @@ class TestTypes(Values):
     ACCEPTANCE = ValueConstant("acceptance")
 
 
-class Platforms(Values):
-    """
-    """
-    CENTOS7 = ValueConstant("centos-7")
-    UBUNTU14 = ValueConstant("ubuntu-14.04")
-    UBUNTU15 = ValueConstant("ubuntu-15.04")
-
-
 class Providers(Values):
     """
     """
@@ -39,17 +31,13 @@ class ClusterIdMarkers(PRecord):
     test_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
         TestTypes.FUNCTIONAL: long(1),
         TestTypes.ACCEPTANCE: long(2)}))
-    platform_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
-        Platforms.CENTOS7: long(1),
-        Platforms.UBUNTU14: long(2),
-        Platforms.UBUNTU15: long(3)}))
     provider_id = field(mandatory=True, type=PMap, factory=pmap, initial=pmap({
         Providers.AWS: long(1),
         Providers.OPENSTACK: long(2)}))
     unsupported_env = field(mandatory=True, type=long, initial=long(99))
 
 
-def make_cluster_id(test_type, platform, provider):
+def make_cluster_id(test_type, provider):
     """
     Compose cluster ``UUID`` using test type, platform, and provider.
     """
@@ -61,18 +49,15 @@ def make_cluster_id(test_type, platform, provider):
     except KeyError:
         test_marker = markers.unsupported_env
     try:
-        platform_marker = markers.platform_id[platform]
-    except KeyError:
-        platform_marker = markers.unsupported_env
-    try:
-        provider_marker = markers.provider_id[provider]
-    except KeyError:
+        provider_marker = markers.provider_id[
+            Providers.lookupByValue(provider)]
+    except:
         provider_marker = markers.unsupported_env
 
     tmp_uuid = uuid4()
     tagged_cluster_id = UUID(fields=(
-        tmp_uuid.time_low, tmp_uuid.time_mid,
+        tmp_uuid.time_low, tmp_uuid.time_mid, tmp_uuid.time_hi_version,
         # Special magic markers to identify test clusters.
-        magic_marker, test_marker, platform_marker, provider_marker,
+        magic_marker, test_marker, provider_marker,
     ))
     return tagged_cluster_id

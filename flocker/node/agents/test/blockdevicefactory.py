@@ -19,7 +19,6 @@ See `acceptance testing <acceptance-testing>`_ for details.
 """
 
 from os import environ
-from uuid import uuid4
 from functools import partial
 
 from yaml import safe_load
@@ -36,6 +35,9 @@ from novaclient.client import Client as NovaClient
 from ..cinder import _openstack_auth_from_config, cinder_api
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
+from ......testtools import (
+    make_cluster_id, TestTypes
+)
 
 
 class InvalidConfig(Exception):
@@ -131,7 +133,7 @@ def get_blockdeviceapi_args(provider):
         )
 
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-    kwargs = dict(cluster_id=uuid4())
+    kwargs = dict(cluster_id=make_cluster_id(TestTypes.FUNCTIONAL, provider))
     kwargs.update(get_kwargs(**section))
     return cls, kwargs
 
