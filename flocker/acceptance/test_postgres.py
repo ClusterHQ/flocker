@@ -114,39 +114,31 @@ class PostgresTests(TestCase):
                 [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                  u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
-
+        deployed = self.cluster.flocker_deploy(
+            self, self.postgres_deployment, self.postgres_application
+        )
+        return deployed
 
     def test_deploy(self):
         """
         Verify that Docker reports that PostgreSQL is running on one node and
         not another.
         """
-        deployed = self.cluster.flocker_deploy(
-            self, self.postgres_deployment, self.postgres_application
-        )
-        deployed.addCallback(
-            lambda _: self.cluster.assert_expected_deployment(self, {
-                self.node_1.reported_hostname: set(
-                    [self.POSTGRES_APPLICATION]
-                ),
-                self.node_2.reported_hostname: set([]),
-            })
-        )
-        return deployed
+        return self.cluster.assert_expected_deployment(self, {
+            self.node_1.reported_hostname: set(
+                [self.POSTGRES_APPLICATION]
+            ),
+            self.node_2.reported_hostname: set([]),
+        })
 
     @require_moving_backend
     def test_moving_postgres(self):
         """
         It is possible to move PostgreSQL to a new node.
         """
-        deployed = self.cluster.flocker_deploy(
-            self, self.postgres_deployment, self.postgres_application
-        )
-        moved = deployed.addCallback(
-            lambda _: self.cluster.flocker_deploy(
-                self, self.postgres_deployment_moved,
-                self.postgres_application
-            )
+        moved = self.cluster.flocker_deploy(
+            self, self.postgres_deployment_moved,
+            self.postgres_application
         )
         moved.addCallback(
             lambda _: self.cluster.assert_expected_deployment(self, {
@@ -188,15 +180,10 @@ class PostgresTests(TestCase):
         database = b'flockertest'
         user = b'postgres'
 
-        deployed = self.cluster.flocker_deploy(
-            self, self.postgres_deployment, self.postgres_application
-        )
-        deployed.addCallback(
-            lambda _: self._get_postgres_connection(
-                host=self.node_1.public_address,
-                user=user,
-                port=POSTGRES_EXTERNAL_PORT,
-            )
+        d = self._get_postgres_connection(
+            host=self.node_1.public_address,
+            user=user,
+            port=POSTGRES_EXTERNAL_PORT,
         )
 
         def create_database(connection_to_application):
@@ -206,7 +193,7 @@ class PostgresTests(TestCase):
             application_cursor.close()
             connection_to_application.close()
 
-        deployed.addCallback(create_database)
+        d.addCallback(create_database)
 
         def connect_to_database(ignored):
             return self._get_postgres_connection(
@@ -216,7 +203,7 @@ class PostgresTests(TestCase):
                 database=database,
             )
 
-        deployed.addCallback(connect_to_database)
+        d.addCallback(connect_to_database)
 
         def add_data_node_1(db_connection_node_1):
             db_node_1_cursor = db_connection_node_1.cursor()
@@ -231,7 +218,7 @@ class PostgresTests(TestCase):
             db_connection_node_1.close()
             self.assertEqual(fetched_data, 3)
 
-        deployed.addCallback(add_data_node_1)
+        d.addCallback(add_data_node_1)
 
         def get_postgres_node_2(ignored):
             """
@@ -254,7 +241,7 @@ class PostgresTests(TestCase):
 
             return d
 
-        deployed.addCallback(get_postgres_node_2)
+        d.addCallback(get_postgres_node_2)
 
         def verify_data_moves(db_connection_node_2):
             db_node_2_cursor = db_connection_node_2.cursor()
@@ -264,5 +251,5 @@ class PostgresTests(TestCase):
             db_connection_node_2.close()
             self.assertEqual(fetched_data, 3)
 
-        deployed.addCallback(verify_data_moves)
-        return deployed
+        d.addCallback(verify_data_moves)
+        return d
