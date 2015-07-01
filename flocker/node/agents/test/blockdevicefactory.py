@@ -36,7 +36,7 @@ from ..cinder import _openstack_auth_from_config, cinder_api
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import (
-    make_cluster_id, TestTypes
+    make_cluster_id, TestTypes, Providers
 )
 
 
@@ -66,6 +66,17 @@ def get_blockdeviceapi(provider):
     """
     cls, args = get_blockdeviceapi_args(provider)
     return cls(**args)
+
+
+def _provider_for_provider_type(provider_type):
+    """
+    Convert from ``ProviderType`` values to ``Providers`` values.
+    """
+    if provider_type in (ProviderType.openstack, ProviderType.rackspace):
+        return Providers.OPENSTACK
+    if provider_type is ProviderType.aws:
+        return Providers.AWS
+    return Providers.UNSPECIFIED
 
 
 def get_blockdeviceapi_args(provider):
@@ -134,7 +145,9 @@ def get_blockdeviceapi_args(provider):
         )
 
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-    kwargs = dict(cluster_id=make_cluster_id(TestTypes.FUNCTIONAL, provider))
+    kwargs = dict(cluster_id=make_cluster_id(
+        TestTypes.FUNCTIONAL, _provider_for_provider_type(provider),
+    ))
     kwargs.update(get_kwargs(**section))
     return cls, kwargs
 
