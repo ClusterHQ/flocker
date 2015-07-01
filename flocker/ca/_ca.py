@@ -615,7 +615,7 @@ class RootCredential(PRecord):
 
         :param FilePath path: Directory where private key and certificate are
             stored.
-        :param bytes name: The name of the cluster.  This is used as the
+        :param bytes name: The name of the cluster. This is used as the
             subject and issuer identities of the generated root certificate.
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
