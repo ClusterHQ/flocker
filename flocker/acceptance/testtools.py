@@ -32,6 +32,7 @@ from ..control import (
 from ..common import gather_deferreds
 
 from ..control.httpapi import container_configuration_response, REST_API_PORT
+from ..control._config import FlockerConfiguration
 from ..ca import treq_with_authentication
 from ..testtools import loop_until
 
@@ -613,6 +614,22 @@ class Cluster(PRecord):
                     b"--certificates-directory", self.certificates_path.path,
                     self.control_node.public_address,
                     deployment.path, application.path])
+        # Construct an expected deployment mapping of IP addresses
+        # to a set of ``Application`` instances.
+        expected_deployment = dict()
+        applications_map = FlockerConfiguration(
+            application_config).applications()
+        for node in deployment_config['nodes']:
+            node_applications = []
+            for node_app in deployment_config['nodes'][node]:
+                if node_app in applications_map:
+                    node_applications.append(applications_map[node_app])
+            expected_deployment[node] = set(node_applications)
+        # And wait for the cluster state to match the new deployment.
+        d = self.assert_expected_deployment(
+            test_case, expected_deployment
+        )
+        return d
 
     def clean_nodes(self):
         """
