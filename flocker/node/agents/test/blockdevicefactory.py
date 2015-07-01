@@ -47,6 +47,7 @@ class InvalidConfig(Exception):
     """
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class ProviderType(Names):
     """
     Kinds of compute/storage cloud providers for which this module is able to

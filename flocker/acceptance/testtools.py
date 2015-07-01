@@ -119,6 +119,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()

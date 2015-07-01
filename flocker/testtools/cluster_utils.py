@@ -17,6 +17,7 @@ class TestTypes(Values):
     ACCEPTANCE = ValueConstant(2)
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class Providers(Values):
     """
     Supported storage providers.
