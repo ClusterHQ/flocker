@@ -1,6 +1,4 @@
 alabaster==0.7.6
-# FLOC-2162 aha, we already upgraded!
-# So just remove the monkey patches then.
 apache-libcloud==0.17.0
 awscli==1.7.35
 backports.ssl-match-hostname==3.4.0.2
