@@ -516,6 +516,10 @@ The configuration item to use OpenStack should look like:
 Make sure that the ``region`` specified matches the region where the Flocker nodes run.
 OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
 
+.. note::
+
+    Note that the VMs where you run the Flocker agents **must be provisioned through OpenStack** (that is, via Nova) in order for the Flocker OpenStack integration to be able to identify them and attach volumes to them.
+
 .. FLOC-2091 - Fix up this section.
 
 Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
