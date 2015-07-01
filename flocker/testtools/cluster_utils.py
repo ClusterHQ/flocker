@@ -107,6 +107,18 @@ def make_cluster_id(test_type, provider=Providers.UNSPECIFIED,
 
 
 def get_cluster_id_information(cluster_id):
+    """
+    Extract the test type and storage provider information encoded in a cluster
+    identifier.
+
+    :param UUID cluster_id: A cluster identifier previously generated and
+        encoded using ``make_cluster_id``.
+
+    :raise: ``ValueError`` if ``cluster_id`` does not contain the information.
+
+    :return: A two-tuple of a constant from each of ``TestTypes`` and
+        ``Providers``.
+    """
     if cluster_id.node != MARKER:
         raise ValueError("Marker not found in cluster_id")
     if cluster_id.time_hi_version != VERSION:
