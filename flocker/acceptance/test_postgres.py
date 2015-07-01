@@ -114,38 +114,57 @@ class PostgresTests(TestCase):
                 [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                  u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
-        cluster.flocker_deploy(
+        self.deployed = cluster.flocker_deploy(
             self, self.postgres_deployment, self.postgres_application
         )
         # We're only testing movement if we actually wait for Postgres to
         # be running before proceeding with test:
-        return self.cluster.assert_expected_deployment(self, {
-            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
-            self.node_2.reported_hostname: set([]),
-        })
+        self.deployed.addCallback(
+            lambda _: self.cluster.assert_expected_deployment(self, {
+                self.node_1.reported_hostname: set(
+                    [self.POSTGRES_APPLICATION]
+                ),
+                self.node_2.reported_hostname: set([]),
+            })
+        )
+        return self.deployed
 
     def test_deploy(self):
         """
         Verify that Docker reports that PostgreSQL is running on one node and
         not another.
         """
-        return self.cluster.assert_expected_deployment(self, {
-            self.node_1.reported_hostname: set([self.POSTGRES_APPLICATION]),
-            self.node_2.reported_hostname: set([]),
-        })
+        deployed = self.deployed.addCallback(
+            lambda _: self.cluster.assert_expected_deployment(self, {
+                self.node_1.reported_hostname: set(
+                    [self.POSTGRES_APPLICATION]
+                ),
+                self.node_2.reported_hostname: set([]),
+            })
+        )
+        return deployed
 
     @require_moving_backend
     def test_moving_postgres(self):
         """
         It is possible to move PostgreSQL to a new node.
         """
-        self.cluster.flocker_deploy(
-            self, self.postgres_deployment_moved, self.postgres_application)
+        moving = self.deployed.addCallback(
+            lambda _: self.cluster.flocker_deploy(
+                self, self.postgres_deployment_moved,
+                self.postgres_application
+            )
+        )
 
-        return self.cluster.assert_expected_deployment(self, {
-            self.node_1.reported_hostname: set([]),
-            self.node_2.reported_hostname: set([self.POSTGRES_APPLICATION]),
-        })
+        moving.addCallback(
+            lambda _: self.cluster.assert_expected_deployment(self, {
+                self.node_1.reported_hostname: set([]),
+                self.node_2.reported_hostname: set(
+                    [self.POSTGRES_APPLICATION]
+                ),
+            })
+        )
+        return moving
 
     def _get_postgres_connection(self, host, user, port, database=None):
         """
@@ -177,10 +196,12 @@ class PostgresTests(TestCase):
         database = b'flockertest'
         user = b'postgres'
 
-        connecting_to_application = self._get_postgres_connection(
-            host=self.node_1.public_address,
-            user=user,
-            port=POSTGRES_EXTERNAL_PORT,
+        self.deployed.addCallback(
+            lambda _: self._get_postgres_connection(
+                host=self.node_1.public_address,
+                user=user,
+                port=POSTGRES_EXTERNAL_PORT,
+            )
         )
 
         def create_database(connection_to_application):
@@ -190,7 +211,7 @@ class PostgresTests(TestCase):
             application_cursor.close()
             connection_to_application.close()
 
-        connecting_to_application.addCallback(create_database)
+        self.deployed.addCallback(create_database)
 
         def connect_to_database(ignored):
             return self._get_postgres_connection(
@@ -200,8 +221,7 @@ class PostgresTests(TestCase):
                 database=database,
             )
 
-        connecting_to_database = connecting_to_application.addCallback(
-            connect_to_database)
+        self.deployed.addCallback(connect_to_database)
 
         def add_data_node_1(db_connection_node_1):
             db_node_1_cursor = db_connection_node_1.cursor()
@@ -216,26 +236,30 @@ class PostgresTests(TestCase):
             db_connection_node_1.close()
             self.assertEqual(fetched_data, 3)
 
-        connecting_to_database.addCallback(add_data_node_1)
+        self.deployed.addCallback(add_data_node_1)
 
         def get_postgres_node_2(ignored):
             """
             Move PostgreSQL to ``node_2`` and return a ``Deferred`` which fires
             with a connection to the previously created database on ``node_2``.
             """
-            self.cluster.flocker_deploy(
+            d = self.cluster.flocker_deploy(
                 self, self.postgres_deployment_moved,
-                self.postgres_application_different_port)
-
-            return self._get_postgres_connection(
-                host=self.node_2.public_address,
-                user=user,
-                port=POSTGRES_EXTERNAL_PORT + 1,
-                database=database,
+                self.postgres_application_different_port
             )
 
-        getting_postgres_2 = connecting_to_database.addCallback(
-            get_postgres_node_2)
+            d.addCallback(
+                lambda _: self._get_postgres_connection(
+                    host=self.node_2.public_address,
+                    user=user,
+                    port=POSTGRES_EXTERNAL_PORT + 1,
+                    database=database,
+                )
+            )
+
+            return d
+
+        self.deployed.addCallback(get_postgres_node_2)
 
         def verify_data_moves(db_connection_node_2):
             db_node_2_cursor = db_connection_node_2.cursor()
@@ -245,6 +269,5 @@ class PostgresTests(TestCase):
             db_connection_node_2.close()
             self.assertEqual(fetched_data, 3)
 
-        verifying_data_moves = getting_postgres_2.addCallback(
-            verify_data_moves)
-        return verifying_data_moves
+        self.deployed.addCallback(verify_data_moves)
+        return self.deployed
