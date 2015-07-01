@@ -4,63 +4,78 @@
 Tests for ``flocker.testtools._cluster_utils``.
 """
 
-from twisted.trial.unittest import TestCase
+from uuid import UUID
+
+from twisted.trial.unittest import SynchronousTestCase
 
 from ..cluster_utils import (
-    make_cluster_id, ClusterIdMarkers, TestTypes, Providers
-    )
+    VERSION, get_version, make_cluster_id, get_cluster_id_information,
+    TestTypes, Providers,
+)
 
-INVALID_INPUT = 'invalid'
 
-
-class ClusterUtilsTests(TestCase):
+class GetVersionTests(SynchronousTestCase):
     """
-    Tests for ``make_cluster_id``.
+    Tests for ``get_version``.
     """
-    def test_invalid_test_type(self):
+    def test_same_results(self):
         """
-        Test if invalid test type is registered in cluster uuid.
+        Given the same arguments, multiple calls to ``get_version`` return the
+        same value.
         """
-        test_type = INVALID_INPUT
-        provider = 'openstack'
-        markers = ClusterIdMarkers()
-        uuid = make_cluster_id(test_type, provider)
+        self.assertEqual(
+            get_version(TestTypes, Providers),
+            get_version(TestTypes, Providers),
+        )
 
-        version = markers.version
-        test_id = markers.unsupported_env
-        provider_id = markers.provider_id[Providers.lookupByValue(provider)]
-        self.assertEqual([uuid.clock_seq_hi_variant, uuid.clock_seq_low,
-                          uuid.node],
-                         [version, test_id, provider_id])
-
-    def test_invalid_provider(self):
+    def test_different_results(self):
         """
-        Test if invalid provider type is registered in cluster uuid.
+        Given different arguments, multiple calls to ``get_version`` return
+        different values.
         """
-        test_type = TestTypes.ACCEPTANCE
-        provider = INVALID_INPUT
-        markers = ClusterIdMarkers()
+        self.assertNotEqual(
+            get_version(TestTypes, Providers),
+            get_version(Providers, TestTypes),
+        )
 
-        uuid = make_cluster_id(test_type, provider)
-        version = markers.version
-        test_id = markers.test_id[test_type]
-        provider_id = markers.unsupported_env
-        self.assertEqual([uuid.clock_seq_hi_variant, uuid.clock_seq_low,
-                          uuid.node],
-                         [version, test_id, provider_id])
 
-    def test_validate_cluster_id_marker(self):
+class ClusterIdTests(SynchronousTestCase):
+    """
+    Tests for ``make_cluster_id`` and ``get_cluster_id_information``.
+    """
+    def test_foreign_id(self):
         """
-        Test if valid test env results in valid markers in generated uuid.
+        ``get_cluster_id_information`` raises ``ValueError`` if called with a
+        cluster identifier that didn't come from ``make_cluster_id``.
         """
-        test_type = TestTypes.FUNCTIONAL
-        provider = 'aws'
-        markers = ClusterIdMarkers()
+        self.assertRaises(
+            ValueError,
+            get_cluster_id_information,
+            UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+        )
 
-        uuid = make_cluster_id(test_type, provider)
-        version = markers.version
-        test_id = markers.test_id[test_type]
-        provider_id = 1
-        self.assertEqual([uuid.clock_seq_hi_variant, uuid.clock_seq_low,
-                          uuid.node],
-                         [version, test_id, provider_id])
+    def test_version_mismatch(self):
+        """
+        ``get_cluster_id_information`` raises ``ValueError`` if called with a
+        cluster identifier that came from ``make_cluster_id`` from an
+        incompatible version of Flocker.
+        """
+        cluster_id = make_cluster_id(
+            TestTypes.ACCEPTANCE, Providers.AWS, VERSION + 1
+        )
+        self.assertRaises(
+            ValueError,
+            get_cluster_id_information,
+            cluster_id,
+        )
+
+    def test_values_extracted(self):
+        """
+        The values encoded by ``make_cluster_id`` into the cluster identifier
+        can be extracted by ``get_cluster_id_information``.
+        """
+        cluster_id = make_cluster_id(TestTypes.ACCEPTANCE, Providers.AWS)
+        self.assertEqual(
+            (TestTypes.ACCEPTANCE, Providers.AWS),
+            get_cluster_id_information(cluster_id),
+        )
