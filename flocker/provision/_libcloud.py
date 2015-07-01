@@ -11,6 +11,7 @@ from characteristic import attributes, Attribute
 from flocker.provision._ssh import run_remotely, run_from_args
 
 
+# FLOC-2162 remove this monkey patch.
 def _fixed_OpenStackNodeDriver_to_node(self, api_node):
     """
     This is a copy of
@@ -99,6 +100,7 @@ def _fixed_OpenStackNodeDriver_to_node(self, api_node):
     )
 
 
+# FLOC-2162 remove this monkey patch.
 def monkeypatch():
     """
     libcloud 0.16.0 has a broken OpenStackNodeDriver._to_node.

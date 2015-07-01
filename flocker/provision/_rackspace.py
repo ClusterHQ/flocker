@@ -4,6 +4,7 @@
 Rackspace provisioner.
 """
 
+# FLOC-2162 remove this monkey patch.
 from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision,
@@ -75,6 +76,7 @@ def rackspace_provisioner(username, key, region, keyname):
     # Import these here, so that this can be imported without
     # installng libcloud.
     from libcloud.compute.providers import get_driver, Provider
+    # FLOC-2162 remove this monkey patch.
     monkeypatch()
     driver = get_driver(Provider.RACKSPACE)(
         key=username,
