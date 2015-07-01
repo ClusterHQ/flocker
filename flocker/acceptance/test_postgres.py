@@ -114,6 +114,8 @@ class PostgresTests(TestCase):
                 [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
                  u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
+
+
     def test_deploy(self):
         """
         Verify that Docker reports that PostgreSQL is running on one node and
@@ -140,13 +142,13 @@ class PostgresTests(TestCase):
         deployed = self.cluster.flocker_deploy(
             self, self.postgres_deployment, self.postgres_application
         )
-        deployed.addCallback(
+        moved = deployed.addCallback(
             lambda _: self.cluster.flocker_deploy(
                 self, self.postgres_deployment_moved,
                 self.postgres_application
             )
         )
-        deployed.addCallback(
+        moved.addCallback(
             lambda _: self.cluster.assert_expected_deployment(self, {
                 self.node_1.reported_hostname: set([]),
                 self.node_2.reported_hostname: set(
@@ -154,7 +156,7 @@ class PostgresTests(TestCase):
                 ),
             })
         )
-        return deployed
+        return moved
 
     def _get_postgres_connection(self, host, user, port, database=None):
         """

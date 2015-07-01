@@ -54,8 +54,9 @@ class PortsTests(TestCase):
             },
         }
 
-        self.deployed = cluster.flocker_deploy(
+        d = cluster.flocker_deploy(
             self, port_deployment, port_application)
+        return d
 
     def test_deployment_with_ports(self):
         """
@@ -69,23 +70,19 @@ class PortsTests(TestCase):
 
         application = get_mongo_application().set("ports", ports)
 
-        self.deployed.addCallback(
-            lambda _: self.cluster.assert_expected_deployment(self, {
-                self.node_1.reported_hostname: set([application]),
-                self.node_2.reported_hostname: set([]),
-            })
-        )
-        return self.deployed
+        d = self.cluster.assert_expected_deployment(self, {
+            self.node_1.reported_hostname: set([application]),
+            self.node_2.reported_hostname: set([]),
+        })
+        return d
 
     @require_mongo
     def test_mongo_accessible(self):
         """
         The port is exposed on the host where Mongo was configured.
         """
-        getting_client = self.deployed.addCallback(
-            lambda _: get_mongo_client(
-                self.node_1.public_address, self.external_port)
-        )
+        getting_client = get_mongo_client(
+            self.node_1.public_address, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
@@ -107,10 +104,8 @@ class PortsTests(TestCase):
         node, and data added to it, that data is visible when a client connects
         to a different node on the cluster.
         """
-        getting_client = self.deployed.addCallback(
-            lambda _:   get_mongo_client(
-                self.node_1.public_address, self.external_port)
-        )
+        getting_client = get_mongo_client(
+            self.node_1.public_address, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
