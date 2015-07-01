@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from pyrsistent import pmap
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 from ..control.httpapi import container_configuration_response
 
@@ -67,6 +67,9 @@ class DeploymentTests(TestCase):
         In other words, the defined volume quota size is preserved from one
         node to the next.
         """
+        raise SkipTest(
+            'Sometimes times out on acceptance/aws/centos-7/aws. '
+            'See FLOC-2555.')
         (node_1, node_1_uuid), (node_2, node_2_uuid) = [
             (node.reported_hostname, node.uuid) for node in cluster.nodes]
         mongo_dataset_id = unicode(uuid4())
