@@ -43,7 +43,7 @@ from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
 from flocker.acceptance.testtools import DatasetBackend
 from flocker.testtools.cluster_utils import (
-    make_cluster_id, TestTypes
+    make_cluster_id, Providers, TestTypes
 )
 
 
@@ -243,8 +243,10 @@ class ManagedRunner(object):
             return configured_cluster_for_nodes(
                 reactor,
                 generate_certificates(
-                    # XXX: Pass storage provider to ``make_cluster_id``.
-                    make_cluster_id(TestTypes.ACCEPTANCE,),
+                    make_cluster_id(
+                        TestTypes.ACCEPTANCE,
+                        _provider_for_cluster_id(self.dataset_backend),
+                    ),
                     self._nodes),
                 self._nodes,
                 self.dataset_backend,
@@ -258,6 +260,18 @@ class ManagedRunner(object):
         Don't stop any nodes.
         """
         return succeed(None)
+
+
+def _provider_for_cluster_id(dataset_backend):
+    """
+    Get the ``Providers`` value that probably corresponds to a value from
+    ``DatasetBackend``.
+    """
+    if dataset_backend is DatasetBackend.aws:
+        return Providers.AWS
+    if dataset_backend is DatasetBackend.openstack:
+        return Providers.OPENSTACK
+    return Providers.UNSPECIFIED
 
 
 def generate_certificates(cluster_id, nodes):
@@ -469,8 +483,10 @@ class LibcloudRunner(object):
         cluster = yield configured_cluster_for_nodes(
             reactor,
             generate_certificates(
-                # XXX: Pass storage provider to ``make_cluster_id``.
-                make_cluster_id(TestTypes.ACCEPTANCE,),
+                make_cluster_id(
+                    TestTypes.ACCEPTANCE,
+                    _provider_for_cluster_id(self.dataset_backend),
+                ),
                 self.nodes),
             self.nodes,
             self.dataset_backend,
