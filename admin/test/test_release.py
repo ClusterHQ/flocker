@@ -2084,7 +2084,7 @@ class GetExpectedRedirectsTests(SynchronousTestCase):
         redirects are returned for the versions which is being updated.
         """
         self.assertEqual(
-            get_expected_redirects(flocker_version='0.3.0+doc1'),
+            get_expected_redirects(flocker_version='0.3.0.post1'),
             {
                 '/': '/en/0.3.0/',
                 '/en/': '/en/0.3.0/',

@@ -931,7 +931,7 @@ class TestRedirectsOptions(Options):
 def get_expected_redirects(flocker_version):
     """
     Get the expected redirects for a given version of Flocker, if that version
-    has been published successfully. Documentation versions (e.g. 0.3.0+doc2)
+    has been published successfully. Documentation versions (e.g. 0.3.0.post2)
     are published to their release version counterparts (e.g. 0.3.0).
 
     :param bytes flocker_version: The version of Flocker for which to get
