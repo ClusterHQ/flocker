@@ -8,8 +8,6 @@ Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 
 import logging
 import sys
-from json import load
-from urllib2 import urlopen
 from hashlib import sha1
 
 from twisted.python.usage import Options, UsageError
@@ -86,12 +84,12 @@ def get_resources(requirements):
     for requirement in sorted(requirements, key=lambda r: r.project_name):
         operator, version = requirement.specs[0]
         project_name = requirement.project_name
-        url = b"http://pypi.python.org/pypi/{name}/{version}/json".format(
+        url = b"https://pypi.python.org/pypi/{name}/{version}/json".format(
               name=project_name,
               version=version)
-        f = urlopen(url)
-        pypi_information = load(f)
-        f.close()
+        r = requests.get(url)
+        r.raise_for_status()
+        pypi_information = r.json()
         for release in pypi_information['urls']:
             if release['packagetype'] == 'sdist':
                 sdist_url = release['url']
