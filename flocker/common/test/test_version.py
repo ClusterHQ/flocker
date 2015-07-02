@@ -37,12 +37,12 @@ class MakeRpmVersionTests(SynchronousTestCase):
             '0.1.0': RPMVersion(version='0.1.0', release='1'),
             '0.1.0+99.g3d644b1': RPMVersion(
                 version='0.1.0', release='1.99.g3d644b1'),
-            '0.1.1pre1': RPMVersion(version='0.1.1', release='0.pre.1'),
+            '0.1.1rc1': RPMVersion(version='0.1.1', release='0.rc.1'),
             '0.1.1': RPMVersion(version='0.1.1', release='1'),
-            '0.2.0dev1': RPMVersion(version='0.2.0', release='0.dev.1'),
-            '0.2.0dev2+99.g3d644b1':
+            '0.2.0.dev1': RPMVersion(version='0.2.0', release='0.dev.1'),
+            '0.2.0.dev2+99.g3d644b1':
                 RPMVersion(version='0.2.0', release='0.dev.2.99.g3d644b1'),
-            '0.2.0dev3+100.g3d644b2.dirty': RPMVersion(
+            '0.2.0.dev3+100.g3d644b2.dirty': RPMVersion(
                 version='0.2.0', release='0.dev.3.100.g3d644b2.dirty'),
         }
         unexpected_results = []
@@ -64,7 +64,7 @@ class MakeRpmVersionTests(SynchronousTestCase):
         version with a non-integer pre or dev suffix number.
         """
         with self.assertRaises(UnparseableVersion):
-            make_rpm_version('0.1.2preX')
+            make_rpm_version('0.1.2rcX')
 
 
 class InvalidVersionTests(SynchronousTestCase):
@@ -153,6 +153,17 @@ def build_version_test(name, version_case):
         def test_pep_440(self):
             PEP440Version(version_case.version)
 
+        def test_normalization(self):
+            """
+            The version number is normalized according to PEP440.
+            """
+            self.assertEqual(
+                version_case.version,
+                str(PEP440Version(version_case.version)),
+                "Version isn't normalized.",
+            )
+
+
     Tests.__name__ = name
     return Tests
 
@@ -176,15 +187,15 @@ MarkettingVersionTests = build_version_test(
 WeeklyReleaseTests = build_version_test(
     "WeeklyReleaseTests",
     VersionCase(
-        version=b'0.3.2dev1',
+        version=b'0.3.2.dev1',
         flocker_version=FlockerVersion(
             major=b'0',
             minor=b'3',
             micro=b'2',
             weekly_release=b'1',
         ),
-        doc_version=b'0.3.2dev1',
-        installable_version=b'0.3.2dev1',
+        doc_version=b'0.3.2.dev1',
+        installable_version=b'0.3.2.dev1',
         is_release=False,
         is_weekly_release=True,
         is_pre_release=False,
@@ -193,15 +204,15 @@ WeeklyReleaseTests = build_version_test(
 PreReleaseTests = build_version_test(
     "PreReleaseTests",
     VersionCase(
-        version=b'0.3.2pre1',
+        version=b'0.3.2rc1',
         flocker_version=FlockerVersion(
             major=b'0',
             minor=b'3',
             micro=b'2',
             pre_release=b'1',
         ),
-        doc_version=b'0.3.2pre1',
-        installable_version=b'0.3.2pre1',
+        doc_version=b'0.3.2rc1',
+        installable_version=b'0.3.2rc1',
         is_release=False,
         is_weekly_release=False,
         is_pre_release=True,
@@ -300,7 +311,7 @@ class GetPreReleaseTests(SynchronousTestCase):
         When a pre-release is passed to ``get_pre_release``, the number of the
         pre-release is returned.
         """
-        self.assertEqual(get_pre_release('0.3.2pre3'), 3)
+        self.assertEqual(get_pre_release('0.3.2rc3'), 3)
 
 
 class TargetReleaseTests(SynchronousTestCase):
@@ -320,7 +331,7 @@ class TargetReleaseTests(SynchronousTestCase):
         When a pre-release is passed to ``target_release``, target final
         release is returned.
         """
-        self.assertEqual(target_release('0.3.2pre3'), '0.3.2')
+        self.assertEqual(target_release('0.3.2rc3'), '0.3.2')
 
 
 class GetPackageKeySuffixTests(SynchronousTestCase):
@@ -347,11 +358,11 @@ class GetPackageKeySuffixTests(SynchronousTestCase):
         If a weekly release is passed to ``get_package_key_suffix``, "-testing"
         is returned.
         """
-        self.assertEqual(get_package_key_suffix('0.3.0dev1'), "-testing")
+        self.assertEqual(get_package_key_suffix('0.3.0.dev1'), "-testing")
 
     def test_pre_release(self):
         """
         If a pre-release is passed to ``get_package_key_suffix``, "-testing"
         is returned.
         """
-        self.assertEqual(get_package_key_suffix('0.3.0pre1'), "-testing")
+        self.assertEqual(get_package_key_suffix('0.3.0rc1'), "-testing")

@@ -11,9 +11,9 @@ _VERSION_RE = re.compile(
     # The base version
     r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
     # Pre-release
-    r"(pre(?P<pre_release>[0-9]+))?"
+    r"(rc(?P<pre_release>[0-9]+))?"
     # Weekly release
-    r"(dev(?P<weekly_release>[0-9]+))?"
+    r"(\.dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
     r"(\.post(?P<documentation_revision>[0-9]+))?"
     # Development version
@@ -86,9 +86,9 @@ class FlockerVersion(object):
         releases.
         """
         if self.weekly_release is not None:
-            return self.release + 'dev' + self.weekly_release
+            return self.release + '.dev' + self.weekly_release
         elif self.pre_release is not None:
-            return self.release + 'pre' + self.pre_release
+            return self.release + 'rc' + self.pre_release
         return self.release
 
 
@@ -250,7 +250,7 @@ def make_rpm_version(flocker_version):
     # 0.1.2pre2  becomes
     # 0.1.2-0.pre.2
     if is_pre_release(installable):
-        release = ['0', 'pre', parsed_version.pre_release]
+        release = ['0', 'rc', parsed_version.pre_release]
     elif is_weekly_release(installable):
         release = ['0', 'dev', parsed_version.weekly_release]
     else:

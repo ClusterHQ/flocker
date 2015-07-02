@@ -38,7 +38,7 @@ Pre-release
 Pre-releases are made as part of ClusterHQ's internal release process.
 We don't currently solicit external feedback on pre-releases.
 
-Pre-releases will have the version number of the next release with a ``preX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
+Pre-releases will have the version number of the next release with a ``rcX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
 
 There is a feature-freeze at the time that first pre-release for a given release is made.
 The eventual final release is made from the last pre-release, including only bug fixes discovered during testing of the pre-release.
@@ -86,8 +86,8 @@ Weekly Development Release
 Weekly releases are made primarily to facilitate the testing and automation of the release process itself.
 
 If the previous release was a marketing release (either major or minor), the version of the following weekly release will increment the micro version
-and append a ``dev1`` suffix.
-Otherwise, if the previous release was a weekly development release, the ``devX`` suffix will be incremented.
+and append a ``.dev1`` suffix.
+Otherwise, if the previous release was a weekly development release, the ``.devX`` suffix will be incremented.
 
 Examples
 ^^^^^^^^
@@ -97,17 +97,17 @@ For example:
 +-----------------+-------------------------------------------------+
 | ``0.3.0``       | 0.3.0 released                                  |
 +-----------------+-------------------------------------------------+
-| ``0.3.1dev1``   | Weekly releases of 0.3.1                        |
+| ``0.3.1.dev1``  | Weekly releases of 0.3.1                        |
 +-----------------+-------------------------------------------------+
 | ``0.3.1``       | Micro marketing release                         |
 +-----------------+-------------------------------------------------+
 | ``0.3.1.post1`` | Documentation release of 0.3.1                  |
 +-----------------+-------------------------------------------------+
-| ``0.3.2dev1``   | Weekly release                                  |
+| ``0.3.2.dev1``  | Weekly release                                  |
 +-----------------+-------------------------------------------------+
-| ``0.3.2dev2``   | Weekly release                                  |
+| ``0.3.2.dev2``  | Weekly release                                  |
 +-----------------+-------------------------------------------------+
-| ``0.4.0pre1``   | Pre-release of 0.4.0                            |
+| ``0.4.0rc1``    | Pre-release of 0.4.0                            |
 +-----------------+-------------------------------------------------+
 | ``0.4.0``       | Major marketing release                         |
 +-----------------+-------------------------------------------------+
