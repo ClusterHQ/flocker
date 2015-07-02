@@ -21,7 +21,7 @@ from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GiB
+from bitmath import GiB, MiB
 
 from pyrsistent import PRecord, field
 
@@ -46,6 +46,7 @@ from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
 from twisted.python.log import msg
+from twisted.python.logfile import LogFile
 
 from .. import __version__
 from ..common.script import (
@@ -429,7 +430,8 @@ class StandardOptionsTestsMixin(object):
 
     def test_logfile_override(self):
         """
-        If `--logfile` is supplied, its value is stored as a ``FilePath``.
+        If `--logfile` is supplied, its value is stored as a
+        ``twisted.python.logfile.LogFile``.
         """
         options = self.options()
         # The command may otherwise give a UsageError
@@ -437,9 +439,14 @@ class StandardOptionsTestsMixin(object):
         # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
-        expected_path = self.mktemp()
+        expected_path = FilePath(self.mktemp()).path
         options.parseOptions(['--logfile={}'.format(expected_path)])
-        self.assertEqual(FilePath(expected_path), options['logfile'])
+        logfile = options['logfile']
+        self.assertEqual(
+            (LogFile, expected_path, int(MiB(100).to_Byte().value), 5),
+            (logfile.__class__, logfile.path,
+             logfile.rotateLength, logfile.maxRotatedFiles)
+        )
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):

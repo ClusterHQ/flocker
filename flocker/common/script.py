@@ -4,6 +4,8 @@
 
 import sys
 
+from bitmath import MiB
+
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
@@ -13,7 +15,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
-from twisted.python.filepath import FilePath
+from twisted.python.logfile import LogFile
 
 from zope.interface import Interface
 
@@ -26,6 +28,10 @@ __all__ = [
     'FlockerScriptRunner',
     'main_for_service',
 ]
+
+
+LOGFILE_LENGTH = int(MiB(100).to_Byte().value)
+LOGFILE_COUNT = 5
 
 
 def flocker_standard_options(cls):
@@ -66,7 +72,11 @@ def flocker_standard_options(cls):
         """
         Log to a file. Log is written to ``stdout`` by default.
         """
-        self['logfile'] = FilePath(logfile_path)
+        self['logfile'] = LogFile.fromFullPath(
+            logfile_path,
+            rotateLength=LOGFILE_LENGTH,
+            maxRotatedFiles=LOGFILE_COUNT,
+        )
     cls.opt_logfile = opt_logfile
 
     return cls
