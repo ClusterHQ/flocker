@@ -163,13 +163,12 @@ def build_version_test(name, version_case):
                 "Version isn't normalized.",
             )
 
-
     Tests.__name__ = name
     return Tests
 
 
-MarkettingVersionTests = build_version_test(
-    "MarkettingVersionTests",
+MarketingVersionTests = build_version_test(
+    "MarketingVersionTests",
     VersionCase(
         version=b'0.3.2',
         flocker_version=FlockerVersion(
