@@ -162,6 +162,8 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(sys.stdout.getvalue(), b"")
 
+    # FLOC-2538 - Add tests for file based logging here.
+
 
 @flocker_standard_options
 class TestOptions(usage.Options):
