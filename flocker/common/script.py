@@ -13,6 +13,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
+from twisted.python.filepath import FilePath
 
 from zope.interface import Interface
 
@@ -45,6 +46,7 @@ def flocker_standard_options(cls):
         """
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
+        self['logfile'] = self._sys_module.stdout
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
 
@@ -60,7 +62,12 @@ def flocker_standard_options(cls):
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
 
-    # FLOC-2538 - Add --logfile option.
+    def opt_logfile(self, logfile_path):
+        """
+        Log to a file. Log is written to ``stdout`` by default.
+        """
+        self['logfile'] = FilePath(logfile_path)
+    cls.opt_logfile = opt_logfile
 
     return cls
 

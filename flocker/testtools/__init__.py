@@ -341,10 +341,10 @@ class StandardOptionsTestsMixin(object):
         ``flocker_standard_options`` adds a ``sys_module`` argument to the
         initialiser which is assigned to ``_sys_module``.
         """
-        dummy_sys_module = object()
+        fake_sys_module = FakeSysModule()
         self.assertIs(
-            dummy_sys_module,
-            self.options(sys_module=dummy_sys_module)._sys_module
+            fake_sys_module,
+            self.options(sys_module=fake_sys_module)._sys_module
         )
 
     def test_version(self):
@@ -412,7 +412,34 @@ class StandardOptionsTestsMixin(object):
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
 
-    # FLOC-2538 - Add tests for --logfile flocker_standard_options.
+    def test_logfile_default(self):
+        """
+        `--logfile` is optional and if ommited, the default value will be
+        ``stdout``.
+        """
+        sys = FakeSysModule()
+        options = self.options(sys_module=sys)
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions([])
+        self.assertIs(sys.stdout, options['logfile'])
+
+    def test_logfile_override(self):
+        """
+        If `--logfile` is supplied, its value is stored as a ``FilePath``.
+        """
+        options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        expected_path = self.mktemp()
+        options.parseOptions(['--logfile={}'.format(expected_path)])
+        self.assertEqual(FilePath(expected_path), options['logfile'])
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
