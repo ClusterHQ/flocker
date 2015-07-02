@@ -1,3 +1,4 @@
+# -*- test-case-name: admin.test.test_homebrew -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
