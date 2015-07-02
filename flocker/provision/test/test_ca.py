@@ -4,8 +4,11 @@
 Tests for cluster certificate generation.
 """
 
+from unittest import skipUnless
+
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.procutils import which
 
 from .. import Certificates
 
@@ -14,6 +17,7 @@ class CertificatesGenerateTests(SynchronousTestCase):
     """
     Tests for ``Certificates.generate``.
     """
+    @skipUnless(which(b"flocker-ca"), b"flocker-ca not installed (FLOC-2600)")
     def test_generated(self):
         """
         ``Certificates.generate`` generates a certificate authority
