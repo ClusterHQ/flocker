@@ -24,7 +24,7 @@ from . import IStateChange, in_parallel, sequentially
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset,
-    pset_field, ip_to_uuid
+    pset_field, ip_to_uuid, RestartNever,
     )
 from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -171,7 +171,8 @@ class StartApplication(PRecord):
             volumes=volumes,
             mem_limit=application.memory_limit,
             cpu_shares=application.cpu_shares,
-            restart_policy=application.restart_policy,
+            # The only supported policy is "never".  See FLOC-2449.
+            restart_policy=RestartNever(),
             command_line=application.command_line,
         )
 
@@ -934,8 +935,27 @@ class ApplicationNodeDeployer(object):
         # we don't want to do anything:
         comparable_state = comparable_state.transform(["running"], True)
 
+        # Restart policies don't implement comparison usefully.  See FLOC-2500.
+        restart_state = comparable_state.restart_policy
+        comparable_state = comparable_state.set(restart_policy=RestartNever())
+        comparable_configuration = comparable_configuration.set(
+            restart_policy=RestartNever()
+        )
+
         return (
             comparable_state != comparable_configuration
+
+            # Restart policies were briefly supported but they interact poorly
+            # with system restarts.  They're disabled now (except for the
+            # default policy, "never").  Ignore the Application's configured
+            # policy and enforce the "never" policy.  This will change any
+            # existing container that was configured with a different policy.
+            # See FLOC-2449.
+            #
+            # Also restart policies don't implement comparison usefully.  See
+            # FLOC-2500.
+            or not isinstance(restart_state, RestartNever)
+
             or self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )
@@ -1000,8 +1020,9 @@ class ApplicationNodeDeployer(object):
         local_application_names = {app.name for app in all_applications}
         desired_local_state = {app.name for app in
                                desired_node_applications}
-        # Don't start applications that exist on this node but aren't
-        # running; Docker is in charge of restarts:
+        # Don't start applications that exist on this node but aren't running;
+        # Docker is in charge of restarts (and restarts aren't supported yet
+        # anyway; see FLOC-2449):
         start_names = desired_local_state.difference(local_application_names)
         stop_names = {app.name for app in all_applications}.difference(
             desired_local_state)

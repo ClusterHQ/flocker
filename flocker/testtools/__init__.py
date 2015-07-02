@@ -19,6 +19,7 @@ import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
+from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
 from bitmath import GiB
@@ -26,6 +27,8 @@ from bitmath import GiB
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
+from eliot import ActionType, Message, MessageType, start_action, fields
+from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -40,7 +43,7 @@ from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
-from twisted.internet.protocol import Factory, Protocol
+from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
@@ -594,7 +597,8 @@ class DockerImageBuilder(PRecord):
             will be applied to a `Dockerfile.in` template file if such a file
             exists.
 
-        :return: ``bytes`` with the tag name applied to the built image.
+        :return: ``Deferred bytes`` with the tag name applied to the built
+            image.
         """
         if dockerfile_variables is None:
             dockerfile_variables = {}
@@ -622,7 +626,7 @@ class DockerImageBuilder(PRecord):
             b'--tag=%s' % (tag,),
             docker_dir.path
         ]
-        run_process(command)
+        d = logged_run_process(reactor, command)
         if self.cleanup:
             def remove_image():
                 client = DockerClient(version="1.15")
@@ -631,7 +635,7 @@ class DockerImageBuilder(PRecord):
                         client.remove_container(container[u"Names"][0])
                 client.remove_image(tag, force=True)
             self.test.addCleanup(remove_image)
-        return tag
+        return d.addCallback(lambda ignored: tag)
 
 
 def skip_on_broken_permissions(test_method):
@@ -847,6 +851,31 @@ class CustomException(Exception):
     """
 
 
+TWISTED_CHILD_PROCESS_ACTION = ActionType(
+    u'flocker:testtools:logged_run_process',
+    fields(command=list),
+    [],
+    u'A child process is spawned using Twisted',
+)
+
+STDOUT_RECEIVED = MessageType(
+    u'flocker:testtools:logged_run_process:stdout',
+    fields(output=str),
+    u'A chunk of stdout received from a child process',
+)
+
+STDERR_RECEIVED = MessageType(
+    u'flocker:testtools:logged_run_process:stdout',
+    fields(output=str),
+    u'A chunk of stderr received from a child process',
+)
+
+PROCESS_ENDED = MessageType(
+    u'flocker:testtools:logged_run_process:process_ended',
+    fields(status=int),
+    u'The process terminated')
+
+
 class _ProcessResult(PRecord):
     """
     The return type for ``run_process`` representing the outcome of the process
@@ -868,6 +897,81 @@ class _CalledProcessError(CalledProcessError):
         return base + " and output:\n" + lines
 
 
+class _LoggingProcessProtocol(ProcessProtocol):
+    """
+    A ``ProcessProtocol`` that both stores and logs output from the
+    subprocess. Output is logged as it is received.
+
+    Intended to be used by ``logged_run_process``.
+    """
+
+    def __init__(self, deferred, action):
+        """
+        Construct a ``_LoggingProcessProtocol``.
+
+        :param deferred: A ``Deferred`` that will fire with
+            ``(reason, output)``
+            when the process ends, where ``reason`` is a ``Failure`` with the
+            reason for the process ending (see ``IProcessProtocol``), and
+            ``output`` are the bytes outputted by the process (both to stdout
+            and stderr).
+        :param action: The Eliot ``Action`` under which this process is being
+            run.
+        """
+        self._deferred = deferred
+        self._action = action
+        self._output_buffer = StringIO()
+
+    def outReceived(self, data):
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDOUT_RECEIVED(output=data).write()
+
+    def errReceived(self, data):
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDERR_RECEIVED(output=data).write()
+
+    def processExited(self, reason):
+        with self._action.context():
+            PROCESS_ENDED(status=reason.value.status).write()
+            self._deferred.callback((reason, self._output_buffer.getvalue()))
+
+
+def logged_run_process(reactor, command):
+    """
+    Run a child process, and log the output as we get it.
+
+    :param reactor: An ``IReactorProcess`` to spawn the process on.
+    :param command: An argument list specifying the child process to run.
+
+    :return: A ``Deferred`` that calls back with ``_ProcessResult`` if the
+        process exited successfully, or errbacks with
+        ``_CalledProcessError`` otherwise.
+    """
+    d = Deferred()
+    action = TWISTED_CHILD_PROCESS_ACTION(command=command)
+    with action.context():
+        d2 = DeferredContext(d)
+        protocol = _LoggingProcessProtocol(d, action)
+        reactor.spawnProcess(protocol, command[0], command)
+
+        def process_ended((reason, output)):
+            status = reason.value.status
+            if status:
+                raise _CalledProcessError(
+                    returncode=status, cmd=command, output=output)
+            return _ProcessResult(
+                command=command,
+                status=status,
+                output=output,
+            )
+
+        d2.addCallback(process_ended)
+        d2.addActionFinish()
+        return d2.result
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -881,14 +985,23 @@ def run_process(command, *args, **kwargs):
     """
     kwargs["stdout"] = PIPE
     kwargs["stderr"] = STDOUT
-    process = Popen(command, *args, **kwargs)
-    output = process.stdout.read()
-    status = process.wait()
-    result = _ProcessResult(command=command, output=output, status=status)
-    if result.status:
-        raise _CalledProcessError(
-            returncode=status, cmd=command, output=output,
-        )
+    action = start_action(
+        action_type="run_process", command=command, args=args, kwargs=kwargs)
+    with action:
+        process = Popen(command, *args, **kwargs)
+        output = process.stdout.read()
+        status = process.wait()
+        result = _ProcessResult(command=command, output=output, status=status)
+        # TODO: We should be using a specific logging type for this.
+        Message.new(
+            command=result.command,
+            output=result.output,
+            status=result.status,
+        ).write()
+        if result.status:
+            raise _CalledProcessError(
+                returncode=status, cmd=command, output=output,
+            )
     return result
 
 
