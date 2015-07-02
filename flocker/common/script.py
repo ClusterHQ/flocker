@@ -60,7 +60,7 @@ def flocker_standard_options(cls):
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
 
-    # FLOC-2538 - Add --logfile-directory option.
+    # FLOC-2538 - Add --logfile option.
 
     return cls
 
@@ -180,8 +180,9 @@ class FlockerScriptRunner(object):
         options = self._parse_options(self.sys_module.argv[1:])
 
         if self.logging:
-            # FLOC-2538 - Check options[logfile_directory] here and if present
-            # construct a ``twisted.python.logfile.LogFile`` with 5 x 100MB rotation parameters:
+            # FLOC-2538 - Check options[logfile] here and if present construct
+            # a ``twisted.python.logfile.LogFile`` using the dirname and
+            # basename of the supplied path with 5 x 100MB rotation parameters:
             # https://twistedmatrix.com/documents/current/api/twisted.python.logfile.LogFile.html
             # Pass that instance to eliot_logging_service
             log_writer = eliot_logging_service(

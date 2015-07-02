@@ -412,7 +412,7 @@ class StandardOptionsTestsMixin(object):
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
 
-    # FLOC-2538 - Add tests for --logfile-directory flocker_standard_options.
+    # FLOC-2538 - Add tests for --logfile flocker_standard_options.
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
