@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from pyrsistent import pmap
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 from ..control.httpapi import container_configuration_response
 
@@ -67,6 +67,9 @@ class DeploymentTests(TestCase):
         In other words, the defined volume quota size is preserved from one
         node to the next.
         """
+        raise SkipTest(
+            'Sometimes times out on acceptance/aws/centos-7/aws. '
+            'See FLOC-2555.')
         (node_1, node_1_uuid), (node_2, node_2_uuid) = [
             (node.reported_hostname, node.uuid) for node in cluster.nodes]
         mongo_dataset_id = unicode(uuid4())
@@ -133,8 +136,7 @@ class DeploymentTests(TestCase):
         waiting_for_container_1 = cluster.wait_for_container(
             expected_container_1)
 
-        def got_container_1(result):
-            cluster, actual_container = result
+        def got_container_1(actual_container):
             self.assertTrue(actual_container['running'])
             waiting_for_dataset = cluster.wait_for_dataset(
                 {
@@ -146,8 +148,7 @@ class DeploymentTests(TestCase):
                 }
             )
 
-            def got_dataset(result):
-                cluster, dataset = result
+            def got_dataset(dataset):
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
                     (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
@@ -161,8 +162,7 @@ class DeploymentTests(TestCase):
         waiting_for_container_2 = waiting_for_container_1.addCallback(
             got_container_1)
 
-        def got_container_2(result):
-            cluster, actual_container = result
+        def got_container_2(actual_container):
             waiting_for_dataset = cluster.wait_for_dataset(
                 {
                     u"dataset_id": mongo_dataset_id,
@@ -173,8 +173,7 @@ class DeploymentTests(TestCase):
                 }
             )
 
-            def got_dataset(result):
-                cluster, dataset = result
+            def got_dataset(dataset):
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
                     (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)

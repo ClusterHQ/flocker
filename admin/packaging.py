@@ -587,6 +587,9 @@ IGNORED_WARNINGS = {
         'non-conffile-in-etc /etc/init/flocker-container-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-control.conf',
 
+        # rsyslog files are not installed as conffiles.
+        'non-conffile-in-etc /etc/rsyslog.d/flocker.conf',
+
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
 
@@ -653,6 +656,9 @@ IGNORED_WARNINGS = {
         'file-in-etc-not-marked-as-conffile etc/init/flocker-dataset-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-container-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
+
+        # rsyslog files are not installed as conffiles.
+        'file-in-etc-not-marked-as-conffile etc/rsyslog.d/flocker.conf',
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
@@ -928,6 +934,9 @@ def omnibus_package_builder(
                     # Upstart configuration
                     package_files.child('upstart'):
                         FilePath('/etc/init'),
+                    # rsyslog configuration
+                    package_files.child(b'rsyslog'):
+                        FilePath(b'/etc/rsyslog.d'),
                     # Flocker Control State dir
                     empty_path: FilePath('/var/lib/flocker/'),
                 },

@@ -533,11 +533,15 @@ class FilesystemTests(TestCase):
             MY_VOLUME, size=VolumeSize(maximum_size=64 * 1024 * 1024))
         creating = pool.create(volume)
 
+        def write_flush(fObj, data):
+            fObj.write(data)
+            fObj.flush()
+
         def created(filesystem):
             path = filesystem.get_path()
             # Try to write more than 64MB of data.
             with path.child(b"ok").open("w") as fObj:
                 self.assertRaises(
-                    IOError, fObj.write, b"x" * 64 * 1024 * 1024)
+                    IOError, write_flush, fObj, b"x" * 64 * 1024 * 1024)
         creating.addCallback(created)
         return creating

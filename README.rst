@@ -1,25 +1,27 @@
 Want to get your hands dirty? Skip ahead to the `tutorial`_.
 
-Flocker |coveralls|
-===================
+Flocker
+=======
 
-.. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
-  :target: https://coveralls.io/r/ClusterHQ/flocker
-  :alt: 'Buildbot build coverage status'
+Flocker is an open-source Container Data Volume Manager for your Dockerized applications.
 
-Flocker is a data volume manager and multi-host Docker cluster management tool.
-With it you can control your data using the same tools you use for your stateless applications by harnessing the power of ZFS on Linux.
-This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
+By providing tools for data migrations, Flocker gives ops teams the tools they need to run containerized stateful services like databases in production.
 
-With Flocker's command line tools and a simple configuration language, you can deploy your Docker-based applications onto one or more Linux hosts.
-Once deployed, your applications will have access to the volumes you have configured for them.
-Those volumes will follow your containers when you use Flocker to move them between different hosts in your Flocker cluster.
+Unlike a Docker data volume which is tied to a single server, a Flocker data volume, called a dataset, is portable and can be used with any container, no matter where that container is running.
+
+Flocker manages Docker containers and data volumes together.
+When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
+
+You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
+
+
+About Us
+--------
 
 Flocker is being developed by `ClusterHQ`_.
 We are a small team of engineers with experience running distributed systems and many of us are core contributors to the `Twisted`_ project.
 
-This project is under active development; version 0.1 was released on August 12th, 2014.
-You shouldn't use it in production yet.
+This project is under active development; version 1.0 was released on June 17th, 2015.
 Contributions are welcome.
 If you have any issues or feedback, you can `talk to us`_.
 We're looking forward to working on this project with you.
@@ -28,7 +30,14 @@ We're looking forward to working on this project with you.
 Documentation
 -------------
 
-You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ or `areas for potential future development`_ in the docs.
+You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ in the docs.
+
+
+Feature Requests
+----------------
+
+If you have any feature requests or suggestions, we would love to hear about them.
+Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
 
 
 Tests
@@ -43,14 +52,15 @@ You can run all of the tox environments using the command ``tox``.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
-.. _Twisted: https://twistedmatrix.com
-.. _installing Flocker: https://docs.clusterhq.com/en/latest/indepth/installation.html
-.. _tutorial: https://docs.clusterhq.com/en/latest/gettingstarted/index.html
-.. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction.html
-.. _areas for potential future development: https://docs.clusterhq.com/en/latest/roadmap/
+.. _Twisted: https://twistedmatrix.com/trac/
+.. _installing Flocker: https://docs.clusterhq.com/en/latest/using/installing/index.html
+.. _tutorial: https://docs.clusterhq.com/en/latest/using/tutorial/index.html
+.. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction/index.html
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
+.. _UserVoice: https://feedback.clusterhq.com/
+.. _GitHub issue: https://github.com/clusterhq/flocker/issues

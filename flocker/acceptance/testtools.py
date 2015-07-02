@@ -119,6 +119,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
@@ -353,9 +354,8 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The attributes of the dataset that
             we're waiting for.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties appears in
-            the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -380,7 +380,7 @@ class Cluster(PRecord):
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: (self, dataset_properties))
+        waiting.addCallback(lambda ignored: dataset_properties)
         return waiting
 
     @log_method
@@ -390,9 +390,9 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties has been
-            persisted to the cluster configuration.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets",
@@ -402,8 +402,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -414,7 +412,8 @@ class Cluster(PRecord):
         :param unicode dataset_id: The uuid of the dataset to be modified.
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset update has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -426,8 +425,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -437,7 +434,8 @@ class Cluster(PRecord):
 
         :param unicode dataset_id: The uuid of the dataset to be modified.
 
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset deletion has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -448,8 +446,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -460,7 +456,9 @@ class Cluster(PRecord):
         :param dict properties: A ``dict`` mapping to the API request fields
             to create a container.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers",
@@ -470,7 +468,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -481,7 +478,8 @@ class Cluster(PRecord):
         :param unicode name: The name of the container to move.
         :param unicode node_uuid: The UUID to which the container should
             be moved.
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container move has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers/" +
@@ -492,7 +490,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -502,7 +499,8 @@ class Cluster(PRecord):
 
         :param unicode name: The name of the container to remove.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container removal has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
@@ -511,7 +509,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -555,9 +552,8 @@ class Cluster(PRecord):
         :param dict container_properties: The attributes of the container that
             we're waiting for. All the keys, values and those of nested
             dictionaries must match.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a container with the supplied properties appears
-            in the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            container with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -575,7 +571,7 @@ class Cluster(PRecord):
                         for item in expected_container.items()
                     ]):
                         # Return cluster and container state
-                        return self, container
+                        return container
                 return False
             request.addCallback(got_response)
             return request
