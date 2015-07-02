@@ -197,13 +197,8 @@ class FlockerScriptRunner(object):
         options = self._parse_options(self.sys_module.argv[1:])
 
         if self.logging:
-            # FLOC-2538 - Check options[logfile] here and if present construct
-            # a ``twisted.python.logfile.LogFile`` using the dirname and
-            # basename of the supplied path with 5 x 100MB rotation parameters:
-            # https://twistedmatrix.com/documents/current/api/twisted.python.logfile.LogFile.html
-            # Pass that instance to eliot_logging_service
             log_writer = eliot_logging_service(
-                self.sys_module.stdout, self._reactor, True)
+                options['logfile'], self._reactor, True)
         else:
             log_writer = Service()
         log_writer.startService()
