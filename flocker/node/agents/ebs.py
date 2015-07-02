@@ -20,6 +20,9 @@ from boto import config
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
+from twisted.python.constants import (
+    Names, NamedConstant, Values, ValueConstant
+)
 from twisted.python.filepath import FilePath
 
 from eliot import Message
@@ -40,6 +43,35 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
+
+
+class EbsOperations(Names):
+    """
+    """
+    CREATE_VOLUME = NamedConstant()
+    ATTACH_VOLUME = NamedConstant()
+    DETACH_VOLUME = NamedConstant()
+    DESTROY_VOLUME = NamedConstant()
+
+
+class EbsVolumeStates(Values):
+    """
+    """
+    EMPTY = ValueConstant('')
+    CREATING = ValueConstant(u'creating')
+    AVAILABLE = ValueConstant(u'available')
+    ATTACHING = ValueConstant(u'attaching')
+    IN_USE = ValueConstant(u'in-use')
+    DETACHING = ValueConstant(u'detaching')
+
+
+class EbsStateTransitionInfo(PRecord):
+    """
+    """
+    start_state = field(mandatory=True, type=EbsVolumeStates)
+    transient_state = field(mandatory=True, type=EbsVolumeStates)
+    end_state = field(mandatory=True, type=EbsVolumeStates)
+    end_attach_data = field(mandatory=True, type=bool)
 
 
 class EliotLogHandler(logging.Handler):
@@ -243,10 +275,11 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
-def _wait_for_volume(volume,
-                     start_status,
-                     transient_status,
-                     end_status):
+def _wait_for_ebs_state_change(operation,
+                               volume,
+                               start_status,
+                               transient_status,
+                               end_status):
     """
     Helper function to wait for a given volume to change state
     from ``start_status`` via ``transient_status`` to ``end_status``.
@@ -521,10 +554,11 @@ class EBSBlockDeviceAPI(object):
                                     metadata)
 
         # Wait for created volume to reach 'available' state.
-        _wait_for_volume(requested_volume,
-                         start_status=u'',
-                         transient_status=u'creating',
-                         end_status=u'available')
+        _wait_for_ebs_state_change(EbsOperations.CREATE_VOLUME,
+                                   requested_volume,
+                                   start_status=u'',
+                                   transient_status=u'creating',
+                                   end_status=u'available')
 
         # Return created volume in BlockDeviceVolume format.
         return _blockdevicevolume_from_ebs_volume(requested_volume)
@@ -630,10 +664,10 @@ class EBSBlockDeviceAPI(object):
                     break
                 # end lock scope
 
-        _wait_for_volume(ebs_volume,
-                         start_status=u'available',
-                         transient_status=u'attaching',
-                         end_status=u'in-use')
+        _wait_for_ebs_state_change(EbsOperations.ATTACH_VOLUME, ebs_volume,
+                                   start_status=u'available',
+                                   transient_status=u'attaching',
+                                   end_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
         return attached_volume
@@ -657,10 +691,10 @@ class EBSBlockDeviceAPI(object):
 
         self.connection.detach_volume(blockdevice_id)
 
-        _wait_for_volume(ebs_volume,
-                         start_status=u'in-use',
-                         transient_status=u'detaching',
-                         end_status=u'available')
+        _wait_for_ebs_state_change(EbsOperations.DETACH_VOLUME, ebs_volume,
+                                   start_status=u'in-use',
+                                   transient_status=u'detaching',
+                                   end_status=u'available')
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -677,10 +711,11 @@ class EBSBlockDeviceAPI(object):
         destroy_result = self.connection.delete_volume(blockdevice_id)
         if destroy_result:
             try:
-                _wait_for_volume(ebs_volume,
-                                 start_status=u'available',
-                                 transient_status=u'deleting',
-                                 end_status='')
+                _wait_for_ebs_state_change(EbsOperations.DESTROY_VOLUME,
+                                           ebs_volume,
+                                           start_status=u'available',
+                                           transient_status=u'deleting',
+                                           end_status='')
             except UnknownVolume:
                 return
         else:
