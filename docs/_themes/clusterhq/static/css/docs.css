@@ -410,7 +410,7 @@ a.download:before {
     }
 
     .menu ul.menu {
-        padding-left: 15%;
+        padding-left: 5%;
     }
 
     ul.menu li:last-of-type a {
@@ -432,7 +432,7 @@ a.download:before {
     }
 
     .menu ul.menu {
-        padding-left: 20%;
+        padding-left: 15%;
     }
 }
 
