@@ -60,6 +60,8 @@ def flocker_standard_options(cls):
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
 
+    # FLOC-2538 - Add --logfile-directory option.
+
     return cls
 
 
@@ -74,6 +76,10 @@ class ICommandLineScript(Interface):
 
 
 def eliot_logging_service(log_file, reactor, capture_stdout):
+    # FLOC-2538 - So log_file may be an instance of
+    # ``t.p.logfile.LogFile``...which I think should be ok, but I can't find
+    # the twisted documentation explaining how these old logging APIs fit
+    # together.
     service = MultiService()
     ThreadedFileWriter(log_file, reactor).setServiceParent(service)
     EliotObserver(capture_stdout=capture_stdout).setServiceParent(service)
@@ -174,6 +180,10 @@ class FlockerScriptRunner(object):
         options = self._parse_options(self.sys_module.argv[1:])
 
         if self.logging:
+            # FLOC-2538 - Check options[logfile_directory] here and if present
+            # construct a ``twisted.python.logfile.LogFile`` with 5 x 100MB rotation parameters:
+            # https://twistedmatrix.com/documents/current/api/twisted.python.logfile.LogFile.html
+            # Pass that instance to eliot_logging_service
             log_writer = eliot_logging_service(
                 self.sys_module.stdout, self._reactor, True)
         else:
