@@ -905,7 +905,7 @@ class _LoggingProcessProtocol(ProcessProtocol):
     Intended to be used by ``logged_run_process``.
     """
 
-    def __init__(self, deferred):
+    def __init__(self, deferred, action):
         """
         Construct a ``_LoggingProcessProtocol``.
 
@@ -915,21 +915,27 @@ class _LoggingProcessProtocol(ProcessProtocol):
             reason for the process ending (see ``IProcessProtocol``), and
             ``output`` are the bytes outputted by the process (both to stdout
             and stderr).
+        :param action: The Eliot ``Action`` under which this process is being
+            run.
         """
         self._deferred = deferred
+        self._action = action
         self._output_buffer = StringIO()
 
     def outReceived(self, data):
-        self._output_buffer.write(data)
-        STDOUT_RECEIVED(output=data).write()
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDOUT_RECEIVED(output=data).write()
 
     def errReceived(self, data):
-        self._output_buffer.write(data)
-        STDERR_RECEIVED(output=data).write()
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDERR_RECEIVED(output=data).write()
 
     def processExited(self, reason):
-        PROCESS_ENDED(status=reason.value.status).write()
-        self._deferred.callback((reason, self._output_buffer.getvalue()))
+        with self._action.context():
+            PROCESS_ENDED(status=reason.value.status).write()
+            self._deferred.callback((reason, self._output_buffer.getvalue()))
 
 
 def logged_run_process(reactor, command):
@@ -947,7 +953,7 @@ def logged_run_process(reactor, command):
     action = TWISTED_CHILD_PROCESS_ACTION(command=command)
     with action.context():
         d2 = DeferredContext(d)
-        protocol = _LoggingProcessProtocol(d)
+        protocol = _LoggingProcessProtocol(d, action)
         reactor.spawnProcess(protocol, command[0], command)
 
         def process_ended((reason, output)):
