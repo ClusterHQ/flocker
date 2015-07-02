@@ -17,9 +17,12 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-import cinderclient
+from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
+
+from flocker.ca import RootCredential, AUTHORITY_CERTIFICATE_FILENAME
 
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
@@ -117,7 +120,7 @@ class CinderHttpsTests(SynchronousTestCase):
         try:
             cinder_client.authenticate()
             return True
-        except cinderclient.exceptions.Unauthorized:
+        except Unauthorized:
             return False
 
     def test_verify_false(self):
@@ -137,10 +140,14 @@ class CinderHttpsTests(SynchronousTestCase):
         With a CA file that does not match any CA, connection to the
         OpenStack servers fails.
         """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        RootCredential.initialize(path, b"mycluster")
         try:
             cls, kwargs = get_blockdeviceapi_args(
-                ProviderType.openstack, peer_verify=True,
-                peer_ca_path='/dev/null')
+                ProviderType.openstack, backend='openstack',
+                auth_plugin='password', password='password', peer_verify=True,
+                peer_ca_path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
         except InvalidConfig as e:
             raise SkipTest(str(e))
         self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
