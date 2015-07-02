@@ -127,7 +127,6 @@ class LoopUntilTests(SynchronousTestCase):
         d = loop_until(predicate, reactor=clock)
 
         self.assertNoResult(d)
-        self.assertEqual
 
         clock.advance(0.1)
         self.assertEqual(
@@ -148,3 +147,43 @@ class LoopUntilTests(SynchronousTestCase):
         assertContainsFields(self, message.message, {
             'result': None,
         })
+
+    @capture_logging(None)
+    def test_multiple_iterations(self, logger):
+        """
+        If the predicate returns something falsey followed by something truthy,
+        then ``loop_until`` returns it immediately.
+        """
+        result = object()
+        results = [None, False, result]
+        expected_results = results[:-1]
+
+        def predicate():
+            return results.pop(0)
+        clock = Clock()
+
+        d = loop_until(predicate, reactor=clock)
+
+        clock.advance(0.1)
+        self.assertNoResult(d)
+        clock.advance(0.1)
+
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        action = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)[0]
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'result': result,
+        })
+        self.assertTrue(action.succeeded)
+        messages = LoggedMessage.of_type(
+            logger.messages, LOOP_UNTIL_ITERATION_MESSAGE)
+        self.assertEqual(action.children, messages)
+        self.assertEqual(
+            [messages[0].message['result'], messages[1].message['result']],
+            expected_results,
+        )

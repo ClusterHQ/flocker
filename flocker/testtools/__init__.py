@@ -16,7 +16,7 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
 import shutil
-from functools import wraps
+from functools import wraps, partial
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
@@ -195,6 +195,13 @@ def assert_not_equal_comparison(case, a, b):
 
 
 def function_serializer(function):
+    """
+    Serialize the given function for logging by eliot.
+
+    :param function: Function to serialize.
+
+    :return: Serialized version of function for inclusion in logs.
+    """
     try:
         return {
             "function": str(function),
@@ -205,7 +212,7 @@ def function_serializer(function):
         # One debugging method involves changing .py files and is incompatible
         # with inspecting the source.
         return {
-            "function": function,
+            "function": str(function),
         }
 
 LOOP_UNTIL_ACTION = ActionType(
@@ -226,7 +233,7 @@ def loop_until(predicate, reactor=reactor):
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
 
-    :param reactor: The reactor implemetnation to use to delay.
+    :param reactor: The reactor implementation to use to delay.
     :type reactor: ``IReactorTime``.
 
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
@@ -239,11 +246,10 @@ def loop_until(predicate, reactor=reactor):
     def loop(result):
         if not result:
             LOOP_UNTIL_ITERATION_MESSAGE(
-                message_type="flocker:testtools:loop_until:iteration",
                 result=result
             ).write()
             d = deferLater(reactor, 0.1, action.run, predicate)
-            d.addCallback(loop)
+            d.addCallback(partial(action.run, loop))
             return d
         action.addSuccessFields(result=result)
         return result
