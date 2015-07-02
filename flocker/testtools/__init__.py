@@ -26,11 +26,8 @@ from bitmath import GiB
 
 from pyrsistent import PRecord, field
 
-from eliot import ActionType, Field, MessageType
-from eliot.twisted import DeferredContext
-
 from docker import Client as DockerClient
-from eliot import ActionType, Message, MessageType, start_action, fields
+from eliot import ActionType, Message, MessageType, start_action, fields, Field
 from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
