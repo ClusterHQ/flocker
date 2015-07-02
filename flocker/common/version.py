@@ -11,13 +11,16 @@ _VERSION_RE = re.compile(
     # The base version
     r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
     # Pre-release
-    r"(rc(?P<pre_release>[0-9]+))?"
+    r"((?:rc|pre)(?P<pre_release>[0-9]+))?"
     # Weekly release
-    r"(\.dev(?P<weekly_release>[0-9]+))?"
+    # Old versions didn't have the leading `.`
+    r"(\.?dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
-    r"(\.post(?P<documentation_revision>[0-9]+))?"
+    # Old versions used `+doc`
+    r"((:?\.post|\+doc)(?P<documentation_revision>[0-9]+))?"
     # Development version
-    r"(\+(?P<commit_count>[0-9]+).g(?P<commit_hash>[0-9a-f]+))?"
+    # Old versions have `.` in the case of `+doc`.
+    r"([+.](?P<commit_count>[0-9]+).g(?P<commit_hash>[0-9a-f]+))?"
     # Whether the tree is dirty.
     r"((?P<dirty>.dirty))?"
     # Always match the entire version string.

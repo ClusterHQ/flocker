@@ -95,6 +95,9 @@ class VersionCase(PRecord):
         to a weekly release.
     :param bool is_pre_release: Whether the version corresponds to
         a pre-release.
+    :param bool is_legacy: Whether the version is an old-style
+        version. In particular, the version isn't normalized
+        according to PEP440.
     """
     version = field(bytes, mandatory=True)
     flocker_version = field(FlockerVersion, mandatory=True)
@@ -103,6 +106,7 @@ class VersionCase(PRecord):
     is_release = field(bool, mandatory=True)
     is_weekly_release = field(bool, mandatory=True)
     is_pre_release = field(bool, mandatory=True)
+    is_legacy = field(bool, mandatory=True, initial=False)
 
 
 def build_version_test(name, version_case):
@@ -131,6 +135,11 @@ def build_version_test(name, version_case):
                 version_case.installable_version,
                 "Calculated installable version doesn't match"
                 "expected installable version.",)
+
+        if version_case.is_legacy:
+            test_installable_version.skip = (
+                "Legacy version don't generate proper installable version."
+            )
 
         def test_is_release(self):
             self.assertEqual(
@@ -162,6 +171,8 @@ def build_version_test(name, version_case):
                 str(PEP440Version(version_case.version)),
                 "Version isn't normalized.",
             )
+        if version_case.is_legacy:
+            test_normalization.skip = "Legacy version isn't normalized."
 
     Tests.__name__ = name
     return Tests
@@ -289,6 +300,49 @@ DocReleaseDirtyTests = build_version_test(
         is_release=False,
         is_weekly_release=False,
         is_pre_release=False,
+    ),
+)
+
+# Legacy Version Tests
+# These only test with an appended version.
+LegacyPreReleaseTests = build_version_test(
+    "LegacyPreReleaseTests",
+    VersionCase(
+        version=b'0.3.2pre11+1.gf661a6a',
+        flocker_version=FlockerVersion(
+            major=b'0',
+            minor=b'3',
+            micro=b'2',
+            pre_release=b'11',
+            commit_count=b'1',
+            commit_hash=b'f661a6a',
+        ),
+        doc_version=b'0.3.2pre11+1.gf661a6a',
+        installable_version=b'0.3.2pre11',
+        is_release=False,
+        is_weekly_release=False,
+        is_pre_release=False,
+        is_legacy=True,
+    ),
+)
+LegacyDocReleaseTests = build_version_test(
+    "LegacyPreReleaseTests",
+    VersionCase(
+        version=b'0.3.2+doc11.1.gf661a6a',
+        flocker_version=FlockerVersion(
+            major=b'0',
+            minor=b'3',
+            micro=b'2',
+            documentation_revision=b'11',
+            commit_count=b'1',
+            commit_hash=b'f661a6a',
+        ),
+        doc_version=b'0.3.2+doc11.1.gf661a6a',
+        installable_version=b'0.3.2',
+        is_release=False,
+        is_weekly_release=False,
+        is_pre_release=False,
+        is_legacy=True,
     ),
 )
 
