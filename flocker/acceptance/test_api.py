@@ -226,6 +226,9 @@ class ContainerAPITests(TestCase):
             return created
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
+    # FLOC-2488 This test has been measured to take longer than the default
+    # trial timeout (120s), on AWS, using AWS dataset backend.
+    test_move_container_with_dataset.timeout = 240
 
     @require_mongo
     @require_cluster(1)
