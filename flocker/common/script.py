@@ -16,6 +16,7 @@ from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
 from twisted.python.logfile import LogFile
+from twisted.python.filepath import FilePath
 
 from zope.interface import Interface
 
@@ -72,8 +73,11 @@ def flocker_standard_options(cls):
         """
         Log to a file. Log is written to ``stdout`` by default.
         """
+        logfile = FilePath(logfile_path)
+        logfile.parent().makedirs()
+
         self['logfile'] = LogFile.fromFullPath(
-            logfile_path,
+            logfile.path,
             rotateLength=LOGFILE_LENGTH,
             maxRotatedFiles=LOGFILE_COUNT,
         )

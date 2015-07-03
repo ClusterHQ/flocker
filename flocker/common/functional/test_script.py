@@ -191,7 +191,6 @@ FlockerScriptRunner({}(), StandardOptions()).main()
         on the command line.
         """
         logfile = FilePath(self.mktemp()).child('foo.log')
-        logfile.parent().makedirs()
         d = self.run_script(EliotScript, options=['--logfile', logfile.path])
 
         def assert_logged_messages(stdout_messages):
