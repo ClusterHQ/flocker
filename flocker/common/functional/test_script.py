@@ -79,11 +79,15 @@ class FlockerScriptRunnerTests(TestCase):
         """
         code = b'''\
 from twisted.python.usage import Options
-from flocker.common.script import FlockerScriptRunner
+from flocker.common.script import FlockerScriptRunner, flocker_standard_options
 
 from flocker.common.functional.test_script import {}
 
-FlockerScriptRunner({}(), Options()).main()
+@flocker_standard_options
+class StandardOptions(Options):
+    pass
+
+FlockerScriptRunner({}(), StandardOptions()).main()
 '''.format(script.__name__, script.__name__)
         d = getProcessOutput(sys.executable, [b"-c", code], env=os.environ,
                              errortoo=True)
