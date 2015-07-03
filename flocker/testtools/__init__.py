@@ -16,7 +16,7 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
 import shutil
-from functools import wraps
+from functools import wraps, partial
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from StringIO import StringIO
@@ -27,7 +27,7 @@ from bitmath import GiB
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
-from eliot import ActionType, Message, MessageType, start_action, fields
+from eliot import ActionType, Message, MessageType, start_action, fields, Field
 from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
@@ -37,7 +37,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import prefixedMethodNames
+from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -48,7 +48,6 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
-from twisted.python.log import msg
 
 from .. import __version__
 from ..common.script import (
@@ -195,33 +194,67 @@ def assert_not_equal_comparison(case, a, b):
             "Expected a and b to be not-equal: " + "; ".join(messages))
 
 
-def loop_until(predicate):
+def function_serializer(function):
+    """
+    Serialize the given function for logging by eliot.
+
+    :param function: Function to serialize.
+
+    :return: Serialized version of function for inclusion in logs.
+    """
+    try:
+        return {
+            "function": str(function),
+            "file": getfile(function),
+            "line": getsourcelines(function)[1]
+        }
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        return {
+            "function": str(function),
+        }
+
+LOOP_UNTIL_ACTION = ActionType(
+    action_type="flocker:testtools:loop_until",
+    startFields=[Field("predicate", function_serializer)],
+    successFields=[Field("result", serializer=safe_repr)],
+    description="Looping until predicate is true.")
+
+LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
+    message_type="flocker:testtools:loop_until:iteration",
+    fields=[Field("result", serializer=safe_repr)],
+    description="Predicate failed, trying again.")
+
+
+def loop_until(predicate, reactor=reactor):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
 
+    :param reactor: The reactor implementation to use to delay.
+    :type reactor: ``IReactorTime``.
+
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    try:
-        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                       getsourcelines(predicate)[1]))
-    except IOError:
-        # One debugging method involves changing .py files and is incompatible
-        # with inspecting the source.
-        msg("Looping on %s" % (predicate,))
+    action = LOOP_UNTIL_ACTION(predicate=predicate)
 
-    d = maybeDeferred(predicate)
+    d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
 
     def loop(result):
         if not result:
-            d = deferLater(reactor, 0.1, predicate)
-            d.addCallback(loop)
+            LOOP_UNTIL_ITERATION_MESSAGE(
+                result=result
+            ).write()
+            d = deferLater(reactor, 0.1, action.run, predicate)
+            d.addCallback(partial(action.run, loop))
             return d
+        action.addSuccessFields(result=result)
         return result
     d.addCallback(loop)
-    return d
+    return d.addActionFinish()
 
 
 def random_name(case):
