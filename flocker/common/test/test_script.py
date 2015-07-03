@@ -15,7 +15,6 @@ from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
-from twisted.python.filepath import FilePath
 
 from ..script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
