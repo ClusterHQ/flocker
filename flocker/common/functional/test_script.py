@@ -18,6 +18,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
+from twisted.python.filepath import FilePath
 
 from ..script import ICommandLineScript
 
@@ -69,14 +70,18 @@ class FlockerScriptRunnerTests(TestCase):
     """
     Functional tests for ``FlockerScriptRunner``.
     """
-    def run_script(self, script):
+    def run_script(self, script, options=None):
         """
         Run a script that logs messages and uses ``FlockerScriptRunner``.
 
         :param ICommandLineScript: Script to run. Must be class in this module.
+        :param list options: Extra command line options to pass to the
+            script.
 
         :return: ``Deferred`` that fires with list of decoded JSON messages.
         """
+        if options is None:
+            options = []
         code = b'''\
 from twisted.python.usage import Options
 from flocker.common.script import FlockerScriptRunner, flocker_standard_options
@@ -89,8 +94,11 @@ class StandardOptions(Options):
 
 FlockerScriptRunner({}(), StandardOptions()).main()
 '''.format(script.__name__, script.__name__)
-        d = getProcessOutput(sys.executable, [b"-c", code], env=os.environ,
-                             errortoo=True)
+        d = getProcessOutput(
+            sys.executable, [b"-c", code] + options,
+            env=os.environ,
+            errortoo=True
+        )
         d.addCallback(lambda data: map(loads, data.splitlines()))
         return d
 
@@ -175,4 +183,28 @@ FlockerScriptRunner({}(), StandardOptions()).main()
             self, messages[1], {u"message_type": u"twisted:log",
                                 u"message": u"Received SIGINT, shutting down.",
                                 u"error": False}))
+        return d
+
+    def test_file_logging(self):
+        """
+        Logged messages are written to ``logfile`` if ``--logfile`` is supplied
+        on the command line.
+        """
+        logfile = FilePath(self.mktemp()).child('foo.log')
+        logfile.parent().makedirs()
+        d = self.run_script(EliotScript, options=['--logfile', logfile.path])
+
+        def assert_logged_messages(stdout_messages):
+            """
+            Verify that the messages have been logged to a file rather than to
+            stdout.
+            """
+            self.assertEqual([], stdout_messages)
+            logfile_messages = map(loads, logfile.getContent().splitlines())
+            assertContainsFields(
+                # message[0] contains a twisted log message.
+                self, logfile_messages[1], {u"key": 123}
+            )
+
+        d.addCallback(assert_logged_messages)
         return d

@@ -163,38 +163,6 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(sys.stdout.getvalue(), b"")
 
-    def test_file_logging(self):
-        """
-        If ``logfile`` is set, ``FlockerScriptRunner.main`` logs to that file.
-        """
-        return True
-        @flocker_standard_options
-        class StandardOptions(usage.Options):
-            pass
-
-        class Script(object):
-            def main(self, reactor, arguments):
-
-                twisted_log.msg(b"hello!")
-                return succeed(None)
-
-        script = Script()
-        logfile = FilePath(self.mktemp()).child('foo.log')
-        logfile.parent().makedirs()
-        sys = FakeSysModule(argv=['myscript', '--logfile', logfile.path])
-        # XXX: We shouldn't be using this private fake and Twisted probably
-        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
-        # https://twistedmatrix.com/trac/ticket/7527
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-
-        runner = FlockerScriptRunner(script, StandardOptions(),
-                                     reactor=fakeReactor, sys_module=sys,
-                                     logging=True)
-        self.assertRaises(SystemExit, runner.main)
-        self.assertEqual(b"", sys.stderr.getvalue())
-        self.assertEqual(logfile.open().read(), b"")
-
 
 @flocker_standard_options
 class TestOptions(usage.Options):
