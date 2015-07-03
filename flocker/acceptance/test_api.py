@@ -449,9 +449,20 @@ def create_dataset(test_case, cluster,
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
-        lambda dataset: cluster.wait_for_dataset(dataset)
+        lambda dataset: cluster.wait_for_dataset({
+            "dataset_id": requested_dataset[u"dataset_id"],
+            "primary": requested_dataset[u"dataset_id"],
+        })
     )
 
+    def check(actual_dataset):
+        test_case.assertEqual(
+            actual_dataset[u"maximum_size"],
+            maximum_size,
+        )
+        return actual_dataset
+
+    waiting_for_create.addCallback(check)
     return waiting_for_create
 
 
@@ -484,7 +495,10 @@ class DatasetAPITests(TestCase):
 
         # Wait for the dataset to be moved
         waiting_for_move = dataset_moving.addCallback(
-            lambda dataset: cluster.wait_for_dataset(dataset)
+            lambda dataset: cluster.wait_for_dataset({
+                "dataset_id": dataset["dataset_id"],
+                "primary": cluster.nodes[1].uuid,
+            })
         )
 
         return waiting_for_move
