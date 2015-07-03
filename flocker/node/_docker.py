@@ -546,7 +546,7 @@ class DockerClient(object):
         ).write()
         return result['State']['Running']
 
-    def remove(self, unit_name):
+    def remove(self, unit_name, force=False):
         container_name = self._to_container_name(unit_name)
 
         def _remove():
@@ -608,7 +608,7 @@ class DockerClient(object):
                     message_type="flocker:docker:container_remove",
                     container=container_name
                 ).write()
-                self._client.remove_container(container_name)
+                self._client.remove_container(container_name, force=force)
                 Message.new(
                     message_type="flocker:docker:container_removed",
                     container=container_name

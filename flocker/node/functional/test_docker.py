@@ -99,7 +99,7 @@ class GenericDockerClientTests(TestCase):
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
                         restart_policy=RestartNever(),
-                        command_line=None):
+                        command_line=None, force=False):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -114,6 +114,8 @@ class GenericDockerClientTests(TestCase):
         :param cpu_shares: See ``IDockerClient.add``.
         :param restart_policy: See ``IDockerClient.add``.
         :param command_line: See ``IDockerClient.add``.
+        :param bool force: Force container removal via SIGKILL
+            during cleanup.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -130,7 +132,7 @@ class GenericDockerClientTests(TestCase):
             restart_policy=restart_policy,
             command_line=command_line,
         )
-        self.addCleanup(client.remove, unit_name)
+        self.addCleanup(client.remove, unit_name, force)
 
         d.addCallback(lambda _: wait_for_unit_state(client, unit_name,
                                                     expected_states))
@@ -356,6 +358,7 @@ class GenericDockerClientTests(TestCase):
                 unit_name=unit_name,
                 image_name=image_name,
                 environment=Environment(variables=expected_variables),
+                force=True,
             )
         d.addCallback(image_built)
 
