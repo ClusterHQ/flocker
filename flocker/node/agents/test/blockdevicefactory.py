@@ -19,7 +19,6 @@ See `acceptance testing <acceptance-testing>`_ for details.
 """
 
 from os import environ
-from uuid import uuid4
 from functools import partial
 
 from yaml import safe_load
@@ -37,6 +36,9 @@ from ..cinder import (
     _openstack_auth_from_config, _openstack_verify_from_config, cinder_api)
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
+from ....testtools.cluster_utils import (
+    make_cluster_id, TestTypes, Providers
+)
 
 
 class InvalidConfig(Exception):
@@ -46,6 +48,7 @@ class InvalidConfig(Exception):
     """
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class ProviderType(Names):
     """
     Kinds of compute/storage cloud providers for which this module is able to
@@ -64,6 +67,17 @@ def get_blockdeviceapi(provider):
     """
     cls, args = get_blockdeviceapi_args(provider)
     return cls(**args)
+
+
+def _provider_for_provider_type(provider_type):
+    """
+    Convert from ``ProviderType`` values to ``Providers`` values.
+    """
+    if provider_type in (ProviderType.openstack, ProviderType.rackspace):
+        return Providers.OPENSTACK
+    if provider_type is ProviderType.aws:
+        return Providers.AWS
+    return Providers.UNSPECIFIED
 
 
 def get_blockdeviceapi_args(provider, **override):
@@ -135,7 +149,9 @@ def get_blockdeviceapi_args(provider, **override):
         )
 
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-    kwargs = dict(cluster_id=uuid4())
+    kwargs = dict(cluster_id=make_cluster_id(
+        TestTypes.FUNCTIONAL, _provider_for_provider_type(provider),
+    ))
     kwargs.update(get_kwargs(**section))
     return cls, kwargs
 

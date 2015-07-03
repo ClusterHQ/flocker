@@ -13,7 +13,7 @@ Installation
 ============
 
 Flocker and Weave both have Docker plugins.
-So you can simply install the :ref:`Flocker Docker plugin <labs-docker-plugin>` and install the `Weave Docker plugin <http://weave.works/docker-plugins>`_ and it should Just Work.
+So you can simply install the :ref:`Flocker Docker plugin <labs-docker-plugin>` and install the `Weave Docker plugin <http://weave.works/docker-plugins/index.html>`_ and it should Just Work.
 
 Demo
 ====
