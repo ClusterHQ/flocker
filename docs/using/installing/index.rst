@@ -531,7 +531,7 @@ For testing purposes, it is possible to turn off certificate verification, by se
 
 .. warning::
 
-   Only use this setting for troubleshooting, as it is vulnerable to Man-in-the-Middle (MITM) attacks.
+   Only use this insecure setting for troubleshooting, as it is does not check that the remote server's credential is valid.
 
 .. code-block:: yaml
 
