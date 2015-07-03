@@ -140,6 +140,46 @@ class GenericDockerClientTests(TestCase):
 
         return d
 
+    def test_force_remove(self):
+        """
+        ``DockerClient.remove`` can forcefully remove a running container
+        when the ``force`` parameter is set to True.
+        """
+        client = DockerClient()
+        unit_name = u'test-force-remove'
+        expected_states = (u'active',)
+        d = client.add(
+            unit_name=unit_name,
+            image_name=u'clusterhq/flask'
+        )
+        d.addCallback(
+            lambda _: wait_for_unit_state(
+                client, unit_name, expected_states
+            )
+        )
+
+        def check_is_listed(_):
+            listed = client.list()
+
+            def check_unit(results):
+                self.assertTrue(unit_name in [unit.name for unit in results])
+            listed.addCallback(check_unit)
+            return listed
+
+        d.addCallback(check_is_listed)
+        d.addCallback(lambda _: client.remove(unit_name, force=True))
+
+        def check_is_removed(_):
+            listed = client.list()
+
+            def check_unit(results):
+                self.assertFalse(unit_name in [unit.name for unit in results])
+            listed.addCallback(check_unit)
+            return listed
+
+        d.addCallback(check_is_removed)
+        return d
+
     def test_default_base_url(self):
         """
         ``DockerClient`` instantiated with a default base URL for a socket
