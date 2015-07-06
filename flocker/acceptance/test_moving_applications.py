@@ -45,7 +45,8 @@ class MovingApplicationTests(TestCase):
             },
         }
 
-        cluster.flocker_deploy(self, minimal_deployment, minimal_application)
+        d = cluster.flocker_deploy(
+            self, minimal_deployment, minimal_application)
 
         minimal_deployment_moved = {
             u"version": 1,
@@ -55,10 +56,13 @@ class MovingApplicationTests(TestCase):
             },
         }
 
-        cluster.flocker_deploy(
+        d.addCallback(lambda _: cluster.flocker_deploy(
             self, minimal_deployment_moved, minimal_application)
+        )
 
-        return cluster.assert_expected_deployment(self, {
-            node_1.reported_hostname: set([]),
-            node_2.reported_hostname: set([get_mongo_application()])
-        })
+        return d.addCallback(
+            lambda _: cluster.assert_expected_deployment(self, {
+                node_1.reported_hostname: set([]),
+                node_2.reported_hostname: set([get_mongo_application()])
+            })
+        )

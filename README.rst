@@ -1,10 +1,7 @@
 Want to get your hands dirty? Skip ahead to the `tutorial`_.
 
-Flocker |coveralls|
-===================
-
-.. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
-  :target: https://coveralls.io/r/ClusterHQ/flocker
+Flocker
+=======
 
 Flocker is an open-source Container Data Volume Manager for your Dockerized applications.
 
