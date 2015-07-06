@@ -19,7 +19,6 @@ See `acceptance testing <acceptance-testing>`_ for details.
 """
 
 from os import environ
-from uuid import uuid4
 from functools import partial
 
 from yaml import safe_load
@@ -33,9 +32,13 @@ from keystoneclient.session import Session
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
-from ..cinder import _openstack_auth_from_config, cinder_api
+from ..cinder import (
+    _openstack_auth_from_config, _openstack_verify_from_config, cinder_api)
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
+from ....testtools.cluster_utils import (
+    make_cluster_id, TestTypes, Providers
+)
 
 
 class InvalidConfig(Exception):
@@ -45,6 +48,7 @@ class InvalidConfig(Exception):
     """
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class ProviderType(Names):
     """
     Kinds of compute/storage cloud providers for which this module is able to
@@ -65,13 +69,26 @@ def get_blockdeviceapi(provider):
     return cls(**args)
 
 
-def get_blockdeviceapi_args(provider):
+def _provider_for_provider_type(provider_type):
+    """
+    Convert from ``ProviderType`` values to ``Providers`` values.
+    """
+    if provider_type in (ProviderType.openstack, ProviderType.rackspace):
+        return Providers.OPENSTACK
+    if provider_type is ProviderType.aws:
+        return Providers.AWS
+    return Providers.UNSPECIFIED
+
+
+def get_blockdeviceapi_args(provider, **override):
     """
     Get initializer arguments suitable for use in the instantiation of an
     ``IBlockDeviceAPI`` implementation compatible with the given provider.
 
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
+
+    :param override: Block Device parameters to override.
 
     :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
@@ -110,6 +127,7 @@ def get_blockdeviceapi_args(provider):
             "Platform: %s, "
             "Configuration File: %s" % (platform_name, config_file_path)
         )
+    section.update(override)
 
     provider_name = section.get('provider', platform_name)
     try:
@@ -131,7 +149,9 @@ def get_blockdeviceapi_args(provider):
         )
 
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-    kwargs = dict(cluster_id=uuid4())
+    kwargs = dict(cluster_id=make_cluster_id(
+        TestTypes.FUNCTIONAL, _provider_for_provider_type(provider),
+    ))
     kwargs.update(get_kwargs(**section))
     return cls, kwargs
 
@@ -159,7 +179,8 @@ def _openstack(**config):
     if region is not None:
         region = region.upper()
     auth = _openstack_auth_from_config(**config)
-    session = Session(auth=auth)
+    verify = _openstack_verify_from_config(**config)
+    session = Session(auth=auth, verify=verify)
     cinder_client = CinderClient(
         session=session, region_name=region, version=1
     )

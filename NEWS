@@ -1,6 +1,7 @@
-Flocker 1.0.2 (2015-06-XX)
+Flocker 1.0.2 (2015-07-03)
 ==========================
 
+- On CentOS 7 Flocker logs are no longer written to /var/log/messages since this fills up disk space quickly and the logs are already available via journald. (FLOC-2534)
 - The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes. (FLOC-2467)
 
 Flocker 1.0.1 (2015-06-19)
