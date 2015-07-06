@@ -536,17 +536,19 @@ class FilesystemTests(TestCase):
             MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
         creating = pool.create(volume)
 
-        def write_flush(fObj, data):
-            fObj.write(data)
-            fObj.flush()
-
         def created(filesystem):
             path = filesystem.get_path()
             # Try to write one byte more than the maximum_size of data.
             with path.child(b"ok").open("w") as fObj:
-                exc = self.assertRaises(
-                    IOError, write_flush, fObj, b"x" * (maximum_size + 1))
-            self.assertEqual(exc.args[0], errno.EDQUOT)
+                chunk_size = 8 * 1024
+                chunk = b"x" * chunk_size
+                for i in range(maximum_size / chunk_size):
+                    fObj.write(chunk)
+                fObj.flush()
+                with self.assertRaises(IOError) as ctx:
+                    fObj.write(b"x")
+                    fObj.flush()
+                self.assertEqual(ctx.exception.args[0], errno.EDQUOT)
 
         creating.addCallback(created)
         return creating
