@@ -9,6 +9,8 @@ import sys
 from json import loads
 from signal import SIGINT
 
+from bitmath import MiB
+
 from zope.interface import implementer
 
 from eliot import Logger, Message
@@ -215,4 +217,58 @@ FlockerScriptRunner({}(), StandardOptions()).main()
         logfile = FilePath(self.mktemp()).child('foo.log')
         d = self.run_script(EliotScript, options=['--logfile', logfile.path])
         d.addCallback(self._assert_logfile_messages, logfile=logfile)
+        return d
+
+    def test_file_logging_rotation_at_100MiB(self):
+        """
+        Logfiles are rotated when they reach 100MiB.
+        """
+        logfile = FilePath(self.mktemp()).child('foo.log')
+        logfile.parent().makedirs()
+        with logfile.open('w') as f:
+            f.truncate(int(MiB(100).to_Byte().value - 1))
+
+        d = self.run_script(EliotScript, options=['--logfile', logfile.path])
+
+        def verify_logfiles(stdout_messages, logfile):
+            self.assertEqual(
+                set([logfile, logfile.sibling(logfile.basename() + u'.1')]),
+                set(logfile.parent().children())
+            )
+        d.addCallback(verify_logfiles, logfile=logfile)
+
+        return d
+
+    def test_file_logging_rotation_5_files(self):
+        """
+        Only 5 logfiles are kept.
+        """
+        logfile = FilePath(self.mktemp()).child('foo.log')
+        logfile.parent().makedirs()
+        # This file will become foo.log.1
+        with logfile.open('w') as f:
+            f.write(b'0')
+            f.truncate(int(MiB(100).to_Byte().value))
+        # These files names will be incremented
+        for i in range(1, 5):
+            sibling = logfile.sibling(logfile.basename() + u'.' + unicode(i))
+            with sibling.open('w') as f:
+                f.write(bytes(i))
+
+        d = self.run_script(EliotScript, options=['--logfile', logfile.path])
+
+        def verify_logfiles(stdout_messages, logfile):
+            logfile_dir = logfile.parent()
+            self.assertEqual(
+                # The contents of the files will now be an integer one less
+                # than the integer in the file name.
+                map(bytes, range(0, 4)),
+                list(
+                    logfile_dir.child('foo.log.{}'.format(i)).open().read(1)
+                    for i
+                    in range(1, 5)
+                )
+            )
+        d.addCallback(verify_logfiles, logfile=logfile)
+
         return d
