@@ -249,7 +249,7 @@ FlockerScriptRunner({}(), StandardOptions()).main()
         with logfile.open('w') as f:
             f.write(b'0')
             f.truncate(int(MiB(100).to_Byte().value))
-        # These files names will be incremented
+        # These file extensions will be incremented
         for i in range(1, 5):
             sibling = logfile.sibling(logfile.basename() + u'.' + unicode(i))
             with sibling.open('w') as f:
