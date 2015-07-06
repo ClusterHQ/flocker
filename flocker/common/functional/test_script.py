@@ -185,25 +185,34 @@ FlockerScriptRunner({}(), StandardOptions()).main()
                                 u"error": False}))
         return d
 
+    def _assert_logfile_messages(self, stdout_messages, logfile):
+        """
+        Verify that the messages have been logged to a file rather than to
+        stdout.
+        """
+        self.assertEqual([], stdout_messages)
+        logfile_messages = map(loads, logfile.getContent().splitlines())
+        assertContainsFields(
+            # message[0] contains a twisted log message.
+            self, logfile_messages[1], {u"key": 123}
+        )
+
     def test_file_logging(self):
         """
         Logged messages are written to ``logfile`` if ``--logfile`` is supplied
         on the command line.
         """
         logfile = FilePath(self.mktemp()).child('foo.log')
+        logfile.parent().makedirs()
         d = self.run_script(EliotScript, options=['--logfile', logfile.path])
+        d.addCallback(self._assert_logfile_messages, logfile=logfile)
+        return d
 
-        def assert_logged_messages(stdout_messages):
-            """
-            Verify that the messages have been logged to a file rather than to
-            stdout.
-            """
-            self.assertEqual([], stdout_messages)
-            logfile_messages = map(loads, logfile.getContent().splitlines())
-            assertContainsFields(
-                # message[0] contains a twisted log message.
-                self, logfile_messages[1], {u"key": 123}
-            )
-
-        d.addCallback(assert_logged_messages)
+    def test_file_logging_makedirs(self):
+        """
+        The parent directory is created if it doesn't already exist.
+        """
+        logfile = FilePath(self.mktemp()).child('foo.log')
+        d = self.run_script(EliotScript, options=['--logfile', logfile.path])
+        d.addCallback(self._assert_logfile_messages, logfile=logfile)
         return d

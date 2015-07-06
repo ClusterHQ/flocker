@@ -71,11 +71,13 @@ def flocker_standard_options(cls):
 
     def opt_logfile(self, logfile_path):
         """
-        Log to a file. Log is written to ``stdout`` by default.
+        Log to a file. Log is written to ``stdout`` by default. The logfile
+        directory is created if it does not already exist.
         """
         logfile = FilePath(logfile_path)
-        logfile.parent().makedirs()
-
+        logfile_directory = logfile.parent()
+        if not logfile_directory.exists():
+            logfile_directory.makedirs()
         self['logfile'] = LogFile.fromFullPath(
             logfile.path,
             rotateLength=LOGFILE_LENGTH,
