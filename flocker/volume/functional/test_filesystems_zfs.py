@@ -527,6 +527,10 @@ class FilesystemTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
+        # 40 MiB is an arbitrary value for the maximum size which is
+        # sufficiently smaller than the current test pool size of 100 MiB.
+        # Note that at the moment the usable pool size (minus the internal
+        # data and reservations) is about 60 MiB.
         maximum_size = 40 * 1024 * 1024
         volume = service.get(
             MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
