@@ -52,22 +52,26 @@ Have questions or need help?
 Development Environment
 =======================
 
-* To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
-  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured CentOS 7 virtual machine.
-  Vagrant 1.6.2 or later is required.
-  Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
+To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
+The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured CentOS 7 virtual machine.
+Vagrant 1.6.2 or later is required.
+Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
 
-  .. code-block:: console
+.. code-block:: console
 
-     $ vagrant up
-     $ vagrant ssh
+   $ vagrant up
+   $ vagrant ssh
 
-* You will need Python 2.7 and a recent version of PyPy installed on your development machine.
-* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
+You will need Python 2.7 and a recent version of PyPy installed on your development machine.
 
-  .. code-block:: console
+Install Flocker and its development dependencies in a ``virtualenv`` by running the following commands:
 
-     $ pip install --editable .[dev]
+.. code-block:: console
+
+   $ mkvirtualenv flocker
+   $ git clone https://github.com/ClusterHQ/flocker.git
+   $ cd flocker
+   $ pip install --editable .[dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
