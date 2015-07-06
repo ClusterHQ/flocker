@@ -538,7 +538,7 @@ class FilesystemTests(TestCase):
 
         def created(filesystem):
             path = filesystem.get_path()
-            # Try to write more than 64MB of data.
+            # Try to write one byte more than the maximum_size of data.
             with path.child(b"ok").open("w") as fObj:
                 exc = self.assertRaises(
                     IOError, write_flush, fObj, b"x" * (maximum_size + 1))
