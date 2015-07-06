@@ -99,10 +99,6 @@ class ICommandLineScript(Interface):
 
 
 def eliot_logging_service(log_file, reactor, capture_stdout):
-    # FLOC-2538 - So log_file may be an instance of
-    # ``t.p.logfile.LogFile``...which I think should be ok, but I can't find
-    # the twisted documentation explaining how these old logging APIs fit
-    # together.
     service = MultiService()
     ThreadedFileWriter(log_file, reactor).setServiceParent(service)
     EliotObserver(capture_stdout=capture_stdout).setServiceParent(service)
