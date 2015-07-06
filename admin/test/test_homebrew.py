@@ -29,8 +29,8 @@ class HomebrewOptionsTests(SynchronousTestCase):
         """
         options = HomebrewOptions()
         self.assertRaises(
-             UsageError,
-             options.parseOptions, ['--sdist', 'mysdist'])
+            UsageError,
+            options.parseOptions, ['--sdist', 'mysdist'])
 
     def test_sdist_required(self):
         """
@@ -163,16 +163,17 @@ class FormatResourceStanzasTests(SynchronousTestCase):
         """
         Newline separated resource stanzas are returned.
         """
-        resources = [{
-            "project_name": "six",
-            "url": "https://example.com/six/six-1.9.0.tar.gz",
-            "checksum": "d168e6d01f0900875c6ecebc97da72d0fda31129",
-        },
-        {
-            "project_name": "treq",
-            "url": "https://example.com/treq/treq-0.2.1.tar.gz",
-            "checksum": "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a",
-        },
+        resources = [
+            {
+                "project_name": "six",
+                "url": "https://example.com/six/six-1.9.0.tar.gz",
+                "checksum": "d168e6d01f0900875c6ecebc97da72d0fda31129",
+            },
+            {
+                "project_name": "treq",
+                "url": "https://example.com/treq/treq-0.2.1.tar.gz",
+                "checksum": "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a",
+            },
         ]
         expected = u"""
   resource "six" do
