@@ -227,8 +227,9 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
     # FLOC-2488 This test has been measured to take longer than the default
-    # trial timeout (120s), on AWS, using AWS dataset backend.
-    test_move_container_with_dataset.timeout = 240
+    # trial timeout (120s), on AWS, using AWS dataset backend and on Vagrant
+    # using the ZFS backend.
+    test_move_container_with_dataset.timeout = 480
 
     @require_mongo
     @require_cluster(1)
@@ -281,6 +282,10 @@ class ContainerAPITests(TestCase):
             return created
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
+    # FLOC-2488 This test has been measured to take longer than the default
+    # trial timeout (120s), on AWS, using AWS dataset backend and on Vagrant
+    # using the ZFS backend.
+    test_create_container_with_dataset.timeout = 480
 
     @require_cluster(1)
     def test_current(self, cluster):
