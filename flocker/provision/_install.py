@@ -410,6 +410,29 @@ def task_disable_selinux(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def _remove_private_key(content):
+    """
+    Remove most of the contents of a private key file for logging.
+    """
+    prefix = '-----BEGIN PRIVATE KEY-----'
+    suffix = '-----END PRIVATE KEY-----'
+    start = content.find(prefix)
+    if start < 0:
+        # no private key
+        return content
+    # Keep prefix, subsequent newline, and 4 characters at start of key
+    trim_start = start + len(prefix) + 5
+    end = content.find(suffix, trim_start)
+    if end < 0:
+        end = len(content)
+    # Keep suffix and previous 4 characters and newline at end of key
+    trim_end = end - 5
+    if trim_end <= trim_start:
+        # strangely short key, keep all content
+        return content
+    return content[:trim_start] + '...REMOVED...' + content[trim_end:]
+
+
 def task_install_control_certificates(ca_cert, control_cert, control_key):
     """
     Install certificates and private key required by the control service.
@@ -429,7 +452,8 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         put(path="/etc/flocker/control-service.crt",
             content=control_cert.getContent()),
         put(path="/etc/flocker/control-service.key",
-            content=control_key.getContent()),
+            content=control_key.getContent(),
+            log_content_filter=_remove_private_key),
         ])
 
 
@@ -452,7 +476,8 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
         put(path="/etc/flocker/node.crt",
             content=node_cert.getContent()),
         put(path="/etc/flocker/node.key",
-            content=node_key.getContent()),
+            content=node_key.getContent(),
+            log_content_filter=_remove_private_key),
         ])
 
 
@@ -542,6 +567,31 @@ def task_open_control_firewall(distribution):
     ])
 
 
+# Set of dataset fields which are *not* sensitive.  Only fields in this
+# set are logged.  This should contain everything except usernames and
+# passwords (or equivalents).  Implemented as a whitelist in case new
+# security fields are added.
+_ok_to_log = frozenset((
+    'auth_plugin',
+    'auth_url',
+    'backend',
+    'region',
+    'zone',
+    ))
+
+
+def _remove_dataset_fields(content):
+    """
+    Remove non-whitelisted fields from dataset for logging.
+    """
+    content = yaml.safe_load(content)
+    dataset = content['dataset']
+    for key in dataset:
+        if key not in _ok_to_log:
+            dataset[key] = 'REMOVED'
+    return yaml.safe_dump(content)
+
+
 def task_configure_flocker_agent(control_node, dataset_backend,
                                  dataset_backend_configuration):
     """
@@ -570,6 +620,7 @@ def task_configure_flocker_agent(control_node, dataset_backend,
                 "dataset": dataset_backend_configuration,
             },
         ),
+        log_content_filter=_remove_dataset_fields
     )
     return sequence([put_config_file])
 

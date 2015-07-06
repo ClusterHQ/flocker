@@ -42,6 +42,10 @@ from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
 from flocker.acceptance.testtools import DatasetBackend
+from flocker.testtools.cluster_utils import (
+    make_cluster_id, Providers, TestTypes
+)
+
 
 from .runner import run
 
@@ -238,7 +242,12 @@ class ManagedRunner(object):
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
-                generate_certificates(self._nodes),
+                generate_certificates(
+                    make_cluster_id(
+                        TestTypes.ACCEPTANCE,
+                        _provider_for_cluster_id(self.dataset_backend),
+                    ),
+                    self._nodes),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
@@ -253,9 +262,25 @@ class ManagedRunner(object):
         return succeed(None)
 
 
-def generate_certificates(nodes):
+def _provider_for_cluster_id(dataset_backend):
+    """
+    Get the ``Providers`` value that probably corresponds to a value from
+    ``DatasetBackend``.
+    """
+    if dataset_backend is DatasetBackend.aws:
+        return Providers.AWS
+    if dataset_backend is DatasetBackend.openstack:
+        return Providers.OPENSTACK
+    return Providers.UNSPECIFIED
+
+
+def generate_certificates(cluster_id, nodes):
     """
     Generate a new set of certificates for the given nodes.
+
+    :param UUID cluster_id: The unique identifier of the cluster for which to
+        generate the certificates.
+    :param list nodes: The ``INode`` providers that make up the cluster.
 
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
@@ -265,7 +290,8 @@ def generate_certificates(nodes):
     certificates = Certificates.generate(
         certificates_path,
         nodes[0].address,
-        len(nodes)
+        len(nodes),
+        cluster_id=cluster_id,
     )
     return certificates
 
@@ -456,7 +482,12 @@ class LibcloudRunner(object):
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
-            generate_certificates(self.nodes),
+            generate_certificates(
+                make_cluster_id(
+                    TestTypes.ACCEPTANCE,
+                    _provider_for_cluster_id(self.dataset_backend),
+                ),
+                self.nodes),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,

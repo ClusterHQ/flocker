@@ -1,10 +1,7 @@
 Want to get your hands dirty? Skip ahead to the `tutorial`_.
 
-Flocker |coveralls|
-===================
-
-.. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
-  :target: https://coveralls.io/r/ClusterHQ/flocker
+Flocker
+=======
 
 Flocker is an open-source Container Data Volume Manager for your Dockerized applications.
 
@@ -55,7 +52,7 @@ You can run all of the tox environments using the command ``tox``.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
-.. _Twisted: https://twistedmatrix.com
+.. _Twisted: https://twistedmatrix.com/trac/
 .. _installing Flocker: https://docs.clusterhq.com/en/latest/using/installing/index.html
 .. _tutorial: https://docs.clusterhq.com/en/latest/using/tutorial/index.html
 .. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction/index.html
