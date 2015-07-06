@@ -194,6 +194,29 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
+#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
+
+   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
+   This means that ``awscli`` may have correct defaults.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      aws configure
+
+#. (Optional) Update the staging documentation, and check that links are set up correctly:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      admin/publish-docs --doc-version ${VERSION}
+      admin/test-redirects --doc-version ${VERSION}
+
+   The second command outputs error messages if the documentation does not redirect correctly.
+   It outputs a success message if the documentation does redirect correctly.
+   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
+
+   This step is not required for the release process.
+   However, it does provide a check that your AWS credentials and the S3 service are configured properly, before reaching the critical post-tag section.
+
 #. Make a pull request on GitHub:
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
@@ -265,15 +288,6 @@ Release
 
    Wait for the build to complete successfully.
 
-#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
-
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      aws configure
-
 #. Publish artifacts and documentation:
 
    .. prompt:: bash [vagrant@localhost]$
@@ -285,7 +299,7 @@ Release
 
    The following command outputs error messages if the documentation does not redirect correctly.
    It outputs a success message if the documentation does redirect correctly.
-   It takes some time for `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -313,4 +327,5 @@ If there is no existing issue for the planned improvements then a new one should
 Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
+.. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
