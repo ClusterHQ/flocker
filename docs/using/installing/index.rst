@@ -518,7 +518,7 @@ OpenStack must be able to attach volumes created in that region to your Flocker 
 
 .. note::
 
-    For the Flocker OpenStack integration to be able to identify the VMs where you run the Flocker agents, and attach volumes accordingly, the VMs **must** be provisioned through OpenStack (via Nova).
+    For the Flocker OpenStack integration to be able to identify the VMs where you run the Flocker agents, and attach volumes accordingly, the VMs **must be provisioned through OpenStack** (via Nova).
 
 .. FLOC-2091 - Fix up this section.
 
