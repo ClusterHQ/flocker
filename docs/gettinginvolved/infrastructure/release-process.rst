@@ -120,7 +120,7 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git
       cd flocker
       mkvirtualenv flocker-release
-      pip install --editable .[release]
+      pip install --editable .[dev]
       admin/create-release-branch --flocker-version="${VERSION}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
