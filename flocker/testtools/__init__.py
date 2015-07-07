@@ -22,7 +22,7 @@ from inspect import getfile, getsourcelines
 from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GiB
+from bitmath import GiB, MiB
 
 from pyrsistent import PRecord, field
 
@@ -48,6 +48,7 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
+from twisted.python.logfile import LogFile
 
 from .. import __version__
 from ..common.script import (
@@ -377,10 +378,10 @@ class StandardOptionsTestsMixin(object):
         ``flocker_standard_options`` adds a ``sys_module`` argument to the
         initialiser which is assigned to ``_sys_module``.
         """
-        dummy_sys_module = object()
+        fake_sys_module = FakeSysModule()
         self.assertIs(
-            dummy_sys_module,
-            self.options(sys_module=dummy_sys_module)._sys_module
+            fake_sys_module,
+            self.options(sys_module=fake_sys_module)._sys_module
         )
 
     def test_version(self):
@@ -447,6 +448,41 @@ class StandardOptionsTestsMixin(object):
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+    def test_logfile_default(self):
+        """
+        `--logfile` is optional and if ommited, the default value will be
+        ``stdout``.
+        """
+        sys = FakeSysModule()
+        options = self.options(sys_module=sys)
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions([])
+        self.assertIs(sys.stdout, options['logfile'])
+
+    def test_logfile_override(self):
+        """
+        If `--logfile` is supplied, its value is stored as a
+        ``twisted.python.logfile.LogFile``.
+        """
+        options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        expected_path = FilePath(self.mktemp()).path
+        options.parseOptions(['--logfile={}'.format(expected_path)])
+        logfile = options['logfile']
+        self.assertEqual(
+            (LogFile, expected_path, int(MiB(100).to_Byte().value), 5),
+            (logfile.__class__, logfile.path,
+             logfile.rotateLength, logfile.maxRotatedFiles)
+        )
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
