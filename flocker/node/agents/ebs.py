@@ -31,7 +31,7 @@ from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume,
 )
-from ....control._model import pmap_field
+from ..control._model import pmap_field
 
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
