@@ -150,7 +150,7 @@ class GenericDockerClientTests(TestCase):
         expected_states = (u'active',)
         d = client.add(
             unit_name=unit_name,
-            image_name=u'clusterhq/flask'
+            image_name=u"openshift/busybox-http-app"
         )
         d.addCallback(
             lambda _: wait_for_unit_state(
@@ -162,7 +162,7 @@ class GenericDockerClientTests(TestCase):
             listed = client.list()
 
             def check_unit(results):
-                self.assertTrue(unit_name in [unit.name for unit in results])
+                self.assertIn(unit_name, [unit.name for unit in results])
             listed.addCallback(check_unit)
             return listed
 
@@ -173,7 +173,7 @@ class GenericDockerClientTests(TestCase):
             listed = client.list()
 
             def check_unit(results):
-                self.assertFalse(unit_name in [unit.name for unit in results])
+                self.assertNotIn(unit_name, [unit.name for unit in results])
             listed.addCallback(check_unit)
             return listed
 

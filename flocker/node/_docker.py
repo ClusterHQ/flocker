@@ -208,13 +208,14 @@ class IDockerClient(Interface):
             otherwise ``False``.
         """
 
-    def remove(unit_name):
+    def remove(unit_name, force):
         """
         Stop and delete the given unit.
 
         This can be done multiple times in a row for the same unit.
 
         :param unicode unit_name: The name of the unit to stop.
+        :param bool force: Force removal of the unit.
 
         :return: ``Deferred`` that fires once the unit has been stopped
             and removed.
@@ -271,7 +272,7 @@ class FakeDockerClient(object):
     def exists(self, unit_name):
         return succeed(unit_name in self._units)
 
-    def remove(self, unit_name):
+    def remove(self, unit_name, force=False):
         if unit_name in self._units:
             del self._units[unit_name]
         return succeed(None)

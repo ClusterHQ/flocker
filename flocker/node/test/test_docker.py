@@ -117,6 +117,31 @@ def make_idockerclient_tests(fixture):
             d.addCallback(self.assertFalse)
             return d
 
+        def test_forced_removed_does_not_exist(self):
+            """
+            A container removed with the ``force`` switch does not exist.
+            """
+            client = fixture(self)
+            name = random_name(self)
+            image = u"openshift/busybox-http-app"
+            d = client.add(name, image)
+            d.addCallback(lambda _: client.list())
+            expected = Unit(
+                name=name, container_name=name, activation_state=u"active",
+                container_image=image,
+            )
+
+            def got_units(units):
+                result = units.pop()
+                result = result.set("container_name", name)
+                self.assertEqual(expected, result)
+
+            d.addCallback(got_units)
+            d.addCallback(lambda _: client.remove(name, force=True))
+            d.addCallback(lambda _: client.exists(name))
+            d.addCallback(self.assertFalse)
+            return d
+
         def test_added_is_listed(self):
             """
             An added container is included in the output of ``list()``.
