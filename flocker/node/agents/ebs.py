@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset
+from pyrsistent import PRecord, field, pset, pmap
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -74,9 +74,9 @@ class VolumeStateFlow(PRecord):
     """
     Expected EBS volume state flow during ``VolumeOperations``.
     """
-    start_state = field(mandatory=True, type=VolumeStates)
-    transient_state = field(mandatory=True, type=VolumeStates)
-    end_state = field(mandatory=True, type=VolumeStates)
+    start_state = field(mandatory=True, type=ValueConstant)
+    transient_state = field(mandatory=True, type=ValueConstant)
+    end_state = field(mandatory=True, type=ValueConstant)
 
     # Boolean flag to indicate if a volume state transition
     # results in a non-empty ``attach_data.device`` field for the
@@ -89,46 +89,49 @@ class VolumeStateTable(PRecord):
     Mapping of volume operation to resulting volume state transitions
     and volume attach data update.
     """
-    table = pmap_field(VolumeOperations, VolumeStateFlow)
+    table = pmap_field(NamedConstant, VolumeStateFlow)
 
-    def __init__(self):
-        """
-        Initialize state table with transitions for ``create_volume``,
-        ``attach_volume``, ``detach_volume``, ``delete_volume``.
-        """
-        create_state_flow = VolumeStateFlow(
-            start_state=VolumeStates.EMPTY,
-            transient_state=VolumeStates.CREATING,
-            end_state=VolumeStates.AVAILABLE,
-            has_attach_data=False
-            )
-        self.table.insert(VolumeOperations.CREATE, create_state_flow)
 
-        attach_state_flow = VolumeStateFlow(
-            start_state=VolumeStates.AVAILABLE,
-            transient_state=VolumeStates.ATTACHING,
-            end_state=VolumeStates.IN_USE,
-            has_attach_data=True
-            )
-        self.table.insert(VolumeOperations.ATTACH, attach_state_flow)
+def populate():
+    """
+    Initialize state table with transitions for ``create_volume``,
+    ``attach_volume``, ``detach_volume``, ``delete_volume``.
+    """
+    table = pmap()
+    create_state_flow = VolumeStateFlow(
+        start_state=VolumeStates.EMPTY,
+        transient_state=VolumeStates.CREATING,
+        end_state=VolumeStates.AVAILABLE,
+        has_attach_data=False
+        )
+    table = table.set(VolumeOperations.CREATE, create_state_flow)
 
-        detach_state_flow = VolumeStateFlow(
-            start_state=VolumeStates.IN_USE,
-            transient_state=VolumeStates.DETACHING,
-            end_state=VolumeStates.AVAILABLE,
-            has_attach_data=False
-            )
-        self.table.insert(VolumeOperations.DETACH, detach_state_flow)
+    attach_state_flow = VolumeStateFlow(
+        start_state=VolumeStates.AVAILABLE,
+        transient_state=VolumeStates.ATTACHING,
+        end_state=VolumeStates.IN_USE,
+        has_attach_data=True
+        )
+    table = table.set(VolumeOperations.ATTACH, attach_state_flow)
 
-        destroy_state_flow = VolumeStateFlow(
-            start_state=VolumeStates.AVAILABLE,
-            transient_state=VolumeStates.DELETING,
-            end_state=VolumeStates.EMPTY,
-            has_attach_data=False
-            )
-        self.table.insert(VolumeOperations.DESTROY, destroy_state_flow)
+    detach_state_flow = VolumeStateFlow(
+        start_state=VolumeStates.IN_USE,
+        transient_state=VolumeStates.DETACHING,
+        end_state=VolumeStates.AVAILABLE,
+        has_attach_data=False
+        )
+    table = table.set(VolumeOperations.DETACH, detach_state_flow)
 
-volume_state_table = VolumeStateTable()
+    destroy_state_flow = VolumeStateFlow(
+        start_state=VolumeStates.AVAILABLE,
+        transient_state=VolumeStates.DELETING,
+        end_state=VolumeStates.EMPTY,
+        has_attach_data=False
+        )
+    table = table.set(VolumeOperations.DESTROY, destroy_state_flow)
+    return table
+
+volume_state_table = VolumeStateTable(table=populate())
 
 
 class EliotLogHandler(logging.Handler):
@@ -353,10 +356,12 @@ def _wait_for_volume_state_change(operation, volume):
     # unnecessary polling of the API:
     time.sleep(5.0)
 
-    state_flow = volume_state_table.get(operation)
-    start_state = state_flow.start_state
-    transient_state = state_flow.transient_state
-    end_state = state_flow.end_state
+    # XXX Catch KeyError.
+    state_flow = volume_state_table.table[operation]
+
+    start_state = state_flow.start_state.value
+    transient_state = state_flow.transient_state.value
+    end_state = state_flow.end_state.value
     needs_attach_data = state_flow.has_attach_data
 
     # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
@@ -378,7 +383,7 @@ def _wait_for_volume_state_change(operation, volume):
                     return
             else:
                 return
-        elif volume.state not in [start_state, transient_state]:
+        elif volume.status not in [start_state, transient_state]:
             break
         time.sleep(1.0)
 
@@ -517,7 +522,6 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
-        self.volume_state_table = VolumeStateTable()
 
     def allocation_unit(self):
         """

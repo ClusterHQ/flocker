@@ -15,7 +15,8 @@ from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (
-    _wait_for_volume, BOTO_EC2RESPONSE_ERROR,
+    _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
+    VolumeOperations
 )
 
 from .._logging import (
@@ -69,10 +70,8 @@ class EBSBlockDeviceAPIInterfaceTests(
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
 
-        _wait_for_volume(requested_volume,
-                         u'',
-                         u'creating',
-                         u'available')
+        _wait_for_volume_state_change(VolumeOperations.CREATE,
+                                      requested_volume)
 
         self.assertEqual(self.api.list_volumes(), [])
 
