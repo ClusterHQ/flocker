@@ -517,10 +517,9 @@ Make sure that the ``region`` specified matches the region where the Flocker nod
 OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
 
 .. note::
+	For the Flocker OpenStack integration to be able to identify the virtual machines where you run the Flocker agents, and to attach volumes to them, those virtual machines **must be provisioned through OpenStack** (via Nova).
 
-    For the Flocker OpenStack integration to be able to identify the VMs where you run the Flocker agents, and attach volumes accordingly, the VMs **must be provisioned through OpenStack** (via Nova).
-
-.. FLOC-2091 - Fix up this section.
+.. XXX FLOC-2091 - Fix up this section.
 
 If the OpenStack cloud uses certificates that are issued by a private Certificate Authority (CA), add the field ``verify_ca_path`` to the dataset stanza, with the path to the CA certificate.
 
