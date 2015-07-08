@@ -144,6 +144,19 @@ class GenericDockerClientTests(TestCase):
         """
         ``DockerClient.remove`` can forcefully remove a running container
         when the ``force`` parameter is set to True.
+
+        This is intended to help avoid an intermittent error in other
+        tests caused by a Docker behaviour where an "device busy" error
+        occurs when attempting to remove a container.
+
+        In many cases, it is reported that forced removal of the container
+        via the Docker API or "-f" CLI switch is a work-around that prevents
+        this error, though is not a solution to the underlying problem.
+
+        See https://github.com/docker/docker/issues/9665
+        See http://blog.hashbangbash.com/2014/11/
+            docker-devicemapper-fix-for-device-or-resource-busy-ebusy/
+        See FLOC-1194.
         """
         client = DockerClient()
         unit_name = u'test-force-remove'
