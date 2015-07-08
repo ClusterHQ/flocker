@@ -431,7 +431,7 @@ def _do_list_snapshots(filesystem):
     """
     snaps = []
     for snap in libzfs_core.lzc_list_snaps(filesystem.name):
-        creation = libzfs_core.lzc_get_props(snap)[b"creation"]
+        creation = libzfs_core.lzc_get_props(snap)[b"createtxg"]
         snaps.append((snap, creation))
     return [x[0] for x in sorted(snaps, key=lambda x: x[1])]
 
