@@ -38,4 +38,3 @@ sphinxcontrib-spelling==2.1.2
 tox==2.1.1
 versioneer==0.10
 virtualenv==12.1.1
-tl.eggdeps==0.4
