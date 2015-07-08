@@ -608,10 +608,10 @@ class RootCredential(PRecord):
         return cls(credential=credential)
 
     @classmethod
-    def initialize(cls, path, name, begin=None):
+    def initialize(cls, path, name, begin=None, cluster_id=None):
         """
-        Generate new private/public key pair and self-sign, then store in
-        given directory.
+        Generate new private/public key pair and self-sign, then store in given
+        directory.
 
         :param FilePath path: Directory where private key and certificate are
             stored.
@@ -619,11 +619,19 @@ class RootCredential(PRecord):
             subject and issuer identities of the generated root certificate.
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
+        :param UUID cluster_id: The unique identifier of the cluster for which
+            to generate the key and certificate.  If not given, a random
+            identifier will be generated.
 
         :return RootCredential: Initialized certificate authority.
         """
-        dn = DistinguishedName(commonName=name,
-                               organizationalUnitName=bytes(uuid4()))
+        if cluster_id is None:
+            cluster_id = uuid4()
+
+        dn = DistinguishedName(
+            commonName=name,
+            organizationalUnitName=bytes(cluster_id),
+        )
         keypair = flocker_keypair()
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")

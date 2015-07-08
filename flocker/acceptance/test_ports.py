@@ -54,7 +54,9 @@ class PortsTests(TestCase):
             },
         }
 
-        cluster.flocker_deploy(self, port_deployment, port_application)
+        d = cluster.flocker_deploy(
+            self, port_deployment, port_application)
+        return d
 
     def test_deployment_with_ports(self):
         """
@@ -72,7 +74,6 @@ class PortsTests(TestCase):
             self.node_1.reported_hostname: set([application]),
             self.node_2.reported_hostname: set([]),
         })
-
         return d
 
     @require_mongo

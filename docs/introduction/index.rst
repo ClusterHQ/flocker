@@ -54,6 +54,8 @@ More information on these integrations is :ref:`available in the Labs section <l
 
 .. XXX add link to 3rd party orchestration docs. See FLOC 2229
 
+.. _supported-operating-systems:
+
 Supported Operating Systems
 ===========================
 
