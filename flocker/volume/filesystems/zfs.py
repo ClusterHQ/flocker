@@ -26,9 +26,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.interfaces import IReactorThreads
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import (
-    Deferred, succeed, gatherResults, maybeDeferred
-)
+from twisted.internet.defer import Deferred, succeed, maybeDeferred
 from twisted.internet.threads import deferToThreadPool
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
@@ -578,13 +576,15 @@ class StoragePool(Service):
         # It would be better to have snapshot destruction logic as part of
         # IFilesystemSnapshots, but that isn't really necessary yet.
         def got_snapshots(snapshots):
-            return gatherResults(list(zfs_command(
-                self._reactor,
-                [b"destroy", b"%s@%s" % (filesystem.name, snapshot.name)])
-                for snapshot in snapshots))
+            return self._async_lzc.lzc_destroy_snaps([
+                b"%s@%s" % (filesystem.name, snapshot.name)
+                for snapshot in snapshots
+            ], defer=False)
         d.addCallback(got_snapshots)
-        d.addCallback(lambda _: zfs_command(
-            self._reactor, [b"destroy", filesystem.name]))
+        d.addCallback(
+            lambda _: zfs_command(self._reactor, [b"umount", filesystem.name]))
+        d.addCallback(
+            lambda _: self._async_lzc.lzc_destroy(filesystem.name))
         return d
 
     def set_maximum_size(self, volume):
