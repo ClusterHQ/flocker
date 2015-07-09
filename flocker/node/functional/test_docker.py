@@ -162,6 +162,20 @@ class GenericDockerClientTests(TestCase):
         name = random_name(self)
         return self.start_container(name)
 
+    def test_add_starts_container_ensure_running(self):
+        """
+        ``DockerClient.add`` starts the container and ensure it's in running state
+        """
+        name = random_name(self)
+        d = self.start_container(name)
+
+        def started_and_running(_):
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertTrue(data[u"State"][u"Running"])
+        d.addCallback(started_and_running)
+        return d
+
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.

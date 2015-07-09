@@ -499,6 +499,11 @@ class DockerClient(object):
                 sleep(0.001)
                 continue
             self._client.start(container_name)
+            # Ensure the container has reached State/Running True before going on.
+            # see https://clusterhq.atlassian.net/browse/FLOC-1729
+            while not self._blocking_container_runs(container_name):
+                sleep(0.001)
+
         d = deferToThread(_add)
 
         def _extract_error(failure):
