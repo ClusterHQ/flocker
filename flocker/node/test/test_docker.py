@@ -1,6 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Tests for :module:`flocker.node._docker`."""
+"""
+Tests for :module:`flocker.node._docker`.
+"""
 
 from zope.interface.verify import verifyObject
 
@@ -277,7 +279,10 @@ def make_idockerclient_tests(fixture):
 
 
 class FakeIDockerClientTests(
-        make_idockerclient_tests(lambda t: FakeDockerClient())):
+        make_idockerclient_tests(
+            fixture=lambda test_case: FakeDockerClient(),
+        )
+):
     """
     ``IDockerClient`` tests for ``FakeDockerClient``.
     """

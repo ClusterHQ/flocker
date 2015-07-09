@@ -230,7 +230,8 @@ class IDockerClient(Interface):
 
 @implementer(IDockerClient)
 class FakeDockerClient(object):
-    """In-memory fake that simulates talking to a docker daemon.
+    """
+    In-memory fake that simulates talking to a docker daemon.
 
     The state the the simulated units is stored in memory.
 
@@ -434,6 +435,18 @@ class DockerClient(object):
         except KeyError:
             raise ValueError("Unknown restart policy: %r" % (restart_policy,))
 
+    def _image_not_found(self, apierror):
+        """
+        Inspect a ``docker.errors.APIError`` to determine if it represents a
+        failure to start a container because the container's image wasn't
+        found.
+
+        :return: ``True`` if this is the case, ``False`` if the error has
+            another cause.
+        :rtype: ``bool``
+        """
+        return apierror.response.status_code == NOT_FOUND
+
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None):
@@ -484,12 +497,14 @@ class DockerClient(object):
             try:
                 _create()
             except APIError as e:
-                if e.response.status_code == NOT_FOUND:
-                    # Image was not found, so we need to pull it first:
+                if self._image_not_found(e):
+                    # Pull it and try again
                     self._client.pull(image_name)
                     _create()
                 else:
+                    # Unrecognized, just raise it.
                     raise
+
             # Just because we got a response doesn't mean Docker has
             # actually updated any internal state yet! So if e.g. we did a
             # stop on this container Docker might well complain it knows
@@ -499,6 +514,7 @@ class DockerClient(object):
                 sleep(0.001)
                 continue
             self._client.start(container_name)
+
         d = deferToThread(_add)
 
         def _extract_error(failure):

@@ -44,7 +44,7 @@ def namespace_for_test(test_case):
 class IDockerClientTests(make_idockerclient_tests(
         lambda test_case: DockerClient(
             namespace=namespace_for_test(test_case)
-        )
+        ),
 )):
     """
     ``IDockerClient`` tests for ``DockerClient``.
