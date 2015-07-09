@@ -675,7 +675,7 @@ class StoragePool(Service):
             self._name, dataset, mount_path, volume.size)
 
     def enumerate(self):
-        listing = _list_filesystems(self._reactor, self._name)
+        listing = self._async_lzc.callDeferred(_list_filesystems, self._name)
 
         def listed(filesystems):
             result = set()
@@ -701,40 +701,20 @@ class _DatasetInfo(object):
     """
 
 
-def _list_filesystems(reactor, pool):
+def _list_filesystems(pool):
     """Get a listing of all filesystems on a given pool.
 
     :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider.
-    :return: A ``Deferred`` that fires with an iterator, the elements
-        of which are ``tuples`` containing the name and mountpoint of each
-        filesystem.
+    :return: An iterator, the elements of which are ``tuples`` containing
+        the name and mountpoint of each filesystem.
     """
-    listing = zfs_command(
-        reactor,
-        [b"list",
-         # Descend the hierarchy to a depth of one (ie, list the direct
-         # children of the pool)
-         b"-d", b"1",
-         # Omit the output header
-         b"-H",
-         # Output exact, machine-parseable values (eg 65536 instead of 64K)
-         b"-p",
-         # Output each dataset's name, mountpoint and refquota
-         b"-o", b"name,mountpoint,refquota",
-         # Look at this pool
-         pool])
-
-    def listed(output, pool):
-        for line in output.splitlines():
-            name, mountpoint, refquota = line.split(b'\t')
-            name = name[len(pool) + 1:]
-            if name:
-                refquota = int(refquota.decode("ascii"))
-                if refquota == 0:
-                    refquota = None
-                yield _DatasetInfo(
-                    dataset=name, mountpoint=mountpoint, refquota=refquota)
-
-    listing.addCallback(listed, pool)
-    return listing
+    for child in libzfs_core.lzc_list_children(pool):
+        props = libzfs_core.lzc_get_props(child)
+        name = child[len(pool) + 1:]
+        refquota = props[b"refquota"]
+        mountpoint = props[b"mountpoint"]
+        if refquota == 0:
+            refquota = None
+        yield _DatasetInfo(
+            dataset=name, mountpoint=mountpoint, refquota=refquota)
