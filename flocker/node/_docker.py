@@ -17,7 +17,8 @@ from docker.utils import create_host_config
 
 from eliot import Message
 
-from pyrsistent import field, PRecord
+from pyrsistent import field, PRecord, pset
+from characteristic import with_cmp
 
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -31,6 +32,21 @@ from ..control._model import (
 
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
+
+
+@with_cmp(["address"])
+class AddressInUse(Exception):
+    """
+    The listen address for an exposed port was in use and could not be bound.
+    """
+    def __init__(self, address):
+        """
+        :param tuple address: The conventional Python representation of the
+            address which could not be bound (eg, an (ipv4 address, port
+            number) pair for IPv4 addresses).
+        """
+        Exception.__init__(self, address)
+        self.address = address
 
 
 class Environment(PRecord):
@@ -236,6 +252,9 @@ class FakeDockerClient(object):
     The state the the simulated units is stored in memory.
 
     :ivar dict _units: See ``units`` of ``__init__``\ .
+    :ivar pset _used_ports: A set of integers giving the port numbers which
+        will be considered in use.  Attempts to add containers which use these
+        ports will fail.
     """
 
     def __init__(self, units=None):
@@ -248,17 +267,32 @@ class FakeDockerClient(object):
         if units is None:
             units = {}
         self._units = units
+        self._used_ports = pset()
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
+        for port in ports:
+            if port.external_port in self._used_ports:
+                raise AddressInUse(address=(b"0.0.0.0", port.external_port))
+
+        all_ports = set(range(2 ** 15, 2 ** 16))
+        assigned_ports = []
+        for port in ports:
+            if port.external_port == 0:
+                available_ports = pset(all_ports) - self._used_ports
+                assigned = next(iter(available_ports))
+                port = port.set(external_port=assigned)
+            assigned_ports.append(port)
+            self._used_ports = self._used_ports.add(port.external_port)
+
         self._units[unit_name] = Unit(
             name=unit_name,
             container_name=unit_name,
             container_image=image_name,
-            ports=frozenset(ports),
+            ports=frozenset(assigned_ports),
             environment=environment,
             volumes=frozenset(volumes),
             activation_state=u'active',
@@ -447,6 +481,35 @@ class DockerClient(object):
         """
         return apierror.response.status_code == NOT_FOUND
 
+    def _address_in_use(self, apierror):
+        """
+        Inspect a ``docker.errors.APIError`` to determine if it represents a
+        failure to start a container because the container is configured to use
+        ports that are already in use on the system.
+
+        :return: If this is the reason, an exception to raise describing the
+            problem.  Otherwise, ``None``.
+        """
+        # Recognize an error (without newline) like:
+        #
+        # Cannot start container <name>: Error starting userland proxy:
+        # listen tcp <ip>:<port>: bind: address already in use
+        #
+        # Or (without newline) like:
+        #
+        # Cannot start container <name>: Bind for <ip>:<port> failed:
+        # port is already allocated
+        #
+        # because Docker can't make up its mind about which format to use.
+        parts = apierror.explanation.split(b": ")
+        if parts[-1] == b"address already in use":
+            ip, port = parts[-3].split()[-1].split(b":")
+        elif parts[-1] == b"port is already allocated":
+            ip, port = parts[-2].split()[2].split(b":")
+        else:
+            return None
+        return AddressInUse(address=(ip, int(port)))
+
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None):
@@ -522,6 +585,15 @@ class DockerClient(object):
             code = failure.value.response.status_code
             if code == 409:
                 raise AlreadyExists(unit_name)
+
+            in_use = self._address_in_use(failure.value)
+            if in_use is not None:
+                # We likely can't start the container because its
+                # configuration conflicts with something else happening on
+                # the system.  Reflect this failure condition in a more
+                # easily recognized way.
+                raise in_use
+
             return failure
         d.addErrback(_extract_error)
         return d
@@ -684,7 +756,7 @@ class DockerClient(object):
                         raise
                 if image_data[u"Config"][u"Cmd"] == command:
                     command = None
-                port_bindings = data[u"HostConfig"][u"PortBindings"]
+                port_bindings = data[u"NetworkSettings"][u"Ports"]
                 if port_bindings is not None:
                     ports = self._parse_container_ports(port_bindings)
                 else:
