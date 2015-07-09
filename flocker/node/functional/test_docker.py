@@ -99,7 +99,7 @@ class GenericDockerClientTests(TestCase):
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
                         restart_policy=RestartNever(),
-                        command_line=None):
+                        command_line=None, force=False):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -114,6 +114,8 @@ class GenericDockerClientTests(TestCase):
         :param cpu_shares: See ``IDockerClient.add``.
         :param restart_policy: See ``IDockerClient.add``.
         :param command_line: See ``IDockerClient.add``.
+        :param bool force: Force container removal via SIGKILL
+            during cleanup.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -130,12 +132,65 @@ class GenericDockerClientTests(TestCase):
             restart_policy=restart_policy,
             command_line=command_line,
         )
-        self.addCleanup(client.remove, unit_name)
+        self.addCleanup(client.remove, unit_name, force)
 
         d.addCallback(lambda _: wait_for_unit_state(client, unit_name,
                                                     expected_states))
         d.addCallback(lambda _: client)
 
+        return d
+
+    def test_force_remove(self):
+        """
+        ``DockerClient.remove`` can forcefully remove a running container
+        when the ``force`` parameter is set to True.
+
+        This is intended to help avoid an intermittent error in other
+        tests caused by a Docker behaviour where an "device busy" error
+        occurs when attempting to remove a container.
+
+        In many cases, it is reported that forced removal of the container
+        via the Docker API or "-f" CLI switch is a work-around that prevents
+        this error, though is not a solution to the underlying problem.
+
+        See https://github.com/docker/docker/issues/9665
+        See http://blog.hashbangbash.com/2014/11/
+            docker-devicemapper-fix-for-device-or-resource-busy-ebusy/
+        See FLOC-1194.
+        """
+        client = DockerClient()
+        unit_name = u'test-force-remove'
+        expected_states = (u'active',)
+        d = client.add(
+            unit_name=unit_name,
+            image_name=u"openshift/busybox-http-app"
+        )
+        d.addCallback(
+            lambda _: wait_for_unit_state(
+                client, unit_name, expected_states
+            )
+        )
+
+        def check_is_listed(_):
+            listed = client.list()
+
+            def check_unit(results):
+                self.assertIn(unit_name, [unit.name for unit in results])
+            listed.addCallback(check_unit)
+            return listed
+
+        d.addCallback(check_is_listed)
+        d.addCallback(lambda _: client.remove(unit_name, force=True))
+
+        def check_is_removed(_):
+            listed = client.list()
+
+            def check_unit(results):
+                self.assertNotIn(unit_name, [unit.name for unit in results])
+            listed.addCallback(check_unit)
+            return listed
+
+        d.addCallback(check_is_removed)
         return d
 
     def test_default_base_url(self):
@@ -356,6 +411,7 @@ class GenericDockerClientTests(TestCase):
                 unit_name=unit_name,
                 image_name=image_name,
                 environment=Environment(variables=expected_variables),
+                force=True,
             )
         d.addCallback(image_built)
 
