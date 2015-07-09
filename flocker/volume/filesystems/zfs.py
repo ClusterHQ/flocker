@@ -12,7 +12,7 @@ import libzfs_core
 from functools import wraps
 from contextlib import contextmanager
 from uuid import uuid4
-from subprocess import STDOUT, PIPE, Popen, check_call
+from subprocess import call, check_call
 from Queue import Queue
 
 from characteristic import attributes, with_cmp, with_repr
@@ -160,33 +160,6 @@ _STATUS = Field.forTypes(
 ZFS_ERROR = MessageType(
     "filesystem:zfs:error", [_ZFS_COMMAND, _OUTPUT, _STATUS],
     u"The zfs command signaled an error.")
-
-
-def _sync_command_error_squashed(arguments, logger):
-    """
-    Synchronously run a command-line tool with the given arguments.
-
-    :param arguments: A ``list`` of ``bytes``, command-line arguments to
-        execute.
-
-    :param eliot.Logger logger: The log writer to use to log errors running the
-        zfs command.
-    """
-    message = None
-    log_arguments = b" ".join(arguments)
-    try:
-        process = Popen(arguments, stdout=PIPE, stderr=STDOUT)
-        output = process.stdout.read()
-        status = process.wait()
-    except Exception as e:
-        message = ZFS_ERROR(
-            zfs_command=log_arguments, output=str(e), status=1)
-    else:
-        if status:
-            message = ZFS_ERROR(
-                zfs_command=log_arguments, output=output, status=status)
-    if message is not None:
-        message.write(logger)
 
 
 @attributes(["name"])
@@ -532,18 +505,31 @@ class StoragePool(Service):
         # for StoragePool being an IService implementation).
         # https://clusterhq.atlassian.net/browse/FLOC-635
 
+        # First, actually unmount the dataset.
+        # See the explanation below where 'canmount' is set to 'off'.
+        # At the moment all errors are ignored.
+        call([b"umount", self._name])
+
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
-        _sync_command_error_squashed(
-            [b"zfs", b"set", b"readonly=on", self._name], self.logger)
+        try:
+            libzfs_core.lzc_set_prop(self._name, b"readonly", 1)
+        except libzfs_core.exceptions.ZFSError as e:
+            message = ZFS_ERROR(zfs_command="set readonly=on " + self._name,
+                                output=str(e), status=e.errno)
+            message.write(self.logger)
 
         # If the root dataset is read-only then it's not possible to create
         # mountpoints in it for its child datasets.  Avoid mounting it to avoid
         # this problem.  This should be fine since we don't ever intend to put
         # any actual data into the root dataset.
-        _sync_command_error_squashed(
-            [b"zfs", b"set", b"canmount=off", self._name], self.logger)
+        try:
+            libzfs_core.lzc_set_prop(self._name, b"canmount", 0)
+        except libzfs_core.exceptions.ZFSError as e:
+            message = ZFS_ERROR(zfs_command="set canmount=off" + self._name,
+                                output=str(e), status=e.errno)
+            message.write(self.logger)
 
     def _check_for_out_of_space(self, reason):
         """

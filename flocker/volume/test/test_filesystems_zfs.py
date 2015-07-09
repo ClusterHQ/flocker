@@ -13,10 +13,7 @@ from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 
-from eliot import Logger
-from eliot.testing import (
-    LoggedMessage, validateLogging, assertHasMessage,
-    )
+from eliot.testing import LoggedMessage, assertHasMessage
 
 from ...testtools import (
     FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison
@@ -25,8 +22,7 @@ from ...testtools import (
 from ..filesystems.zfs import (
     _DatasetInfo,
     zfs_command, CommandFailed, BadArguments, Filesystem,
-    _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
-    Snapshot,
+    _latest_common_snapshot, ZFS_ERROR, Snapshot,
 )
 
 
@@ -174,54 +170,6 @@ def no_such_executable_logged(case, logger):
         'zfs_command': 'nonsense garbage made up no such command',
         'output': '[Errno 2] No such file or directory'})
     case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
-
-
-def error_status_logged(case, logger):
-    """
-    Validate the error logging behavior of ``_sync_command_error_squashed``.
-    """
-    assertHasMessage(case, logger, ZFS_ERROR, {
-        'status': 1,
-        'zfs_command': 'python -c raise SystemExit(1)',
-        'output': ''})
-    case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
-
-
-class SyncCommandTests(SynchronousTestCase):
-    """
-    Tests for ``_sync_command_error_squashed``.
-    """
-    @validateLogging(no_such_executable_logged)
-    def test_no_such_executable(self, logger):
-        """
-        If the executable specified to ``_sync_command_error_squashed`` cannot
-        be found then the function nevertheless returns ``None``.
-        """
-        result = _sync_command_error_squashed(
-            [b"nonsense garbage made up no such command"],
-            logger)
-        self.assertIs(None, result)
-
-    @validateLogging(error_status_logged)
-    def test_error_exit(self, logger):
-        """
-        If the child process run by ``_sync_command_error_squashed`` exits with
-        an an error status then the function nevertheless returns ``None``.
-        """
-        result = _sync_command_error_squashed(
-            [b"python", b"-c", b"raise SystemExit(1)"],
-            logger)
-        self.assertIs(None, result)
-
-    def test_success(self):
-        """
-        ``_sync_command_error_squashed`` runs the given command and returns
-        ``None``.
-        """
-        result = _sync_command_error_squashed(
-            [b"python", b"-c", b""],
-            Logger())
-        self.assertIs(None, result)
 
 
 class LatestCommonSnapshotTests(SynchronousTestCase):
