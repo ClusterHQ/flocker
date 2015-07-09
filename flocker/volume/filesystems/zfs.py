@@ -585,16 +585,12 @@ class StoragePool(Service):
 
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
-        properties = []
         if volume.size.maximum_size is not None:
-            properties.extend([
-                u"refquota={0}".format(
-                    volume.size.maximum_size).encode("ascii")
-            ])
+            requota = volume.size.maximum_size
         else:
-            properties.extend([u"refquota=none"])
-        d = zfs_command(self._reactor,
-                        [b"set"] + properties + [filesystem.name])
+            # zero means no quota
+            requota = 0
+        d = self._async_lzc.lzc_set_prop(filesystem.name, b"refquota", requota)
         d.addErrback(self._check_for_out_of_space)
         d.addCallback(lambda _: filesystem)
         return d
