@@ -52,22 +52,34 @@ Have questions or need help?
 Development Environment
 =======================
 
-* To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
-  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured CentOS 7 virtual machine.
-  Vagrant 1.6.2 or later is required.
-  Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
+You will need Python 2.7 (and optionally a recent version of PyPy) installed on your development machine.
+To run the complete test suite you will also need `ZFS`_ and `Docker`_ installed.
 
-  .. code-block:: console
+The recommended way to get an environment with these installed is to use Vagrant to run a pre-configured Flocker development virtual machine.
 
-     $ vagrant up
-     $ vagrant ssh
+First, clone the Flocker repository on your local machine:
 
-* You will need Python 2.7 and a recent version of PyPy installed on your development machine.
-* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
+.. code-block:: console
 
-  .. code-block:: console
+   $ git clone https://github.com/ClusterHQ/flocker.git
+   $ cd flocker
 
-     $ python setup.py install .[doc,dev]
+Vagrant 1.6.2 or later is required.
+Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
+
+.. code-block:: console
+
+   $ vagrant up
+   $ vagrant ssh
+
+The ``flocker`` directory created above will be shared in the virtual machine at ``/vagrant``.
+Install Flocker's development dependencies in a ``virtualenv`` by running the following commands:
+
+.. code-block:: console
+
+   $ cd /vagrant
+   $ mkvirtualenv flocker
+   $ pip install --editable .[dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
@@ -88,7 +100,7 @@ You can also run specific tests in a specific environment:
 
    $ tox -e py27 flocker.control.test.test_httpapi
 
-Functional tests require ``ZFS`` and ``Docker`` to be installed and in the case of the latter running as well.
+Functional tests require ``ZFS`` and ``Docker`` to be installed and, in the case of Docker, running.
 In addition, ``tox`` needs to be run as root:
 
 .. code-block:: console
