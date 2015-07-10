@@ -7,6 +7,7 @@ Functional tests for :module:`flocker.node._docker`.
 from __future__ import absolute_import
 
 import time
+import socket
 from functools import partial
 
 from docker.errors import APIError
@@ -32,7 +33,8 @@ from ...testtools import (
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume)
+    BASE_NAMESPACE, Volume, AddressInUse,
+)
 from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
@@ -44,7 +46,7 @@ def namespace_for_test(test_case):
 class IDockerClientTests(make_idockerclient_tests(
         lambda test_case: DockerClient(
             namespace=namespace_for_test(test_case)
-        )
+        ),
 )):
     """
     ``IDockerClient`` tests for ``DockerClient``.
@@ -297,6 +299,27 @@ class GenericDockerClientTests(TestCase):
             return response
 
         return loop_until(send_request)
+
+    def test_non_docker_port_collision(self):
+        """
+        ``DockerClient.add`` returns a ``Deferred`` that fails with
+        ``AddressInUse`` if the external port of one of the ``PortMap``
+        instances passed for ``ports`` is already in use on the system by
+        something other than a Docker container.
+        """
+        address_user = socket.socket()
+        self.addCleanup(address_user.close)
+
+        address_user.bind(('', 0))
+        used_address = address_user.getsockname()
+
+        name = random_name(self)
+        d = self.start_container(
+            name, ports=[
+                PortMap(internal_port=10000, external_port=used_address[1]),
+            ],
+        )
+        return self.assertFailure(d, AddressInUse)
 
     def test_add_with_port(self):
         """
