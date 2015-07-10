@@ -173,35 +173,28 @@ class IDockerClient(Interface):
         Install and start a new unit.
 
         Note that callers should not assume success indicates the unit has
-        finished starting up. In addition to asynchronous nature of Docker,
-        even if container is up and running the application within it
-        might still be starting up, e.g. it may not have bound the
-        external ports yet. As a result the final success of application
-        startup is out of scope for this method.
+        finished starting up.  In addition to asynchronous nature of Docker,
+        even if container is up and running the application within it might
+        still be starting up, e.g. it may not have bound the external ports
+        yet.  As a result the final success of application startup is out of
+        scope for this method.
 
         :param unicode unit_name: The name of the unit to create.
-
         :param unicode image_name: The Docker image to use for the unit.
-
         :param list ports: A list of ``PortMap``\ s mapping ports exposed in
-            the container to ports exposed on the host. Default ``None`` means
+            the container to ports exposed on the host.  Default ``None`` means
             that no port mappings will be configured for this unit.
-
         :param Environment environment: Environment variables for the
-            container. Default ``None`` means that no environment
-            variables will be supplied to the unit.
-
+            container.  Default ``None`` means that no environment variables
+            will be supplied to the unit.
         :param volumes: A sequence of ``Volume`` instances to mount.
-
         :param int mem_limit: The number of bytes to which to limit the in-core
             memory allocations of the new unit.  Or ``None`` to apply no
             limits.
-
         :param int cpu_shares: The number of CPU shares to allocate to the new
             unit.  Or ``None`` to let it have the default number of shares.
             Docker maps this value onto the cgroups ``cpu.shares`` value (the
             default of which is probably 1024).
-
         :param IRestartPolicy restart_policy: The restart policy of the
             container.
 
@@ -210,7 +203,6 @@ class IDockerClient(Interface):
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
-
         """
 
     def exists(unit_name):
