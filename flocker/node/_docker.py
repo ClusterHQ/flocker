@@ -197,8 +197,7 @@ class IDockerClient(Interface):
             default of which is probably 1024).
         :param IRestartPolicy restart_policy: The restart policy of the
             container.
-
-        :ivar command_line: Custom command to run using the image, a sequence
+        :param command_line: Custom command to run using the image, a sequence
             of ``unicode``, or ``None`` to use default image command line.
 
         :return: ``Deferred`` that fires on success, or errbacks with
