@@ -183,7 +183,10 @@ class IDockerClient(Interface):
         :param unicode image_name: The Docker image to use for the unit.
         :param list ports: A list of ``PortMap``\ s mapping ports exposed in
             the container to ports exposed on the host.  Default ``None`` means
-            that no port mappings will be configured for this unit.
+            that no port mappings will be configured for this unit.  If a
+            ``PortMap`` instance's ``external_port`` is set to ``0`` a free
+            port will automatically be assigned.  The assigned port will be
+            reported for the container in the result of ``IDockerClient.list``.
         :param Environment environment: Environment variables for the
             container.  Default ``None`` means that no environment variables
             will be supplied to the unit.
