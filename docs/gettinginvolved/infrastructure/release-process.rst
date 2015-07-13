@@ -194,29 +194,6 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
-#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
-
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      aws configure
-
-#. (Optional) Update the staging documentation, and check that links are set up correctly:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      admin/publish-docs --doc-version ${VERSION}
-      admin/test-redirects --doc-version ${VERSION}
-
-   The second command outputs error messages if the documentation does not redirect correctly.
-   It outputs a success message if the documentation does redirect correctly.
-   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
-
-   This step is not required for the release process.
-   However, it does provide a check that your AWS credentials and the S3 service are configured properly, before reaching the critical post-tag section.
-
 #. Make a pull request on GitHub:
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
@@ -287,6 +264,15 @@ Release
              Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
+
+#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
+
+   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
+   This means that ``awscli`` may have correct defaults.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      aws configure
 
 #. Publish artifacts and documentation:
 
