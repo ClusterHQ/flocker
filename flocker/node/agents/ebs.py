@@ -79,8 +79,8 @@ class VolumeStateFlow(PRecord):
     end_state = field(mandatory=True, type=ValueConstant)
 
     # Boolean flag to indicate if a volume state transition
-    # results in a non-empty ``attach_data.device`` field for the
-    # EBS volume.
+    # results in a non-empty ``attach_data.device`` field,
+    # and ``attach_data.instance_id`` for the EBS volume.
     has_attach_data = field(mandatory=True, type=bool)
 
 
@@ -379,7 +379,8 @@ def _wait_for_volume_state_change(operation, volume):
                 raise UnknownVolume(volume.id)
         if volume.status == end_state:
             if needs_attach_data:
-                if volume.attach_data.device != '':
+                if (volume.attach_data.device != '' and
+                        volume.attach_data.instance_id != ''):
                     return
             else:
                 return
