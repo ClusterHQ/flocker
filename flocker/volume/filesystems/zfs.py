@@ -129,6 +129,26 @@ def _async_lzc(reactor):
         return _reactor_to_alzc[reactor]
 
 
+def ext_command(reactor, arguments):
+    """
+    Asynchronously run the given command-line tool with the given arguments.
+
+    :param reactor: A ``IReactorProcess`` provider.
+
+    :param arguments: A ``list`` of ``bytes``, the command and command-line
+    arguments.
+
+    :return: A :class:`Deferred` firing with the bytes of the result (on
+        exit code 0), or errbacking with :class:`CommandFailed` or
+        :class:`BadArguments` depending on the exit code (1 or 2).
+    """
+    endpoint = ProcessEndpoint(reactor, arguments[0], arguments,
+                               os.environ)
+    d = connectProtocol(endpoint, _AccumulatingProtocol())
+    d.addCallback(lambda protocol: protocol._result)
+    return d
+
+
 def zfs_command(reactor, arguments):
     """
     Asynchronously run the ``zfs`` command-line tool with the given arguments.
@@ -142,11 +162,7 @@ def zfs_command(reactor, arguments):
         exit code 0), or errbacking with :class:`CommandFailed` or
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
-    endpoint = ProcessEndpoint(reactor, b"zfs", [b"zfs"] + arguments,
-                               os.environ)
-    d = connectProtocol(endpoint, _AccumulatingProtocol())
-    d.addCallback(lambda protocol: protocol._result)
-    return d
+    return ext_command(reactor, [b"zfs"] + arguments)
 
 
 _ZFS_COMMAND = Field.forTypes(
@@ -568,7 +584,7 @@ class StoragePool(Service):
             ], defer=False)
         d.addCallback(got_snapshots)
         d.addCallback(
-            lambda _: zfs_command(self._reactor, [b"umount", filesystem.name]))
+            lambda _: ext_command(self._reactor, [b"umount", filesystem.name]))
         d.addCallback(
             lambda _: self._async_lzc.lzc_destroy(filesystem.name))
         return d
@@ -601,7 +617,7 @@ class StoragePool(Service):
     def change_owner(self, volume, new_volume):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
-        d = zfs_command(self._reactor,
+        d = ext_command(self._reactor,
                         [b"umount", old_filesystem.name])
         d.addCallback(lambda _: self._async_lzc.lzc_rename(
             old_filesystem.name, new_filesystem.name))
