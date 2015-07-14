@@ -3266,6 +3266,47 @@ class AttachVolumeTests(
             DatasetWithoutVolume(dataset_id=dataset_id), failure.value
         )
 
+    def test_run_error(self):
+        """
+        ``AttachVolume.run``
+        """
+        host = u"192.0.7.8"
+
+        deployer = create_blockdevicedeployer(self, hostname=host)
+        api = deployer.block_device_api
+
+        change1 = AttachVolume(dataset_id=uuid4())
+        volume1 = api.create_volume(
+            dataset_id=change1.dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+
+        change2 = AttachVolume(dataset_id=uuid4())
+        volume2 = api.create_volume(
+            dataset_id=change2.dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+
+        original_attach_volume = api.attach_volume
+
+        def fake_attach_volume(blockdevice_id, attach_to):
+            if blockdevice_id == volume1.blockdevice_id:
+                1/0
+            return original_attach_volume(blockdevice_id, attach_to)
+
+        self.patch(api, 'attach_volume', fake_attach_volume)
+        changes = in_parallel([change1, change2])
+
+        expected_volume2 = volume2.set(
+            attached_to=api.compute_instance_id()
+        )
+
+        def check_volumes(result):
+            import pdb; pdb.set_trace()
+            self.assertEqual([expected_volume2], api.list_volumes())
+
+        changing = run_state_change(changes, deployer)
+        changing.addBoth(check_volumes)
+        return changing
+
 
 class AllocatedSizeTypeTests(SynchronousTestCase):
     """
