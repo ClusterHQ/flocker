@@ -320,18 +320,16 @@ class ContainerAPITests(TestCase):
         :param bytes host: Host to connect to.
         :param int port: Port to connect to.
         """
-        def query(host, port, count=0):
+        def query(host, port):
             req = get(
                 "http://{host}:{port}".format(host=host, port=port),
                 persistent=False
             )
-            req.addCallback(content)
-            if count < 3:
-                req.addErrback(lambda _: query(host, port, count + 1))
+            req.addCallbacks(content, lambda _: False)
             return req
 
         d = verify_socket(host, port)
-        d.addCallback(lambda _: query(host, port))
+        d.addCallback(lambda _: loop_until(lambda: query(host, port)))
         d.addCallback(self.assertEqual, b"hi")
         return d
 
