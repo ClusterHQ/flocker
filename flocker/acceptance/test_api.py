@@ -314,14 +314,20 @@ class ContainerAPITests(TestCase):
         the HTTP server via Flocker in order to check if that particular
         setup succeeded.
 
+        We try three times since it may take a little time for the HTTP
+        server to start up.
+
         :param bytes host: Host to connect to.
         :param int port: Port to connect to.
         """
-        def query(host, port):
+        def query(host, port, count=0):
             req = get(
                 "http://{host}:{port}".format(host=host, port=port),
                 persistent=False
-            ).addCallback(content)
+            )
+            req.addCallback(content)
+            if count < 3:
+                req.addErrback(lambda _: query(host, port, count + 1))
             return req
 
         d = verify_socket(host, port)
