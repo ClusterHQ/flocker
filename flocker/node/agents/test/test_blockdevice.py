@@ -3277,19 +3277,23 @@ class AttachVolumeTests(
 
         change1 = AttachVolume(dataset_id=uuid4())
         volume1 = api.create_volume(
-            dataset_id=change1.dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+            dataset_id=change1.dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
         change2 = AttachVolume(dataset_id=uuid4())
         volume2 = api.create_volume(
-            dataset_id=change2.dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+            dataset_id=change2.dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
         original_attach_volume = api.attach_volume
 
         def fake_attach_volume(blockdevice_id, attach_to):
             if blockdevice_id == volume1.blockdevice_id:
-                1/0
+                raise Exception(
+                    'Block device cannot be attached', blockdevice_id
+                )
             return original_attach_volume(blockdevice_id, attach_to)
 
         self.patch(api, 'attach_volume', fake_attach_volume)
@@ -3300,8 +3304,11 @@ class AttachVolumeTests(
         )
 
         def check_volumes(result):
-            import pdb; pdb.set_trace()
-            self.assertEqual([expected_volume2], api.list_volumes())
+            self.flushLoggedErrors()
+            self.assertEqual(
+                set([volume1, expected_volume2]),
+                set(api.list_volumes())
+            )
 
         changing = run_state_change(changes, deployer)
         changing.addBoth(check_volumes)
