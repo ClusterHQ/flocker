@@ -213,7 +213,7 @@ def make_idockerclient_tests(fixture):
 
             portmaps = []
             volumes = (
-                Volume(node_path=FilePath(b'/tmp'),
+                Volume(node_path=FilePath(self.mktemp()),
                        container_path=FilePath(b'/var/lib/data')),
             )
             environment = (
