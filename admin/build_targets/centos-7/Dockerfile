@@ -5,6 +5,7 @@
 
 FROM centos:centos7
 MAINTAINER ClusterHQ <contact@clusterhq.com>
+# URLGRABBER_DEBUG=1 to log low-level network info - see FLOC-2640
 RUN ["env", "URLGRABBER_DEBUG=1", "yum", "groupinstall", "--assumeyes", "Development Tools"]
 RUN ["env", "URLGRABBER_DEBUG=1", "yum", "install", "--assumeyes", "epel-release"]
 RUN ["env", "URLGRABBER_DEBUG=1", "yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "libffi-devel", "openssl-devel", "python-pip", "rpmlint"]
