@@ -68,7 +68,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_ca_must_exist(self):
         """
-        A ``UsageError`` is raised if the specified ``cafile`` cluster
+        A ``UsageError`` is raised if the specified ``cacert`` cluster
         certificate does not exist.
         """
         options = self.options()
@@ -80,8 +80,14 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options["cacert"] = credential_path
         exception = self.assertRaises(UsageError, options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
+        expected_message = (
+            "File /path/to/non-existent-cluster.crt does not exist. "
+            "Use the flocker-ca command to create the credential, "
+            "or use the --cacert flag to specify the credential location."
+        )
+
         self.assertEqual(
-            "File {file} does not exist.".format(file=credential_path),
+            expected_message,
             str(exception)
         )
 
@@ -102,8 +108,14 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options["cert"] = credential_path
         exception = self.assertRaises(UsageError, options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
+        expected_message = (
+            "File /path/to/non-existent-user.crt does not exist. "
+            "Use the flocker-ca command to create the credential, "
+            "or use the --cert flag to specify the credential location."
+        )
+
         self.assertEqual(
-            "File {file} does not exist.".format(file=credential_path),
+            expected_message,
             str(exception)
         )
 
@@ -127,8 +139,14 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options["key"] = credential_path
         exception = self.assertRaises(UsageError, options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
+        expected_message = (
+            "File /path/to/non-existent-user.key does not exist. "
+            "Use the flocker-ca command to create the credential, "
+            "or use the --key flag to specify the credential location."
+        )
+
         self.assertEqual(
-            "File {file} does not exist.".format(file=credential_path),
+            expected_message,
             str(exception)
         )
 
