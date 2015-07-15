@@ -20,7 +20,7 @@ Ubuntu Bug Reporting
 
 When reporting issues with Flocker on Ubuntu always include copies of all the log files.
 
-The relevant logs can be exported as follows:
+The relevant logs can be exported by running the following commands as root:
 
 .. prompt:: bash [root@node1]# auto
 
@@ -65,7 +65,7 @@ CentOS 7 Bug Reporting
 
 When reporting issues with Flocker on Centos 7 always include copies of all the log files.
 
-The relevant logs can be exported as follows:
+The relevant logs can be exported by running the following commands as root:
 
 .. prompt:: bash [root@node1]# auto
 
