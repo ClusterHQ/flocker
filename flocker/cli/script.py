@@ -72,8 +72,8 @@ class DeployOptions(Options):
         ["key", None, None,
          "Path to user private key file."],
         ["certificates-directory", "c",
-         None, ("Path to directory where TLS certificate and keys can be "
-                "found. Defaults to current directory.")],
+         None, ("Path to directory containing TLS certificates and keys. "
+                "Defaults to current directory.")],
     ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
