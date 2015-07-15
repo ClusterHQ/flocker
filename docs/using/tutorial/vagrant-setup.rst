@@ -91,7 +91,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    If these addresses conflict with your local network configuration, you will need to edit the ``Vagrantfile`` to change the IP addresses.
    You will then need to generate a new set of certificates and keys using the Flocker CLI ``flocker-ca`` tool and copy these to the virtual machines.
    This will also require you to start the node services manually.
-   Therefore if your IP addresses conflict with the tutorial, please see the full :doc:`installation instructions <../installing/index>` for more information.
+   Therefore if your IP addresses conflict with the tutorial, please see the full :ref:`installation instructions <installflocker>` for more information.
 
 .. warning::
 
