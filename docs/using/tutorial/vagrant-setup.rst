@@ -93,6 +93,8 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    This will also require you to start the node services manually.
    Therefore if your IP addresses conflict with the tutorial, please see the full :ref:`installation instructions <installing-flocker>` for more information.
 
+.. XXX This warning needs to be reviewed, as the link is vague. See FLOC 2661
+
 .. warning::
 
    On some versions of Vagrant and VirtualBox, restarting the tutorial virtual machines via the ``vagrant halt`` and ``vagrant up`` commands can result in losing the static IP configuration, making the nodes unreachable on the assigned ``172.15.255.25x`` addresses.
