@@ -9,14 +9,17 @@ from uuid import uuid4
 
 from bitmath import Byte
 
+from boto.ec2.volume import (
+    Volume as EbsVolume, AttachmentSet
+)
 from boto.exception import EC2ResponseError
 
-from twisted.trial.unittest import SkipTest
+from twisted.trial.unittest import SkipTest, TestCase
 from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
-    VolumeOperations
+    VolumeOperations, VolumeStateTable, populate, VolumeStates
 )
 
 from .._logging import (
@@ -29,6 +32,8 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size,
 )
+
+TIMEOUT = 5
 
 
 def ebsblockdeviceapi_for_test(test_case):
@@ -155,3 +160,187 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+
+class VolumeStateTransitionTests(TestCase):
+    """
+    """
+
+    def _create_template_ebs_volume(self, operation):
+        """
+        """
+        volume = EbsVolume()
+
+        volume.id = u'vol-9c48a689'
+        volume.create_time = u'2015-07-14T22:46:00.447Z'
+        volume.size = 1
+        volume.snapshot_id = ''
+        volume.zone = u'us-west-2b'
+        volume.type = u'standard'
+
+        volume_state_table = VolumeStateTable(table=populate())
+        state_flow = volume_state_table.table[operation]
+        start_state = state_flow.start_state.value
+        volume.status = start_state
+        return volume
+
+    def _pick_invalid_state(self, operation):
+        """
+        """
+        volume_state_table = VolumeStateTable(table=populate())
+        state_flow = volume_state_table.table[operation]
+        valid_states = set([state_flow.start_state,
+                            state_flow.transient_state,
+                            state_flow.end_state])
+        invalid_states = set(VolumeStates._enumerants.values()) - valid_states
+        invalid_state = invalid_states.pop()
+        if invalid_state is None:
+            return None
+        else:
+            return invalid_state.value
+
+    def test_error_volume_state_during_attach(self):
+        """
+        Attach leads to unexpected state.
+        """
+        operation = VolumeOperations.ATTACH
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = self._pick_invalid_state(operation)
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)
+
+    def test_detach_stuck_detaching(self):
+        """
+        Timeout detaching.
+        """
+        operation = VolumeOperations.DETACH
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'detaching'
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)
+
+    def test_attach_missing_attach_data(self):
+        """
+        Attach missing AttachmentSet.
+        """
+        operation = VolumeOperations.ATTACH
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'in-use'
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)
+
+    def test_attach_missing_instance_id(self):
+        """
+        Attach missing instance id.
+        """
+        operation = VolumeOperations.ATTACH
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'in-use'
+            volume.attach_data = AttachmentSet()
+            volume.attach_data.device = u'/dev/sdf'
+            volume.attach_data.instance_id = ''
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)
+
+    def test_attach_sucess(self):
+        """
+        Attach missing instance id.
+        """
+        operation = VolumeOperations.ATTACH
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'in-use'
+            volume.attach_data = AttachmentSet()
+            volume.attach_data.device = u'/dev/sdf'
+            volume.attach_data.instance_id = u'i-xyz'
+
+        _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
+        self.assertEqual([volume.status, volume.attach_data.device,
+                          volume.attach_data.instance_id],
+                         [u'in-use', u'/dev/sdf', u'i-xyz'])
+
+    def test_attach_missing_device(self):
+        """
+        Attach missing instance id.
+        """
+        operation = VolumeOperations.ATTACH
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'in-use'
+            volume.attach_data = AttachmentSet()
+            volume.attach_data.device = ''
+            volume.attach_data.instance_id = u'i-xyz'
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)
+
+    def test_create_error_state(self):
+        """
+        Create volume runs into unexpected state.
+        """
+        operation = VolumeOperations.CREATE
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'in-use'
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)
+
+    def test_create_success(self):
+        """
+        Create volume runs into unexpected state.
+        """
+        operation = VolumeOperations.CREATE
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'available'
+
+        _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
+        self.assertEquals(volume.status, u'available')
+
+    def test_destroy_error_state(self):
+        """
+        Create volume runs into unexpected state.
+        """
+        operation = VolumeOperations.DESTROY
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u'creating'
+
+        self.assertRaises(Exception, _wait_for_volume_state_change,
+                          operation, volume, update, TIMEOUT)

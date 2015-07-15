@@ -335,7 +335,14 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
-def _wait_for_volume_state_change(operation, volume):
+def _get_ebs_volume_state(volume):
+    return volume.update()
+
+
+def _wait_for_volume_state_change(operation,
+                                  volume,
+                                  update=_get_ebs_volume_state,
+                                  timeout=VOLUME_STATE_CHANGE_TIMEOUT):
     """
     Helper function to wait for a given volume to change state
     from ``start_status`` via ``transient_status`` to ``end_status``.
@@ -364,13 +371,13 @@ def _wait_for_volume_state_change(operation, volume):
     end_state = state_flow.end_state.value
     needs_attach_data = state_flow.has_attach_data
 
-    # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
+    # Wait ``timeout`` seconds for
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
+    while time.time() - start_time < timeout:
         try:
-            volume.update()
+            update(volume)
         except EC2ResponseError as e:
             # If AWS cannot find the volume, raise ``UnknownVolume``.
             # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
@@ -379,7 +386,8 @@ def _wait_for_volume_state_change(operation, volume):
                 raise UnknownVolume(volume.id)
         if volume.status == end_state:
             if needs_attach_data:
-                if (volume.attach_data.device != '' and
+                if (volume.attach_data is not None and
+                        volume.attach_data.device != '' and
                         volume.attach_data.instance_id != ''):
                     return
             else:
@@ -391,6 +399,7 @@ def _wait_for_volume_state_change(operation, volume):
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
                                          status=volume.status,
                                          target_status=end_state,
+                                         needs_attach_data=needs_attach_data,
                                          wait_time=(time.time() - start_time))
 
     # We either:
@@ -409,7 +418,7 @@ def _wait_for_volume_state_change(operation, volume):
         'Time limit: {!r}.'.format(
             volume, start_state, transient_state, end_state,
             volume.status, time.time() - start_time,
-            VOLUME_STATE_CHANGE_TIMEOUT
+            timeout
             )
         )
 
