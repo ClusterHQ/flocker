@@ -5,9 +5,10 @@
 
 FROM centos:centos7
 MAINTAINER ClusterHQ <contact@clusterhq.com>
-RUN ["yum", "groupinstall", "--assumeyes", "Development Tools"]
-RUN ["yum", "install", "--assumeyes", "epel-release"]
-RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "libffi-devel", "openssl-devel", "python-pip", "rpmlint"]
+# URLGRABBER_DEBUG=1 to log low-level network info - see FLOC-2640
+RUN ["env", "URLGRABBER_DEBUG=1", "yum", "groupinstall", "--assumeyes", "Development Tools"]
+RUN ["env", "URLGRABBER_DEBUG=1", "yum", "install", "--assumeyes", "epel-release"]
+RUN ["env", "URLGRABBER_DEBUG=1", "yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "libffi-devel", "openssl-devel", "python-pip", "rpmlint"]
 # Despite being a packaging tool, fpm isn't yet packaged for CentOS.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
