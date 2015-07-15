@@ -41,6 +41,9 @@ Talk to Us
 
 Have questions or need help?
 
+# FLOC-2647 Maybe add a separate section which describes an ideal issue report.
+# And link to the log export documentation in debugging.rst?
+
 * If you want to follow our development plans, our main issue tracker is `JIRA`_.
 * You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports and :ref:`security issues should be reported directly to our security team<reporting-security-issues>`.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.

@@ -14,6 +14,7 @@ Ubuntu
 ^^^^^^
 
 XXX This should be documented, see :issue:`1877`.
+# FLOC-2647 Perhaps I should just close 1877 with this branch.
 
 Ubuntu Bug Reporting
 ^^^^^^^^^^^^^^^^^^^^
@@ -22,6 +23,8 @@ When reporting issues with Flocker on Ubuntu always include copies of all the lo
 
 The relevant logs can be exported by running the following commands as root:
 
+# FLOC-2647 Perhaps this would be better as a standalone script.
+# Followup issue or in this branch?
 .. prompt:: bash [root@node1]# auto
 
    SUFFIX="${HOSTNAME}_$(date +%s)"
@@ -49,6 +52,10 @@ They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flo
 
 It is possible to see the available unit names, and then view the logs with ``journalctl``:
 
+# FLOC-2647 Not sure if this example is helpful anymore
+# And the script below shows an alternative (better?) way to list the running
+# flocker services.
+
 .. prompt:: bash [root@node1]# auto
 
    [root@node1]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
@@ -67,6 +74,8 @@ When reporting issues with Flocker on Centos 7 always include copies of all the 
 
 The relevant logs can be exported by running the following commands as root:
 
+# FLOC-2647 Perhaps this would be better as a standalone script.
+# Followup issue or in this branch?
 .. prompt:: bash [root@node1]# auto
 
    SUFFIX="${HOSTNAME}_$(date +%s)"
