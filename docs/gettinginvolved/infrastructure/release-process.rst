@@ -5,10 +5,7 @@ Release Process
 
 .. note::
 
-   Make sure to follow the `latest documentation`_ when doing a release.
-
-.. _latest documentation: http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html
-
+   Make sure to follow the :ref:`latest documentation <latest:release-process>` when doing a release.
 
 Outcomes
 --------
@@ -21,13 +18,13 @@ By the end of the release process we will have:
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
 - an updated Homebrew recipe.
 
 For a maintenance or documentation release, we will have:
 
 - a tag in version control,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
 
 
 Prerequisites
@@ -36,17 +33,36 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A web browser,
-- `Vagrant`_ (1.6.2 or newer),
-- `VirtualBox`_,
-- ``vagrant-scp`` plugin:
+All Platforms
+*************
 
-  .. prompt:: bash $
+`virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
-     vagrant plugin install vagrant-scp
+OS X
+*****
 
-.. _`Vagrant`: https://docs.vagrantup.com/
-.. _`VirtualBox`: https://www.virtualbox.org/
+`Homebrew <http://brew.sh>`_
+
+.. prompt:: bash $
+
+   brew tap stepanstipl/noop
+   brew install createrepo dpkg
+
+Ubuntu
+******
+
+.. prompt:: bash $
+
+   apt-get update
+   apt-get install -y dpkg-dev createrepo
+
+Fedora
+******
+
+.. prompt:: bash $
+
+   yum install -y dpkg-dev createrepo
+
 
 Access
 ~~~~~~
@@ -56,7 +72,7 @@ Access
 
 - SSH access to ClusterHQ's GitHub repositories.
 
-- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net>`_.
+- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
 .. _preparing-for-a-release:
 
@@ -70,49 +86,26 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number of the release being created as an environment variable for later use:
-
-   .. prompt:: bash $
-
-      export VERSION=0.1.2
-
 #. Create an issue in JIRA:
 
-   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   This should be an "Improvement" in the current sprint, with "Release Flocker <version-being-released>" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
+#. Create an environment to do a release in:
 
-   This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+   .. prompt:: bash $,(flocker-release)tmp-5234cf9a4c8fad37$,(flocker-release)flocker$ auto
 
-   Add your SSH key to the ``sshd`` agent.
-   Note that the ssh key you use must be linked to your GitHub account.
+      $ mktmpenv --prompt="(flocker-release)"
+      # The following command means that you will not be asked whether
+      # you want to continue connecting
+      (flocker-release)tmp-5234cf9a4c8fad37$ ssh-keyscan github.com >> ~/.ssh/known_hosts
+      (flocker-release)tmp-5234cf9a4c8fad37$ git clone git@github.com:ClusterHQ/flocker.git
+      (flocker-release)tmp-5234cf9a4c8fad37$ cd flocker
+      (flocker-release)flocker$ pip install --editable .[release]
 
-   .. prompt:: bash $
+#. Create a release branch, using the version number of the release being created, e.g.:
 
-      [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent)
-      ssh-add $HOME/.ssh/id_rsa
-
-   This copies your local git configuration from ``~/.gitconfig``.
-   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
-
-   This copies your local configuration for `S3`_ from ``~/.aws``.
-   If this does not exist, a later step will create it.
-
-   .. prompt:: bash $
-
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
-      vagrant up
-      vagrant scp default:/home/vagrant/.bashrc vagrant_bashrc
-      echo export VERSION=${VERSION} >> vagrant_bashrc
-      vagrant scp vagrant_bashrc /home/vagrant/.bashrc
-      if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
-      vagrant ssh -- -A
-
-#. Create a release branch, and create and activate a virtual environment:
-
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       # The following command means that you will not be asked whether
       # you want to continue connecting
@@ -120,7 +113,7 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git
       cd flocker
       mkvirtualenv flocker-release
-      pip install --editable .[release]
+      pip install --editable .[dev]
       admin/create-release-branch --flocker-version="${VERSION}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
@@ -133,13 +126,14 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash [vagrant@localhost]$
+      .. prompt:: bash (flocker-release)flocker$
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
-          git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git log --first-parent ${OLD_VERSION}..${BRANCH}
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       git commit -am "Updated NEWS"
 
@@ -155,7 +149,7 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       git commit -am "Updated Release Notes"
 
@@ -165,16 +159,15 @@ Preparing For a Release
    - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       git commit -am "Updated copyright"
 
 #. Push the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
-      git config push.default current
-      git push
+      git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
 #. Ensure all the required tests pass on BuildBot:
 
@@ -211,7 +204,7 @@ So it is important to check that the code in the release branch is working befor
 
 .. note::
 
-   Make sure to follow the latest version of this documentation when reviewing a release.
+   Make sure to follow the :ref:`latest review process <latest:pre-tag-review>` when reviewing a release.
 
 #. Check the changes in the Pull Request:
 
@@ -239,22 +232,15 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. The following steps should be done in the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`.
-   If this is not running, start it again from the cloned Flocker repository created in :ref:`preparing-for-a-release`:
-
-   .. prompt:: bash $
-
-      vagrant up
-      vagrant ssh -- -A
-
 #. Tag the version being released:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
-      cd flocker
-      workon flocker-release
-      git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
-      git push origin "${VERSION}"
+      BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      RELEASE_BRANCH_PREFIX="release\/flocker-"
+      TAG=${BRANCH/${RELEASE_BRANCH_PREFIX}}
+      git tag --annotate "${TAG}" "${BRANCH}" -m "Tag version ${TAG}"
+      git push origin "${TAG}"
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
@@ -267,16 +253,13 @@ Release
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       aws configure
 
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       admin/publish-artifacts
       admin/publish-docs --production
@@ -287,19 +270,9 @@ Release
    It outputs a success message if the documentation does redirect correctly.
    It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-release)flocker$
 
       admin/test-redirects --production
-
-#. (Optional) Copy the AWS configuration to your local home directory:
-
-   If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
-
-   .. prompt:: bash [vagrant@localhost]$,$ auto
-
-      [vagrant@localhost]$ logout
-      Connection to 127.0.0.1 closed.
-      $ vagrant scp default:/home/vagrant/.aws ~/
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.

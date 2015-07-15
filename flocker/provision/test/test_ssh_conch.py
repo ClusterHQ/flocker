@@ -17,6 +17,8 @@ from .._ssh._conch import make_dispatcher, RUN_OUTPUT_MESSAGE
 
 from flocker.testtools.ssh import create_ssh_server, create_ssh_agent
 
+skip = "See FLOC-1883. These tests don't properly clean up the reactor."
+
 
 class Tests(TestCase):
     """

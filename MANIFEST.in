@@ -1,6 +1,8 @@
 include README.rst
 include versioneer.py
 include flocker/_version.py
+include requirements.txt
+include dev-requirements.txt
 recursive-include admin *.py
 
 # These data files are used by the volumes API to define input and output

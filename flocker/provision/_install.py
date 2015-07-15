@@ -589,7 +589,7 @@ def _remove_dataset_fields(content):
     for key in dataset:
         if key not in _ok_to_log:
             dataset[key] = 'REMOVED'
-    return yaml.safe_dump(dataset)
+    return yaml.safe_dump(content)
 
 
 def task_configure_flocker_agent(control_node, dataset_backend,

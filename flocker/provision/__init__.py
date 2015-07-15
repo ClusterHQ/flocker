@@ -8,6 +8,7 @@ from ._common import PackageSource, Variants
 from ._install import provision, configure_cluster
 from ._rackspace import rackspace_provisioner
 from ._aws import aws_provisioner
+from ._ca import Certificates
 
 CLOUD_PROVIDERS = {
     'rackspace': rackspace_provisioner,
@@ -19,4 +20,5 @@ __all__ = [
     'provision',
     'CLOUD_PROVIDERS',
     'configure_cluster',
+    'Certificates',
 ]

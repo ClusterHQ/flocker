@@ -331,7 +331,7 @@
         "node_uuid": "%(NODE_0)s",
         "name": "database",
         "image": "postgres:latest",
-        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5},
+        "restart_policy": {"name": "never"},
         "running": true
       },
     ]
@@ -510,33 +510,6 @@
                   "mountpoint": "/usr/share/nginx/html"}],
      "restart_policy": {"name": "never"}
     }
-
--
-  id:
-    "create container with restart policy"
-
-  doc: |
-    Create a new container with a restart policy.
-    The value of restart_policy must be a dictionary with a "name" key, which in turn must be one of "never", "on-failure" or "always".
-    If the value given for "name" is "on-failure", you may also optionally provide a "maximum_retry_count" value.
-    This is a positive integer specifying the maximum number of attempts to restart a failed container.
-    If a restart policy is not specified, the container will be created with a restart policy of "never".
-
-  request: |
-    POST /v1/configuration/containers HTTP/1.1
-
-    {"node_uuid": "%(NODE_0)s",
-     "name": "webserver",
-     "image": "nginx:latest",
-     "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
-
-  response: |
-    HTTP/1.1 201 Created
-
-    {"node_uuid": "%(NODE_0)s",
-     "name": "webserver",
-     "image": "nginx:latest",
-     "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
 
 -
   id:

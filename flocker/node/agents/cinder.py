@@ -600,6 +600,50 @@ def _openstack_auth_from_config(auth_plugin='password', **config):
     return plugin_class(**plugin_kwargs)
 
 
+def _openstack_verify_from_config(
+        verify_peer=True, verify_ca_path=None, **config):
+    """
+    Create an OpenStack session from the given configuration.
+
+    This turns a pair of options (a boolean indicating whether to
+    verify, and a string for the path to the CA bundle) into a
+    requests-style single value.
+
+    If the ``verify_peer`` parameter is False, then no verification of
+    the certificate will occur.  This setting is insecure!  Although the
+    connections will be confidential, there is no authentication of the
+    peer.  We're having a private conversation, but we don't know to
+    whom we are speaking.
+
+    If the ``verify_peer`` parameter is True (the default), then the
+    certificate will be verified.
+
+    If the ``verify_ca_path`` parameter is set, the certificate will be
+    verified against the CA bundle at the path given by the
+    ``verify_ca_path`` parameter.  This is useful for systems using
+    self-signed certificates or private CA's.
+
+    Otherwise, the certificate will be verified against the system CA's.
+    This is useful for systems using well-known public CA's.
+
+    :param bool verify_peer: Whether to check the peer's certificate.
+    :param str verify_ca_path: Path to CA bundle.
+    :param config: Other parameters in the config.
+
+    :return: A verify option that can be passed to requests (and also to
+        keystoneclient.session.Session)
+    """
+    if verify_peer:
+        if verify_ca_path:
+            verify = verify_ca_path
+        else:
+            verify = True
+    else:
+        verify = False
+
+    return verify
+
+
 def cinder_from_configuration(region, cluster_id, **config):
     """
     Build a ``CinderBlockDeviceAPI`` using configuration and credentials in
@@ -609,8 +653,10 @@ def cinder_from_configuration(region, cluster_id, **config):
     :param cluster_id: The unique cluster identifier for which to configure the
         object.
     """
-    auth = _openstack_auth_from_config(**config)
-    session = Session(auth=auth)
+    session = Session(
+        auth=_openstack_auth_from_config(**config),
+        verify=_openstack_verify_from_config(**config)
+        )
     cinder_client = CinderClient(
         session=session, region_name=region, version=1
     )

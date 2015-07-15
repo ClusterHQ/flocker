@@ -16,6 +16,13 @@ class Twisted7672Tests(TestCase):
     def test_needsPatch(self):
         """
         Check to see if patch is still required.
+
+        This will be the case if the patch is still needed, or if it has been
+        applied.
         """
-        self.assertTrue((not _patch_7672_needed()) or patch_7672_applied,
-                        "Monkeypatch for twisted bug #7672 can be removed.")
+        self.assertTrue(
+            # The patch is still needed
+            _patch_7672_needed()
+            # Or the patch has already been applied
+            or patch_7672_applied,
+            "Monkeypatch for twisted bug #7672 can be removed.")

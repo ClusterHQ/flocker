@@ -65,8 +65,8 @@ COMPLEX_APPLICATION_YAML = {
 COMPLEX_DEPLOYMENT_YAML = {
     'version': 1,
     'nodes': {
-        'node1.example.com': ['wordpress'],
-        'node2.example.com': ['mysql'],
+        '172.16.255.250': ['wordpress'],
+        '172.16.255.251': ['mysql'],
     }
 }
 
@@ -2375,6 +2375,22 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``deployment_from_configuration``.
     """
+    def test_error_on_hostname_not_ip_address(self):
+        """
+        ``Configuration._deployment_from_configuration`` raises a
+        ``ConfigurationError`` if the deployment_configuration specifies
+        a node that is not an IPv4 address.
+        """
+        config = dict(nodes={"node1.example.com": []}, version=1)
+        exception = self.assertRaises(ConfigurationError,
+                                      deployment_from_configuration,
+                                      DeploymentState(), config, set())
+        self.assertEqual(
+            'Node "node1.example.com" specified, but deployment configuration '
+            'expects an IPv4 address.',
+            exception.message
+        )
+
     def test_error_on_missing_nodes_key(self):
         """
         ``Configuration._deployment_from_config`` raises a
@@ -2429,11 +2445,11 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             ConfigurationError,
             deployment_from_configuration,
             DeploymentState(),
-            dict(version=1, nodes={'node1.example.com': None}),
+            dict(version=1, nodes={'172.16.255.250': None}),
             set()
         )
         self.assertEqual(
-            'Node node1.example.com has a config error. '
+            'Node 172.16.255.250 has a config error. '
             'Wrong value type: NoneType. '
             'Should be list.',
             exception.message
@@ -2457,11 +2473,11 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             DeploymentState(),
             dict(
                 version=1,
-                nodes={'node1.example.com': ['site-hybridcluster']}),
+                nodes={'172.16.255.250': ['site-hybridcluster']}),
             applications
         )
         self.assertEqual(
-            'Node node1.example.com has a config error. '
+            'Node 172.16.255.250 has a config error. '
             'Unrecognised application name: site-hybridcluster.',
             exception.message
         )
@@ -2536,7 +2552,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                     mountpoint=FilePath(b'/var/lib/db')))
         }
         node_uuid = uuid4()
-        hostname = u'node1.example.com'
+        hostname = u'172.16.255.250'
 
         result = deployment_from_configuration(
             DeploymentState(
@@ -2590,8 +2606,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         deployment_configuration = {
             'version': 1,
             'nodes': {
-                'node1.example.com': ['mysql-hybridcluster'],
-                'node2.example.com': ['site-hybridcluster'],
+                '172.16.255.250': ['mysql-hybridcluster'],
+                '172.16.255.251': ['site-hybridcluster'],
             }
         }
         node1_uuid = uuid4()
@@ -2600,8 +2616,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         applications = config.applications()
         result = model_from_configuration(
             DeploymentState(nodes=[
-                NodeState(uuid=node1_uuid, hostname=u"node1.example.com"),
-                NodeState(uuid=node2_uuid, hostname=u"node2.example.com")]),
+                NodeState(uuid=node1_uuid, hostname=u"172.16.255.250"),
+                NodeState(uuid=node2_uuid, hostname=u"172.16.255.251")]),
             applications, deployment_configuration)
         expected_result = Deployment(
             nodes=frozenset([

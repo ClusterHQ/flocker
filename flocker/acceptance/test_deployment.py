@@ -54,6 +54,8 @@ class DeploymentTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#starting-an-application
     """
+    timeout = 200
+
     @require_moving_backend
     @require_flocker_cli
     @require_cluster(num_nodes=2)
@@ -126,12 +128,15 @@ class DeploymentTests(TestCase):
         }
 
         # Do the first deployment
-        cluster.flocker_deploy(self, config_deployment_1, config_application_1)
+        d = cluster.flocker_deploy(
+            self, config_deployment_1, config_application_1)
 
         # Wait for the agent on node1 to create a container with the expected
         # properties.
-        waiting_for_container_1 = cluster.wait_for_container(
-            expected_container_1)
+        waiting_for_container_1 = d.addCallback(
+            lambda _: cluster.wait_for_container(
+                expected_container_1)
+        )
 
         def got_container_1(actual_container):
             self.assertTrue(actual_container['running'])
@@ -150,9 +155,12 @@ class DeploymentTests(TestCase):
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
                     (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
                 )
-                cluster.flocker_deploy(
+                dataset_deployed = cluster.flocker_deploy(
                     self, config_deployment_2, config_application_1)
-                return cluster.wait_for_container(expected_container_2)
+                dataset_deployed.addCallback(
+                    lambda _: cluster.wait_for_container(expected_container_2)
+                )
+                return dataset_deployed
             waiting_for_dataset.addCallback(got_dataset)
             return waiting_for_dataset
 
@@ -210,8 +218,12 @@ class DeploymentTests(TestCase):
             },
         }
 
-        cluster.flocker_deploy(self, minimal_deployment, minimal_application)
+        d = cluster.flocker_deploy(
+            self, minimal_deployment, minimal_application)
 
-        return cluster.assert_expected_deployment(self, {
-            node_1.reported_hostname: set([get_mongo_application()]),
-        })
+        d.addCallback(
+            lambda _: cluster.assert_expected_deployment(self, {
+                node_1.reported_hostname: set([get_mongo_application()]),
+            })
+        )
+        return d
