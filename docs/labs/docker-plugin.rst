@@ -77,7 +77,7 @@ Manual Installation on Ubuntu 14.04
 ===================================
 
 First install Flocker on some hosts.
-These instructions assume you have followed the :ref:`official Flocker install instructions <installflocker>`.
+These instructions assume you have followed the :ref:`official Flocker install instructions <installing-flocker>`.
 See the :ref:`unofficial installer <labs-installer>` for a quicker method.
 
 On the same machine where you ran ``flocker-ca`` while installing Flocker, :ref:`generate a new API user certificate and key <generate-api>` for a user named ``plugin``.
