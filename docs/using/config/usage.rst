@@ -44,7 +44,7 @@ To authenticate with the control service, you will need a copy of the public clu
 
 By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named :file:`cluster.crt` (the public cluster certificate), :file:`user.crt` (the API user certificate) and :file:`user.key` (the API user's private key).
 
-You can override any of these defaults with the ``--cacert`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
+You can override these defaults with the ``--cacert`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
 
 .. code-block:: console
 
