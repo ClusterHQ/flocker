@@ -310,7 +310,7 @@ class VolumeStateTransitionTests(TestCase):
         def update(volume):
             """
             """
-            volume.status = u'in-use'
+            volume.status = self._pick_invalid_state(operation)
 
         self.assertRaises(Exception, _wait_for_volume_state_change,
                           operation, volume, update, TIMEOUT)
@@ -332,7 +332,7 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_destroy_error_state(self):
         """
-        Create volume runs into unexpected state.
+        Destroy volume runs into unexpected state.
         """
         operation = VolumeOperations.DESTROY
         volume = self._create_template_ebs_volume(operation)
@@ -340,7 +340,22 @@ class VolumeStateTransitionTests(TestCase):
         def update(volume):
             """
             """
-            volume.status = u'creating'
+            volume.status = self._pick_invalid_state(operation)
 
         self.assertRaises(Exception, _wait_for_volume_state_change,
                           operation, volume, update, TIMEOUT)
+
+    def test_destroy_success(self):
+        """
+        Successful destroy.
+        """
+        operation = VolumeOperations.DESTROY
+        volume = self._create_template_ebs_volume(operation)
+
+        def update(volume):
+            """
+            """
+            volume.status = u''
+
+        _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
+        self.assertEquals(volume.status, u'')
