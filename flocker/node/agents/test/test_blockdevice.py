@@ -9,9 +9,8 @@ from functools import partial
 from os import getuid
 import time
 from uuid import UUID, uuid4
-from subprocess import (
-    STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError,
-)
+from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from stat import S_IRWXU
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -58,6 +57,7 @@ from ..blockdevice import (
     get_blockdevice_volume,
     _backing_file_name,
     ProcessLifetimeCache,
+    FilesystemExists,
 )
 
 from ... import run_state_change, in_parallel
@@ -2682,6 +2682,17 @@ class MountBlockDeviceTests(
         self.assertIn(expected, mounted)
         return scenario
 
+    def _make_mounted_filesystem(self, path_segment=b"mount-test"):
+        mountpoint = mountroot_for_test(self).child(path_segment)
+        scenario = self._run_success_test(mountpoint)
+        return scenario, mountpoint
+
+    def _mount(self, scenario, mountpoint):
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+
     def test_run(self):
         """
         ``CreateFilesystem.run`` initializes a block device with a filesystem
@@ -2696,18 +2707,37 @@ class MountBlockDeviceTests(
         Running ``CreateFilesystem`` on a filesystem mounted with
         ``MountBlockDevice`` fails in a non-destructive manner.
         """
-        mountpoint = mountroot_for_test(self).child(b"mount-test")
-        scenario = self._run_success_test(mountpoint)
+        scenario, mountpoint = self._make_mounted_filesystem()
         afile = mountpoint.child(b"file")
         afile.setContent(b"data")
         # Try recreating mounted filesystem; this should fail.
-        self.failureResultOf(scenario.create(), CalledProcessError)
+        self.failureResultOf(scenario.create(), FilesystemExists)
         # Unmounting and remounting, but our data still exists:
-        check_output([b"umount", mountpoint.path])
+        umount(mountpoint)
+        self._mount(scenario, mountpoint)
+        self.assertEqual(afile.getContent(), b"data")
+
+    def test_create_fails_on_existing_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a block device that already has a file
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              mountpoint=mountpoint),
             scenario.deployer))
+        system fails with an exception and preserves the data.
+
+        This is because mkfs is a destructive operation that will destroy any
+        existing filesystem on that block device.
+        """
+        scenario, mountpoint = self._make_mounted_filesystem()
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Unmount the filesystem
+        umount(mountpoint)
+        # Try recreating filesystem; this should fail.
+        self.failureResultOf(scenario.create(), FilesystemExists)
+        # Remounting should succeed.
+        self._mount(scenario, mountpoint)
         self.assertEqual(afile.getContent(), b"data")
 
     def test_mountpoint_exists(self):
@@ -2802,6 +2832,24 @@ class MountBlockDeviceTests(
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
+
+    def test_world_permissions_not_reset_if_other_files_exist(self):
+        """
+        If files exist in the filesystem, permissions are not reset when the
+        filesystem is remounted.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        mountpoint.child(b"file").setContent(b"stuff")
+        check_call([b"umount", mountpoint.path])
+        mountpoint.chmod(S_IRWXU)
+        mountpoint.restat()
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertEqual(mountpoint.getPermissions().shorthand(),
+                         'rwx------')
 
 
 class UnmountBlockDeviceInitTests(

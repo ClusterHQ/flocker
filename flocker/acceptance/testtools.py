@@ -11,6 +11,7 @@ from unittest import SkipTest, skipUnless
 
 from yaml import safe_dump
 import json
+from copy import deepcopy
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -32,6 +33,7 @@ from ..control import (
 from ..common import gather_deferreds
 
 from ..control.httpapi import container_configuration_response, REST_API_PORT
+from ..control._config import FlockerConfiguration
 from ..ca import treq_with_authentication
 from ..testtools import loop_until
 
@@ -119,6 +121,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
@@ -353,9 +356,8 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The attributes of the dataset that
             we're waiting for.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties appears in
-            the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -380,7 +382,7 @@ class Cluster(PRecord):
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: (self, dataset_properties))
+        waiting.addCallback(lambda ignored: dataset_properties)
         return waiting
 
     @log_method
@@ -390,9 +392,9 @@ class Cluster(PRecord):
 
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties has been
-            persisted to the cluster configuration.
+        :returns: A ``Deferred`` which fires with an API response when a
+            dataset with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets",
@@ -402,8 +404,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -414,7 +414,8 @@ class Cluster(PRecord):
         :param unicode dataset_id: The uuid of the dataset to be modified.
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset update has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -426,8 +427,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -437,7 +436,8 @@ class Cluster(PRecord):
 
         :param unicode dataset_id: The uuid of the dataset to be modified.
 
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            dataset deletion has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -448,8 +448,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -460,7 +458,9 @@ class Cluster(PRecord):
         :param dict properties: A ``dict`` mapping to the API request fields
             to create a container.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container with the supplied properties has been persisted to the
+            cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers",
@@ -470,7 +470,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, CREATED)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -481,7 +480,8 @@ class Cluster(PRecord):
         :param unicode name: The name of the container to move.
         :param unicode node_uuid: The UUID to which the container should
             be moved.
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container move has been persisted to the cluster configuration.
         """
         request = self.treq.post(
             self.base_url + b"/configuration/containers/" +
@@ -492,7 +492,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -502,7 +501,8 @@ class Cluster(PRecord):
 
         :param unicode name: The name of the container to remove.
 
-        :returns: A tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with an API response when the
+            container removal has been persisted to the cluster configuration.
         """
         request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
@@ -511,7 +511,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
         return request
 
     @log_method
@@ -555,9 +554,8 @@ class Cluster(PRecord):
         :param dict container_properties: The attributes of the container that
             we're waiting for. All the keys, values and those of nested
             dictionaries must match.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a container with the supplied properties appears
-            in the cluster.
+        :returns: A ``Deferred`` which fires with an API response when a
+            container with the supplied properties appears in the cluster.
         """
         def created():
             """
@@ -575,7 +573,7 @@ class Cluster(PRecord):
                         for item in expected_container.items()
                     ]):
                         # Return cluster and container state
-                        return self, container
+                        return container
                 return False
             request.addCallback(got_response)
             return request
@@ -606,6 +604,18 @@ class Cluster(PRecord):
         :param dict deployment_config: The desired deployment configuration.
         :param dict application_config: The desired application configuration.
         """
+        # Construct an expected deployment mapping of IP addresses
+        # to a set of ``Application`` instances.
+        applications_to_parse = deepcopy(application_config)
+        expected_deployment = dict()
+        applications_map = FlockerConfiguration(
+            applications_to_parse).applications()
+        for node in deployment_config['nodes']:
+            node_applications = []
+            for node_app in deployment_config['nodes'][node]:
+                if node_app in applications_map:
+                    node_applications.append(applications_map[node_app])
+            expected_deployment[node] = set(node_applications)
         temp = FilePath(test_case.mktemp())
         temp.makedirs()
 
@@ -618,6 +628,11 @@ class Cluster(PRecord):
                     b"--certificates-directory", self.certificates_path.path,
                     self.control_node.public_address,
                     deployment.path, application.path])
+        # Wait for the cluster state to match the new deployment.
+        da = self.assert_expected_deployment(
+            test_case, expected_deployment
+        )
+        return da
 
     def clean_nodes(self):
         """
@@ -708,7 +723,6 @@ class Cluster(PRecord):
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
-
             return sorted(existing_containers) == sorted(expected)
 
         def configuration_matches_state():

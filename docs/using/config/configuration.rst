@@ -134,6 +134,10 @@ The following parameters are optional when defining an application:
 
   This specifies the restart policy for this Application.
   There must be a ``name`` sub-key whose value may be one of: ``never``, ``always``, or ``on-failure``.
+  **The supplied policy is recorded but not not used.
+  Containers will always behave as though created with the ``never`` restart policy.
+  It is recommended that all containers be created with this policy.
+  See <https://clusterhq.atlassian.net/browse/FLOC-2449> for the status of this feature.**
   The ``on-failure`` restart policy accepts an optional ``maximum_retry_count`` sub-key, which specifies how many times Docker will attempt to restart the application container in the event of repeated failures.
   See the `Docker Restart Policy reference <https://docs.docker.com/reference/commandline/cli/#restart-policies>`_ for more information on restart policies.
 
@@ -300,10 +304,12 @@ Deployment Configuration
 ------------------------
 
 The deployment configuration specifies which applications are run on what nodes.
-It consists of a version and a mapping from node names to application names.
+It consists of a version and a mapping from node IPv4 addresses to application names.
 
-The required parameters are ``version`` and ``applications``.
+The required parameters are ``version`` and ``nodes``.
 For now the ``version`` must be ``1``.
+
+Each entry under ``nodes`` should be a mapping of the desired deployment node's IP address to a list of application names that match those defined in the application configuration.
 
 Here's an example of a simple but complete configuration defining a deployment of one application on one host:
 
@@ -311,8 +317,9 @@ Here's an example of a simple but complete configuration defining a deployment o
 
   "version": 1
   "nodes":
-    "node017.example.com":
-      "site-clusterhq.com"
+    "203.0.113.100":
+      - "site-clusterhq.com"
+      - "postgresql"
 
 .. _`Fig`: http://www.fig.sh/yml.html
 .. _`Docker Run reference`: http://docs.docker.com/reference/run/#runtime-constraints-on-cpu-and-memory

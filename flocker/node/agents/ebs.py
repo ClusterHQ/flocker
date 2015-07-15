@@ -37,7 +37,6 @@ from ._logging import (
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
-ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
@@ -69,6 +68,48 @@ def _enable_boto_logging():
     logger.setLevel(logging.DEBUG)
 
 _enable_boto_logging()
+
+
+class AttachedUnexpectedDevice(Exception):
+    """
+    A volume was attached to a device other than the one we expected.
+
+    :ivar str _template: A native string giving the template into which to
+        format attributes for the string representation.
+    """
+    _template = "AttachedUnexpectedDevice(requested={!r}, discovered={!r})"
+
+    def __init__(self, requested, discovered):
+        """
+        :param FilePath requested: The requested device name.
+        :param FilePath discovered: The device which was discovered on the
+            system.
+        """
+        self.requested = requested
+        self.discovered = discovered
+
+    def __str__(self):
+        return self._template.format(
+            self.requested.path, self.discovered.path,
+        )
+
+    __repr__ = __str__
+
+
+def _expected_device(requested_device):
+    """
+    Given a device we requested from AWS EBS, determine the OS device path that
+    will actually be created.
+
+    This maps EBS required ``/dev/sdX`` names to ``/dev/vbdX`` names that are
+    used by currently supported platforms (Ubuntu 14.04 and CentOS 7).
+    """
+    prefix = b"/dev/sd"
+    if requested_device.startswith(prefix):
+        return FilePath(b"/dev").child(b"xvd" + requested_device[len(prefix):])
+    raise ValueError(
+        "Unsupported requested device {!r}".format(requested_device)
+    )
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -314,8 +355,8 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param int time_limit: Time, in seconds, to wait for
         new device to manifest. Defaults to 60s.
 
-    :returns: formatted string name of the new block device.
-    :rtype: unicode
+    :returns: The path of the new block device file.
+    :rtype: ``FilePath``
     """
     start_time = time.time()
     elapsed_time = time.time() - start_time
@@ -325,8 +366,7 @@ def _wait_for_new_device(base, size, time_limit=60):
             device_name = FilePath.basename(device)
             if (device_name.startswith((b"sd", b"xvd")) and
                     _get_device_size(device_name) == size):
-                new_device = u'/dev/' + device_name.decode("ascii")
-                return new_device
+                return FilePath(b"/dev").child(device_name)
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
 
@@ -513,6 +553,10 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
+        :raises AttachedUnexpectedDevice: If the attach operation fails to
+            associate the volume with the expected OS device file.  This
+            indicates use on an unsupported OS, a misunderstanding of the EBS
+            device assignment rules, or some other bug in this implementation.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
@@ -559,20 +603,33 @@ class EBSBlockDeviceAPI(object):
                     # UserGuide/device_naming.html), wait for new block device
                     # to be available to the OS, and interpret it as ours.
                     # Wait under lock scope to reduce false positives.
-                    new_device = _wait_for_new_device(blockdevices,
-                                                      volume.size)
+                    device_path = _wait_for_new_device(
+                        blockdevices, volume.size
+                    )
+                    # We do, however, expect the attached device name to follow
+                    # a certain simple pattern.  Verify that now and signal an
+                    # error immediately if the assumption is violated.  If we
+                    # let it go by, a later call to ``get_device_path`` will
+                    # quietly produce the wrong results.
+                    #
+                    # To make this explicit, we *expect* that the device will
+                    # *always* be what we *expect* the device to be (sorry).
+                    # This check is only here in case we're wrong to make the
+                    # system fail in a less damaging way.
+                    if _expected_device(device) != device_path:
+                        # We also don't want anything to re-discover the volume
+                        # in an attached state since that might also result in
+                        # use of ``get_device_path`` (producing an incorrect
+                        # result).  This is a best-effort.  It's possible the
+                        # agent will crash after attaching the volume and
+                        # before detaching it here, leaving the system in a bad
+                        # state.  This is one reason we need a better solution
+                        # in the long term.
+                        self.detach_volume(blockdevice_id)
+                        raise AttachedUnexpectedDevice(device, device_path)
                     break
                 # end lock scope
 
-        # Stamp EBS volume with attached device name tag.
-        # If OS fails to see new block device in 60 seconds,
-        # `new_device` is `None`, indicating the volume failed
-        # to attach to the compute instance.
-        metadata = {
-            ATTACHED_DEVICE_LABEL: unicode(new_device),
-        }
-        if new_device is not None:
-            self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume,
                          start_status=u'available',
                          transient_status=u'attaching',
@@ -604,9 +661,6 @@ class EBSBlockDeviceAPI(object):
                          start_status=u'in-use',
                          transient_status=u'detaching',
                          end_status=u'available')
-
-        # Delete attached device metadata from EBS Volume
-        self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -652,13 +706,16 @@ class EBSBlockDeviceAPI(object):
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
-        try:
-            device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
-        except KeyError:
-            raise UnattachedVolume(blockdevice_id)
-        if device is None:
-            raise UnattachedVolume(blockdevice_id)
-        return FilePath(device)
+        compute_instance_id = self.compute_instance_id()
+        if volume.attached_to != compute_instance_id:
+            # This is untested.  See FLOC-2453.
+            raise Exception(
+                "Volume is attached to {}, not to {}".format(
+                    volume.attached_to, compute_instance_id
+                )
+            )
+
+        return _expected_device(ebs_volume.attach_data.device)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,

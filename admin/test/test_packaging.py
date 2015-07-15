@@ -994,6 +994,9 @@ class OmnibusPackageBuilderTests(TestCase):
                         # Upstart configuration
                         package_files.child('upstart'):
                             FilePath('/etc/init'),
+                        # rsyslog configuration
+                        package_files.child(b'rsyslog'):
+                            FilePath(b"/etc/rsyslog.d"),
                         # Flocker Control State dir
                         empty_path: FilePath('/var/lib/flocker/'),
                     },

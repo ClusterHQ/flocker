@@ -8,7 +8,6 @@ from yaml import safe_dump
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.reflect import namedModule
-from sphinx.errors import SphinxError
 
 from klein import Klein
 
@@ -19,6 +18,8 @@ try:
 except ImportError:
     skip = "Sphinx not installed."
 else:
+    from sphinx.errors import SphinxError
+
     from ..publicapi import (
         Example, KleinRoute, getRoutes, _loadExamples, _formatExample, makeRst)
 

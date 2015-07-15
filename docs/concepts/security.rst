@@ -6,7 +6,7 @@ Cluster Security & Authentication
 
 A Flocker cluster comprises a control service and convergence agents, along with some command line tools that are provided to interact with, and manage the cluster. For more information, see :ref:`architecture`.
 
-Flocker uses `Transport Layer Security <http://en.wikipedia.org/wiki/Transport_Layer_Security>`_ (TLS) to authenticate components of a cluster, in a `mutual authentication  <http://en.wikipedia.org/wiki/Mutual_authentication>`_ model.
+Flocker uses `Transport Layer Security <https://en.wikipedia.org/wiki/Transport_Layer_Security>`_ (TLS) to authenticate components of a cluster, in a `mutual authentication <https://en.wikipedia.org/wiki/Mutual_authentication>`_ model.
 
 This ensures that the control service, convergence agents, and API end users are communicating with a verified component of a cluster, helping to prevent unauthorised access, and mitigating some potential attack vectors.
 

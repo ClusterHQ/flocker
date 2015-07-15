@@ -60,9 +60,12 @@ class MovingDataTests(TestCase):
             },
         }
 
-        cluster.flocker_deploy(self, volume_deployment, volume_application)
+        deployed = cluster.flocker_deploy(
+            self, volume_deployment, volume_application)
 
-        getting_client = get_mongo_client(node_1.public_address)
+        deployed.addCallback(
+            lambda _: get_mongo_client(node_1.public_address)
+        )
 
         def verify_data_moves(client_1):
             database_1 = client_1.example
@@ -79,16 +82,19 @@ class MovingDataTests(TestCase):
 
             # Use different port so we're sure it's new container we're
             # talking to:
-            cluster.flocker_deploy(self, volume_deployment_moved,
-                                   volume_application_different_port)
+            moved = cluster.flocker_deploy(
+                self, volume_deployment_moved,
+                volume_application_different_port
+            )
 
-            d = get_mongo_client(node_2.public_address, 27018)
+            moved.addCallback(
+                lambda _: get_mongo_client(node_2.public_address, 27018))
 
-            d.addCallback(lambda client_2: self.assertEqual(
+            moved.addCallback(lambda client_2: self.assertEqual(
                 data,
                 client_2.example.posts.find_one()))
 
-            return d
+            return moved
 
-        verifying = getting_client.addCallback(verify_data_moves)
-        return verifying
+        deployed.addCallback(verify_data_moves)
+        return deployed

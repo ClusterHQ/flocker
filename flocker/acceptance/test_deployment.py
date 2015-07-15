@@ -20,7 +20,9 @@ from .testtools import (MONGO_APPLICATION, MONGO_IMAGE,
                         create_attached_volume, require_cluster,
                         require_moving_backend)
 
-SIZE_100_MB = u"104857600"
+from ..testtools import (
+    REALISTIC_BLOCKDEVICE_SIZE,
+)
 
 
 def api_configuration_to_flocker_deploy_configuration(api_configuration):
@@ -52,6 +54,8 @@ class DeploymentTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#starting-an-application
     """
+    timeout = 200
+
     @require_moving_backend
     @require_flocker_cli
     @require_cluster(num_nodes=2)
@@ -75,7 +79,7 @@ class DeploymentTests(TestCase):
             volume=create_attached_volume(
                 dataset_id=mongo_dataset_id,
                 mountpoint=b'/data/db',
-                maximum_size=int(SIZE_100_MB),
+                maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
                 metadata=pmap({"name": MONGO_APPLICATION}),
             )
         )
@@ -105,7 +109,7 @@ class DeploymentTests(TestCase):
         }
 
         conf = config_application_1[u'applications'][MONGO_APPLICATION]
-        conf['volume']['maximum_size'] = SIZE_100_MB
+        conf['volume']['maximum_size'] = str(REALISTIC_BLOCKDEVICE_SIZE)
 
         config_deployment_1 = {
             u"version": 1,
@@ -124,58 +128,60 @@ class DeploymentTests(TestCase):
         }
 
         # Do the first deployment
-        cluster.flocker_deploy(self, config_deployment_1, config_application_1)
+        d = cluster.flocker_deploy(
+            self, config_deployment_1, config_application_1)
 
         # Wait for the agent on node1 to create a container with the expected
         # properties.
-        waiting_for_container_1 = cluster.wait_for_container(
-            expected_container_1)
+        waiting_for_container_1 = d.addCallback(
+            lambda _: cluster.wait_for_container(
+                expected_container_1)
+        )
 
-        def got_container_1(result):
-            cluster, actual_container = result
+        def got_container_1(actual_container):
             self.assertTrue(actual_container['running'])
             waiting_for_dataset = cluster.wait_for_dataset(
                 {
                     u"dataset_id": mongo_dataset_id,
                     u"metadata": None,
                     u"deleted": False,
-                    u"maximum_size": int(SIZE_100_MB),
+                    u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
                     u"primary": node_1_uuid
                 }
             )
 
-            def got_dataset(result):
-                cluster, dataset = result
+            def got_dataset(dataset):
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
-                    (mongo_dataset_id, int(SIZE_100_MB))
+                    (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
                 )
-                cluster.flocker_deploy(
+                dataset_deployed = cluster.flocker_deploy(
                     self, config_deployment_2, config_application_1)
-                return cluster.wait_for_container(expected_container_2)
+                dataset_deployed.addCallback(
+                    lambda _: cluster.wait_for_container(expected_container_2)
+                )
+                return dataset_deployed
             waiting_for_dataset.addCallback(got_dataset)
             return waiting_for_dataset
 
         waiting_for_container_2 = waiting_for_container_1.addCallback(
             got_container_1)
 
-        def got_container_2(result):
-            cluster, actual_container = result
+        def got_container_2(actual_container):
             waiting_for_dataset = cluster.wait_for_dataset(
                 {
                     u"dataset_id": mongo_dataset_id,
                     u"metadata": None,
                     u"deleted": False,
-                    u"maximum_size": int(SIZE_100_MB),
+                    u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
                     u"primary": node_2_uuid
                 }
             )
 
-            def got_dataset(result):
-                cluster, dataset = result
+            def got_dataset(dataset):
                 self.assertEqual(
                     (dataset[u"dataset_id"], dataset[u"maximum_size"]),
-                    (mongo_dataset_id, int(SIZE_100_MB))
+                    (mongo_dataset_id, REALISTIC_BLOCKDEVICE_SIZE)
                 )
             waiting_for_dataset.addCallback(got_dataset)
             self.assertTrue(actual_container['running'])
@@ -212,8 +218,12 @@ class DeploymentTests(TestCase):
             },
         }
 
-        cluster.flocker_deploy(self, minimal_deployment, minimal_application)
+        d = cluster.flocker_deploy(
+            self, minimal_deployment, minimal_application)
 
-        return cluster.assert_expected_deployment(self, {
-            node_1.reported_hostname: set([get_mongo_application()]),
-        })
+        d.addCallback(
+            lambda _: cluster.assert_expected_deployment(self, {
+                node_1.reported_hostname: set([get_mongo_application()]),
+            })
+        )
+        return d

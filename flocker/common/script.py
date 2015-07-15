@@ -4,6 +4,8 @@
 
 import sys
 
+from bitmath import MiB
+
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
@@ -13,6 +15,8 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
+from twisted.python.logfile import LogFile
+from twisted.python.filepath import FilePath
 
 from zope.interface import Interface
 
@@ -25,6 +29,10 @@ __all__ = [
     'FlockerScriptRunner',
     'main_for_service',
 ]
+
+
+LOGFILE_LENGTH = int(MiB(100).to_Byte().value)
+LOGFILE_COUNT = 5
 
 
 def flocker_standard_options(cls):
@@ -45,6 +53,7 @@ def flocker_standard_options(cls):
         """
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
+        self['logfile'] = self._sys_module.stdout
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
 
@@ -59,6 +68,22 @@ def flocker_standard_options(cls):
         self['verbosity'] += 1
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
+
+    def opt_logfile(self, logfile_path):
+        """
+        Log to a file. Log is written to ``stdout`` by default. The logfile
+        directory is created if it does not already exist.
+        """
+        logfile = FilePath(logfile_path)
+        logfile_directory = logfile.parent()
+        if not logfile_directory.exists():
+            logfile_directory.makedirs()
+        self['logfile'] = LogFile.fromFullPath(
+            logfile.path,
+            rotateLength=LOGFILE_LENGTH,
+            maxRotatedFiles=LOGFILE_COUNT,
+        )
+    cls.opt_logfile = opt_logfile
 
     return cls
 
@@ -175,7 +200,7 @@ class FlockerScriptRunner(object):
 
         if self.logging:
             log_writer = eliot_logging_service(
-                self.sys_module.stdout, self._reactor, True)
+                options['logfile'], self._reactor, True)
         else:
             log_writer = Service()
         log_writer.startService()

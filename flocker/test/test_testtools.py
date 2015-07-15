@@ -6,9 +6,19 @@ Tests for ``flocker.testtools``.
 
 from subprocess import CalledProcessError
 
-from twisted.trial.unittest import SynchronousTestCase
+from eliot.testing import (
+    capture_logging,
+    LoggedAction, LoggedMessage,
+    assertContainsFields,
+)
 
-from flocker.testtools import run_process
+from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.task import Clock
+
+from flocker.testtools import (
+    run_process,
+    loop_until, LOOP_UNTIL_ACTION, LOOP_UNTIL_ITERATION_MESSAGE,
+)
 
 
 class RunProcessTests(SynchronousTestCase):
@@ -68,3 +78,112 @@ class RunProcessTests(SynchronousTestCase):
         """
         exception = self._run_fail(self._failing_shell(b"echo hello"))
         self.assertIn("hello", str(exception))
+
+
+class LoopUntilTests(SynchronousTestCase):
+    """
+    Tests for :py:func:`loop_until`.
+    """
+
+    @capture_logging(None)
+    def test_immediate_success(self, logger):
+        """
+        If the predicate returns something truthy immediately, then
+        ``loop_until`` returns a deferred that has already fired with that
+        value.
+        """
+        result = object()
+
+        def predicate():
+            return result
+        clock = Clock()
+        d = loop_until(predicate, reactor=clock)
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        action = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)[0]
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'action_status': 'succeeded',
+            'result': result,
+        })
+
+    @capture_logging(None)
+    def test_iterates(self, logger):
+        """
+        If the predicate returns something falsey followed by something truthy,
+        then ``loop_until`` returns it immediately.
+        """
+        result = object()
+        results = [None, result]
+
+        def predicate():
+            return results.pop(0)
+        clock = Clock()
+
+        d = loop_until(predicate, reactor=clock)
+
+        self.assertNoResult(d)
+
+        clock.advance(0.1)
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        action = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)[0]
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'result': result,
+        })
+        self.assertTrue(action.succeeded)
+        message = LoggedMessage.of_type(
+            logger.messages, LOOP_UNTIL_ITERATION_MESSAGE)[0]
+        self.assertEqual(action.children, [message])
+        assertContainsFields(self, message.message, {
+            'result': None,
+        })
+
+    @capture_logging(None)
+    def test_multiple_iterations(self, logger):
+        """
+        If the predicate returns something falsey followed by something truthy,
+        then ``loop_until`` returns it immediately.
+        """
+        result = object()
+        results = [None, False, result]
+        expected_results = results[:-1]
+
+        def predicate():
+            return results.pop(0)
+        clock = Clock()
+
+        d = loop_until(predicate, reactor=clock)
+
+        clock.advance(0.1)
+        self.assertNoResult(d)
+        clock.advance(0.1)
+
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        action = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)[0]
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'result': result,
+        })
+        self.assertTrue(action.succeeded)
+        messages = LoggedMessage.of_type(
+            logger.messages, LOOP_UNTIL_ITERATION_MESSAGE)
+        self.assertEqual(action.children, messages)
+        self.assertEqual(
+            [messages[0].message['result'], messages[1].message['result']],
+            expected_results,
+        )

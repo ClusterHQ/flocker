@@ -54,8 +54,7 @@ OS X
 ^^^^
 
 Make sure you know the common name of the client certificate you will use.
-If you just generated the certificate following the `instructions above <generate-api>`_,
-the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
+If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
 If you're not sure what the username is, you can find the common name like this:
 
 .. code-block:: console
@@ -69,6 +68,8 @@ Import the client certificate into the ``Keychain`` and then refer to it by its 
 .. code-block:: console
 
     $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
+	Enter Export Password:
+	Verifying - Enter Export Password:
     $ security import user.p12 -k ~/Library/Keychains/login.keychain
     $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
          https://172.16.255.250:4523/v1/configuration/containers

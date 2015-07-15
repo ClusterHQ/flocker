@@ -674,3 +674,18 @@ class RootCredentialTests(SynchronousTestCase):
         ca = RootCredential.from_path(path)
         self.assertEqual(ca.organizational_unit,
                          ca.credential.certificate.getSubject().OU)
+
+    def test_overridden_cluster_id(self):
+        """
+        If a ``cluster_id`` is passed to ``RootCredential.initialize``, it is
+        used as the value for the generated certificate's *organizational unit*
+        field.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        cluster_id = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        RootCredential.initialize(
+            path, b"overridecluster", cluster_id=cluster_id,
+        )
+        ca = RootCredential.from_path(path)
+        self.assertEqual(cluster_id, UUID(ca.organizational_unit))

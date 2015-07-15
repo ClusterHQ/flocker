@@ -309,7 +309,7 @@ a.download:before {
     font-family: lato;
 }
 
-.section {
+.page>.section {
     font-size: 1.05em;
 }
 

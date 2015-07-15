@@ -3307,8 +3307,8 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
     """
     # Match COMPLEX_DEPLOYMENT_YAML:
     DEPLOYMENT_STATE = DeploymentState(nodes=[
-        NodeState(uuid=uuid4(), hostname=u"node1.example.com"),
-        NodeState(uuid=uuid4(), hostname=u"node2.example.com"),
+        NodeState(uuid=uuid4(), hostname=u"172.16.255.250"),
+        NodeState(uuid=uuid4(), hostname=u"172.16.255.251"),
         ])
 
     def configuration_test(self):

@@ -2,12 +2,40 @@
 Release Notes
 =============
 
-.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+See the :ref:`upgrading instructions <upgrading>` for information on upgrading Flocker clusters from earlier releases.
+If you have a Vagrant tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+
+You can learn more about where we might be going with future releases by:
+
+* Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
+* Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
+
+v1.0.3
+======
+
+* On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk. 
+
+v1.0.2
+======
+
+* On CentOS 7, Flocker logs are no longer written to /var/log/messages since this filled up disk space too quickly.
+  The logs are still available via journald.
+* The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes (FLOC-2467).
+  See :ref:`restart policy<restart configuration>`.
+
+v1.0.1
+======
+
+Upgrading is strongly recommended for all users of v1.0.0.
+
+* The EBS storage driver now more reliably selects the correct OS device file corresponding to an EBS volume being used.
+* Additional safety checks were added to ensure only empty volumes are formatted.
+* ClusterHQ Labs projects, including the Flocker Docker Plugin and an experimental Volumes CLI and GUI are now documented in the :ref:`Labs section <labs-projects>`.
 
 v1.0
 ====
 
-* Dataset backend support for AWS Elastic Block Storage (EBS), and OpenStack Cinder.
+* Dataset backend support for :ref:`AWS Elastic Block Storage (EBS)<aws-dataset-backend>`, :ref:`OpenStack Cinder<openstack-dataset-backend>`, and :ref:`EMC ScaleIO and XtremIO<emc-dataset-backend>`.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
   See :ref:`dataset-backend-plugins`.
 * It is now necessary to specify a dataset backend for each agent node.
@@ -65,18 +93,5 @@ v0.1
 
 Everything is new since this is our first release.
 
-
-Known Limitations
-=================
-
-* This release is not ready for production and should not be used on publicly accessible servers or to store data you care about.
-  Backwards compatibility is not a goal yet.
-* Changes to the application configuration file will often not be noticed by ``flocker-deploy``, and there is no way to delete applications or volumes.
-  Choose new names for your applications if you are making changes to the application configuration.
-
-You can learn more about where we might be going with future releases by:
-
-* Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
-* Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
 .. _`Fig`: http://www.fig.sh/yml.html

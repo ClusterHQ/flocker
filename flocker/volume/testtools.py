@@ -4,9 +4,9 @@
 Testing utilities provided by ``flocker.volume``.
 """
 
+import errno
 import os
 import uuid
-import subprocess
 from unittest import SkipTest
 
 from characteristic import attributes
@@ -17,6 +17,7 @@ from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase
 
 from ..common import ProcessNode
+from ..testtools import run_process
 from ._ipc import RemoteVolumeManager
 
 from .filesystems.zfs import StoragePool
@@ -73,10 +74,18 @@ def create_zfs_pool(test_case):
     with pool_path.open("wb") as f:
         f.truncate(100 * 1024 * 1024)
     test_case.addCleanup(pool_path.remove)
-    subprocess.check_call([b"zpool", b"create", b"-m", mount_path.path,
-                           pool_name, pool_path.path])
-    test_case.addCleanup(subprocess.check_call,
-                         [b"zpool", b"destroy", pool_name])
+    try:
+        run_process([b"zpool", b"create", b"-m", mount_path.path,
+                     pool_name, pool_path.path])
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            raise SkipTest(
+                "Install zpool to run these tests: "
+                "http://doc-dev.clusterhq.com/using/installing/index.html"
+                "#optional-zfs-backend-configuration")
+
+        raise
+    test_case.addCleanup(run_process, [b"zpool", b"destroy", pool_name])
     return pool_name
 
 
