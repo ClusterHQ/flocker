@@ -79,23 +79,23 @@ class VolumeStateFlow(PRecord):
     end_state = field(mandatory=True, type=ValueConstant)
 
     # Boolean flag to indicate if a volume state transition
-    # results in a non-empty ``attach_data.device`` field,
-    # and ``attach_data.instance_id`` for the EBS volume.
+    # results in non-empty ``attach_data.device`` and
+    # ``attach_data.instance_id`` for the EBS volume.
     has_attach_data = field(mandatory=True, type=bool)
 
 
 class VolumeStateTable(PRecord):
     """
-    Mapping of volume operation to resulting volume state transitions
-    and volume attach data update.
+    Map of volume operation to expected volume state transitions
+    and expected update to volume's ``attach_data``.
     """
     table = pmap_field(NamedConstant, VolumeStateFlow)
 
 
 def populate():
     """
-    Initialize state table with transitions for ``create_volume``,
-    ``attach_volume``, ``detach_volume``, ``delete_volume``.
+    Initialize volume state table  with transitions for ``create_volume``,
+    ``attach_volume``, ``detach_volume``, ``delete_volume`` operations.
     """
     table = pmap()
     create_state_flow = VolumeStateFlow(
@@ -336,6 +336,15 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
 
 
 def _get_ebs_volume_state(volume):
+    """
+    Fetch input EBS volume's latest state from backend.
+
+    :param boto.ec2.volume volume: Volume that needs state update.
+
+    :returns: EBS volume with latest state known to backend.
+    :rtype: boto.ec2.volume
+
+    """
     return volume.update()
 
 
@@ -347,16 +356,14 @@ def _wait_for_volume_state_change(operation,
     Helper function to wait for a given volume to change state
     from ``start_status`` via ``transient_status`` to ``end_status``.
 
-    :param boto.ec2.volume volume: Volume to check
-        status for.
-    :param unicode start_status: Volume status at starting point.
-    :param unicode transient_status: Allowed transient state for
-        volume to be in, on the way to ``end_status``.
-    :param unicode end_status: Expected destination status for
-        the input volume.
+    :param NamedConstant operation: Operation triggering volume state change.
+        A value from ``VolumeOperations``.
+    :param boto.ec2.volume volume: Volume to check status for.
+    :param update: Method to use to fetch EBS volume's latest state.
+    :param int timeout: Seconds to wait for volume operation to succeed.
 
-    :raises Exception: When input volume failed to reach
-        expected destination status.
+    :raises Exception: When input volume fails to reach expected backend
+        state for given operation within timeout seconds.
     """
     # It typically takes a few seconds for anything to happen, so start
     # out sleeping a little before doing initial check to reduce
@@ -385,6 +392,8 @@ def _wait_for_volume_state_change(operation,
             if e.code == u'InvalidVolume.NotFound':
                 raise UnknownVolume(volume.id)
         if volume.status == end_state:
+            # If end state for the volume comes with attach data,
+            # declare success only upon discovering attach data.
             if needs_attach_data:
                 if (volume.attach_data is not None and
                         volume.attach_data.device != '' and
@@ -404,9 +413,10 @@ def _wait_for_volume_state_change(operation,
 
     # We either:
     # 1) Timed out waiting to reach ``end_status``, or,
-    # 2) Reached an unexpected status (state change did not
-    #    start, or failed).
-    # Raise an ``Exception`` in both cases.
+    # 2) Reached an unexpected status (state change resulted in error), or,
+    # 3) Reached ``end_status``, but ``end_status`` comes with
+    #    attach data, and we timed out waiting for attach data.
+    # Raise an ``Exception`` in all cases.
     raise Exception(
         'Volume state transition failed. '
         'Volume: {!r}, '

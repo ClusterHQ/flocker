@@ -164,13 +164,22 @@ class EBSBlockDeviceAPIInterfaceTests(
 
 class VolumeStateTransitionTests(TestCase):
     """
+    Tests for volume state operations and resulting volume state changes.
     """
 
     def _create_template_ebs_volume(self, operation):
         """
+        Helper function to create template EBS volume to work on.
+
+        :param NamedConstant operation: Intended use of created template.
+            A value from ``VolumeOperations``.
+
+        :returns: Suitable volume in the right start state for input operation.
+        :rtype: boto.ec2.volume.Volume
         """
         volume = EbsVolume()
 
+        # Irrelevant volume attributes.
         volume.id = u'vol-9c48a689'
         volume.create_time = u'2015-07-14T22:46:00.447Z'
         volume.size = 1
@@ -181,11 +190,22 @@ class VolumeStateTransitionTests(TestCase):
         volume_state_table = VolumeStateTable(table=populate())
         state_flow = volume_state_table.table[operation]
         start_state = state_flow.start_state.value
+
+        # Interesting volume attribute.
         volume.status = start_state
+
         return volume
 
     def _pick_invalid_state(self, operation):
         """
+        Helper function to pick an invalid volume state for input operation.
+
+        :param NamedConstant operation: Volume operation to pick a state for.
+            A value from ``VolumeOperations``.
+
+        :returns: A state from ``VolumeStates`` that will not be part of
+            a volume's states resulting from input operation.
+        :rtype: ValueConstant
         """
         volume_state_table = VolumeStateTable(table=populate())
         state_flow = volume_state_table.table[operation]
@@ -201,13 +221,18 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_error_volume_state_during_attach(self):
         """
-        Attach leads to unexpected state.
+        Assert that ``Exception`` is thrown when attach volume operation leads
+        to an unexpected state.
         """
         operation = VolumeOperations.ATTACH
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to invalid state.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to
+                invalid state.
             """
             volume.status = self._pick_invalid_state(operation)
 
@@ -216,13 +241,18 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_detach_stuck_detaching(self):
         """
-        Timeout detaching.
+        Assert that ``Exception`` is thrown if detach volume operation is stuck
+        detaching.
         """
         operation = VolumeOperations.DETACH
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to ``detaching`` state.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to
+                ``detaching`` state.
             """
             volume.status = u'detaching'
 
@@ -231,13 +261,18 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_attach_missing_attach_data(self):
         """
-        Attach missing AttachmentSet.
+        Assert that ``Exception`` is thrown when attach volume fails to update
+        AttachmentSet.
         """
         operation = VolumeOperations.ATTACH
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to ``in-use`` state indicating successful attach.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to ``in-use``
+                state.
             """
             volume.status = u'in-use'
 
@@ -246,13 +281,18 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_attach_missing_instance_id(self):
         """
-        Attach missing instance id.
+        Assert that ``Exception`` is thrown when attach volume fails to update
+        volume's attach data for compute instance id.
         """
         operation = VolumeOperations.ATTACH
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to ``in-use`` state, update its attached device,
+            and leave attached compute instance field empty.
+
+            :param boto.ec2.volume.Volume volume: Volume to partially attach.
             """
             volume.status = u'in-use'
             volume.attach_data = AttachmentSet()
@@ -264,13 +304,17 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_attach_sucess(self):
         """
-        Attach missing instance id.
+        Test if successful attach volume operation leads to expected state.
         """
         operation = VolumeOperations.ATTACH
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to a successfully attached state.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to a
+                successfully attach state.
             """
             volume.status = u'in-use'
             volume.attach_data = AttachmentSet()
@@ -284,13 +328,20 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_attach_missing_device(self):
         """
-        Attach missing instance id.
+        Assert that ``Exception`` is thrown if attach volume operation fails
+        to update volume's attached device information.
+
         """
         operation = VolumeOperations.ATTACH
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to ``in-use`` state, populate its attached
+            instance id, and set attached device name to empty.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to an
+                incomplete attach state.
             """
             volume.status = u'in-use'
             volume.attach_data = AttachmentSet()
@@ -302,13 +353,17 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_create_error_state(self):
         """
-        Create volume runs into unexpected state.
+        Assert that ``Exception`` is thrown if create volume operation fails.
         """
         operation = VolumeOperations.CREATE
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to failed creation state.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to a
+                failed creation state.
             """
             volume.status = self._pick_invalid_state(operation)
 
@@ -317,13 +372,18 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_create_success(self):
         """
-        Create volume runs into unexpected state.
+        Test if successful create volume operation leaves volume in
+        ``available`` state.
         """
         operation = VolumeOperations.CREATE
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to end state of a successful create operation.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to
+                successful creation state.
             """
             volume.status = u'available'
 
@@ -332,13 +392,19 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_destroy_error_state(self):
         """
-        Destroy volume runs into unexpected state.
+        Assert that ``Exception`` is thrown when a destroy volume operation
+        leads to an unexpected volume state.
         """
         operation = VolumeOperations.DESTROY
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to a state that is not encountered on a
+            successful destroy path.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to a failed
+                destroy state.
             """
             volume.status = self._pick_invalid_state(operation)
 
@@ -347,13 +413,18 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_destroy_success(self):
         """
-        Successful destroy.
+        Test if successful destroy volume operation leaves the volume in
+        expected end state.
         """
         operation = VolumeOperations.DESTROY
         volume = self._create_template_ebs_volume(operation)
 
         def update(volume):
             """
+            Transition volume to valid end state of destroy volume operation.
+
+            :param boto.ec2.volume.Volume volume: Volume to move to end state
+            for destroy operation.
             """
             volume.status = u''
 
