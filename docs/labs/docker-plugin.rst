@@ -24,7 +24,7 @@ As a user of Docker, it means you can use Flocker directly via:
 
 See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_.
 
-This currently depends on the `experimental build of Docker <https://github.com/docker/docker/blob/master/experimental/>`_.
+This currently depends on the `experimental build of Docker <https://github.com/docker/docker/tree/master/experimental>`_.
 
 See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 

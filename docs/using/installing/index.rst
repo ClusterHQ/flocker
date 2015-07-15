@@ -174,7 +174,7 @@ Using Amazon Web Services
 -------------------------
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
-          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
+          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
 
 
 .. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
@@ -516,7 +516,36 @@ The configuration item to use OpenStack should look like:
 Make sure that the ``region`` specified matches the region where the Flocker nodes run.
 OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
 
-.. FLOC-2091 - Fix up this section.
+.. note::
+	For the Flocker OpenStack integration to be able to identify the virtual machines where you run the Flocker agents, and to attach volumes to them, those virtual machines **must be provisioned through OpenStack** (via Nova).
+
+.. XXX FLOC-2091 - Fix up this section.
+
+If the OpenStack cloud uses certificates that are issued by a private Certificate Authority (CA), add the field ``verify_ca_path`` to the dataset stanza, with the path to the CA certificate.
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "DFW"
+       verify_ca_path: "/etc/flocker/openstack-ca.crt"
+       auth_plugin: "password"
+       ...
+
+For testing purposes, it is possible to turn off certificate verification, by setting the ``verify_peer`` field to ``false``.
+
+.. warning::
+
+   Only use this insecure setting for troubleshooting, as it is does not check that the remote server's credential is valid.
+
+.. code-block:: yaml
+
+   dataset:
+       backend: "openstack"
+       region: "DFW"
+       verify_peer: false
+       auth_plugin: "password"
+       ...
 
 Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
 (Flocker relies on these plugins; it does not provide them itself).
@@ -674,7 +703,7 @@ Creating a ZFS Pool
 ...................
 
 Flocker requires a ZFS pool.
-The pool is typically named named ``flocker`` but this is not required.
+The pool is typically named ``flocker`` but this is not required.
 The following commands will create a 10 gigabyte ZFS pool backed by a file:
 
 .. task:: create_flocker_pool_file

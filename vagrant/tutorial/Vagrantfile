@@ -1,44 +1,51 @@
 # -*- mode: ruby -*-
-# vi: set ft=ruby :
+# vi: set ft=ruby ts=2 sts=2:
 
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
-VAGRANTFILE_API_VERSION = "2"
+VAGRANTFILE_API_VERSION = '2'
 
 # This allows the VM to be restarted during provisioning, necessary after
 # updating the kernel
-unless Vagrant.has_plugin?("vagrant-reload")
-  raise "vagrant-reload plugin is not installed"
+unless Vagrant.has_plugin?('vagrant-reload')
+  fail 'vagrant-reload plugin is not installed'
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "box-cutter/centos70"
+  config.vm.box = 'box-cutter/centos70'
   # Copy credential files
-  config.vm.provision :file, :source => "credentials", :destination => "credentials"
+  config.vm.provision :file,
+                      source: 'credentials',
+                      destination: 'credentials'
   # Update kernel and start to configure base system
-  config.vm.provision :shell, :path => "bootstrap.py", :privileged => true
+  config.vm.provision :shell, path: 'bootstrap.py', privileged: true
   config.vm.provision :reload
   # Finish configuring base system
-  config.vm.provision :shell, :path => "post-reboot-bootstrap.py", :privileged => true,
-      :args => [
-          ENV.fetch('FLOCKER_RPM_VERSION', ''),
-          ENV.fetch('FLOCKER_BRANCH', ''),
-          ENV.fetch('FLOCKER_BUILD_SERVER', '')
-      ]
+  config.vm.provision :shell,
+                      path: 'post-reboot-bootstrap.py',
+                      privileged: true,
+                      args: [
+                        ENV.fetch('FLOCKER_RPM_VERSION', ''),
+                        ENV.fetch('FLOCKER_BRANCH', ''),
+                        ENV.fetch('FLOCKER_BUILD_SERVER', '')
+                      ]
 
-  config.vm.provision "docker", images: [
-    "busybox", "clusterhq/mongodb", "redis", "clusterhq/flask"]
+  config.vm.provision 'docker', images: [
+    'busybox',
+    'clusterhq/mongodb',
+    'redis',
+    'python:2.7-slim',
+    'clusterhq/flask'
+  ]
 
   # Cleanup
-  config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
+  config.vm.provision :shell, path: '../cleanup.sh', privileged: true
   #
   # Don't use a shared folder.
   # - It isn't used during the build or after.
   # - The vguest plugin tries to compile a new vboxsf module, but
   #   fails on the first boot, since it can't install the corresponding
   #   kernel-devel headers.
-  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder '.', '/vagrant', disabled: true
 
-  if Vagrant.has_plugin?("vagrant-cachier")
-    config.cache.scope = :box
-  end
+  config.cache.scope = :box if Vagrant.has_plugin?('vagrant-cachier')
 end

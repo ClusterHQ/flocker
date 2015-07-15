@@ -18,13 +18,13 @@ By the end of the release process we will have:
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
 - an updated Homebrew recipe.
 
 For a maintenance or documentation release, we will have:
 
 - a tag in version control,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
 
 
 Prerequisites
@@ -72,7 +72,7 @@ Access
 
 - SSH access to ClusterHQ's GitHub repositories.
 
-- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net>`_.
+- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
 .. _preparing-for-a-release:
 
@@ -107,7 +107,14 @@ Preparing For a Release
 
    .. prompt:: bash (flocker-release)flocker$
 
-      admin/create-release-branch --flocker-version="0.1.2"
+      # The following command means that you will not be asked whether
+      # you want to continue connecting
+      ssh-keyscan github.com >> ~/.ssh/known_hosts
+      git clone git@github.com:ClusterHQ/flocker.git
+      cd flocker
+      mkvirtualenv flocker-release
+      pip install --editable .[dev]
+      admin/create-release-branch --flocker-version="${VERSION}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -261,7 +268,7 @@ Release
 
    The following command outputs error messages if the documentation does not redirect correctly.
    It outputs a success message if the documentation does redirect correctly.
-   It takes some time for `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
    .. prompt:: bash (flocker-release)flocker$
 
@@ -279,4 +286,5 @@ If there is no existing issue for the planned improvements then a new one should
 Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
+.. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home

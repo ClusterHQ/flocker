@@ -37,7 +37,7 @@ from ..release import (
     UploadOptions, create_pip_index, upload_pip_index,
     IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
-    publish_vagrant_metadata
+    publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
 )
 
 from ..packaging import Distribution
@@ -2058,3 +2058,73 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
+
+class GetExpectedRedirectsTests(SynchronousTestCase):
+    """
+    Tests for :func:`get_expected_redirects`.
+    """
+
+    def test_marketing_release(self):
+        """
+        If a marketing release version is given, marketing release redirects
+        are returned.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0'),
+            {
+                '/': '/en/0.3.0/',
+                '/en/': '/en/0.3.0/',
+                '/en/latest': '/en/0.3.0/',
+                '/en/latest/faq/index.html': '/en/0.3.0/faq/index.html',
+            }
+        )
+
+    def test_development_release(self):
+        """
+        If a development release version is given, development release
+        redirects are returned.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0dev1'),
+            {
+                '/en/devel': '/en/0.3.0dev1/',
+                '/en/devel/faq/index.html': '/en/0.3.0dev1/faq/index.html',
+            }
+        )
+
+    def test_documentation_release(self):
+        """
+        If a documentation release version is given, marketing release
+        redirects are returned for the versions which is being updated.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0+doc1'),
+            {
+                '/': '/en/0.3.0/',
+                '/en/': '/en/0.3.0/',
+                '/en/latest': '/en/0.3.0/',
+                '/en/latest/faq/index.html': '/en/0.3.0/faq/index.html',
+            }
+        )
+
+
+class TestRedirectsOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`TestRedirectsOptions`.
+    """
+
+    def test_default_environment(self):
+        """
+        The default environment is a staging environment.
+        """
+        options = TestRedirectsOptions()
+        options.parseOptions([])
+        self.assertEqual(options.environment, Environments.STAGING)
+
+    def test_production_environment(self):
+        """
+        If "--production" is passed, a production environment is used.
+        """
+        options = TestRedirectsOptions()
+        options.parseOptions(['--production'])
+        self.assertEqual(options.environment, Environments.PRODUCTION)
