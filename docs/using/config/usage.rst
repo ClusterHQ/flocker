@@ -42,8 +42,6 @@ Flocker uses TLS mutual authentication to communicate with the control service y
 
 To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API user certificate, which you can :ref:`generate <generate-api>` using the ``flocker-ca`` tool.
 
-For ``flocker-deploy``, your API user certificate and key should be in files named ``user.crt`` and ``user.key`` and the cluster certificate in file ``cluster.crt``.
-
 By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named :file:`cluster.crt` (the public cluster certificate), :file:`user.crt` (the API user certificate) and :file:`user.key` (the API user's private key).
 
 You can override any of these defaults with the ``--cacert`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
