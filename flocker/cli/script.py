@@ -151,7 +151,10 @@ class DeployOptions(Options):
         for credential in ["cacert", "cert", "key"]:
             if not self[credential].isfile():
                 raise UsageError(
-                    "File " + self[credential].path + " does not exist."
+                    "File " + self[credential].path + " does not exist. "
+                    "Use the flocker-ca command to create the credential, "
+                    "or use the --" + credential +
+                    " flag to specify the credential location."
                 )
 
 
