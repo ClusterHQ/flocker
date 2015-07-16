@@ -764,10 +764,14 @@ def _get_test_cluster(reactor, node_count):
 
     certificates_path = FilePath(
         environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+    cluster_cert = certificates_path.child(b"cluster.crt")
+    user_cert = certificates_path.child(b"user.crt")
+    user_key = certificates_path.child(b"user.key")
     cluster = Cluster(
         control_node=ControlService(public_address=control_node),
         nodes=[],
-        treq=treq_with_authentication(reactor, certificates_path),
+        treq=treq_with_authentication(
+            reactor, cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
     )
 
