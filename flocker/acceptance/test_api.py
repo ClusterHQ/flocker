@@ -325,7 +325,12 @@ class ContainerAPITests(TestCase):
                 "http://{host}:{port}".format(host=host, port=port),
                 persistent=False
             )
-            req.addCallbacks(content, lambda _: False)
+
+            def failed(failure):
+                Message.new(message_type=u"acceptance:http_query_failed",
+                            reason=unicode(failure)).write()
+                return False
+            req.addCallbacks(content, failed)
             return req
 
         d = verify_socket(host, port)
