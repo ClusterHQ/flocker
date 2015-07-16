@@ -1,4 +1,4 @@
-.. _installflocker:
+.. _installing-flocker:
 
 ==================
 Installing Flocker
