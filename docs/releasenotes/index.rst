@@ -10,6 +10,14 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* The flocker-deploy command supports specification of the pathnames of certificate and key files.
+  See :ref:`flocker-deploy-authentication`.
+* The agent configuration file allows specification of a CA certificate for OpenStack HTTPS verification.
+  See :ref:`openstack-dataset-backend`.
+
 v1.0.3
 ======
 
