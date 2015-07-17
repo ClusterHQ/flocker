@@ -1,7 +1,7 @@
 .. _installing-flocker-node:
 
-Installing ``clusterhq-flocker-node``
-=====================================
+Installing the Flocker Node Services
+====================================
 
 There are a number of ways to install Flocker.
 
