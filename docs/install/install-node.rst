@@ -185,6 +185,7 @@ Finally, you will need to run the ``flocker-ca`` tool that is installed as part 
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
 Please continue onto the next section, with the cluster authentication instructions.
 
-Next Steps
-==========
+Next Step
+=========
 
+The next section describes your next step - :ref:`Configuring Cluster Authentication<authentication>`.
