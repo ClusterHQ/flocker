@@ -622,13 +622,9 @@ class StoragePool(Service):
         zfs_snapshots = ZFSSnapshots(self._reactor, parent_filesystem)
         snapshot_name = bytes(uuid4())
         d = zfs_snapshots.create(snapshot_name)
-        clone_command = [b"clone",
-                         # Snapshot we're cloning from:
-                         b"%s@%s" % (parent_filesystem.name, snapshot_name),
-                         # New filesystem we're cloning to:
-                         new_filesystem.name,
-                         ]
-        d.addCallback(lambda _: zfs_command(self._reactor, clone_command))
+        full_snap_name = b"%s@%s" % (parent_filesystem.name, snapshot_name)
+        d.addCallback(lambda _: self._async_lzc.lzc_clone(new_filesystem.name,
+                                                          full_snap_name))
         self._created(d, volume)
         d.addCallback(lambda _: new_filesystem)
         return d
@@ -637,7 +633,9 @@ class StoragePool(Service):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
         d = zfs_command(self._reactor,
-                        [b"rename", old_filesystem.name, new_filesystem.name])
+                        [b"umount", old_filesystem.name])
+        d.addCallback(lambda _: self._async_lzc.lzc_rename(
+            old_filesystem.name, new_filesystem.name))
         self._created(d, new_volume)
 
         def remounted(ignored):
@@ -665,7 +663,7 @@ class StoragePool(Service):
         new_mount_path = new_filesystem.get_path().path
 
         def creation_failed(f):
-            if f.check(CommandFailed):
+            if (f.check(libzfs_core.exceptions.FilesystemExists)):
                 # This isn't the only reason the operation could fail. We
                 # should figure out why and report it appropriately.
                 # https://clusterhq.atlassian.net/browse/FLOC-199
@@ -675,16 +673,15 @@ class StoragePool(Service):
 
         def exists(ignored):
             if new_volume.locally_owned():
-                result = zfs_command(self._reactor,
-                                     [b"set", b"readonly=off",
-                                      new_filesystem.name])
+                result = self._async_lzc.lzc_set_prop(new_filesystem.name,
+                                                      b"readonly", 0)
             else:
-                result = zfs_command(self._reactor,
-                                     [b"inherit", b"readonly",
-                                      new_filesystem.name])
-            result.addCallback(lambda _: zfs_command(self._reactor,
-                               [b"set", b"mountpoint=" + new_mount_path,
-                                new_filesystem.name]))
+                result = self._async_lzc.lzc_inherit_prop(new_filesystem.name,
+                                                          b"readonly")
+            result.addCallback(lambda _: self._async_lzc.lzc_set_prop(
+                new_filesystem.name, b"mountpoint", new_mount_path))
+            result.addCallback(lambda _: zfs_command(
+                self._reactor, [b"mount", new_filesystem.name]))
             return result
         result.addCallback(exists)
 
