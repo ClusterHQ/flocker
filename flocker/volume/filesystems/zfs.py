@@ -9,6 +9,7 @@ from __future__ import absolute_import
 import os
 import libzfs_core
 
+from functools import wraps
 from contextlib import contextmanager
 from uuid import uuid4
 from subprocess import (
@@ -24,8 +25,12 @@ from eliot import Field, MessageType, Logger
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
+from twisted.internet.interfaces import IReactorThreads
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import Deferred, succeed, gatherResults
+from twisted.internet.defer import (
+    Deferred, succeed, gatherResults, maybeDeferred
+)
+from twisted.internet.threads import deferToThreadPool
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
@@ -67,6 +72,64 @@ class _AccumulatingProtocol(Protocol):
         else:
             self._result.errback(reason)
         del self._result
+
+
+class _AsyncLZC(object):
+    def __init__(self, reactor):
+        self._reactor = reactor
+        self._cache = {}
+
+    def callDeferred(self, func, *args, **kwargs):
+        return deferToThreadPool(self._reactor, self._reactor.getThreadPool(),
+                                 func, *args, **kwargs)
+
+    def __getattr__(self, name):
+        try:
+            return self._cache[name]
+        except KeyError:
+            func = getattr(libzfs_core, name)
+
+            @wraps(func)
+            def _async_wrapper(*args, **kwargs):
+                return self.callDeferred(func, *args, **kwargs)
+
+            self._cache[name] = _async_wrapper
+            return self._cache[name]
+
+
+class _FakeAsyncLZC(object):
+    def __init__(self):
+        self._cache = {}
+
+    def callDeferred(self, func, *args, **kwargs):
+        return maybeDeferred(func, *args, **kwargs)
+
+    def __getattr__(self, name):
+        try:
+            return self._cache[name]
+        except KeyError:
+            func = getattr(libzfs_core, name)
+
+            @wraps(func)
+            def _async_wrapper(*args, **kwargs):
+                return maybeDeferred(func, *args, **kwargs)
+
+            self._cache[name] = _async_wrapper
+            return self._cache[name]
+
+
+_reactor_to_alzc = {}
+
+
+def _async_lzc(reactor):
+    try:
+        return _reactor_to_alzc[reactor]
+    except KeyError:
+        if IReactorThreads.providedBy(reactor):
+            _reactor_to_alzc[reactor] = _AsyncLZC(reactor)
+        else:
+            _reactor_to_alzc[reactor] = _FakeAsyncLZC()
+        return _reactor_to_alzc[reactor]
 
 
 def zfs_command(reactor, arguments):
