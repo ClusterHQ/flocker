@@ -12,9 +12,7 @@ import libzfs_core
 from functools import wraps
 from contextlib import contextmanager
 from uuid import uuid4
-from subprocess import (
-    STDOUT, PIPE, Popen, check_call, check_output
-)
+from subprocess import STDOUT, PIPE, Popen, check_call
 from Queue import Queue
 
 from characteristic import attributes, with_cmp, with_repr
@@ -310,10 +308,8 @@ class Filesystem(object):
         # basis for an incremental send.
         local_snapshots = list(
             Snapshot(name=name) for name in
-            _parse_snapshots(
-                check_output([b"zfs"] + _list_snapshots_command(self)),
-                self
-            ))
+            _parse_snapshots(_do_list_snapshots(self), self)
+        )
 
         if remote_snapshots is None:
             remote_snapshots = []
@@ -422,56 +418,43 @@ class ZFSSnapshots(object):
         return _list_snapshots(self._reactor, self._filesystem)
 
 
-def _list_snapshots_command(filesystem):
+def _do_list_snapshots(filesystem):
     """
-    Construct a ``zfs`` command which will output the names of the snapshots of
-    the given filesystem.
+    Produce a list of snapshots of the given filesystem sorted by their
+    creation order.
 
     :param Filesystem filesystem: The ZFS filesystem the snapshots of which to
         list.
 
-    :return list: An argument list (of ``bytes``) which can be passed to
-        ``zfs`` to produce the desired list of snapshots.  ``zfs`` is not
-        included as the first element.
+    :return list: A ``list`` of ``bytes`` corresponding to the
+        names of the snapshots.
     """
-    return [
-        b"list",
-        # Format the output without a header.
-        b"-H",
-        # Recurse to datasets beneath the named dataset.
-        b"-r",
-        # Only output datasets of type snapshot.
-        b"-t", b"snapshot",
-        # Only output the name of each dataset encountered.  The name is the
-        # only thing we currently store in our snapshot model.
-        b"-o", b"name",
-        # Sort by the creation property.  This gives us the snapshots in the
-        # order they were taken.
-        b"-s", b"creation",
-        # Start with this the dataset we're interested in.
-        filesystem.name,
-    ]
+    snaps = []
+    for snap in libzfs_core.lzc_list_snaps(filesystem.name):
+        creation = libzfs_core.lzc_get_props(snap)[b"creation"]
+        snaps.append((snap, creation))
+    return [x[0] for x in sorted(snaps, key=lambda x: x[1])]
 
 
 def _parse_snapshots(data, filesystem):
     """
-    Parse the output of a ``zfs list`` command (like the one defined by
-    ``_list_snapshots_command`` into a ``list`` of ``bytes`` (the snapshot
-    names only).
+    Transform the list of fully qualified snapshot names to a list of
+    snapshot short names that are relative to the given filesystem.
 
-    :param bytes data: The output to parse.
+    :param bytes data: A ``list`` of ``bytes`` corresponding to the names
+        of the snapshots.
 
     :param Filesystem filesystem: The filesystem from which to extract
         snapshots.  If the output includes snapshots for other filesystems (eg
         siblings or children) they are excluded from the result.
 
     :return list: A ``list`` of ``bytes`` corresponding to the
-        names of the snapshots in the output.  The order of the list is the
+        short names of the snapshots.  The order of the list is the
         same as the order of the snapshots in the data being parsed.
     """
     result = []
-    for line in data.splitlines():
-        dataset, snapshot = line.split(b'@', 1)
+    for snap in data:
+        dataset, snapshot = snap.split(b'@', 1)
         if dataset == filesystem.name:
             result.append(snapshot)
     return result
@@ -490,7 +473,7 @@ def _list_snapshots(reactor, filesystem):
     :return: A ``Deferred`` which fires with a ``list`` of ``Snapshot``
         instances giving the requested snapshot information.
     """
-    d = zfs_command(reactor, _list_snapshots_command(filesystem))
+    d = _async_lzc(reactor).callDeferred(_do_list_snapshots, filesystem)
     d.addCallback(_parse_snapshots, filesystem)
     return d
 
