@@ -51,7 +51,7 @@ def get_checksum(url):
 def get_class_name(version):
     """
     The ruby class name depends on the Flocker version. For example for version
-    0.3.0dev1 the class name should be Flocker0.3.0dev1.
+    0.3.0.dev1 the class name should be Flocker0.3.0.dev1.
 
     :param str version: The version of Flocker this recipe is for.
 
