@@ -116,6 +116,9 @@ def build_version_test(name, version_case):
     """
     class Tests(SynchronousTestCase):
         def test_flocker_version(self):
+            """
+            The parsed version matches the expected parsed version.
+            """
             self.assertEqual(
                 _parse_version(version_case.version),
                 version_case.flocker_version,
@@ -123,6 +126,9 @@ def build_version_test(name, version_case):
             )
 
         def test_doc_version(self):
+            """
+            The calculated doc version matches the expected doc version.",
+            """
             self.assertEqual(
                 get_doc_version(version_case.version),
                 version_case.doc_version,
@@ -130,6 +136,10 @@ def build_version_test(name, version_case):
             )
 
         def test_installable_version(self):
+            """
+            The calculated installable version matches the expected installable
+            version.
+            """
             self.assertEqual(
                 get_installable_version(version_case.version),
                 version_case.installable_version,
@@ -142,24 +152,38 @@ def build_version_test(name, version_case):
             )
 
         def test_is_release(self):
+            """
+            ``is_release`` returns the expected value for the version.
+            """
             self.assertEqual(
                 is_release(version_case.version),
                 version_case.is_release,
             )
 
         def test_is_weekly_release(self):
+            """
+            ``is_weekly_release`` returns the expected value for the version.
+            """
             self.assertEqual(
                 is_weekly_release(version_case.version),
                 version_case.is_weekly_release,
             )
 
         def test_is_pre_release(self):
+            """
+            ``is_pre_release`` returns the expected value for the version.
+            """
             self.assertEqual(
                 is_pre_release(version_case.version),
                 version_case.is_pre_release,
             )
 
         def test_pep_440(self):
+            """
+            The version is a valid PEP440 version.
+
+            (``PEP440Version`` raises if provided an invalid version).
+            """
             PEP440Version(version_case.version)
 
         def test_normalization(self):
