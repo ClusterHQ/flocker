@@ -7,6 +7,10 @@ from characteristic import attributes, Attribute
 
 from pyrsistent import PRecord, field
 
+
+# This regex parses possible version numbers of flocker. It handles a mix of
+# versionings schemes (a PEP440 compliant one and an older one). In particular,
+# it parses the trailing part of the version added by versioneer 0.10 and 0.15.
 _VERSION_RE = re.compile(
     # The base version
     r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
