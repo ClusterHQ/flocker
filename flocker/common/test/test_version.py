@@ -7,7 +7,11 @@ Tests for :module:`flocker.docs.version`.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from packaging.version import Version as PEP440Version
+try:
+    from packaging.version import Version as PEP440Version
+    PACKAGING_INSTALLED = True
+except ImportError:
+    PACKAGING_INSTALLED = False
 
 from pyrsistent import PRecord, field
 
@@ -197,6 +201,11 @@ def build_version_test(name, version_case):
             )
         if version_case.is_legacy:
             test_normalization.skip = "Legacy version isn't normalized."
+
+        if not PACKAGING_INSTALLED:
+            test_normalization.skip = test_pep_440.skip = (
+                "``packaing`` not installed."
+            )
 
     Tests.__name__ = name
     return Tests
