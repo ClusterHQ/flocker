@@ -254,8 +254,8 @@ def make_rpm_version(flocker_version):
 
     # Given pre or dev number X create a 0 prefixed, `.` separated
     # string of version labels. E.g.
-    # 0.1.2pre2  becomes
-    # 0.1.2-0.pre.2
+    # 0.1.2rc2  becomes
+    # 0.1.2-0.rc.2
     if is_pre_release(installable):
         release = ['0', 'rc', parsed_version.pre_release]
     elif is_weekly_release(installable):
