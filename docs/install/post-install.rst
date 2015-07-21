@@ -1,3 +1,16 @@
+.. _post-installation-configuration:
+
+===============================
+Post-installation Configuration
+===============================
+
+Your firewall will need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
+
 .. _authentication:
 
 Configuring Cluster Authentication
@@ -87,23 +100,11 @@ Before you can use Flocker's API you will also need to :ref:`generate a client c
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
 
-.. _post-installation-configuration:
-
-Post-Installation Configuration
--------------------------------
-
-Your firewall will need to allow access to the ports your applications are exposing.
-
-.. warning::
-
-   Keep in mind the consequences of exposing unsecured services to the Internet.
-   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
-
 Enabling the Flocker control service 
-------------------------------------
+====================================
 
 On CentOS 7
-...........
+-----------
 
 .. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
