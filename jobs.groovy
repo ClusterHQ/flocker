@@ -11,6 +11,72 @@ def aws_ubuntu_trusty(project, git_url, branch) {
   }
 
 
+
+
+
+ job ("${project}/${branch}/aws_ubuntu_trusty_admin") {
+      label('aws-ubuntu-trusty')
+      wrappers {
+          timestamps()
+          colorizeOutput()
+          timeout {
+              absolute(25)
+              failBuild()
+          }
+      }
+      scm { git("${git_url}", "${branch}") }
+      steps {
+          shell("""#!/bin/bash
+                  | set -e
+                  | export PATH=/usr/local/bin:$PATH
+
+                  | virtualenv -p python2.7 --clear flocker-admin/venv
+                  | source flocker-admin/venv/bin/activate
+
+                    # attempt to disable pip upgrade warnings
+                    alias pip='pip --disable-pip-version-check'
+
+                    # use S3 pip binary caching
+                    pip install 'pip-accel[s3]'
+                    export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
+                    export PIP_ACCEL_S3_PREFIX=ubuntu-trusty64
+
+                    # install python modules from S3
+                    # the requirements include pip7.1, so we need to reinstall pip-accel
+                  | pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
+                    pip install pip-accel --disable-pip-version-check
+
+                  | pip-accel install Flocker[doc,dev,release] --retries 15 --timeout 30 --disable-pip-version-check
+                    pip install pip-accel --disable-pip-version-check
+
+                    pip-accel install python-subunit --retries 15 --timeout 30 --disable-pip-version-check
+                    pip install pip-accel --disable-pip-version-check
+
+                    pip-accel install junitxml --retries 15 --timeout 30 --disable-pip-version-check
+                    pip install pip-accel --disable-pip-version-check
+
+                    # set vars and run tests
+                    FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
+                    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
+                    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+                    trial --reporter=subunit admin 2>&1 | tee trial.log
+                    cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
+                  |""".stripMargin()
+          )
+      }
+      publishers {
+          archiveArtifacts('results.xml')
+          archiveJunit('results.xml') {
+               retainLongStdout(true)
+               testDataPublishers {
+                    allowClaimingOfFailedTests()
+                    publishTestAttachments()
+                    publishTestStabilityData()
+                    publishFlakyTestsReport()
+                }
+          }
+       }
+  }
  job ("${project}/${branch}/aws_ubuntu_trusty_acceptance") {
       label('aws-ubuntu-trusty')
       wrappers {
