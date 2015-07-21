@@ -1,4 +1,4 @@
-def project = 'Azulinho/flocker'
+def project = 'ClusterHQ/flocker'
 def git_url = "https://github.com/${project}.git"
 def dashProject = "${project}".replace('/','-')
 def branchApi = new URL("https://api.github.com/repos/${project}/branches")
