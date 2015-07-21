@@ -188,4 +188,4 @@ Please continue onto the next section, with the cluster authentication instructi
 Next Step
 =========
 
-The next section describes your next step - :ref:`Configuring Cluster Authentication<authentication>`.
+In the next step :ref:`the node control and agent services will be configured and started.<authentication>`.
