@@ -81,7 +81,8 @@ class VolumeStateFlow(PRecord):
     # Boolean flag to indicate if a volume state transition
     # results in non-empty ``attach_data.device`` and
     # ``attach_data.instance_id`` for the EBS volume.
-    has_attach_data = field(mandatory=True, type=bool)
+    sets_attach = field(mandatory=True, type=bool)
+    unsets_attach = field(mandatory=True, type=bool)
 
 
 class VolumeStateTable(PRecord):
@@ -101,19 +102,20 @@ def populate():
     S = VolumeStates
     table = pmap()
 
-    def add_flow(operation, start, transient, end, has_attach_data):
+    def add_flow(operation, start, transient, end, sets_attach, unsets_attach):
         """
         """
         return table.set(operation,
                          VolumeStateFlow(start_state=start,
                                          transient_state=transient,
                                          end_state=end,
-                                         has_attach_data=has_attach_data))
+                                         sets_attach=sets_attach,
+                                         unsets_attach=unsets_attach))
 
-    table = add_flow(O.CREATE, S.EMPTY, S.CREATING, S.AVAILABLE, False)
-    table = add_flow(O.ATTACH, S.AVAILABLE, S.ATTACHING, S.IN_USE, True)
-    table = add_flow(O.DETACH, S.IN_USE, S.DETACHING, S.AVAILABLE, False)
-    table = add_flow(O.DESTROY, S.AVAILABLE, S.DELETING, S.EMPTY, False)
+    table = add_flow(O.CREATE, S.EMPTY, S.CREATING, S.AVAILABLE, False, False)
+    table = add_flow(O.ATTACH, S.AVAILABLE, S.ATTACHING, S.IN_USE, True, False)
+    table = add_flow(O.DETACH, S.IN_USE, S.DETACHING, S.AVAILABLE, False, True)
+    table = add_flow(O.DESTROY, S.AVAILABLE, S.DELETING, S.EMPTY, False, False)
     return table
 
 volume_state_table = VolumeStateTable(table=populate())
@@ -333,6 +335,71 @@ def _get_ebs_volume_state(volume):
     return volume.update()
 
 
+def _should_finish(operation, volume, update, start_time,
+                   timeout=VOLUME_STATE_CHANGE_TIMEOUT):
+    """
+    """
+    state_flow = volume_state_table.table[operation]
+    start_state = state_flow.start_state.value
+    transient_state = state_flow.transient_state.value
+    end_state = state_flow.end_state.value
+    sets_attach = state_flow.sets_attach
+    unsets_attach = state_flow.unsets_attach
+
+    try:
+        update(volume)
+    except EC2ResponseError as e:
+        # If AWS cannot find the volume, raise ``UnknownVolume``.
+        # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
+        # for error details).
+        if e.code == u'InvalidVolume.NotFound':
+            raise UnknownVolume(volume.id)
+
+    if volume.status == end_state:
+        # If end state for the volume comes with attach data,
+        # declare success only upon discovering attach data.
+        if sets_attach:
+            if (volume.attach_data is not None and
+                    (volume.attach_data.device != '' and
+                     volume.attach_data.instance_id != '')):
+                return True
+            else:
+                return False
+        elif unsets_attach:
+            if (volume.attach_data is None or
+                    (volume.attach_data.device is None and
+                     volume.attach_data.instance_id is None)):
+                return True
+            else:
+                return False
+        else:
+            return True
+
+    if time.time() - start_time < timeout:
+        return True
+
+    # We either:
+    # 1) Timed out waiting to reach ``end_status``, or,
+    # 2) Reached an unexpected status (state change resulted in error), or,
+    # 3) Reached ``end_status``, but ``end_status`` comes with
+    #    attach data, and we timed out waiting for attach data.
+    # Raise an ``Exception`` in all cases.
+    raise Exception(
+        'Volume state transition failed. '
+        'Volume: {!r}, '
+        'Start Status: {!r}, '
+        'Transient Status: {!r}, '
+        'Expected End Status: {!r}, '
+        'Discovered End Status: {!r},'
+        'Wait time: {!r},'
+        'Time limit: {!r}.'.format(
+            volume, start_state, transient_state, end_state,
+            volume.status, time.time() - start_time,
+            timeout
+            )
+        )
+
+
 def _wait_for_volume_state_change(operation,
                                   volume,
                                   update=_get_ebs_volume_state,
@@ -355,67 +422,18 @@ def _wait_for_volume_state_change(operation,
     # unnecessary polling of the API:
     time.sleep(5.0)
 
-    # XXX Catch KeyError.
-    state_flow = volume_state_table.table[operation]
-
-    start_state = state_flow.start_state.value
-    transient_state = state_flow.transient_state.value
-    end_state = state_flow.end_state.value
-    needs_attach_data = state_flow.has_attach_data
-
     # Wait ``timeout`` seconds for
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while time.time() - start_time < timeout:
-        try:
-            update(volume)
-        except EC2ResponseError as e:
-            # If AWS cannot find the volume, raise ``UnknownVolume``.
-            # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
-            # for error details).
-            if e.code == u'InvalidVolume.NotFound':
-                raise UnknownVolume(volume.id)
-        if volume.status == end_state:
-            # If end state for the volume comes with attach data,
-            # declare success only upon discovering attach data.
-            if needs_attach_data:
-                if (volume.attach_data is not None and
-                        volume.attach_data.device != '' and
-                        volume.attach_data.instance_id != ''):
-                    return
-            else:
-                return
-        elif volume.status not in [start_state, transient_state]:
-            break
-        time.sleep(1.0)
+    while True:
+        if _should_finish(operation, volume, update, start_time, timeout):
+            return
 
+        time.sleep(1.0)
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
                                          status=volume.status,
-                                         target_status=end_state,
-                                         needs_attach_data=needs_attach_data,
                                          wait_time=(time.time() - start_time))
-
-    # We either:
-    # 1) Timed out waiting to reach ``end_status``, or,
-    # 2) Reached an unexpected status (state change resulted in error), or,
-    # 3) Reached ``end_status``, but ``end_status`` comes with
-    #    attach data, and we timed out waiting for attach data.
-    # Raise an ``Exception`` in all cases.
-    raise Exception(
-        'Volume state transition failed. '
-        'Volume: {!r}, '
-        'Start Status: {!r}, '
-        'Transient Status: {!r}, '
-        'Expected End Status: {!r}, '
-        'Discovered End Status: {!r},'
-        'Wait time: {!r},'
-        'Time limit: {!r}.'.format(
-            volume, start_state, transient_state, end_state,
-            volume.status, time.time() - start_time,
-            timeout
-            )
-        )
 
 
 def _get_device_size(device):
