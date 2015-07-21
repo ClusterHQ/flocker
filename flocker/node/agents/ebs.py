@@ -97,38 +97,23 @@ def populate():
     Initialize volume state table  with transitions for ``create_volume``,
     ``attach_volume``, ``detach_volume``, ``delete_volume`` operations.
     """
+    O = VolumeOperations
+    S = VolumeStates
     table = pmap()
-    create_state_flow = VolumeStateFlow(
-        start_state=VolumeStates.EMPTY,
-        transient_state=VolumeStates.CREATING,
-        end_state=VolumeStates.AVAILABLE,
-        has_attach_data=False
-        )
-    table = table.set(VolumeOperations.CREATE, create_state_flow)
 
-    attach_state_flow = VolumeStateFlow(
-        start_state=VolumeStates.AVAILABLE,
-        transient_state=VolumeStates.ATTACHING,
-        end_state=VolumeStates.IN_USE,
-        has_attach_data=True
-        )
-    table = table.set(VolumeOperations.ATTACH, attach_state_flow)
+    def add_flow(operation, start, transient, end, has_attach_data):
+        """
+        """
+        return table.set(operation,
+                         VolumeStateFlow(start_state=start,
+                                         transient_state=transient,
+                                         end_state=end,
+                                         has_attach_data=has_attach_data))
 
-    detach_state_flow = VolumeStateFlow(
-        start_state=VolumeStates.IN_USE,
-        transient_state=VolumeStates.DETACHING,
-        end_state=VolumeStates.AVAILABLE,
-        has_attach_data=False
-        )
-    table = table.set(VolumeOperations.DETACH, detach_state_flow)
-
-    destroy_state_flow = VolumeStateFlow(
-        start_state=VolumeStates.AVAILABLE,
-        transient_state=VolumeStates.DELETING,
-        end_state=VolumeStates.EMPTY,
-        has_attach_data=False
-        )
-    table = table.set(VolumeOperations.DESTROY, destroy_state_flow)
+    table = add_flow(O.CREATE, S.EMPTY, S.CREATING, S.AVAILABLE, False)
+    table = add_flow(O.ATTACH, S.AVAILABLE, S.ATTACHING, S.IN_USE, True)
+    table = add_flow(O.DETACH, S.IN_USE, S.DETACHING, S.AVAILABLE, False)
+    table = add_flow(O.DESTROY, S.AVAILABLE, S.DELETING, S.EMPTY, False)
     return table
 
 volume_state_table = VolumeStateTable(table=populate())
