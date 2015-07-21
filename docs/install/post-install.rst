@@ -123,7 +123,7 @@ For more details on configuring the firewall, see the `FirewallD documentation <
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
 On Ubuntu
-.........
+---------
 
 .. task:: enable_flocker_control ubuntu-14.04
    :prompt: [root@control-node]#
@@ -141,7 +141,7 @@ On AWS, an external firewall is used instead, which will need to be configured s
 .. _agent-yml:
 
 Configuring the Flocker agent
------------------------------
+=============================
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 The file must always include ``version`` and ``control-service`` items similar to these:
@@ -173,7 +173,7 @@ All nodes must be configured to use the same dataset backend.
 .. _openstack-dataset-backend:
 
 OpenStack Block Device Backend Configuration
-............................................
+--------------------------------------------
 
 The OpenStack backend uses Cinder volumes as the storage for datasets.
 This backend can be used with Flocker dataset agent nodes run by OpenStack Nova.
@@ -244,7 +244,7 @@ To find the requirements for other plugins, see the appropriate documentation in
 .. _aws-dataset-backend:
 
 Amazon AWS / EBS Block Device Backend Configuration
-...................................................
+---------------------------------------------------
 
 The AWS backend uses EBS volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on EC2 instances.
@@ -265,7 +265,7 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 .. _emc-dataset-backend:
 
 EMC Block Device Backend Configuration
-......................................
+--------------------------------------
 
 EMC provide plugins for Flocker integration with `ScaleIO`_ and `XtremIO`_.
 For more information, including installation, testing and usage instructions, visit the following links to their GitHub repositories:
@@ -278,7 +278,7 @@ For more information, including installation, testing and usage instructions, vi
 .. _zfs-dataset-backend:
 
 ZFS Peer-to-Peer Backend Configuration (Experimental)
-.....................................................
+-----------------------------------------------------
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
@@ -302,7 +302,7 @@ You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allo
 .. _loopback-dataset-backend:
 
 Loopback Block Device Backend Configuration (INTERNAL TESTING)
-..............................................................
+--------------------------------------------------------------
 
 The Loopback backend uses node-local storage as storage for datasets.
 It has no data movement functionality.
@@ -319,16 +319,19 @@ The configuration item to use Loopback should look like:
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
-Enabling the Flocker agent service on CentOS 7
-----------------------------------------------
+Enabling the Flocker agent service
+==================================
+
+On CentOS 7
+-----------
 
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent centos-7
    :prompt: [root@agent-node]#
 
-Enabling the Flocker agent service on Ubuntu
---------------------------------------------
+On Ubuntu
+---------
 
 Run the following commands to enable the agent service:
 
@@ -391,7 +394,7 @@ To support moving data with the ZFS backend, every node must be able to establis
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
 Next Step
----------
+=========
 
 The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.
 
