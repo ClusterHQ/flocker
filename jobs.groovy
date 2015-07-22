@@ -39,7 +39,10 @@ def aws_ubuntu_trusty(project, git_url, branch) {
 
                     # install python modules from S3
                     # the requirements include pip7.1, so we need to reinstall pip-accel
-                  | pip-accel install . Flocker[doc,dev,release] python-subunit junitxml \
+                  | pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
+                    pip install pip-accel
+
+                  | pip-accel install Flocker[doc,dev,release] python-subunit junitxml \
                         --retries 15 --timeout 30 --disable-pip-version-check
 
                     # Our tests seem to require pip 7
@@ -100,7 +103,10 @@ def aws_ubuntu_trusty(project, git_url, branch) {
 
                     # install python modules from S3
                     # the requirements include pip7.1, so we need to reinstall pip-accel
-                  | pip-accel install . Flocker[doc,dev,release] python-subunit junitxml \
+                  | pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
+                    pip install pip-accel
+
+                  | pip-accel install Flocker[doc,dev,release] python-subunit junitxml \
                         --retries 15 --timeout 30 --disable-pip-version-check
 
                     # Our tests seem to require pip 7
