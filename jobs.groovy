@@ -11,8 +11,66 @@ def aws_ubuntu_trusty(project, git_url, branch) {
   }
 
 
+ job ("${project}/${branch}/aws_flocker_centos_7") {
+      label('aws-centos-7')
+      wrappers {
+          timestamps()
+          colorizeOutput()
+          timeout {
+              absolute(25)
+              failBuild()
+          }
+      }
+      scm { git("${git_url}", "${branch}") }
+      steps {
+          shell("""#!/bin/bash
+                  | set -e
+                  | export PATH=/usr/local/bin:$PATH
 
+                  | virtualenv -p python2.7 --clear flocker-centos-7/venv
+                  | source flocker-centos-7/venv/bin/activate
 
+                    # use S3 pip binary caching
+                    pip install 'pip-accel[s3]'
+                    export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
+                    export PIP_ACCEL_S3_PREFIX=centos-7
+                    # export the AWS secrets, so that pip-accel can connect to S3
+                    source /etc/boto.sh
+
+                    # install python modules from S3
+                    # the requirements include pip7.1, so we need to reinstall pip-accel
+                  | pip-accel install . Flocker[doc,dev,release] python-subunit junitxml \
+                        --retries 15 --timeout 30 --disable-pip-version-check
+
+                    # Our tests seem to require pip 7
+                    pip install --upgrade pip
+
+                    # set vars and run tests
+                    FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
+                    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
+                    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+                    # need to unset the AWS secrets used by pip-accel
+                    unset AWS_ACCESS_KEY_ID
+                    unset AWS_SECRET_ACCESS_KEY
+
+                    trial --reporter=subunit flocker 2>&1 | tee trial.log
+                    cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
+                  |""".stripMargin()
+          )
+      }
+      publishers {
+          archiveArtifacts('results.xml')
+          archiveJunit('results.xml') {
+               retainLongStdout(true)
+               testDataPublishers {
+                    allowClaimingOfFailedTests()
+                    publishTestAttachments()
+                    publishTestStabilityData()
+                    publishFlakyTestsReport()
+                }
+          }
+       }
+  }
 
  job ("${project}/${branch}/aws_ubuntu_trusty_admin") {
       label('aws-ubuntu-trusty')
@@ -74,6 +132,7 @@ def aws_ubuntu_trusty(project, git_url, branch) {
           }
        }
   }
+
  job ("${project}/${branch}/aws_ubuntu_trusty_acceptance") {
       label('aws-ubuntu-trusty')
       wrappers {
@@ -481,8 +540,17 @@ branches.each {
               job("${dashProject}/${branchName}/aws_ubuntu_trusty_route")  { killPhaseCondition("NEVER") }
               job("${dashProject}/${branchName}/aws_ubuntu_trusty_test")  { killPhaseCondition("NEVER") }
               job("${dashProject}/${branchName}/aws_ubuntu_trusty_testtools")  { killPhaseCondition("NEVER") }
+              job("${dashProject}/${branchName}/aws_flocker_centos_7")  { killPhaseCondition("NEVER") }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_acceptance') {
+          copyArtifacts('${dashProject}/${branchName}/aws_flocker_centos_7') {
+              includePatterns('results.xml')
+              targetDirectory('aws_flocker_centos_7')
+              fingerprintArtifacts(true)
+              buildSelector {
+                  workspace()
+              }
+          }
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_acceptance') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_acceptance')
               fingerprintArtifacts(true)
@@ -490,7 +558,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_cli') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_cli') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_cli')
               fingerprintArtifacts(true)
@@ -498,7 +566,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_volume') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_volume') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_volume')
               fingerprintArtifacts(true)
@@ -506,7 +574,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_common_plus_control') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_common_plus_control') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_common_plus_control')
               fingerprintArtifacts(true)
@@ -514,7 +582,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_restapi') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_restapi') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_restapi')
               fingerprintArtifacts(true)
@@ -522,7 +590,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_node') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_node') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_node')
               fingerprintArtifacts(true)
@@ -530,7 +598,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_provision') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_provision') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_provision')
               fingerprintArtifacts(true)
@@ -538,7 +606,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_route') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_route') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_route')
               fingerprintArtifacts(true)
@@ -546,7 +614,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_test') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_test') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_test')
               fingerprintArtifacts(true)
@@ -554,7 +622,7 @@ branches.each {
                   workspace()
               }
           }
-          copyArtifacts('Azulinho-flocker/master/aws_ubuntu_trusty_testtools') {
+          copyArtifacts('${dashProject}/${branchName}/aws_ubuntu_trusty_testtools') {
               includePatterns('results.xml')
               targetDirectory('aws_ubuntu_trusty_testtools')
               fingerprintArtifacts(true)
