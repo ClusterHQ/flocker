@@ -27,6 +27,9 @@ def aws_ubuntu_trusty(project, git_url, branch) {
                   | set -e
                   | export PATH=/usr/local/bin:$PATH
 
+                    # clean up the stuff from previous runs
+                    rm -rf _trial_temp/
+
                   | virtualenv -p python2.7 --clear flocker-centos-7/venv
                   | source flocker-centos-7/venv/bin/activate
 
@@ -90,6 +93,9 @@ def aws_ubuntu_trusty(project, git_url, branch) {
           shell("""#!/bin/bash
                   | set -e
                   | export PATH=/usr/local/bin:$PATH
+
+                    # clean up the stuff from previous runs
+                    rm -rf _trial_temp/
 
                   | virtualenv -p python2.7 --clear flocker-admin/venv
                   | source flocker-admin/venv/bin/activate
