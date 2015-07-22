@@ -28,7 +28,8 @@ def aws_ubuntu_trusty(project, git_url, branch) {
                   | export PATH=/usr/local/bin:$PATH
 
                     # clean up the stuff from previous runs
-                    rm -rf _trial_temp/
+                    sudo rm -rf _trial_temp/
+                    sudo rm -f trial.log
 
                   | virtualenv -p python2.7 --clear flocker-centos-7/venv
                   | source flocker-centos-7/venv/bin/activate
@@ -59,7 +60,7 @@ def aws_ubuntu_trusty(project, git_url, branch) {
                     unset AWS_ACCESS_KEY_ID
                     unset AWS_SECRET_ACCESS_KEY
 
-                    trial --reporter=subunit flocker 2>&1 | tee trial.log
+                    sudo trial --reporter=subunit flocker 2>&1 | tee trial.log
                     cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
                   |""".stripMargin()
           )
