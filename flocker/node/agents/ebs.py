@@ -90,35 +90,41 @@ class VolumeStateTable(PRecord):
     Map of volume operation to expected volume state transitions
     and expected update to volume's ``attach_data``.
     """
-    table = pmap_field(NamedConstant, VolumeStateFlow)
 
-
-def populate():
-    """
-    Initialize volume state table  with transitions for ``create_volume``,
-    ``attach_volume``, ``detach_volume``, ``delete_volume`` operations.
-    """
-    O = VolumeOperations
-    S = VolumeStates
-    table = pmap()
-
-    def add_flow(operation, start, transient, end, sets_attach, unsets_attach):
+    def _populate_volume_state_table():
         """
+        Initialize volume state table  with transitions for ``create_volume``,
+        ``attach_volume``, ``detach_volume``, ``delete_volume`` operations.
         """
-        return table.set(operation,
-                         VolumeStateFlow(start_state=start,
-                                         transient_state=transient,
-                                         end_state=end,
-                                         sets_attach=sets_attach,
-                                         unsets_attach=unsets_attach))
+        O = VolumeOperations
+        S = VolumeStates
+        table = pmap()
 
-    table = add_flow(O.CREATE, S.EMPTY, S.CREATING, S.AVAILABLE, False, False)
-    table = add_flow(O.ATTACH, S.AVAILABLE, S.ATTACHING, S.IN_USE, True, False)
-    table = add_flow(O.DETACH, S.IN_USE, S.DETACHING, S.AVAILABLE, False, True)
-    table = add_flow(O.DESTROY, S.AVAILABLE, S.DELETING, S.EMPTY, False, False)
-    return table
+        def add_flow(operation, start, transient, end, sets_attach,
+                     unsets_attach):
+            """
+            """
+            return table.set(operation,
+                             VolumeStateFlow(start_state=start,
+                                             transient_state=transient,
+                                             end_state=end,
+                                             sets_attach=sets_attach,
+                                             unsets_attach=unsets_attach))
 
-volume_state_table = VolumeStateTable(table=populate())
+        table = add_flow(O.CREATE, S.EMPTY, S.CREATING, S.AVAILABLE,
+                         False, False)
+        table = add_flow(O.ATTACH, S.AVAILABLE, S.ATTACHING, S.IN_USE,
+                         True, False)
+        table = add_flow(O.DETACH, S.IN_USE, S.DETACHING, S.AVAILABLE,
+                         False, True)
+        table = add_flow(O.DESTROY, S.AVAILABLE, S.DELETING, S.EMPTY,
+                         False, False)
+        return table
+
+    table = pmap_field(NamedConstant, VolumeStateFlow,
+                       initial=_populate_volume_state_table())
+
+volume_state_table = VolumeStateTable()
 
 
 class EliotLogHandler(logging.Handler):

@@ -19,7 +19,7 @@ from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
-    VolumeOperations, VolumeStateTable, populate, VolumeStates
+    VolumeOperations, VolumeStateTable, VolumeStates
 )
 
 from .._logging import (
@@ -187,7 +187,7 @@ class VolumeStateTransitionTests(TestCase):
         volume.zone = u'us-west-2b'
         volume.type = u'standard'
 
-        volume_state_table = VolumeStateTable(table=populate())
+        volume_state_table = VolumeStateTable()
         state_flow = volume_state_table.table[operation]
         start_state = state_flow.start_state.value
 
@@ -207,7 +207,7 @@ class VolumeStateTransitionTests(TestCase):
             a volume's states resulting from input operation.
         :rtype: ValueConstant
         """
-        volume_state_table = VolumeStateTable(table=populate())
+        volume_state_table = VolumeStateTable()
         state_flow = volume_state_table.table[operation]
         valid_states = set([state_flow.start_state,
                             state_flow.transient_state,
