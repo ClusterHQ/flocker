@@ -124,7 +124,7 @@ class VolumeStateTable(PRecord):
     table = pmap_field(NamedConstant, VolumeStateFlow,
                        initial=_populate_volume_state_table())
 
-volume_state_table = VolumeStateTable()
+VOLUME_STATE_TABLE = VolumeStateTable()
 
 
 class EliotLogHandler(logging.Handler):
@@ -345,7 +345,7 @@ def _should_finish(operation, volume, update, start_time,
                    timeout=VOLUME_STATE_CHANGE_TIMEOUT):
     """
     """
-    state_flow = volume_state_table.table[operation]
+    state_flow = VOLUME_STATE_TABLE.table[operation]
     start_state = state_flow.start_state.value
     transient_state = state_flow.transient_state.value
     end_state = state_flow.end_state.value
