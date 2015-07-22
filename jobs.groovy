@@ -60,7 +60,7 @@ def aws_ubuntu_trusty(project, git_url, branch) {
                     unset AWS_ACCESS_KEY_ID
                     unset AWS_SECRET_ACCESS_KEY
 
-                    sudo trial --reporter=subunit flocker 2>&1 | tee trial.log
+                    trial --reporter=subunit flocker 2>&1 | tee trial.log
                     cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
                   |""".stripMargin()
           )
