@@ -376,6 +376,8 @@ def _should_finish(operation, volume, update, start_time,
             return True
 
     if time.time() - start_time < timeout:
+        return False
+    else:
         return True
 
     # We either:
