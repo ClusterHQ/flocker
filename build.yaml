@@ -111,14 +111,14 @@ jobs:
             'trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
-  aws_flocker_centos_7_docs:
-    label: 'aws-centos-7'
-    steps:
-      - { type: 'shell',
-          cli: [ *centos_7,
-            'trial --reporter=subunit flocker.docs 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
-        }
+#  aws_flocker_centos_7_docs:
+#    label: 'aws-centos-7'
+#    steps:
+#      - { type: 'shell',
+#          cli: [ *centos_7,
+#            'trial --reporter=subunit flocker.docs 2>&1 | tee trial.log',
+#            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+#        }
   aws_flocker_centos_7_node:
     label: 'aws-centos-7'
     steps:
