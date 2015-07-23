@@ -1,31 +1,51 @@
+# To modify an existing job, simply update the jobs: dictionary
+# commit, push
+# Then click 'deploy' on the jenkins job related to this repository
+# available on the jenkins homepage.
+
 project: 'ClusterHQ/flocker'
 git_url: 'https://github.com/ClusterHQ/flocker.git'
-common_cli:
-  centos_7: &centos_7 |
-    #!/bin/bash
-    # clean up the stuff from previous runs
-    sudo rm -rf _trial_temp/
-    sudo rm -f trial.log
-    virtualenv -p python2.7 --clear flocker-centos-7/venv
-    source flocker-centos-7/venv/bin/activate
 
+# common_cli contains YAML aliases for common cli operations
+# used during the build process
+common_cli:
+  cleanup: &cleanup |
+    #!/bin/bash
+    export PATH=/usr/local/bin:$PATH
+    # clean up the stuff from previous runs
+    sudo rm -f venv
+    sudo rm -f results.xml
+    sudo rm -f trial.log
+    sudo rm -rf _trial_temp/
+
+  setup_venv: &setup_venv |
+    # setup the new venv
+    virtualenv -p python2.7 --clear venv
+    source venv/bin/activate
+
+  setup_pip_accel: &setup_pip_accel |
     # use S3 pip binary caching
     pip install "pip-accel[s3]"
     export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
-    export PIP_ACCEL_S3_PREFIX=centos-7
     # export the AWS secrets, so that pip-accel can connect to S3
     source /etc/boto.sh
 
+  setup_pip_accel_centos7_vars: &setup_pip_accel_centos7_vars |
+    export PIP_ACCEL_S3_PREFIX=centos-7
+
+  setup_pip_accel_ubuntu_trusty_vars: &setup_pip_accel_ubuntu_trusty_vars |
+    export PIP_ACCEL_S3_PREFIX=ubuntu-trusty-64
+
+  setup_flocker_modules: &setup_flocker_modules |
     # install python modules from S3
-    # the requirements include pip7.1, so we need to reinstall pip-accel
     pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
     pip install pip-accel
-
+    # the requirements include pip7.1, so we need to reinstall pip-accel
     pip-accel install Flocker[doc,dev,release] python-subunit junitxml --retries 15 --timeout 30 --disable-pip-version-check
-
-    # Our tests seem to require pip 7
+    # pip-accel downgrades pip, but Our tests seem to require pip 7
     pip install --upgrade pip
 
+  setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
     LOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
@@ -34,48 +54,16 @@ common_cli:
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
 
-  ubuntu_trusty: &ubuntu_trusty |
-    #!/bin/bash
-    set -e
-    export PATH=/usr/local/bin:$PATH
 
-    # clean up the stuff from previous runs
-    rm -rf _trial_temp/
-
-    virtualenv -p python2.7 --clear flocker-admin/venv
-    source flocker-admin/venv/bin/activate
-
-    # use S3 pip binary caching
-    pip install "pip-accel[s3]"
-    export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
-    export PIP_ACCEL_S3_PREFIX=ubuntu-trusty64
-    # export the AWS secrets, so that pip-accel can connect to S3
-    source /etc/boto.sh
-
-    # install python modules from S3
-    # the requirements include pip7.1, so we need to reinstall pip-accel
-    pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
-    pip install pip-accel
-
-    pip-accel install Flocker[doc,dev,release] python-subunit junitxml --retries 15 --timeout 30 --disable-pip-version-check
-
-    # Our tests seem to require pip 7
-    pip install --upgrade pip
-
-    # set vars and run tests
-    FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
-    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
-    # need to unset the AWS secrets used by pip-accel
-    unset AWS_ACCESS_KEY_ID
-    unset AWS_SECRET_ACCESS_KEY
- 
+# the job definitions, they consume the aliases defined in the common_cli block
+#
 jobs:
   aws_flocker_centos_7_acceptance:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -83,7 +71,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.ca 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -91,7 +80,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -99,7 +89,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -107,15 +98,18 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
+# there's nothing to build for the flocker.docs module
 #  aws_flocker_centos_7_docs:
 #    label: 'aws-centos-7'
 #    steps:
 #      - { type: 'shell',
-#          cli: [ *centos_7,
+#           cli: [ *setup_pip_accel_centos7_vars,
+#                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
 #            'trial --reporter=subunit flocker.docs 2>&1 | tee trial.log',
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #        }
@@ -123,22 +117,27 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.node.agents 2>&1 | tee -a trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.node.functional.test_deploy 2>&1 | tee -a trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
+# flocker.node.functional is hanging, so we skip it here
 #        - { type: 'shell',
-#          cli: [ *centos_7,
+#            cli: [ *setup_pip_accel_centos7_vars,
+#                   *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
 #            'trial --reporter=subunit flocker.node.functional.test_docker 2>&1 | tee -a trial.log',
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #         }
       - { type: 'shell',
-         cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
            'trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -146,7 +145,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -154,7 +154,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -162,7 +163,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -170,7 +172,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -178,7 +181,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.testtools 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -186,7 +190,8 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *centos_7,
+          cli: [ *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -194,7 +199,8 @@ jobs:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
-          cli: [ *ubuntu_trusty,
+          cli: [ *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
            'trial --reporter=subunit admin 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml',
           ]
