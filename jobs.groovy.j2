@@ -1,0 +1,117 @@
+def project = "{{ cfg.project }}"
+def git_url = "{{ cfg.git_url }}"
+def branchApi = new URL("https://api.github.com/repos/{{ cfg.project }}/branches")
+def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
+def dashProject = "{{ cfg.project }}".replace('/', '-')
+
+folder("${dashProject}") {
+    displayName("${dashProject}")
+}
+
+branches << ['name':'master']
+branches.each {
+
+  branchName = "${it.name}"
+  dashBranchName = "${branchName}".replace("/","-")
+
+  folder("${dashProject}/${branchName}") {
+    displayName("${branchName}")
+  }
+{% for job, values in cfg.jobs.iteritems() %}
+  job("${dashProject}/${branchName}/{{ job }}") {
+    label("{{ values.label }}")
+    wrappers {
+        timestamps()
+        colorizeOutput()
+        timeout {
+            absolute(25)
+            failBuild()
+        }
+    }
+    scm { git {
+            remote {
+            name("upstream")
+                url("${git_url}")
+                }
+            branch("${branchName}")
+            clean(true)
+            createTag(false)
+            mergeOptions('upstream', 'master')
+        }
+    }
+    steps {
+{% for _step in values.steps -%}
+{% if _step.type=='shell' %}
+    shell("""
+{% for line in _step.cli -%}
+      {{ line }}
+{% endfor -%}
+    """)
+{% endif -%}
+{% endfor %}
+    }
+    publishers {
+      archiveArtifacts('results.xml')
+      archiveArtifacts('_trial_temp/test.log')
+      archiveJunit('results.xml') {
+        retainLongStdout(true)
+        testDataPublishers {
+             allowClaimingOfFailedTests()
+             publishTestAttachments()
+             publishTestStabilityData()
+             publishFlakyTestsReport()
+        }
+      }
+    }
+  }
+{% endfor %}
+
+  multiJob("${dashProject}/${branchName}/_main_multijob") {
+    wrappers {
+        timestamps()
+        colorizeOutput()
+        timeout {
+            absolute(25)
+            failBuild()
+        }
+    }
+      steps {
+          shell('rm -rf *')
+          phase('parallel_tests') {
+              continuationCondition('ALWAYS')
+{% for job in cfg.jobs %}
+              job("${dashProject}/${branchName}/{{ job }}")  { killPhaseCondition("NEVER") }
+{% endfor %}
+          }
+{% for job in cfg.jobs %}
+          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
+              includePatterns('results.xml')
+              targetDirectory('{{ job }}')
+              fingerprintArtifacts(true)
+              buildSelector {
+                  workspace()
+              }
+          }
+          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
+              includePatterns('test.log')
+              targetDirectory('{{ job }}')
+              fingerprintArtifacts(true)
+              buildSelector {
+                  workspace()
+              }
+          }
+{% endfor %}
+      }
+      publishers {
+          archiveJunit('**/results.xml') {
+              retainLongStdout(true)
+              testDataPublishers {
+                  allowClaimingOfFailedTests()
+                  publishTestAttachments()
+                  publishTestStabilityData()
+                  publishFlakyTestsReport()
+              }
+          }
+      }
+  }
+}
