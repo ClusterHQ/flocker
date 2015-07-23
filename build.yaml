@@ -9,8 +9,10 @@ git_url: 'https://github.com/ClusterHQ/flocker.git'
 # common_cli contains YAML aliases for common cli operations
 # used during the build process
 common_cli:
-  cleanup: &cleanup |
+  hashbang: &hashbang |
     #!/bin/bash
+
+  cleanup: &cleanup |
     export PATH=/usr/local/bin:$PATH
     # clean up the stuff from previous runs
     sudo rm -f venv
@@ -62,7 +64,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -71,7 +73,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.ca 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -80,7 +82,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -89,7 +91,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -98,7 +100,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -108,7 +110,7 @@ jobs:
 #    label: 'aws-centos-7'
 #    steps:
 #      - { type: 'shell',
-#           cli: [ *setup_pip_accel_centos7_vars,
+#           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
 #                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
 #            'trial --reporter=subunit flocker.docs 2>&1 | tee trial.log',
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -117,26 +119,26 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.node.agents 2>&1 | tee -a trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.node.functional.test_deploy 2>&1 | tee -a trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
 # flocker.node.functional is hanging, so we skip it here
 #        - { type: 'shell',
-#            cli: [ *setup_pip_accel_centos7_vars,
+#            cli: [ *hashbang, *setup_pip_accel_centos7_vars,
 #                   *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
 #            'trial --reporter=subunit flocker.node.functional.test_docker 2>&1 | tee -a trial.log',
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #         }
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
            'trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -145,7 +147,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -154,7 +156,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -163,7 +165,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -172,7 +174,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -181,7 +183,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.testtools 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -190,7 +192,7 @@ jobs:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_centos7_vars,
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
             'trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
@@ -199,7 +201,7 @@ jobs:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
-          cli: [ *setup_pip_accel_ubuntu_trusty_vars,
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
            'trial --reporter=subunit admin 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml',
