@@ -62,7 +62,6 @@ branches.each {
               continuationCondition('ALWAYS')
 {% for job in cfg.jobs %}
               job("${dashProject}/${branchName}/{{ job }}")  { killPhaseCondition("NEVER") }
-          }
 {% endfor %}
           }
 {% for job in cfg.jobs %}
