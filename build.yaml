@@ -167,12 +167,12 @@ jobs:
             'trial --reporter=subunit flocker.testtools 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
-  aws_flocker_centos_7_volumes:
+  aws_flocker_centos_7_volume:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *centos_7,
-            'trial --reporter=subunit flocker.volumes 2>&1 | tee trial.log',
+            'trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
   aws_ubuntu_trusty_admin:
