@@ -51,7 +51,7 @@ branches.each {
              publishFlakyTestsReport()
         }
       }
-    }       
+    }
   }
 {% endfor %}
 
@@ -65,7 +65,7 @@ branches.each {
 {% endfor %}
           }
 {% for job in cfg.jobs %}
-          copyArtifacts('${dashProject}/${branchName}/{{ job }}') {
+          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
               includePatterns('results.xml')
               targetDirectory('{{ job }}')
               fingerprintArtifacts(true)
