@@ -8,6 +8,8 @@ from unittest import skipUnless
 
 from twisted.python.filepath import FilePath
 
+from eliot import Message
+
 from ...testtools import loop_until
 from .testtools import make_dataset_integration_testcase
 
@@ -38,7 +40,9 @@ def get_postgres_connection(host, port, database=None):
             return connect(host=host, user=u"postgres", port=port,
                            database=database)
         except (InterfaceError, ProgrammingError) as e:
-            print e
+            Message.new(
+                message_type=u"acceptance:integration:postgres_connect",
+                exception=unicode(e.__class__), reason=unicode(e)).write()
             return False
 
     d = loop_until(connect_to_postgres)
