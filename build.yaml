@@ -6,6 +6,7 @@ jobs:
     steps:
       - { type: 'shell',
           cli: [
+            '#!/bin/bash',
             '# clean up the stuff from previous runs',
             'sudo rm -rf _trial_temp/',
             'sudo rm -f trial.log',
@@ -46,6 +47,7 @@ jobs:
     steps:
       - { type: 'shell',
           cli: [
+            '#!/bin/bash',
             'set -e',
             'export PATH=/usr/local/bin:$PATH',
 
