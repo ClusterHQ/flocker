@@ -1,44 +1,82 @@
 project: 'ClusterHQ/flocker'
 git_url: 'https://github.com/ClusterHQ/flocker.git'
+common_cli:
+  centos_7: &centos_7 |
+    #!/bin/bash
+    # clean up the stuff from previous runs
+    sudo rm -rf _trial_temp/
+    sudo rm -f trial.log
+    virtualenv -p python2.7 --clear flocker-centos-7/venv
+    source flocker-centos-7/venv/bin/activate
+
+    # use S3 pip binary caching
+    pip install "pip-accel[s3]"
+    export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
+    export PIP_ACCEL_S3_PREFIX=centos-7
+    # export the AWS secrets, so that pip-accel can connect to S3
+    source /etc/boto.sh
+
+    # install python modules from S3
+    # the requirements include pip7.1, so we need to reinstall pip-accel
+    pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
+    pip install pip-accel
+
+    pip-accel install Flocker[doc,dev,release] python-subunit junitxml --retries 15 --timeout 30 --disable-pip-version-check
+
+    # Our tests seem to require pip 7
+    pip install --upgrade pip
+
+    # set vars and run tests
+    LOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
+    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+    # need to unset the AWS secrets used by pip-accel
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+
+  ubuntu_trusty: &ubuntu_trusty |
+    #!/bin/bash
+    set -e
+    export PATH=/usr/local/bin:$PATH
+
+    # clean up the stuff from previous runs
+    rm -rf _trial_temp/
+
+    virtualenv -p python2.7 --clear flocker-admin/venv
+    source flocker-admin/venv/bin/activate
+
+    # use S3 pip binary caching
+    pip install "pip-accel[s3]"
+    export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
+    export PIP_ACCEL_S3_PREFIX=ubuntu-trusty64
+    # export the AWS secrets, so that pip-accel can connect to S3
+    source /etc/boto.sh
+
+    # install python modules from S3
+    # the requirements include pip7.1, so we need to reinstall pip-accel
+    pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
+    pip install pip-accel
+
+    pip-accel install Flocker[doc,dev,release] python-subunit junitxml \
+        --retries 15 --timeout 30 --disable-pip-version-check
+
+    # Our tests seem to require pip 
+    pip install --upgrade pip
+
+    # set vars and run tests
+    FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
+    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+    # need to unset the AWS secrets used by pip-accel
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+ 
 jobs:
   aws_flocker_centos_7:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
-          cli: [
-            '#!/bin/bash',
-            '# clean up the stuff from previous runs',
-            'sudo rm -rf _trial_temp/',
-            'sudo rm -f trial.log',
-            'virtualenv -p python2.7 --clear flocker-centos-7/venv',
-            'source flocker-centos-7/venv/bin/activate',
-
-            '# use S3 pip binary caching',
-            'pip install "pip-accel[s3]"',
-            'export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel',
-            'export PIP_ACCEL_S3_PREFIX=centos-7',
-            '# export the AWS secrets, so that pip-accel can connect to S3',
-            'source /etc/boto.sh',
-
-            '# install python modules from S3',
-            '# the requirements include pip7.1, so we need to reinstall pip-accel',
-            'pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check',
-            'pip install pip-accel',
-
-            'pip-accel install Flocker[doc,dev,release] python-subunit junitxml \',
-                '--retries 15 --timeout 30 --disable-pip-version-check',
-
-            '# Our tests seem to require pip 7',
-            'pip install --upgrade pip',
-
-            '# set vars and run tests',
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml',
-            'export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c',
-            'export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws',
-            '# need to unset the AWS secrets used by pip-accel',
-            'unset AWS_ACCESS_KEY_ID',
-            'unset AWS_SECRET_ACCESS_KEY',
-
+          cli: [ *centos_7,
             'trial --reporter=subunit flocker 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
@@ -46,45 +84,8 @@ jobs:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
-          cli: [
-            '#!/bin/bash',
-            'set -e',
-            'export PATH=/usr/local/bin:$PATH',
-
-            '# clean up the stuff from previous runs',
-            'rm -rf _trial_temp/',
-
-            'virtualenv -p python2.7 --clear flocker-admin/venv',
-            'source flocker-admin/venv/bin/activate',
-
-            '# use S3 pip binary caching',
-            'pip install "pip-accel[s3]"',
-            'export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel',
-            'export PIP_ACCEL_S3_PREFIX=ubuntu-trusty64',
-            '# export the AWS secrets, so that pip-accel can connect to S3',
-            'source /etc/boto.sh',
-
-            '# install python modules from S3',
-            '# the requirements include pip7.1, so we need to reinstall pip-accel',
-            'pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check',
-            'pip install pip-accel',
-
-            'pip-accel install Flocker[doc,dev,release] python-subunit junitxml \',
-            '    --retries 15 --timeout 30 --disable-pip-version-check',
-
-            '# Our tests seem to require pip 7',
-            'pip install --upgrade pip',
-
-            '# set vars and run tests',
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml',
-            'export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c',
-            'export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws',
-            '# need to unset the AWS secrets used by pip-accel',
-            'unset AWS_ACCESS_KEY_ID',
-            'unset AWS_SECRET_ACCESS_KEY',
-
-            'trial --reporter=subunit admin 2>&1 | tee trial.log',
+          cli: [ *ubuntu_trusty,
+           'trial --reporter=subunit admin 2>&1 | tee trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml',
- 
           ]
         }
