@@ -124,8 +124,23 @@ jobs:
     steps:
       - { type: 'shell',
           cli: [ *centos_7,
-            'trial --reporter=subunit flocker.node 2>&1 | tee trial.log',
+            'trial --reporter=subunit flocker.node.agents 2>&1 | tee -a trial.log',
             'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+        }
+      - { type: 'shell',
+          cli: [ *centos_7,
+            'trial --reporter=subunit flocker.node.functional.test_deploy 2>&1 | tee -a trial.log',
+            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+        }
+#        - { type: 'shell',
+#          cli: [ *centos_7,
+#            'trial --reporter=subunit flocker.node.functional.test_docker 2>&1 | tee -a trial.log',
+#            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+#         }
+      - { type: 'shell',
+         cli: [ *centos_7,
+           'trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
+           'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
         }
   aws_flocker_centos_7_provision:
     label: 'aws-centos-7'
