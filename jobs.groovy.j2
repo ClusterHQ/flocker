@@ -18,7 +18,7 @@ branches.each {
     displayName("${branchName}")
   }
 {% for job, values in cfg.jobs.iteritems() %}
-  job("${project}/${branch}/{{ job }}") {
+  job("${project}/${branchName}/{{ job }}") {
     label({{ values.label }})
     wrappers {
         timestamps()
@@ -28,7 +28,7 @@ branches.each {
             failBuild()
         }
     }
-    scm { git("${git_url}", "${branch}") }
+    scm { git("${git_url}", "${branchName}") }
     steps {
 {% for _step in values.steps -%}
 {% if _step.type=='shell' %}
