@@ -15,7 +15,7 @@ common_cli:
   cleanup: &cleanup |
     export PATH=/usr/local/bin:$PATH
     # clean up the stuff from previous runs
-    sudo rm -f venv
+    sudo rm -rf venv
     sudo rm -f results.xml
     sudo rm -f trial.log
     sudo rm -rf _trial_temp/
