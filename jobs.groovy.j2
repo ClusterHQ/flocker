@@ -19,7 +19,7 @@ branches.each {
   }
 {% for job, values in cfg.jobs.iteritems() %}
   job("${project}/${branchName}/{{ job }}") {
-    label({{ values.label }})
+    label("{{ values.label }}")
     wrappers {
         timestamps()
         colorizeOutput()
