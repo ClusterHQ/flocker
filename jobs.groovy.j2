@@ -18,7 +18,7 @@ branches.each {
     displayName("${branchName}")
   }
 {% for job, values in cfg.jobs.iteritems() %}
-  job("${project}/${branchName}/{{ job }}") {
+  job("${dashProject}/${branchName}/{{ job }}") {
     label("{{ values.label }}")
     wrappers {
         timestamps()
