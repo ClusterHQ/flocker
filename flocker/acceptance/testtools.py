@@ -8,6 +8,7 @@ from json import dumps
 from os import environ
 from subprocess import check_call
 from unittest import SkipTest, skipUnless
+from uuid import uuid4
 
 from yaml import safe_dump
 import json
@@ -35,7 +36,7 @@ from ..common import gather_deferreds
 from ..control.httpapi import container_configuration_response, REST_API_PORT
 from ..control._config import FlockerConfiguration
 from ..ca import treq_with_authentication
-from ..testtools import loop_until
+from ..testtools import loop_until, REALISTIC_BLOCKDEVICE_SIZE
 
 try:
     from pymongo import MongoClient
@@ -858,3 +859,34 @@ def require_cluster(num_nodes):
             return calling_test_method
         return wrapper
     return decorator
+
+
+def create_dataset(test_case, cluster,
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+    """
+    Create a dataset on a cluster (on its first node, specifically).
+
+    :param TestCase test_case: The test the API is running on.
+    :param Cluster cluster: The test ``Cluster``.
+    :param int maximum_size: The size of the dataset to create on the test
+        cluster.
+    :return: ``Deferred`` firing with a tuple of (``Cluster``
+        instance, dataset dictionary) once the dataset is present in
+        actual cluster state.
+    """
+    # Configure a dataset on node1
+    requested_dataset = {
+        u"primary": cluster.nodes[0].uuid,
+        u"dataset_id": unicode(uuid4()),
+        u"maximum_size": maximum_size,
+        u"metadata": {u"name": u"my_volume"},
+    }
+
+    configuring_dataset = cluster.create_dataset(requested_dataset)
+
+    # Wait for the dataset to be created
+    waiting_for_create = configuring_dataset.addCallback(
+        lambda dataset: cluster.wait_for_dataset(dataset)
+    )
+
+    return waiting_for_create
