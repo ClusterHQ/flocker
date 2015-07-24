@@ -56,6 +56,14 @@ branches.each {
 {% endfor %}
 
   multiJob("${dashProject}/${branchName}/_main_multijob") {
+    wrappers {
+        timestamps()
+        colorizeOutput()
+        timeout {
+            absolute(25)
+            failBuild()
+        }
+    }
       steps {
           shell('rm -rf *')
           phase('parallel_tests') {
