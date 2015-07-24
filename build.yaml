@@ -74,6 +74,8 @@ common_cli:
 # the job definitions, they consume the aliases defined in the common_cli block
 #
 jobs:
+
+  # http://build.clusterhq.com/builders/flocker-centos-7
   aws_flocker_centos_7_acceptance:
     label: 'aws-centos-7'
     steps:
@@ -83,13 +85,22 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_ca:
+  aws_flocker_centos_7_ca_functional:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
-                 'coverage run venv/bin/trial --reporter=subunit flocker.ca 2>&1 | tee trial.log',
+                 'coverage run venv/bin/trial --reporter=subunit flocker.ca.functional 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_centos_7_ca_test:
+    label: 'aws-centos-7'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_centos7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.ca.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_cli:
@@ -211,6 +222,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+
+
+# http://build.clusterhq.com/builders/flocker-admin
   aws_ubuntu_trusty_admin:
     label: 'aws-ubuntu-trusty'
     steps:
@@ -218,5 +232,154 @@ jobs:
           cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
                  'coverage run venv/bin/trial --reporter=subunit admin 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+
+
+# http://build.clusterhq.com/builders/flocker-ubuntu-14.04
+  aws_flocker_ubuntu_trusty_acceptance:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_ca_functional:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.ca.functional 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_ca_test:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.ca.test 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_cli:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_common:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_control:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+# there's nothing to build for the flocker.docs module
+#  aws_flocker_ubuntu_trusty_docs:
+#    label: 'aws-ubuntu-trusty'
+#    steps:
+#      - { type: 'shell',
+#           cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+#                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+#            'trial --reporter=subunit flocker.docs 2>&1 | tee trial.log',
+#            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+#        }
+  aws_flocker_ubuntu_trusty_node:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.node.agents 2>&1 | tee -a trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.node.functional.test_deploy 2>&1 | tee -a trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+# flocker.node.functional is hanging, so we skip it here
+#        - { type: 'shell',
+#            cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+#                   *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+#            'trial --reporter=subunit flocker.node.functional.test_docker 2>&1 | tee -a trial.log',
+#            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+#         }
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                'coverage run venv/bin/trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_provision:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_restapi:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_route:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_test:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_testtools:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
+        }
+  aws_flocker_ubuntu_trusty_volume:
+    label: 'aws-ubuntu-trusty'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
