@@ -8,7 +8,7 @@ A Flocker cluster comprises a control service and convergence agents, along with
 
 Flocker uses `Transport Layer Security <https://en.wikipedia.org/wiki/Transport_Layer_Security>`_ (TLS) to authenticate components of a cluster, in a `mutual authentication <https://en.wikipedia.org/wiki/Mutual_authentication>`_ model.
 
-This ensures that the control service, convergence agents, and API end users are communicating with a verified component of a cluster, helping to prevent unauthorised access, and mitigating some potential attack vectors.
+This ensures that the control service, convergence agents, and API end users are communicating with a verified component of a cluster, helping to prevent unauthorized access, and mitigating some potential attack vectors.
 
 Mutual Authentication Overview
 ==============================
@@ -25,8 +25,8 @@ Security Benefits
 
 The TLS client certification layer used by Flocker provides a number of security benefits to a cluster.
 
-- Prevents unauthorised requests to the REST API.
-- Prevents unauthorised connections to the control service and convergence agents.
+- Prevents unauthorized requests to the REST API.
+- Prevents unauthorized connections to the control service and convergence agents.
 - Encrypts communications between all components of the cluster.
 
 Risks
@@ -36,7 +36,7 @@ Flocker's authentication layer does not completely guarantee the security of a c
 
 For example, if a malicious user were able to gain root SSH access to the machine running the control service, they would be able to copy the control service's private key and therefore be able to set up another machine to act and identify as the legitimate control service for that cluster.
 
-Similarly, if the private key of an API end user is compromised, anyone with that key will be able to authenticate as that authorised user, and therefore make requests to the REST API to read or change the state of a cluster.
+Similarly, if the private key of an API end user is compromised, anyone with that key will be able to authenticate as that authorized user, and therefore make requests to the REST API to read or change the state of a cluster.
 
 It is therefore very important that you ensure the private keys are kept secure; they should not be copied or shared insecurely.
 When copying certificates and private keys to your cluster nodes as part of the ``flocker-node`` installation process, the files must be copied using a secure and encrypted transfer medium such as SSH, SCP or SFTP.
