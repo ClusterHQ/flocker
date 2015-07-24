@@ -11,6 +11,8 @@ git_url: 'https://github.com/ClusterHQ/flocker.git'
 common_cli:
   hashbang: &hashbang |
     #!/bin/bash
+    set -x
+    set -e
 
   cleanup: &cleanup |
     export PATH=/usr/local/bin:$PATH
@@ -23,14 +25,14 @@ common_cli:
   setup_venv: &setup_venv |
     # setup the new venv
     virtualenv -p python2.7 --clear venv
-    source venv/bin/activate
+    . venv/bin/activate
 
   setup_pip_accel: &setup_pip_accel |
     # use S3 pip binary caching
     pip install "pip-accel[s3]"
     export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
     # export the AWS secrets, so that pip-accel can connect to S3
-    source /etc/boto.sh
+    . /etc/boto.sh
 
   setup_pip_accel_centos7_vars: &setup_pip_accel_centos7_vars |
     export PIP_ACCEL_S3_PREFIX=centos-7
@@ -40,6 +42,7 @@ common_cli:
 
   setup_flocker_modules: &setup_flocker_modules |
     # install python modules from S3
+    pip install pip-accel
     pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
     pip install pip-accel
     # the requirements include pip7.1, so we need to reinstall pip-accel
@@ -56,6 +59,17 @@ common_cli:
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
 
+  setup_coverage: &setup_coverage |
+    pip install pip-accel
+    pip-accel install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl
+    # pip-accel downgrades pip, but Our tests seem to require pip 7
+    pip install --upgrade pip
+
+  run_coverage: &run_coverage |
+    coverage xml --include=flocker*
+
+  convert_results_to_junit: &convert_results_to_junit |
+    cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
 
 # the job definitions, they consume the aliases defined in the common_cli block
 #
@@ -65,45 +79,45 @@ jobs:
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_ca:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.ca 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.ca 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_cli:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_common:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_control:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
 # there's nothing to build for the flocker.docs module
 #  aws_flocker_centos_7_docs:
@@ -120,15 +134,15 @@ jobs:
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.node.agents 2>&1 | tee -a trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.node.agents 2>&1 | tee -a trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.node.functional.test_deploy 2>&1 | tee -a trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.node.functional.test_deploy 2>&1 | tee -a trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
 # flocker.node.functional is hanging, so we skip it here
 #        - { type: 'shell',
@@ -139,71 +153,70 @@ jobs:
 #         }
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-           'trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
-           'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                'coverage run venv/bin/trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_provision:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_restapi:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_route:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_test:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_testtools:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.testtools 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_volume:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-            'trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }
   aws_ubuntu_trusty_admin:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
-                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-           'trial --reporter=subunit admin 2>&1 | tee trial.log',
-            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml',
-          ]
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                 'coverage run venv/bin/trial --reporter=subunit admin 2>&1 | tee trial.log',
+                 *run_coverage, *convert_results_to_junit ]
         }

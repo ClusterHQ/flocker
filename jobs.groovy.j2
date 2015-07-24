@@ -51,8 +51,7 @@ branches.each {
 {% endfor %}
     }
     publishers {
-      archiveArtifacts('results.xml')
-      archiveArtifacts('_trial_temp/test.log')
+      archiveArtifacts('results.xml,coverage.xml,_trial_temp/test.log')
       archiveJunit('results.xml') {
         retainLongStdout(true)
         testDataPublishers {
@@ -93,7 +92,15 @@ branches.each {
               }
           }
           copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-              includePatterns('test.log')
+              includePatterns('_trial_temp/test.log')
+              targetDirectory('{{ job }}')
+              fingerprintArtifacts(true)
+              buildSelector {
+                  workspace()
+              }
+          }
+          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
+              includePatterns('coverage.xml')
               targetDirectory('{{ job }}')
               fingerprintArtifacts(true)
               buildSelector {
@@ -111,6 +118,12 @@ branches.each {
                   publishTestStabilityData()
                   publishFlakyTestsReport()
               }
+          }
+          cobertura('**/coverage.xml') {
+            onlyStable(true)
+            failUnhealthy(true)
+            failUnstable(true)
+            failNoReports(true)
           }
       }
   }
