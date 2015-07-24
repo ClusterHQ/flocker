@@ -36,7 +36,8 @@ from ..common import gather_deferreds
 from ..control.httpapi import container_configuration_response, REST_API_PORT
 from ..control._config import FlockerConfiguration
 from ..ca import treq_with_authentication
-from ..testtools import loop_until, REALISTIC_BLOCKDEVICE_SIZE
+from ..testtools import loop_until, random_name, REALISTIC_BLOCKDEVICE_SIZE
+
 
 try:
     from pymongo import MongoClient
@@ -859,6 +860,39 @@ def require_cluster(num_nodes):
             return calling_test_method
         return wrapper
     return decorator
+
+
+def create_python_container(test_case, cluster, parameters, script,
+                            cleanup=True):
+    """
+    Create a Python container that runs a given script.
+
+    :param TestCase test_case: The current test.
+    :param Cluster cluster: The cluster to run on.
+    :param dict parameters: Parameters for the ``create_container`` JSON
+        query, beyond those provided by this function.
+    :param FilePath script: Python code to run.
+    :param bool cleanup: If true, remove container when test is over.
+
+    :return: ``Deferred`` that fires when the configuration has been updated.
+    """
+    parameters = parameters.copy()
+    parameters[u"image"] = u"python:2.7-slim"
+    parameters[u"command_line"] = [u"python", u"-c",
+                                   script.getContent().decode("ascii")]
+    if u"restart_policy" not in parameters:
+        parameters[u"restart_policy"] = {u"name": u"never"}
+    if u"name" not in parameters:
+        parameters[u"name"] = random_name(test_case)
+    creating = cluster.create_container(parameters)
+
+    def created(response):
+        if cleanup:
+            test_case.addCleanup(cluster.remove_container, parameters[u"name"])
+        test_case.assertEqual(response, parameters)
+        return response
+    creating.addCallback(created)
+    return creating
 
 
 def create_dataset(test_case, cluster,

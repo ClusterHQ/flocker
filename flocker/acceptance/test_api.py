@@ -10,7 +10,7 @@ from contextlib import closing
 from pyrsistent import thaw, pmap
 
 from twisted.trial.unittest import TestCase
-
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
@@ -22,8 +22,12 @@ from ..testtools import (
 )
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
-    require_cluster, require_moving_backend, create_dataset
+    require_cluster, require_moving_backend, create_dataset,
+    create_python_container,
 )
+
+CURRENT_DIRECTORY = FilePath(__file__).parent()
+
 
 # A command that will run an "HTTP" in a Busybox container.  The server
 # responds "hi" to any request.
@@ -74,20 +78,13 @@ class ContainerAPITests(TestCase):
         :return: ``Deferred`` firing with a container dictionary once the
             container is up and running.
         """
-        data = {
-            u"name": random_name(self),
-            u"image": "clusterhq/flask:latest",
-            u"ports": [{u"internal": 80, u"external": 8080}],
-            u'restart_policy': {u'name': u'never'},
-            u"node_uuid": cluster.nodes[0].uuid,
-        }
-
-        d = cluster.create_container(data)
+        d = create_python_container(
+            self, cluster, {
+                u"ports": [{u"internal": 8080, u"external": 8080}],
+                u"node_uuid": cluster.nodes[0].uuid,
+            }, CURRENT_DIRECTORY.child(b"hellohttp.py"))
 
         def check_result(response):
-            self.addCleanup(cluster.remove_container, data[u"name"])
-
-            self.assertEqual(response, data)
             dl = verify_socket(cluster.nodes[0].public_address, 8080)
             dl.addCallback(lambda _: response)
             return dl
