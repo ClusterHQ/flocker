@@ -116,7 +116,7 @@ jobs:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
-                 'coverate run venv/bin/trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
+                 'coverage run venv/bin/trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
 # there's nothing to build for the flocker.docs module
