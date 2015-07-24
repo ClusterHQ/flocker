@@ -25,14 +25,14 @@ common_cli:
   setup_venv: &setup_venv |
     # setup the new venv
     virtualenv -p python2.7 --clear venv
-    source venv/bin/activate
+    . venv/bin/activate
 
   setup_pip_accel: &setup_pip_accel |
     # use S3 pip binary caching
     pip install "pip-accel[s3]"
     export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
     # export the AWS secrets, so that pip-accel can connect to S3
-    source /etc/boto.sh
+    . /etc/boto.sh
 
   setup_pip_accel_centos7_vars: &setup_pip_accel_centos7_vars |
     export PIP_ACCEL_S3_PREFIX=centos-7
