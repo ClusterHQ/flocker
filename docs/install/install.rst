@@ -482,7 +482,7 @@ The configuration item to use ZFS should look like:
    FLOC-2092
 
 The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
-This requires first installing `ZFS on Linux <http://zfsonlinux.org/>`_.
+This requires first installing :ref:`ZFS on Linux <installing-ZFS-CentOS-7>`.
 You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
 .. _loopback-dataset-backend:
@@ -529,6 +529,7 @@ Optional ZFS Backend Configuration
 
 If you intend to use a ZFS backend, this requires ZFS to be installed.
 
+.. _installing-ZFS-CentOS-7:
 
 Installing ZFS on CentOS 7
 ..........................
