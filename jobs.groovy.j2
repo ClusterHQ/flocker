@@ -92,7 +92,7 @@ branches.each {
               }
           }
           copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-              includePatterns('test.log')
+              includePatterns('_trial_temp/test.log')
               targetDirectory('{{ job }}')
               fingerprintArtifacts(true)
               buildSelector {
