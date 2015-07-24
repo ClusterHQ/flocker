@@ -42,6 +42,7 @@ branches.each {
     }
     publishers {
       archiveArtifacts('results.xml')
+      archiveArtifacts('_trial_temp/test.log')
       archiveJunit('results.xml') {
         retainLongStdout(true)
         testDataPublishers {
@@ -82,7 +83,7 @@ branches.each {
               }
           }
           copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-              includePatterns('trial_temp/test.log')
+              includePatterns('test.log')
               targetDirectory('{{ job }}')
               fingerprintArtifacts(true)
               buildSelector {
