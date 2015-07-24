@@ -28,7 +28,11 @@ branches.each {
             failBuild()
         }
     }
-    scm { git("${git_url}", "${branchName}") }
+    scm { git("${git_url}", "${branchName}")
+          clean()
+          createTag(false)
+          wipeOutWorkspace(true)
+        }
     steps {
 {% for _step in values.steps -%}
 {% if _step.type=='shell' %}
