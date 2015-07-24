@@ -30,12 +30,13 @@ branches.each {
     }
     scm { git {
             remote {
+            name("upstream")
                 url("${git_url}")
                 }
             branch("${branchName}")
             clean(true)
             createTag(false)
-            mergeOptions('origin', 'master')
+            mergeOptions('upstream', 'master')
         }
     }
     steps {
