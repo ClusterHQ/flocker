@@ -351,7 +351,7 @@ class ContainerAPITests(TestCase):
                     u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
                                   u"mountpoint": u"/data"}],
                 }, CURRENT_DIRECTORY.child(b"nonrootwritehttp.py"),
-                additional_arguments=[u"/root"])
+                additional_arguments=[u"/data"])
         creating_dataset.addCallback(created_dataset)
 
         creating_dataset.addCallback(
