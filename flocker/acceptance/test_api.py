@@ -367,50 +367,31 @@ class ContainerAPITests(TestCase):
         obtained from ``<ALIAS>_PORT_<PORT>_TCP_{ADDR,PORT}``-style environment
         set in the origin container's environment.
         """
-        _, destination_port = find_free_port()
-        _, origin_port = find_free_port()
+        destination_port = 8080
+        origin_port = 8081
 
         [destination, origin] = cluster.nodes
 
-        busybox = pmap({
-            u"image": u"busybox",
-        })
-
-        destination_container = busybox.update({
-            u"name": random_name(self),
-            u"node_uuid": destination.uuid,
-            u"ports": [{u"internal": 8080, u"external": destination_port}],
-            u"command_line": BUSYBOX_HTTP,
-        })
-        self.addCleanup(
-            cluster.remove_container, destination_container[u"name"]
-        )
-
-        origin_container = busybox.update({
-            u"name": random_name(self),
-            u"node_uuid": origin.uuid,
-            u"links": [{u"alias": "DEST", u"local_port": 80,
-                        u"remote_port": destination_port}],
-            u"ports": [{u"internal": 9000, u"external": origin_port}],
-            u"command_line": [
-                u"sh", u"-c", u"""\
-echo -n '#!/bin/sh
-nc $DEST_PORT_80_TCP_ADDR $DEST_PORT_80_TCP_PORT
-' > /tmp/script.sh;
-chmod +x /tmp/script.sh;
-nc -ll -p 9000 -e /tmp/script.sh
-                """]})
-        self.addCleanup(
-            cluster.remove_container, origin_container[u"name"]
-        )
         running = gatherResults([
-            cluster.create_container(thaw(destination_container)),
-            cluster.create_container(thaw(origin_container)),
+            create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080,
+                                u"external": destination_port}],
+                    u"node_uuid": destination.uuid,
+                }, CURRENT_DIRECTORY.child(b"hellohttp.py")),
+            create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8081,
+                                u"external": origin_port}],
+                    u"links": [{u"alias": "dest", u"local_port": 80,
+                                u"remote_port": destination_port}],
+                    u"node_uuid": origin.uuid,
+                }, CURRENT_DIRECTORY.child(b"proxyhttp.py")),
             # Wait for the link target container to be accepting connections.
             verify_socket(destination.public_address, destination_port),
             # Wait for the link source container to be accepting connections.
             verify_socket(origin.public_address, origin_port),
-        ])
+            ])
 
         running.addCallback(
             lambda _: self.assert_http_server(
