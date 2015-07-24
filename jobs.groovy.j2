@@ -73,6 +73,14 @@ branches.each {
                   workspace()
               }
           }
+          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
+              includePatterns('trial_temp/test.log')
+              targetDirectory('{{ job }}')
+              fingerprintArtifacts(true)
+              buildSelector {
+                  workspace()
+              }
+          }
 {% endfor %}
       }
       publishers {
