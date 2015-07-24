@@ -7,8 +7,6 @@ Tests for the control service REST API.
 import socket
 from contextlib import closing
 
-from pyrsistent import thaw, pmap
-
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
@@ -18,7 +16,7 @@ from treq import get, json_content, content
 from eliot import Message
 
 from ..testtools import (
-    loop_until, random_name, find_free_port,
+    loop_until, random_name,
 )
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
@@ -27,20 +25,6 @@ from .testtools import (
 )
 
 CURRENT_DIRECTORY = FilePath(__file__).parent()
-
-
-# A command that will run an "HTTP" in a Busybox container.  The server
-# responds "hi" to any request.
-BUSYBOX_HTTP = [
-    u"sh", u"-c",
-    u"""\
-echo -n '#!/bin/sh
-echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
-' > /tmp/script.sh;
-chmod +x /tmp/script.sh;
-nc -ll -p 8080 -e /tmp/script.sh
-"""
-]
 
 
 def verify_socket(host, port):
