@@ -49,7 +49,7 @@ common_cli:
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
-    LOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
     # need to unset the AWS secrets used by pip-accel
