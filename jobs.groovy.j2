@@ -29,7 +29,7 @@ branches.each {
         }
     }
     scm { git("${git_url}", "${branchName}")
-          clean()
+          clean(true)
           createTag(false)
           wipeOutWorkspace(true)
         }
