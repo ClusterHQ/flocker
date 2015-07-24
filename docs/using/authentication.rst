@@ -5,7 +5,7 @@ Authentication
 ==============
 
 The Flocker REST API uses TLS to secure and authenticate requests.
-This ensures an API request is both encrypted, and verified to have come from an authorised user, while the corresponding response is verified to have come from the genuine cluster control service.
+This ensures an API request is both encrypted, and verified to have come from an authorized user, while the corresponding response is verified to have come from the genuine cluster control service.
 
 Certificates are used for both client and server authentication, entirely replacing the use of usernames and passwords commonly used in HTTPS.
 
@@ -45,7 +45,7 @@ Using an API certificate to authenticate
 
 Once in possession of an API user certificate and the cluster certificate an end user must authenticate with those certificates in every request to the cluster REST API.
 The cluster certificate ensures the user is connecting to the genuine API of their cluster.
-The client certificate allows the API server to ensure the request is from a genuine, authorised user.
+The client certificate allows the API server to ensure the request is from a genuine, authorized user.
 An example of performing this authentication with ``cURL`` is given below.
 In this example, ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
