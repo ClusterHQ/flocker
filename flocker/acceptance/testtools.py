@@ -863,7 +863,7 @@ def require_cluster(num_nodes):
 
 
 def create_python_container(test_case, cluster, parameters, script,
-                            cleanup=True):
+                            cleanup=True, additional_arguments=()):
     """
     Create a Python container that runs a given script.
 
@@ -873,13 +873,16 @@ def create_python_container(test_case, cluster, parameters, script,
         query, beyond those provided by this function.
     :param FilePath script: Python code to run.
     :param bool cleanup: If true, remove container when test is over.
+    :param additional_arguments: Additional arguments to pass to the
+        script.
 
     :return: ``Deferred`` that fires when the configuration has been updated.
     """
     parameters = parameters.copy()
     parameters[u"image"] = u"python:2.7-slim"
     parameters[u"command_line"] = [u"python", u"-c",
-                                   script.getContent().decode("ascii")]
+                                   script.getContent().decode("ascii")] + list(
+                                       additional_arguments)
     if u"restart_policy" not in parameters:
         parameters[u"restart_policy"] = {u"name": u"never"}
     if u"name" not in parameters:

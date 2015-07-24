@@ -7,6 +7,8 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(s):
+        s.send_response(200)
+        s.end_headers()
         s.wfile.write(b"hi")
         s.wfile.close()
 
