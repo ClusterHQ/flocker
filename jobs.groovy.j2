@@ -61,6 +61,18 @@ branches.each {
              publishFlakyTestsReport()
         }
       }
+        cobertura('coverage.xml') {
+           onlyStable(true)
+           failUnhealthy(true)
+           failUnstable(true)
+           failNoReports(true)
+        }
+        violations(100) {
+           sourcePathPattern 'coverage.xml'
+           perFileDisplayLimit 51
+           pep8(10, 11, 10)
+           pylint(12, 13, 12)
+        }
     }
   }
 {% endfor %}
@@ -107,12 +119,6 @@ branches.each {
                   workspace()
               }
           }
-          cobertura('coverage.xml') {
-            onlyStable(true)
-            failUnhealthy(true)
-            failUnstable(true)
-            failNoReports(true)
-          }
 {% endfor %}
       }
       publishers {
@@ -130,6 +136,12 @@ branches.each {
             failUnhealthy(true)
             failUnstable(true)
             failNoReports(true)
+          }
+          violations(100) {
+            sourcePathPattern 'coverage.xml'
+            perFileDisplayLimit 51
+            pep8(10, 11, 10)
+            pylint(12, 13, 12)
           }
       }
   }
