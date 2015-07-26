@@ -107,6 +107,12 @@ branches.each {
                   workspace()
               }
           }
+          cobertura('coverage.xml') {
+            onlyStable(true)
+            failUnhealthy(true)
+            failUnstable(true)
+            failNoReports(true)
+          }
 {% endfor %}
       }
       publishers {
