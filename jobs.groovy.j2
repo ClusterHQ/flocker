@@ -61,6 +61,14 @@ branches.each {
              publishFlakyTestsReport()
         }
       }
+{% if values.coverage_report -%}
+        cobertura('coverage.xml') {
+           onlyStable(false)
+           failUnhealthy(true)
+           failUnstable(true)
+           failNoReports(true)
+        }
+{% endif -%}
     }
   }
 {% endfor %}
@@ -120,10 +128,10 @@ branches.each {
               }
           }
           cobertura('**/coverage.xml') {
-            onlyStable(true)
+            onlyStable(false)
             failUnhealthy(true)
             failUnstable(true)
-            failNoReports(true)
+            failNoReports(false)
           }
       }
   }
