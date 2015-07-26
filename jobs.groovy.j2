@@ -68,10 +68,9 @@ branches.each {
            failNoReports(true)
         }
         violations(100) {
-           sourcePathPattern 'coverage.xml'
            perFileDisplayLimit 51
-           pep8(10, 11, 10)
-           pylint(12, 13, 12)
+           pep8(10, 11, 10, 'coverage.xml')
+           pylint(12, 13, 12, 'coverage.xml')
         }
     }
   }
@@ -138,10 +137,9 @@ branches.each {
             failNoReports(true)
           }
           violations(100) {
-            sourcePathPattern 'coverage.xml'
             perFileDisplayLimit 51
-            pep8(10, 11, 10)
-            pylint(12, 13, 12)
+            pep8(10, 11, 10, '**/coverage.xml')
+            pylint(12, 13, 12, '**/coverage.xml')
           }
       }
   }
