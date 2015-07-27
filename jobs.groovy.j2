@@ -62,7 +62,7 @@ branches.each {
         }
       }
         cobertura('coverage.xml') {
-           onlyStable(fail)
+           onlyStable(false)
            failUnhealthy(true)
            failUnstable(true)
            failNoReports(true)
