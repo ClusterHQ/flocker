@@ -10,4 +10,5 @@ Installing Flocker
    :maxdepth: 2
 
    install-client
-   install
+   install-node
+   post-install
