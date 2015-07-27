@@ -7,11 +7,13 @@ Tests for the control service REST API.
 import socket
 from contextlib import closing
 
+from json import dumps
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
 
-from treq import get, json_content, content
+from treq import get, post, json_content, content
 
 from eliot import Message
 
@@ -19,7 +21,6 @@ from ..testtools import (
     loop_until, random_name,
 )
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client,
     require_cluster, require_moving_backend, create_dataset,
     create_python_container,
 )
@@ -133,85 +134,51 @@ class ContainerAPITests(TestCase):
         return d
 
     @require_moving_backend
-    @require_mongo
     @require_cluster(2)
     def test_move_container_with_dataset(self, cluster):
         """
-        Create a mongodb container with an attached dataset, issue API call
+        Create a container with an attached dataset, issue API call
         to move the container. Wait until we can connect to the running
         container on the new host and verify the data has moved with it.
         """
+        data = {u"the data": u"it moves"}
+        post_data = {"file": "/data/test", "data": dumps(data)}
+        node1, node2 = cluster.nodes
+        container_name = random_name(self)
         creating_dataset = create_dataset(self, cluster)
 
-        def created_dataset(dataset):
-            mongodb = {
-                u"name": random_name(self),
-                u"node_uuid": cluster.nodes[0].uuid,
-                u"image": MONGO_IMAGE,
-                u"ports": [{u"internal": 27017, u"external": 27017}],
-                u'restart_policy': {u'name': u'never'},
-                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
-                              u"mountpoint": u"/data/db"}],
-            }
-            created = cluster.create_container(mongodb)
-            created.addCallback(lambda _: self.addCleanup(
-                cluster.remove_container, mongodb[u"name"]))
-            created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0].public_address))
+        def create_container(dataset):
+            d = create_python_container(
+                self, cluster, {
+                    u"name": container_name,
+                    u"ports": [{u"internal": 8080, u"external": 8080}],
+                    u"node_uuid": node1.uuid,
+                    u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                                  u"mountpoint": u"/data"}],
+                }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+            )
+            return d
+        creating_dataset.addCallback(create_container)
+        creating_dataset.addCallback(
+            lambda _: self.post_http_server(
+                node1.public_address, 8080, post_data)
+        )
 
-            def got_mongo_client(client):
-                database = client.example
-                database.posts.insert({u"the data": u"it moves"})
-                return database.posts.find_one()
-            created.addCallback(got_mongo_client)
+        def move_container(_):
+            moved = cluster.move_container(
+                container_name, node2.uuid
+            )
+            return moved
+        creating_dataset.addCallback(move_container)
+        creating_dataset.addCallback(
+            lambda _: self.assert_http_server(
+                node2.public_address, 8080,
+                path=b"/?file={file}".format(file=post_data["file"]),
+                expected_response=post_data["data"])
+        )
 
-            def inserted(record):
-                moved = cluster.move_container(
-                    mongodb[u"name"], cluster.nodes[1].uuid
-                )
-
-                def destroy_and_recreate(_, record):
-                    """
-                    After moving our container via the API, we then remove the
-                    container on the new host and recreate it, pointing to the
-                    same dataset, but with the new container instance exposing
-                    a different external port. This technique ensures that the
-                    test does not pass by mere accident without the container
-                    having moved; by recreating the container on its new host
-                    after moving, we can be sure that if we can still connect
-                    and read the data, the dataset was successfully moved along
-                    with the container.
-                    """
-                    removed = cluster.remove_container(mongodb[u"name"])
-                    mongodb2 = mongodb.copy()
-                    mongodb2[u"ports"] = [
-                        {u"internal": 27017, u"external": 27018}
-                    ]
-                    mongodb2[u"node_uuid"] = cluster.nodes[1].uuid
-                    removed.addCallback(
-                        lambda _: cluster.create_container(mongodb2))
-                    removed.addCallback(lambda _: record)
-                    return removed
-                moved.addCallback(destroy_and_recreate, record)
-                return moved
-            created.addCallback(inserted)
-
-            def moved(record):
-                d = get_mongo_client(cluster.nodes[1].public_address, 27018)
-                d.addCallback(lambda client: client.example.posts.find_one())
-                d.addCallback(self.assertEqual, record)
-                return d
-
-            created.addCallback(moved)
-            return created
-        creating_dataset.addCallback(created_dataset)
         return creating_dataset
-    # FLOC-2488 This test has been measured to take longer than the default
-    # trial timeout (120s), on AWS, using AWS dataset backend and on Vagrant
-    # using the ZFS backend.
-    test_move_container_with_dataset.timeout = 480
 
-    @require_mongo
     @require_cluster(1)
     def test_create_container_with_dataset(self, cluster):
         """
@@ -225,7 +192,7 @@ class ContainerAPITests(TestCase):
             mongodb = {
                 u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
-                u"image": MONGO_IMAGE,
+                u"image": "clusterhq/mongo",
                 u"ports": [{u"internal": 27017, u"external": 27017}],
                 u'restart_policy': {u'name': u'never'},
                 u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
@@ -234,8 +201,6 @@ class ContainerAPITests(TestCase):
             created = cluster.create_container(mongodb)
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, mongodb[u"name"]))
-            created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0].public_address))
 
             def got_mongo_client(client):
                 database = client.example
@@ -254,10 +219,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(inserted)
 
             def restarted(record):
-                d = get_mongo_client(cluster.nodes[0].public_address, 27018)
-                d.addCallback(lambda client: client.example.posts.find_one())
-                d.addCallback(self.assertEqual, record)
-                return d
+                pass
             created.addCallback(restarted)
             return created
         creating_dataset.addCallback(created_dataset)
@@ -285,10 +247,41 @@ class ContainerAPITests(TestCase):
         creating.addCallback(created)
         return creating
 
-    def assert_http_server(self, host, port):
+    def post_http_server(self, host, port, data, expected_response=b"ok"):
         """
-        Assert that a HTTP serving a response with body ``b"hi"`` is running
-        at given host and port.
+        Make a POST request to an HTTP server on the given host and port
+        and assert that the response body matches the expected response.
+
+        :param bytes host: Host to connect to.
+        :param int port: Port to connect to.
+        :param bytes data: The raw request body data.
+        :param bytes expected_response: The HTTP response body expected.
+            Defaults to b"ok"
+        """
+        def make_post(host, port, data):
+            request = post(
+                "http://{host}:{port}".format(host=host, port=port),
+                data=data,
+                persistent=False
+            )
+
+            def failed(failure):
+                Message.new(message_type=u"acceptance:http_query_failed",
+                            reason=unicode(failure)).write()
+                return False
+            request.addCallbacks(content, failed)
+            return request
+        d = verify_socket(host, port)
+        d.addCallback(lambda _: loop_until(lambda: make_post(
+            host, port, data)))
+        d.addCallback(self.assertEqual, expected_response)
+        return d
+
+    def assert_http_server(self, host, port,
+                           path=b"", expected_response=b"hi"):
+        """
+        Assert that a HTTP serving a response with the body specified in
+        ``expected_response`` is running at given host and port.
 
         This can be coupled with code that only conditionally starts up
         the HTTP server via Flocker in order to check if that particular
@@ -299,10 +292,14 @@ class ContainerAPITests(TestCase):
 
         :param bytes host: Host to connect to.
         :param int port: Port to connect to.
+        :param bytes path: Optional path and query string.
+        :param bytes expected_response: The HTTP response body expected.
+            Defaults to b"hi"
         """
         def query(host, port):
             req = get(
-                "http://{host}:{port}".format(host=host, port=port),
+                "http://{host}:{port}{path}".format(
+                    host=host, port=port, path=path),
                 persistent=False
             )
 
@@ -315,7 +312,7 @@ class ContainerAPITests(TestCase):
 
         d = verify_socket(host, port)
         d.addCallback(lambda _: loop_until(lambda: query(host, port)))
-        d.addCallback(self.assertEqual, b"hi")
+        d.addCallback(self.assertEqual, expected_response)
         return d
 
     @require_cluster(1)
