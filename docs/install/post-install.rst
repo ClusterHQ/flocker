@@ -404,7 +404,7 @@ So ensure that the firewall allows access to TCP port 22 on each node from the e
 Next Step
 =========
 
-The next section describes your next step - setting up an :ref:`authenticated user<authenticate>`.
+The next step is to set up an :ref:`authenticated user<authenticate>`.
 
 .. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
 .. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
