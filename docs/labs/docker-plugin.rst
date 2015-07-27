@@ -37,8 +37,8 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
 
-.. _`Docker volumes plugin`: https://github.com/docker/docker/blob/3ee15acaadc3f25c90ea2c4de2e5ab1a12d8e042/docs/extend/plugins_volume.md
-.. _`Docker documentation on volume plugins`: https://github.com/docker/docker/blob/3ee15acaadc3f25c90ea2c4de2e5ab1a12d8e042/docs/extend/plugins_volume.md
+.. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
+.. _`Docker documentation on volume plugins`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
 
 How it works
 ============
