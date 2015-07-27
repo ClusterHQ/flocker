@@ -25,3 +25,5 @@ class FlockerLogExportTests(
     """
     Tests for ``flocker-log-export``.
     """
+    def test_ubuntu(self):
+        self.fail(self.executable)

@@ -821,6 +821,26 @@ class MemoryCoreReactor(MemoryReactor, Clock):
             event.fireEvent()
 
 
+class ScriptTestsMixin(object):
+    """
+    Functional tests for behaviour which is common to all Flocker command line
+    scripts.
+    """
+    def test_version(self):
+        """
+        The script is a command available on the system path.
+        """
+        result = run_process([self.executable] + [b"--version"])
+        self.assertEqual(result.output, b"%s\n" % (__version__,))
+
+    def test_identification(self):
+        """
+        The script identifies itself as what it is.
+        """
+        result = run_process([self.executable] + [b"--help"])
+        self.assertIn(self.executable, result.output)
+
+
 def make_script_tests(executable):
     """
     Generate a test suite which applies to any Flocker-installed node script.
@@ -830,22 +850,16 @@ def make_script_tests(executable):
     :return: A ``TestCase`` subclass which defines some tests applied to the
         given executable.
     """
-    class ScriptTests(TestCase):
-        @skipUnless(which(executable), executable + " not installed")
-        def test_version(self):
+    executable_paths = which(executable)
+
+    class ScriptTests(ScriptTestsMixin, TestCase):
+        @skipUnless(executable_paths, executable + " not installed")
+        def setUp(self):
             """
             The script is a command available on the system path.
             """
-            result = run_process([executable] + [b"--version"])
-            self.assertEqual(result.output, b"%s\n" % (__version__,))
+            self.executable = executable
 
-        @skipUnless(which(executable), executable + " not installed")
-        def test_identification(self):
-            """
-            The script identifies itself as what it is.
-            """
-            result = run_process([executable] + [b"--help"])
-            self.assertIn(executable, result.output)
     return ScriptTests
 
 
