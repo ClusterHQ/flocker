@@ -182,52 +182,62 @@ class ContainerAPITests(TestCase):
     @require_cluster(1)
     def test_create_container_with_dataset(self, cluster):
         """
-        Create a mongodb container with an attached dataset, insert some data,
+        Create a container with an attached dataset, write some data,
         shut it down, create a new container with same dataset, make sure
         the data is still there.
         """
+        data = {u"the data": u"sample written data"}
+        post_data = {"file": "/data/test", "data": dumps(data)}
+        node = cluster.nodes[0]
+        container_name = random_name(self)
         creating_dataset = create_dataset(self, cluster)
+        self.dataset_id = None
 
-        def created_dataset(dataset):
-            mongodb = {
-                u"name": random_name(self),
-                u"node_uuid": cluster.nodes[0].uuid,
-                u"image": "clusterhq/mongo",
-                u"ports": [{u"internal": 27017, u"external": 27017}],
-                u'restart_policy': {u'name': u'never'},
-                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
-                              u"mountpoint": u"/data/db"}],
-            }
-            created = cluster.create_container(mongodb)
-            created.addCallback(lambda _: self.addCleanup(
-                cluster.remove_container, mongodb[u"name"]))
+        def create_container(dataset):
+            self.dataset_id = dataset[u"dataset_id"]
+            d = create_python_container(
+                self, cluster, {
+                    u"name": container_name,
+                    u"ports": [{u"internal": 8080, u"external": 8080}],
+                    u"node_uuid": node.uuid,
+                    u"volumes": [{u"dataset_id": self.dataset_id,
+                                  u"mountpoint": u"/data"}],
+                }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                cleanup=False,
+            )
+            return d
+        creating_dataset.addCallback(create_container)
+        creating_dataset.addCallback(
+            lambda _: self.post_http_server(
+                node.public_address, 8080, post_data)
+        )
+        creating_dataset.addCallback(
+            lambda _: self.assert_http_server(
+                node.public_address, 8080,
+                path=b"/?file={file}".format(file=post_data["file"]),
+                expected_response=post_data["data"])
+        )
+        creating_dataset.addCallback(
+            lambda _: cluster.remove_container(container_name))
 
-            def got_mongo_client(client):
-                database = client.example
-                database.posts.insert({u"the data": u"it moves"})
-                return database.posts.find_one()
-            created.addCallback(got_mongo_client)
-
-            def inserted(record):
-                removed = cluster.remove_container(mongodb[u"name"])
-                mongodb2 = mongodb.copy()
-                mongodb2[u"ports"] = [{u"internal": 27017, u"external": 27018}]
-                removed.addCallback(
-                    lambda _: cluster.create_container(mongodb2))
-                removed.addCallback(lambda _: record)
-                return removed
-            created.addCallback(inserted)
-
-            def restarted(record):
-                pass
-            created.addCallback(restarted)
-            return created
-        creating_dataset.addCallback(created_dataset)
+        def create_second_container(_):
+            d = create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080, u"external": 8081}],
+                    u"node_uuid": node.uuid,
+                    u"volumes": [{u"dataset_id": self.dataset_id,
+                                  u"mountpoint": u"/data"}],
+                }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+            )
+            return d
+        creating_dataset.addCallback(create_second_container)
+        creating_dataset.addCallback(
+            lambda _: self.assert_http_server(
+                node.public_address, 8081,
+                path=b"/?file={file}".format(file=post_data["file"]),
+                expected_response=post_data["data"])
+        )
         return creating_dataset
-    # FLOC-2488 This test has been measured to take longer than the default
-    # trial timeout (120s), on AWS, using AWS dataset backend and on Vagrant
-    # using the ZFS backend.
-    test_create_container_with_dataset.timeout = 480
 
     @require_cluster(1)
     def test_current(self, cluster):
