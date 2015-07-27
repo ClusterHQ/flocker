@@ -87,6 +87,7 @@ jobs:
   # http://build.clusterhq.com/builders/flocker-centos-7
   aws_flocker_centos_7_acceptance:
     label: 'aws-centos-7'
+    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -96,6 +97,7 @@ jobs:
         }
   aws_flocker_centos_7_ca_functional:
     label: 'aws-centos-7'
+    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -105,6 +107,7 @@ jobs:
         }
   aws_flocker_centos_7_ca_test:
     label: 'aws-centos-7'
+    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -114,6 +117,7 @@ jobs:
         }
   aws_flocker_centos_7_cli:
     label: 'aws-centos-7'
+    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -122,6 +126,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_common:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -131,6 +136,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_control:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -150,6 +156,7 @@ jobs:
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #        }
   aws_flocker_centos_7_node:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -178,6 +185,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_provision:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -187,6 +195,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_restapi:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -196,6 +205,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_route:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -205,6 +215,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_test:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -214,6 +225,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_testtools:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -223,6 +235,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_centos_7_volume:
+    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -235,6 +248,7 @@ jobs:
 
 # http://build.clusterhq.com/builders/flocker-admin
   aws_ubuntu_trusty_admin:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -247,6 +261,7 @@ jobs:
 
 # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
   aws_flocker_ubuntu_trusty_acceptance:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -256,6 +271,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_ca_functional:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -265,6 +281,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_ca_test:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -274,6 +291,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_cli:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -283,6 +301,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_common:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -292,6 +311,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_control:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -311,6 +331,7 @@ jobs:
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #        }
   aws_flocker_ubuntu_trusty_node:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -339,6 +360,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_provision:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -348,6 +370,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_restapi:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -357,6 +380,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_route:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -366,6 +390,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_test:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -375,6 +400,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_testtools:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -384,6 +410,7 @@ jobs:
                  *run_coverage, *convert_results_to_junit ]
         }
   aws_flocker_ubuntu_trusty_volume:
+    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
