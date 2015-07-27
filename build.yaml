@@ -80,6 +80,11 @@ common_cli:
     #link-release-documentation
     #upload-release-documentation
 
+  flocker_artifacts: &flocker_artifacts
+    - results.xml
+    - _trial_temp/tests.log
+    - coverage.xml
+
 # the job definitions, they consume the aliases defined in the common_cli block
 #
 jobs:
@@ -87,7 +92,6 @@ jobs:
   # http://build.clusterhq.com/builders/flocker-centos-7
   aws_flocker_centos_7_acceptance:
     label: 'aws-centos-7'
-    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -95,9 +99,10 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_centos_7_ca_functional:
     label: 'aws-centos-7'
-    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -105,9 +110,10 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.ca.functional 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_centos_7_ca_test:
     label: 'aws-centos-7'
-    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -115,9 +121,10 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.ca.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_centos_7_cli:
     label: 'aws-centos-7'
-    coverage_report: true
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -125,8 +132,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_common:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_centos_7_common:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -135,8 +143,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_control:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_centos_7_control:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -145,6 +154,8 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
 # there's nothing to build for the flocker.docs module
 #  aws_flocker_centos_7_docs:
 #    label: 'aws-centos-7'
@@ -156,7 +167,6 @@ jobs:
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #        }
   aws_flocker_centos_7_node:
-    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -184,8 +194,9 @@ jobs:
                 'coverage run venv/bin/trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_provision:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_centos_7_provision:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -194,8 +205,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_restapi:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_centos_7_restapi:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -204,8 +216,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_route:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_centos_7_route:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -214,8 +227,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_centos_7_test:
-    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -224,8 +238,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_centos_7_testtools:
-    coverage_report: true
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -234,8 +249,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_centos_7_volume:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_centos_7_volume:
     label: 'aws-centos-7'
     steps:
       - { type: 'shell',
@@ -244,11 +260,12 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
 
 
 # http://build.clusterhq.com/builders/flocker-admin
   aws_ubuntu_trusty_admin:
-    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -257,11 +274,12 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit admin 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
 
 
 # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
   aws_flocker_ubuntu_trusty_acceptance:
-    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -270,8 +288,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.acceptance 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_ca_functional:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_ca_functional:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -280,8 +299,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.ca.functional 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_ca_test:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_ca_test:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -290,8 +310,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.ca.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_cli:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_cli:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -300,8 +321,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.cli 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_common:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_common:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -310,8 +332,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.common 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_control:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_control:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -320,6 +343,8 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.control 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
 # there's nothing to build for the flocker.docs module
 #  aws_flocker_ubuntu_trusty_docs:
 #    label: 'aws-ubuntu-trusty'
@@ -331,7 +356,6 @@ jobs:
 #            'cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml']
 #        }
   aws_flocker_ubuntu_trusty_node:
-    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -359,8 +383,9 @@ jobs:
                 'coverage run venv/bin/trial --reporter=subunit flocker.node.functional.test_script 2>&1 | tee -a trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_provision:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_provision:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -369,8 +394,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.provision 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_restapi:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_restapi:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -379,9 +405,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.restapi 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_route:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
-    label: 'aws-ubuntu-trusty'
+  aws_flocker_ubuntu_trusty_route:
     steps:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
@@ -389,8 +415,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.route 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_ubuntu_trusty_test:
-    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -399,8 +426,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
   aws_flocker_ubuntu_trusty_testtools:
-    coverage_report: true
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -409,8 +437,9 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.test 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
-  aws_flocker_ubuntu_trusty_volume:
+    archive_artifacts: *flocker_artifacts
     coverage_report: true
+  aws_flocker_ubuntu_trusty_volume:
     label: 'aws-ubuntu-trusty'
     steps:
       - { type: 'shell',
@@ -419,6 +448,8 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+    archive_artifacts: *flocker_artifacts
+    coverage_report: true
 
   # http://build.clusterhq.com/builders/flocker-docs
   flocker_docs:
@@ -439,4 +470,3 @@ jobs:
              'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(git rev-parse --abbrev-ref HEAD) --build-server http://build.clusterhq.com --config-file /not-found/acceptance.yaml',
              *convert_results_to_junit ]
         }
-

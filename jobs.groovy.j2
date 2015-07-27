@@ -51,7 +51,10 @@ branches.each {
 {% endfor %}
     }
     publishers {
-      archiveArtifacts('results.xml,coverage.xml,_trial_temp/test.log')
+{% if values.archive_artifacts -%}
+{% for artifact in values.archive_artifacts -%}
+	  archiveArtifacts("{{artifact}}")
+{% endfor %}
       archiveJunit('results.xml') {
         retainLongStdout(true)
         testDataPublishers {
@@ -61,6 +64,7 @@ branches.each {
              publishFlakyTestsReport()
         }
       }
+{% endif -%}
 {% if values.coverage_report -%}
         cobertura('coverage.xml') {
            onlyStable(false)
@@ -90,31 +94,22 @@ branches.each {
               job("${dashProject}/${branchName}/{{ job }}")  { killPhaseCondition("NEVER") }
 {% endfor %}
           }
-{% for job in cfg.jobs %}
+{% for job, values in cfg.jobs.iteritems() %}
+
+
+{% if values.archive_artifacts -%}
+
+{% for artifact in values.archive_artifacts -%}
           copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-              includePatterns('results.xml')
+		  includePatterns("{{artifact}}")
               targetDirectory('{{ job }}')
               fingerprintArtifacts(true)
               buildSelector {
                   workspace()
               }
           }
-          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-              includePatterns('_trial_temp/test.log')
-              targetDirectory('{{ job }}')
-              fingerprintArtifacts(true)
-              buildSelector {
-                  workspace()
-              }
-          }
-          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-              includePatterns('coverage.xml')
-              targetDirectory('{{ job }}')
-              fingerprintArtifacts(true)
-              buildSelector {
-                  workspace()
-              }
-          }
+{% endfor %}
+{% endif %}
 {% endfor %}
       }
       publishers {
@@ -136,3 +131,4 @@ branches.each {
       }
   }
 }
+
