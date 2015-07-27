@@ -83,6 +83,7 @@ li.button.menu a:hover {
 h1, h2, h3, h4, h5 {
     font-family:'Soho Gothic W01 Medium';
     padding-bottom: 25px;
+    padding-top: 25px;
 }
 
 a.headerlink {
@@ -410,7 +411,7 @@ a.download:before {
     }
 
     .menu ul.menu {
-        padding-left: 15%;
+        padding-left: 5%;
     }
 
     ul.menu li:last-of-type a {
@@ -432,7 +433,7 @@ a.download:before {
     }
 
     .menu ul.menu {
-        padding-left: 20%;
+        padding-left: 15%;
     }
 }
 
