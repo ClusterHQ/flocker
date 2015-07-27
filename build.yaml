@@ -73,9 +73,9 @@ common_cli:
 
   run_sphinx: &run_sphinx |
     python setup.py --version
-    ven/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
-    venv/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-    venv/bin/sphinx-build -d _build/doctree -b html . _build/html
+    sphinx-build -d _build/doctree -b spelling . _build/spelling
+    sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    sphinx-build -d _build/doctree -b html . _build/html
     # upload html
     #link-release-documentation
     #upload-release-documentation
