@@ -4,7 +4,14 @@
 Post-installation Configuration
 ===============================
 
-Your firewall will need to allow access to the ports your applications are exposing.
+The following sections describe how to complete the post-installation configuration:
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
+
+It is important to remember that your firewall will need to allow access to the ports your applications are exposing.
 
 .. warning::
 
