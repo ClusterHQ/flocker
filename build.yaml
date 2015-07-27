@@ -470,3 +470,4 @@ jobs:
              'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(git rev-parse --abbrev-ref HEAD) --build-server http://build.clusterhq.com --config-file /not-found/acceptance.yaml',
              *convert_results_to_junit ]
         }
+
