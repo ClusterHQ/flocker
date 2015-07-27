@@ -23,6 +23,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
+from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
 
@@ -660,7 +661,6 @@ class LogExportOptions(Options):
     """
     Command line options for ``flocker-log-export``.
     """
-    # Use as basis for subclass' synopsis:
     synopsis = "Usage: flocker-log-export [OPTIONS]"
 
     optParameters = [
@@ -673,7 +673,8 @@ class LogExportOptions(Options):
 
 
 class LogExportScript(object):
-    pass
+    def main(self, reactor, options):
+        return succeed(None)
 
 
 def flocker_log_export_main():
