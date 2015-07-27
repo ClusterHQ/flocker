@@ -15,8 +15,8 @@ from twisted.trial.unittest import TestCase
 from ..control.httpapi import container_configuration_response
 
 from .testtools import (MONGO_APPLICATION, MONGO_IMAGE,
-                        get_mongo_application, require_flocker_cli,
-                        require_mongo, create_application,
+                        require_flocker_cli,
+                        create_application,
                         create_attached_volume, require_cluster,
                         require_moving_backend)
 
@@ -188,42 +188,4 @@ class DeploymentTests(TestCase):
             return waiting_for_dataset
 
         d = waiting_for_container_2.addCallback(got_container_2)
-        return d
-
-    @require_flocker_cli
-    @require_mongo
-    @require_cluster(1)
-    def test_deploy(self, cluster):
-        """
-        Deploying an application to one node and not another puts the
-        application where expected. Where applicable, Docker has internal
-        representations of the data given by the configuration files supplied
-        to flocker-deploy.
-        """
-        [node_1] = cluster.nodes
-
-        minimal_deployment = {
-            u"version": 1,
-            u"nodes": {
-                node_1.reported_hostname: [MONGO_APPLICATION],
-            },
-        }
-
-        minimal_application = {
-            u"version": 1,
-            u"applications": {
-                MONGO_APPLICATION: {
-                    u"image": MONGO_IMAGE,
-                },
-            },
-        }
-
-        d = cluster.flocker_deploy(
-            self, minimal_deployment, minimal_application)
-
-        d.addCallback(
-            lambda _: cluster.assert_expected_deployment(self, {
-                node_1.reported_hostname: set([get_mongo_application()]),
-            })
-        )
         return d
