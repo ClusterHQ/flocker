@@ -382,6 +382,33 @@ class ContainerAPITests(TestCase):
                 origin.public_address, origin_port))
         return running
 
+    @require_cluster(2)
+    def test_traffic_routed(self, cluster):
+        """
+        An application can be accessed even from a connection to a node
+        which it is not running on.
+        """
+        port = 8080
+
+        [destination, origin] = cluster.nodes
+
+        running = gatherResults([
+            create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080, u"external": port}],
+                    u"node_uuid": destination.uuid,
+                }, CURRENT_DIRECTORY.child(b"hellohttp.py")),
+            # Wait for the destination to be accepting connections.
+            verify_socket(destination.public_address, port),
+            # Wait for the origin container to be accepting connections.
+            verify_socket(origin.public_address, port),
+            ])
+
+        running.addCallback(
+            # Connect to the machine where the container is NOT running:
+            lambda _: self.assert_http_server(origin.public_address, port))
+        return running
+
 
 class DatasetAPITests(TestCase):
     """
