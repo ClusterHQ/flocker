@@ -314,9 +314,6 @@ class ContainerAPITests(TestCase):
         the HTTP server via Flocker in order to check if that particular
         setup succeeded.
 
-        We try three times since it may take a little time for the HTTP
-        server to start up.
-
         :param bytes host: Host to connect to.
         :param int port: Port to connect to.
         """
