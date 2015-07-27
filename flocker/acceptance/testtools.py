@@ -907,9 +907,8 @@ def create_dataset(test_case, cluster,
     :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
-    :return: ``Deferred`` firing with a tuple of (``Cluster``
-        instance, dataset dictionary) once the dataset is present in
-        actual cluster state.
+    :return: ``Deferred`` firing with a dataset state dictionary once the
+        dataset is present in actual cluster state.
     """
     # Configure a dataset on node1
     requested_dataset = {

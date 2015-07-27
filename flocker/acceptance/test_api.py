@@ -21,7 +21,7 @@ from ..testtools import (
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
     require_cluster, require_moving_backend, create_dataset,
-    create_python_container,
+    create_python_container, REALISTIC_BLOCKDEVICE_SIZE,
 )
 
 CURRENT_DIRECTORY = FilePath(__file__).parent()
@@ -399,23 +399,30 @@ class DatasetAPITests(TestCase):
     def test_dataset_move(self, cluster):
         """
         A dataset can be moved from one node to another.
+
+        All attributes, including the maximum size, are preserved.
         """
-        waiting_for_create = create_dataset(self, cluster)
+        waiting_for_create = create_dataset(
+            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
 
         # Once created, request to move the dataset to node2
         def move_dataset(dataset):
-            moved_dataset = {
-                u'primary': cluster.nodes[1].uuid
-            }
-            return cluster.update_dataset(dataset['dataset_id'], moved_dataset)
-        dataset_moving = waiting_for_create.addCallback(move_dataset)
+            dataset_moving = cluster.update_dataset(
+                dataset['dataset_id'], {
+                    u'primary': cluster.nodes[1].uuid
+                })
 
-        # Wait for the dataset to be moved
-        waiting_for_move = dataset_moving.addCallback(
-            lambda dataset: cluster.wait_for_dataset(dataset)
-        )
+            # Wait for the dataset to be moved; we expect the state to
+            # match that of the originally created dataset in all ways
+            # other than the location.
+            moved_dataset = dataset.copy()
+            moved_dataset[u'primary'] = cluster.nodes[1].uuid
+            dataset_moving.addCallback(
+                lambda dataset: cluster.wait_for_dataset(dataset))
+            return dataset_moving
 
-        return waiting_for_move
+        waiting_for_create.addCallback(move_dataset)
+        return waiting_for_create
 
     @require_cluster(1)
     def test_dataset_deletion(self, cluster):
