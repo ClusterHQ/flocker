@@ -18,3 +18,10 @@ class FlockerContainerAgentTests(
     """
     Tests for ``flocker-container-agent``.
     """
+
+
+class FlockerLogExportTests(
+        make_script_tests(b"flocker-log-export")):
+    """
+    Tests for ``flocker-log-export``.
+    """

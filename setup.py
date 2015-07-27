@@ -92,6 +92,7 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-container-agent = flocker.node.script:flocker_container_agent_main',  # noqa
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',  # noqa
+            'flocker-log-export = flocker.node.script:flocker_log_export_main',  # noqa
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker-ca = flocker.ca._script:flocker_ca_main',
             'flocker = flocker.cli.script:flocker_cli_main',

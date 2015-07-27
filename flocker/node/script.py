@@ -653,3 +653,34 @@ class DatasetServiceFactory(PRecord):
         loop_service = agent_service.get_loop_service(deployer)
 
         return loop_service
+
+
+@flocker_standard_options
+class LogExportOptions(Options):
+    """
+    Command line options for ``flocker-log-export``.
+    """
+    # Use as basis for subclass' synopsis:
+    synopsis = "Usage: flocker-log-export [OPTIONS]"
+
+    optParameters = [
+        ["working_directory", "", "",
+         "The directory where temporary files will be written."],
+    ]
+
+    def postOptions(self):
+        self['working_directory'] = FilePath(self['working_directory'])
+
+
+class LogExportScript(object):
+    pass
+
+
+def flocker_log_export_main():
+    """
+    Implementation of the ``flocker-log-export`` command line script.
+    """
+    return FlockerScriptRunner(
+        script=LogExportScript(),
+        options=LogExportOptions()
+    ).main()
