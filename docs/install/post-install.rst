@@ -41,7 +41,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
    .. warning:: The cluster administrator needs this file to generate new control service, node and API certificates.
                 The security of your cluster depends on this file remaining private.
-                Do not lose the cluster private key file, or allow a copy to be obtained by any person other than the authorised cluster administrator.
+                Do not lose the cluster private key file, or allow a copy to be obtained by any person other than the authorized cluster administrator.
 
 #. You are now able to generate authentication certificates for the control service and each of your nodes.
    To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step:
@@ -296,7 +296,7 @@ The configuration item to use ZFS should look like:
    FLOC-2092
 
 The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
-This requires first installing `ZFS on Linux <http://zfsonlinux.org/>`_.
+This requires first installing :ref:`ZFS on Linux <installing-ZFS-CentOS-7>`.
 You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
 .. _loopback-dataset-backend:
@@ -346,6 +346,7 @@ Optional ZFS Backend Configuration
 
 If you intend to use a ZFS backend, this requires ZFS to be installed.
 
+.. _installing-ZFS-CentOS-7:
 
 Installing ZFS on CentOS 7
 ..........................

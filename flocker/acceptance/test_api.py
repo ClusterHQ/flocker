@@ -6,12 +6,11 @@ Tests for the control service REST API.
 
 import socket
 from contextlib import closing
-from uuid import uuid4
 
 from pyrsistent import thaw, pmap
 
 from twisted.trial.unittest import TestCase
-
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
 
 from treq import get, json_content, content
@@ -19,12 +18,16 @@ from treq import get, json_content, content
 from eliot import Message
 
 from ..testtools import (
-    REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
+    loop_until, random_name, find_free_port,
 )
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
-    require_cluster, require_moving_backend,
+    require_cluster, require_moving_backend, create_dataset,
+    create_python_container,
 )
+
+CURRENT_DIRECTORY = FilePath(__file__).parent()
+
 
 # A command that will run an "HTTP" in a Busybox container.  The server
 # responds "hi" to any request.
@@ -75,20 +78,13 @@ class ContainerAPITests(TestCase):
         :return: ``Deferred`` firing with a container dictionary once the
             container is up and running.
         """
-        data = {
-            u"name": random_name(self),
-            u"image": "clusterhq/flask:latest",
-            u"ports": [{u"internal": 80, u"external": 8080}],
-            u'restart_policy': {u'name': u'never'},
-            u"node_uuid": cluster.nodes[0].uuid,
-        }
-
-        d = cluster.create_container(data)
+        d = create_python_container(
+            self, cluster, {
+                u"ports": [{u"internal": 8080, u"external": 8080}],
+                u"node_uuid": cluster.nodes[0].uuid,
+            }, CURRENT_DIRECTORY.child(b"hellohttp.py"))
 
         def check_result(response):
-            self.addCleanup(cluster.remove_container, data[u"name"])
-
-            self.assertEqual(response, data)
             dl = verify_socket(cluster.nodes[0].public_address, 8080)
             dl.addCallback(lambda _: response)
             return dl
@@ -430,37 +426,6 @@ nc -ll -p 9000 -e /tmp/script.sh
             lambda _: self.assert_busybox_http(
                 origin.public_address, origin_port))
         return running
-
-
-def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
-    """
-    Create a dataset on a cluster (on its first node, specifically).
-
-    :param TestCase test_case: The test the API is running on.
-    :param Cluster cluster: The test ``Cluster``.
-    :param int maximum_size: The size of the dataset to create on the test
-        cluster.
-    :return: ``Deferred`` firing with a tuple of (``Cluster``
-        instance, dataset dictionary) once the dataset is present in
-        actual cluster state.
-    """
-    # Configure a dataset on node1
-    requested_dataset = {
-        u"primary": cluster.nodes[0].uuid,
-        u"dataset_id": unicode(uuid4()),
-        u"maximum_size": maximum_size,
-        u"metadata": {u"name": u"my_volume"},
-    }
-
-    configuring_dataset = cluster.create_dataset(requested_dataset)
-
-    # Wait for the dataset to be created
-    waiting_for_create = configuring_dataset.addCallback(
-        lambda dataset: cluster.wait_for_dataset(dataset)
-    )
-
-    return waiting_for_create
 
 
 class DatasetAPITests(TestCase):

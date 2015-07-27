@@ -1,7 +1,5 @@
 .. _installing-flocker:
 
-:tocdepth: 2
-
 ==================
 Installing Flocker
 ==================
