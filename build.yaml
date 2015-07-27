@@ -71,6 +71,15 @@ common_cli:
   convert_results_to_junit: &convert_results_to_junit |
     cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
 
+  run_sphinx: &run_sphinx |
+    python setup.py --version
+    ven/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
+    venv/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    venv/bin/sphinx-build -d _build/doctree -b html . _build/html
+    # upload html
+    #link-release-documentation
+    #upload-release-documentation
+
 # the job definitions, they consume the aliases defined in the common_cli block
 #
 jobs:
@@ -383,3 +392,12 @@ jobs:
                  'coverage run venv/bin/trial --reporter=subunit flocker.volume 2>&1 | tee trial.log',
                  *run_coverage, *convert_results_to_junit ]
         }
+
+  # http://build.clusterhq.com/builders/flocker-docs
+  flocker_docs:
+    label: 'aws-centos-7'
+    steps:
+      - { type: 'shell',
+          cli: [ *hashbang, *setup_pip_accel_centos_7_vars,
+                 *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+                 *run_sphinx ]
