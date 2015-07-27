@@ -436,7 +436,7 @@ jobs:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
              *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-             'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$BRANCH --build-server http://build.clusterhq.com --config-file /not-found/acceptance.yaml',
+             'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(git rev-parse --abbrev-ref HEAD) --build-server http://build.clusterhq.com --config-file /not-found/acceptance.yaml',
              *convert_results_to_junit ]
         }
 
