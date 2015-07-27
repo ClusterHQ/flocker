@@ -401,3 +401,4 @@ jobs:
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                  *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
                  *run_sphinx ]
+        }
