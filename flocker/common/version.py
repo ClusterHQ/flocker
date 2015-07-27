@@ -8,24 +8,26 @@ from characteristic import attributes, Attribute
 from pyrsistent import PRecord, field
 
 
-# This regex parses possible version numbers of flocker. It handles a mix of
-# versionings schemes (a PEP440 compliant one and an older one). In particular,
-# it parses the trailing part of the version added by versioneer 0.10 and 0.15.
+# This regex parses valid version numbers for Flocker. It handles two
+# versioning schemes (legacy and PEP440 compliant). In particular, it
+# parses the trailing part of the version added by Versioneer 0.10 and
+# 0.15.
 _VERSION_RE = re.compile(
     # The base version
     r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
     # Pre-release
+    # Legacy versions used `preN` instead of `rcN`
     r"((?:rc|pre)(?P<pre_release>[0-9]+))?"
     # Weekly release
-    # Old versions didn't have the leading `.`
+    # Legacy versions used `devN` instead of `.devN`
     r"(\.?dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
-    # Old versions used `+doc`
+    # Legacy versions used `+docN` instead of `.postN`
     r"((:?\.post|\+doc)(?P<documentation_revision>[0-9]+))?"
     # Development version
-    # Old versions have `.` in the case of `+doc`.
+    # Legacy versions used `.` here if `+doc` was also present.
     r"([+.](?P<commit_count>[0-9]+).g(?P<commit_hash>[0-9a-f]+))?"
-    # Whether the tree is dirty.
+    # Whether the source tree is dirty (changed from the last commit).
     r"((?P<dirty>.dirty))?"
     # Always match the entire version string.
     r"$"
