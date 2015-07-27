@@ -14,7 +14,7 @@ from pyrsistent import PRecord, field
 # 0.15.
 _VERSION_RE = re.compile(
     # The base version
-    r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
+    r"(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
     # Pre-release
     # Legacy versions used `preN` instead of `rcN`
     r"((?:rc|pre)(?P<pre_release>[0-9]+))?"
