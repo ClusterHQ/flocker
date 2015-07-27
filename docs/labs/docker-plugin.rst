@@ -4,7 +4,7 @@
 Flocker Docker plugin
 =====================
 
-The Flocker Docker plugin is a `Docker volumes plugin <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
+The Flocker Docker plugin is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
 
 This diagram explains how the architecture of a Flocker cluster with the Docker plugin would look if the user is also using :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`:
 
@@ -36,6 +36,8 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
     They are distinct architectures.
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
+
+.. _`Docker volumes plugin`: https://github.com/docker/docker/blob/3ee15acaadc3f25c90ea2c4de2e5ab1a12d8e042/docs/extend/plugins_volume.md
 
 How it works
 ============
