@@ -38,7 +38,7 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
 
 .. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
-.. _`Docker documentation on volume plugins`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
+.. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
 
 How it works
 ============
