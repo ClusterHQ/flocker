@@ -7,8 +7,6 @@ Tests for the control service REST API.
 import socket
 from contextlib import closing
 
-from pyrsistent import thaw, pmap
-
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
@@ -18,7 +16,7 @@ from treq import get, json_content, content
 from eliot import Message
 
 from ..testtools import (
-    loop_until, random_name, find_free_port,
+    loop_until, random_name,
 )
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
@@ -27,20 +25,6 @@ from .testtools import (
 )
 
 CURRENT_DIRECTORY = FilePath(__file__).parent()
-
-
-# A command that will run an "HTTP" in a Busybox container.  The server
-# responds "hi" to any request.
-BUSYBOX_HTTP = [
-    u"sh", u"-c",
-    u"""\
-echo -n '#!/bin/sh
-echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
-' > /tmp/script.sh;
-chmod +x /tmp/script.sh;
-nc -ll -p 8080 -e /tmp/script.sh
-"""
-]
 
 
 def verify_socket(host, port):
@@ -301,7 +285,7 @@ class ContainerAPITests(TestCase):
         creating.addCallback(created)
         return creating
 
-    def assert_busybox_http(self, host, port):
+    def assert_http_server(self, host, port):
         """
         Assert that a HTTP serving a response with body ``b"hi"`` is running
         at given host and port.
@@ -309,6 +293,9 @@ class ContainerAPITests(TestCase):
         This can be coupled with code that only conditionally starts up
         the HTTP server via Flocker in order to check if that particular
         setup succeeded.
+
+        We try three times since it may take a little time for the HTTP
+        server to start up.
 
         :param bytes host: Host to connect to.
         :param int port: Port to connect to.
@@ -337,41 +324,22 @@ class ContainerAPITests(TestCase):
         A container running as a user that is not root can write to a
         dataset attached as a volume.
         """
-        _, port = find_free_port()
         node = cluster.nodes[0]
-        container = {
-            u"name": random_name(self),
-            u"node_uuid": node.uuid,
-            u"image": u"busybox",
-            u"ports": [{u"internal": 8080, u"external": port}],
-            u'restart_policy': {u'name': u'never'},
-            u"volumes": [{u"dataset_id": None,
-                          u"mountpoint": u"/data"}],
-            u"command_line": [
-                # Run as non-root user:
-                u"su", u"-", u"nobody", u"-c", u"sh", u"-c",
-                # Write something to volume we attached, and then
-                # expose what we wrote as a web server; for info on nc options
-                # you can do `docker run busybox man nc`.
-                u"""\
-echo -n '#!/bin/sh
-echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
-' > /data/script.sh;
-chmod +x /data/script.sh;
-nc -ll -p 8080 -e /data/script.sh
-            """]}
-
         creating_dataset = create_dataset(self, cluster)
 
         def created_dataset(dataset):
-            container[u"volumes"][0][u"dataset_id"] = dataset[u"dataset_id"]
-            return cluster.create_container(container)
+            return create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080, u"external": 8080}],
+                    u"node_uuid": node.uuid,
+                    u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                                  u"mountpoint": u"/data"}],
+                }, CURRENT_DIRECTORY.child(b"nonrootwritehttp.py"),
+                additional_arguments=[u"/data"])
         creating_dataset.addCallback(created_dataset)
 
-        creating_dataset.addCallback(lambda _: self.addCleanup(
-            cluster.remove_container, container[u"name"]))
         creating_dataset.addCallback(
-            lambda _: self.assert_busybox_http(node.public_address, port))
+            lambda _: self.assert_http_server(node.public_address, 8080))
         return creating_dataset
 
     @require_cluster(2)
@@ -383,53 +351,34 @@ nc -ll -p 8080 -e /data/script.sh
         obtained from ``<ALIAS>_PORT_<PORT>_TCP_{ADDR,PORT}``-style environment
         set in the origin container's environment.
         """
-        _, destination_port = find_free_port()
-        _, origin_port = find_free_port()
+        destination_port = 8080
+        origin_port = 8081
 
         [destination, origin] = cluster.nodes
 
-        busybox = pmap({
-            u"image": u"busybox",
-        })
-
-        destination_container = busybox.update({
-            u"name": random_name(self),
-            u"node_uuid": destination.uuid,
-            u"ports": [{u"internal": 8080, u"external": destination_port}],
-            u"command_line": BUSYBOX_HTTP,
-        })
-        self.addCleanup(
-            cluster.remove_container, destination_container[u"name"]
-        )
-
-        origin_container = busybox.update({
-            u"name": random_name(self),
-            u"node_uuid": origin.uuid,
-            u"links": [{u"alias": "DEST", u"local_port": 80,
-                        u"remote_port": destination_port}],
-            u"ports": [{u"internal": 9000, u"external": origin_port}],
-            u"command_line": [
-                u"sh", u"-c", u"""\
-echo -n '#!/bin/sh
-nc $DEST_PORT_80_TCP_ADDR $DEST_PORT_80_TCP_PORT
-' > /tmp/script.sh;
-chmod +x /tmp/script.sh;
-nc -ll -p 9000 -e /tmp/script.sh
-                """]})
-        self.addCleanup(
-            cluster.remove_container, origin_container[u"name"]
-        )
         running = gatherResults([
-            cluster.create_container(thaw(destination_container)),
-            cluster.create_container(thaw(origin_container)),
+            create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080,
+                                u"external": destination_port}],
+                    u"node_uuid": destination.uuid,
+                }, CURRENT_DIRECTORY.child(b"hellohttp.py")),
+            create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8081,
+                                u"external": origin_port}],
+                    u"links": [{u"alias": "dest", u"local_port": 80,
+                                u"remote_port": destination_port}],
+                    u"node_uuid": origin.uuid,
+                }, CURRENT_DIRECTORY.child(b"proxyhttp.py")),
             # Wait for the link target container to be accepting connections.
             verify_socket(destination.public_address, destination_port),
             # Wait for the link source container to be accepting connections.
             verify_socket(origin.public_address, origin_port),
-        ])
+            ])
 
         running.addCallback(
-            lambda _: self.assert_busybox_http(
+            lambda _: self.assert_http_server(
                 origin.public_address, origin_port))
         return running
 
