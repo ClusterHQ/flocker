@@ -62,7 +62,7 @@ branches.each {
         }
       }
         cobertura('coverage.xml') {
-           onlyStable(true)
+           onlyStable(fail)
            failUnhealthy(true)
            failUnstable(true)
            failNoReports(true)
@@ -126,7 +126,7 @@ branches.each {
               }
           }
           cobertura('**/coverage.xml') {
-            onlyStable(true)
+            onlyStable(false)
             failUnhealthy(true)
             failUnstable(true)
             failNoReports(true)
