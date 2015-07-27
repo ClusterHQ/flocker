@@ -22,7 +22,7 @@ As a user of Docker, it means you can use Flocker directly via:
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API (set it to ``flocker``).
 
-See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_.
+See the `Docker documentation on volume plugins`_.
 
 This currently depends on the `experimental build of Docker <https://github.com/docker/docker/tree/master/experimental>`_.
 
@@ -38,6 +38,7 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
 
 .. _`Docker volumes plugin`: https://github.com/docker/docker/blob/3ee15acaadc3f25c90ea2c4de2e5ab1a12d8e042/docs/extend/plugins_volume.md
+.. _`Docker documentation on volume plugins`: https://github.com/docker/docker/blob/3ee15acaadc3f25c90ea2c4de2e5ab1a12d8e042/docs/extend/plugins_volume.md
 
 How it works
 ============
