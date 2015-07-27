@@ -409,7 +409,7 @@ jobs:
       - { type: 'shell',
           cli: [ *hashbang, *setup_pip_accel_centos7_vars,
              *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-             'venv/bin/python admin/run-acceptance-tests --distirbution centos-7 --provider aws --dataset-backent aws --branch $BRANCH --build-server http://build.clusterhq.com --config-file $FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE',
+             'venv/bin/python admin/run-acceptance-tests --distirbution centos-7 --provider aws --dataset-backent aws --branch \$BRANCH --build-server http://build.clusterhq.com --config-file $FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE',
              *convert_results_to_junit ]
         }
 
