@@ -1,60 +1,62 @@
-def project = "{{ cfg.project }}"
-def git_url = "{{ cfg.git_url }}"
-def branchApi = new URL("https://api.github.com/repos/{{ cfg.project }}/branches")
-def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
-def dashProject = "{{ cfg.project }}".replace('/', '-')
+{% macro folder(folder, display_name)                                       -%}
+{# creates a folder structure to group jobs
+   param folder:  '<clusterhq-flocker/branchname>'
+   param displayName: Name displayed in the jenkins view for this folder     #}
+folder("{{folder}}") { displayName("{{display_name}}") }
+{%- endmacro                                                                -%}
+{#
 
-folder("${dashProject}") {
-    displayName("${dashProject}")
-}
-
-branches << ['name':'master']
-branches.each {
-
-  branchName = "${it.name}"
-  dashBranchName = "${branchName}".replace("/","-")
-
-  folder("${dashProject}/${branchName}") {
-    displayName("${branchName}")
-  }
-{% for job, values in cfg.jobs.iteritems() %}
-  job("${dashProject}/${branchName}/{{ job }}") {
-    label("{{ values.label }}")
+#}
+{% macro wrappers()                                                         -%}
+{# adds a list of common wrappers to the build jobs                          #}
     wrappers {
-        timestamps()
-        colorizeOutput()
-        timeout {
-            absolute(25)
-            failBuild()
+      timestamps()
+      colorizeOutput()
+      timeout {
+          absolute(25)
+          failBuild()
+      }
+    }
+{%- endmacro                                                                -%}
+{#
+
+#}
+{% macro scm(git_url, branch) -%}
+{# configures a remote git repository, and merges 'branch' before build
+    param: git_url - example: https://github.com/clusterhq/flocker
+    param: branch - remote branch name to configure                          #}
+    scm {
+      git {
+        remote {
+          name("upstream")
+          url("{{git_url}}")
         }
+        branch("{{branch}}")
+        clean(true)
+        createTag(false)
+        mergeOptions('upstream', "master")
+      }
     }
-    scm { git {
-            remote {
-            name("upstream")
-                url("${git_url}")
-                }
-            branch("${branchName}")
-            clean(true)
-            createTag(false)
-            mergeOptions('upstream', 'master')
-        }
-    }
-    steps {
-{% for _step in values.steps -%}
-{% if _step.type=='shell' %}
-    shell("""
-{% for line in _step.cli -%}
-      {{ line }}
-{% endfor -%}
-    """)
-{% endif -%}
-{% endfor %}
-    }
+{%- endmacro                                                                -%}
+{#
+
+#}
+{% macro publishers(v)                                                      -%}
+{# adds a publishers block to the jenkins job configuration, containing:
+   an action for archiving artifacts
+   an action for archiving junit results
+   an action for publishing coverate reports
+
+   param: dictionary containing the job keys
+#}
     publishers {
-{% if values.archive_artifacts -%}
-{% for artifact in values.archive_artifacts -%}
-	  archiveArtifacts("{{artifact}}")
-{% endfor %}
+{% if v.archive_artifacts                                                   -%}
+{%        for artifact in v.archive_artifacts                                %}
+{# v.archive_artifacts typically contain:
+   'results.xml', 'coverage.xml', '_trial_temp/trial.log'                    #}
+      archiveArtifacts("{{artifact}}")
+{%        endfor                                                             %}
+{# archives the junit results and publish the test results                   #}
       archiveJunit('results.xml') {
         retainLongStdout(true)
         testDataPublishers {
@@ -64,53 +66,216 @@ branches.each {
              publishFlakyTestsReport()
         }
       }
-{% endif -%}
-{% if values.coverage_report -%}
+{%      endif                                                               -%}
+{%      if v.coverage_report                                                 %}
+{# publishes a coverage report, using junit and the cobertura plugin         #}
         cobertura('coverage.xml') {
            onlyStable(false)
            failUnhealthy(true)
            failUnstable(true)
            failNoReports(true)
         }
-{% endif -%}
+{%      endif                                                               -%}
     }
-  }
-{% endfor %}
+{%- endmacro                                                                -%}
+{#                                                                           #}
+{% macro steps(v)                                                           -%}
+{#  builds a list of job steps based on the type of the job:
+    ( 'shell', others )
+    currently only shell has been implemented.
+    params: dictionary containing the job values                             #}
+    steps {
+{%  for _step in v                                                          -%}
+{%    if _step.type=='shell'                                                 %}
+    shell("""
+{%      for line in _step.cli                                               -%}
+      {{ line }}
+{%      endfor                                                              -%}
+    """)
+{%    endif                                                                 -%}
+{%  endfor                                                                   %}
+    }
+{%- endmacro                                                                -%}
+{#
 
-  multiJob("${dashProject}/${branchName}/_main_multijob") {
-    wrappers {
-        timestamps()
-        colorizeOutput()
-        timeout {
-            absolute(25)
-            failBuild()
+
+#}
+{# groov lacks a loop...until ...                                            #}
+class Looper {
+   private Closure code
+
+   static Looper loop( Closure code ) {
+      new Looper(code:code)
+   }
+
+   void until( Closure test ) {
+      code()
+      while (!test()) {
+         code()
+      }
+   }
+}
+
+def project = "{{ cfg.project }}"
+def git_url = "{{ cfg.git_url }}"
+int page = 1
+branches = []
+{# grab the GitHub token from the jenkins homedir                            #}
+String token = new File('/var/lib/jenkins/.github_token').text.trim()
+
+{# groove lacks a loop...until
+   we need to iterate over every page to get the full list of branches       #}
+    Looper.loop {
+    def addr = "https://api.github.com/repos/{{ cfg.project }}/branches?page=${page}"
+
+        conn = addr.toURL().openConnection()
+        conn.setRequestProperty( "Authorization", "token ${token}" )
+        response = []
+        if( conn.responseCode == 200 ) {
+            response = new groovy.json.JsonSlurper().parseText(conn.content.text)
         }
-    }
+        if ( response != [] ) {
+            response.each {
+                branches << "${ it.name }"
+            }
+        }
+        page = page + 1
+    } until { response == [] }
+
+def dashProject = "{{ cfg.project }}".replace('/', '-')
+
+{# Create a basefolder for our project, it should look like:
+   '<github username>-<git repository>'                                      #}
+{{ folder("${dashProject}","${dashProject}") }}
+
+{# the branchApi.newReader call returns all the upstreams, but excludes
+   'master' so we add it here                                                #}
+branches << "master"
+
+{# Iterate over every branch, and create folders, jobs                       #}
+branches.each {
+
+{#  swap '/' with '-'                                                        #}
+  branchName = "${it}"
+  dashBranchName = "${branchName}".replace("/","-")
+
+{#   create a folder for every branch: /git-username/git-repo/branch         #}
+  {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
+
+
+{# iterate over every job_type  #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{%  for job_name, job_values  in job_type_values.iteritems()                -%}
+
+{# apply config related to 'run_trial' jobs                                  #}
+{%    if job_type == 'run_trial'                                            -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters { textParam("MODULE", "{{ _module }}", "Module to test" ) }
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers() }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
+  }
+{%      endfor                                                               %}
+{%    endif                                                                  %}
+
+{# apply config related to 'run_sphinx' jobs                                 #}
+{%    if job_type == 'run_sphinx'                                           -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers() }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+
+{# apply config related to 'run_acceptance' jobs                             #}
+{%    if job_type == 'run_acceptance'                                       -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers() }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+{%  endfor                                                                   %}
+{% endfor                                                                    %}
+
+
+{# the multijob is responsible for running all configured jobs in parallel   #}
+  multiJob("${dashProject}/${dashBranchName}/_main_multijob") {
+    {{ wrappers() }}
       steps {
           shell('rm -rf *')
           phase('parallel_tests') {
               continuationCondition('ALWAYS')
-{% for job in cfg.jobs %}
-              job("${dashProject}/${branchName}/{{ job }}")  { killPhaseCondition("NEVER") }
-{% endfor %}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+
+{# add the 'run_trial' style jobs                                            #}
+{%  if job_type == 'run_trial'                                              -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                           %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+                killPhaseCondition("NEVER")
+              }
+{%      endfor                                                              -%}
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'run_sphinx' style jobs                                           #}
+{%  if job_type == 'run_sphinx'                                             -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'run_acceptance' style jobs                                       #}
+{%  if job_type == 'run_acceptance'                                         -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{% endfor                                                                    %}
           }
-{% for job, values in cfg.jobs.iteritems() %}
+{# we've added the jobs to the multijob, we now need to fetch and archive all
+   the artifacts produced by the different jobs                              #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{%  for job_name, job_values  in job_type_values.iteritems()                -%}
+{%    for _module in job_values.with_modules                                -%}
+{%       set _job_name = job_name + '_' + _module                            %}
 
+{# no every job produces an artifact, so make sure wew don't try to fetch
+   artifacts for jobs that don't produce them                                #}
+{%      if job_values.archive_artifacts                                     -%}
 
-{% if values.archive_artifacts -%}
-
-{% for artifact in values.archive_artifacts -%}
-          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-		  includePatterns("{{artifact}}")
-              targetDirectory('{{ job }}')
+{%        for artifact in job_values.archive_artifacts                       %}
+          copyArtifacts("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+          includePatterns("{{artifact}}")
+              targetDirectory('{{ _job_name }}')
               fingerprintArtifacts(true)
               buildSelector {
                   workspace()
               }
           }
-{% endfor %}
-{% endif %}
-{% endfor %}
+{%        endfor                                                             %}
+{%      endif                                                                %}
+{%    endfor                                                                 %}
+{%  endfor                                                                   %}
+{% endfor                                                                    %}
+{# do an aggregation of all the test results                                 #}
       }
       publishers {
           archiveJunit('**/results.xml') {
@@ -122,6 +287,7 @@ branches.each {
                   publishFlakyTestsReport()
               }
           }
+{# do an aggregation of all the coverage results                             #}
           cobertura('**/coverage.xml') {
             onlyStable(false)
             failUnhealthy(true)
@@ -131,4 +297,3 @@ branches.each {
       }
   }
 }
-
