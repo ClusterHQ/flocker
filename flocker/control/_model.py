@@ -17,14 +17,14 @@ There are different categories of classes:
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type, CheckedPVector,
+    optional as optional_type, CheckedPVector, PClass
     )
 
 from zope.interface import Interface, implementer
@@ -504,6 +504,60 @@ def _get_node(default_factory):
     return get_node
 
 
+class Lease(PClass):
+    """
+    A lease.
+    """
+    dataset_id = field(type=UUID)
+    node_uuid = field(type=UUID)
+    expiration = field(type=datetime, optional=True)
+
+
+class Leases(PMap):
+    """
+    Leases.
+
+    Map dataset IDs to Leases.
+    """
+    __key_type__ = UUID
+    __value_type__ = Lease
+    __invariant__ = _keys_match_dataset_id
+
+    def _check_lease(self, dataset_id, node_uuid):
+        if dataset_id in self and self[dataset_id].node_uuid != node_uuid:
+            raise ValueError("Lease already held by another node")
+
+    def acquire(self, now, dataset_id, node_uuid, expires=None):
+        """
+        Acquire and renew.
+        """
+        self._check_lease(dataset_id, node_uuid)
+        if expires is None:
+            expiration = None
+        else:
+            expiration = now + timedelta(seconds=expires)
+        lease = Lease(dataset_id=dataset_id, node_uuid=node_uuid,
+                      expiration=expiration)
+        return self.set(dataset_id, lease)
+
+    def release(self, dataset_id, node_uuid):
+        """
+        Release the lease, if given node is the owner.
+        """
+        self._check_lease(dataset_id, node_uuid)
+        return self.remove(dataset_id)
+
+    def expire(self, now):
+        """
+        Remove all expired leases.
+        """
+        updated = self
+        for lease in self.values():
+            if lease.expiration < now:
+                updated = updated.remove(lease.dataset_id)
+        return updated
+
+
 class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
@@ -513,6 +567,7 @@ class Deployment(PRecord):
         describing the configuration of each cooperating node.
     """
     nodes = pset_field(Node)
+    leases = field(type=Leases, initial=Leases())
 
     get_node = _get_node(Node)
 

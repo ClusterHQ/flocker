@@ -36,6 +36,7 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
+from ._persistence import update_leases
 
 from .. import __version__
 
@@ -820,6 +821,29 @@ class ConfigurationAPIUserV1(object):
         return [{u"host": node.hostname, u"uuid": unicode(node.uuid)}
                 for node in
                 self.cluster_state_service.as_deployment().nodes]
+
+    @app.route("/leases/<dataset_id>", methods=["POST"])
+    @structured(
+        {}, {}, SCHEMAS,  # XXX real schema
+    )
+    def acquire_lease(self, dataset_id, node_uuid, expires):
+        d = update_leases(
+            lambda leases: leases.acquire(UUID(dataset_id),
+                                          UUID(node_uuid),
+                                          expires))
+        d.addCallback(lambda _: {"result": "goes here"})
+        return d
+
+    @app.route("/leases/<dataset_id>/release", methods=["POST"])
+    @structured(
+        {}, {}, SCHEMAS,  # XXX real schema
+    )
+    def release_lease(self, dataset_id, node_uuid):
+        d = update_leases(
+            lambda leases: leases.release(UUID(dataset_id),
+                                          UUID(node_uuid)))
+        d.addCallback(lambda _: {"result": "goes here"})
+        return d
 
     @app.route("/configuration/_compose", methods=['POST'])
     @private_api
