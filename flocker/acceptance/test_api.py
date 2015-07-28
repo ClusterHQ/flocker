@@ -267,7 +267,7 @@ class ContainerAPITests(TestCase):
         d.addCallback(self.assertEqual, expected_response)
         return d
 
-    def query_http_server(self, host, port, path):
+    def query_http_server(self, host, port, path=b""):
         """
         Return the response from a HTTP server.
 
