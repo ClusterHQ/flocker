@@ -4,6 +4,12 @@ returns data from a specified file on GET.
 """
 
 from sys import argv
+
+try:
+    from urlparse import parse_qs
+except ImportError:
+    from cgi import parse_qs
+
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 
