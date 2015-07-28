@@ -1,60 +1,39 @@
-def project = "{{ cfg.project }}"
-def git_url = "{{ cfg.git_url }}"
-def branchApi = new URL("https://api.github.com/repos/{{ cfg.project }}/branches")
-def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
-def dashProject = "{{ cfg.project }}".replace('/', '-')
-
-folder("${dashProject}") {
-    displayName("${dashProject}")
-}
-
-branches << ['name':'master']
-branches.each {
-
-  branchName = "${it.name}"
-  dashBranchName = "${branchName}".replace("/","-")
-
-  folder("${dashProject}/${branchName}") {
-    displayName("${branchName}")
-  }
-{% for job, values in cfg.jobs.iteritems() %}
-  job("${dashProject}/${branchName}/{{ job }}") {
-    label("{{ values.label }}")
+{% macro folder(folder, display_name) -%}
+folder("{{folder}}") { displayName("{{display_name}}") }
+{%- endmacro -%}
+{#                                                        #}
+{% macro wrappers() -%}
     wrappers {
-        timestamps()
-        colorizeOutput()
-        timeout {
-            absolute(25)
-            failBuild()
+      timestamps()
+      colorizeOutput()
+      timeout {
+          absolute(25)
+          failBuild()
+      }
+    }
+{%- endmacro -%}
+{#                                                        #}
+{% macro scm(git_url, branch) -%}
+    scm {
+      git {
+        remote {
+          name("upstream")
+          url("{{git_url}}")
         }
+        branch("{{branch}}")
+        clean(true)
+        createTag(false)
+        mergeOptions('upstream', "master")
+      }
     }
-    scm { git {
-            remote {
-            name("upstream")
-                url("${git_url}")
-                }
-            branch("${branchName}")
-            clean(true)
-            createTag(false)
-            mergeOptions('upstream', 'master')
-        }
-    }
-    steps {
-{% for _step in values.steps -%}
-{% if _step.type=='shell' %}
-    shell("""
-{% for line in _step.cli -%}
-      {{ line }}
-{% endfor -%}
-    """)
-{% endif -%}
-{% endfor %}
-    }
+{%- endmacro -%}
+{#                                                        #}
+{% macro publishers(v) -%}
     publishers {
-{% if values.archive_artifacts -%}
-{% for artifact in values.archive_artifacts -%}
-	  archiveArtifacts("{{artifact}}")
-{% endfor %}
+{% if v.archive_artifacts -%}
+{%        for artifact in v.archive_artifacts  %}
+      archiveArtifacts("{{artifact}}")
+{%        endfor %}
       archiveJunit('results.xml') {
         retainLongStdout(true)
         testDataPublishers {
@@ -64,52 +43,153 @@ branches.each {
              publishFlakyTestsReport()
         }
       }
-{% endif -%}
-{% if values.coverage_report -%}
+{%      endif -%}
+{%      if v.coverage_report  %}
         cobertura('coverage.xml') {
            onlyStable(false)
            failUnhealthy(true)
            failUnstable(true)
            failNoReports(true)
         }
-{% endif -%}
+{%      endif -%}
     }
+{%- endmacro -%}
+{#                                                        #}
+{% macro steps(v) -%}
+    steps {
+{%  for _step in v -%}
+{%    if _step.type=='shell' %}
+    shell("""
+{%      for line in _step.cli -%}
+      {{ line }}
+{%      endfor -%}
+    """)
+{%    endif -%}
+{%  endfor %}
+    }
+{%- endmacro -%}
+{#                                                        #}
+def project = "{{ cfg.project }}"
+def git_url = "{{ cfg.git_url }}"
+def branchApi = new URL("https://api.github.com/repos/{{ cfg.project }}/branches")
+def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
+def dashProject = "{{ cfg.project }}".replace('/', '-')
+
+# Create a basefolder for our project, it should look like:
+# '<github username>-<git repository>'
+{{ folder("${dashProject}","${dashProject}") }}
+}
+
+# the branchApi.newReader call returns all the upstreams, but excludes 'master'
+# so we add it here
+branches << ['name':'master']
+
+# Iterate over every branch, and create folders, jobs
+branches.each {
+
+  # swap '/' with '-'
+  branchName = "${it.name}"
+  dashBranchName = "${branchName}".replace("/","-")
+
+  # create a folder for every branch: /git-username/git-repo/branch
+  {{ folder("${dashProject}/${branchName}","${branchName}") }}
+
+
+{# iterate over every job_type  #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems() -%}
+{%  for job_name, job_values  in job_type_values.iteritems() -%}
+
+{%    if job_type == 'run_trial'                             -%}
+{%      for _module in job_values.with_modules -%}
+{%        set _job_name = job_name + '_' + _module  -%}
+  job("${dashProject}/${branchName}/{{ _job_name }}") {
+    parameters { textParam("MODULE", "{{ _module }}", "Module to test" ) }
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers() }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
   }
+{%      endfor %}
+{%    endif %}
+
+{%    if job_type == 'run_sphinx'                             -%}
+{%        set _job_name = job_name -%}
+  job("${dashProject}/${branchName}/{{ _job_name }}") {
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers() }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif %}
+
+{%    if job_type == 'run_acceptance'                             -%}
+{%        set _job_name = job_name -%}
+  job("${dashProject}/${branchName}/{{ _job_name }}") {
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers() }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif %}
+{%  endfor %}
 {% endfor %}
 
+
   multiJob("${dashProject}/${branchName}/_main_multijob") {
-    wrappers {
-        timestamps()
-        colorizeOutput()
-        timeout {
-            absolute(25)
-            failBuild()
-        }
-    }
+    {{ wrappers() }}
       steps {
           shell('rm -rf *')
           phase('parallel_tests') {
               continuationCondition('ALWAYS')
-{% for job in cfg.jobs %}
-              job("${dashProject}/${branchName}/{{ job }}")  { killPhaseCondition("NEVER") }
-{% endfor %}
+{% for job_type, job_type_values  in cfg.job_type.iteritems() -%}
+
+{%  if job_type == 'run_trial'                             -%}
+{%    for job_name, job_values  in job_type_values.iteritems() -%}
+{%      for _module in job_values.with_modules -%}
+{%        set _job_name = job_name + '_' + _module   %}
+              job("${dashProject}/${branchName}/{{_job_name }}")  { killPhaseCondition("NEVER") }
+{%      endfor -%}
+{%    endfor -%}
+{%  endif %}
+
+{%  if job_type == 'run_sphinx'                             -%}
+{%    for job_name, job_values  in job_type_values.iteritems() -%}
+{%      set _job_name = job_name  %}
+              job("${dashProject}/${branchName}/{{_job_name }}")  { killPhaseCondition("NEVER") }
+{%    endfor -%}
+{%  endif %}
+
+{%  if job_type == 'run_acceptance'                             -%}
+{%    for job_name, job_values  in job_type_values.iteritems() -%}
+{%      set _job_name = job_name  %}
+              job("${dashProject}/${branchName}/{{_job_name }}")  { killPhaseCondition("NEVER") }
+{%    endfor -%}
+{%  endif %}
+
+{% endfor  %}
           }
-{% for job, values in cfg.jobs.iteritems() %}
+{#                                                            #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems() -%}
+{%  for job_name, job_values  in job_type_values.iteritems() -%}
+{%    for _module in job_values.with_modules -%}
+{%       set _job_name = job_name + '_' + _module   %}
 
+{%      if job_values.archive_artifacts -%}
 
-{% if values.archive_artifacts -%}
-
-{% for artifact in values.archive_artifacts -%}
-          copyArtifacts("${dashProject}/${branchName}/{{ job }}") {
-		  includePatterns("{{artifact}}")
-              targetDirectory('{{ job }}')
+{%        for artifact in job_values.archive_artifacts  %}
+          copyArtifacts("${dashProject}/${branchName}/{{ _job_name }}") {
+          includePatterns("{{artifact}}")
+              targetDirectory('{{ _job_name }}')
               fingerprintArtifacts(true)
               buildSelector {
                   workspace()
               }
           }
-{% endfor %}
-{% endif %}
+{%        endfor %}
+{%      endif %}
+{%    endfor %}
+{%  endfor %}
 {% endfor %}
       }
       publishers {
@@ -131,4 +211,3 @@ branches.each {
       }
   }
 }
-
