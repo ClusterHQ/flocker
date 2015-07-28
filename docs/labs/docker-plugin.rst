@@ -4,7 +4,7 @@
 Flocker Docker plugin
 =====================
 
-The Flocker Docker plugin is a `Docker volumes plugin <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
+The Flocker Docker plugin is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
 
 This diagram explains how the architecture of a Flocker cluster with the Docker plugin would look if the user is also using :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`:
 
@@ -22,7 +22,7 @@ As a user of Docker, it means you can use Flocker directly via:
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API (set it to ``flocker``).
 
-See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_.
+See the `Docker documentation on volume plugins`_.
 
 This currently depends on the `experimental build of Docker <https://github.com/docker/docker/tree/master/experimental>`_.
 
@@ -36,6 +36,9 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
     They are distinct architectures.
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
+
+.. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
+.. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
 
 How it works
 ============
