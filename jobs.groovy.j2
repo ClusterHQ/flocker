@@ -25,7 +25,6 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {# configures a remote git repository, and merges 'branch' before build
     param: git_url - example: https://github.com/clusterhq/flocker
     param: branch - remote branch name to configure                          #}
-[
     scm {
       git {
         remote {
