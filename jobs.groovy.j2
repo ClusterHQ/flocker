@@ -78,7 +78,6 @@ def dashProject = "{{ cfg.project }}".replace('/', '-')
 // Create a basefolder for our project, it should look like:
 // '<github username>-<git repository>'
 {{ folder("${dashProject}","${dashProject}") }}
-}
 
 // the branchApi.newReader call returns all the upstreams, but excludes 'master'
 // so we add it here
