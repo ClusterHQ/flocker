@@ -3,10 +3,9 @@
 """
 Functional tests for the agent command line programs.
 """
-from zope.interface import implementer
-from twisted.trial.unittest import TestCase
 from ...testtools import make_script_tests, run_process
-from ..script import IFlockerLogExporter
+from ..testtools import make_iflockerlogexporter_tests
+from ..script import UpstartLogExporter
 
 
 class FlockerDatasetAgentTests(make_script_tests(b"flocker-dataset-agent")):
@@ -36,37 +35,8 @@ class FlockerLogExportTests(
         self.assertEqual('', result.output)
 
 
-class IFlockerLogExporterTestsMixin(object):
-    """
-    """
-    def test_interface(self):
-        """
-        ``exporter`` provides ````IFlockerLogExporter``.
-        """
-
-    def test_export(self):
-        """
-        ``exporter.export`` writes to output_file.
-        """
-        1/0
-
-
-def make_iflockerlogexporter_tests(log_exporter):
-    class Tests(IFlockerLogExporterTestsMixin, TestCase):
-        def setUp(self):
-            self.exporter = log_exporter()
-
-    return Tests
-
-
-@implementer(IFlockerLogExporter)
-class UbuntuLogExporter(object):
-    """
-    """
-
-
 class IFlockerLogExporterUpstartTests(
-    make_iflockerlogexporter_tests(log_exporter=UbuntuLogExporter)
+    make_iflockerlogexporter_tests(log_exporter=UpstartLogExporter)
 ):
     """
     Tests for ``IFlockerLogExporter`` with ``Upstart``.

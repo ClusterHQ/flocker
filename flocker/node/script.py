@@ -678,8 +678,14 @@ class IFlockerLogExporter(Interface):
     """
     A system independent API for exporting logs for flocker services.
     """
-    def export(self, service, ):
+    def export(self, service):
         pass
+
+
+@implementer(IFlockerLogExporter)
+class UpstartLogExporter(object):
+    """
+    """
 
 
 class LogExportScript(object):

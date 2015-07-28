@@ -266,3 +266,26 @@ def assert_calculated_changes_for_deployer(
         cluster_configuration, cluster_state,
     )
     case.assertEqual(expected_changes, changes)
+
+
+class IFlockerLogExporterTestsMixin(object):
+    """
+    """
+    def test_interface(self):
+        """
+        ``exporter`` provides ````IFlockerLogExporter``.
+        """
+
+    def test_export(self):
+        """
+        ``exporter.export`` writes to output_file.
+        """
+        1/0
+
+
+def make_iflockerlogexporter_tests(log_exporter):
+    class Tests(IFlockerLogExporterTestsMixin, TestCase):
+        def setUp(self):
+            self.exporter = log_exporter()
+
+    return Tests
