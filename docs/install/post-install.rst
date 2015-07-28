@@ -483,11 +483,6 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-Next Step
-=========
-
-The next step is to set up an :ref:`authenticated user<authenticate>`.
-
 .. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
 .. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
