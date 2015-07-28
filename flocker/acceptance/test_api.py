@@ -87,8 +87,8 @@ class ContainerAPITests(TestCase):
     @require_cluster(1)
     def test_create_container_with_environment(self, cluster):
         """
-        Create a container including environment variables on a single-node
-        cluster.
+        If environment variables are specified when creating a container,
+        those variables are available in the container's environment.
         """
         environment = {u"XBLOO": u"YBLAH", u"ZBLOO": u"ZEBRA"}
 
