@@ -142,7 +142,7 @@ class ContainerAPITests(TestCase):
         container on the new host and verify the data has moved with it.
         """
         data = {u"the data": u"it moves"}
-        post_data = {"file": "/data/test", "data": dumps(data)}
+        post_data = {"data": dumps(data)}
         node1, node2 = cluster.nodes
         container_name = random_name(self)
         creating_dataset = create_dataset(self, cluster)
@@ -156,6 +156,7 @@ class ContainerAPITests(TestCase):
                     u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
                                   u"mountpoint": u"/data"}],
                 }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                additional_arguments=[u"/data"],
             )
             return d
         creating_dataset.addCallback(create_container)
@@ -173,7 +174,6 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(
             lambda _: self.assert_http_server(
                 node2.public_address, 8080,
-                path=b"/?file={file}".format(file=post_data["file"]),
                 expected_response=post_data["data"])
         )
 
@@ -187,7 +187,7 @@ class ContainerAPITests(TestCase):
         the data is still there.
         """
         data = {u"the data": u"sample written data"}
-        post_data = {"file": "/data/test", "data": dumps(data)}
+        post_data = {"data": dumps(data)}
         node = cluster.nodes[0]
         container_name = random_name(self)
         creating_dataset = create_dataset(self, cluster)
@@ -203,6 +203,7 @@ class ContainerAPITests(TestCase):
                     u"volumes": [{u"dataset_id": self.dataset_id,
                                   u"mountpoint": u"/data"}],
                 }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                additional_arguments=[u"/data"],
                 cleanup=False,
             )
             return d
@@ -214,7 +215,6 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(
             lambda _: self.assert_http_server(
                 node.public_address, 8080,
-                path=b"/?file={file}".format(file=post_data["file"]),
                 expected_response=post_data["data"])
         )
         creating_dataset.addCallback(
@@ -228,13 +228,13 @@ class ContainerAPITests(TestCase):
                     u"volumes": [{u"dataset_id": self.dataset_id,
                                   u"mountpoint": u"/data"}],
                 }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                additional_arguments=[u"/data"],
             )
             return d
         creating_dataset.addCallback(create_second_container)
         creating_dataset.addCallback(
             lambda _: self.assert_http_server(
                 node.public_address, 8081,
-                path=b"/?file={file}".format(file=post_data["file"]),
                 expected_response=post_data["data"])
         )
         return creating_dataset

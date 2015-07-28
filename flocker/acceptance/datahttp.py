@@ -3,12 +3,7 @@ HTTP server that writes data to a specified file on POST, or reads and
 returns data from a specified file on GET.
 """
 
-from urlparse import urlparse
-try:
-    from urlparse import parse_qs
-except ImportError:
-    from cgi import parse_qs
-
+from sys import argv
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 
@@ -20,7 +15,7 @@ class Handler(BaseHTTPRequestHandler):
             keep_blank_values=1
         )
         try:
-            with open(postvars["file"][0], "w") as f:
+            with open(argv[1] + '/test', "w") as f:
                 f.write(postvars["data"][0])
         except Exception as e:
             s.wfile.write(str(e.__class__) + ": " + str(e))
@@ -32,10 +27,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(s):
         s.send_response(200)
         s.end_headers()
-        queryvars = parse_qs(urlparse(s.path).query)
-        if "file" in queryvars:
+        if len(argv) > 1:
             try:
-                with open(queryvars["file"][0], "r") as f:
+                with open(argv[1] + '/test', "r") as f:
                     data = f.read()
             except Exception as e:
                 s.wfile.write(str(e.__class__) + ": " + str(e))
