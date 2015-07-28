@@ -5,7 +5,7 @@ Functional tests for the agent command line programs.
 """
 from ...testtools import make_script_tests, run_process
 from ..testtools import make_iflockerlogexporter_tests
-from ..script import UpstartLogExporter
+from ..script import UpstartLogExporter, JournalDLogExporter
 
 
 class FlockerDatasetAgentTests(make_script_tests(b"flocker-dataset-agent")):
@@ -37,6 +37,14 @@ class FlockerLogExportTests(
 
 class IFlockerLogExporterUpstartTests(
     make_iflockerlogexporter_tests(log_exporter=UpstartLogExporter)
+):
+    """
+    Tests for ``IFlockerLogExporter`` with ``Upstart``.
+    """
+
+
+class IFlockerLogExporterJournaldTests(
+    make_iflockerlogexporter_tests(log_exporter=JournalDLogExporter)
 ):
     """
     Tests for ``IFlockerLogExporter`` with ``Upstart``.

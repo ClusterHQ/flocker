@@ -28,6 +28,7 @@ from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid
+from .script import IFlockerLogExporter
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -275,6 +276,9 @@ class IFlockerLogExporterTestsMixin(object):
         """
         ``exporter`` provides ````IFlockerLogExporter``.
         """
+        self.assertTrue(
+            verifyObject(IFlockerLogExporter, self.exporter)
+        )
 
     def test_export(self):
         """
