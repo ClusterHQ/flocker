@@ -84,14 +84,14 @@ def dashProject = "{{ cfg.project }}".replace('/', '-')
 # so we add it here
 branches << ['name':'master']
 
-# Iterate over every branch, and create folders, jobs
+// Iterate over every branch, and create folders, jobs
 branches.each {
 
-  # swap '/' with '-'
+  // swap '/' with '-'
   branchName = "${it.name}"
   dashBranchName = "${branchName}".replace("/","-")
 
-  # create a folder for every branch: /git-username/git-repo/branch
+  // create a folder for every branch: /git-username/git-repo/branch
   {{ folder("${dashProject}/${branchName}","${branchName}") }}
 
 
