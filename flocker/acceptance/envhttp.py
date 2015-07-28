@@ -8,6 +8,9 @@ from os import environ
 
 
 class Handler(BaseHTTPRequestHandler):
+    """
+    Return the current environment in HTTP response.
+    """
     def do_GET(s):
         s.send_response(200)
         s.send_header("content-type", "text/json")
