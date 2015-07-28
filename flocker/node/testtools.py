@@ -16,6 +16,8 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
+from pyrsistent import PRecord, field
+
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
@@ -271,7 +273,21 @@ def assert_calculated_changes_for_deployer(
     case.assertEqual(expected_changes, changes)
 
 
-def verify_log_archive(testcase, archive_path):
+class LogContent(PRecord):
+    dataset_agent = field(mandatory=True)
+    container_agent = field(mandatory=True)
+    control_service = field(mandatory=True)
+
+
+def logcontent_from_directory(directory):
+    content = {}
+    for child in directory.children():
+        basename = child.basename()
+        content[basename] = child.getContent()
+    return LogContent(**content)
+
+
+def verify_log_archive(testcase, archive_path, expected_content):
     """
     Assert that the supplied ``FilePath`` points to a valid Flocker log
     archive.
@@ -281,7 +297,21 @@ def verify_log_archive(testcase, archive_path):
         "Archive not found: {!r}".format(archive_path)
     )
     archive = ZipFile(archive_path.path)
-    testcase.assertIsNot(None, archive.testzip())
+    testcase.assertIs(None, archive.testzip())
+    destination_dir = FilePath(testcase.mktemp())
+    destination_dir.makedirs()
+    archive.extractall(path=destination_dir.path)
+    testcase.assertEqual(
+        expected_content,
+        logcontent_from_directory(destination_dir)
+    )
+
+
+TEST_LOG_CONTENT = LogContent(
+    dataset_agent=b'DATASET AGENT LOGS',
+    container_agent=b'CONTAINER AGENT LOGS',
+    control_service=b'CONTROL SERVICE LOGS'
+)
 
 
 class IFlockerLogExporterTestsMixin(object):
@@ -303,7 +333,8 @@ class IFlockerLogExporterTestsMixin(object):
         self.exporter.export(destination=archive_path)
         verify_log_archive(
             testcase=self,
-            archive_path=archive_path
+            archive_path=archive_path,
+            expected_content=TEST_LOG_CONTENT
         )
 
 

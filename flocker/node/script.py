@@ -704,7 +704,9 @@ class JournalDLogExporter(object):
     """
     def export(self, destination):
         with ZipFile(file=destination.path, mode='w') as archive:
-            archive.writestr('flocker', b'Flocker')
+            archive.writestr('dataset_agent', b'foo')
+            archive.writestr('container_agent', b'foo')
+            archive.writestr('control_service', b'foo')
 
 
 class LogExportScript(object):
