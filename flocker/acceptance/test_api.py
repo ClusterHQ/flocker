@@ -6,6 +6,7 @@ Tests for the control service REST API.
 
 import socket
 from contextlib import closing
+from json import loads
 
 from json import dumps
 
@@ -13,7 +14,7 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
 
-from treq import get, post, json_content, content
+from treq import get, post, content
 
 from eliot import Message
 
@@ -87,49 +88,28 @@ class ContainerAPITests(TestCase):
     @require_cluster(1)
     def test_create_container_with_environment(self, cluster):
         """
-        Create a container including environment variables on a single-node
-        cluster.
+        If environment variables are specified when creating a container,
+        those variables are available in the container's environment.
         """
-        data = {
-            u"name": random_name(self),
-            u"image": "clusterhq/flaskenv:latest",
-            u"ports": [{u"internal": 8080, u"external": 8081}],
-            u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
-            u'restart_policy': {u'name': u'never'},
-        }
+        environment = {u"XBLOO": u"YBLAH", u"ZBLOO": u"ZEBRA"}
 
-        data[u"node_uuid"] = cluster.nodes[0].uuid
-        d = cluster.create_container(data)
+        d = create_python_container(
+            self, cluster, {
+                u"ports": [{u"internal": 8080, u"external": 8080}],
+                u"node_uuid": cluster.nodes[0].uuid,
+                u"environment": environment,
+            }, CURRENT_DIRECTORY.child(b"envhttp.py"))
 
-        def check_result(response):
-            self.addCleanup(cluster.remove_container, data[u"name"])
-            self.assertEqual(response, data)
-            return cluster
-
-        def query_environment(host, port):
-            """
-            The running container, clusterhq/flaskenv, is a simple Flask app
-            that returns a JSON dump of the container's environment, so we
-            make an HTTP request and parse the response.
-            """
-            req = get(
-                "http://{host}:{port}".format(host=host, port=port),
-                persistent=False
-            ).addCallback(json_content)
-            return req
-
-        d.addCallback(check_result)
-
-        def checked(cluster):
+        def checked(_):
             host = cluster.nodes[0].public_address
-            d = verify_socket(host, 8081)
-            d.addCallback(lambda _: query_environment(host, 8081))
+            d = self.query_http_server(host, 8080)
+            d.addCallback(lambda data: dict(loads(data)))
             return d
         d.addCallback(checked)
 
         d.addCallback(
             lambda response:
-                self.assertDictContainsSubset(data[u"environment"], response)
+                self.assertDictContainsSubset(environment, response)
         )
         return d
 
@@ -287,26 +267,20 @@ class ContainerAPITests(TestCase):
         d.addCallback(self.assertEqual, expected_response)
         return d
 
-    def assert_http_server(self, host, port,
-                           path=b"", expected_response=b"hi"):
+    def query_http_server(self, host, port, path=b""):
         """
-        Assert that a HTTP serving a response with the body specified in
-        ``expected_response`` is running at given host and port.
+        Return the response from a HTTP server.
 
-        This can be coupled with code that only conditionally starts up
-        the HTTP server via Flocker in order to check if that particular
-        setup succeeded.
-
-        We try three times since it may take a little time for the HTTP
+        We try multiple since it may take a little time for the HTTP
         server to start up.
 
         :param bytes host: Host to connect to.
         :param int port: Port to connect to.
         :param bytes path: Optional path and query string.
-        :param bytes expected_response: The HTTP response body expected.
-            Defaults to b"hi"
+
+        :return: ``Deferred`` that fires with the body of the response.
         """
-        def query(host, port):
+        def query():
             req = get(
                 "http://{host}:{port}{path}".format(
                     host=host, port=port, path=path),
@@ -321,7 +295,29 @@ class ContainerAPITests(TestCase):
             return req
 
         d = verify_socket(host, port)
-        d.addCallback(lambda _: loop_until(lambda: query(host, port)))
+        d.addCallback(lambda _: loop_until(query))
+        return d
+
+    def assert_http_server(self, host, port,
+                           path=b"", expected_response=b"hi"):
+
+        """
+        Assert that a HTTP serving a response with body ``b"hi"`` is running
+        at given host and port.
+
+        This can be coupled with code that only conditionally starts up
+        the HTTP server via Flocker in order to check if that particular
+        setup succeeded.
+
+        :param bytes host: Host to connect to.
+        :param int port: Port to connect to.
+        :param bytes path: Optional path and query string.
+        :param bytes expected_response: The HTTP response body expected.
+            Defaults to b"hi"
+
+        :return: ``Deferred`` that fires when assertion has run.
+        """
+        d = self.query_http_server(host, port, path)
         d.addCallback(self.assertEqual, expected_response)
         return d
 
