@@ -269,6 +269,14 @@ def assert_calculated_changes_for_deployer(
     case.assertEqual(expected_changes, changes)
 
 
+def verify_log_archive(testcase, log_archive_path):
+    """
+    Assert that the supplied ``FilePath`` points to a valid Flocker log
+    archive.
+    """
+    testcase.fail('Bad archive: {!r}'.format(log_archive_path))
+
+
 class IFlockerLogExporterTestsMixin(object):
     """
     """
@@ -284,7 +292,11 @@ class IFlockerLogExporterTestsMixin(object):
         """
         ``exporter.export`` writes to output_file.
         """
-        1/0
+        log_archive_path = self.exporter.export()
+        verify_log_archive(
+            testcase=self,
+            log_archive_path=log_archive_path,
+        )
 
 
 def make_iflockerlogexporter_tests(log_exporter):
