@@ -542,19 +542,16 @@ class GetPackageVersionTests(TestCase):
         """
         ``GetPackageVersion`` assigns the exact version of a found package to
         its ``version`` attribute.
-
-        In particular, newer versions of pip/setuptools normalize the version
-        accoding to PEP440. We aren't prepared to handle that yet.
         """
         versions = [
             '0.3.2',
-            '0.3.3dev5',
-            '0.3.2+doc1',
-            '0.3.2-1-gf661a6a',
-            '0.3.2+doc1-1-gf661a6a',
-            '0.3.2pre1',
-            '0.3.2-1-gf661a6a-dirty'
-            '0.3.2+doc1-dirty'
+            '0.3.3.dev5',
+            '0.3.2.post1',
+            '0.3.2+1.gf661a6a',
+            '0.3.2.post1+1.gf661a6a',
+            '0.3.2rc1',
+            '0.3.2+1.gf661a6a.dirty'
+            '0.3.2.post1+1.gf661a6a.dirty'
         ]
         for version in versions:
             self.assert_version_found(version=version)
