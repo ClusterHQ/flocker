@@ -10,6 +10,7 @@ import socket
 from unittest import skipIf
 from contextlib import closing
 from uuid import uuid4
+from zipfile import ZipFile
 
 from zope.interface import implementer
 
@@ -17,6 +18,7 @@ from characteristic import attributes
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import succeed
+from twisted.python.filepath import FilePath
 
 from zope.interface.verify import verifyObject
 
@@ -269,12 +271,17 @@ def assert_calculated_changes_for_deployer(
     case.assertEqual(expected_changes, changes)
 
 
-def verify_log_archive(testcase, log_archive_path):
+def verify_log_archive(testcase, archive_path):
     """
     Assert that the supplied ``FilePath`` points to a valid Flocker log
     archive.
     """
-    testcase.fail('Bad archive: {!r}'.format(log_archive_path))
+    testcase.assertTrue(
+        archive_path.exists(),
+        "Archive not found: {!r}".format(archive_path)
+    )
+    archive = ZipFile(archive_path.path)
+    testcase.assertIsNot(None, archive.testzip())
 
 
 class IFlockerLogExporterTestsMixin(object):
@@ -288,18 +295,25 @@ class IFlockerLogExporterTestsMixin(object):
             verifyObject(IFlockerLogExporter, self.exporter)
         )
 
-    def test_export(self):
+    def test_export_zip(self):
         """
-        ``exporter.export`` writes to output_file.
+        ``exporter.export`` writes a zip file to ``destination``.
         """
-        log_archive_path = self.exporter.export()
+        archive_path = FilePath(self.mktemp())
+        self.exporter.export(destination=archive_path)
         verify_log_archive(
             testcase=self,
-            log_archive_path=log_archive_path,
+            archive_path=archive_path
         )
 
 
 def make_iflockerlogexporter_tests(log_exporter):
+    """
+    :param IFlockerLogExporter log_exporter: An ``IFlockerLogExporter``
+        implementation.
+    :returns: A ``TestCase`` for testing that the supplied ``log_exporter``
+    adheres to ``IFlockerLogExporter``.
+    """
     class Tests(IFlockerLogExporterTestsMixin, TestCase):
         def setUp(self):
             self.exporter = log_exporter()

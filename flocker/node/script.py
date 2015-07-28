@@ -8,6 +8,7 @@ The command-line ``flocker-*-agent`` tools.
 from socket import socket
 from contextlib import closing
 from time import sleep
+from zipfile import ZipFile
 
 import yaml
 
@@ -678,9 +679,12 @@ class IFlockerLogExporter(Interface):
     """
     A system independent API for exporting logs for flocker services.
     """
-    def export():
+    def export(destination):
         """
-        Export logs for ``service``.
+        Export all Flocker logs to ``destination``.
+
+        :param FilePath destination: The path where the log archive file will
+            be saved.
         """
 
 
@@ -689,7 +693,7 @@ class UpstartLogExporter(object):
     """
     Export logs for services on systems running JournalD.
     """
-    def export(self):
+    def export(self, destination):
         pass
 
 
@@ -698,8 +702,9 @@ class JournalDLogExporter(object):
     """
     Export logs for services on systems running JournalD.
     """
-    def export(self):
-        pass
+    def export(self, destination):
+        with ZipFile(file=destination.path, mode='w') as archive:
+            archive.writestr('flocker', b'Flocker')
 
 
 class LogExportScript(object):
