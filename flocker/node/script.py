@@ -17,7 +17,7 @@ from pyrsistent import PRecord, field, PMap, pmap, pvector
 
 from eliot import ActionType, fields
 
-from zope.interface import implementer
+from zope.interface import implementer, Interface
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
@@ -666,10 +666,20 @@ class LogExportOptions(Options):
     optParameters = [
         ["working_directory", "", "",
          "The directory where temporary files will be written."],
+        ["platform", "", "",
+         "An operating system with platform specific logging behaviour."],
     ]
 
     def postOptions(self):
         self['working_directory'] = FilePath(self['working_directory'])
+
+
+class IFlockerLogExporter(Interface):
+    """
+    A system independent API for exporting logs for flocker services.
+    """
+    def export(self, service, ):
+        pass
 
 
 class LogExportScript(object):
