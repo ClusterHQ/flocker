@@ -75,13 +75,13 @@ def branchApi = new URL("https://api.github.com/repos/{{ cfg.project }}/branches
 def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
 def dashProject = "{{ cfg.project }}".replace('/', '-')
 
-# Create a basefolder for our project, it should look like:
-# '<github username>-<git repository>'
+// Create a basefolder for our project, it should look like:
+// '<github username>-<git repository>'
 {{ folder("${dashProject}","${dashProject}") }}
 }
 
-# the branchApi.newReader call returns all the upstreams, but excludes 'master'
-# so we add it here
+// the branchApi.newReader call returns all the upstreams, but excludes 'master'
+// so we add it here
 branches << ['name':'master']
 
 // Iterate over every branch, and create folders, jobs
