@@ -77,11 +77,11 @@ common_cli:
     set +e #don't abort at the first failure
     let status=0
     sphinx-build -d _build/doctree -b spelling . _build/spelling
-    let status=status+$?
+    let status=status+\$?
     sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-    let status=status+$?
+    let status=status+\$?
     sphinx-build -d _build/doctree -b html . _build/html
-    exit $status
+    exit \$status
     # upload html
     #link-release-documentation
     #upload-release-documentation
