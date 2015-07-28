@@ -74,9 +74,14 @@ common_cli:
   run_sphinx: &run_sphinx |
     python setup.py --version
     cd docs
+    set +e #don't abort at the first failure
+    let status=0
     sphinx-build -d _build/doctree -b spelling . _build/spelling
+    let status=status+$?
     sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    let status=status+$?
     sphinx-build -d _build/doctree -b html . _build/html
+    exit $status
     # upload html
     #link-release-documentation
     #upload-release-documentation
