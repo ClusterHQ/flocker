@@ -130,11 +130,6 @@ class FlockerDeployTests(TestCase):
             },
         }
 
-        # flocker_deploy() does an assertion that the requested state has
-        # been reached. Once remaining uses of flocker_deploy elsewhere
-        # are removed that code could be moved off of Cluster and into
-        # this module since this is only module we expect will be calling
-        # flocker-deploy.
         d = self.flocker_deploy(
             cluster, minimal_deployment, minimal_application)
         d.addCallback(lambda _:
