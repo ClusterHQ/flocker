@@ -136,7 +136,7 @@ String token = new File('/var/lib/jenkins/.github_token').text.trim()
         }
         if ( response != [] ) {
             response.each {
-                branches << "${ it.name }"
+                branches << "${ it.name }".replace('/', '-')
             }
         }
         page = page + 1
