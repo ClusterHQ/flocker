@@ -100,11 +100,47 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 
 
 #}
+{# groov lacks a loop...until ...                                            #}
+class Looper {
+   private Closure code
+
+   static Looper loop( Closure code ) {
+      new Looper(code:code)
+   }
+
+   void until( Closure test ) {
+      code()
+      while (!test()) {
+         code()
+      }
+   }
+}
+
 def project = "{{ cfg.project }}"
 def git_url = "{{ cfg.git_url }}"
-def branchApi = new URL(
-    "https://api.github.com/repos/{{ cfg.project }}/branches")
-def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
+int page = 1
+branches = []
+{# grab the GitHub token from the environment                                #}
+String token = System.getenv('GITHUB_TOKEN')
+
+{# groove lacks a loop...until
+   we need to iterate over every page to get the full list of branches       #}
+    Looper.loop {
+    def addr = "https://api.github.com/repos/{{ cfg.project }}/branches?page=${page}"
+
+        conn = addr.toURL().openConnection()
+        conn.setRequestProperty( "Authorization", "token ${token}" )
+        if( conn.responseCode == 200 ) {
+            response = new groovy.json.JsonSlurper().parseText(conn.content.text)
+        }
+        if ( response != [] ) {
+            response.each {
+                branches << "${ it.name }"
+            }
+        }
+        page = page + 1
+    } until { response == [] }
+
 def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# Create a basefolder for our project, it should look like:
