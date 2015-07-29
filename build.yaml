@@ -96,6 +96,12 @@ common_cli:
     # Consume the MODULE parameter set in the job configuration
      'coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log',
 
+  touch_ssh_known_hosts: &touch_ssh_known_hosts
+    # acceptance tests rely on this file existing
+    'touch ~/.ssh/known_hosts'
+
+  run_acceptance_tests: &run_acceptance_tests
+    'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
 
 # the job definitions, they consume the aliases defined in the common_cli block
 #
@@ -177,6 +183,5 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
-               'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml',
-               *convert_results_to_junit ]
+               *touch_ssh_known_hosts, *run_acceptance_tests, *convert_results_to_junit ]
           }
