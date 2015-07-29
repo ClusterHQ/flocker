@@ -121,7 +121,7 @@ def git_url = "{{ cfg.git_url }}"
 int page = 1
 branches = []
 {# grab the GitHub token from the environment                                #}
-String token = System.getenv('GITHUB_TOKEN')
+String token = new File('/var/lib/jenkins/.github_token').text
 
 {# groove lacks a loop...until
    we need to iterate over every page to get the full list of branches       #}
