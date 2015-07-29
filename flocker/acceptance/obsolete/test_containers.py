@@ -18,10 +18,10 @@ from treq import get, post, content
 
 from eliot import Message
 
-from ..testtools import (
+from ...testtools import (
     loop_until, random_name,
 )
-from .testtools import (
+from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container
 )
