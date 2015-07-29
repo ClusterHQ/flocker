@@ -89,7 +89,7 @@ common_cli:
 
   flocker_artifacts: &flocker_artifacts
     - results.xml
-    - _trial_temp/tests.log
+    - _trial_temp/test.log
     - coverage.xml
 
   run_trial_with_coverage: &run_trial_with_coverage |
