@@ -150,7 +150,7 @@ def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# the branchApi.newReader call returns all the upstreams, but excludes
    'master' so we add it here                                                #}
-branches << ['name':'master']
+branches << "master"
 
 {# Iterate over every branch, and create folders, jobs                       #}
 branches.each {
