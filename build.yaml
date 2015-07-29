@@ -94,7 +94,7 @@ common_cli:
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # Consume the MODULE parameter set in the job configuration
-     'coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log',
+    coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
 
   touch_ssh_known_hosts: &touch_ssh_known_hosts
     # acceptance tests rely on this file existing
