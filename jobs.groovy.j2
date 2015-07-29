@@ -156,7 +156,7 @@ branches << ['name':'master']
 branches.each {
 
 {#  swap '/' with '-'                                                        #}
-  branchName = "${it.name}"
+  branchName = "${it}"
   dashBranchName = "${branchName}".replace("/","-")
 
 {#   create a folder for every branch: /git-username/git-repo/branch         #}
