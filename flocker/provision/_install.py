@@ -907,7 +907,6 @@ ACCEPTANCE_IMAGES = [
     "postgres:latest",
     "clusterhq/mongodb:latest",
     "python:2.7-slim",
-    "clusterhq/flaskenv",
     "busybox",
 ]
 
