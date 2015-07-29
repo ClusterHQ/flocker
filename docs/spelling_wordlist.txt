@@ -48,12 +48,14 @@ internet
 invalidations
 IPv4
 IPv
+journald
 Kubernetes
 libswarm
 lifecycle
 loopback
 Mesos
 metadata
+MiB
 microservice
 microservices
 mountpoint

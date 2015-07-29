@@ -1,4 +1,3 @@
-:tocdepth: 2
 
 =============
 Using Flocker
@@ -17,7 +16,6 @@ This Getting Started guide will walk you step-by-step through installing Flocker
 .. toctree::
    :maxdepth: 2
 
-   installing/index
    authentication
    config/index
    administering/index

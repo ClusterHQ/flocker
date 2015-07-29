@@ -4,13 +4,10 @@
 Moving Applications
 ===================
 
-.. note:: If you haven't already, make sure to :doc:`install the flocker-cli package <../installing/index>` before continuing with this tutorial.
+.. note:: If you haven't already, make sure to :ref:`install the flocker-cli package <installing-flocker-cli>` before continuing with this tutorial.
 
 Starting an Application
 =======================
-
-.. This section is tested in flocker.acceptance.test_deployment.DeploymentTests.
-   Reflect any relevant changes here in those tests.
 
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB server.
 

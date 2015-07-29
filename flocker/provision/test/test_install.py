@@ -160,7 +160,7 @@ class GetRepoOptionsTests(SynchronousTestCase):
         version is not a marketing release.
         """
         self.assertEqual(
-            get_repo_options(flocker_version='0.3.0dev1'),
+            get_repo_options(flocker_version='0.3.0.dev1'),
             ['--enablerepo=clusterhq-testing'])
 
 
@@ -233,7 +233,7 @@ class GetRepositoryURLTests(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='ubuntu-14.04',
-                flocker_version='0.3.0dev1'),
+                flocker_version='0.3.0.dev1'),
             expected
         )
 
@@ -248,7 +248,7 @@ class GetRepositoryURLTests(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='centos-7',
-                flocker_version='0.3.0dev1'),
+                flocker_version='0.3.0.dev1'),
             expected
         )
 
@@ -447,6 +447,9 @@ enabled=0
 
 
 class PrivateKeyLoggingTest(SynchronousTestCase):
+    """
+    Test removal of private keys from logs.
+    """
 
     def test_private_key_removed(self):
         """
@@ -501,8 +504,14 @@ class PrivateKeyLoggingTest(SynchronousTestCase):
 
 
 class DatasetLoggingTest(SynchronousTestCase):
+    """
+    Test removal of sensitive information from logged configuration files.
+    """
 
     def test_dataset_logged_safely(self):
+        """
+        Values are either the same or replaced by 'REMOVED'.
+        """
         config = {
             'dataset': {
                 'secret': 'SENSITIVE',
@@ -512,4 +521,5 @@ class DatasetLoggingTest(SynchronousTestCase):
         content = yaml.safe_dump(config)
         logged = _remove_dataset_fields(content)
         self.assertEqual(
-            yaml.safe_load(logged), {'secret': 'REMOVED', 'zone': 'keep'})
+            yaml.safe_load(logged),
+            {'dataset': {'secret': 'REMOVED', 'zone': 'keep'}})

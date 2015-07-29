@@ -15,6 +15,7 @@ Contents:
    :maxdepth: 2
 
    introduction/index
+   install/index
    using/index
    concepts/index
    reference/index

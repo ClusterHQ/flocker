@@ -9,11 +9,11 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 import json
+import logging
 import os
 import sys
 import tempfile
 
-from setuptools import __version__ as setuptools_version
 from subprocess import check_call
 
 from effect import (
@@ -68,6 +68,12 @@ from .yum import (
 from .vagrant import vagrant_version
 from .homebrew import make_recipe
 from .packaging import available_distributions, DISTRIBUTION_NAME_MAP
+
+# Log information about network connections
+logging.basicConfig()
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
 
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
@@ -129,13 +135,6 @@ class NoPreRelease(Exception):
 class PushFailed(Exception):
     """
     Raised if pushing to Git fails.
-    """
-
-
-class IncorrectSetuptoolsVersion(Exception):
-    """
-    Raised if trying to create packages which require a specific version of
-    setuptools to be installed.
     """
 
 
@@ -295,7 +294,7 @@ class PublishDocsOptions(Options):
          "This will differ from \"flocker-version\" for staging uploads."
          "Attempting to publish documentation as a documentation version "
          "publishes it as the version being updated.\n"
-         "``doc-version`` is set to 0.3.0+doc1 the documentation will be "
+         "``doc-version`` is set to 0.3.0.post1 the documentation will be "
          "published as 0.3.0.\n"],
     ]
 
@@ -658,11 +657,6 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
     :param bytes target_bucket: S3 bucket to upload packages to.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    if setuptools_version != '3.6':
-        # XXX Use PEP440 version system so new setuptools can be used.
-        # https://clusterhq.atlassian.net/browse/FLOC-1331.
-        raise IncorrectSetuptoolsVersion()
-
     # XXX This has a side effect so it should be an Effect
     # https://clusterhq.atlassian.net/browse/FLOC-1731
     check_call([
@@ -776,10 +770,6 @@ def publish_artifacts_main(args, base_path, top_level):
             scratch_directory=scratch_directory.child('homebrew'),
         )
 
-    except IncorrectSetuptoolsVersion:
-        sys.stderr.write("%s: setuptools version must be 3.6.\n"
-            % (base_path.basename(),))
-        raise SystemExit(1)
     finally:
         scratch_directory.remove()
 
@@ -928,7 +918,7 @@ class TestRedirectsOptions(Options):
     Arguments for ``test-redirects`` script.
     """
     optParameters = [
-        ["doc-version", None, None,
+        ["doc-version", None, flocker.__version__,
          "The version which the documentation sites are expected to redirect "
          "to.\n"
         ],
@@ -941,12 +931,40 @@ class TestRedirectsOptions(Options):
     environment = Environments.STAGING
 
     def parseArgs(self):
-        if self['doc-version'] is None:
-            self['doc-version'] = get_doc_version(flocker.__version__)
-
         if self['production']:
             self.environment = Environments.PRODUCTION
 
+
+def get_expected_redirects(flocker_version):
+    """
+    Get the expected redirects for a given version of Flocker, if that version
+    has been published successfully. Documentation versions (e.g. 0.3.0.post2)
+    are published to their release version counterparts (e.g. 0.3.0).
+
+    :param bytes flocker_version: The version of Flocker for which to get
+        expected redirects.
+
+    :return: Dictionary mapping paths to the path to which they are expected to
+        redirect.
+    """
+    published_version = get_doc_version(flocker_version)
+
+    if is_release(published_version):
+        expected_redirects = {
+            '/': '/en/' + published_version + '/',
+            '/en/': '/en/' + published_version + '/',
+            '/en/latest': '/en/' + published_version + '/',
+            '/en/latest/faq/index.html':
+                '/en/' + published_version + '/faq/index.html',
+        }
+    else:
+        expected_redirects = {
+            '/en/devel': '/en/' + published_version + '/',
+            '/en/devel/faq/index.html':
+                '/en/' + published_version + '/faq/index.html',
+        }
+
+    return expected_redirects
 
 def test_redirects_main(args, base_path, top_level):
     """
@@ -964,26 +982,10 @@ def test_redirects_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    doc_version = options['doc-version']
-
+    expected_redirects = get_expected_redirects(
+        flocker_version=options['doc-version'])
     document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
     base_url = 'https://' + document_configuration.cloudfront_cname
-
-    is_dev = not is_release(doc_version)
-    if is_dev:
-        expected_redirects = {
-            '/en/devel': '/en/' + doc_version + '/',
-            '/en/devel/faq/index.html':
-                '/en/' + doc_version + '/faq/index.html',
-        }
-    else:
-        expected_redirects = {
-            '/': '/en/' + doc_version + '/',
-            '/en/': '/en/' + doc_version + '/',
-            '/en/latest': '/en/' + doc_version + '/',
-            '/en/latest/faq/index.html':
-                '/en/' + doc_version + '/faq/index.html',
-        }
 
     failed_redirects = []
 

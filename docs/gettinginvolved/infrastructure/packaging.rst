@@ -13,7 +13,7 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
    pip install .
-   pip install Flocker[release]
+   pip install Flocker[dev]
 
 Then run the following command from a clean checkout of the Flocker repository:
 

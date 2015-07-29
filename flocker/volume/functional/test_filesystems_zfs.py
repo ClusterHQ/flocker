@@ -527,17 +527,28 @@ class FilesystemTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        # There is a lower-bound on the value of refquota in ZFS.  It seems to
-        # be 64MB (but perhaps this isn't universal).
+        # 40 MiB is an arbitrary value for the maximum size which is
+        # sufficiently smaller than the current test pool size of 100 MiB.
+        # Note that at the moment the usable pool size (minus the internal
+        # data and reservations) is about 60 MiB.
+        maximum_size = 40 * 1024 * 1024
         volume = service.get(
-            MY_VOLUME, size=VolumeSize(maximum_size=64 * 1024 * 1024))
+            MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
         creating = pool.create(volume)
 
         def created(filesystem):
             path = filesystem.get_path()
-            # Try to write more than 64MB of data.
+            # Try to write one byte more than the maximum_size of data.
             with path.child(b"ok").open("w") as fObj:
-                self.assertRaises(
-                    IOError, fObj.write, b"x" * 64 * 1024 * 1024)
+                chunk_size = 8 * 1024
+                chunk = b"x" * chunk_size
+                for i in range(maximum_size / chunk_size):
+                    fObj.write(chunk)
+                fObj.flush()
+                with self.assertRaises(IOError) as ctx:
+                    fObj.write(b"x")
+                    fObj.flush()
+                self.assertEqual(ctx.exception.args[0], errno.EDQUOT)
+
         creating.addCallback(created)
         return creating
