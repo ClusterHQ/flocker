@@ -94,7 +94,7 @@ common_cli:
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # Consume the MODULE parameter set in the job configuration
-     'coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log',
+    coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
 
 
 # the job definitions, they consume the aliases defined in the common_cli block
