@@ -140,15 +140,6 @@ class GenericDockerClientTests(TestCase):
 
         return d
 
-    def test_default_base_url(self):
-        """
-        ``DockerClient`` instantiated with a default base URL for a socket
-        connection has a client HTTP url after the connection is made.
-        """
-        client = DockerClient()
-        self.assertEqual(client._client.base_url,
-                         u'http+unix://var/run/docker.sock')
-
     def test_custom_base_url_tcp_http(self):
         """
         ``DockerClient`` instantiated with a custom base URL for a TCP
