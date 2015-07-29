@@ -130,6 +130,7 @@ String token = System.getenv('GITHUB_TOKEN')
 
         conn = addr.toURL().openConnection()
         conn.setRequestProperty( "Authorization", "token ${token}" )
+        response = []
         if( conn.responseCode == 200 ) {
             response = new groovy.json.JsonSlurper().parseText(conn.content.text)
         }
