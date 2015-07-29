@@ -339,10 +339,11 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
+You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
+
 ZFS Backend Configuration
 .........................
 
-The ZFS backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
 The configuration item to use ZFS should look like:
 
 .. code-block:: yaml
@@ -355,8 +356,7 @@ The configuration item to use ZFS should look like:
    Some of the suggested steps are not straightforward.
    FLOC-2092
 
-The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes (see the installing :ref:`ZFS on Linux <installing-ZFS-CentOS-7>` steps above).
-You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
+The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes. For more information, see the `ZFS on Linux`_ documentation.
 
 .. _loopback-dataset-backend:
 
@@ -406,3 +406,4 @@ The next step is to set up an :ref:`authenticated user<authenticate>`.
 .. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
 .. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
+.. _ZFS on Linux: http://zfsonlinux.org/
