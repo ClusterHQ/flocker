@@ -26,7 +26,8 @@ class FlockerDeployTests(TestCase):
         """
         Run ``flocker-deploy`` with given configuration files.
 
-        :param test_case: The ``TestCase`` running this unit test.
+        :param cluster: The ``Cluster`` to which the supplied config should
+            be applied.
         :param dict deployment_config: The desired deployment configuration.
         :param dict application_config: The desired application configuration.
         """
@@ -73,7 +74,7 @@ class FlockerDeployTests(TestCase):
         for external side-effects (applications being available on ports,
         say).
 
-        :param test_case: The ``TestCase`` running this unit test.
+        :param cluster: The ``Cluster`` to query for current configuration.
         :param dict expected_deployment: A mapping of IP addresses to set of
             ``Application`` instances expected on the nodes with those IP
             addresses.
