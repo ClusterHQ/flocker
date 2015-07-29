@@ -6,9 +6,7 @@ Testing utilities for ``flocker.node``.
 
 import os
 import pwd
-import socket
 from unittest import skipIf
-from contextlib import closing
 from uuid import uuid4
 
 from zope.interface import implementer
