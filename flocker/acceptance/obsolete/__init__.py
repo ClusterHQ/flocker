@@ -2,5 +2,5 @@
 
 """
 Acceptance tests for ``flocker`` components that are either deprecated
-or planned for deprection in the near future.
+or planned for deprecation in the near future.
 """
