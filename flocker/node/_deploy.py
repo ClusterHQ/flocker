@@ -7,6 +7,7 @@ Deploy applications on nodes.
 
 from itertools import chain
 from warnings import warn
+from uuid import UUID
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -445,13 +446,18 @@ class NotInUseDatasets(object):
     the application and dataset logic better; see
     https://clusterhq.atlassian.net/browse/FLOC-1425.
     """
-    def __init__(self, node_state):
+    def __init__(self, configuration, node_state):
         """
+        :param Deployment configuration: The cluster's configuration.
         :param NodeState node_state: Known local state.
         """
+        # This bit will eventually go away when we switch container agent
+        # to use leases, but for now we need to check both:
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in node_state.applications
                                  if app.volume is not None}
+        self._leased_dataset_ids = {lease.dataset_id
+                                    for lease in configuration.leases.values()}
 
     def __call__(self, objects,
                  get_dataset_id=lambda d: unicode(d.dataset_id)):
@@ -467,7 +473,9 @@ class NotInUseDatasets(object):
         """
         result = []
         for obj in objects:
-            if get_dataset_id(obj) not in self._in_use_datasets:
+            dataset_id = get_dataset_id(obj)
+            if (get_dataset_id(obj) not in self._in_use_datasets and
+                UUID(dataset_id) not in self._leased_dataset_ids):
                 result.append(obj)
         return result
 
