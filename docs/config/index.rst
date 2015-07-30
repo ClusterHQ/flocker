@@ -19,4 +19,4 @@ It is important to remember that your firewall will need to allow access to the 
    configuring-authentication
    enabling-control-service
    configuring-nodes-storage
-   
+   enabling-agent-service
