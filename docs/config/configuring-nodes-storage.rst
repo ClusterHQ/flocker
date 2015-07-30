@@ -17,7 +17,7 @@ The file must always include ``version`` and ``control-service`` items similar t
 The value of the hostname field should be a hostname or IP that is routable from all your node agents.
 
 When configuring node agents, consider whether the control service location you choose will have multiple possible addresses, and ensure the hostname you provide is the correct one.
-You should never choose ``127.0.0.1`` or ``localhost`` as the hostname, even if the control service is on same machine as the node agent.
+You should never choose ``127.0.0.1`` or ``localhost`` as the hostname, even if the control service is on same machine as the node agent, as this will keep the control service from correctly identifying the agent's IP address.
 
 Please note that the interface you choose will be the one that linked traffic will be routed over.
 If you're in environment where some interfaces have bandwidth costs and some are free (for example, AWS), ensure that you choose the private interface where bandwidth costs don't apply.
