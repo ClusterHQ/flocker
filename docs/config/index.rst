@@ -16,4 +16,5 @@ It is important to remember that your firewall will need to allow access to the 
 .. toctree::
    :maxdepth: 2
 
-   post-install
+   authentication
+   configuring-nodes-storage
