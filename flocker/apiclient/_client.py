@@ -4,11 +4,13 @@
 Client for the Flocker REST API.
 """
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from zope.interface import Interface, implementer
 
 from pyrsistent import PClass, field, pmap_field, pmap
+
+from twisted.internet.defer import succeed
 
 
 class Dataset(PClass):
@@ -91,16 +93,28 @@ class IFlockerAPIV1(Interface):
         """
 
 
-#@implementer(IFlockerAPIV1)
+@implementer(IFlockerAPIV1)
 class FakeFlockerAPIV1(object):
     """
     Fake in-memory implementation of ``IFlockerAPIV1``.
     """
     def __init__(self):
-        self._configured_datasets = []
+        self._configured_datasets = {}
         self.synchronize_state()
 
-    # Interface methods manipulate the above
+    def create_dataset(self, primary, maximum_size, dataset_id=None,
+                       metadata=pmap()):
+        # In real implementation the server will generate the new ID, but
+        # we have to do it ourselves:
+        if dataset_id is None:
+            dataset_id = uuid4()
+        result = Dataset(primary=primary, maximum_size=maximum_size,
+                         dataset_id=dataset_id, metadata=metadata)
+        self._configured_datasets[dataset_id] = result
+        return succeed(result)
+
+    def list_datasets_configuration(self):
+        return succeed(self._configured_datasets.values())
 
     def synchronize_state(self):
         """
@@ -111,5 +125,5 @@ class FakeFlockerAPIV1(object):
             DatasetState(dataset_id=dataset.dataset_id,
                          primary=dataset.primary,
                          maximum_size=dataset.maximum_size)
-            for dataset in self._configured_datasets]
+            for dataset in self._configured_datasets.values()]
 
