@@ -6,14 +6,20 @@ Client for the Flocker REST API.
 
 from uuid import UUID
 
-from zope.interface import Interface
+from zope.interface import Interface, implementer
 
-from pyrsistent import PClass, field, pmap_field
+from pyrsistent import PClass, field, pmap_field, pmap
 
 
 class Dataset(PClass):
     """
     A dataset in the configuration.
+
+    :param UUID primary: The node where the dataset should manifest.
+    :param int maximum_size: Size of new dataset, in bytes.
+    :param dataset_id: The UUID of the dataset.
+    :param metadata: A mapping between unicode keys and values.
+    :param bool deleted: If true indicates this dataset should be deleted.
     """
     dataset_id = field(type=UUID)
     primary = field(type=UUID)
@@ -25,6 +31,10 @@ class Dataset(PClass):
 class DatasetState(PClass):
     """
     The state of a dataset in the cluster.
+
+    :param UUID primary: The node where the dataset should manifest.
+    :param int maximum_size: Size of new dataset, in bytes.
+    :param dataset_id: The UUID of the dataset.
     """
     dataset_id = field(type=UUID)
     primary = field(type=UUID)
@@ -41,9 +51,16 @@ class IFlockerAPIV1(Interface):
     """
     The Flocker REST API, v1.
     """
-    def create_dataset(primary, maximum_size, dataset_id=None, metadata=None):
+    def create_dataset(primary, maximum_size, dataset_id=None,
+                       metadata=pmap()):
         """
         Create a new dataset in the configuration.
+
+        :param UUID primary: The node where the dataset should manifest.
+        :param int maximum_size: Size of new dataset, in bytes.
+        :param dataset_id: If given, the UUID to use for the dataset.
+        :param metadata: A mapping between unicode keys and values, to be
+            stored as dataset metadata.
 
         :return: ``Deferred`` firing with resulting ``Dataset``, or
             errbacking with ``DatasetAlreadyExists``.
@@ -52,6 +69,9 @@ class IFlockerAPIV1(Interface):
     def move_dataset(primary, dataset_id):
         """
         Move the dataset to a new location.
+
+        :param UUID primary: The node where the dataset should manifest.
+        :param dataset_id: Which dataset to move.
 
         :return: ``Deferred`` firing with resulting ``Dataset``.
         """
@@ -71,14 +91,14 @@ class IFlockerAPIV1(Interface):
         """
 
 
-@implementer(IFlockerAPIV1)
+#@implementer(IFlockerAPIV1)
 class FakeFlockerAPIV1(object):
     """
     Fake in-memory implementation of ``IFlockerAPIV1``.
     """
     def __init__(self):
-        # self._configured_datasets
-        # self._state_datasets
+        self._configured_datasets = []
+        self.synchronize_state()
 
     # Interface methods manipulate the above
 
@@ -86,5 +106,10 @@ class FakeFlockerAPIV1(object):
         """
         Copy configuration into state.
         """
-        self._state_datasets = [DatasetState(...) for dataset in self._configured_datasets]
+        return []
+        self._state_datasets = [
+            DatasetState(dataset_id=dataset.dataset_id,
+                         primary=dataset.primary,
+                         maximum_size=dataset.maximum_size)
+            for dataset in self._configured_datasets]
 
