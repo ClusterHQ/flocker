@@ -1,3 +1,5 @@
+.. _post-installation-configuration:
+
 ===================
 Configuring Flocker
 ===================

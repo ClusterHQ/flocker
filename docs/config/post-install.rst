@@ -1,5 +1,3 @@
-.. _post-installation-configuration:
-
 ===============================
 Post-installation Configuration
 ===============================
