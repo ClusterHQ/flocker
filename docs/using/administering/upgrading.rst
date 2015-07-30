@@ -15,6 +15,7 @@ The correct steps to follow may vary depending on the versions of Flocker being 
    --------------
 
    Recommended steps:
+
    #. Stop the agent services on all nodes, and then stop control service.
    #. Install Flocker v1.0.2 on all nodes in the Flocker cluster.
    #. If you are running on CentOS, run ``systemctl restart rsyslog`` on all machines running Flocker services.
@@ -30,14 +31,14 @@ The correct steps to follow may vary depending on the versions of Flocker being 
    --------------
 
    Recommended steps:
+
    #. Stop the agent services on all nodes, and then stop control service.
    #. Install Flocker v1.0.1 on all nodes in the Flocker cluster.
    #. Restart the control service.
    #. If you are using the EBS storage backend, reboot each of the agent nodes.
    #. If you have not configured the Flocker agents to start automatically on boot, restart the agent services on all nodes.
 
-   Details
-   ^^^^^^^
+   Details:
 
    The upgrade to Flocker v1.0.1 involves changing the way the EBS storage backend maps volumes to devices: in version 1.0.0, there were occasional errors in this mapping.
    As a result, some devices may have been mounted in the wrong location.
