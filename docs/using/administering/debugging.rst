@@ -16,7 +16,6 @@ Ubuntu
 ^^^^^^
 
 XXX This should be documented, see :issue:`1877`.
-# FLOC-2647 Perhaps I should just close 1877 with this branch.
 
 CentOS 7
 ^^^^^^^^
