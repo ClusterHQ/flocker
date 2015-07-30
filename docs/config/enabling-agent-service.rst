@@ -2,16 +2,16 @@
 Enabling the Flocker agent service
 ==================================
 
-On CentOS 7
-===========
+CentOS 7
+========
 
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent centos-7
    :prompt: [root@agent-node]#
 
-On Ubuntu
-=========
+Ubuntu
+======
 
 Run the following commands to enable the agent service:
 
