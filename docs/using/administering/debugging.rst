@@ -18,25 +18,6 @@ Ubuntu
 XXX This should be documented, see :issue:`1877`.
 # FLOC-2647 Perhaps I should just close 1877 with this branch.
 
-Ubuntu Bug Reporting
-^^^^^^^^^^^^^^^^^^^^
-
-When reporting issues with Flocker on Ubuntu please include copies of all the log files.
-
-The relevant logs can be exported by running the following script:
-
-:download:`flocker-log-export-ubuntu.sh`
-
-.. literalinclude:: flocker-log-export-ubuntu.sh
-   :language: sh
-
-Save the script to a file and then run it:
-
-.. prompt:: bash alice@mercury:~$
-
-   sh flocker-log-export-ubuntu.sh
-
-
 CentOS 7
 ^^^^^^^^
 
@@ -55,20 +36,40 @@ It is possible to see the available unit names, and then view the logs with ``jo
    [root@node1]# journalctl -u flocker-container-agent
    [root@node1]# journalctl -u flocker-control
 
+Bug Reporting
+-------------
 
-CentOS 7 Bug Reporting
-^^^^^^^^^^^^^^^^^^^^^^
+When reporting issues with Flocker please include copies of:
 
-When reporting issues with Flocker on CentOS 7 please include copies of all the log files.
+* Docker version,
+* Operating System and version,
+* all the log files,
 
-The relevant logs can be exported by running the following script:
+The following scripts can be used to gather this information on Ubuntu and CentOS.
+
+Save the script to a file and then run it.
+
+Ubuntu
+^^^^^^
+
+:download:`flocker-log-export-ubuntu.sh`
+
+.. literalinclude:: flocker-log-export-ubuntu.sh
+   :language: sh
+
+.. prompt:: bash alice@mercury:~$
+
+   sh flocker-log-export-ubuntu.sh
+
+
+CentOS 7
+^^^^^^^^
 
 :download:`flocker-log-export-centos.sh`
 
 .. literalinclude:: flocker-log-export-centos.sh
    :language: sh
 
-Save the script to a file and then run it:
 
 .. prompt:: bash alice@mercury:~$
 
