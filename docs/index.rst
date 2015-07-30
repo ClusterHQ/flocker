@@ -16,6 +16,7 @@ Contents:
 
    introduction/index
    install/index
+   config/index
    using/index
    concepts/index
    reference/index
