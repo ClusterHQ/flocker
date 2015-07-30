@@ -99,7 +99,7 @@ class FakeFlockerAPIV1(object):
     Fake in-memory implementation of ``IFlockerAPIV1``.
     """
     def __init__(self):
-        self._configured_datasets = {}
+        self._configured_datasets = pmap()
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size, dataset_id=None,
@@ -112,8 +112,14 @@ class FakeFlockerAPIV1(object):
             return fail(DatasetAlreadyExists())
         result = Dataset(primary=primary, maximum_size=maximum_size,
                          dataset_id=dataset_id, metadata=metadata)
-        self._configured_datasets[dataset_id] = result
+        self._configured_datasets = self._configured_datasets.set(
+            dataset_id, result)
         return succeed(result)
+
+    def move_dataset(self, primary, dataset_id):
+        self._configured_datasets = self._configured_datasets.transform(
+            [dataset_id, "primary"], primary)
+        return succeed(self._configured_datasets[dataset_id])
 
     def list_datasets_configuration(self):
         return succeed(self._configured_datasets.values())

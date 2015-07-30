@@ -123,7 +123,32 @@ def make_clientv1_tests(client_factory, synchronize_state):
             d.addCallback(got_result)
             return d
 
-        # Move changes the primary of the dataset.
+        def test_move(self):
+            """
+            ``move_dataset`` changes the dataset's primary.
+            """
+            client = client_factory()
+            dataset_id = uuid4()
+
+            d = self.assert_creates(client, primary=self.node_1,
+                                    maximum_size=DATASET_SIZE,
+                                    dataset_id=dataset_id)
+            d.addCallback(
+                lambda _: client.move_dataset(self.node_2, dataset_id))
+
+            def got_result(dataset):
+                listed = client.list_datasets_configuration()
+                listed.addCallback(lambda l: (dataset, l))
+                return listed
+            d.addCallback(got_result)
+
+            d.addCallback(lambda result:
+                          self.assertEqual((result[0], result[0] in result[1]),
+                                           (Dataset(dataset_id=dataset_id,
+                                                    primary=self.node_2,
+                                                    maximum_size=DATASET_SIZE),
+                                            True)))
+            return d
 
         # State returns information about state (uses
         # synchronize_state to populate expected information)
