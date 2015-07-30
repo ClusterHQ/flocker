@@ -41,14 +41,8 @@ common_cli:
     export PIP_ACCEL_S3_PREFIX=ubuntu-trusty-64
 
   setup_flocker_modules: &setup_flocker_modules |
-    # install python modules from S3
-    pip install pip-accel
     pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
-    pip install pip-accel
-    # the requirements include pip7.1, so we need to reinstall pip-accel
     pip-accel install Flocker[doc,dev,release] python-subunit junitxml --retries 15 --timeout 30 --disable-pip-version-check
-    # pip-accel downgrades pip, but Our tests seem to require pip 7
-    pip install --upgrade pip
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
@@ -60,10 +54,7 @@ common_cli:
     unset AWS_SECRET_ACCESS_KEY
 
   setup_coverage: &setup_coverage |
-    pip install pip-accel
     pip-accel install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl
-    # pip-accel downgrades pip, but Our tests seem to require pip 7
-    pip install --upgrade pip
 
   run_coverage: &run_coverage |
     coverage xml --include=flocker*
@@ -89,12 +80,12 @@ common_cli:
 
   flocker_artifacts: &flocker_artifacts
     - results.xml
-    - _trial_temp/tests.log
+    - _trial_temp/test.log
     - coverage.xml
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # Consume the MODULE parameter set in the job configuration
-     'coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log',
+    coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing

@@ -100,11 +100,48 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 
 
 #}
+{# groov lacks a loop...until ...                                            #}
+class Looper {
+   private Closure code
+
+   static Looper loop( Closure code ) {
+      new Looper(code:code)
+   }
+
+   void until( Closure test ) {
+      code()
+      while (!test()) {
+         code()
+      }
+   }
+}
+
 def project = "{{ cfg.project }}"
 def git_url = "{{ cfg.git_url }}"
-def branchApi = new URL(
-    "https://api.github.com/repos/{{ cfg.project }}/branches")
-def branches = new groovy.json.JsonSlurper().parse(branchApi.newReader())
+int page = 1
+branches = []
+{# grab the GitHub token from the jenkins homedir                            #}
+String token = new File('/var/lib/jenkins/.github_token').text.trim()
+
+{# groove lacks a loop...until
+   we need to iterate over every page to get the full list of branches       #}
+    Looper.loop {
+    def addr = "https://api.github.com/repos/{{ cfg.project }}/branches?page=${page}"
+
+        conn = addr.toURL().openConnection()
+        conn.setRequestProperty( "Authorization", "token ${token}" )
+        response = []
+        if( conn.responseCode == 200 ) {
+            response = new groovy.json.JsonSlurper().parseText(conn.content.text)
+        }
+        if ( response != [] ) {
+            response.each {
+                branches << "${ it.name }"
+            }
+        }
+        page = page + 1
+    } until { response == [] }
+
 def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# Create a basefolder for our project, it should look like:
@@ -113,17 +150,17 @@ def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# the branchApi.newReader call returns all the upstreams, but excludes
    'master' so we add it here                                                #}
-branches << ['name':'master']
+branches << "master"
 
 {# Iterate over every branch, and create folders, jobs                       #}
 branches.each {
 
 {#  swap '/' with '-'                                                        #}
-  branchName = "${it.name}"
+  branchName = "${it}"
   dashBranchName = "${branchName}".replace("/","-")
 
 {#   create a folder for every branch: /git-username/git-repo/branch         #}
-  {{ folder("${dashProject}/${branchName}","${branchName}") }}
+  {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
 
 
 {# iterate over every job_type  #}
@@ -134,7 +171,7 @@ branches.each {
 {%    if job_type == 'run_trial'                                            -%}
 {%      for _module in job_values.with_modules                              -%}
 {%        set _job_name = job_name + '_' + _module                          -%}
-  job("${dashProject}/${branchName}/{{ _job_name }}") {
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     parameters { textParam("MODULE", "{{ _module }}", "Module to test" ) }
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
@@ -148,7 +185,7 @@ branches.each {
 {# apply config related to 'run_sphinx' jobs                                 #}
 {%    if job_type == 'run_sphinx'                                           -%}
 {%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${branchName}/{{ _job_name }}") {
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ scm("${git_url}", "${branchName}") }}
@@ -159,7 +196,7 @@ branches.each {
 {# apply config related to 'run_acceptance' jobs                             #}
 {%    if job_type == 'run_acceptance'                                       -%}
 {%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${branchName}/{{ _job_name }}") {
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ scm("${git_url}", "${branchName}") }}
@@ -171,7 +208,7 @@ branches.each {
 
 
 {# the multijob is responsible for running all configured jobs in parallel   #}
-  multiJob("${dashProject}/${branchName}/_main_multijob") {
+  multiJob("${dashProject}/${dashBranchName}/_main_multijob") {
     {{ wrappers() }}
       steps {
           shell('rm -rf *')
@@ -184,7 +221,7 @@ branches.each {
 {%    for job_name, job_values  in job_type_values.iteritems()              -%}
 {%      for _module in job_values.with_modules                              -%}
 {%        set _job_name = job_name + '_' + _module                           %}
-              job("${dashProject}/${branchName}/{{_job_name }}")  {
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
                 killPhaseCondition("NEVER")
               }
 {%      endfor                                                              -%}
@@ -195,7 +232,7 @@ branches.each {
 {%  if job_type == 'run_sphinx'                                             -%}
 {%    for job_name, job_values  in job_type_values.iteritems()              -%}
 {%      set _job_name = job_name                                             %}
-              job("${dashProject}/${branchName}/{{_job_name }}")  {
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
                 killPhaseCondition("NEVER")
               }
 {%    endfor                                                                -%}
@@ -205,7 +242,7 @@ branches.each {
 {%  if job_type == 'run_acceptance'                                         -%}
 {%    for job_name, job_values  in job_type_values.iteritems()              -%}
 {%      set _job_name = job_name                                             %}
-              job("${dashProject}/${branchName}/{{_job_name }}")  {
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
                 killPhaseCondition("NEVER")
               }
 {%    endfor                                                                -%}
@@ -225,7 +262,7 @@ branches.each {
 {%      if job_values.archive_artifacts                                     -%}
 
 {%        for artifact in job_values.archive_artifacts                       %}
-          copyArtifacts("${dashProject}/${branchName}/{{ _job_name }}") {
+          copyArtifacts("${dashProject}/${dashBranchName}/{{ _job_name }}") {
           includePatterns("{{artifact}}")
               targetDirectory('{{ _job_name }}')
               fingerprintArtifacts(true)
