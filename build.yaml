@@ -120,7 +120,7 @@ job_type:
   run_trial:
   # http://build.clusterhq.com/builders/flocker-centos-7
     run_trial_on_AWS_CentOS_7:
-      on_nodes_with_labels: 'aws-centos-7'
+      on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_modules:
         - flocker.acceptance
         - flocker.ca.functional
@@ -156,7 +156,7 @@ job_type:
 # http://build.clusterhq.com/builders/flocker-admin
 # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
     run_trial_on_AWS_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_modules:
         - admin
         - flocker.acceptance
@@ -193,7 +193,7 @@ job_type:
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
     run_sphinx:
-      on_nodes_with_labels: 'aws-centos-7'
+      on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -204,7 +204,7 @@ job_type:
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
     run_acceptance_on_AWS_CentOS_7:
-      on_nodes_with_labels: 'aws-centos-7'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_accel_centos7_vars,
@@ -214,7 +214,7 @@ job_type:
 
   omnibus:
     run_omnibus_for_CentOS_7:
-      on_nodes_with_labels: 'aws-ubuntu-trusty'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
