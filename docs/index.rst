@@ -1,13 +1,15 @@
 Flocker Documentation
 =====================
 
-Welcome to the Flocker docs! If you're just getting started with Flocker, it might be worth reading our :ref:`introduction`, or trying our simple tutorial on the `Getting Started with Flocker`_ page.
+Flocker is a data volume manager and multi-host Docker cluster management tool.
+With it, you can control your data using the same tools you use for your stateless applications.
+This means that you can run your databases, queues and key-value stores in Docker and move them around, as easily as the rest of your app.
 
-In the documentation listed below, you'll be able to find instructions on how to install, configure, and use Flocker, including an in-depth :ref:`MongoDB tutorial<tutmongo>`.
+With Flocker's command line tools and simple configuration language, you can deploy your Docker-based applications onto one or more Linux hosts.
+Once deployed, your applications will have access to the volumes configured for them.
+When you use Flocker to move containers between different hosts in your Flocker cluster, those volumes will follow.
 
-You'll be able to find concept and reference material, and our :ref:`Labs section<labs-projects>` contains all the information you need about our experimental projects.
-
-Flocker is an open-source project, and in our :ref:`Getting Involved section<getting-involved>`, there is information about how you can collaborate with ClusterHQ.
+Contents:
 
 .. toctree::
    :maxdepth: 2
@@ -21,5 +23,3 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    labs/index
    faq/index
    gettinginvolved/index
-
-.. _Getting Started with Flocker: https://clusterhq.com/flocker/getting-started/

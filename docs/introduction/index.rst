@@ -1,5 +1,3 @@
-.. _introduction:
-
 =======================
 Introduction to Flocker
 =======================
