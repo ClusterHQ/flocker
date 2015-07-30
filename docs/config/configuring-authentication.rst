@@ -131,8 +131,8 @@ An example of performing this authentication with ``cURL`` is given below.
 In this example, ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
 
-On OS X
--------
+OS X
+----
 
 Make sure you know the common name of the client certificate you will use.
 If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
@@ -155,8 +155,8 @@ Import the client certificate into the ``Keychain`` and then refer to it by its 
     $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
          https://172.16.255.250:4523/v1/configuration/containers
 
-On Linux
---------
+Linux
+-----
 
 .. code-block:: console
 
