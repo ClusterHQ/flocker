@@ -17,15 +17,18 @@ common_cli:
   cleanup: &cleanup |
     export PATH=/usr/local/bin:$PATH
     # clean up the stuff from previous runs
-    sudo rm -rf venv
+    # due to the length of the jobname workspace, we are hitting limits in
+    # our sheebang path name in pip.
+    # So we will place the virtualenv in /tmp/v instead
+    sudo rm -rf /tmp/v
     sudo rm -f results.xml
     sudo rm -f trial.log
     sudo rm -rf _trial_temp/
 
   setup_venv: &setup_venv |
     # setup the new venv
-    virtualenv -p python2.7 --clear venv
-    . venv/bin/activate
+    virtualenv -p python2.7 --clear /tmp/v
+    . /tmp/v/bin/activate
 
   setup_pip_accel: &setup_pip_accel |
     # use S3 pip binary caching
@@ -85,7 +88,7 @@ common_cli:
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # Consume the MODULE parameter set in the job configuration
-    coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
+    coverage run /tmp/v/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -99,16 +102,16 @@ common_cli:
     ssh-add \$HOME/.ssh/id_rsa
 
   run_acceptance_tests: &run_acceptance_tests
-    'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
+    '/tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
 
   check_version: &check_version |
-    export FLOCKER_VERSION=\$(venv/bin/python setup.py --version)
+    export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
 
   build_sdist: &build_sdist
-    'venv/bin/python setup.py sdist'
+    '/tmp/v/bin/python setup.py sdist'
 
   build_package: &build_package
-      'venv/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
+      '/tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
 
 # the job definitions, they consume the aliases defined in the common_cli block
 #
@@ -116,7 +119,7 @@ common_cli:
 job_type:
   run_trial:
   # http://build.clusterhq.com/builders/flocker-centos-7
-    run_trial_aws_centos_7:
+    run_trial_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7'
       with_modules:
         - flocker.acceptance
@@ -152,7 +155,7 @@ job_type:
 
 # http://build.clusterhq.com/builders/flocker-admin
 # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
-    run_trial_ubuntu_trusty:
+    run_trial_on_AWS_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty'
       with_modules:
         - admin
@@ -200,7 +203,7 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
-    run_acceptance_aws_centos7:
+    run_acceptance_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7'
       with_steps:
         - { type: 'shell',
@@ -210,7 +213,7 @@ job_type:
           }
 
   omnibus:
-    omnibus_centos_7:
+    run_omnibus_for_CentOS_7:
       on_nodes_with_labels: 'aws-ubuntu-trusty'
       with_steps:
         - { type: 'shell',
