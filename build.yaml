@@ -89,14 +89,14 @@ common_cli:
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
-    touch $HOME/.ssh/known_hosts
+    touch \$HOME/.ssh/known_hosts
     # remove existing keys
-    rm -f $HOME/.ssh/id_rsa*
-    cp /tmp/id_rsa $HOME/.ssh/id_rsa
-    chmod -R 0700 $HOME/.ssh
-    ssh-keygen -N '' -f $HOME/.ssh/id_rsa_flocker
+    rm -f \$HOME/.ssh/id_rsa*
+    cp /tmp/id_rsa \$HOME/.ssh/id_rsa
+    chmod -R 0700 \$HOME/.ssh
+    ssh-keygen -N '' -f \$HOME/.ssh/id_rsa_flocker
     eval `ssh-agent -s`
-    ssh-add $HOME/.ssh/id_rsa
+    ssh-add \$HOME/.ssh/id_rsa
 
   run_acceptance_tests: &run_acceptance_tests
     'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
