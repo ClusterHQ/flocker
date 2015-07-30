@@ -8,7 +8,6 @@ The command-line ``flocker-*-agent`` tools.
 from socket import socket
 from contextlib import closing
 from time import sleep
-from zipfile import ZipFile
 
 import yaml
 
@@ -18,13 +17,12 @@ from pyrsistent import PRecord, field, PMap, pmap, pvector
 
 from eliot import ActionType, fields
 
-from zope.interface import implementer, Interface
+from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
-from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
 
@@ -655,70 +653,3 @@ class DatasetServiceFactory(PRecord):
         loop_service = agent_service.get_loop_service(deployer)
 
         return loop_service
-
-
-@flocker_standard_options
-class LogExportOptions(Options):
-    """
-    Command line options for ``flocker-log-export``.
-    """
-    synopsis = "Usage: flocker-log-export [OPTIONS]"
-
-    optParameters = [
-        ["working_directory", "", "",
-         "The directory where temporary files will be written."],
-        ["platform", "", "",
-         "An operating system with platform specific logging behaviour."],
-    ]
-
-    def postOptions(self):
-        self['working_directory'] = FilePath(self['working_directory'])
-
-
-class IFlockerLogExporter(Interface):
-    """
-    A system independent API for exporting logs for flocker services.
-    """
-    def export(destination):
-        """
-        Export all Flocker logs to ``destination``.
-
-        :param FilePath destination: The path where the log archive file will
-            be saved.
-        """
-
-
-@implementer(IFlockerLogExporter)
-class UpstartLogExporter(object):
-    """
-    Export logs for services on systems running JournalD.
-    """
-    def export(self, destination):
-        pass
-
-
-@implementer(IFlockerLogExporter)
-class JournalDLogExporter(object):
-    """
-    Export logs for services on systems running JournalD.
-    """
-    def export(self, destination):
-        with ZipFile(file=destination.path, mode='w') as archive:
-            archive.writestr('dataset_agent', b'foo')
-            archive.writestr('container_agent', b'foo')
-            archive.writestr('control_service', b'foo')
-
-
-class LogExportScript(object):
-    def main(self, reactor, options):
-        return succeed(None)
-
-
-def flocker_log_export_main():
-    """
-    Implementation of the ``flocker-log-export`` command line script.
-    """
-    return FlockerScriptRunner(
-        script=LogExportScript(),
-        options=LogExportOptions()
-    ).main()

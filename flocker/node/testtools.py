@@ -10,17 +10,13 @@ import socket
 from unittest import skipIf
 from contextlib import closing
 from uuid import uuid4
-from zipfile import ZipFile
 
 from zope.interface import implementer
 
 from characteristic import attributes
 
-from pyrsistent import PRecord, field
-
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import succeed
-from twisted.python.filepath import FilePath
 
 from zope.interface.verify import verifyObject
 
@@ -32,7 +28,6 @@ from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid
-from .script import IFlockerLogExporter
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -271,82 +266,3 @@ def assert_calculated_changes_for_deployer(
         cluster_configuration, cluster_state,
     )
     case.assertEqual(expected_changes, changes)
-
-
-class LogContent(PRecord):
-    dataset_agent = field(mandatory=True)
-    container_agent = field(mandatory=True)
-    control_service = field(mandatory=True)
-
-
-def logcontent_from_directory(directory):
-    content = {}
-    for child in directory.children():
-        basename = child.basename()
-        content[basename] = child.getContent()
-    return LogContent(**content)
-
-
-def verify_log_archive(testcase, archive_path, expected_content):
-    """
-    Assert that the supplied ``FilePath`` points to a valid Flocker log
-    archive.
-    """
-    testcase.assertTrue(
-        archive_path.exists(),
-        "Archive not found: {!r}".format(archive_path)
-    )
-    archive = ZipFile(archive_path.path)
-    testcase.assertIs(None, archive.testzip())
-    destination_dir = FilePath(testcase.mktemp())
-    destination_dir.makedirs()
-    archive.extractall(path=destination_dir.path)
-    testcase.assertEqual(
-        expected_content,
-        logcontent_from_directory(destination_dir)
-    )
-
-
-TEST_LOG_CONTENT = LogContent(
-    dataset_agent=b'DATASET AGENT LOGS',
-    container_agent=b'CONTAINER AGENT LOGS',
-    control_service=b'CONTROL SERVICE LOGS'
-)
-
-
-class IFlockerLogExporterTestsMixin(object):
-    """
-    """
-    def test_interface(self):
-        """
-        ``exporter`` provides ````IFlockerLogExporter``.
-        """
-        self.assertTrue(
-            verifyObject(IFlockerLogExporter, self.exporter)
-        )
-
-    def test_export_zip(self):
-        """
-        ``exporter.export`` writes a zip file to ``destination``.
-        """
-        archive_path = FilePath(self.mktemp())
-        self.exporter.export(destination=archive_path)
-        verify_log_archive(
-            testcase=self,
-            archive_path=archive_path,
-            expected_content=TEST_LOG_CONTENT
-        )
-
-
-def make_iflockerlogexporter_tests(log_exporter):
-    """
-    :param IFlockerLogExporter log_exporter: An ``IFlockerLogExporter``
-        implementation.
-    :returns: A ``TestCase`` for testing that the supplied ``log_exporter``
-    adheres to ``IFlockerLogExporter``.
-    """
-    class Tests(IFlockerLogExporterTestsMixin, TestCase):
-        def setUp(self):
-            self.exporter = log_exporter()
-
-    return Tests
