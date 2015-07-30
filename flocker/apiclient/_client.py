@@ -124,14 +124,16 @@ class FakeFlockerAPIV1(object):
     def list_datasets_configuration(self):
         return succeed(self._configured_datasets.values())
 
+    def list_datasets_state(self):
+        return succeed(self._state_datasets)
+
     def synchronize_state(self):
         """
         Copy configuration into state.
         """
-        return []
         self._state_datasets = [
             DatasetState(dataset_id=dataset.dataset_id,
                          primary=dataset.primary,
                          maximum_size=dataset.maximum_size)
             for dataset in self._configured_datasets.values()]
-
+        return succeed(None)

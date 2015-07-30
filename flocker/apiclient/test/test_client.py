@@ -14,6 +14,7 @@ from twisted.trial.unittest import TestCase
 
 from .._client import (
     IFlockerAPIV1, FakeFlockerAPIV1, Dataset, DatasetAlreadyExists,
+    DatasetState,
 )
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -30,8 +31,8 @@ def make_clientv1_tests(client_factory, synchronize_state):
     :param client_factory: 0-argument callable that returns a
         ``IFlockerAPIV1`` provider.
 
-    :param synchronize_state: 0-argument callable that makes state match
-        configuration.
+    :param synchronize_state: 1-argument callable that takes a client
+        instances and makes or waits for state to match configuration.
     """
     class InterfaceTests(TestCase):
         def setUp(self):
@@ -150,8 +151,24 @@ def make_clientv1_tests(client_factory, synchronize_state):
                                             True)))
             return d
 
-        # State returns information about state (uses
-        # synchronize_state to populate expected information)
+        def test_list_state(self):
+            """
+            ``list_datasets_state`` returns information about state.
+            """
+            client = client_factory()
+            dataset_id = uuid4()
+            d = self.assert_creates(client, primary=self.node_1,
+                                    maximum_size=DATASET_SIZE * 2,
+                                    dataset_id=dataset_id)
+            d.addCallback(lambda _: synchronize_state(client))
+            d.addCallback(lambda _: client.list_datasets_state())
+            d.addCallback(lambda states:
+                          self.assertIn(
+                              DatasetState(dataset_id=dataset_id,
+                                           primary=self.node_1,
+                                           maximum_size=DATASET_SIZE * 2),
+                              states))
+            return d
 
     return InterfaceTests
 
