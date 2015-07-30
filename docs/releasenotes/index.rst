@@ -18,7 +18,7 @@ Next Release
 * The agent configuration file allows specification of a CA certificate for OpenStack HTTPS verification.
   See :ref:`openstack-dataset-backend`.
 * Flocker can now start containers using images from private Docker registries.
-* On Centos 7, installing or upgrading the ``clusterhq-flocker-node`` package now reloads the ``rsyslog`` service to ensure that Flocker logging policy takes immediate effect.
+* On CentOS 7, installing or upgrading the ``clusterhq-flocker-node`` package now reloads the ``rsyslog`` service to ensure that Flocker logging policy takes immediate effect.
 
 v1.0.3
 ======
