@@ -371,69 +371,8 @@ ZFS Peer-to-Peer Backend Configuration (Experimental)
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
-This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
-The configuration item to use ZFS should look like:
 
-.. code-block:: yaml
-
-   "dataset":
-      "backend": "zfs"
-      "pool": "flocker"
-
-.. This section could stand to be improved.
-   Some of the suggested steps are not straightforward.
-   FLOC-2092
-
-The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
-This requires first installing :ref:`ZFS on Linux <installing-ZFS-CentOS-7>`.
-You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
-
-.. _loopback-dataset-backend:
-
-Loopback Block Device Backend Configuration (INTERNAL TESTING)
---------------------------------------------------------------
-
-The Loopback backend uses node-local storage as storage for datasets.
-It has no data movement functionality.
-It serves primarily as a development and testing tool for the other block device backend implementations.
-You may find it useful if you plan to work on Flocker itself.
-This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
-The configuration item to use Loopback should look like:
-
-.. code-block:: yaml
-
-   "dataset":
-      "backend": "loopback"
-      "root_path": "/var/lib/flocker/loopback"
-
-The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
-
-Enabling the Flocker agent service
-==================================
-
-On CentOS 7
------------
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent centos-7
-   :prompt: [root@agent-node]#
-
-On Ubuntu
----------
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent ubuntu-14.04
-   :prompt: [root@agent-node]#
-
-What to do next
-===============
-
-Optional ZFS Backend Configuration
-----------------------------------
-
-If you intend to use a ZFS backend, this requires ZFS to be installed.
+To begin with, you will need to install ZFS on your platform, followed by creating a ZFS pool and configuring the ZFS backend:
 
 .. _installing-ZFS-CentOS-7:
 
@@ -441,8 +380,7 @@ Installing ZFS on CentOS 7
 ..........................
 
 Installing ZFS requires the kernel development headers for the running kernel.
-Since CentOS doesn't provide easy access to old package versions,
-the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
+Since CentOS doesn't provide easy access to old package versions, the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
 
 .. task:: upgrade_kernel centos-7
    :prompt: [root@centos-7]#
@@ -483,7 +421,66 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
+You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
+
+ZFS Backend Configuration
+.........................
+
+The configuration item to use ZFS should look like:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "zfs"
+      "pool": "flocker"
+
+.. This section could stand to be improved.
+   Some of the suggested steps are not straightforward.
+   FLOC-2092
+
+The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes. For more information, see the `ZFS on Linux`_ documentation.
+
+.. _loopback-dataset-backend:
+
+Loopback Block Device Backend Configuration (INTERNAL TESTING)
+--------------------------------------------------------------
+
+The Loopback backend uses node-local storage as storage for datasets.
+It has no data movement functionality.
+It serves primarily as a development and testing tool for the other block device backend implementations.
+You may find it useful if you plan to work on Flocker itself.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use Loopback should look like:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "loopback"
+      "root_path": "/var/lib/flocker/loopback"
+
+The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
+
+Enabling the Flocker agent service
+==================================
+
+On CentOS 7
+-----------
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent centos-7
+   :prompt: [root@agent-node]#
+
+On Ubuntu
+---------
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent ubuntu-14.04
+   :prompt: [root@agent-node]#
+
 .. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
 .. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
 .. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
+.. _ZFS on Linux: http://zfsonlinux.org/
