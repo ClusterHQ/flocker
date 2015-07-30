@@ -41,9 +41,10 @@ Bug Reporting
 
 When reporting issues with Flocker please include copies of:
 
-* Docker version,
 * Operating System and version,
-* all the log files,
+* kernel version,
+* Docker info and version,
+* all Flocker log files.
 
 The following scripts can be used to gather this information on Ubuntu and CentOS.
 
