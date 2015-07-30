@@ -17,15 +17,15 @@ common_cli:
   cleanup: &cleanup |
     export PATH=/usr/local/bin:$PATH
     # clean up the stuff from previous runs
-    sudo rm -rf venv
+    sudo rm -rf v
     sudo rm -f results.xml
     sudo rm -f trial.log
     sudo rm -rf _trial_temp/
 
   setup_venv: &setup_venv |
     # setup the new venv
-    virtualenv -p python2.7 --clear venv
-    . venv/bin/activate
+    virtualenv -p python2.7 --clear v
+    . v/bin/activate
 
   setup_pip_accel: &setup_pip_accel |
     # use S3 pip binary caching
@@ -85,7 +85,7 @@ common_cli:
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # Consume the MODULE parameter set in the job configuration
-    coverage run venv/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
+    coverage run v/bin/trial --reporter=subunit \$MODULE 2>&1 | tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -99,7 +99,7 @@ common_cli:
     ssh-add \$HOME/.ssh/id_rsa
 
   run_acceptance_tests: &run_acceptance_tests
-    'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
+    'v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
 
 # the job definitions, they consume the aliases defined in the common_cli block
 #
