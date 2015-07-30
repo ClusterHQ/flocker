@@ -17,5 +17,6 @@ It is important to remember that your firewall will need to allow access to the 
    :maxdepth: 2
 
    configuring-authentication
+   enabling-control-service
    configuring-nodes-storage
-   enabling-services
+   
