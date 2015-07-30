@@ -21,7 +21,7 @@ XXX This should be documented, see :issue:`1877`.
 Ubuntu Bug Reporting
 ^^^^^^^^^^^^^^^^^^^^
 
-When reporting issues with Flocker on Ubuntu always include copies of all the log files.
+When reporting issues with Flocker on Ubuntu please include copies of all the log files.
 
 The relevant logs can be exported by running the following script:
 
@@ -45,10 +45,6 @@ They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flo
 
 It is possible to see the available unit names, and then view the logs with ``journalctl``:
 
-# FLOC-2647 Not sure if this example is helpful anymore
-# And the script below shows an alternative (better?) way to list the running
-# flocker services.
-
 .. prompt:: bash [root@node1]# auto
 
    [root@node1]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
@@ -63,7 +59,7 @@ It is possible to see the available unit names, and then view the logs with ``jo
 CentOS 7 Bug Reporting
 ^^^^^^^^^^^^^^^^^^^^^^
 
-When reporting issues with Flocker on CentOS 7 always include copies of all the log files.
+When reporting issues with Flocker on CentOS 7 please include copies of all the log files.
 
 The relevant logs can be exported by running the following script:
 
