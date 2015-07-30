@@ -13,7 +13,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from .._client import (
-    IFlockerAPIV1, FakeFlockerAPIV1, Dataset,
+    IFlockerAPIV1, FakeFlockerAPIV1, Dataset, DatasetAlreadyExists,
 )
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -106,15 +106,22 @@ def make_clientv1_tests(client_factory, synchronize_state):
                                        maximum_size=DATASET_SIZE,
                                        metadata={u"hello": u"there"})
 
-        # Create returns an error on conflicting dataset_id.
+        def test_create_conflicting_dataset_id(self):
+            """
+            Creating two datasets with same ``dataset_id`` results in an
+            ``DatasetAlreadyExists``.
+            """
+            client = client_factory()
+            d = self.assert_creates(client, primary=self.node_1,
+                                    maximum_size=DATASET_SIZE)
 
-        # A created dataset is listed in the configuration.
-
-        # A created dataset with custom dataset id is listed in the
-        # configuration.
-
-        # A created dataset with metadata is listed in the
-        # configuration.
+            def got_result(dataset):
+                d = client.create_dataset(primary=self.node_1,
+                                          maximum_size=DATASET_SIZE,
+                                          dataset_id=dataset.dataset_id)
+                return self.assertFailure(d, DatasetAlreadyExists)
+            d.addCallback(got_result)
+            return d
 
         # Move changes the primary of the dataset.
 

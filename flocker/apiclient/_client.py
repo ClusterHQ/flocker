@@ -10,7 +10,7 @@ from zope.interface import Interface, implementer
 
 from pyrsistent import PClass, field, pmap_field, pmap
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 
 
 class Dataset(PClass):
@@ -108,6 +108,8 @@ class FakeFlockerAPIV1(object):
         # we have to do it ourselves:
         if dataset_id is None:
             dataset_id = uuid4()
+        if dataset_id in self._configured_datasets:
+            return fail(DatasetAlreadyExists())
         result = Dataset(primary=primary, maximum_size=maximum_size,
                          dataset_id=dataset_id, metadata=metadata)
         self._configured_datasets[dataset_id] = result
