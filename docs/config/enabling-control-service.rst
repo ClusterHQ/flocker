@@ -3,7 +3,7 @@ Enabling the Flocker control service
 ====================================
 
 On CentOS 7
------------
+===========
 
 .. task:: enable_flocker_control centos-7
    :prompt: [root@control-node]#
@@ -22,7 +22,7 @@ For more details on configuring the firewall, see the `FirewallD documentation`_
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
 On Ubuntu
----------
+=========
 
 .. task:: enable_flocker_control ubuntu-14.04
    :prompt: [root@control-node]#

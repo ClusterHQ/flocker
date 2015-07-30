@@ -34,7 +34,7 @@ All nodes must be configured to use the same dataset backend.
 .. _openstack-dataset-backend:
 
 OpenStack Block Device Backend Configuration
---------------------------------------------
+============================================
 
 The OpenStack backend uses Cinder volumes as the storage for datasets.
 This backend can be used with Flocker dataset agent nodes run by OpenStack Nova.
@@ -105,7 +105,7 @@ To find the requirements for other plugins, see the appropriate documentation in
 .. _aws-dataset-backend:
 
 Amazon AWS / EBS Block Device Backend Configuration
----------------------------------------------------
+===================================================
 
 The AWS backend uses EBS volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on EC2 instances.
@@ -126,7 +126,7 @@ AWS must be able to attach volumes created in that availability zone to your Flo
 .. _emc-dataset-backend:
 
 EMC Block Device Backend Configuration
---------------------------------------
+======================================
 
 EMC provide plugins for Flocker integration with `ScaleIO`_ and `XtremIO`_.
 For more information, including installation, testing and usage instructions, visit the following links to their GitHub repositories:
@@ -138,8 +138,8 @@ For more information, including installation, testing and usage instructions, vi
 
 .. _zfs-dataset-backend:
 
-ZFS Peer-to-Peer Backend Configuration (Experimental)
------------------------------------------------------
+ZFS Peer-to-Peer Backend Configuration (EXPERIMENTAL)
+=====================================================
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
@@ -149,7 +149,7 @@ To begin with, you will need to install ZFS on your platform, followed by creati
 .. _installing-ZFS-CentOS-7:
 
 Installing ZFS on CentOS 7
-..........................
+--------------------------
 
 Installing ZFS requires the kernel development headers for the running kernel.
 Since CentOS doesn't provide easy access to old package versions, the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
@@ -170,14 +170,14 @@ You must also install the ZFS package repository.
 
 
 Installing ZFS on Ubuntu 14.04
-..............................
+------------------------------
 
 .. task:: install_zfs ubuntu-14.04
    :prompt: [root@ubuntu-14.04]#
 
 
 Creating a ZFS Pool
-...................
+-------------------
 
 Flocker requires a ZFS pool.
 The pool is typically named ``flocker`` but this is not required.
@@ -196,7 +196,7 @@ So ensure that the firewall allows access to TCP port 22 on each node from the e
 You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
 ZFS Backend Configuration
-.........................
+-------------------------
 
 The configuration item to use ZFS should look like:
 
@@ -215,7 +215,7 @@ The pool name must match a ZFS storage pool that you have created on all of the 
 .. _loopback-dataset-backend:
 
 Loopback Block Device Backend Configuration (INTERNAL TESTING)
---------------------------------------------------------------
+==============================================================
 
 The Loopback backend uses node-local storage as storage for datasets.
 It has no data movement functionality.

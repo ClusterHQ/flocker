@@ -3,7 +3,7 @@ Enabling the Flocker agent service
 ==================================
 
 On CentOS 7
------------
+===========
 
 Run the following commands to enable the agent service:
 
@@ -11,7 +11,7 @@ Run the following commands to enable the agent service:
    :prompt: [root@agent-node]#
 
 On Ubuntu
----------
+=========
 
 Run the following commands to enable the agent service:
 
