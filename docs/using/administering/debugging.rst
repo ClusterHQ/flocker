@@ -63,30 +63,18 @@ CentOS 7 Bug Reporting
 
 When reporting issues with Flocker on Centos 7 always include copies of all the log files.
 
-The relevant logs can be exported by running the following commands as root:
+The relevant logs can be exported by running the following script:
 
-# FLOC-2647 Perhaps this would be better as a standalone script.
-# Followup issue or in this branch?
-.. prompt:: bash [root@node1]# auto
+:download:`flocker-log-export-centos.sh`
 
-   SUFFIX="${HOSTNAME}_$(date +%s)"
-   ARCHIVE_NAME="clusterhq_flocker_logs_${SUFFIX}"
-   # Export all logs into a single directory
-   mkdir "${ARCHIVE_NAME}"
-   # Export the raw Eliot log messages from all enabled Flocker services
-   systemctl  list-unit-files --no-legend \
-   | awk '$1~/^flocker-\S+\.service$/ && $2=="enabled" {print $1}' \
-   | while read unitname; do
-       journalctl --all --output=cat --unit="${unitname}" | gzip > "${ARCHIVE_NAME}/${unitname}-${SUFFIX}.log.gz"
-   done
-   # Export the full journal since last boot with UTC timestamps
-   journalctl --all --boot | gzip > "${ARCHIVE_NAME}/all-${SUFFIX}.log.gz"
-   # Create a single archive file
-   tar --create --file "${ARCHIVE_NAME}.tar" "${ARCHIVE_NAME}"
-   rm -rf "${ARCHIVE_NAME}"
+.. literalinclude:: flocker-log-export-centos.sh
+   :language: sh
 
+Save the script to a file and then run it:
 
+.. prompt:: bash alice@mercury:~$
 
+   sh flocker-log-export-centos.sh
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`eliot`: https://github.com/ClusterHQ/eliot
