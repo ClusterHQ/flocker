@@ -1,6 +1,6 @@
-======================================
-Configuring Nodes and Storage Backends
-======================================
+=================================
+Enabling and Running the Services
+=================================
 
 Enabling the Flocker control service 
 ====================================

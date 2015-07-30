@@ -18,3 +18,4 @@ It is important to remember that your firewall will need to allow access to the 
 
    configuring-authentication
    configuring-nodes-storage
+   enabling-services
