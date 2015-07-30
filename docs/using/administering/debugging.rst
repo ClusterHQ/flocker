@@ -39,7 +39,7 @@ It is possible to see the available unit names, and then view the logs with ``jo
 Bug Reporting
 -------------
 
-When reporting issues with Flocker please include copies of:
+When reporting issues with Flocker please include:
 
 * Operating System and version,
 * kernel version,
@@ -48,7 +48,7 @@ When reporting issues with Flocker please include copies of:
 
 The following scripts can be used to gather this information on Ubuntu and CentOS.
 
-Save the script to a file and then run it.
+Save the appropriate script to a file and then run it as root
 
 Ubuntu
 ^^^^^^
@@ -58,7 +58,7 @@ Ubuntu
 .. literalinclude:: flocker-log-export-ubuntu.sh
    :language: sh
 
-.. prompt:: bash alice@mercury:~$
+.. prompt:: bash #
 
    sh flocker-log-export-ubuntu.sh
 
@@ -72,7 +72,7 @@ CentOS 7
    :language: sh
 
 
-.. prompt:: bash alice@mercury:~$
+.. prompt:: bash #
 
    sh flocker-log-export-centos.sh
 
