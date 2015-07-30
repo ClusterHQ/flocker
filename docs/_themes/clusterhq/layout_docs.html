@@ -24,6 +24,14 @@
     <script type="text/javascript" src="https://fast.fonts.net/jsapi/b20e6cd5-c1a4-4878-9d69-da3806cb86b8.js"></script>
     <link href='https://fonts.googleapis.com/css?family=Lato&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
 
+    <!--
+         Enable Bootstrap tabs in the documentation. There's probably a better
+         way to get these dependencies loaded.  FLOC-2248.
+    -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script>window.jQuery || document.write('<script src="{{ pathto('_static/js/vendor/jquery-1.11.1.min.js', 1) }}"><\/script>')</script>
+    <script src="{{ pathto('_static/js/vendor/bootstrap.min.js', 1)}}"></script>
+
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
