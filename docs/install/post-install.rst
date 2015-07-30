@@ -103,9 +103,91 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
 
-Before you can use Flocker's API you will also need to :ref:`generate a client certificate <generate-api>`.
+Before you can use Flocker's API you will need to generate a client certificate.
+
+The Flocker REST API also uses TLS to secure and authenticate requests.
+This ensures an API request is both encrypted, and verified to have come from an authorized user, while the corresponding response is verified to have come from the genuine cluster control service.
+
+Certificates are used for both client and server authentication, entirely replacing the use of usernames and passwords commonly used in HTTPS.
+
+Therefore to grant a user access to your cluster's REST API, you will need to use the ``flocker-ca`` tool, installed as part of the ``flocker-cli`` package, to generate a certificate and private key that is then given to the API end user.
+To give a user access to a cluster's REST API, use the ``flocker-ca`` tool to generate a certificate and private key for the user.
+The ``flocker-ca`` tool is installed as part of the flocker-cli package.
+
+.. _generate-api:
+
+Generating an API user certificate
+----------------------------------
+
+The CLI package includes the ``flocker-ca`` program which is used to generate certificate and key files.
+
+.. note:: You can run ``flocker-ca --help`` for a full list of available commands.
+
+For API user certificates, run the ``flocker-ca create-api-certificate`` command from the directory which contains the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
+
+Run ``flocker-ca create-api-certificate <username>`` where ``<username>`` is a unique username for an API user:
+
+.. code-block:: console
+
+   $ flocker-ca create-api-certificate allison
+   Created allison.crt and allison.key. You can now give these to your API end user so they can access the control service API.
+
+.. note:: In this command ``<username>`` is a unique username for an API user.
+   Please note though that ``flocker-deploy`` requires these files to be named :file:`user.crt` and :file:`user.key`.
+   If you intend on using ``flocker-deploy``, you will need to rename your files to :file:`user.crt` and :file:`user.key`.
+
+The two files generated will correspond to the username you specified in the command, in this example :file:`allison.crt` and :file:`allison.key`.
+
+You should securely provide a copy of these files to the API end user, as well as a copy of the cluster's public certificate, the :file:`cluster.crt` file.
+
+Using an API certificate to authenticate
+----------------------------------------
+
+Once in possession of an API user certificate and the cluster certificate an end user must authenticate with those certificates in every request to the cluster REST API.
+The cluster certificate ensures the user is connecting to the genuine API of their cluster.
+The client certificate allows the API server to ensure the request is from a genuine, authorized user.
+An example of performing this authentication with ``cURL`` is given below.
+In this example, ``172.16.255.250`` represents the IP address of the control service.
+The following is an example of an authenticated request to create a new container on a cluster.
+
+OS X
+....
+
+Make sure you know the common name of the client certificate you will use.
+If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
+If you're not sure what the username is, you can find the common name like this:
+
+.. code-block:: console
+
+    $ openssl x509 -in user.crt -noout -subject
+    subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
+
+In this example, ``user-allison`` is the common name.
+Import the client certificate into the ``Keychain`` and then refer to it by its common name:
+
+.. code-block:: console
+
+    $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
+	Enter Export Password:
+	Verifying - Enter Export Password:
+    $ security import user.p12 -k ~/Library/Keychains/login.keychain
+    $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
+         https://172.16.255.250:4523/v1/configuration/containers
+
+Linux
+.....
+
+.. code-block:: console
+
+    $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
+         https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+
+.. note::
+	Now you have set up an authenticated user you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
+
+	You can replace the IP addresses in the sample :file:`deployment.yml` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
 
 Enabling the Flocker control service 
 ====================================
@@ -289,69 +371,8 @@ ZFS Peer-to-Peer Backend Configuration (Experimental)
 
 The ZFS backend uses node-local storage and ZFS filesystems as the storage for datasets.
 The ZFS backend remains under development, it is not expected to operate reliably in many situations, and its use with any data that you cannot afford to lose is **strongly** discouraged at this time.
-This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
-The configuration item to use ZFS should look like:
 
-.. code-block:: yaml
-
-   "dataset":
-      "backend": "zfs"
-      "pool": "flocker"
-
-.. This section could stand to be improved.
-   Some of the suggested steps are not straightforward.
-   FLOC-2092
-
-The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes.
-This requires first installing :ref:`ZFS on Linux <installing-ZFS-CentOS-7>`.
-You must also set up SSH keys at ``/etc/flocker/id_rsa_flocker`` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
-
-.. _loopback-dataset-backend:
-
-Loopback Block Device Backend Configuration (INTERNAL TESTING)
---------------------------------------------------------------
-
-The Loopback backend uses node-local storage as storage for datasets.
-It has no data movement functionality.
-It serves primarily as a development and testing tool for the other block device backend implementations.
-You may find it useful if you plan to work on Flocker itself.
-This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
-The configuration item to use Loopback should look like:
-
-.. code-block:: yaml
-
-   "dataset":
-      "backend": "loopback"
-      "root_path": "/var/lib/flocker/loopback"
-
-The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
-
-Enabling the Flocker agent service
-==================================
-
-On CentOS 7
------------
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent centos-7
-   :prompt: [root@agent-node]#
-
-On Ubuntu
----------
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent ubuntu-14.04
-   :prompt: [root@agent-node]#
-
-What to do next
-===============
-
-Optional ZFS Backend Configuration
-----------------------------------
-
-If you intend to use a ZFS backend, this requires ZFS to be installed.
+To begin with, you will need to install ZFS on your platform, followed by creating a ZFS pool and configuring the ZFS backend:
 
 .. _installing-ZFS-CentOS-7:
 
@@ -359,8 +380,7 @@ Installing ZFS on CentOS 7
 ..........................
 
 Installing ZFS requires the kernel development headers for the running kernel.
-Since CentOS doesn't provide easy access to old package versions,
-the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
+Since CentOS doesn't provide easy access to old package versions, the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
 
 .. task:: upgrade_kernel centos-7
    :prompt: [root@centos-7]#
@@ -401,12 +421,66 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
 
-Next Step
-=========
+You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
-The next step is to set up an :ref:`authenticated user<authenticate>`.
+ZFS Backend Configuration
+.........................
+
+The configuration item to use ZFS should look like:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "zfs"
+      "pool": "flocker"
+
+.. This section could stand to be improved.
+   Some of the suggested steps are not straightforward.
+   FLOC-2092
+
+The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes. For more information, see the `ZFS on Linux`_ documentation.
+
+.. _loopback-dataset-backend:
+
+Loopback Block Device Backend Configuration (INTERNAL TESTING)
+--------------------------------------------------------------
+
+The Loopback backend uses node-local storage as storage for datasets.
+It has no data movement functionality.
+It serves primarily as a development and testing tool for the other block device backend implementations.
+You may find it useful if you plan to work on Flocker itself.
+This backend has no infrastructure requirements: it can run no matter where the Flocker dataset agents run.
+The configuration item to use Loopback should look like:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "loopback"
+      "root_path": "/var/lib/flocker/loopback"
+
+The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
+
+Enabling the Flocker agent service
+==================================
+
+On CentOS 7
+-----------
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent centos-7
+   :prompt: [root@agent-node]#
+
+On Ubuntu
+---------
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent ubuntu-14.04
+   :prompt: [root@agent-node]#
 
 .. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
 .. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
 .. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
+.. _ZFS on Linux: http://zfsonlinux.org/
