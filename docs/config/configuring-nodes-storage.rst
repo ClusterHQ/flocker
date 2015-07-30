@@ -82,7 +82,7 @@ For testing purposes, it is possible to turn off certificate verification, by se
        auth_plugin: "password"
        ...
 
-Other items are typically required but vary depending on the `OpenStack authentication plugin selected <http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name>`_
+Other items are typically required but vary depending on the `OpenStack authentication plugin selected`_
 (Flocker relies on these plugins; it does not provide them itself).
 
 Flocker does provide explicit support for a ``rackspace`` authentication plugin.
@@ -232,25 +232,7 @@ The configuration item to use Loopback should look like:
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
 
-Enabling the Flocker agent service
-==================================
-
-On CentOS 7
------------
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent centos-7
-   :prompt: [root@agent-node]#
-
-On Ubuntu
----------
-
-Run the following commands to enable the agent service:
-
-.. task:: enable_flocker_agent ubuntu-14.04
-   :prompt: [root@agent-node]#
-
+.. _OpenStack authentication plugin selected: http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name
 .. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
 .. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
