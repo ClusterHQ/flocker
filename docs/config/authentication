@@ -1,18 +1,6 @@
-===============================
-Post-installation Configuration
-===============================
-
-
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
-
-
-
 .. _authentication:
 
+==================================
 Configuring Cluster Authentication
 ==================================
 
