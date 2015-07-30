@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 SUFFIX="${HOSTNAME}_$(date +%s)"
 ARCHIVE_NAME="clusterhq_flocker_logs_${SUFFIX}"
