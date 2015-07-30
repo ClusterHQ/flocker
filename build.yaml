@@ -101,6 +101,15 @@ common_cli:
   run_acceptance_tests: &run_acceptance_tests
     'venv/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
 
+  check_version: &check_version |
+    export FLOCKER_VERSION=\$(venv/bin/python setup.py --version)
+
+  build_sdist: &build_sdist
+    'venv/bin/pyhon setup.py sdist'
+
+  build_package: &build_package
+      'venv/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
+
 # the job definitions, they consume the aliases defined in the common_cli block
 #
 # flocker.node.functional is hanging, so we don't run it
@@ -198,4 +207,14 @@ job_type:
             cli: [ *hashbang, *setup_pip_accel_centos7_vars,
                *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
                *setup_authentication, *run_acceptance_tests ]
+          }
+
+  omnibus:
+    omnibus_centos_7:
+      on_nodes_with_labels: 'aws-ubuntu-trusty'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
+               *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+               *check_version, *build_sdist, *build_package ]
           }
