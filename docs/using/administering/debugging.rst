@@ -61,7 +61,7 @@ It is possible to see the available unit names, and then view the logs with ``jo
 CentOS 7 Bug Reporting
 ^^^^^^^^^^^^^^^^^^^^^^
 
-When reporting issues with Flocker on Centos 7 always include copies of all the log files.
+When reporting issues with Flocker on CentOS 7 always include copies of all the log files.
 
 The relevant logs can be exported by running the following script:
 
