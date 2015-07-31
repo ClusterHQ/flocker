@@ -26,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Leases, LeaseAcquisitionError, LeaseReleaseError
+    Link, Lease, Leases, LeaseAcquisitionError, LeaseReleaseError
 )
 
 
@@ -1624,4 +1624,28 @@ class LeaseTests(SynchronousTestCase):
         )
         self.assertEqual(
             exception.message, expected_error
+        )
+
+    def test_invariant_success(self):
+        """
+        A lease's ID (key in the ``Leases`` map) must match its dataset ID.
+        """
+        lease = Lease(
+            dataset_id=self.dataset_id, node_id=self.node_id, expiration=None
+        )
+        # This test's "assertion" is that this does not raise an exception.
+        self.leases.set(self.dataset_id, lease)
+
+    def test_invariant_fail(self):
+        """
+        An ``InvariantException`` is raised if a lease's ID (key in the
+        ``Leases`` map) does not match its dataset ID.
+        """
+        lease = Lease(
+            dataset_id=self.dataset_id, node_id=self.node_id, expiration=None
+        )
+        # Try to map this lease to a different UUID.
+        self.assertRaises(
+            InvariantException,
+            self.leases.set, uuid4(), lease
         )
