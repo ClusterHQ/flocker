@@ -170,6 +170,60 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
+    def test_private_registry_image(self):
+        """
+        ``DockerClient.add`` can start containers based on an image from a
+        private registry.
+        """
+        address_user = socket.socket()
+        self.addCleanup(address_user.close)
+        address_user.bind(('', 0))
+        used_address = address_user.getsockname()
+        address_user.close()
+        registry_name = random_name(self)
+        registry_port = used_address[1]
+        registry_starting = self.start_container(
+            unit_name=registry_name,
+            image_name='registry:2',
+            ports=[
+                PortMap(
+                    internal_port=5000,
+                    external_port=registry_port
+                ),
+            ]
+        )
+        repository = '127.0.0.1:{}/clusterhq/testimage'.format(
+            registry_port
+        )
+        tag = '123'
+
+        def push_image(client):
+            client._client.tag(
+                image='busybox',
+                repository=repository,
+                tag=tag,
+            )
+            client._client.push(
+                repository=repository,
+                tag=tag,
+                insecure_registry=True,
+            )
+            client._client.remove_image(
+                image=repository + ':' + tag,
+            )
+            return client
+        pushing_image = registry_starting.addBoth(push_image)
+
+        def start_private_image(client):
+            self.start_container(
+                unit_name=random_name(self),
+                image_name=repository,
+            )
+        starting_private_image = pushing_image.addCallback(
+            start_private_image
+        )
+        return starting_private_image
+
     def test_add_error(self):
         """
         ``DockerClient.add`` returns a ``Deferred`` that errbacks with
