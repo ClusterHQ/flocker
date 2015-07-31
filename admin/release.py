@@ -9,7 +9,6 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 import json
-import logging
 import os
 import sys
 import tempfile
@@ -68,12 +67,6 @@ from .yum import (
 from .vagrant import vagrant_version
 from .homebrew import make_recipe
 from .packaging import available_distributions, DISTRIBUTION_NAME_MAP
-
-# Log information about network connections
-logging.basicConfig()
-requests_log = logging.getLogger("requests.packages.urllib3")
-requests_log.setLevel(logging.DEBUG)
-requests_log.propagate = True
 
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'

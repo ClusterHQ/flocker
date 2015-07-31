@@ -6,7 +6,14 @@ Publish release artifacts.
 
 from _preamble import TOPLEVEL, BASEPATH
 
+import logging
 import sys
+
+# Log information about network connections
+logging.basicConfig()
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
 
 if __name__ == '__main__':
     from admin.release import publish_artifacts_main as main
