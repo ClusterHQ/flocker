@@ -4,10 +4,11 @@
 Before You Begin
 ================
 
-To start this tutorial, you will need to have installed the ``flocker-cli``, which provides the ``flocker-deploy`` command.
-For more information, see :ref:`installing-flocker-cli`.
+.. note::
+	To start this tutorial, you will need to have installed the ``flocker-cli``, which provides the ``flocker-deploy`` command.
+	For more information, see :ref:`installing-flocker-cli`.
 
-.. note:: If you have a version of ``flocker-cli`` installed that is older than |version|, delete the install script and directory, and install the latest version.
+	If you have a version of ``flocker-cli`` installed that is older than |version|, delete the install script and directory, and install the latest version.
 
 Requirements
 ============
