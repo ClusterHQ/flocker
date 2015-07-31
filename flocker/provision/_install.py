@@ -377,12 +377,16 @@ def task_cli_pip_install(
             bucket=ARCHIVE_BUCKET, key='python',
             version=get_installable_version(vers))
         )
+    activate_virtualenv = 'source {}/bin/activate'.format(venv_name)
     return sequence([
-        run_from_args([
-            'virtualenv', '--python=/usr/bin/python2.7', venv_name]),
-        run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run_from_args(['pip', 'install', '--upgrade', 'pip']),
-        run_from_args(['pip', 'install', url]),
+        run_from_args(
+            ['virtualenv', '--python=/usr/bin/python2.7', venv_name]),
+        run(activate_virtualenv),
+        run_from_args(
+            ['pip', 'install', '--upgrade', 'pip'],
+            pre_command=activate_virtualenv),
+        run_from_args(
+            ['pip', 'install', url], pre_command=activate_virtualenv),
         ])
 
 
@@ -393,9 +397,11 @@ def task_cli_pip_test(venv_name='flocker-client'):
     :param bytes venv_name: Name for the virtualenv.
     :return: an Effect to test the client.
     """
+    activate_virtualenv = 'source {}/bin/activate'.format(venv_name)
     return sequence([
-        run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run_from_args(['flocker-deploy', '--version']),
+        run(activate_virtualenv),
+        run_from_args(
+            ['flocker-deploy', '--version'], pre_command=activate_virtualenv),
         ])
 
 

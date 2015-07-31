@@ -52,15 +52,20 @@ class Run(PRecord):
     :ivar bytes command: The command to run.
     :ivar callable log_command_filter: A filter to apply to any logging
         of the executed command.
+    :ivar bytes pre_command: A command to run before the ``command``,
+        generally to setup the environment for the command.
     """
     command = field(type=bytes, mandatory=True)
     log_command_filter = field(mandatory=True)
+    pre_command = field()
 
     @classmethod
-    def from_args(cls, command_args, log_command_filter=identity):
+    def from_args(
+            cls, command_args, log_command_filter=identity, pre_command=None):
         return cls(
             command=" ".join(map(shell_quote, command_args)),
-            log_command_filter=log_command_filter)
+            log_command_filter=log_command_filter,
+            pre_command=pre_command)
 
 
 class Sudo(PRecord):
@@ -154,7 +159,7 @@ def comment(comment):
     return Effect(Comment(comment=comment))
 
 
-def run_from_args(command, log_command_filter=identity):
+def run_from_args(command, log_command_filter=identity, pre_command=None):
     """
     Run a command on a remote host. This quotes the provided arguments, so they
     are not interpreted by the shell.
@@ -162,11 +167,15 @@ def run_from_args(command, log_command_filter=identity):
     :param list command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
+    :param bytes pre_command: A command to run before the ``command``,
+        generally to setup the environment for the command.
 
     :return Effect:
     """
     return Effect(
-        Run.from_args(command, log_command_filter=log_command_filter))
+        Run.from_args(
+            command, log_command_filter=log_command_filter,
+            pre_command=pre_command))
 
 
 def sudo_from_args(command, log_command_filter=identity):
