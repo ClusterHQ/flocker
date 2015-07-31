@@ -359,10 +359,12 @@ def task_cli_pip_prereqs(distribution):
         raise UnsupportedDistribution()
 
 
-def task_cli_pip_install(package_source=PackageSource()):
+def task_cli_pip_install(
+        venv_name='flocker-client', package_source=PackageSource()):
     """
     Install the Flocker client into a virtualenv using pip.
 
+    :param bytes venv_name: Name for the virtualenv.
     :param package_source: Package source description
     :return: an Effect to install the client.
     """
@@ -377,21 +379,22 @@ def task_cli_pip_install(package_source=PackageSource()):
         )
     return sequence([
         run_from_args([
-            'virtualenv', '--python=/usr/bin/python2.7', 'flocker-client']),
-        run_from_args(['source', 'flocker-client/bin/activate']),
+            'virtualenv', '--python=/usr/bin/python2.7', venv_name]),
+        run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
         run_from_args(['pip', 'install', '--upgrade', 'pip']),
         run_from_args(['pip', 'install', url]),
         ])
 
 
-def task_cli_pip_test():
+def task_cli_pip_test(venv_name='{}'):
     """
     Test the Flocker client installed in a virtualenv.
 
+    :param bytes venv_name: Name for the virtualenv.
     :return: an Effect to test the client.
     """
     return sequence([
-        run_from_args(['source', 'flocker-client/bin/activate']),
+        run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
         run_from_args(['flocker-deploy', '--version']),
         ])
 

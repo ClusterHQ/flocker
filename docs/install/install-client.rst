@@ -70,12 +70,12 @@ To install these pre-requisites with the ``apt`` package manager, run:
 
 Then run the following commands to install ``flocker-cli`` in a Python virtualenv:
 
-.. task:: cli_pip_install
+.. task:: cli_pip_install flocker-client
    :prompt: alice@mercury:~$
 
 Ensure you are in the virtualenv whenever you need to run Flocker CLI commands:
 
-.. task:: cli_pip_test
+.. task:: cli_pip_test flocker-client
    :prompt: alice@mercury:~$
 
 OS X
