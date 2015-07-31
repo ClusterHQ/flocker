@@ -123,6 +123,14 @@ branches = []
 {# grab the GitHub token from the jenkins homedir                            #}
 String token = new File('/var/lib/jenkins/.github_token').text.trim()
 
+{# - commenting this section out for now, due to the long time it takes to
+     iterate through every branch, and the high CPU usage on the jenkins srv.
+     Instead we'll take a different approach, we will consume a variable
+     from the which specifies which branches to build.
+     This job can then be executed when we find a new branch on github, or
+     through a pull-request for that branch. Which would also kick the job that
+     was created.
+
 {# groove lacks a loop...until
    we need to iterate over every page to get the full list of branches       #}
     Looper.loop {
@@ -142,15 +150,16 @@ String token = new File('/var/lib/jenkins/.github_token').text.trim()
         page = page + 1
     } until { response == [] }
 
+#}
+
 def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# Create a basefolder for our project, it should look like:
    '<github username>-<git repository>'                                      #}
 {{ folder("${dashProject}","${dashProject}") }}
 
-{# the branchApi.newReader call returns all the upstreams, but excludes
-   'master' so we add it here                                                #}
-branches << "master"
+{# branches contains the passed parameter RECONFIGURE_BRANCH from jenkins    #}
+branches << System.getenv('RECONFIGURE_BRANCH')
 
 {# Iterate over every branch, and create folders, jobs                       #}
 branches.each {
