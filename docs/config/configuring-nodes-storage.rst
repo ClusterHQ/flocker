@@ -31,6 +31,18 @@ The file must also include a ``dataset`` item.
 This selects and configures a dataset backend.
 All nodes must be configured to use the same dataset backend.
 
+.. note::
+	You can only choose a single backend at a time, and changing backends is not currently supported.
+
+The following sections describe how to configure the backends currently supported by Flocker:
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 1
+
+.. XXX FLOC 2442 improves this section, by creating a page solely for a list of supported backends, which is scaleable as the list grows.
+
 .. _openstack-dataset-backend:
 
 OpenStack Block Device Backend Configuration
