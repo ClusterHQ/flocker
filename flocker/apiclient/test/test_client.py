@@ -152,12 +152,14 @@ def make_clientv1_tests(client_factory, synchronize_state):
                 return listed
             d.addCallback(got_result)
 
-            d.addCallback(lambda result:
-                          self.assertEqual((result[0], result[0] in result[1]),
-                                           (Dataset(dataset_id=dataset_id,
-                                                    primary=self.node_2,
-                                                    maximum_size=DATASET_SIZE),
-                                            True)))
+            def got_listing(result):
+                moved_result, listed_datasets = result
+                expected = Dataset(dataset_id=dataset_id,
+                                   primary=self.node_2,
+                                   maximum_size=DATASET_SIZE)
+                self.assertEqual((expected, expected in listed_datasets),
+                                 (moved_result, True))
+            d.addCallback(got_listing)
             return d
 
         def test_list_state(self):
