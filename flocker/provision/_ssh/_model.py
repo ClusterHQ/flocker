@@ -109,15 +109,19 @@ class Comment(PRecord):
     comment = field(type=bytes, mandatory=True)
 
 
-def run(command, log_command_filter=identity):
+def run(command, log_command_filter=identity, pre_command=None):
     """
     Run a shell command on a remote host.
 
     :param bytes command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
         of the executed command.
+    :param bytes pre_command: A command to run before the ``command``,
+        generally to setup the environment for the command.
     """
-    return Effect(Run(command=command, log_command_filter=log_command_filter))
+    return Effect(Run(
+        command=command, log_command_filter=log_command_filter,
+        pre_command=pre_command))
 
 
 def sudo(command, log_command_filter=identity):
