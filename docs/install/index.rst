@@ -11,4 +11,3 @@ Installing Flocker
 
    install-client
    install-node
-   post-install

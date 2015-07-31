@@ -50,3 +50,7 @@ You can override these defaults with the ``--cacert`` (cluster certificate), ``-
 
    $ flocker-deploy --cacert=/home/alice/credentials/mycluster.crt --cert=/home/alice/credentials/alice.crt --key=/home/alice/credentials/alice.key 172.16.255.250 clusterhq_deployment.yml clusterhq_app.yml
 
+.. note::
+	When you have set up your authentication you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
+
+	You can replace the IP addresses in the sample :file:`deployment.yml` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
