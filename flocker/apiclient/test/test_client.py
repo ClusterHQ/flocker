@@ -10,6 +10,8 @@ from bitmath import GiB
 
 from zope.interface.verify import verifyObject
 
+from pyrsistent import pmap
+
 from twisted.trial.unittest import TestCase
 
 from .._client import (
@@ -94,18 +96,25 @@ def make_clientv1_tests(client_factory, synchronize_state):
             If a ``dataset_id`` is specified when calling ``create_dataset``,
             it is used as the ID for the resulting created dataset.
             """
-            return self.assert_creates(client_factory(), primary=self.node_1,
-                                       maximum_size=DATASET_SIZE,
-                                       dataset_id=uuid4())
+            dataset_id = uuid4()
+            d = self.assert_creates(client_factory(), primary=self.node_1,
+                                    maximum_size=DATASET_SIZE,
+                                    dataset_id=dataset_id)
+            d.addCallback(lambda dataset: self.assertEqual(dataset.dataset_id,
+                                                           dataset_id))
+            return d
 
         def test_create_with_metadata(self):
             """
             The metadata passed to ``create_dataset`` is stored with the
             dataset.
             """
-            return self.assert_creates(client_factory(), primary=self.node_1,
-                                       maximum_size=DATASET_SIZE,
-                                       metadata={u"hello": u"there"})
+            d = self.assert_creates(client_factory(), primary=self.node_1,
+                                    maximum_size=DATASET_SIZE,
+                                    metadata={u"hello": u"there"})
+            d.addCallback(lambda dataset: self.assertEqual(
+                dataset.metadata, pmap({u"hello": u"there"})))
+            return d
 
         def test_create_conflicting_dataset_id(self):
             """
