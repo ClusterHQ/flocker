@@ -119,7 +119,7 @@ common_cli:
 job_type:
   run_trial:
   # http://build.clusterhq.com/builders/flocker-centos-7
-    RunTrialAWScentos7:
+    run_trial_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_modules:
         - flocker.acceptance
@@ -155,7 +155,7 @@ job_type:
 
 # http://build.clusterhq.com/builders/flocker-admin
 # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
-    RunTrialUbuntuTrusty:
+    run_trial_on_AWS_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_modules:
         - admin
@@ -192,7 +192,7 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
-    RunSphinx:
+    run_sphinx:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_steps:
         - { type: 'shell',
@@ -203,7 +203,7 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
-    RunAcceptanceAWSCentos7:
+    run_acceptance_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
@@ -213,7 +213,7 @@ job_type:
           }
 
   omnibus:
-    omnibus_centos_7:
+    run_omnibus_for_CentOS_7:
       on_nodes_with_labels: 'aws-ubuntu-trusty'
       with_steps:
         - { type: 'shell',
