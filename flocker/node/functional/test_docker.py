@@ -215,9 +215,9 @@ class GenericDockerClientTests(TestCase):
         pushing_image = registry_starting.addBoth(push_image)
 
         def start_private_image(client):
-            self.start_container(
+            return self.start_container(
                 unit_name=random_name(self),
-                image_name=repository,
+                image_name=repository + ':' + tag,
             )
         starting_private_image = pushing_image.addCallback(
             start_private_image
