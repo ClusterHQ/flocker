@@ -4,6 +4,8 @@
 Tests for ``flocker.node._model``.
 """
 
+import datetime
+
 from uuid import uuid4, UUID
 
 from pyrsistent import (
@@ -24,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link,
+    Link, Leases,
 )
 
 
@@ -1466,14 +1468,29 @@ class LeaseTests(SynchronousTestCase):
     """
     Tests for ``Leases``.
     """
-    def __init__(self):
-        super(LeaseTests, self).__init__()
+    def setUp(self):
+        """
+        Setup for each test.
+        """
+        self.leases = Leases()
+        self.now = datetime.datetime.now()
+        self.dataset_id = uuid4()
+        self.node_id = uuid4()
+        self.dataset = Dataset(dataset_id=unicode(self.dataset_id))
+        self.node = Node(uuid=self.node_id)
 
     def test_lease_expiry_datetime(self):
         """
         An lease has an expiry date/time after the specified number
         of seconds from the time of acquisition.
         """
+        ONE_HOUR = 60 * 60
+        expected_expiration = self.now + datetime.timedelta(seconds=ONE_HOUR)
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, ONE_HOUR
+        )
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, expected_expiration)
 
     def test_indefinite_lease(self):
         """
@@ -1509,13 +1526,13 @@ class LeaseTests(SynchronousTestCase):
 
     def test_error_on_release_lease_held_by_other_node(self):
         """
-        A ``ValueError`` is raised when attempting to release a lease held
-        by another node.
+        A ``LeaseReleaseError`` is raised when attempting to release a lease
+        held by another node.
         """
 
     def test_error_on_acquire_lease_held_by_other_node(self):
         """
-        A ``ValueError`` is raised when attempting to acquire a lease held
-        by another node.
+        A ``LeaseAcquisitionError`` is raised when attempting to acquire
+        a lease held by another node.
         """
 
