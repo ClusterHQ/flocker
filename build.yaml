@@ -99,7 +99,7 @@ common_cli:
     ssh-add \$HOME/.ssh/id_rsa
 
   run_acceptance_tests: &run_acceptance_tests
-    'v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$(echo \$GIT_BRANCH | cut -f 2 -d "/") --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
+    'v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
 
   check_version: &check_version |
     export FLOCKER_VERSION=\$(venv/bin/python setup.py --version)
