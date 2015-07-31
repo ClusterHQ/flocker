@@ -772,7 +772,7 @@ def publish_artifacts_main(args, base_path, top_level):
             version=options['flocker-version'],
             source_bucket=options['target'],
             scratch_directory=scratch_directory.child('homebrew'),
-            top_level=top_level
+            top_level=top_level,
         )
 
     finally:

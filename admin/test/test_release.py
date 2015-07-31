@@ -2039,7 +2039,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
-            top_level=FLOCKER_PATH
+            top_level=FLOCKER_PATH,
         )
 
         self.patch(release, 'make_recipe',
@@ -2050,11 +2050,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
-            top_level=FLOCKER_PATH
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
+
 
 class GetExpectedRedirectsTests(SynchronousTestCase):
     """
