@@ -1460,3 +1460,62 @@ class LinkTests(SynchronousTestCase):
         link = Link(alias=u'myLINK', local_port=1, remote_port=1)
         link2 = link.set('alias', u'MYlink')
         self.assertEqual(link, link2)
+
+
+class LeaseTests(SynchronousTestCase):
+    """
+    Tests for ``Leases``.
+    """
+    def __init__(self):
+        super(LeaseTests, self).__init__()
+
+    def test_lease_expiry_datetime(self):
+        """
+        An lease has an expiry date/time after the specified number
+        of seconds from the time of acquisition.
+        """
+
+    def test_indefinite_lease(self):
+        """
+        An acquired lease can be set to never expire.
+        """
+
+    def test_lease_expires(self):
+        """
+        An acquired lease expires after the specified number of seconds and
+        is removed from the ``Leases`` map.
+        """
+
+    def test_indefinite_lease_never_expires(self):
+        """
+        An acquired lease set to never expire is not removed from ``Leases``
+        map.
+        """
+
+    def test_error_on_check_lease_held_by_other_node(self):
+        """
+        A ``ValueError`` is raised when checking a lease held by another node.
+        """
+
+    def test_lease_renewable(self):
+        """
+        A lease can be renewed.
+        """
+
+    def test_lease_release(self):
+        """
+        A lease can be released.
+        """
+
+    def test_error_on_release_lease_held_by_other_node(self):
+        """
+        A ``ValueError`` is raised when attempting to release a lease held
+        by another node.
+        """
+
+    def test_error_on_acquire_lease_held_by_other_node(self):
+        """
+        A ``ValueError`` is raised when attempting to acquire a lease held
+        by another node.
+        """
+
