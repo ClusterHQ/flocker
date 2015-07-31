@@ -386,7 +386,7 @@ def task_cli_pip_install(
         ])
 
 
-def task_cli_pip_test(venv_name='{}'):
+def task_cli_pip_test(venv_name='flocker-client'):
     """
     Test the Flocker client installed in a virtualenv.
 
