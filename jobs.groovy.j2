@@ -2,6 +2,7 @@
 {# creates a folder structure to group jobs
    param folder:  '<clusterhq-flocker/branchname>'
    param displayName: Name displayed in the jenkins view for this folder     #}
+println("creating {{folder}}...")
 folder("{{folder}}") { displayName("{{display_name}}") }
 {%- endmacro                                                                -%}
 {#
@@ -126,6 +127,7 @@ String token = new File('/var/lib/jenkins/.github_token').text.trim()
 {# groove lacks a loop...until
    we need to iterate over every page to get the full list of branches       #}
     Looper.loop {
+    println("parsing page... ${page}")
     def addr = "https://api.github.com/repos/{{ cfg.project }}/branches?page=${page}"
 
         conn = addr.toURL().openConnection()
@@ -136,6 +138,7 @@ String token = new File('/var/lib/jenkins/.github_token').text.trim()
         }
         if ( response != [] ) {
             response.each {
+                println("found branch... ${it.name}")
                 branches << "${ it.name }"
             }
         }
@@ -154,10 +157,12 @@ branches << "master"
 
 {# Iterate over every branch, and create folders, jobs                       #}
 branches.each {
+  println("iterating over branch... ${it}")
 
 {#  swap '/' with '-'                                                        #}
   branchName = "${it}"
   dashBranchName = "${branchName}".replace("/","-")
+  println("found branch... ${it.name}")
 
 {#   create a folder for every branch: /git-username/git-repo/branch         #}
   {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
