@@ -172,8 +172,10 @@ branches.each {
 {%      for _module in job_values.with_modules                              -%}
 {%        set _job_name = job_name + '_' + _module                          -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters { textParam("MODULE", "{{ _module }}", "Module to test" ),
-                 textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" ) }
+    parameters {
+        textParam("MODULE", "{{ _module }}", "Module to test" )
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ scm("${git_url}", "${branchName}") }}
