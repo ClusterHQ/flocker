@@ -26,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Leases,
+    Link, Leases, LeaseAcquisitionError, LeaseReleaseError
 )
 
 
@@ -1506,36 +1506,122 @@ class LeaseTests(SynchronousTestCase):
         An acquired lease expires after the specified number of seconds and
         is removed from the ``Leases`` map.
         """
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        # Assert the lease has been acquired successfully.
+        self.assertTrue(self.dataset_id in leases)
+        # Fake a time the first lease has expired.
+        now = self.now + datetime.timedelta(seconds=self.lease_duration + 1)
+        leases = leases.expire(now)
+        # Assert the lease has been removed successfully.
+        self.assertFalse(self.dataset_id in leases)
 
     def test_indefinite_lease_never_expires(self):
         """
         An acquired lease set to never expire is not removed from ``Leases``
         map.
         """
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        self.assertTrue(self.dataset_id in leases)
+        now = self.now + datetime.timedelta(seconds=self.lease_duration)
+        leases = leases.expire(now)
+        self.assertTrue(self.dataset_id in leases)
 
     def test_error_on_check_lease_held_by_other_node(self):
         """
         A ``ValueError`` is raised when checking a lease held by another node.
         """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Check the lease for a different node UUID
+        exception = self.assertRaises(
+            ValueError, leases._check_lease, self.dataset_id, uuid4()
+        )
+        self.assertEqual(
+            exception.message, "Lease already held by another node"
+        )
 
     def test_lease_renewable(self):
         """
-        A lease can be renewed.
+        A lease that is renewed is updated in the Leases map with its new
+        expiry date/time.
         """
+        # Acquire a lease on a node with an expiration time.
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        # Assert that the lease has the expected expiration time.
+        expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration)
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, expected_expiration)
+        # Acquire the same lease with a different expiration time.
+        leases = leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration * 2
+        )
+        # Assert the lease's expiration time has been updated.
+        new_expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration * 2)
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, new_expected_expiration)
 
     def test_lease_release(self):
         """
-        A lease can be released.
+        A lease that has been released is removed from the Leases map.
         """
+        # Acquire a lease.
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Assert the lease was acquired successfully.
+        self.assertTrue(self.dataset_id in leases)
+        # Release the lease.
+        leases = leases.release(self.dataset_id, self.node_id)
+        # Assert the lease has been released successfully.
+        self.assertFalse(self.dataset_id in leases)
 
     def test_error_on_release_lease_held_by_other_node(self):
         """
         A ``LeaseReleaseError`` is raised when attempting to release a lease
         held by another node.
         """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration)
+        # Create a second node
+        node2 = Node(uuid=uuid4())
+        # Attempt to release a lease on node2 for the existing dataset
+        exception = self.assertRaises(
+            LeaseReleaseError, leases.release,
+            self.dataset_id, node2.uuid
+        )
+        expected_error = (
+            u"Cannot release lease " + unicode(self.dataset_id)
+            + " for node " + unicode(node2.uuid)
+            + u": Lease already held by another node"
+        )
+        self.assertEqual(
+            exception.message, expected_error
+        )
 
     def test_error_on_acquire_lease_held_by_other_node(self):
         """
         A ``LeaseAcquisitionError`` is raised when attempting to acquire
         a lease held by another node.
         """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Create a second node
+        node2 = Node(uuid=uuid4())
+        # Attempt to acquire the lease for node2 for the existing dataset
+        exception = self.assertRaises(
+            LeaseAcquisitionError, leases.acquire,
+            self.now, self.dataset_id, node2.uuid
+        )
+        expected_error = (
+            u"Cannot acquire lease " + unicode(self.dataset_id)
+            + " for node " + unicode(node2.uuid)
+            + u": Lease already held by another node"
+        )
+        self.assertEqual(
+            exception.message, expected_error
+        )
