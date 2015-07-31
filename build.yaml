@@ -214,7 +214,7 @@ job_type:
 
   omnibus:
     run_omnibus_for_CentOS_7:
-      on_nodes_with_labels: 'aws-ubuntu-trusty'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
