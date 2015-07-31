@@ -17,11 +17,11 @@ class Dataset(PClass):
     """
     A dataset in the configuration.
 
-    :param UUID primary: The node where the dataset should manifest.
-    :param int maximum_size: Size of new dataset, in bytes.
-    :param dataset_id: The UUID of the dataset.
-    :param metadata: A mapping between unicode keys and values.
-    :param bool deleted: If true indicates this dataset should be deleted.
+    :attr UUID primary: The node where the dataset should manifest.
+    :attr int maximum_size: Size of new dataset, in bytes.
+    :attr UUID dataset_id: The UUID of the dataset.
+    :attr metadata: A mapping between unicode keys and values.
+    :attr bool deleted: If true indicates this dataset should be deleted.
     """
     dataset_id = field(type=UUID)
     primary = field(type=UUID)
@@ -34,9 +34,9 @@ class DatasetState(PClass):
     """
     The state of a dataset in the cluster.
 
-    :param UUID primary: The node where the dataset should manifest.
-    :param int maximum_size: Size of new dataset, in bytes.
-    :param dataset_id: The UUID of the dataset.
+    :attr UUID primary: The node where the dataset should manifest.
+    :attr int maximum_size: Size of new dataset, in bytes.
+    :attr UUID dataset_id: The UUID of the dataset.
     """
     dataset_id = field(type=UUID)
     primary = field(type=UUID)
