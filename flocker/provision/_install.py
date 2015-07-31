@@ -409,13 +409,10 @@ def install_cli_pip(package_source, node):
     return sequence([
         run_remotely(
             node.get_default_username(), node.address,
-            task_cli_pip_prereqs(node.distribution, package_source)),
+            task_cli_pip_prereqs(node.distribution)),
         run_remotely(
             node.get_default_username(), node.address,
-            task_cli_pip_install(package_source)),
-        run_remotely(
-            node.get_default_username(), node.address,
-            task_cli_pip_test()),
+            task_cli_pip_install('flocker-client', package_source)),
     ])
 
 

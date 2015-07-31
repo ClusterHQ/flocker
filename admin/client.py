@@ -20,12 +20,15 @@ import flocker
 from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
-    task_client_installation_test,
     install_cli,
+    task_client_installation_test,
+    install_cli_pip,
+    task_cli_pip_test,
 )
 from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
 
+from .acceptance import eliot_output
 from .runner import run
 
 
@@ -40,7 +43,7 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_client_tests(reactor, node):
+def run_client_tests(reactor, node, commands):
     """
     Run the client acceptance tests.
 
@@ -58,7 +61,7 @@ def run_client_tests(reactor, node):
     return perform(make_dispatcher(reactor), run_remotely(
         username=node.get_default_username(),
         address=node.address,
-        commands=task_client_installation_test()
+        commands=commands
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -188,14 +191,13 @@ class RunOptions(Options):
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
     ]
 
     optFlags = [
         ["keep", "k", "Keep VMs around, if the tests fail."],
+        ['pip', None, 'Install using pip rather than packages.'],
     ]
 
     synopsis = ('Usage: run-client-tests --distribution <distribution> '
@@ -263,8 +265,6 @@ class RunOptions(Options):
                 provisioner=provisioner,
             )
 
-from .acceptance import eliot_output
-
 
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
@@ -297,10 +297,19 @@ def main(reactor, args, base_path, top_level):
 
     try:
         nodes = yield runner.start_nodes(reactor, node_count=1)
-        yield perform(
-            make_dispatcher(reactor),
-            install_cli(runner.package_source, nodes[0]))
-        result = yield run_client_tests(reactor=reactor, node=nodes[0])
+        if options['pip']:
+            yield perform(
+                make_dispatcher(reactor),
+                install_cli_pip(runner.package_source, nodes[0]))
+            result = yield run_client_tests(
+                reactor=reactor, node=nodes[0], commands=task_cli_pip_test())
+        else:
+            yield perform(
+                make_dispatcher(reactor),
+                install_cli(runner.package_source, nodes[0]))
+            result = yield run_client_tests(
+                reactor=reactor, node=nodes[0],
+                commands=task_client_installation_test())
     except:
         result = 1
         raise
