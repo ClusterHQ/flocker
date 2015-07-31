@@ -64,8 +64,9 @@ class IFlockerAPIV1Client(Interface):
         :param metadata: A mapping between unicode keys and values, to be
             stored as dataset metadata.
 
-        :return: ``Deferred`` firing with resulting ``Dataset``, or
-            errbacking with ``DatasetAlreadyExists``.
+        :return: ``Deferred`` that fires after the configuration has been
+            updated with resulting ``Dataset``, or errbacking with
+            ``DatasetAlreadyExists``.
         """
 
     def move_dataset(primary, dataset_id):
@@ -75,7 +76,8 @@ class IFlockerAPIV1Client(Interface):
         :param UUID primary: The node where the dataset should manifest.
         :param dataset_id: Which dataset to move.
 
-        :return: ``Deferred`` firing with resulting ``Dataset``.
+        :return: ``Deferred`` that fires after the configuration has been
+            updated with the resulting ``Dataset``.
         """
 
     def list_datasets_configuration():
