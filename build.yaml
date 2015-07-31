@@ -108,7 +108,7 @@ common_cli:
     export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
 
   build_sdist: &build_sdist
-    '/tmp/v/bin/pyhon setup.py sdist'
+    '/tmp/v/bin/python setup.py sdist'
 
   build_package: &build_package
       '/tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
