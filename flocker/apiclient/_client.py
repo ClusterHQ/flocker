@@ -49,9 +49,9 @@ class DatasetAlreadyExists(Exception):
     """
 
 
-class IFlockerAPIV1(Interface):
+class IFlockerAPIV1Client(Interface):
     """
-    The Flocker REST API, v1.
+    The Flocker REST API v1 client.
     """
     def create_dataset(primary, maximum_size, dataset_id=None,
                        metadata=pmap()):
@@ -93,10 +93,10 @@ class IFlockerAPIV1(Interface):
         """
 
 
-@implementer(IFlockerAPIV1)
+@implementer(IFlockerAPIV1Client)
 class FakeFlockerAPIV1(object):
     """
-    Fake in-memory implementation of ``IFlockerAPIV1``.
+    Fake in-memory implementation of ``IFlockerAPIV1Client``.
     """
     def __init__(self):
         self._configured_datasets = pmap()

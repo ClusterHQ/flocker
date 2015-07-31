@@ -13,7 +13,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from .._client import (
-    IFlockerAPIV1, FakeFlockerAPIV1, Dataset, DatasetAlreadyExists,
+    IFlockerAPIV1Client, FakeFlockerAPIV1, Dataset, DatasetAlreadyExists,
     DatasetState,
 )
 
@@ -22,14 +22,14 @@ DATASET_SIZE = int(GiB(1).to_Byte().value)
 
 def make_clientv1_tests(client_factory, synchronize_state):
     """
-    Create a ``TestCase`` for testing ``IFlockerAPIV1``.
+    Create a ``TestCase`` for testing ``IFlockerAPIV1Client``.
 
     The presumption is that the state of datasets is completely under
     control of this process. So when testing a real client it will be
     talking to a in-process server.
 
     :param client_factory: 0-argument callable that returns a
-        ``IFlockerAPIV1`` provider.
+        ``IFlockerAPIV1Client`` provider.
 
     :param synchronize_state: 1-argument callable that takes a client
         instances and makes or waits for state to match configuration.
@@ -41,17 +41,17 @@ def make_clientv1_tests(client_factory, synchronize_state):
 
         def test_interface(self):
             """
-            The created client provides ``IFlockerAPIV1``.
+            The created client provides ``IFlockerAPIV1Client``.
             """
             client = client_factory()
-            self.assertTrue(verifyObject(IFlockerAPIV1, client))
+            self.assertTrue(verifyObject(IFlockerAPIV1Client, client))
 
         def assert_creates(self, client, dataset_id=None, **create_kwargs):
             """
             Create a dataset and ensure it shows up in the configuration and
             return result of the ``create_dataset`` call.
 
-            :param IFlockerAPIV1 client: Client to use.
+            :param IFlockerAPIV1Client client: Client to use.
             :param dataset_id: Dataset ID to use, or ``None`` if it should
                 be generated.
             :param create_kwargs: Additional arguments to pass to
