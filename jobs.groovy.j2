@@ -189,6 +189,9 @@ branches.each {
 {%    if job_type == 'run_sphinx'                                           -%}
 {%        set _job_name = job_name                                          -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ scm("${git_url}", "${branchName}") }}
@@ -200,6 +203,9 @@ branches.each {
 {%    if job_type == 'run_acceptance'                                       -%}
 {%        set _job_name = job_name                                          -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ scm("${git_url}", "${branchName}") }}
