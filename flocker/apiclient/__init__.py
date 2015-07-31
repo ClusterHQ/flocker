@@ -7,8 +7,8 @@ This may eventually be a standalone package.
 """
 
 from ._client import (
-    IFlockerAPIV1Client, FakeFlockerAPIV1, Dataset, DatasetState,
+    IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetState,
 )
 
-__all__ = ["IFlockerAPIV1Client", "FakeFlockerAPIV1", "Dataset",
+__all__ = ["IFlockerAPIV1Client", "FakeFlockerClient", "Dataset",
            "DatasetState"]

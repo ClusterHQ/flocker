@@ -94,7 +94,7 @@ class IFlockerAPIV1Client(Interface):
 
 
 @implementer(IFlockerAPIV1Client)
-class FakeFlockerAPIV1(object):
+class FakeFlockerClient(object):
     """
     Fake in-memory implementation of ``IFlockerAPIV1Client``.
     """

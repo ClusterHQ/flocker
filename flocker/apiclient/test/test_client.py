@@ -13,7 +13,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from .._client import (
-    IFlockerAPIV1Client, FakeFlockerAPIV1, Dataset, DatasetAlreadyExists,
+    IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState,
 )
 
@@ -173,9 +173,9 @@ def make_clientv1_tests(client_factory, synchronize_state):
     return InterfaceTests
 
 
-class FakeFlockerAPIV1Tests(
-        make_clientv1_tests(FakeFlockerAPIV1,
+class FakeFlockerClientTests(
+        make_clientv1_tests(FakeFlockerClient,
                             lambda client: client.synchronize_state())):
     """
-    Interface tests for ``FakeFlockerAPIV1``.
+    Interface tests for ``FakeFlockerClient``.
     """
