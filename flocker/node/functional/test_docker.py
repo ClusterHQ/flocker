@@ -206,7 +206,6 @@ class GenericDockerClientTests(TestCase):
             client._client.push(
                 repository=repository,
                 tag=tag,
-                insecure_registry=True,
             )
             client._client.remove_image(
                 image=repository + ':' + tag,
