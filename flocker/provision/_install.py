@@ -326,6 +326,12 @@ def install_cli(package_source, node):
 
 
 def task_cli_pip_prereqs(distribution):
+    """
+    Install the pre-requisites for pip installation of the Flocker client.
+
+    :param bytes distribution: The distribution name.
+    :return: an Effect to install the pre-requisites.
+    """
     if distribution in ('centos-7',):
         return sudo_from_args([
             'yum', '-y', 'install',
@@ -354,6 +360,12 @@ def task_cli_pip_prereqs(distribution):
 
 
 def task_cli_pip_install(package_source=PackageSource()):
+    """
+    Install the Flocker client into a virtualenv using pip.
+
+    :param package_source: Package source description
+    :return: an Effect to install the client.
+    """
     vers = package_source.version
     if vers is None:
         vers = version
@@ -373,6 +385,11 @@ def task_cli_pip_install(package_source=PackageSource()):
 
 
 def task_cli_pip_test():
+    """
+    Test the Flocker client installed in a virtualenv.
+
+    :return: an Effect to test the client.
+    """
     return sequence([
         run_from_args(['source', 'flocker-client/bin/activate']),
         run_from_args(['flocker-deploy', '--version']),
