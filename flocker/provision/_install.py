@@ -315,7 +315,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
 
 def install_cli(package_source, node):
     """
-    Return an effect to run the CLI installation tasks on a remote node.
+    Return an effect to install the CLI using packages on a remote node.
 
     :param package_source: Package source description
     :param node: Remote node description
@@ -323,6 +323,80 @@ def install_cli(package_source, node):
     return run_remotely(
         node.get_default_username(), node.address,
         task_install_cli(node.distribution, package_source))
+
+
+def task_cli_pip_prereqs(distribution):
+    if distribution in ('centos-7',):
+        return sudo_from_args([
+            'yum', '-y', 'install',
+            'gcc',
+            'libffi-devel',
+            'python',
+            'python-devel',
+            'python-virtualenv',
+            'openssl-devel',
+            ])
+    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+        return sequence([
+            sudo_from_args(['apt-get', 'update']),
+            sudo_from_args([
+                'apt-get', '-y', 'install',
+                'gcc',
+                'libffi-dev',
+                'libssl-dev',
+                'python2.7',
+                'python2.7-dev',
+                'python-virtualenv',
+                ]),
+            ])
+    else:
+        raise UnsupportedDistribution()
+
+
+def task_cli_pip_install(package_source=PackageSource()):
+    vers = package_source.version
+    if vers is None:
+        vers = version
+    url = (
+        'https://{bucket}.s3.amazonaws.com/{key}/'
+        'Flocker-{version}-py2-none-any.whl'.format(
+            bucket=ARCHIVE_BUCKET, key='python',
+            version=get_installable_version(vers))
+        )
+    return sequence([
+        run_from_args([
+            'virtualenv', '--python=/usr/bin/python2.7', 'flocker-client']),
+        run_from_args(['source', 'flocker-client/bin/activate']),
+        run_from_args(['pip', 'install', '--upgrade', 'pip']),
+        run_from_args(['pip', 'install', url]),
+        ])
+
+
+def task_cli_pip_test():
+    return sequence([
+        run_from_args(['source', 'flocker-client/bin/activate']),
+        run_from_args(['flocker-deploy', '--version']),
+        ])
+
+
+def install_cli_pip(package_source, node):
+    """
+    Return an effect to install the CLI using pip on a remote node.
+
+    :param package_source: Package source description
+    :param node: Remote node description
+    """
+    return sequence([
+        run_remotely(
+            node.get_default_username(), node.address,
+            task_cli_pip_prereqs(node.distribution, package_source)),
+        run_remotely(
+            node.get_default_username(), node.address,
+            task_cli_pip_install(package_source)),
+        run_remotely(
+            node.get_default_username(), node.address,
+            task_cli_pip_test()),
+    ])
 
 
 def task_configure_brew_path():
