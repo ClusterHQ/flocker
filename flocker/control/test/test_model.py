@@ -1478,16 +1478,17 @@ class LeaseTests(SynchronousTestCase):
         self.node_id = uuid4()
         self.dataset = Dataset(dataset_id=unicode(self.dataset_id))
         self.node = Node(uuid=self.node_id)
+        self.lease_duration = 60 * 60
 
     def test_lease_expiry_datetime(self):
         """
         An lease has an expiry date/time after the specified number
         of seconds from the time of acquisition.
         """
-        ONE_HOUR = 60 * 60
-        expected_expiration = self.now + datetime.timedelta(seconds=ONE_HOUR)
+        expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration)
         leases = self.leases.acquire(
-            self.now, self.dataset_id, self.node_id, ONE_HOUR
+            self.now, self.dataset_id, self.node_id, self.lease_duration
         )
         lease = leases.get(self.dataset_id)
         self.assertEqual(lease.expiration, expected_expiration)
@@ -1496,6 +1497,9 @@ class LeaseTests(SynchronousTestCase):
         """
         An acquired lease can be set to never expire.
         """
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        lease = leases.get(self.dataset_id)
+        self.assertIsNone(lease.expiration)
 
     def test_lease_expires(self):
         """
@@ -1535,4 +1539,3 @@ class LeaseTests(SynchronousTestCase):
         A ``LeaseAcquisitionError`` is raised when attempting to acquire
         a lease held by another node.
         """
-
