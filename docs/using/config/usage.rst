@@ -28,6 +28,8 @@ See :ref:`configuration` for details about the two files.
 You can run ``flocker-deploy`` anywhere you have it installed.
 The containers you are managing do not need to be running on the same host as ``flocker-deploy``\ .
 
+.. _flocker-deploy-authentication: 
+
 Authentication
 ==============
 
