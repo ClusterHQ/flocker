@@ -68,12 +68,12 @@ To install these pre-requisites with the ``apt`` package manager, run:
 .. task:: cli_pip_prereqs ubuntu-15.04
    :prompt: alice@mercury:~$
 
-Then run the following commands to install ``flocker-cli`` in a Python virtualenv:
+To install ``flocker-cli`` in a Python virtualenv, run:
 
 .. task:: cli_pip_install flocker-client
    :prompt: alice@mercury:~$
 
-Ensure you are in the virtualenv whenever you need to run Flocker CLI commands:
+Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 
 .. task:: cli_pip_test flocker-client
    :prompt: alice@mercury:~$
