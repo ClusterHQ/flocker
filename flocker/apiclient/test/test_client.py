@@ -91,8 +91,8 @@ def make_clientv1_tests(client_factory, synchronize_state):
 
         def test_create_given_dataset(self):
             """
-            If no ``dataset_id`` is specified when calling ``create_dataset``,
-            a new one is generated.
+            If a ``dataset_id`` is specified when calling ``create_dataset``,
+            it is used as the ID for the resulting created dataset.
             """
             return self.assert_creates(client_factory(), primary=self.node_1,
                                        maximum_size=DATASET_SIZE,
