@@ -140,7 +140,7 @@ branches.each {
 {#  swap '/' with '-'                                                        #}
   branchName = "${it}"
   dashBranchName = "${branchName}".replace("/","-")
-  println("found branch... ${it.name}")
+  println("found branch... ${it}")
 
 {#   create a folder for every branch: /git-username/git-repo/branch         #}
   {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
