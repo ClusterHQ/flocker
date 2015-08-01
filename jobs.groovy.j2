@@ -276,6 +276,7 @@ branches.each {
 
 {%        for artifact in job_values.archive_artifacts                       %}
           copyArtifacts("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+          optional(true)
           includePatterns("{{artifact}}")
               targetDirectory('{{ _job_name }}')
               fingerprintArtifacts(true)
