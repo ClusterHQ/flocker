@@ -34,9 +34,9 @@ common_cli:
     . /tmp/pip.sh
 
   setup_flocker_modules: &setup_flocker_modules |
-    pip install -i $PIP_INDEX_URL --trusted-host $TRUSTED_HOST .
-    pip install -i $PIP_INDEX_URL --trusted-host $TRUSTED_HOST "Flocker[doc,dev,release]"
-    pip install -i $PIP_INDEX_URL --trusted-host $TRUSTED_HOST python-subunit junitxml
+    pip install -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST .
+    pip install -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST "Flocker[doc,dev,release]"
+    pip install -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST python-subunit junitxml
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
