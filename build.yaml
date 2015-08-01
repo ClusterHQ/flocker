@@ -30,6 +30,9 @@ common_cli:
     virtualenv -p python2.7 --clear /tmp/v
     . /tmp/v/bin/activate
 
+  setup_pip_cache: &setup_pip_cache |
+    . /tmp/pip.sh
+
   setup_flocker_modules: &setup_flocker_modules |
     pip install .
     pip install "Flocker[doc,dev,release]"
@@ -130,7 +133,7 @@ job_type:
         - flocker.volume
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
                    *run_trial_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
@@ -167,7 +170,7 @@ job_type:
         - flocker.volume
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
                    *run_trial_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
@@ -181,7 +184,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                    *run_sphinx ]
           }
@@ -192,7 +195,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *hashbang, *setup_pip_cache,
                *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                *setup_authentication, *run_acceptance_tests ]
           }
@@ -202,7 +205,7 @@ job_type:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *hashbang, *setup_pip_cache,
                *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                *check_version, *build_sdist, *build_package ]
           }
