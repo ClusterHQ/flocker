@@ -124,36 +124,14 @@ branches = []
 {# grab the GitHub token from the jenkins homedir                            #}
 String token = new File('/var/lib/jenkins/.github_token').text.trim()
 
-{# groove lacks a loop...until
-   we need to iterate over every page to get the full list of branches       #}
-    Looper.loop {
-    println("parsing page... ${page}")
-    def addr = "https://api.github.com/repos/{{ cfg.project }}/branches?page=${page}"
-
-        conn = addr.toURL().openConnection()
-        conn.setRequestProperty( "Authorization", "token ${token}" )
-        response = []
-        if( conn.responseCode == 200 ) {
-            response = new groovy.json.JsonSlurper().parseText(conn.content.text)
-        }
-        if ( response != [] ) {
-            response.each {
-                println("found branch... ${it.name}")
-                branches << "${ it.name }"
-            }
-        }
-        page = page + 1
-    } until { response == [] }
-
 def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# Create a basefolder for our project, it should look like:
    '<github username>-<git repository>'                                      #}
 {{ folder("${dashProject}","${dashProject}") }}
 
-{# the branchApi.newReader call returns all the upstreams, but excludes
-   'master' so we add it here                                                #}
-branches << "master"
+{# branches contains the passed parameter RECONFIGURE_BRANCH from jenkins    #}
+branches << "${RECONFIGURE_BRANCH}"
 
 {# Iterate over every branch, and create folders, jobs                       #}
 branches.each {
