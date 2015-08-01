@@ -30,34 +30,23 @@ common_cli:
     virtualenv -p python2.7 --clear /tmp/v
     . /tmp/v/bin/activate
 
-  setup_pip_accel: &setup_pip_accel |
-    # use S3 pip binary caching
-    pip install "pip-accel[s3]"
-    export PIP_ACCEL_S3_BUCKET=clusterhq-pip-accel
-    # export the AWS secrets, so that pip-accel can connect to S3
-    . /etc/boto.sh
-
-  setup_pip_accel_centos7_vars: &setup_pip_accel_centos7_vars |
-    export PIP_ACCEL_S3_PREFIX=centos-7
-
-  setup_pip_accel_ubuntu_trusty_vars: &setup_pip_accel_ubuntu_trusty_vars |
-    export PIP_ACCEL_S3_PREFIX=ubuntu-trusty-64
+  setup_pip_cache: &setup_pip_cache |
+    . /tmp/pip.sh
 
   setup_flocker_modules: &setup_flocker_modules |
-    pip-accel install . --retries 15 --timeout 30 --disable-pip-version-check
-    pip-accel install Flocker[doc,dev,release] python-subunit junitxml --retries 15 --timeout 30 --disable-pip-version-check
+    pip install --upgrade pip
+    pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
+    pip install -i \$PIP_INDEX_URL "Flocker[doc,dev,release]" --trusted-host \$TRUSTED_HOST
+    pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
-    # need to unset the AWS secrets used by pip-accel
-    unset AWS_ACCESS_KEY_ID
-    unset AWS_SECRET_ACCESS_KEY
 
   setup_coverage: &setup_coverage |
-    pip-accel install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl
+    pip install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl  --trusted-host \$TRUSTED_HOST
 
   run_coverage: &run_coverage |
     coverage xml --include=flocker*
@@ -145,8 +134,8 @@ job_type:
         - flocker.volume
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                   *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
                    *run_trial_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
           }
@@ -182,8 +171,8 @@ job_type:
         - flocker.volume
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
-                   *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
                    *run_trial_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
           }
@@ -196,8 +185,8 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-                   *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                    *run_sphinx ]
           }
 
@@ -207,8 +196,8 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_accel_centos7_vars,
-               *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+            cli: [ *hashbang, *setup_pip_cache,
+               *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                *setup_authentication, *run_acceptance_tests ]
           }
 
@@ -217,7 +206,7 @@ job_type:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_accel_ubuntu_trusty_vars,
-               *cleanup, *setup_venv, *setup_pip_accel, *setup_flocker_modules, *setup_aws_env_vars,
+            cli: [ *hashbang, *setup_pip_cache,
+               *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                *check_version, *build_sdist, *build_package ]
           }
