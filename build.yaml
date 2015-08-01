@@ -46,7 +46,7 @@ common_cli:
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
 
   setup_coverage: &setup_coverage |
-    pip install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl
+    pip install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl  --trusted-host \$TRUSTED_HOST
 
   run_coverage: &run_coverage |
     coverage xml --include=flocker*
