@@ -14,7 +14,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
       timestamps()
       colorizeOutput()
       timeout {
-          absolute(25)
+          absolute(15)
           failBuild()
       }
     }
@@ -212,7 +212,10 @@ branches.each {
 
 {# the multijob is responsible for running all configured jobs in parallel   #}
   multiJob("${dashProject}/${dashBranchName}/_main_multijob") {
-    {{ wrappers() }}
+    wrappers {
+      timestamps()
+      colorizeOutput()
+    }
       steps {
           shell('rm -rf *')
           phase('parallel_tests') {
