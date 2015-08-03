@@ -3,7 +3,6 @@
 Tests for ``flocker.control.httpapi``.
 """
 
-from io import BytesIO
 from uuid import uuid4
 from copy import deepcopy
 
