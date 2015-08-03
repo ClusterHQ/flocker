@@ -71,6 +71,17 @@ def make_script_file(effects):
     return filename
 
 
+def run_script_file(docker, container_id, script):
+    session = docker.exec_create(container_id, script)
+    session_id = session[u'Id']
+    output = docker.exec_start(session)
+    status = docker.exec_inspect(session_id)[u'ExitCode']
+    if status == 0:
+        sys.stdout.write(output)
+    else:
+        sys.exit(output)
+
+
 class RunOptions(Options):
     description = "Run the client tests."
 
@@ -171,22 +182,8 @@ def main(args, base_path, top_level):
                 }
             )
             try:
-                session = docker.exec_create(container_id, '/install.sh')
-                session_id = session[u'Id']
-                output = docker.exec_start(session)
-                status = docker.exec_inspect(session_id)[u'ExitCode']
-                if status == 0:
-                    sys.stdout.write(output)
-                else:
-                    sys.exit(output)
-                session = docker.exec_create(container_id, '/dotest.sh')
-                session_id = session[u'Id']
-                output = docker.exec_start(session)
-                status = docker.exec_inspect(session_id)[u'ExitCode']
-                if status == 0:
-                    sys.stdout.write(output)
-                else:
-                    sys.exit(output)
+                run_script_file(docker, container_id, '/install.sh')
+                run_script_file(docker, container_id, '/dotest.sh')
             finally:
                 docker.stop(container_id)
         finally:
