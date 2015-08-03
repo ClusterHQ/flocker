@@ -200,7 +200,8 @@ class ScriptBuilder(TypeDispatcher):
             Sequence: perform_sequence
         })
         perform(self, effects)
-        self.lines.append('echo OK\n')
+        # Add blank line to terminate script with a newline
+        self.lines.append('')
         self._script = '\n'.join(self.lines)
 
     @sync_performer
@@ -345,7 +346,7 @@ def main(args, base_path, top_level):
             image = 'ubuntu:14.04'
             docker.pull(image)
             container = docker.create_container(
-                image=image, command='/bin/bash',
+                image=image, command='/bin/bash', tty=True,
                 volumes=['/install.sh', '/dotest.sh'],
             )
             container_id = container[u'Id']
@@ -358,24 +359,22 @@ def main(args, base_path, top_level):
                 }
             )
             try:
-                print(1)
                 session = docker.exec_create(container_id, '/install.sh')
                 session_id = session[u'Id']
-                print(2)
                 output = docker.exec_start(session)
-                print(3)
-                if output.rstrip().endswith('OK'):
+                status = docker.exec_inspect(session_id)[u'ExitCode']
+                if status != 0:
                     sys.stdout.write(output)
                 else:
                     sys.exit(output)
-                print(4)
-                print docker.exec_inspect(session_id)
-                output = docker.execute(container_id, '/dotest.sh')
-                if output.rstrip().endswith('OK'):
+                session = docker.exec_create(container_id, '/dotest.sh')
+                session_id = session[u'Id']
+                output = docker.exec_start(session)
+                status = docker.exec_inspect(session_id)[u'ExitCode']
+                if status != 0:
                     sys.stdout.write(output)
                 else:
-                    sys.stderr.write(output)
-                    sys.exit(1)
+                    sys.exit(output)
             finally:
                 docker.stop(container_id)
         finally:
