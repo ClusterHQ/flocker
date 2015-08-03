@@ -31,155 +31,15 @@ from flocker.provision._ssh._conch import make_dispatcher
 
 from .runner import run
 
-
-def remove_known_host(reactor, hostname):
-    """
-    Remove all keys belonging to hostname from a known_hosts file.
-
-    :param reactor: Reactor to use.
-    :param bytes hostname: Remove all keys belonging to this hostname from
-        known_hosts.
-    """
-    return run(reactor, ['ssh-keygen', '-R', hostname])
-
-
-def run_client_tests(reactor, node):
-    """
-    Run the client acceptance tests.
-
-    :param INode node: The node to run client acceptance tests against.
-
-    :return int: The exit-code of trial.
-    """
-    def check_result(f):
-        f.trap(ProcessTerminated)
-        if f.value.exitCode is not None:
-            return f.value.exitCode
-        else:
-            return f
-
-    return perform(make_dispatcher(reactor), run_remotely(
-        username=node.get_default_username(),
-        address=node.address,
-        commands=task_client_installation_test()
-        )).addCallbacks(
-            callback=lambda _: 0,
-            errback=check_result,
-            )
-
-
-class INodeRunner(Interface):
-    """
-    Interface for starting and stopping nodes for acceptance testing.
-    """
-
-    def start_nodes(reactor):
-        """
-        Start nodes for running acceptance tests.
-
-        :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires with a list of nodes to run
-            tests against.
-        """
-
-    def stop_nodes(reactor):
-        """
-        Stop the nodes started by `start_nodes`.
-
-        :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires when the nodes have been
-            stopped.
-        """
-
-
-RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source'
-]
-
-
-@implementer(INodeRunner)
-@attributes(RUNNER_ATTRIBUTES + [
-    'provisioner',
-], apply_immutable=True)
-class LibcloudRunner(object):
-    """
-    Start and stop cloud nodes for acceptance testing.
-
-    :ivar LibcloudProvioner provisioner: The provisioner to use to create the
-        nodes.
-    :ivar VolumeBackend volume_backend: The volume backend the nodes are
-        configured with.
-    """
-    def __init__(self):
-        self.nodes = []
-
-        self.metadata = self.config.get('metadata', {})
-        try:
-            creator = self.metadata['creator']
-        except KeyError:
-            raise UsageError("Must specify creator metadata.")
-
-        if not creator.isalnum():
-            raise UsageError(
-                "Creator must be alphanumeric. Found {!r}".format(creator)
-            )
-        self.creator = creator
-
-    @inlineCallbacks
-    def start_nodes(self, reactor, node_count):
-        """
-        Start cloud nodes for client tests.
-
-        :return list: List of addresses of nodes to connect to, for client
-            tests.
-        """
-        metadata = {
-            'purpose': 'client-testing',
-            'distribution': self.distribution,
-        }
-        metadata.update(self.metadata)
-
-        for index in range(node_count):
-            name = "client-test-%s-%d" % (self.creator, index)
-            try:
-                print "Creating node %d: %s" % (index, name)
-                node = self.provisioner.create_node(
-                    name=name,
-                    distribution=self.distribution,
-                    metadata=metadata,
-                )
-            except:
-                print "Error creating node %d: %s" % (index, name)
-                print "It may have leaked into the cloud."
-                raise
-
-            yield remove_known_host(reactor, node.address)
-            self.nodes.append(node)
-            del node
-
-        returnValue(self.nodes)
-
-    def stop_nodes(self, reactor):
-        """
-        Deprovision the nodes provisioned by ``start_nodes``.
-        """
-        for node in self.nodes:
-            try:
-                print "Destroying %s" % (node.name,)
-                node.destroy()
-            except Exception as e:
-                print "Failed to destroy %s: %s" % (node.name, e)
-
+from effect import TypeDispatcher, sync_performer
+from flocker.provision._effect import Sequence, perform_sequence
+from flocker.provision._ssh._model import Run, Sudo, Put, Comment, RunRemotely, identity
+from flocker.provision._ssh._conch import perform_sudo, perform_put
 
 DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
 
 PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
 
-
-from effect import TypeDispatcher, sync_performer
-from flocker.provision._effect import Sequence, perform_sequence
-from flocker.provision._ssh._model import Run, Sudo, Put, Comment, RunRemotely, identity
-from flocker.provision._ssh._conch import perform_sudo, perform_put
 
 
 class ScriptBuilder(TypeDispatcher):
@@ -295,26 +155,6 @@ class RunOptions(Options):
                 "Provider %r not supported. Available providers: %s"
                 % (self['provider'], ', '.join(PROVIDERS)))
 
-        if self['provider'] in CLOUD_PROVIDERS:
-            # Configuration must include credentials etc for cloud providers.
-            try:
-                provider_config = self['config'][self['provider']]
-            except KeyError:
-                raise UsageError(
-                    "Configuration file must include a "
-                    "{!r} config stanza.".format(self['provider'])
-                )
-
-            provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
-
-            self.runner = LibcloudRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
-                package_source=package_source,
-                provisioner=provisioner,
-            )
-
 from .acceptance import eliot_output
 
 
@@ -333,8 +173,6 @@ def main(args, base_path, top_level):
     except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
-
-    runner = options.runner
 
     distribution = 'ubuntu-14.04'
     package_source = PackageSource()
