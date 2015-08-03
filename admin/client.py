@@ -25,7 +25,13 @@ from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._ssh._model import Run, Sudo, Put, Comment
 from flocker.provision._ssh._conch import perform_sudo, perform_put
 
-DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
+DOCKER_IMAGES = {
+    'centos-7': 'centos:7',
+    'ubuntu-14.04': 'ubuntu:14.04',
+    'ubuntu-15.04': 'ubuntu:15.04',
+}
+
+DISTRIBUTIONS = DOCKER_IMAGES.keys()
 
 
 class ScriptBuilder(TypeDispatcher):
@@ -167,7 +173,7 @@ def main(args, base_path, top_level):
         dotest = make_script_file(task_client_installation_test())
         try:
             docker = dockerpy.Client(version='1.18')
-            image = 'ubuntu:14.04'
+            image = DOCKER_IMAGES[distribution]
             docker.pull(image)
             container = docker.create_container(
                 image=image, command='/bin/bash', tty=True,
