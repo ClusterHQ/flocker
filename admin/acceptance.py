@@ -240,6 +240,13 @@ class ManagedRunner(object):
         installing = uninstalling.addCallback(install)
         return installing
 
+    def ensure_keys(self, reactor):
+        """
+        Assume we have keys, since there's no way of asking the nodes what keys
+        they'll accept.
+        """
+        return succeed(None)
+
     def start_cluster(self, reactor):
         """
         Don't start any nodes.  Give back the addresses of the configured,
