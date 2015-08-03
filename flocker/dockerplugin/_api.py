@@ -150,4 +150,3 @@ class VolumePlugin(object):
                 CONFLICT, {u"Err": "Duplicate volume name."})
         creating.addErrback(got_error)
         return creating
-
