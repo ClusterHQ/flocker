@@ -1,7 +1,7 @@
 $schema: http://json-schema.org/draft-04/schema#
 id: http://api.clusterhq.com/dockerplugin/dockerplugin.json
 definitions:
-  PluginAttach:
+  PluginActivate:
     description: "Initial handshake."
     type: object
     properties:

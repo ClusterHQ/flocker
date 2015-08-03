@@ -43,9 +43,9 @@ RemoveTests = build_simple_test("Remove")
 UnmountTests = build_simple_test("Unmount")
 
 
-PluginAttachTests = build_schema_test(
-    name=str("PluginAttachTests"),
-    schema={"$ref": "/endpoints.json#/definitions/PluginAttach"},
+PluginActivateTests = build_schema_test(
+    name=str("PluginActivateTests"),
+    schema={"$ref": "/endpoints.json#/definitions/PluginActivate"},
     schema_store=SCHEMAS,
     failing_instances=[
         # Wrong types:
