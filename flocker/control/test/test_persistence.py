@@ -68,6 +68,15 @@ class LeaseServiceTests(TestCase):
         self.addCleanup(service.stopService)
         return service
 
+    def test_expired_lease_removed(self):
+        """
+        A lease that has expired is removed from the persisted
+        configuration.
+        """
+        self.fail("Not implemented yet.")
+    test_expired_lease_removed.todo = (
+        "Leases cannot be manipulated in this branch. See FLOC-2371")
+
 
 class ConfigurationPersistenceServiceTests(TestCase):
     """
