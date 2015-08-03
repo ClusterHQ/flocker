@@ -105,6 +105,9 @@ common_cli:
   build_package: &build_package
       '/tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
 
+  clean_packages: &clean_packages
+    sudo rm -rf repo/
+
 # the job definitions, they consume the aliases defined in the common_cli block
 #
 # flocker.node.functional is hanging, so we don't run it
@@ -202,6 +205,6 @@ job_type:
             cli: [ *hashbang, *setup_pip_cache,
                *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
                *check_version, *disable_selinux, *build_sdist, *build_package,
-               *setup_authentication, *run_acceptance_tests ]
+               *setup_authentication, *run_acceptance_tests, *clean_packages ]
           }
 
