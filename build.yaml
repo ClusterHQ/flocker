@@ -112,10 +112,10 @@ common_cli:
       # to look over there
       sudo yum install -y nginx
       sudo service nginx start
-      sudo rm -rf /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7
-      sudo mkdir -p /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7
-      sudo cp repo/* /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7/
-      cd /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7/
+      sudo rm -rf /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7
+      sudo mkdir -p /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7
+      sudo cp repo/* /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7/
+      cd /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7/
       sudo createrepo .
       cd -
 
