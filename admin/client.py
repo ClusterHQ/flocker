@@ -9,37 +9,23 @@ import tempfile
 import yaml
 
 import docker as dockerpy
-from zope.interface import Interface, implementer
-from characteristic import attributes
-from eliot import add_destination
-from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import inlineCallbacks, returnValue
-
 from flocker.common.version import make_rpm_version
-from flocker.provision import PackageSource, CLOUD_PROVIDERS
+from flocker.provision import PackageSource
 import flocker
-from flocker.provision._ssh import (
-    run_remotely)
 from flocker.provision._install import (
     task_client_installation_test,
     task_install_cli,
 )
 from effect.twisted import perform
-from flocker.provision._ssh._conch import make_dispatcher
-
-from .runner import run
 
 from effect import TypeDispatcher, sync_performer
 from flocker.provision._effect import Sequence, perform_sequence
-from flocker.provision._ssh._model import Run, Sudo, Put, Comment, RunRemotely, identity
+from flocker.provision._ssh._model import Run, Sudo, Put, Comment
 from flocker.provision._ssh._conch import perform_sudo, perform_put
 
 DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
-
-PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
-
 
 
 class ScriptBuilder(TypeDispatcher):
@@ -92,14 +78,9 @@ class RunOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['provider', None, 'rackspace',
-         'The target provider to test against. '
-         'One of {}.'.format(', '.join(PROVIDERS))],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
@@ -138,7 +119,7 @@ class RunOptions(Options):
         else:
             os_version = None
 
-        package_source = PackageSource(
+        self['package_source'] = PackageSource(
             version=self['flocker-version'],
             os_version=os_version,
             branch=self['branch'],
@@ -150,13 +131,6 @@ class RunOptions(Options):
                 "Distribution %r not supported. Available distributions: %s"
                 % (self['distribution'], ', '.join(DISTRIBUTIONS)))
 
-        if self['provider'] not in PROVIDERS:
-            raise UsageError(
-                "Provider %r not supported. Available providers: %s"
-                % (self['provider'], ', '.join(PROVIDERS)))
-
-from .acceptance import eliot_output
-
 
 def main(args, base_path, top_level):
     """
@@ -167,15 +141,14 @@ def main(args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
-    add_destination(eliot_output)
     try:
         options.parseOptions(args)
     except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    distribution = 'ubuntu-14.04'
-    package_source = PackageSource()
+    distribution = options['distribution']
+    package_source = options['package_source']
     install = make_script_file(task_install_cli(distribution, package_source))
     try:
         dotest = make_script_file(task_client_installation_test())
@@ -188,7 +161,6 @@ def main(args, base_path, top_level):
                 volumes=['/install.sh', '/dotest.sh'],
             )
             container_id = container[u'Id']
-            print 'Container', container_id
             docker.start(
                 container_id,
                 binds={
