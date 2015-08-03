@@ -3,9 +3,12 @@
 Run the acceptance tests.
 """
 
+import os
 import sys
+import tempfile
 import yaml
 
+import docker as dockerpy
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import add_destination
@@ -21,7 +24,7 @@ from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
     task_client_installation_test,
-    install_cli,
+    task_install_cli,
 )
 from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
@@ -173,6 +176,54 @@ DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
 PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
 
 
+from effect import TypeDispatcher, sync_performer
+from flocker.provision._effect import Sequence, perform_sequence
+from flocker.provision._ssh._model import Run, Sudo, Put, Comment, RunRemotely, identity
+from flocker.provision._ssh._conch import perform_sudo, perform_put
+
+
+class ScriptBuilder(TypeDispatcher):
+    """
+    Convert an Effect sequence to a shell script.
+
+    The effects are those defined in flocker.provision._effect and
+    flocker.provision._ssh._model.
+    """
+
+    def __init__(self, effects):
+        self.lines = ['#!/bin/bash', 'set -e']
+        TypeDispatcher.__init__(self, {
+            Run: self.perform_run,
+            Sudo: perform_sudo,
+            Put: perform_put,
+            Comment: self.perform_comment,
+            Sequence: perform_sequence
+        })
+        perform(self, effects)
+        self.lines.append('echo OK\n')
+        self._script = '\n'.join(self.lines)
+
+    @sync_performer
+    def perform_run(self, dispatcher, intent):
+        self.lines.append(intent.command)
+
+    @sync_performer
+    def perform_comment(self, dispatcher, intent):
+        self.lines.append('# ' + intent.comment)
+
+    def script(self):
+        return self._script
+
+
+def make_script_file(effects):
+    builder = ScriptBuilder(effects)
+    fd, filename = tempfile.mkstemp(text=True)
+    os.write(fd, builder.script())
+    os.close(fd)
+    os.chmod(filename, 0555)
+    return filename
+
+
 class RunOptions(Options):
     description = "Run the client tests."
 
@@ -266,8 +317,7 @@ class RunOptions(Options):
 from .acceptance import eliot_output
 
 
-@inlineCallbacks
-def main(reactor, args, base_path, top_level):
+def main(args, base_path, top_level):
     """
     :param reactor: Reactor to use.
     :param list args: The arguments passed to the script.
@@ -285,30 +335,50 @@ def main(reactor, args, base_path, top_level):
 
     runner = options.runner
 
-    from flocker.common.script import eliot_logging_service
-    log_file = open("%s.log" % base_path.basename(), "a")
-    log_writer = eliot_logging_service(
-        log_file=log_file,
-        reactor=reactor,
-        capture_stdout=False)
-    log_writer.startService()
-    reactor.addSystemEventTrigger(
-        'before', 'shutdown', log_writer.stopService)
-
+    distribution = 'ubuntu-14.04'
+    package_source = PackageSource()
+    install = make_script_file(task_install_cli(distribution, package_source))
     try:
-        nodes = yield runner.start_nodes(reactor, node_count=1)
-        yield perform(
-            make_dispatcher(reactor),
-            install_cli(runner.package_source, nodes[0]))
-        result = yield run_client_tests(reactor=reactor, node=nodes[0])
-    except:
-        result = 1
-        raise
+        dotest = make_script_file(task_client_installation_test())
+        try:
+            docker = dockerpy.Client(version='1.18')
+            image = 'ubuntu:14.04'
+            docker.pull(image)
+            container = docker.create_container(
+                image=image, command='/bin/bash',
+                volumes=['/install.sh', '/dotest.sh'],
+            )
+            container_id = container[u'Id']
+            print 'Container', container_id
+            docker.start(
+                container_id,
+                binds={
+                    install: {'bind': '/install.sh', 'ro': True},
+                    dotest: {'bind': '/dotest.sh', 'ro': True}
+                }
+            )
+            try:
+                print(1)
+                session = docker.exec_create(container_id, '/install.sh')
+                session_id = session[u'Id']
+                print(2)
+                output = docker.exec_start(session)
+                print(3)
+                if output.rstrip().endswith('OK'):
+                    sys.stdout.write(output)
+                else:
+                    sys.exit(output)
+                print(4)
+                print docker.exec_inspect(session_id)
+                output = docker.execute(container_id, '/dotest.sh')
+                if output.rstrip().endswith('OK'):
+                    sys.stdout.write(output)
+                else:
+                    sys.stderr.write(output)
+                    sys.exit(1)
+            finally:
+                docker.stop(container_id)
+        finally:
+            os.remove(dotest)
     finally:
-        # Unless the tests failed, and the user asked to keep the nodes, we
-        # delete them.
-        if not (result != 0 and options['keep']):
-            runner.stop_nodes(reactor)
-        elif options['keep']:
-            print "--keep specified, not destroying nodes."
-    raise SystemExit(result)
+        os.remove(install)
