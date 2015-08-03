@@ -86,8 +86,8 @@ class VolumePlugin(object):
         :param unicode Name: The name of the volume.
 
         In practice we don't actually delete anything. As a multi-node
-        volume driver the fact that a particular container is done with a
-        volume doesn't mean another won't elsewhere, so we don't delete
+        volume driver we want to keep volumes around beyond lifetime of a
+        specific container, or even a single node, so we don't delete
         datasets based on information from Docker.
 
         :return: Result indicating success.
