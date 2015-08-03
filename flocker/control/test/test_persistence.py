@@ -72,10 +72,21 @@ class LeaseServiceTests(TestCase):
         """
         A lease that has expired is removed from the persisted
         configuration.
+
+        XXX Leases cannot be manipulated in this branch. See FLOC-2371.
+        This is a skeletal test that merely ensures the call to
+        ``update_leases`` takes place when ``_expire`` is called and should
+        be rewritten to test the updated configuration once the configuration
+        is aware of Leases.
         """
-        self.fail("Not implemented yet.")
-    test_expired_lease_removed.todo = (
-        "Leases cannot be manipulated in this branch. See FLOC-2371")
+        service = self.service()
+        d = service._expire()
+
+        def check_expired(updated):
+            self.assertIsNone(updated)
+
+        d.addCallback(check_expired)
+        return d
 
 
 class ConfigurationPersistenceServiceTests(TestCase):
