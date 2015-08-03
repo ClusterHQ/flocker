@@ -136,7 +136,7 @@ def update_leases(transform, persistence_service):
     :return Deferred: Fires when the persistence service has saved.
     """
     # XXX we cannot manipulate leases in this branch since the configuration
-    # doesn't know anything about them yet. See FLOC-2731 subtasks.
+    # doesn't know anything about them yet. See FLOC-2735.
     # So instead we do nothing for now.
     return succeed(None)
 
