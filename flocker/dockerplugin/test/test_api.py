@@ -61,7 +61,8 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name}, OK, {u"Err": None})
-        d.addCallback(lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(
+            lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(self.assertItemsEqual, [
             Dataset(dataset_id=UUID(dataset_id_from_name(name)),
                     primary=self.NODE_A,

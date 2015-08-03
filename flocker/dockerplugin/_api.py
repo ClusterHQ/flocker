@@ -7,6 +7,7 @@ See https://github.com/docker/docker/tree/master/docs/extend for details.
 """
 
 from functools import wraps
+from uuid import UUID
 
 import yaml
 
@@ -17,6 +18,8 @@ from twisted.python.filepath import FilePath
 from klein import Klein
 
 from ..restapi import structured
+from ..control._config import dataset_id_from_name
+
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
 SCHEMAS = {
@@ -71,9 +74,8 @@ class VolumePlugin(object):
         :param UUID node_id: The identity of the local node this plugin is
             running on.
         """
-        # These parameters will get used in latter issues: FLOC-2784,
-        # FLOC-2785 and FLOC-2786.
-        pass
+        self._flocker_client = flocker_client
+        self._node_id = node_id
 
     @app.route("/Plugin.Activate", methods=["POST"])
     @_endpoint(u"PluginActivate")
@@ -126,4 +128,9 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        return {u"Err": None}
+        creating = self._flocker_client.create_dataset(
+            self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
+            dataset_id=UUID(dataset_id_from_name(Name)))
+        creating.addCallback(lambda _: {u"Err": None})
+        return creating
+
