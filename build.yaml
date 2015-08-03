@@ -228,6 +228,6 @@ job_type:
                    *setup_hosting_for_packages_centos7,
                    *setup_authentication, *run_acceptance_tests,
                    *clean_packages,
-                   *exit_with_return_code_test ]
+                   *exit_with_return_code_from_test ]
           }
 
