@@ -7,13 +7,19 @@ Persistence of cluster configuration.
 from json import dumps, loads, JSONEncoder
 from uuid import UUID
 
+from datetime import datetime
+
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
 from pyrsistent import PRecord, PVector, PMap, PSet, pmap
 
+from pytz import UTC
+
 from twisted.python.filepath import FilePath
-from twisted.application.service import Service
+from twisted.application.service import Service, MultiService
+from twisted.internet import reactor as default_reactor
 from twisted.internet.defer import succeed
+from twisted.internet.task import LoopingCall
 
 from ._model import SERIALIZABLE_CLASSES, Deployment
 
@@ -87,7 +93,55 @@ _LOG_SAVE = ActionType(u"flocker-control:persistence:save",
                        [_DEPLOYMENT_FIELD], [])
 
 
-class ConfigurationPersistenceService(Service):
+class LeaseService(Service):
+    """
+    Manage leases.
+    In particular, clear out expired leases once a second.
+
+    :ivar _reactor: A ``twisted.internet.reactor`` implementation.
+    :ivar _persistence_service: The persistence service to act with.
+    :ivar _lc: A ``twisted.internet.task.LoopingCall`` run every second
+        to update the configured leases by releasing leases that have
+        expired.
+    """
+    def __init__(self, reactor, persistence_service):
+        if reactor is None:
+            reactor = default_reactor
+        self._reactor = reactor
+        self._persistence_service = persistence_service
+
+    def startService(self):
+        self._lc = LoopingCall(self._expire)
+        self._lc.clock = self._reactor
+        self._lc.start(1)
+
+    def stopService(self):
+        self._lc.stop()
+
+    def _expire(self):
+        now = datetime.now(tz=UTC)
+        return update_leases(lambda leases: leases.expire(now),
+                             self._persistence_service)
+
+
+def update_leases(transform, persistence_service):
+    """
+    Update the leases configuration in the persistence service.
+
+    :param transform: A function to execute on the currently configured
+        leases to manipulate their state.
+    :param persistence_service: The persistence service to which the
+        updated configuration will be saved.
+
+    :return Deferred: Fires when the persistence service has saved.
+    """
+    # XXX we cannot manipulate leases in this branch since the configuration
+    # doesn't know anything about them yet. See FLOC-2735.
+    # So instead we do nothing for now.
+    return succeed(None)
+
+
+class ConfigurationPersistenceService(MultiService):
     """
     Persist configuration to disk, and load it back.
 
@@ -101,8 +155,10 @@ class ConfigurationPersistenceService(Service):
         :param FilePath path: Directory where desired deployment will be
             persisted.
         """
+        MultiService.__init__(self)
         self._path = path
         self._change_callbacks = []
+        LeaseService(reactor, self).setServiceParent(self)
 
     def startService(self):
         if not self._path.exists():
@@ -114,6 +170,7 @@ class ConfigurationPersistenceService(Service):
         else:
             self._deployment = Deployment(nodes=frozenset())
             self._sync_save(self._deployment)
+        MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
     def register(self, change_callback):
