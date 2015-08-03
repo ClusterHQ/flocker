@@ -91,7 +91,7 @@ common_cli:
     ssh-add \$HOME/.ssh/id_rsa
 
   run_acceptance_tests: &run_acceptance_tests
-    '/tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
+    '/tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml ; RC=\$?'
 
   disable_selinux: &disable_selinux
     sudo setenforce 0
@@ -105,8 +105,9 @@ common_cli:
   build_package: &build_package
       '/tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
 
-  clean_packages: &clean_packages
+  clean_packages: &clean_packages |
     sudo rm -rf repo/
+    exit \$RC
 
 # the job definitions, they consume the aliases defined in the common_cli block
 #
