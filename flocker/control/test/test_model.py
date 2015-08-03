@@ -1510,7 +1510,7 @@ class LeaseTests(SynchronousTestCase):
             self.now, self.dataset_id, self.node_id, self.lease_duration
         )
         # Assert the lease has been acquired successfully.
-        self.assertTrue(self.dataset_id in leases)
+        self.assertIn(self.dataset_id, leases)
         # Fake a time the first lease has expired.
         now = self.now + datetime.timedelta(seconds=self.lease_duration + 1)
         leases = leases.expire(now)
@@ -1523,7 +1523,7 @@ class LeaseTests(SynchronousTestCase):
         map.
         """
         leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
-        self.assertTrue(self.dataset_id in leases)
+        self.assertIn(self.dataset_id, leases)
         now = self.now + datetime.timedelta(seconds=self.lease_duration)
         leases = leases.expire(now)
         self.assertIn(self.dataset_id, leases)
@@ -1559,7 +1559,7 @@ class LeaseTests(SynchronousTestCase):
         # Acquire a lease.
         leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
         # Assert the lease was acquired successfully.
-        self.assertTrue(self.dataset_id in leases)
+        self.assertIn(self.dataset_id, leases)
         # Release the lease.
         leases = leases.release(self.dataset_id, self.node_id)
         # Assert the lease has been released successfully.
