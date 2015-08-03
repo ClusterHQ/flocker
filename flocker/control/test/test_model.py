@@ -1515,7 +1515,7 @@ class LeaseTests(SynchronousTestCase):
         now = self.now + datetime.timedelta(seconds=self.lease_duration + 1)
         leases = leases.expire(now)
         # Assert the lease has been removed successfully.
-        self.assertFalse(self.dataset_id in leases)
+        self.assertNotIn(self.dataset_id, leases)
 
     def test_indefinite_lease_never_expires(self):
         """
@@ -1526,7 +1526,7 @@ class LeaseTests(SynchronousTestCase):
         self.assertTrue(self.dataset_id in leases)
         now = self.now + datetime.timedelta(seconds=self.lease_duration)
         leases = leases.expire(now)
-        self.assertTrue(self.dataset_id in leases)
+        self.assertIn(self.dataset_id, leases)
 
     def test_error_on_check_lease_held_by_other_node(self):
         """
@@ -1577,7 +1577,7 @@ class LeaseTests(SynchronousTestCase):
         # Release the lease.
         leases = leases.release(self.dataset_id, self.node_id)
         # Assert the lease has been released successfully.
-        self.assertFalse(self.dataset_id in leases)
+        self.assertNotIn(self.dataset_id, leases)
 
     def test_error_on_release_lease_held_by_other_node(self):
         """
