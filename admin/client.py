@@ -78,6 +78,8 @@ class RunOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
+        # XXX - remove the following flag once Buildbot is updated
+        ['provider', None, None, 'No longer used'],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab packages from'],
