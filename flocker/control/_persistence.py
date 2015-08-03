@@ -137,9 +137,6 @@ def update_leases(transform, persistence_service):
     """
     # XXX we cannot manipulate leases in this branch since the configuration
     # doesn't know anything about them yet. See FLOC-2731 subtasks.
-    # configuration = persistence_service.get()
-    # return persistence_service.save(
-    #     configuration.set("leases", transform(configuration.leases)))
     # So instead we do nothing for now.
     return succeed(None)
 

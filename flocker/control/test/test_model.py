@@ -26,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Lease, Leases, LeaseAcquisitionError, LeaseReleaseError
+    Link, Lease, Leases, LeaseError
 )
 
 
@@ -1528,20 +1528,6 @@ class LeaseTests(SynchronousTestCase):
         leases = leases.expire(now)
         self.assertIn(self.dataset_id, leases)
 
-    def test_error_on_check_lease_held_by_other_node(self):
-        """
-        A ``ValueError`` is raised when checking a lease held by another node.
-        """
-        # Acquire a lease on a node
-        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
-        # Check the lease for a different node UUID
-        exception = self.assertRaises(
-            ValueError, leases._check_lease, self.dataset_id, uuid4()
-        )
-        self.assertEqual(
-            exception.message, "Lease already held by another node"
-        )
-
     def test_lease_renewable(self):
         """
         A lease that is renewed is updated in the Leases map with its new
@@ -1591,7 +1577,7 @@ class LeaseTests(SynchronousTestCase):
         node2 = Node(uuid=uuid4())
         # Attempt to release a lease on node2 for the existing dataset
         exception = self.assertRaises(
-            LeaseReleaseError, leases.release,
+            LeaseError, leases.release,
             self.dataset_id, node2.uuid
         )
         expected_error = (
@@ -1614,7 +1600,7 @@ class LeaseTests(SynchronousTestCase):
         node2 = Node(uuid=uuid4())
         # Attempt to acquire the lease for node2 for the existing dataset
         exception = self.assertRaises(
-            LeaseAcquisitionError, leases.acquire,
+            LeaseError, leases.acquire,
             self.now, self.dataset_id, node2.uuid
         )
         expected_error = (

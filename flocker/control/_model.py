@@ -504,20 +504,24 @@ def _get_node(default_factory):
     return get_node
 
 
-class LeaseAcquisitionError(ValueError):
+LEASE_ACTION_ACQUIRE = u"acquire"
+LEASE_ACTION_RELEASE = u"release"
+
+
+class LeaseError(Exception):
     """
     Exception raised when a ``Lease`` cannot be acquired.
     """
-    def __init__(self, message=u""):
-        super(LeaseAcquisitionError, self).__init__(message)
-
-
-class LeaseReleaseError(ValueError):
-    """
-    Exception raised when a ``Lease`` cannot be released.
-    """
-    def __init__(self, message=u""):
-        super(LeaseReleaseError, self).__init__(message)
+    def __init__(self, dataset_id, node_id, action):
+        """
+        :param UUID dataset_id: The dataset UUID.
+        :param UUID node_id: The node UUID.
+        :param unicode action: The action that failed.
+        """
+        message = (u"Cannot " + action + " lease " + unicode(dataset_id)
+                   + u" for node " + unicode(node_id)
+                   + u": Lease already held by another node")
+        return super(LeaseError, self).__init__(message)
 
 
 class Lease(PClass):
@@ -553,7 +557,7 @@ class Leases(CheckedPMap):
             ))
         return (True, "")
 
-    def _check_lease(self, dataset_id, node_id):
+    def _check_lease(self, dataset_id, node_id, action):
         """
         Check if a lease for a given dataset is already held by a
         node other than the one given and raise an error if it is.
@@ -561,9 +565,10 @@ class Leases(CheckedPMap):
         :param UUID dataset_id: The dataset to check.
         :param UUID node_uuid: The node that should hold a lease
             on the given dataset.
+        :param unicode action: The action we are attempting.
         """
         if dataset_id in self and self[dataset_id].node_id != node_id:
-            raise ValueError("Lease already held by another node")
+            raise LeaseError(dataset_id, node_id, action)
 
     def acquire(self, now, dataset_id, node_id, expires=None):
         """
@@ -576,14 +581,7 @@ class Leases(CheckedPMap):
             lease expires.
         :return: The updated ``Leases`` representation.
         """
-        try:
-            self._check_lease(dataset_id, node_id)
-        except ValueError as e:
-            message = (
-                u"Cannot acquire lease " + unicode(dataset_id) + " for node "
-                + unicode(node_id) + ": " + e.message
-            )
-            raise LeaseAcquisitionError(message)
+        self._check_lease(dataset_id, node_id, LEASE_ACTION_ACQUIRE)
         if expires is None:
             expiration = None
         else:
@@ -600,14 +598,7 @@ class Leases(CheckedPMap):
         :param UUID node_id: The node which currently holds the lease.
         :return: The updated ``Leases`` representation.
         """
-        try:
-            self._check_lease(dataset_id, node_id)
-        except ValueError as e:
-            message = (
-                u"Cannot release lease " + unicode(dataset_id) + " for node "
-                + unicode(node_id) + ": " + e.message
-            )
-            raise LeaseReleaseError(message)
+        self._check_lease(dataset_id, node_id, LEASE_ACTION_RELEASE)
         return self.remove(dataset_id)
 
     def expire(self, now):

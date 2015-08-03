@@ -20,8 +20,7 @@ from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
     RestartAlways, DeploymentState, NonManifestDatasets, same_node,
-    IClusterStateWipe, Leases, Lease, LeaseAcquisitionError,
-    LeaseReleaseError,
+    IClusterStateWipe, Leases, Lease, LeaseError,
 )
 from ._protocol import (
     IConvergenceAgent,
@@ -59,6 +58,5 @@ __all__ = [
 
     'Lease',
     'Leases',
-    'LeaseAcquisitionError',
-    'LeaseReleaseError',
+    'LeaseError',
 ]
