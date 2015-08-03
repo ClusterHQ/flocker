@@ -131,8 +131,9 @@ def get_ssh_dispatcher(connection, context):
             message_type="flocker.provision.ssh:run",
             command=intent.log_command_filter(intent.command),
         ).write()
-        if hasattr(intent, 'pre_command') and intent.pre_command:
-            command = '{}; {}'.format(intent.pre_command, intent.command)
+        pre_command = getattr(intent, 'pre_command', None)
+        if pre_command:
+            command = '{}; {}'.format(pre_command, intent.command)
         else:
             command = intent.command
         endpoint = SSHCommandClientEndpoint.existingConnection(
