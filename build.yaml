@@ -93,6 +93,9 @@ common_cli:
   run_acceptance_tests: &run_acceptance_tests
     '/tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml'
 
+  disable_selinux: &disable_selinux
+    sudo setenforce 0
+
   check_version: &check_version |
     export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
 
@@ -198,15 +201,7 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
+               *check_version, *disable_selinux, *build_sdist, *build_package,
                *setup_authentication, *run_acceptance_tests ]
           }
 
-  omnibus:
-    run_omnibus_for_CentOS_7:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_cache,
-               *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
-               *check_version, *build_sdist, *build_package ]
-          }
