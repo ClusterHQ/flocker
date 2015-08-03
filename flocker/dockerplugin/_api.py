@@ -14,11 +14,10 @@ import yaml
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT
 
 from klein import Klein
 
-from ..restapi import structured, EndpointResponse
+from ..restapi import structured
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 
@@ -126,6 +125,19 @@ class VolumePlugin(object):
         """
         Create a volume with the given name.
 
+        We hash the name to give a consistent dataset. This ensures that
+        if due to race condition we attempt to create two volumes with
+        same name only one will be created.
+
+        We also check for existence of matching dataset based on
+        ``"name"`` field in metadata, in case we're talking to cluster
+        that has datasets that weren't created with this hashing
+        mechanism.
+
+        If there is a duplicate we don't return an error, but rather
+        success: we will likely get unneeded creates from Docker since it
+        doesn't necessarily know about existing persistent volumes.
+
         :param unicode Name: The name of the volume.
 
         :return: Result indicating success.
@@ -142,11 +154,6 @@ class VolumePlugin(object):
             lambda _: self._flocker_client.create_dataset(
                 self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
                 dataset_id=UUID(dataset_id_from_name(Name))))
+        creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
-
-        def got_error(reason):
-            reason.trap(DatasetAlreadyExists)
-            return EndpointResponse(
-                CONFLICT, {u"Err": "Duplicate volume name."})
-        creating.addErrback(got_error)
         return creating

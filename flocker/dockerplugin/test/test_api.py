@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4, UUID
 
-from twisted.web.http import OK, CONFLICT
+from twisted.web.http import OK
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
@@ -74,8 +74,7 @@ class APITestsMixin(APIAssertionsMixin):
     def test_create_duplicate_name(self):
         """
         If a dataset with the given name already exists,
-        ``/VolumeDriver.Create`` does not create a new volume, instead
-        returning an error response.
+        ``/VolumeDriver.Create`` succeeds without create a new volume.
         """
         name = u"thename"
         # Create a dataset out-of-band with matching name but non-matching
@@ -84,21 +83,22 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/VolumeDriver.Create",
-            {u"Name": name}, CONFLICT, {u"Err": u"Duplicate volume name."}))
+            {u"Name": name}, OK, {u"Err": None}))
+        d.addCallback(
+            lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(lambda results: self.assertEqual(len(results), 1))
         return d
 
     def test_create_duplicate_name_race_condition(self):
         """
         If a dataset with the given name is created while the
         ``/VolumeDriver.Create`` call is in flight, the call does not
-        create a new volume, instead returning an error response.
+        result in an error.
         """
         name = u"thename"
 
-        # Create a dataset out-of-band with matching dataset ID but
-        # non-matching name in metadata, after datasets are listed.
-        # The docker plugin won't ever be able to tell that a dataset with
-        # matching name exists.
+        # Create a dataset out-of-band with matching dataset ID and name
+        # which the docker plugin won't be able to see.
         def create_after_list():
             # Clean up the patched version:
             del self.flocker_client.list_datasets_configuration
@@ -106,6 +106,7 @@ class APITestsMixin(APIAssertionsMixin):
             # its existence:
             d = self.flocker_client.create_dataset(
                 self.NODE_A, DEFAULT_SIZE,
+                metadata={u"name": name},
                 dataset_id=UUID(dataset_id_from_name(name)))
             d.addCallback(lambda _: [])
             return d
@@ -113,7 +114,7 @@ class APITestsMixin(APIAssertionsMixin):
 
         return self.assertResult(
             b"POST", b"/VolumeDriver.Create",
-            {u"Name": name}, CONFLICT, {u"Err": u"Duplicate volume name."})
+            {u"Name": name}, OK, {u"Err": None})
 
 
 def _build_app(test):
