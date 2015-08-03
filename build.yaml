@@ -41,7 +41,7 @@ common_cli:
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/not-found/acceptance.yml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yml
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
 
@@ -90,23 +90,41 @@ common_cli:
     eval `ssh-agent -s`
     ssh-add \$HOME/.ssh/id_rsa
 
-  run_acceptance_tests: &run_acceptance_tests
-    '/tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server http://build.clusterhq.com --config-file /tmp/acceptance.yaml ; RC=\$?'
+  run_acceptance_tests: &run_acceptance_tests |
+    # we gather the return code, but make sure we come out of these tests with '0'
+    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml ; RC=\$?
 
-  disable_selinux: &disable_selinux
+  disable_selinux: &disable_selinux |
     sudo setenforce 0
 
   check_version: &check_version |
     export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
 
-  build_sdist: &build_sdist
-    '/tmp/v/bin/python setup.py sdist'
+  build_sdist: &build_sdist  |
+    /tmp/v/bin/python setup.py sdist
 
-  build_package: &build_package
-      '/tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz'
+  build_package: &build_package  |
+    /tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+
+  setup_hosting_for_packages_centos7: &setup_hosting_for_packages_centos7 |
+      # the acceptance tests look for a package in a yum repository,
+      # we provide one by starting a webserver and pointing the tests
+      # to look over there
+      sudo yum install -y nginx
+      sudo service nginx start
+      sudo rm -rf /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7
+      sudo mkdir -p /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7
+      sudo cp repo/* /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7/
+      cd /usr/share/nginx/html/results/omnibus/$TRIGGERED_BRANCH/centos-7/
+      sudo createrepo .
+      cd -
 
   clean_packages: &clean_packages |
+    # jenkins is unable to clean the git repository as some files are owned
+    # by root, so we make sure we delete the repo files we created
     sudo rm -rf repo/
+
+  exit_with_return_code_from_test: &exit_with_return_code_from_test |
     exit \$RC
 
 # the job definitions, they consume the aliases defined in the common_cli block
@@ -204,8 +222,12 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
-               *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
-               *check_version, *disable_selinux, *build_sdist, *build_package,
-               *setup_authentication, *run_acceptance_tests, *clean_packages ]
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version, *disable_selinux,
+                   *build_sdist, *build_package,
+                   *setup_hosting_for_packages_centos7,
+                   *setup_authentication, *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_test ]
           }
 
