@@ -16,7 +16,7 @@ from pyrsistent import PRecord
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
-    _LOG_SAVE, _LOG_STARTUP,
+    _LOG_SAVE, _LOG_STARTUP, LeaseService,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -37,6 +37,36 @@ TEST_DEPLOYMENT = Deployment(
                             mountpoint=FilePath(b"/xxx/yyy"))
                     )],
                 manifestations={DATASET.dataset_id: MANIFESTATION})])
+
+
+class FakePersistenceService(object):
+    """
+    A very simple fake persistence service that does nothing.
+    """
+    def __init__(self):
+        self._deployment = Deployment(nodes=frozenset())
+
+    def save(self, deployment):
+        self._deployment = deployment
+
+    def get(self):
+        return self._deployment
+
+
+class LeaseServiceTests(TestCase):
+    """
+    Tests for ``LeaseService``.
+    """
+    def service(self):
+        """
+        Start a lease service and schedule it to stop.
+
+        :return: Started ``LeaseService``.
+        """
+        service = LeaseService(reactor, FakePersistenceService())
+        service.startService()
+        self.addCleanup(service.stopService)
+        return service
 
 
 class ConfigurationPersistenceServiceTests(TestCase):
