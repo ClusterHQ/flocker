@@ -10,6 +10,8 @@ from functools import wraps
 
 import yaml
 
+from bitmath import GiB
+
 from twisted.python.filepath import FilePath
 
 from klein import Klein
@@ -23,6 +25,10 @@ SCHEMAS = {
     b'/endpoints.json': yaml.safe_load(
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
+
+
+# The default size of a created volume:
+DEFAULT_SIZE = int(GiB(100).to_Byte().value)
 
 
 def _endpoint(name):
@@ -105,6 +111,18 @@ class VolumePlugin(object):
         For now this does nothing. In FLOC-2755 this will release the
         lease acquired for the dataset by the ``VolumeDriver.Mount``
         handler.
+
+        :return: Result indicating success.
+        """
+        return {u"Err": None}
+
+    @app.route("/VolumeDriver.Create", methods=["POST"])
+    @_endpoint(u"Create")
+    def volumedriver_create(self, Name):
+        """
+        Create a volume with the given name.
+
+        :param unicode Name: The name of the volume.
 
         :return: Result indicating success.
         """
