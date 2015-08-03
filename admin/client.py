@@ -201,7 +201,7 @@ def main(args, base_path, top_level):
                 session_id = session[u'Id']
                 output = docker.exec_start(session)
                 status = docker.exec_inspect(session_id)[u'ExitCode']
-                if status != 0:
+                if status == 0:
                     sys.stdout.write(output)
                 else:
                     sys.exit(output)
@@ -209,7 +209,7 @@ def main(args, base_path, top_level):
                 session_id = session[u'Id']
                 output = docker.exec_start(session)
                 status = docker.exec_inspect(session_id)[u'ExitCode']
-                if status != 0:
+                if status == 0:
                     sys.stdout.write(output)
                 else:
                     sys.exit(output)
