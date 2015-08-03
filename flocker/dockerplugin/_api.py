@@ -14,11 +14,13 @@ import yaml
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
+from twisted.web.http import CONFLICT
 
 from klein import Klein
 
-from ..restapi import structured
+from ..restapi import structured, EndpointResponse
 from ..control._config import dataset_id_from_name
+from ..apiclient import DatasetAlreadyExists
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -128,9 +130,24 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        creating = self._flocker_client.create_dataset(
-            self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
-            dataset_id=UUID(dataset_id_from_name(Name)))
+        listing = self._flocker_client.list_datasets_configuration()
+
+        def got_configured(configured):
+            for dataset in configured:
+                if dataset.metadata.get(u"name") == Name:
+                    raise DatasetAlreadyExists
+        listing.addCallback(got_configured)
+
+        creating = listing.addCallback(
+            lambda _: self._flocker_client.create_dataset(
+                self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
+                dataset_id=UUID(dataset_id_from_name(Name))))
         creating.addCallback(lambda _: {u"Err": None})
+
+        def got_error(reason):
+            reason.trap(DatasetAlreadyExists)
+            return EndpointResponse(
+                CONFLICT, {u"Err": "Duplicate volume name."})
+        creating.addErrback(got_error)
         return creating
 
