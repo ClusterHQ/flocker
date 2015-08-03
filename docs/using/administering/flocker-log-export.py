@@ -4,6 +4,7 @@
 A script to export Flocker log files and system information.
 """
 import os
+import platform
 from shutil import make_archive, rmtree
 from socket import gethostname
 from subprocess import check_call, check_output
@@ -71,7 +72,7 @@ class FlockerDebugArchive(object):
             rmtree(self._archive_name)
 
 
-class CentosServiceManager(object):
+class SystemdServiceManager(object):
     def _parse_units(self, output):
         for line in output.splitlines():
             unit_name, status = line.split()
@@ -83,7 +84,12 @@ class CentosServiceManager(object):
         return self._parse_units(output)
 
 
-class CentosLogExporter(object):
+class UpstartServiceManager(object):
+    def flocker_services(self):
+        pass
+
+
+class JournaldLogExporter(object):
     def export_service(self, service_name, target_path):
         check_call(
             'journalctl --all --output cat --unit {unit} '
@@ -100,13 +106,69 @@ class CentosLogExporter(object):
         )
 
 
+class UpstartLogExporter(object):
+    def export_service(self, service_name, target_path):
+        check_call(
+            'journalctl --all --output cat --unit {unit} '
+            '| gzip'.format(service_name),
+            stdout=open(target_path, 'w'),
+            shell=True
+        )
+
+    def export_all(self, target_path):
+        check_call(
+            'journalctl --all --boot | gzip',
+            stdout=open(target_path, 'w'),
+            shell=True
+        )
+
+class Platform(object):
+    def __init__(self, name, version, service_manager, log_exporter):
+        self.name = name
+        self.version = version
+        self.service_manager = service_manager
+        self.log_exporter = log_exporter
+
+
+PLATFORMS = (
+    Platform(
+        name='centos',
+        version='7',
+        service_manager=SystemdServiceManager(),
+        log_exporter=JournaldLogExporter()
+    ),
+    Platform(
+        name='fedora',
+        version='22',
+        service_manager=SystemdServiceManager(),
+        log_exporter=JournaldLogExporter()
+    ),
+    # Platform(
+    #     name='ubuntu',
+    #     version='14.04',
+    #     service_manager=UbuntuServiceManager(),
+    #     log_exporter=UbuntuLogExporter()
+    # )
+)
+
+
+_PLATFORM_BY_LABEL = dict(
+    ('{}-{}'.format(p.name, p.version), p)
+    for p in PLATFORMS
+)
+
+
+def current_platform():
+    name, version, nickname = platform.dist()
+    return _PLATFORM_BY_LABEL[name.lower() + '-' + version]
+
+
 def main():
     # Export all logs into a single directory
-    service_manager = CentosServiceManager()
-    log_exporter = CentosLogExporter()
+    platform = current_platform()
     FlockerDebugArchive(
-        service_manager=service_manager,
-        log_exporter=log_exporter
+        service_manager=platform.service_manager,
+        log_exporter=platform.log_exporter
     ).create()
 
 
