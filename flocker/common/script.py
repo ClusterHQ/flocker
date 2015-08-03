@@ -4,14 +4,19 @@
 
 import sys
 
+from bitmath import MiB
+
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
+from twisted.application.service import MultiService, Service
 from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
+from twisted.python.logfile import LogFile
+from twisted.python.filepath import FilePath
 
 from zope.interface import Interface
 
@@ -24,6 +29,10 @@ __all__ = [
     'FlockerScriptRunner',
     'main_for_service',
 ]
+
+
+LOGFILE_LENGTH = int(MiB(100).to_Byte().value)
+LOGFILE_COUNT = 5
 
 
 def flocker_standard_options(cls):
@@ -44,6 +53,7 @@ def flocker_standard_options(cls):
         """
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
+        self['logfile'] = self._sys_module.stdout
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
 
@@ -59,6 +69,22 @@ def flocker_standard_options(cls):
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
 
+    def opt_logfile(self, logfile_path):
+        """
+        Log to a file. Log is written to ``stdout`` by default. The logfile
+        directory is created if it does not already exist.
+        """
+        logfile = FilePath(logfile_path)
+        logfile_directory = logfile.parent()
+        if not logfile_directory.exists():
+            logfile_directory.makedirs()
+        self['logfile'] = LogFile.fromFullPath(
+            logfile.path,
+            rotateLength=LOGFILE_LENGTH,
+            maxRotatedFiles=LOGFILE_COUNT,
+        )
+    cls.opt_logfile = opt_logfile
+
     return cls
 
 
@@ -71,6 +97,14 @@ class ICommandLineScript(Interface):
         :return: A ``Deferred`` which fires when the script has completed.
         """
 
+
+def eliot_logging_service(log_file, reactor, capture_stdout):
+    service = MultiService()
+    ThreadedFileWriter(log_file, reactor).setServiceParent(service)
+    EliotObserver(capture_stdout=capture_stdout).setServiceParent(service)
+    return service
+
+
 # This should probably be built-in functionality in Eliot;
 # see https://github.com/ClusterHQ/eliot/issues/143
 TWISTED_LOG_MESSAGE = MessageType("twisted:log",
@@ -78,17 +112,20 @@ TWISTED_LOG_MESSAGE = MessageType("twisted:log",
                                   u"A log message from Twisted.")
 
 
-class EliotObserver(object):
+class EliotObserver(Service):
     """
     A Twisted log observer that logs to Eliot.
     """
-    def __init__(self, publisher=twisted_log):
+    def __init__(self, publisher=twisted_log, capture_stdout=True):
         """
         :param publisher: A ``LogPublisher`` to capture logs from, or if no
             argument is given the default Twisted log system.
+        :param bool capture_stdout: Wether to capture standard output and
+            standard error to eliot.
         """
         self.logger = Logger()
         self.publisher = publisher
+        self.capture_stdout = capture_stdout
 
     def __call__(self, msg):
         error = bool(msg.get("isError"))
@@ -99,11 +136,12 @@ class EliotObserver(object):
         message = unicode(textFromEventDict(msg), "charmap")
         TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
 
-    def start(self):
+    def startService(self):
         """
         Start capturing Twisted logs.
         """
-        startLoggingWithObserver(self)
+        # We don't bother shutting this down.
+        startLoggingWithObserver(self, setStdout=self.capture_stdout)
 
 
 class FlockerScriptRunner(object):
@@ -161,15 +199,11 @@ class FlockerScriptRunner(object):
         options = self._parse_options(self.sys_module.argv[1:])
 
         if self.logging:
-            log_writer = ThreadedFileWriter(self.sys_module.stdout,
-                                            self._reactor)
-            log_writer.startService()
-            observer = EliotObserver()
-            # We don't bother shutting this down; the process will exit
-            # once we return from this function. The ThreadedFileWriter in
-            # contrast needs to be shutdown because it starts a thread
-            # that will keep the process from exiting.
-            observer.start()
+            log_writer = eliot_logging_service(
+                options['logfile'], self._reactor, True)
+        else:
+            log_writer = Service()
+        log_writer.startService()
 
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
@@ -186,8 +220,7 @@ class FlockerScriptRunner(object):
         try:
             self._react(run_and_log, [], _reactor=self._reactor)
         finally:
-            if self.logging:
-                log_writer.stopService()
+            log_writer.stopService()
 
 
 def _chain_stop_result(service, stop):

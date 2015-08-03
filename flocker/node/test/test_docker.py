@@ -1,20 +1,44 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Tests for :module:`flocker.node._docker`."""
+"""
+Tests for :module:`flocker.node._docker`.
+"""
+
+import psutil
 
 from zope.interface.verify import verifyObject
 
 from pyrsistent import pset, pvector
 
+from eliot import MessageType, fields
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from ...testtools import random_name, make_with_init_tests
+from ...testtools import random_name, make_with_init_tests, find_free_port
 from .._docker import (
-    IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
-    Environment, Volume)
+    IDockerClient, FakeDockerClient, AddressInUse, AlreadyExists, PortMap,
+    Unit, Environment, Volume,
+)
 
 from ...control._model import RestartAlways, RestartNever, RestartOnFailure
+
+ANY_IMAGE = u"openshift/busybox-http-app"
+
+ADDRESS_IN_USE = MessageType(
+    u"flocker:test:address_in_use",
+    fields(ip=unicode, port=int, name=bytes),
+)
+
+
+def find_process_name(port_number):
+    """
+    Get the name of the process using the given port number.
+    """
+    for connection in psutil.net_connections():
+        if connection.laddr[1] == port_number:
+            return psutil.Process(connection.pid).name()
+    return None
 
 
 def make_idockerclient_tests(fixture):
@@ -117,6 +141,68 @@ def make_idockerclient_tests(fixture):
             d.addCallback(self.assertFalse)
             return d
 
+        def test_zero_port_randomly_assigned(self):
+            """
+            If an external port number is given as 0, a random available port
+            number is used.
+            """
+            client = fixture(self)
+            name = random_name(self)
+            portmap = PortMap(
+                internal_port=1234, external_port=0,
+            )
+            self.addCleanup(client.remove, name)
+            d = client.add(name, ANY_IMAGE, ports=(portmap,))
+            d.addCallback(lambda ignored: client.list())
+
+            def check_port(units):
+                portmap = list(list(units)[0].ports)[0]
+                self.assertTrue(
+                    0 < portmap.external_port < 2 ** 16,
+                    "Unexpected automatic port assignment: {}".format(
+                        portmap.external_port
+                    ),
+                )
+            d.addCallback(check_port)
+            return d
+
+        def test_port_collision_raises_addressinuse(self):
+            """
+            If the container is configured with an external port number which
+            is already in use, ``AddressInUse`` is raised.
+            """
+            client = fixture(self)
+            name = random_name(self)
+            portmap = PortMap(
+                internal_port=12345, external_port=0,
+            )
+            self.addCleanup(client.remove, name)
+            d = client.add(name, ANY_IMAGE, ports=(portmap,))
+            d.addCallback(lambda ignored: client.list())
+
+            def extract_port(units):
+                return list(list(units)[0].ports)[0].external_port
+            d.addCallback(extract_port)
+
+            def collide(external_port):
+                self.external_port = external_port
+                portmap = PortMap(
+                    internal_port=54321, external_port=external_port,
+                )
+                name = random_name(self)
+                self.addCleanup(client.remove, name)
+                return client.add(name, ANY_IMAGE, ports=(portmap,))
+            d.addCallback(collide)
+            d = self.assertFailure(d, AddressInUse)
+
+            def failed(exception):
+                self.assertEqual(
+                    AddressInUse(address=(b"0.0.0.0", self.external_port)),
+                    exception,
+                )
+            d.addCallback(failed)
+            return d
+
         def test_added_is_listed(self):
             """
             An added container is included in the output of ``list()``.
@@ -124,12 +210,10 @@ def make_idockerclient_tests(fixture):
             client = fixture(self)
             name = random_name(self)
             image = u"openshift/busybox-http-app"
-            portmaps = (
-                PortMap(internal_port=80, external_port=8080),
-                PortMap(internal_port=5432, external_port=5432)
-            )
+
+            portmaps = []
             volumes = (
-                Volume(node_path=FilePath(b'/tmp'),
+                Volume(node_path=FilePath(self.mktemp()),
                        container_path=FilePath(b'/var/lib/data')),
             )
             environment = (
@@ -138,16 +222,46 @@ def make_idockerclient_tests(fixture):
             )
             environment = Environment(variables=frozenset(environment))
             self.addCleanup(client.remove, name)
-            d = client.add(
-                name,
-                image,
-                ports=portmaps,
-                volumes=volumes,
-                environment=environment,
-                mem_limit=100000000,
-                cpu_shares=512,
-                restart_policy=RestartAlways(),
-            )
+
+            def add_with_retry():
+                # In case the "free" ports aren't really free, re-generate them
+                # on each attempt.
+                ports = [find_free_port()[1] for i in range(2)]
+                # Store them on portmaps defined in the outer scope so that the
+                # assertion below can use the values that eventually actually
+                # succeed.
+                portmaps[:] = [
+                    PortMap(internal_port=80, external_port=ports[0]),
+                    PortMap(internal_port=5432, external_port=ports[1]),
+                ]
+                d = client.add(
+                    name,
+                    image,
+                    ports=portmaps,
+                    volumes=volumes,
+                    environment=environment,
+                    mem_limit=100000000,
+                    cpu_shares=512,
+                    restart_policy=RestartAlways(),
+                )
+                d.addErrback(retry_on_port_collision)
+                return d
+
+            def retry_on_port_collision(reason):
+                # We select a random, available port number on each attempt.
+                # If it was in use it's because the "available" part of that
+                # port number selection logic is fairly shaky.  It should be
+                # good enough that trying again works fairly well, though.  So
+                # do that.
+                reason.trap(AddressInUse)
+                ip, port = reason.value.address
+                used_by = find_process_name(port)
+                ADDRESS_IN_USE(ip=ip, port=port, name=used_by).write()
+                d = client.remove(name)
+                d.addCallback(lambda ignored: add_with_retry())
+                return d
+
+            d = add_with_retry()
             d.addCallback(lambda _: client.list())
 
             expected = Unit(
@@ -277,7 +391,10 @@ def make_idockerclient_tests(fixture):
 
 
 class FakeIDockerClientTests(
-        make_idockerclient_tests(lambda t: FakeDockerClient())):
+        make_idockerclient_tests(
+            fixture=lambda test_case: FakeDockerClient(),
+        )
+):
     """
     ``IDockerClient`` tests for ``FakeDockerClient``.
     """

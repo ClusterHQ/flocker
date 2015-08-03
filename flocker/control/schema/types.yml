@@ -86,7 +86,7 @@ definitions:
           maximum: 65535
         alias:
           type: string
-          pattern: "^[a-zA-Z0-9_-]+$"
+          pattern: "^[a-zA-Z0-9]+$"
     uniqueItems: true
 
   restart_policy:
@@ -280,4 +280,3 @@ definitions:
       primary:
         '$ref': '#/definitions/primary'
     additionalProperties: false
-

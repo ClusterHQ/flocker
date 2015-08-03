@@ -1,4 +1,4 @@
-# -*- test-case-name: flocker.docs.test.test_version -*-
+# -*- test-case-name: flocker.common.test.test_version -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 import re
@@ -7,19 +7,28 @@ from characteristic import attributes, Attribute
 
 from pyrsistent import PRecord, field
 
+
+# This regex parses valid version numbers for Flocker. It handles two
+# versioning schemes (legacy and PEP440 compliant). In particular, it
+# parses the trailing part of the version added by Versioneer 0.10 and
+# 0.15.
 _VERSION_RE = re.compile(
     # The base version
-    r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
+    r"(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
     # Pre-release
-    r"(pre(?P<pre_release>[0-9]+))?"
+    # Legacy versions used `preN` instead of `rcN`
+    r"((?:rc|pre)(?P<pre_release>[0-9]+))?"
     # Weekly release
-    r"(dev(?P<weekly_release>[0-9]+))?"
+    # Legacy versions used `devN` instead of `.devN`
+    r"(\.?dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
-    r"(\+doc(?P<documentation_revision>[0-9]+))?"
+    # Legacy versions used `+docN` instead of `.postN`
+    r"((:?\.post|\+doc)(?P<documentation_revision>[0-9]+))?"
     # Development version
-    r"(-(?P<commit_count>[0-9]+)-g(?P<commit_hash>[0-9a-f]+))?"
-    # Wether the tree is dirty.
-    r"((?P<dirty>-dirty))?"
+    # Legacy versions used `.` here if `+doc` was also present.
+    r"([+.](?P<commit_count>[0-9]+).g(?P<commit_hash>[0-9a-f]+))?"
+    # Whether the source tree is dirty (changed from the last commit).
+    r"((?P<dirty>.dirty))?"
     # Always match the entire version string.
     r"$"
     )
@@ -86,9 +95,9 @@ class FlockerVersion(object):
         releases.
         """
         if self.weekly_release is not None:
-            return self.release + 'dev' + self.weekly_release
+            return self.release + '.dev' + self.weekly_release
         elif self.pre_release is not None:
-            return self.release + 'pre' + self.pre_release
+            return self.release + 'rc' + self.pre_release
         return self.release
 
 
@@ -197,7 +206,7 @@ def target_release(version):
     :param bytes version: A pre-release version of Flocker.
     :return bytes: The final marketing version the pre-release is for.
 
-    :raises UnparseableVersion: If the version is not a pre-release.
+    :raises NotAPreRelease: If the version is not a pre-release.
     """
     if not is_pre_release(version):
         raise NotAPreRelease(version)
@@ -205,6 +214,21 @@ def target_release(version):
     parsed_version = _parse_version(version)
 
     return parsed_version.release
+
+
+def get_package_key_suffix(version):
+    """
+    Return the suffix for the keys in which packages for a given version are
+    stored.
+
+    :param bytes version: A version of Flocker.
+    :return bytes: The suffix for the keys in which packages for a version are
+        stored.
+    """
+    if is_release(version):
+        return ""
+    else:
+        return "-testing"
 
 
 class RPMVersion(PRecord):
@@ -232,10 +256,10 @@ def make_rpm_version(flocker_version):
 
     # Given pre or dev number X create a 0 prefixed, `.` separated
     # string of version labels. E.g.
-    # 0.1.2pre2  becomes
-    # 0.1.2-0.pre.2
+    # 0.1.2rc2  becomes
+    # 0.1.2-0.rc.2
     if is_pre_release(installable):
-        release = ['0', 'pre', parsed_version.pre_release]
+        release = ['0', 'rc', parsed_version.pre_release]
     elif is_weekly_release(installable):
         release = ['0', 'dev', parsed_version.weekly_release]
     else:

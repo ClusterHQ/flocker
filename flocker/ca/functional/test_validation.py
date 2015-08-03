@@ -13,9 +13,8 @@ from twisted.internet.endpoints import (
     SSL4ServerEndpoint, connectProtocol, SSL4ClientEndpoint,
     )
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, gatherResults
 from twisted.internet.protocol import Protocol, ServerFactory
-
 
 from ...testtools import find_free_port
 from .._validation import (
@@ -31,9 +30,16 @@ class SendingProtocol(Protocol):
     """
     Send a string.
     """
+    def __init__(self):
+        self.disconnected = Deferred()
+
     def connectionMade(self):
+        self.factory.disconnects.append(self.disconnected)
         self.transport.write(EXPECTED_STRING)
         self.transport.loseConnection()
+
+    def connectionLost(self, reason):
+        self.disconnected.callback(None)
 
 
 class ReceivingProtocol(Protocol):
@@ -74,6 +80,42 @@ class PeerContextFactory(object):
         return ctx
 
 
+class WaitForDisconnectsFactory(ServerFactory):
+    """
+    A factory for use with ``SendingProtocol`` that makes it possible to wait
+    for all of the protocols that have been created to disconnect.
+    """
+    def __init__(self):
+        self.disconnects = []
+
+    def wait_for_disconnects(self):
+        """
+        :return: A ``Deferred`` that fires when all protocols which have been
+            connected at the point of this call have disconnected.
+        """
+        return gatherResults(self.disconnects)
+
+
+def start_tls_server(test, port, context_factory):
+    """
+    Start a TLS server on the given port.
+
+    :param test: The test this is being run in.
+    :param int port: Port to listen on.
+    :param context_factory: Context factory to use.
+
+    :return: ``Deferred`` that fires when port is open to connections.
+    """
+    server_endpoint = SSL4ServerEndpoint(reactor, port,
+                                         context_factory,
+                                         interface='127.0.0.1')
+    server_factory = WaitForDisconnectsFactory.forProtocol(SendingProtocol)
+    test.addCleanup(lambda: server_factory.wait_for_disconnects())
+    d = server_endpoint.listen(server_factory)
+    d.addCallback(lambda port: test.addCleanup(port.stopListening))
+    return d
+
+
 def make_validation_tests(context_factory_fixture,
                           good_certificate_name,
                           validator_is_client):
@@ -93,8 +135,13 @@ def make_validation_tests(context_factory_fixture,
 
     :return: ``TestCase``-subclass with tests for given validator.
     """
+    # For purposes of selecting other certs, control and control_dns are
+    # equivalent:
+    non_bad = good_certificate_name
+    if non_bad == "control_dns":
+        non_bad = "control"
     bad_name, another_bad_name = {"user", "node", "control"}.difference(
-        {good_certificate_name})
+        {non_bad})
 
     class ValidationTests(TestCase):
         """
@@ -130,16 +177,12 @@ def make_validation_tests(context_factory_fixture,
                 server_context_factory = validating_context_factory
                 client_context_factory = peer_context_factory
 
-            server_endpoint = SSL4ServerEndpoint(reactor, port,
-                                                 server_context_factory,
-                                                 interface='127.0.0.1')
-            d = server_endpoint.listen(
-                ServerFactory.forProtocol(SendingProtocol))
-            d.addCallback(lambda port: self.addCleanup(port.stopListening))
+            result = start_tls_server(self, port, server_context_factory)
             validating_endpoint = SSL4ClientEndpoint(
                 reactor, "127.0.0.1", port, client_context_factory)
             client_protocol = ReceivingProtocol()
-            result = connectProtocol(validating_endpoint, client_protocol)
+            result.addCallback(lambda _: connectProtocol(validating_endpoint,
+                                                         client_protocol))
             result.addCallback(lambda _: client_protocol.result)
             return result
 
@@ -226,7 +269,7 @@ def make_validation_tests(context_factory_fixture,
     return ValidationTests
 
 
-class ControlServicePolicyValidationTests(make_validation_tests(
+class ControlServicePolicyIPValidationTests(make_validation_tests(
         lambda port, good_ca: ControlServicePolicy(
             ca_certificate=good_ca.root.credential.certificate,
             # The exposed client credential isn't actually tested by these
@@ -237,7 +280,26 @@ class ControlServicePolicyValidationTests(make_validation_tests(
         # service certificate:
         "control", validator_is_client=True)):
     """
-    Tests for validation of the control service certificate by clients.
+    Tests for validation of the control service certificate by clients
+    when the control service certificate was generated with IP as its
+    hostname.
+    """
+
+
+class ControlServicePolicyDNSValidationTests(make_validation_tests(
+        lambda port, good_ca: ControlServicePolicy(
+            ca_certificate=good_ca.root.credential.certificate,
+            # The exposed client credential isn't actually tested by these
+            # tests, but is necessary for the code to run:
+            client_credential=good_ca.user.credential).creatorForNetloc(
+                b"localhost", port),
+        # We are testing a client that is validating the control
+        # service certificate:
+        "control_dns", validator_is_client=True)):
+    """
+    Tests for validation of the control service certificate by clients
+    when the control service certificate was generated with DNS name as
+    its hostname.
     """
 
 

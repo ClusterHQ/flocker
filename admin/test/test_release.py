@@ -4,6 +4,7 @@
 Tests for ``admin.release``.
 """
 
+import json
 import os
 
 from gzip import GzipFile
@@ -12,10 +13,8 @@ import tempfile
 from textwrap import dedent
 from unittest import skipUnless
 
-from setuptools import __version__ as setuptools_version
-
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
-from git import Repo
+from git import GitCommandError, Repo
 
 from requests.exceptions import HTTPError
 
@@ -27,20 +26,23 @@ from twisted.trial.unittest import SynchronousTestCase
 from .. import release
 
 from ..release import (
-    upload_python_packages, upload_rpms, update_repo,
+    upload_python_packages, upload_packages, update_repo,
     publish_docs, Environments,
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
-    BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
+    MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion, copy_tutorial_vagrant_box,
     publish_homebrew_recipe, PushFailed,
+    publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
 )
 
+from ..packaging import Distribution
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
+
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 
 def hard_linking_possible():
@@ -99,15 +101,15 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': 'index-content',
-                    '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
-                    '0.3.0-444-gf05215b/other.html': 'other-content',
-                    '0.3.0-392-gd50b558/index.html': 'bad-index',
-                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0-392-gd50b558/other.html': 'bad-other',
+                    '0.3.0+444.gf05215b/index.html': 'index-content',
+                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    '0.3.0+444.gf05215b/other.html': 'other-content',
+                    '0.3.0+392.gd50b558/index.html': 'bad-index',
+                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0+392.gd50b558/other.html': 'bad-other',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
@@ -141,10 +143,10 @@ class PublishDocsTests(SynchronousTestCase):
                     '0.3.1/index.html': 'index-content',
                     '0.3.1/sub/index.html': 'sub-index-content',
                     '0.3.1/other.html': 'other-content',
-                    '0.3.0-392-gd50b558/index.html': 'bad-index',
-                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0-392-gd50b558/other.html': 'bad-other',
-                },
+                    '0.3.0+392.gd50b558/index.html': 'bad-index',
+                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
@@ -182,11 +184,11 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1/other.html': 'other-content',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': 'index-content',
-                    '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
+                    '0.3.0+444.gf05215b/index.html': 'index-content',
+                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
@@ -214,7 +216,7 @@ class PublishDocsTests(SynchronousTestCase):
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
@@ -234,20 +236,20 @@ class PublishDocsTests(SynchronousTestCase):
             routing_rules={
                 'clusterhq-staging-docs': {
                     'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1dev4/',
+                    'en/devel/': 'en/0.3.1.dev4/',
                 },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf01215b', '0.3.1dev5',
+        self.publish_docs(aws, '0.3.0+444.gf01215b', '0.3.1.dev5',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
                 'clusterhq-staging-docs': {
                     'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1dev5/',
+                    'en/devel/': 'en/0.3.1.dev5/',
                 },
             })
 
@@ -301,12 +303,12 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': '',
-                    '0.3.0-444-gf05215b/sub/index.html': '',
-                    '0.3.0-444-gf05215b/sub/other.html': '',
+                    '0.3.0+444.gf05215b/index.html': '',
+                    '0.3.0+444.gf05215b/sub/index.html': '',
+                    '0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -344,10 +346,10 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/sub_index.html': '',
+                    '0.3.0+444.gf05215b/sub_index.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -385,7 +387,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -428,7 +430,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -465,16 +467,16 @@ class PublishDocsTests(SynchronousTestCase):
                     'index.html': '',
                     'en/index.html': '',
                     'en/devel/index.html': '',
-                    'en/0.3.1dev1/index.html': '',
-                    'en/0.3.1dev1/sub/index.html': '',
+                    'en/0.3.1.dev1/index.html': '',
+                    'en/0.3.1.dev1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': '',
-                    '0.3.0-444-gf05215b/sub/index.html': '',
-                    '0.3.0-444-gf05215b/sub/other.html': '',
+                    '0.3.0+444.gf05215b/index.html': '',
+                    '0.3.0+444.gf05215b/sub/index.html': '',
+                    '0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -486,11 +488,11 @@ class PublishDocsTests(SynchronousTestCase):
                         'en/devel/sub/',
                         'en/devel/sub/index.html',
                         'en/devel/sub/other.html',
-                        'en/0.3.1dev1/',
-                        'en/0.3.1dev1/index.html',
-                        'en/0.3.1dev1/sub/',
-                        'en/0.3.1dev1/sub/index.html',
-                        'en/0.3.1dev1/sub/other.html',
+                        'en/0.3.1.dev1/',
+                        'en/0.3.1.dev1/index.html',
+                        'en/0.3.1.dev1/sub/',
+                        'en/0.3.1.dev1/sub/index.html',
+                        'en/0.3.1.dev1/sub/other.html',
                     }),
             ])
 
@@ -513,12 +515,12 @@ class PublishDocsTests(SynchronousTestCase):
                     'index.html': '',
                     'en/index.html': '',
                     'en/devel/index.html': '',
-                    'en/0.3.1dev1/index.html': '',
-                    'en/0.3.1dev1/sub/index.html': '',
+                    'en/0.3.1.dev1/index.html': '',
+                    'en/0.3.1.dev1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -529,10 +531,10 @@ class PublishDocsTests(SynchronousTestCase):
                         'en/devel/index.html',
                         'en/devel/sub/',
                         'en/devel/sub/index.html',
-                        'en/0.3.1dev1/',
-                        'en/0.3.1dev1/index.html',
-                        'en/0.3.1dev1/sub/',
-                        'en/0.3.1dev1/sub/index.html',
+                        'en/0.3.1.dev1/',
+                        'en/0.3.1.dev1/index.html',
+                        'en/0.3.1.dev1/sub/',
+                        'en/0.3.1.dev1/sub/index.html',
                     }),
             ])
 
@@ -561,7 +563,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -572,10 +574,10 @@ class PublishDocsTests(SynchronousTestCase):
                         'en/devel/index.html',
                         'en/devel/sub/',
                         'en/devel/sub/index.html',
-                        'en/0.3.1dev1/',
-                        'en/0.3.1dev1/index.html',
-                        'en/0.3.1dev1/sub/',
-                        'en/0.3.1dev1/sub/index.html',
+                        'en/0.3.1.dev1/',
+                        'en/0.3.1.dev1/index.html',
+                        'en/0.3.1.dev1/sub/',
+                        'en/0.3.1.dev1/sub/index.html',
                     }),
             ])
 
@@ -627,7 +629,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.assertRaises(
             NotTagged,
             self.publish_docs,
-            aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+            aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
             environment=Environments.PRODUCTION)
 
     def test_publish_to_doc_version(self):
@@ -647,7 +649,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
 
         self.publish_docs(
-            aws, '0.3.1-444-gf05215b', '0.3.1+doc1',
+            aws, '0.3.1+444.gf05215b', '0.3.1.post1',
             environment=Environments.STAGING)
 
         self.assertEqual(
@@ -674,7 +676,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
         # Does not raise:
         self.publish_docs(
-            aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
+            aws, '0.3.1.post1', '0.3.1', environment=Environments.PRODUCTION)
 
     def test_production_can_publish_prerelease(self):
         """
@@ -692,7 +694,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
         # Does not raise:
         self.publish_docs(
-            aws, '0.3.2pre1', '0.3.2pre1', environment=Environments.PRODUCTION)
+            aws, '0.3.2rc1', '0.3.2rc1', environment=Environments.PRODUCTION)
 
     def test_publish_non_release_fails(self):
         """
@@ -702,7 +704,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.assertRaises(
             NotARelease,
             self.publish_docs,
-            aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
+            aws, '0.3.0+444.gf05215b', '0.3.0+444.gf05215b',
             environment=Environments.STAGING)
 
     def assert_error_key_update(self, doc_version, environment, should_update):
@@ -778,7 +780,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, updates the error_key in that bucket only.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1dev1',
+            doc_version='0.4.1.dev1',
             environment=Environments.STAGING,
             should_update=True
         )
@@ -789,7 +791,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, does not update the error_key in any of the buckets.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1dev1',
+            doc_version='0.4.1.dev1',
             environment=Environments.PRODUCTION,
             should_update=False
         )
@@ -800,7 +802,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, updates the error_key in that bucket only.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1pre1',
+            doc_version='0.4.1rc1',
             environment=Environments.STAGING,
             should_update=True
         )
@@ -811,7 +813,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, does not update the error_key in any of the buckets.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1pre1',
+            doc_version='0.4.1rc1',
             environment=Environments.PRODUCTION,
             should_update=False
         )
@@ -853,7 +855,7 @@ class UpdateRepoTests(SynchronousTestCase):
 
     def update_repo(self, aws, yum,
                     package_directory, target_bucket, target_key, source_repo,
-                    packages, flocker_version, distro_name, distro_version):
+                    packages, flocker_version, distribution):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -874,8 +876,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 source_repo=source_repo,
                 packages=packages,
                 flocker_version=flocker_version,
-                distro_name=distro_name,
-                distro_version=distro_version,
+                distribution=distribution,
             )
         )
 
@@ -899,6 +900,8 @@ class UpdateRepoTests(SynchronousTestCase):
                          '<oldhash>-metadata.xml'):
                 'metadata for: existing_package.rpm',
         }
+        # Copy before passing to FakeAWS
+        expected_keys = existing_s3_keys.copy()
 
         aws = FakeAWS(
             routing_rules={},
@@ -922,9 +925,8 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
-            flocker_version='0.3.3dev7',
-            distro_name='fedora',
-            distro_version='7',
+            flocker_version='0.3.3.dev7',
+            distribution=Distribution(name='centos', version='7'),
         )
 
         # The expected files are the new files plus the package which already
@@ -935,7 +937,6 @@ class UpdateRepoTests(SynchronousTestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
         }
 
-        expected_keys = existing_s3_keys.copy()
         expected_keys.update({
             'test/target/key/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm':
                 'cli-package',
@@ -970,6 +971,8 @@ class UpdateRepoTests(SynchronousTestCase):
             os.path.join(self.target_key, 'Packages.gz'):
                 'metadata for: existing_package.deb',
         }
+        # Copy before passing to FakeAWS
+        expected_keys = existing_s3_keys.copy()
 
         aws = FakeAWS(
             routing_rules={},
@@ -993,9 +996,8 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
-            flocker_version='0.3.3dev7',
-            distro_name='ubuntu',
-            distro_version='14.04',
+            flocker_version='0.3.3.dev7',
+            distribution=Distribution(name='ubuntu', version='14.04'),
         )
 
         # The expected files are the new files plus the package which already
@@ -1006,8 +1008,8 @@ class UpdateRepoTests(SynchronousTestCase):
             'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
         }
 
-        expected_keys = existing_s3_keys.copy()
         expected_keys.update({
+            'test/target/key/Release': 'Origin: ClusterHQ\n',
             'test/target/key/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb':
                 'cli-package',
             'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
@@ -1042,9 +1044,8 @@ class UpdateRepoTests(SynchronousTestCase):
                 source_repo=create_fake_repository(
                     self, files={}),
                 packages=self.packages,
-                flocker_version='0.3.3dev7',
-                distro_name='fedora',
-                distro_version='7',
+                flocker_version='0.3.3.dev7',
+                distribution=Distribution(name="centos", version="7"),
             )
 
         self.assertEqual(404, exception.exception.response.status_code)
@@ -1081,9 +1082,8 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
-            flocker_version='0.3.3dev7',
-            distro_name='fedora',
-            distro_version='7',
+            flocker_version='0.3.3.dev7',
+            distribution=Distribution(name='centos', version='7'),
         )
 
         expected_files = {
@@ -1164,9 +1164,8 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
-            flocker_version='0.3.3dev7',
-            distro_name='ubuntu',
-            distro_version='14.04',
+            flocker_version='0.3.3.dev7',
+            distribution=Distribution(name="ubuntu", version="14.04"),
         )
 
         expected_files = {
@@ -1193,30 +1192,32 @@ class UpdateRepoTests(SynchronousTestCase):
         self.assertNotIn(self.package_directory.path, packages_metadata)
 
 
-class UploadRPMsTests(SynchronousTestCase):
+class UploadPackagesTests(SynchronousTestCase):
     """
-    Tests for :func:``upload_rpms``.
+    Tests for :func:``upload_packages``.
     """
-    def upload_rpms(self, aws, yum,
-                    scratch_directory, target_bucket, version, build_server):
+    def upload_packages(self, aws, yum,
+                        scratch_directory, target_bucket, version,
+                        build_server, top_level):
         """
-        Call :func:``upload_rpms``, interacting with a fake AWS and yum
+        Call :func:``upload_packages``, interacting with a fake AWS and yum
         utilities.
 
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
 
-        See :py:func:`upload_rpms` for other parameter documentation.
+        See :py:func:`upload_packages` for other parameter documentation.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
-            upload_rpms(
+            upload_packages(
                 scratch_directory=scratch_directory,
                 target_bucket=target_bucket,
                 version=version,
                 build_server=build_server,
+                top_level=top_level,
             ),
         )
 
@@ -1224,171 +1225,92 @@ class UploadRPMsTests(SynchronousTestCase):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.createDirectory()
         self.target_bucket = 'test-target-bucket'
-        self.build_server = 'http://test-build-server.example'
-
-    def test_development_repositories_created(self):
-        """
-        Calling :func:`upload_rpms` creates development repositories for
-        CentOS 7 and Fedora 20 for a development release.
-        """
-        aws = FakeAWS(
+        self.aws = FakeAWS(
             routing_rules={},
             s3_buckets={
                 self.target_bucket: {},
             },
         )
+        self.build_server = 'http://test-build-server.example'
 
+    def test_repositories_created(self):
+        """
+        Calling :func:`upload_packages` creates repositories for supported
+        distributions.
+        """
         repo_contents = {
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
-            aws=aws,
+        self.upload_packages(
+            aws=self.aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
-            version='0.3.3dev7',
+            version='0.3.3.dev1',
             build_server=create_fake_repository(self, files=repo_contents),
+            top_level=FLOCKER_PATH,
         )
 
         expected_files = {
-            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
-            'fedora-testing/20/x86_64/repodata/repomod.xml',
-            'fedora-testing/20/x86_64/repodata/<newhash>-metadata.xml',
-            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
-            'centos-testing/7/x86_64/repodata/repomod.xml',
-            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/repomod.xml',  # noqa
+            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
             'ubuntu-testing/14.04/amd64/Packages.gz',
             'ubuntu-testing/14.04/amd64/Release',
+            'ubuntu-testing/15.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/Packages.gz',
+            'ubuntu-testing/15.04/amd64/Release',
         }
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
 
-    def test_development_repositories_created_for_pre_release(self):
+    def test_key_suffixes(self):
         """
-        Calling :func:`upload_rpms` creates development repositories for
-        CentOS 7 and Fedora 20 for a pre-release.
+        The OS part of the keys for created repositories have suffixes (or not)
+        appropriate for the release type. In particular there is no "-testing"
+        in keys created for a marketing release.
         """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
         repo_contents = {
-            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/centos-7/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-flocker-cli_0.3.0-0.pre.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-flocker-node_0.3.0-0.pre.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb': '',  # noqa
-        }
-
-        self.upload_rpms(
-            aws=aws,
-            yum=FakeYum(),
-            scratch_directory=self.scratch_directory,
-            target_bucket=self.target_bucket,
-            version='0.3.0pre1',
-            build_server=create_fake_repository(self, files=repo_contents),
-        )
-
-        expected_files = [
-            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
-            'fedora-testing/20/x86_64/repodata/repomod.xml',
-            'fedora-testing/20/x86_64/repodata/<newhash>-metadata.xml',
-            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
-            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
-            'centos-testing/7/x86_64/repodata/repomod.xml',
-            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.0-0.pre.1_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.0-0.pre.1_all.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb',  # noqa
-            'ubuntu-testing/14.04/amd64/Packages.gz',
-            'ubuntu-testing/14.04/amd64/Release',
-        ]
-
-        self.assertEqual(
-            sorted(expected_files),
-            sorted(aws.s3_buckets[self.target_bucket].keys()))
-
-    def test_marketing_repositories_created(self):
-        """
-        Calling :func:`upload_rpms` creates marketing repositories for
-        CentOS 7 and Fedora 20 for a marketing release.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        repo_contents = {
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
         }
 
-        self.upload_rpms(
-            aws=aws,
+        self.upload_packages(
+            aws=self.aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
             version='0.3.3',
             build_server=create_fake_repository(self, files=repo_contents),
+            top_level=FLOCKER_PATH,
         )
 
-        expected_files = {
-            'fedora/20/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-            'fedora/20/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-            'fedora/20/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
-            'fedora/20/x86_64/repodata/repomod.xml',
-            'fedora/20/x86_64/repodata/<newhash>-metadata.xml',
-            'centos/7/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-            'centos/7/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-            'centos/7/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
-            'centos/7/x86_64/repodata/repomod.xml',
-            'centos/7/x86_64/repodata/<newhash>-metadata.xml',
-            'ubuntu/14.04/amd64/clusterhq-flocker-cli_0.3.3-1_all.deb',
-            'ubuntu/14.04/amd64/clusterhq-flocker-node_0.3.3-1_all.deb',
-            'ubuntu/14.04/amd64/clusterhq-python-flocker_0.3.3-1_amd64.deb',
-            'ubuntu/14.04/amd64/Packages.gz',
-            'ubuntu/14.04/amd64/Release',
-        }
-
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertEqual(expected_files, set(files_on_s3))
-
+        files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
+        self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 def create_fake_repository(test_case, files):
     """
@@ -1448,7 +1370,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                 )
             )
 
-    @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
     @skipUnless(hard_linking_possible(),
                 "Hard linking is not possible in the current directory.")
     def test_distributions_uploaded(self):
@@ -1475,16 +1396,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             ['python/Flocker-0.3.0-py2-none-any.whl',
              'python/Flocker-0.3.0.tar.gz'])
 
-    def test_setuptools_version_requirement(self):
-        """
-        When setuptools' version is not 3.6, an error is raised.
-        """
-        self.patch(
-            release, 'setuptools_version', '15.1')
-        self.assertRaises(
-            IncorrectSetuptoolsVersion,
-            self.upload_python_packages)
-
 
 class UploadOptionsTests(SynchronousTestCase):
     """
@@ -1492,26 +1403,25 @@ class UploadOptionsTests(SynchronousTestCase):
     """
 
     def test_must_be_release_version(self):
-          """
-          Trying to upload artifacts for a version which is not a release
-          fails.
-          """
-          options = UploadOptions()
-          self.assertRaises(
-              NotARelease,
-              options.parseOptions,
-              ['--flocker-version', '0.3.0-444-gf05215b'])
-
+        """
+        Trying to upload artifacts for a version which is not a release
+        fails.
+        """
+        options = UploadOptions()
+        self.assertRaises(
+            NotARelease,
+            options.parseOptions,
+            ['--flocker-version', '0.3.0+444.gf05215b'])
 
     def test_documentation_release_fails(self):
-          """
-          Trying to upload artifacts for a documentation version fails.
-          """
-          options = UploadOptions()
-          self.assertRaises(
-              DocumentationRelease,
-              options.parseOptions,
-              ['--flocker-version', '0.3.0+doc1'])
+        """
+        Trying to upload artifacts for a documentation version fails.
+        """
+        options = UploadOptions()
+        self.assertRaises(
+            DocumentationRelease,
+            options.parseOptions,
+            ['--flocker-version', '0.3.0.post1'])
 
 
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
@@ -1570,7 +1480,7 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         Creating a release branch changes the active branch on the given
         branch's repository.
         """
-        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch = self.repo.create_head('release/flocker-0.3.0rc1')
 
         create_release_branch(version='0.3.0', base_branch=branch)
         self.assertEqual(
@@ -1582,7 +1492,7 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         The new branch is created from the given branch.
         """
         master = self.repo.active_branch
-        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch = self.repo.create_head('release/flocker-0.3.0rc1')
         branch.checkout()
         FilePath(self.repo.working_dir).child('NEW_FILE').touch()
         self.repo.index.add(['NEW_FILE'])
@@ -1734,14 +1644,14 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.assertRaises(
             NotARelease,
-            self.calculate_base_branch, '0.3.0-444-gf05215b')
+            self.calculate_base_branch, '0.3.0+444.gf05215b')
 
     def test_weekly_release_base(self):
         """
         A weekly release is created from the "master" branch.
         """
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0dev1').name,
+            self.calculate_base_branch(version='0.3.0.dev1').name,
             "master")
 
     def test_doc_release_base(self):
@@ -1751,7 +1661,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.repo.create_head('release/flocker-0.3.0')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0+doc1').name,
+            self.calculate_base_branch(version='0.3.0.post1').name,
             "release/flocker-0.3.0")
 
     def test_first_pre_release(self):
@@ -1760,7 +1670,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         "master" branch.
         """
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0pre1').name,
+            self.calculate_base_branch(version='0.3.0rc1').name,
             "master")
 
     def test_uses_previous_pre_release(self):
@@ -1768,13 +1678,13 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         The second pre-release for a marketing release is created from the
         previous pre-release release branch.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
-        self.repo.create_head('release/flocker-0.3.0pre2')
-        self.repo.create_tag('0.3.0pre2')
+        self.repo.create_head('release/flocker-0.3.0rc1')
+        self.repo.create_tag('0.3.0rc1')
+        self.repo.create_head('release/flocker-0.3.0rc2')
+        self.repo.create_tag('0.3.0rc2')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0pre3').name,
-            "release/flocker-0.3.0pre2")
+            self.calculate_base_branch(version='0.3.0rc3').name,
+            "release/flocker-0.3.0rc2")
 
     def test_unparseable_tags(self):
         """
@@ -1783,11 +1693,11 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.repo.create_head('release/flocker-0.3.0unparseable')
         self.repo.create_tag('0.3.0unparseable')
-        self.repo.create_head('release/flocker-0.3.0pre2')
-        self.repo.create_tag('0.3.0pre2')
+        self.repo.create_head('release/flocker-0.3.0rc2')
+        self.repo.create_tag('0.3.0rc2')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0pre3').name,
-            "release/flocker-0.3.0pre2")
+            self.calculate_base_branch(version='0.3.0rc3').name,
+            "release/flocker-0.3.0rc2")
 
     def test_parent_repository_used(self):
         """
@@ -1796,7 +1706,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.assertEqual(
             calculate_base_branch(
-                version='0.3.0dev1',
+                version='0.3.0.dev1',
                 path=FilePath(self.repo.working_dir).child('README').path,
             ).name,
             "master")
@@ -1815,20 +1725,20 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         Trying to release a pre-release when the previous pre-release does not
         exist fails.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0rc1')
+        self.repo.create_tag('0.3.0rc1')
         self.assertRaises(
             MissingPreRelease,
-            self.calculate_base_branch, '0.3.0pre3')
+            self.calculate_base_branch, '0.3.0rc3')
 
     def test_base_branch_does_not_exist_fails(self):
         """
         Trying to create a release when the base branch does not exist fails.
         """
-        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_tag('0.3.0rc1')
 
         self.assertRaises(
-            BaseBranchDoesNotExist,
+            GitCommandError,
             self.calculate_base_branch, '0.3.0')
 
     def test_tag_exists_fails(self):
@@ -1841,40 +1751,220 @@ class CalculateBaseBranchTests(SynchronousTestCase):
             TagExists,
             self.calculate_base_branch, '0.3.0')
 
-
-class CopyTutorialVagrantBox(SynchronousTestCase):
-    """
-    Tests for :func:`copy_tutorial_vagrant_box`.
-    """
-
-    def test_vagrant_box_copied(self):
+    def test_branch_only_exists_remote(self):
         """
-        A Vagrant box for a given version of Flocker is copied to the
-        archive.
+        If the test branch does not exist locally, but does exist as a remote
+        branch a base branch can still be calculated.
         """
-        target_bucket = 'clusterhq-archive'
-        dev_bucket = 'clusterhq-dev-archive'
+        self.repo.create_head('release/flocker-0.3.0rc1')
+        self.repo.create_tag('0.3.0rc1')
+        directory = FilePath(self.mktemp())
+        clone = self.repo.clone(path=directory.path)
+
+        self.assertEqual(
+            calculate_base_branch(
+                    version='0.3.0rc2',
+                    path=clone.working_dir).name,
+            "release/flocker-0.3.0rc1")
+
+
+class PublishVagrantMetadataTests(SynchronousTestCase):
+    """
+    Tests for :func:`publish_vagrant_metadata`.
+    """
+
+    def setUp(self):
+        self.target_bucket = 'clusterhq-archive'
+        self.metadata_key = 'vagrant/flocker-tutorial.json'
+
+    def metadata_version(self, version, box_filename, provider="virtualbox"):
+        """
+        Create a version section for Vagrant metadata, for a given box, with
+        one provider: virtualbox.
+
+        :param bytes version: The version of the box, normalised for Vagrant.
+        :param bytes box_filename: The filename of the box.
+        :param bytes provider: The provider for the box.
+
+        :return: Dictionary to be used as a version section in Vagrant
+            metadata.
+        """
+        return {
+            "version": version,
+            "providers": [
+                {
+                    "url": "https://example.com/" + box_filename,
+                    "name": provider,
+                }
+            ],
+        }
+
+    def tutorial_metadata(self, versions):
+        """
+        Create example tutorial metadata.
+
+        :param list versions: List of dictionaries of version sections.
+
+        :return: Dictionary to be used as Vagrant metadata.
+        """
+        return {
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": versions,
+        }
+
+    def publish_vagrant_metadata(self, aws, version):
+        """
+        Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param version: See :py:func:`publish_vagrant_metadata`.
+        """
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
+        box_name = 'flocker-tutorial'
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            publish_vagrant_metadata(
+                version=version,
+                box_url=box_url,
+                box_name=box_name,
+                target_bucket=self.target_bucket,
+                scratch_directory=scratch_directory))
+
+    def test_no_metadata_exists(self):
+        """
+        A metadata file is added when one does not exist.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        expected_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            self.tutorial_metadata(versions=[expected_version]),
+        )
+
+    def test_metadata_content_type(self):
+        """
+        Vagrant requires a JSON metadata file to have a Content-Type of
+        application/json.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+
+        self.assertEqual(
+            aws.s3_buckets[self.target_bucket][self.metadata_key].content_type,
+            'application/json'
+        )
+
+    def test_version_added(self):
+        """
+        A version is added to an existing metadata file.
+        """
+        existing_old_version = self.metadata_version(
+            version="0.3.0",
+            box_filename="flocker-tutorial-0.3.0.box",
+        )
+
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_old_version])
+        )
 
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                target_bucket: {},
-                dev_bucket: {
-                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content',
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
                 },
-            })
-
-        sync_perform(
-            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            copy_tutorial_vagrant_box(
-                target_bucket=target_bucket,
-                dev_bucket=dev_bucket,
-                version='0.3.0'))
-
-        self.assertEqual(
-            aws.s3_buckets[target_bucket],
-            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content'}
+            },
         )
+
+        expected_new_version = self.metadata_version(
+            version="0.4.0",
+            box_filename="flocker-tutorial-0.4.0.box",
+        )
+
+        expected_metadata = self.tutorial_metadata(
+            versions=[existing_old_version, expected_new_version])
+
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0')
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            expected_metadata,
+        )
+
+    def test_version_normalised(self):
+        """
+        The version given is converted to a version number acceptable to
+        Vagrant.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
+        metadata = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])
+        # The underscore is converted to a period in the version.
+        self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
+
+    def test_version_already_exists(self):
+        """
+        If a version already exists then its data is overwritten by the new
+        metadata. This works even if the version is changed when being
+        normalised.
+        """
+        existing_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="old_filename",
+            provider="old_provider",
+        )
+
+        existing_metadata = json.dumps(
+            self.tutorial_metadata(versions=[existing_version])
+        )
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
+                },
+            },
+        )
+
+        expected_version = self.metadata_version(
+            version="0.4.0.2314.g941011b",
+            box_filename="flocker-tutorial-0.4.0-2314-g941011b.box",
+            provider="virtualbox",
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
+
+        metadata_versions = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+
+        self.assertEqual(metadata_versions, [expected_version])
 
 
 class PublishHomebrewRecipeTests(SynchronousTestCase):
@@ -1887,9 +1977,11 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         # Making a recipe involves interacting with PyPI, this should be
         # a parameter, not a patch. See:
         # https://clusterhq.atlassian.net/browse/FLOC-1759
-        self.patch(release, 'make_recipe',
-            lambda version, sdist_url:
-                "Recipe for " + version + " at " + sdist_url)
+        self.patch(
+            release, 'make_recipe',
+            lambda version, sdist_url, requirements_path:
+            "Recipe for " + version + " at " + sdist_url
+        )
 
     def test_commit_message(self):
         """
@@ -1900,6 +1992,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         self.assertEqual(
@@ -1915,6 +2008,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="bucket-name",
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
@@ -1929,8 +2023,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         self.assertRaises(
             PushFailed,
             publish_homebrew_recipe,
-            non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
-
+            non_bare_repo.git_dir,
+            '0.3.0',
+            "archive",
+            FilePath(self.mktemp()),
+            top_level=FLOCKER_PATH,
+        )
 
     def test_recipe_already_exists(self):
         """
@@ -1941,17 +2039,90 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         self.patch(release, 'make_recipe',
-            lambda version, sdist_url: "New content")
+                   lambda version, sdist_url, requirements_path: "New content")
 
         publish_homebrew_recipe(
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
+
+
+class GetExpectedRedirectsTests(SynchronousTestCase):
+    """
+    Tests for :func:`get_expected_redirects`.
+    """
+
+    def test_marketing_release(self):
+        """
+        If a marketing release version is given, marketing release redirects
+        are returned.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0'),
+            {
+                '/': '/en/0.3.0/',
+                '/en/': '/en/0.3.0/',
+                '/en/latest': '/en/0.3.0/',
+                '/en/latest/faq/index.html': '/en/0.3.0/faq/index.html',
+            }
+        )
+
+    def test_development_release(self):
+        """
+        If a development release version is given, development release
+        redirects are returned.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0.dev1'),
+            {
+                '/en/devel': '/en/0.3.0.dev1/',
+                '/en/devel/faq/index.html': '/en/0.3.0.dev1/faq/index.html',
+            }
+        )
+
+    def test_documentation_release(self):
+        """
+        If a documentation release version is given, marketing release
+        redirects are returned for the versions which is being updated.
+        """
+        self.assertEqual(
+            get_expected_redirects(flocker_version='0.3.0.post1'),
+            {
+                '/': '/en/0.3.0/',
+                '/en/': '/en/0.3.0/',
+                '/en/latest': '/en/0.3.0/',
+                '/en/latest/faq/index.html': '/en/0.3.0/faq/index.html',
+            }
+        )
+
+
+class TestRedirectsOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`TestRedirectsOptions`.
+    """
+
+    def test_default_environment(self):
+        """
+        The default environment is a staging environment.
+        """
+        options = TestRedirectsOptions()
+        options.parseOptions([])
+        self.assertEqual(options.environment, Environments.STAGING)
+
+    def test_production_environment(self):
+        """
+        If "--production" is passed, a production environment is used.
+        """
+        options = TestRedirectsOptions()
+        options.parseOptions(['--production'])
+        self.assertEqual(options.environment, Environments.PRODUCTION)

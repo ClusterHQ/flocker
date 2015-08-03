@@ -19,23 +19,26 @@ See `acceptance testing <acceptance-testing>`_ for details.
 """
 
 from os import environ
-from uuid import uuid4
 from functools import partial
 
 from yaml import safe_load
+from bitmath import GiB
 
 from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
 
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
 
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
-from ..cinder import CinderBlockDeviceAPI
+from ..cinder import (
+    _openstack_auth_from_config, _openstack_verify_from_config, cinder_api)
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
+from ....testtools.cluster_utils import (
+    make_cluster_id, TestTypes, Providers
+)
 
 
 class InvalidConfig(Exception):
@@ -45,6 +48,7 @@ class InvalidConfig(Exception):
     """
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class ProviderType(Names):
     """
     Kinds of compute/storage cloud providers for which this module is able to
@@ -65,13 +69,26 @@ def get_blockdeviceapi(provider):
     return cls(**args)
 
 
-def get_blockdeviceapi_args(provider):
+def _provider_for_provider_type(provider_type):
+    """
+    Convert from ``ProviderType`` values to ``Providers`` values.
+    """
+    if provider_type in (ProviderType.openstack, ProviderType.rackspace):
+        return Providers.OPENSTACK
+    if provider_type is ProviderType.aws:
+        return Providers.AWS
+    return Providers.UNSPECIFIED
+
+
+def get_blockdeviceapi_args(provider, **override):
     """
     Get initializer arguments suitable for use in the instantiation of an
     ``IBlockDeviceAPI`` implementation compatible with the given provider.
 
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
+
+    :param override: Block Device parameters to override.
 
     :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
@@ -110,6 +127,7 @@ def get_blockdeviceapi_args(provider):
             "Platform: %s, "
             "Configuration File: %s" % (platform_name, config_file_path)
         )
+    section.update(override)
 
     provider_name = section.get('provider', platform_name)
     try:
@@ -131,32 +149,11 @@ def get_blockdeviceapi_args(provider):
         )
 
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-    kwargs = dict(cluster_id=uuid4())
+    kwargs = dict(cluster_id=make_cluster_id(
+        TestTypes.FUNCTIONAL, _provider_for_provider_type(provider),
+    ))
     kwargs.update(get_kwargs(**section))
     return cls, kwargs
-
-
-from keystoneclient.auth import get_plugin_class
-
-
-def _openstack_auth_from_config(**config):
-    auth_plugin_name = config.pop('auth_plugin', 'password')
-
-    if auth_plugin_name == 'rackspace':
-        plugin_class = RackspaceAuth
-    else:
-        plugin_class = get_plugin_class(auth_plugin_name)
-
-    plugin_options = plugin_class.get_options()
-    plugin_kwargs = {}
-    for option in plugin_options:
-        # option.dest is the python compatible attribute name in the plugin
-        # implementation.
-        # option.dest is option.name with hyphens replaced with underscores.
-        if option.dest in config:
-            plugin_kwargs[option.dest] = config[option.dest]
-
-    return plugin_class(**plugin_kwargs)
 
 
 def _openstack(**config):
@@ -169,8 +166,7 @@ def _openstack(**config):
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
 
-    :return: A ``dict`` giving initializer arguments for
-        ``CinderBlockDeviceAPI``.
+    :return: A ``dict`` of keyword arguments for ``cinder_api``.
     """
     # The execution context should have set up this environment variable,
     # probably by inspecting some cloud-y state to discover where this code is
@@ -179,9 +175,12 @@ def _openstack(**config):
     # case) instead of forcing me to figure out how to upper case things in
     # bash (I already learned a piece of shell syntax today, once is all I can
     # take).
-    region = environ['FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION'].upper()
+    region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
+    if region is not None:
+        region = region.upper()
     auth = _openstack_auth_from_config(**config)
-    session = Session(auth=auth)
+    verify = _openstack_verify_from_config(**config)
+    session = Session(auth=auth, verify=verify)
     cinder_client = CinderClient(
         session=session, region_name=region, version=1
     )
@@ -189,8 +188,8 @@ def _openstack(**config):
         session=session, region_name=region, version=2
     )
     return dict(
-        cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
+        cinder_client=cinder_client,
+        nova_client=nova_client
     )
 
 
@@ -220,9 +219,9 @@ def _aws(**config):
 # Map provider labels to IBlockDeviceAPI factory and a corresponding argument
 # factory.
 _BLOCKDEVICE_TYPES = {
-    ProviderType.openstack: (CinderBlockDeviceAPI, _openstack),
+    ProviderType.openstack: (cinder_api, _openstack),
     ProviderType.rackspace:
-        (CinderBlockDeviceAPI, partial(_openstack, auth_plugin="rackspace")),
+        (cinder_api, partial(_openstack, auth_plugin="rackspace")),
     ProviderType.aws: (EBSBlockDeviceAPI, _aws),
 }
 
@@ -245,14 +244,73 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``SkipTest`` if a ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
-        was not set and the default config file could not be read.
+    :raises: ``SkipTest`` if either:
+        1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
+        was not set and the default config file could not be read, or,
+        2) ``FLOCKER_FUNCTIONAL_TEST`` environment variable was unset.
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend functional tests.'
+        )
+
     try:
         api = get_blockdeviceapi(provider)
     except InvalidConfig as e:
         raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
     return api
+
+
+DEVICE_ALLOCATION_UNITS = {
+    # Our redhat-openstack test platform uses a ScaleIO backend which
+    # allocates devices in 8GiB intervals
+    'redhat-openstack': GiB(8),
+}
+
+
+def get_device_allocation_unit():
+    """
+    Return a provider specific device allocation unit.
+
+    This is mostly OpenStack / Cinder specific and represents the
+    interval that will be used by Cinder storage provider i.e
+    You ask Cinder for a 1GiB or 7GiB volume.
+    The Cinder driver creates an 8GiB block device.
+    The operating system sees an 8GiB device when it is attached.
+    Cinder API reports a 1GiB or 7GiB volume.
+
+    :returns: An ``int`` allocation size in bytes for a
+        particular platform. Default to ``None``.
+    """
+    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if cloud_provider is not None:
+        device_allocation_unit = DEVICE_ALLOCATION_UNITS.get(cloud_provider)
+        if device_allocation_unit is not None:
+            return int(device_allocation_unit.to_Byte().value)
+
+
+MINIMUM_ALLOCATABLE_SIZES = {
+    # This really means Rackspace
+    'openstack': GiB(100),
+    'redhat-openstack': GiB(1),
+    'aws': GiB(1),
+}
+
+
+def get_minimum_allocatable_size():
+    """
+    Return a provider specific minimum_allocatable_size.
+
+    :returns: An ``int`` minimum_allocatable_size in bytes for a
+        particular platform. Default to ``1``.
+    """
+    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if cloud_provider is None:
+        return 1
+    else:
+        return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)

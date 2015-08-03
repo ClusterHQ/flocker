@@ -243,6 +243,28 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'remote_port': 54320
             }]
         },
+        # Links given but alias has hyphen
+        {
+            'node_uuid': a_uuid,
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'xxx-yyy',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but alias has underscore
+        {
+            'node_uuid': a_uuid,
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'xxx_yyy',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
         # Links given but local port missing
         {
             'node_uuid': a_uuid,
@@ -638,10 +660,20 @@ StateDatasetsArraySchemaTests = build_schema_test(
         # not an array
         {}, u"lalala", 123,
 
-        # missing primary
-        [{u"path": u"/123",
+        # null primary
+        [{u"primary": None,
           u"maximum_size": 1024 * 1024 * 1024,
           u"dataset_id": u"x" * 36}],
+
+        # null path
+        [{u"path": None,
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # XXX Ideally there'd be a couple more tests here:
+        # * primary without path
+        # * path without primary
+        # See FLOC-2170
 
         # missing dataset_id
         [{u"primary": a_uuid,
@@ -651,17 +683,12 @@ StateDatasetsArraySchemaTests = build_schema_test(
         [{u"primary": a_uuid,
           u"dataset_id": u"x" * 36,
           u"path": 123}],
-
-        # missing path
-        [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36}],
     ],
 
     passing_instances=[
-        # only maximum_size is optional
-        [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
-          u"path": u"/123"}],
+        # missing primary and path
+        [{u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
 
         # maximum_size is integer
         [{u"primary": a_uuid,
@@ -711,22 +738,20 @@ StateContainersArrayTests = build_schema_test(
         # Wrong item type
         ["string"],
         # Failing dataset type (missing running)
-        [{u"host": u"10.0.0.1", u"node_uuid": a_uuid, u"name": u"lalala",
+        [{u"node_uuid": a_uuid, u"name": u"lalala",
           u"image": u"busybox:latest"}]
     ],
     passing_instances=[
         [],
-        [{u"host": u"10.0.0.1", u"name": u"lalala",
+        [{u"name": u"lalala",
           u"node_uuid": a_uuid,
           u"image": u"busybox:latest", u'running': True}],
         [{
-            u'host': u"10.0.0.1",
             u"node_uuid": a_uuid,
             u'image': u'nginx:latest',
             u'name': u'webserver2',
             u'running': True},
          {
-             u'host': u"10.0.0.2",
              u"node_uuid": unicode(uuid4()),
              u'image': u'nginx:latest',
              u'name': u'webserver',

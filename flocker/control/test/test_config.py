@@ -65,8 +65,8 @@ COMPLEX_APPLICATION_YAML = {
 COMPLEX_DEPLOYMENT_YAML = {
     'version': 1,
     'nodes': {
-        'node1.example.com': ['wordpress'],
-        'node2.example.com': ['mysql'],
+        '172.16.255.250': ['wordpress'],
+        '172.16.255.251': ['mysql'],
     }
 }
 
@@ -655,6 +655,35 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
             "Application 'postgres' has a config error. "
             "'links' value 'wordpress' could not be mapped to any "
             "application; application 'wordpress' does not exist."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_hyphenated_link(self):
+        """
+        A ``ConfigurationError`` is raised if in a fig application config, the
+        "links" key contains an application name that has a hyphen.
+        """
+        config = {
+            u'postgres': {
+                u'environment': {u'PG_ROOT_PASSWORD': u'clusterhq'},
+                u'image': u'sample/postgres',
+                u'ports': [u'54320:5432'],
+                u'volumes': [u'/var/lib/postgres'],
+                u'links': [u'wordpress:wordpress-bad'],
+            },
+            u'wordpress': {
+                u'image': u'sample/wordpress',
+                u'ports': [u'8080:8080'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error: "
+            "Link aliases must be alphanumeric."
         )
         self.assertEqual(exception.message, error_message)
 
@@ -1825,6 +1854,27 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_links_alias_with_hyphen(self):
+        """
+        ``Configuration.applications`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        whose alias includes a hyphen.
+        """
+        config = dict(
+            version=1,
+            applications={'postgres': dict(
+                image='busybox',
+                links=[{'local_port': 90, 'remote_port': 100, 'alias': 'x-y'}],
+                )})
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'postgres' has a config error. "
+            "Invalid links specification. Link aliases must be alphanumeric.",
+            exception.message
+        )
+
     def test_links_extra_keys(self):
         """
         ``Configuration.applications`` raises a
@@ -2325,6 +2375,22 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``deployment_from_configuration``.
     """
+    def test_error_on_hostname_not_ip_address(self):
+        """
+        ``Configuration._deployment_from_configuration`` raises a
+        ``ConfigurationError`` if the deployment_configuration specifies
+        a node that is not an IPv4 address.
+        """
+        config = dict(nodes={"node1.example.com": []}, version=1)
+        exception = self.assertRaises(ConfigurationError,
+                                      deployment_from_configuration,
+                                      DeploymentState(), config, set())
+        self.assertEqual(
+            'Node "node1.example.com" specified, but deployment configuration '
+            'expects an IPv4 address.',
+            exception.message
+        )
+
     def test_error_on_missing_nodes_key(self):
         """
         ``Configuration._deployment_from_config`` raises a
@@ -2379,11 +2445,11 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             ConfigurationError,
             deployment_from_configuration,
             DeploymentState(),
-            dict(version=1, nodes={'node1.example.com': None}),
+            dict(version=1, nodes={'172.16.255.250': None}),
             set()
         )
         self.assertEqual(
-            'Node node1.example.com has a config error. '
+            'Node 172.16.255.250 has a config error. '
             'Wrong value type: NoneType. '
             'Should be list.',
             exception.message
@@ -2407,12 +2473,41 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             DeploymentState(),
             dict(
                 version=1,
-                nodes={'node1.example.com': ['site-hybridcluster']}),
+                nodes={'172.16.255.250': ['site-hybridcluster']}),
             applications
         )
         self.assertEqual(
-            'Node node1.example.com has a config error. '
+            'Node 172.16.255.250 has a config error. '
             'Unrecognised application name: site-hybridcluster.',
+            exception.message
+        )
+
+    def test_error_on_duplicate_application_name(self):
+        """
+        ``deployment_from_configuration`` raises a ``ConfigurationError`` if
+        the deployment_configuration refers to an application more than
+        once.
+        """
+        applications = {
+            u'app': Application(
+                name=u'app',
+                image=DockerImage.from_string(u'busybox'),
+            )
+        }
+        exception = self.assertRaises(
+            ConfigurationError,
+            deployment_from_configuration,
+            DeploymentState(
+                nodes=[NodeState(hostname=u'1.2.3.4', uuid=uuid4()),
+                       NodeState(hostname=u'1.2.3.5', uuid=uuid4())]),
+            dict(
+                version=1,
+                nodes={u'1.2.3.4': ['app'],
+                       u'1.2.3.5': ['app']}),
+            applications
+        )
+        self.assertEqual(
+            "Application 'app' appears more than once.",
             exception.message
         )
 
@@ -2457,7 +2552,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                     mountpoint=FilePath(b'/var/lib/db')))
         }
         node_uuid = uuid4()
-        hostname = u'node1.example.com'
+        hostname = u'172.16.255.250'
 
         result = deployment_from_configuration(
             DeploymentState(
@@ -2511,8 +2606,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         deployment_configuration = {
             'version': 1,
             'nodes': {
-                'node1.example.com': ['mysql-hybridcluster'],
-                'node2.example.com': ['site-hybridcluster'],
+                '172.16.255.250': ['mysql-hybridcluster'],
+                '172.16.255.251': ['site-hybridcluster'],
             }
         }
         node1_uuid = uuid4()
@@ -2521,8 +2616,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         applications = config.applications()
         result = model_from_configuration(
             DeploymentState(nodes=[
-                NodeState(uuid=node1_uuid, hostname=u"node1.example.com"),
-                NodeState(uuid=node2_uuid, hostname=u"node2.example.com")]),
+                NodeState(uuid=node1_uuid, hostname=u"172.16.255.250"),
+                NodeState(uuid=node2_uuid, hostname=u"172.16.255.251")]),
             applications, deployment_configuration)
         expected_result = Deployment(
             nodes=frozenset([

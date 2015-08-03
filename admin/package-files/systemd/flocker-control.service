@@ -5,6 +5,7 @@ Description=Flocker Control Service
 ExecStart=/usr/sbin/flocker-control -p systemd:INET:0 -a systemd:INET:1
 Sockets=flocker-control-api.socket flocker-control-agent.socket
 NonBlocking=true
+Restart=always
 
 PrivateTmp=true
 PrivateDev=true

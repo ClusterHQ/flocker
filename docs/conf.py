@@ -306,9 +306,7 @@ texinfo_documents = [
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #texinfo_show_urls = 'footnote'
 
-
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+intersphinx_mapping = {}
 
 # Don't check anchors because many websites use #! for AJAX magic
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors
@@ -317,6 +315,21 @@ linkcheck_anchors = False
 linkcheck_ignore = [
     # Don't check links to tutorial IPs
     r'http://172\.16\.255\.',
-    # This is an example GitHub URL
-    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
+    # Example comparisons between branches
+    r'https://github.com/ClusterHQ/flocker/compare/\S+',
+    # Some Amazon EC2 links require a login and so
+    # "HTTP Error 401: Unauthorized" is given.
+    r'https://console.aws.amazon.com/cloudfront/home',
+    r'https://console.aws.amazon.com/ec2/v2/home\S+',
+    # Internal ClusterHQ documents need a login to see
+    r'https://docs.google.com/a/clusterhq.com/\S+',
+    # Example Flocker GUI local URL
+    r'http://localhost/client/#/nodes/list',
+
+    # The following link checks fail because of a TLS handshake error.
+    # The link checking should be fixed and these ignores should be removed.
+    # See https://clusterhq.atlassian.net/browse/FLOC-1156.
+    r'https://docs.clusterhq.com/',
+    r'https://docs.staging.clusterhq.com/',
+    r'https://docs.docker.com/\S+',
 ]

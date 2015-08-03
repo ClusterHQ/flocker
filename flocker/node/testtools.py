@@ -6,9 +6,7 @@ Testing utilities for ``flocker.node``.
 
 import os
 import pwd
-import socket
 from unittest import skipIf
-from contextlib import closing
 from uuid import uuid4
 
 from zope.interface import implementer
@@ -22,39 +20,34 @@ from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType
 
-from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid
-
-DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
+from ._docker import DockerClient
 
 
 def docker_accessible():
     """
     Attempt to connect to the Docker control socket.
 
-    This may address https://clusterhq.atlassian.net/browse/FLOC-85.
-
     :return: A ``bytes`` string describing the reason Docker is not
         accessible or ``None`` if it appears to be accessible.
     """
     try:
-        with closing(socket.socket(family=socket.AF_UNIX)) as docker_socket:
-            docker_socket.connect(DOCKER_SOCKET_PATH)
-    except socket.error as e:
-        return os.strerror(e.errno)
+        client = DockerClient()
+        client._client.ping()
+    except Exception as e:
+        return str(e)
     return None
 
 _docker_reason = docker_accessible()
 
 if_docker_configured = skipIf(
     _docker_reason,
-    "User {!r} cannot access Docker via {!r}: {}".format(
+    "User {!r} cannot access Docker: {}".format(
         pwd.getpwuid(os.geteuid()).pw_name,
-        DOCKER_SOCKET_PATH,
         _docker_reason,
     ))
 
@@ -228,3 +221,41 @@ def to_node(node_state):
     return Node(uuid=node_state.uuid, hostname=node_state.hostname,
                 applications=node_state.applications or [],
                 manifestations=node_state.manifestations or {})
+
+
+def assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config, nonmanifest_datasets,
+        additional_node_states, additional_node_config, expected_changes
+):
+    """
+    Assert that ``calculate_changes`` returns certain changes when it is
+    invoked with the given state and configuration.
+
+    :param TestCase case: The ``TestCase`` to use to make assertions (typically
+        the one being run at the moment).
+    :param IDeployer deployer: The deployer provider which will be asked to
+        calculate the changes.
+    :param NodeState node_state: The deployer will be asked to calculate
+        changes for a node that has this state.
+    :param Node node_config: The deployer will be asked to calculate changes
+        for a node with this desired configuration.
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
+    :param set additional_node_states: A set of ``NodeState`` for other nodes.
+    :param set additional_node_config: A set of ``Node`` for other nodes.
+    :param expected_changes: The ``IStateChange`` expected to be returned.
+    """
+    cluster_state = DeploymentState(
+        nodes={node_state} | additional_node_states,
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
+    cluster_configuration = Deployment(
+        nodes={node_config} | additional_node_config,
+    )
+    changes = deployer.calculate_changes(
+        cluster_configuration, cluster_state,
+    )
+    case.assertEqual(expected_changes, changes)

@@ -141,7 +141,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             path.makedirs()
             crt_path = path.child(self.cert_file_name)
             crt_file = crt_path.open(b'w')
-            crt_file.write(b"dummy")
+            crt_file.write(self.credential.credential.certificate.dumpPEM())
             crt_file.close()
             e = self.assertRaises(
                 PathError, cls.from_path,
@@ -195,7 +195,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             path.makedirs()
             crt_path = path.child(self.cert_file_name)
             crt_file = crt_path.open(b'w')
-            crt_file.write(b"dummy")
+            crt_file.write(self.credential.credential.certificate.dumpPEM())
             crt_file.close()
             key_path = path.child(self.key_file_name)
             key_file = key_path.open(b'w')
@@ -317,6 +317,17 @@ class UserCredentialTests(
         assert_has_extension(self, self.credential.credential,
                              b"extendedKeyUsage", b"clientAuth")
 
+    def test_from_files(self):
+        """
+        A certificate and keypair written by ``UserCredential.initialize``
+        can be loaded back from the individual files, with the username
+        extracted from the subject common name.
+        """
+        certificate_path = self.credential.credential.path.child(b"alice.crt")
+        key_path = self.credential.credential.path.child(b"alice.key")
+        user_credential = UserCredential.from_files(certificate_path, key_path)
+        self.assertEqual(u"alice", user_credential.username)
+
 
 class NodeCredentialTests(
         make_credential_tests(NodeCredential, NODE_UUID, uuid=NODE_UUID)):
@@ -362,13 +373,25 @@ class ControlCredentialTests(
         self.assertEqual(
             subject.CN, b"control-service")
 
-    def test_subjectAltName(self):
+    def test_subjectAltName_dns(self):
         """
-        The generated certificate has a subjectAltName containing the given
-        hostname.
+        If given a domain name as hostname, the generated certificate has a
+        subjectAltName containing the given hostname as a DNS record.
         """
         assert_has_extension(self, self.credential.credential,
-                             b"subjectAltName", b"DNS:control.example.com")
+                             b"subjectAltName",
+                             b"DNS:control-service,DNS:control.example.com")
+
+    def test_subjectAltName_ipv4(self):
+        """
+        If given a IPv4 address as the hostname, the generated certificate has
+        a subjectAltName containing with a IP record.
+        """
+        credential = ControlCredential.initialize(
+            self.path, self.ca, begin=self.start_date, hostname=b"127.0.0.1")
+        assert_has_extension(self, credential.credential,
+                             b"subjectAltName",
+                             b"DNS:control-service,IP:127.0.0.1")
 
 
 class RootCredentialTests(SynchronousTestCase):
@@ -513,9 +536,12 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
+        temp_path = FilePath(self.mktemp())
+        temp_path.makedirs()
+        ca = RootCredential.initialize(temp_path, b"mycluster")
         crt_path = path.child(AUTHORITY_CERTIFICATE_FILENAME)
         crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
+        crt_file.write(ca.credential.certificate.dumpPEM())
         crt_file.close()
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
@@ -536,9 +562,12 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
+        temp_path = FilePath(self.mktemp())
+        temp_path.makedirs()
+        ca = RootCredential.initialize(temp_path, b"mycluster")
         crt_path = path.child(AUTHORITY_CERTIFICATE_FILENAME)
         crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
+        crt_file.write(ca.credential.certificate.dumpPEM())
         crt_file.close()
         # make file unreadable
         crt_path.chmod(0o100)
@@ -566,9 +595,12 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
+        temp_path = FilePath(self.mktemp())
+        temp_path.makedirs()
+        ca = RootCredential.initialize(temp_path, b"mycluster")
         crt_path = path.child(AUTHORITY_CERTIFICATE_FILENAME)
         crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
+        crt_file.write(ca.credential.certificate.dumpPEM())
         crt_file.close()
         key_path = path.child(AUTHORITY_KEY_FILENAME)
         key_file = key_path.open(b'w')
@@ -662,3 +694,18 @@ class RootCredentialTests(SynchronousTestCase):
         ca = RootCredential.from_path(path)
         self.assertEqual(ca.organizational_unit,
                          ca.credential.certificate.getSubject().OU)
+
+    def test_overridden_cluster_id(self):
+        """
+        If a ``cluster_id`` is passed to ``RootCredential.initialize``, it is
+        used as the value for the generated certificate's *organizational unit*
+        field.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        cluster_id = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        RootCredential.initialize(
+            path, b"overridecluster", cluster_id=cluster_id,
+        )
+        ca = RootCredential.from_path(path)
+        self.assertEqual(cluster_id, UUID(ca.organizational_unit))

@@ -7,6 +7,7 @@ Functional tests for :module:`flocker.node._docker`.
 from __future__ import absolute_import
 
 import time
+import socket
 from functools import partial
 
 from docker.errors import APIError
@@ -23,6 +24,8 @@ from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
+from pyrsistent import pvector
+
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
     random_name)
@@ -30,7 +33,8 @@ from ...testtools import (
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume)
+    BASE_NAMESPACE, Volume, AddressInUse,
+)
 from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
@@ -42,7 +46,7 @@ def namespace_for_test(test_case):
 class IDockerClientTests(make_idockerclient_tests(
         lambda test_case: DockerClient(
             namespace=namespace_for_test(test_case)
-        )
+        ),
 )):
     """
     ``IDockerClient`` tests for ``DockerClient``.
@@ -136,15 +140,6 @@ class GenericDockerClientTests(TestCase):
 
         return d
 
-    def test_default_base_url(self):
-        """
-        ``DockerClient`` instantiated with a default base URL for a socket
-        connection has a client HTTP url after the connection is made.
-        """
-        client = DockerClient()
-        self.assertEqual(client._client.base_url,
-                         u'http+unix://var/run/docker.sock')
-
     def test_custom_base_url_tcp_http(self):
         """
         ``DockerClient`` instantiated with a custom base URL for a TCP
@@ -218,13 +213,18 @@ class GenericDockerClientTests(TestCase):
         path.makedirs()
         path.child(b"Dockerfile.in").setContent(
             b"FROM busybox\nCMD /bin/true\n")
-        image_name = DockerImageBuilder(test=self, source_dir=path,
-                                        cleanup=False).build()
-        name = random_name(self)
-        d = self.start_container(unit_name=name, image_name=image_name,
-                                 expected_states=(u'inactive',))
+        builder = DockerImageBuilder(test=self, source_dir=path, cleanup=False)
+        d = builder.build()
 
-        def stopped_container_exists(_):
+        def image_built(image_name):
+            name = random_name(self)
+            d = self.start_container(
+                unit_name=name, image_name=image_name,
+                expected_states=(u'inactive',))
+            return d.addCallback(lambda ignored: (name, image_name))
+        d.addCallback(image_built)
+
+        def stopped_container_exists((name, image_name)):
             # Remove the image:
             docker_client = Client()
             docker_client.remove_image(image_name, force=True)
@@ -237,6 +237,7 @@ class GenericDockerClientTests(TestCase):
                 [(unit.name, unit.activation_state) for unit in results]))
             return listed
         d.addCallback(stopped_container_exists)
+
         return d
 
     def test_dead_is_removed(self):
@@ -290,6 +291,27 @@ class GenericDockerClientTests(TestCase):
 
         return loop_until(send_request)
 
+    def test_non_docker_port_collision(self):
+        """
+        ``DockerClient.add`` returns a ``Deferred`` that fails with
+        ``AddressInUse`` if the external port of one of the ``PortMap``
+        instances passed for ``ports`` is already in use on the system by
+        something other than a Docker container.
+        """
+        address_user = socket.socket()
+        self.addCleanup(address_user.close)
+
+        address_user.bind(('', 0))
+        used_address = address_user.getsockname()
+
+        name = random_name(self)
+        d = self.start_container(
+            name, ports=[
+                PortMap(internal_port=10000, external_port=used_address[1]),
+            ],
+        )
+        return self.assertFailure(d, AddressInUse)
+
     def test_add_with_port(self):
         """
         ``DockerClient.add`` accepts a ports argument which is passed to
@@ -322,24 +344,6 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    def build_slow_shutdown_image(self):
-        """
-        Create a Docker image that takes a while to shut down.
-
-        This should really use Python instead of shell:
-        https://clusterhq.atlassian.net/browse/FLOC-719
-
-        :return: The name of created Docker image.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        path.child(b"Dockerfile.in").setContent("""\
-FROM busybox
-CMD sh -c "trap \"\" 2; sleep 3"
-""")
-        image = DockerImageBuilder(test=self, source_dir=path)
-        return image.build()
-
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
@@ -352,18 +356,22 @@ CMD sh -c "trap \"\" 2; sleep 3"
             b'CMD ["/bin/sh",  "-c", '
             b'"while true; do env && echo WOOT && sleep 1; done"]'
         )
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        unit_name = random_name(self)
         expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
         }.items())
-        d = self.start_container(
-            unit_name=unit_name,
-            image_name=image_name,
-            environment=Environment(variables=expected_variables),
-        )
+        unit_name = random_name(self)
+
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        d = image.build()
+
+        def image_built(image_name):
+            return self.start_container(
+                unit_name=unit_name,
+                image_name=image_name,
+                environment=Environment(variables=expected_variables),
+            )
+        d.addCallback(image_built)
 
         def started(_):
             output = ""
@@ -401,6 +409,68 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
 
+    def test_pull_timeout(self):
+        """
+        Pulling an image times-out if it takes longer than a provided timeout.
+        """
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests:
+        image = u"ubuntu:12.04"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image, force=True)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name(self)
+        client = DockerClient(
+            namespace=self.namespacing_prefix, long_timeout=1)
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+        # requests has a TimeoutError, but timeout raises a ConnectionError.
+        # Both are subclasses of IOError, so use that for now
+        # https://github.com/kennethreitz/requests/issues/2620
+        self.assertFailure(d, IOError)
+        return d
+
+    def test_pull_timeout_pull(self):
+        """
+        Image pull timeout does not affect subsequent pulls.
+        """
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests.  Note, this is the
+        # same image as test_pull_image_if_necessary, but they run at
+        # different times.
+        image = u"busybox:ubuntu-12.04"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image, force=True)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name(self)
+        client = DockerClient(
+            namespace=self.namespacing_prefix, long_timeout=1)
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+
+        def unexpected_success(_):
+            self.fail('Image unexpectedly pulled within timeout limit')
+
+        def expected_failure(failure):
+            self.assertIsNotNone(failure.check(IOError))
+            # We got our failure, now try to successfully pull
+            client = DockerClient(
+                namespace=self.namespacing_prefix, long_timeout=600)
+            return client.add(name, image)
+
+        d.addCallbacks(unexpected_success, expected_failure)
+        return d
+
     def test_namespacing(self):
         """
         Containers are created with a namespace prefixed to their container
@@ -430,13 +500,16 @@ CMD sh -c "trap \"\" 2; sleep 3"
             b'MAINTAINER info@clusterhq.com\n'
             b'CMD ["/bin/doesnotexist"]'
         )
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        client = self.make_client()
         name = random_name(self)
-        self.create_container(client, name, image_name)
-        self.addCleanup(client.remove, name)
-        d = client.list()
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        d = image.build()
+
+        def image_built(image_name):
+            client = self.make_client()
+            self.create_container(client, name, image_name)
+            self.addCleanup(client.remove, name)
+            return client.list()
+        d.addCallback(image_built)
 
         def got_list(units):
             unit = [unit for unit in units if unit.name == name][0]
@@ -536,24 +609,29 @@ CMD sh -c "trap \"\" 2; sleep 3"
             b'"touch /mnt1/a; touch /mnt2/b"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        unit_name = random_name(self)
+        d = image.build()
 
-        path1 = FilePath(self.mktemp())
-        path1.makedirs()
-        path2 = FilePath(self.mktemp())
-        path2.makedirs()
+        def image_built(image_name):
+            unit_name = random_name(self)
 
-        d = self.start_container(
-            unit_name=unit_name,
-            image_name=image_name,
-            volumes=[
-                Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
-                Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
-            expected_states=(u'inactive',),
-        )
+            path1 = FilePath(self.mktemp())
+            path1.makedirs()
+            path2 = FilePath(self.mktemp())
+            path2.makedirs()
 
-        def started(_):
+            d = self.start_container(
+                unit_name=unit_name,
+                image_name=image_name,
+                volumes=[
+                    Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
+                    Volume(
+                        node_path=path2, container_path=FilePath(b"/mnt2"))],
+                expected_states=(u'inactive',),
+            )
+            return d.addCallback(lambda _: (path1, path2))
+        d.addCallback(image_built)
+
+        def started((path1, path2)):
             expected1 = path1.child(b"a")
             expected2 = path2.child(b"b")
             for i in range(100):
@@ -562,8 +640,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
                 else:
                     time.sleep(0.1)
             self.fail("Files never created.")
-        d.addCallback(started)
-        return d
+        return d.addCallback(started)
 
     def test_add_with_memory_limit(self):
         """
@@ -637,31 +714,36 @@ CMD sh -c "trap \"\" 2; sleep 3"
             container was started.
         """
         docker_dir = FilePath(__file__).sibling('retry-docker')
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-
         name = random_name(self)
-
         data = FilePath(self.mktemp())
         data.makedirs()
         count = data.child('count')
         count.setContent("0")
         marker = data.child('marker')
 
-        if mode == u"success-then-sleep":
-            expected_states = (u'active',)
-        else:
-            expected_states = (u'inactive',)
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        d = image.build()
 
-        d = self.start_container(
-            name, image_name=image_name,
-            restart_policy=restart_policy,
-            environment=Environment(variables={u'mode': mode}),
-            volumes=[
-                Volume(node_path=data, container_path=FilePath(b"/data"))],
-            expected_states=expected_states)
+        def image_built(image_name):
+            if mode == u"success-then-sleep":
+                expected_states = (u'active',)
+            else:
+                expected_states = (u'inactive',)
+
+            return self.start_container(
+                name, image_name=image_name,
+                restart_policy=restart_policy,
+                environment=Environment(variables={u'mode': mode}),
+                volumes=[
+                    Volume(node_path=data, container_path=FilePath(b"/data"))],
+                expected_states=expected_states)
+        d.addCallback(image_built)
 
         if mode == u"success-then-sleep":
+            # TODO: if the `run` script fails for any reason,
+            # then this will loop forever.
+
+            # TODO: use the "wait for predicate" helper
             def wait_for_marker(_):
                 while not marker.exists():
                     time.sleep(0.01)
@@ -726,13 +808,15 @@ CMD sh -c "trap \"\" 2; sleep 3"
         name = random_name(self)
         d = self.start_container(
             name, image_name=u"busybox",
-            command_line=[u"sh", u"-c", u"""\
+            # Pass in pvector since this likely to be what caller actually
+            # passes in:
+            command_line=pvector([u"sh", u"-c", u"""\
 echo -n '#!/bin/sh
 echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
 ' > /tmp/script.sh;
 chmod +x /tmp/script.sh;
 nc -ll -p 8080 -e /tmp/script.sh
-"""],
+"""]),
             ports=[PortMap(internal_port=8080,
                            external_port=external_port)])
 

@@ -87,8 +87,6 @@ definitions:
     properties:
       node_uuid:
         '$ref': 'types.json#/definitions/container_node_uuid'
-      host:
-        '$ref': 'types.json#/definitions/host'
       name:
         '$ref': 'types.json#/definitions/container_name'
       image:
@@ -121,7 +119,6 @@ definitions:
         '$ref': 'types.json#/definitions/running'
     required:
       - node_uuid
-      - host
       - name
       - image
       - running
@@ -182,9 +179,7 @@ definitions:
         path:
           '$ref': 'types.json#/definitions/node_path'
       required:
-        - primary
         - dataset_id
-        - path
       additionalProperties: false
 
   configuration_compose:

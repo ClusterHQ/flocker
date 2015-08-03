@@ -1,3 +1,5 @@
+.. _contribute:
+
 =======================
 Contributing to Flocker
 =======================
@@ -39,7 +41,7 @@ Talk to Us
 
 Have questions or need help?
 
-* If you want to follow our development plans, our main issue tracker is https://clusterhq.atlassian.net.
+* If you want to follow our development plans, our main issue tracker is `JIRA`_.
 * You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports and :ref:`security issues should be reported directly to our security team<reporting-security-issues>`.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
@@ -50,22 +52,34 @@ Have questions or need help?
 Development Environment
 =======================
 
-* To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
-  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
-  Vagrant 1.6.2 or later is required.
-  Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going:
+You will need Python 2.7 (and optionally a recent version of PyPy) installed on your development machine.
+To run the complete test suite you will also need `ZFS`_ and `Docker`_ installed.
 
-  .. code-block:: console
+The recommended way to get an environment with these installed is to use Vagrant to run a pre-configured Flocker development virtual machine.
 
-     $ vagrant up
-     $ vagrant ssh
+First, clone the Flocker repository on your local machine:
 
-* You will need Python 2.7 and a recent version of PyPy installed on your development machine.
-* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
+.. code-block:: console
 
-  .. code-block:: console
+   $ git clone https://github.com/ClusterHQ/flocker.git
+   $ cd flocker
 
-     $ python setup.py install .[doc,dev]
+Vagrant 1.6.2 or later is required.
+Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
+
+.. code-block:: console
+
+   $ vagrant up
+   $ vagrant ssh
+
+The ``flocker`` directory created above will be shared in the virtual machine at ``/vagrant``.
+Install Flocker's development dependencies in a ``virtualenv`` by running the following commands:
+
+.. code-block:: console
+
+   $ cd /vagrant
+   $ mkvirtualenv flocker
+   $ pip install --editable .[dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
@@ -86,7 +100,7 @@ You can also run specific tests in a specific environment:
 
    $ tox -e py27 flocker.control.test.test_httpapi
 
-Functional tests require ``ZFS`` and ``Docker`` to be installed and in the case of the latter running as well.
+Functional tests require ``ZFS`` and ``Docker`` to be installed and, in the case of Docker, running.
 In addition, ``tox`` needs to be run as root:
 
 .. code-block:: console
@@ -128,8 +142,6 @@ Once your pull request is merged, as a small thank you for contributing to Flock
 Just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
 We'll get something in the mail to you.
 
-.. _JIRA: https://clusterhq.atlassian.net
-
 
 Merge Requirements
 ^^^^^^^^^^^^^^^^^^
@@ -157,13 +169,13 @@ While we're happy to look at contributions in any state as GitHub PRs, the requi
    Documentation should be as accessible and inclusive as possible.
    Avoid language and markup which assumes the ability to precisely use a mouse and keyboard, or that the reader has perfect vision.
    Create alternative but equal documentation for the visually impaired, for example, by using alternative text on all images.
-   If in doubt, particularly about markup changes, use http://achecker.ca/ and fix any "Known Problems" and "Likely Problems".
+   If in doubt, particularly about markup changes, use http://achecker.ca/checker/index.php and fix any "Known Problems" and "Likely Problems".
 
 
 Project Development Process
 ===========================
 
-The core development team uses a `JIRA workflow`_ to track planned work.
+The core development team uses a `JIRA`_ workflow to track planned work.
 Issues are organized by sprints, and can reside in various states:
 
 Backlog
@@ -196,8 +208,6 @@ Done
     The issue has been closed.
     Some final work may remain to address review comments; once this is done and the branch is merged the GitHub PR will be closed.
 
-.. _JIRA workflow: https://clusterhq.atlassian.net/
-
 
 .. _reporting-security-issues:
 
@@ -211,3 +221,5 @@ Flocker bugs should normally be :ref:`reported publicly<talk-to-us>`, but due to
 Instead, if you believe you have found something in Flocker (or any other ClusterHQ software) which has security implications, please send a description of the issue via email to security@clusterhq.com.
 Your message will be forwarded to the ClusterHQ security team (a small group of trusted developers) for triage and it will not be publicly readable.
 Once you have submitted an issue via email, you should receive an acknowledgment from a member of the security team within 48 hours, and depending on the action to be taken, you may receive further follow up emails.
+
+.. _JIRA: https://clusterhq.atlassian.net/secure/Dashboard.jspa

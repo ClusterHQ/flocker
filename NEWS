@@ -1,3 +1,56 @@
+Flocker 1.1.0.dev2 (2015-07-29)
+===============================
+
+- The flocker-deploy command supports specification of the pathnames of certificate and key files. (FLOC-2398)
+- Allow specification of a CA certificate for OpenStack HTTPS verification. (FLOC-2504)
+- Flocker can now start containers using images from private Docker registries. (FLOC-2627)
+- Upgraded to docker-py-1.3.1 and requests-2.7.1 to fix a bug when pulling images from private Docker registries. (FLOC-2035)
+- rsyslogd is now restarted after installing the ``clusterhq-flocker-node`` package to prevent duplicate logging of Flocker log messages. (FLOC-2648)
+- Various fixes for slow and fragile tests.
+- Various documentation improvements and fixes.
+
+Flocker 1.0.3 (2015-07-09)
+==========================
+
+- On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk. (FLOC-2538) 
+
+Flocker 1.0.2 (2015-07-03)
+==========================
+
+- On CentOS 7 Flocker logs are no longer written to /var/log/messages since this fills up disk space quickly and the logs are already available via journald. (FLOC-2534)
+- The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes. (FLOC-2467)
+
+Flocker 1.0.1 (2015-06-19)
+==========================
+
+- Fixed a bug where EBS volumes were mapped to the wrong device and therefore mounted in the wrong location. (FLOC-2329).
+- Added additional safety checks when formatting devices. (FLOC-2356)
+- ClusterHQ Labs documentation. (FLOC-2032)
+- Fixed error handling for ``in_parallel`` ``IStateChanges``. (FLOC-2327)
+- Clarify ``flocker-dataset-agent`` configuration documentation. (FLOC-2210)
+
+Flocker 1.0.0 (2015-06-15)
+==========================
+
+- It is now necessary to specify a dataset backend for each agent node. (FLOC-1420)
+- Flocker-initiated communication is secured with TLS. (FLOC-1441)
+- ``flocker-deploy`` now takes the IP address of the control node as a parameter. (FLOC-1644)
+- Flocker now waits for containers to stop before attempting to remove them. (FLOC-1317)
+- Most new artifacts will be hosted on Amazon S3 instead of Google Cloud Storage. (FLOC-1718)
+- Docker restart policies are adhered to. (FLOC-1803)
+- New API endpoint: List the hosts currently in the cluster. (FLOC-1415)
+- There are new systemd units: ``flocker-zfs-agent`` is now ``flocker-container-agent`` and ``flocker-dataset-agent``. (FLOC-1554)
+- ``flocker-reportstate`` and ``flocker-changestate`` have been removed. (FLOC-1663)
+- Updated to Twisted 15.1. (FLOC-1707)
+- Dataset backend support for OpenStack and AWS. (FLOC-1925, FLOC-1743, FLOC-1745)
+- CentOS 7 tutorial environment. (FLOC-1510)
+- Ubuntu CLI installation instructions now use debian packages instead of pip packaging. (FLOC-1742)
+- Removed support for Fedora 20 on nodes. (FLOC-2121)
+- Fixed a bug with prompts displaying incorrectly in some browsers. (FLOC-2102)
+- Allow third party dataset backend plugins. (FLOC-2111)
+- Fixed a bug which caused mkfs to hang on Ubuntu. (FLOC-2041)
+- Removed support for ``flocker-node`` on Fedora 20. (FLOC-2122)
+
 Flocker 0.4.0 (2015-04-07)
 ==========================
 
