@@ -59,17 +59,33 @@ class ScriptBuilder(TypeDispatcher):
 
     @sync_performer
     def perform_run(self, dispatcher, intent):
+        """
+        For Run effects, add the command line.
+        """
         self.lines.append(intent.command)
 
     @sync_performer
     def perform_comment(self, dispatcher, intent):
+        """
+        For Comment effects, prefix the comment with #
+        """
         self.lines.append('# ' + intent.comment)
 
     def script(self):
+        """
+        Return the generated shell script.
+        """
         return self._script
 
 
 def make_script_file(dir, effects):
+    """
+    Create a shell script file from a set of effects.
+
+    :param dir: The directory in which to create the script.
+    :param effects: The effects which contain the commands.
+    :return: The base filename of the script.
+    """
     builder = ScriptBuilder(effects)
     fd, filename = tempfile.mkstemp(dir=dir, text=True)
     os.write(fd, builder.script())
@@ -79,12 +95,18 @@ def make_script_file(dir, effects):
 
 
 class DockerRunner:
+    """
+    Run commands on Docker.
+    """
 
     def __init__(self, image):
         self.docker = docker.Client(version='1.18')
         self.image = image
 
     def start(self):
+        """
+        Start the Docker container.
+        """
         self.tmpdir = tempfile.mkdtemp()
         try:
             self.docker.pull(self.image)
@@ -104,10 +126,13 @@ class DockerRunner:
             raise
 
     def stop(self):
+        """
+        Stop the Docker container.
+        """
         self.docker.stop(self.container_id)
         shutil.rmtree(self.tmpdir)
 
-    def execute(self, commands):
+    def execute(self, commands, out=sys.stdout):
         """
         Execute a set of commands in the Docker container.
 
@@ -115,8 +140,13 @@ class DockerRunner:
         executed in a single session. This means commands will see the
         environment created by previous commands.
 
+        The output of the commands is sent to the ``out`` file object,
+        which must have a ``write`` method.
+
         :param commands: An Effect containing the commands to run,
             probably a Sequence of Effects, one for each command to run.
+        :param out: Where to send command output. A file-like object
+            with a ``write`` method.
         :return int: The exit status of the commands.  If all commands
             succeed, this will be zero. If any command fails, this will
             be non-zero.
@@ -126,7 +156,7 @@ class DockerRunner:
         session = self.docker.exec_create(self.container_id, script)
         session_id = session[u'Id']
         for output in self.docker.exec_start(session, stream=True):
-            sys.stdout.write(output)
+            out.write(output)
         return self.docker.exec_inspect(session_id)[u'ExitCode']
 
 
