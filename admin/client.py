@@ -44,7 +44,7 @@ class ScriptBuilder(TypeDispatcher):
     """
 
     def __init__(self, effects):
-        self.lines = ['#!/bin/bash', 'set -e']
+        self.lines = ['#!/bin/bash', 'set -ex']
         TypeDispatcher.__init__(self, {
             Run: self.perform_run,
             Sudo: perform_sudo,
