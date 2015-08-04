@@ -90,10 +90,9 @@ class SystemdServiceManager(object):
 
 class UpstartServiceManager(object):
     def flocker_services(self):
-        for childname in os.listdir('/var/log/upstart'):
-            match = re.match(r'^(flocker-.+)\.log', childname)
-            if match:
-                [service_name] = match.groups(1)
+        for line in check_output(['initctl', 'list']).splitlines():
+            service_name, remainder = line.split(None, 1)
+            if service_name.startswith('flocker-'):
                 yield service_name
 
 
