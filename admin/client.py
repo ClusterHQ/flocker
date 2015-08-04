@@ -109,19 +109,25 @@ class DockerRunner:
 
     def execute(self, commands):
         """
-        :param commands: An Effect containing the commands to run, probably a
-            Sequence of Effects, one for each command to run.
+        Execute a set of commands in the Docker container.
+
+        The set of commands provided to one call of ``execute`` will be
+        executed in a single session. This means commands will see the
+        environment created by previous commands.
+
+        :param commands: An Effect containing the commands to run,
+            probably a Sequence of Effects, one for each command to run.
+        :return int: The exit status of the commands.  If all commands
+            succeed, this will be zero. If any command fails, this will
+            be non-zero.
         """
         script_file = make_script_file(self.tmpdir, commands)
         script = '/mnt/script/{}'.format(script_file)
         session = self.docker.exec_create(self.container_id, script)
         session_id = session[u'Id']
-        output = self.docker.exec_start(session)
-        status = self.docker.exec_inspect(session_id)[u'ExitCode']
-        if status == 0:
+        for output in self.docker.exec_start(session, stream=True):
             sys.stdout.write(output)
-        else:
-            sys.exit(output)
+        return self.docker.exec_inspect(session_id)[u'ExitCode']
 
 
 class RunOptions(Options):
@@ -210,6 +216,8 @@ def main(args, base_path, top_level):
     runner.start()
     try:
         for commands in steps:
-            runner.execute(commands)
+            status = runner.execute(commands)
+            if status != 0:
+                sys.exit(status)
     finally:
         runner.stop()
