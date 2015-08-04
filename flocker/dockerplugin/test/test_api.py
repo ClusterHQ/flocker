@@ -7,6 +7,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 from uuid import uuid4, UUID
 
 from twisted.web.http import OK
+from twisted.internet import reactor
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
@@ -123,26 +124,11 @@ class APITestsMixin(APIAssertionsMixin):
 
         return self.create(name)
 
-    def test_mount_waits_for_dataset_to_move(self):
-        """
-        ``/VolumeDriver.Mount`` does not returns if the dataset hasn't yet
-        moved to the current node.
-        """
-        name = u"thevolume"
-        dataset_id = UUID(dataset_id_from_name(name))
-        # Create dataset on a different node:
-        d = self.flocker_client.create_dataset(
-            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
-            dataset_id=dataset_id)
-        d.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/VolumeDriver.Mount", {u"Name": name}, OK))
-        self.assertNoResult(d)
-        return d
-
-    def test_mount_changes_configuration(self):
+    def test_mount(self):
         """
         ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
-        name to the current node.
+        name to the current node and then waits for the dataset to
+        actually arrive.
         """
         name = u"myvol"
         dataset_id = UUID(dataset_id_from_name(name))
@@ -150,7 +136,9 @@ class APITestsMixin(APIAssertionsMixin):
         d = self.flocker_client.create_dataset(
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
-        d.addCallback(lambda _: self.flocker_client.synchronize_state())
+
+        # In 0.1 seconds the dataset arrives as state:
+        reactor.callLater(0.1, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
                       self.assertResult(
@@ -167,6 +155,6 @@ class APITestsMixin(APIAssertionsMixin):
 
 def _build_app(test):
     test.initialize()
-    return VolumePlugin(test.flocker_client, test.NODE_A).app
+    return VolumePlugin(reactor, test.flocker_client, test.NODE_A).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     APITestsMixin, "API", _build_app)
