@@ -6,12 +6,10 @@ Testing utilities for ``flocker.acceptance``.
 from functools import wraps
 from json import dumps
 from os import environ
-from subprocess import check_call
 from unittest import SkipTest, skipUnless
+from uuid import uuid4
 
-from yaml import safe_dump
 import json
-from copy import deepcopy
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -32,10 +30,10 @@ from ..control import (
 
 from ..common import gather_deferreds
 
-from ..control.httpapi import container_configuration_response, REST_API_PORT
-from ..control._config import FlockerConfiguration
+from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
-from ..testtools import loop_until
+from ..testtools import loop_until, random_name, REALISTIC_BLOCKDEVICE_SIZE
+
 
 try:
     from pymongo import MongoClient
@@ -596,44 +594,6 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
-    def flocker_deploy(self, test_case, deployment_config, application_config):
-        """
-        Run ``flocker-deploy`` with given configuration files.
-
-        :param test_case: The ``TestCase`` running this unit test.
-        :param dict deployment_config: The desired deployment configuration.
-        :param dict application_config: The desired application configuration.
-        """
-        # Construct an expected deployment mapping of IP addresses
-        # to a set of ``Application`` instances.
-        applications_to_parse = deepcopy(application_config)
-        expected_deployment = dict()
-        applications_map = FlockerConfiguration(
-            applications_to_parse).applications()
-        for node in deployment_config['nodes']:
-            node_applications = []
-            for node_app in deployment_config['nodes'][node]:
-                if node_app in applications_map:
-                    node_applications.append(applications_map[node_app])
-            expected_deployment[node] = set(node_applications)
-        temp = FilePath(test_case.mktemp())
-        temp.makedirs()
-
-        deployment = temp.child(b"deployment.yml")
-        deployment.setContent(safe_dump(deployment_config))
-
-        application = temp.child(b"application.yml")
-        application.setContent(safe_dump(application_config))
-        check_call([b"flocker-deploy",
-                    b"--certificates-directory", self.certificates_path.path,
-                    self.control_node.public_address,
-                    deployment.path, application.path])
-        # Wait for the cluster state to match the new deployment.
-        da = self.assert_expected_deployment(
-            test_case, expected_deployment
-        )
-        return da
-
     def clean_nodes(self):
         """
         Clean containers and datasets via the API.
@@ -691,46 +651,6 @@ class Cluster(PRecord):
             )
 
         return cleanup_containers().addCallback(lambda _: cleanup_datasets())
-
-    def assert_expected_deployment(self, test_case, expected_deployment):
-        """
-        Assert that the expected set of ``Application`` instances on a set of
-        nodes is the same as the actual set of ``Application`` instance on
-        those nodes.
-
-        The tutorial looks at Docker output, but the acceptance tests are
-        intended to test high-level external behaviors. Since this is looking
-        at the output of the control service API it merely verifies what
-        Flocker believes the system state is, not the actual state.
-        The latter should be verified separately with additional tests
-        for external side-effects (applications being available on ports,
-        say).
-
-        :param test_case: The ``TestCase`` running this unit test.
-        :param dict expected_deployment: A mapping of IP addresses to set of
-            ``Application`` instances expected on the nodes with those IP
-            addresses.
-
-        :return Deferred: Fires on end of assertion.
-        """
-        ip_to_uuid = {node.reported_hostname: node.uuid for node in self.nodes}
-
-        def got_results(existing_containers):
-            expected = []
-            for reported_hostname, apps in expected_deployment.items():
-                node_uuid = ip_to_uuid[reported_hostname]
-                expected += [container_configuration_response(app, node_uuid)
-                             for app in apps]
-            for app in expected:
-                app[u"running"] = True
-            return sorted(existing_containers) == sorted(expected)
-
-        def configuration_matches_state():
-            d = self.current_containers()
-            d.addCallback(got_results)
-            return d
-
-        return loop_until(configuration_matches_state)
 
 
 def _get_test_cluster(reactor, node_count):
@@ -858,3 +778,69 @@ def require_cluster(num_nodes):
             return calling_test_method
         return wrapper
     return decorator
+
+
+def create_python_container(test_case, cluster, parameters, script,
+                            cleanup=True, additional_arguments=()):
+    """
+    Create a Python container that runs a given script.
+
+    :param TestCase test_case: The current test.
+    :param Cluster cluster: The cluster to run on.
+    :param dict parameters: Parameters for the ``create_container`` JSON
+        query, beyond those provided by this function.
+    :param FilePath script: Python code to run.
+    :param bool cleanup: If true, remove container when test is over.
+    :param additional_arguments: Additional arguments to pass to the
+        script.
+
+    :return: ``Deferred`` that fires when the configuration has been updated.
+    """
+    parameters = parameters.copy()
+    parameters[u"image"] = u"python:2.7-slim"
+    parameters[u"command_line"] = [u"python", u"-c",
+                                   script.getContent().decode("ascii")] + list(
+                                       additional_arguments)
+    if u"restart_policy" not in parameters:
+        parameters[u"restart_policy"] = {u"name": u"never"}
+    if u"name" not in parameters:
+        parameters[u"name"] = random_name(test_case)
+    creating = cluster.create_container(parameters)
+
+    def created(response):
+        if cleanup:
+            test_case.addCleanup(cluster.remove_container, parameters[u"name"])
+        test_case.assertEqual(response, parameters)
+        return response
+    creating.addCallback(created)
+    return creating
+
+
+def create_dataset(test_case, cluster,
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+    """
+    Create a dataset on a cluster (on its first node, specifically).
+
+    :param TestCase test_case: The test the API is running on.
+    :param Cluster cluster: The test ``Cluster``.
+    :param int maximum_size: The size of the dataset to create on the test
+        cluster.
+    :return: ``Deferred`` firing with a dataset state dictionary once the
+        dataset is present in actual cluster state.
+    """
+    # Configure a dataset on node1
+    requested_dataset = {
+        u"primary": cluster.nodes[0].uuid,
+        u"dataset_id": unicode(uuid4()),
+        u"maximum_size": maximum_size,
+        u"metadata": {u"name": u"my_volume"},
+    }
+
+    configuring_dataset = cluster.create_dataset(requested_dataset)
+
+    # Wait for the dataset to be created
+    waiting_for_create = configuring_dataset.addCallback(
+        lambda dataset: cluster.wait_for_dataset(dataset)
+    )
+
+    return waiting_for_create

@@ -312,7 +312,6 @@ class FakeDockerClient(object):
 
 # Basic namespace for Flocker containers:
 BASE_NAMESPACE = u"flocker--"
-BASE_DOCKER_API_URL = u'unix://var/run/docker.sock'
 
 
 class TimeoutClient(Client):
@@ -358,7 +357,7 @@ class DockerClient(object):
         long-running operations, particularly pulling an image.
     """
     def __init__(
-            self, namespace=BASE_NAMESPACE, base_url=BASE_DOCKER_API_URL,
+            self, namespace=BASE_NAMESPACE, base_url=None,
             long_timeout=600):
         self.namespace = namespace
         self._client = TimeoutClient(
@@ -826,7 +825,7 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
     containers in ``/flocker/`` and this class would look at containers in
     in ``/flocker/<namespace>/``.
     """
-    def __init__(self, namespace, base_url=BASE_DOCKER_API_URL):
+    def __init__(self, namespace, base_url=None):
         """
         :param unicode namespace: Namespace to restrict containers to.
         """

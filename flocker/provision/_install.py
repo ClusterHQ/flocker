@@ -906,8 +906,7 @@ def task_install_flocker(
 ACCEPTANCE_IMAGES = [
     "postgres:latest",
     "clusterhq/mongodb:latest",
-    "clusterhq/flask",
-    "clusterhq/flaskenv",
+    "python:2.7-slim",
     "busybox",
 ]
 

@@ -2,7 +2,7 @@ Twisted==15.1.0
 characteristic==14.1.0
 pyOpenSSL==0.14
 pycrypto==2.6.1
-virtualenv==12.1.1
+virtualenv==13.1.0
 effect==0.1a13 
 boto==2.30.0
 requests==2.4.3

@@ -6,9 +6,7 @@ Testing utilities for ``flocker.node``.
 
 import os
 import pwd
-import socket
 from unittest import skipIf
-from contextlib import closing
 from uuid import uuid4
 
 from zope.interface import implementer
@@ -22,39 +20,34 @@ from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType
 
-from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid
-
-DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
+from ._docker import DockerClient
 
 
 def docker_accessible():
     """
     Attempt to connect to the Docker control socket.
 
-    This may address https://clusterhq.atlassian.net/browse/FLOC-85.
-
     :return: A ``bytes`` string describing the reason Docker is not
         accessible or ``None`` if it appears to be accessible.
     """
     try:
-        with closing(socket.socket(family=socket.AF_UNIX)) as docker_socket:
-            docker_socket.connect(DOCKER_SOCKET_PATH)
-    except socket.error as e:
-        return os.strerror(e.errno)
+        client = DockerClient()
+        client._client.ping()
+    except Exception as e:
+        return str(e)
     return None
 
 _docker_reason = docker_accessible()
 
 if_docker_configured = skipIf(
     _docker_reason,
-    "User {!r} cannot access Docker via {!r}: {}".format(
+    "User {!r} cannot access Docker: {}".format(
         pwd.getpwuid(os.geteuid()).pw_name,
-        DOCKER_SOCKET_PATH,
         _docker_reason,
     ))
 

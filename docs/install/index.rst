@@ -1,7 +1,5 @@
 .. _installing-flocker:
 
-:tocdepth: 2
-
 ==================
 Installing Flocker
 ==================
@@ -12,4 +10,4 @@ Installing Flocker
    :maxdepth: 2
 
    install-client
-   install
+   install-node

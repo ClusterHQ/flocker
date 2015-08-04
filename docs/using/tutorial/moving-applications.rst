@@ -9,9 +9,6 @@ Moving Applications
 Starting an Application
 =======================
 
-.. This section is tested in flocker.acceptance.test_deployment.DeploymentTests.
-   Reflect any relevant changes here in those tests.
-
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB server.
 
 :download:`minimal-application.yml`
