@@ -96,9 +96,6 @@ class DockerRunner:
     def install_client(self, distribution, package_source):
         tmpdir = tempfile.mkdtemp()
         try:
-            install = make_script_file(
-                tmpdir, task_install_cli(distribution, package_source))
-            dotest = make_script_file(tmpdir, task_client_installation_test())
             image = DOCKER_IMAGES[distribution]
             self.docker.pull(image)
             container = self.docker.create_container(
@@ -113,8 +110,12 @@ class DockerRunner:
                 }
             )
             try:
+                install = make_script_file(
+                    tmpdir, task_install_cli(distribution, package_source))
                 self.run_script_file(
                     container_id, '/mnt/script/{}'.format(install))
+                dotest = make_script_file(
+                    tmpdir, task_client_installation_test())
                 self.run_script_file(
                     container_id, '/mnt/script/{}'.format(dotest))
             finally:
