@@ -360,7 +360,7 @@ job_type:
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
-      at: '0 * * * *'
+      at: '0 0 * * *'
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
@@ -371,7 +371,7 @@ job_type:
                    *push_image_to_dockerhub ]
           }
     run_docker_build_ubuntu_trusty_fpm:
-      at: '1 * * * *'
+      at: '0 1 * * *'
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
@@ -382,7 +382,7 @@ job_type:
                    *push_image_to_dockerhub ]
           }
     run_docker_build_ubuntu_vivid_fpm:
-      at: '2 * * * *'
+      at: '0 2 * * *'
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
