@@ -92,7 +92,7 @@ common_cli:
 
   run_acceptance_tests: &run_acceptance_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
-    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml ; RC=\$?
+    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \$ACCEPTANCE_TEST_MODULE ; RC=\$?
 
   disable_selinux: &disable_selinux |
     sudo setenforce 0
@@ -217,7 +217,7 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
-    run_acceptance_on_AWS_CentOS_7:
+    run_acceptance_end_to_end_dataset_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
         - { type: 'shell',
@@ -226,7 +226,69 @@ job_type:
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
                    *setup_hosting_for_packages_centos7,
-                   *setup_authentication, *run_acceptance_tests,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.endtoend.test_dataset',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+    run_acceptance_integration_mongodb_on_AWS_CentOS_7:
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version, *disable_selinux,
+                   *build_sdist, *build_package,
+                   *setup_hosting_for_packages_centos7,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_mongodb',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+    run_acceptance_integration_postgres_on_AWS_CentOS_7:
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version, *disable_selinux,
+                   *build_sdist, *build_package,
+                   *setup_hosting_for_packages_centos7,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_postgres',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+    run_acceptance_obsolete_cli_on_AWS_CentOS_7:
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version, *disable_selinux,
+                   *build_sdist, *build_package,
+                   *setup_hosting_for_packages_centos7,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_cli',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+    run_acceptance_obsolete_containers_on_AWS_CentOS_7:
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version, *disable_selinux,
+                   *build_sdist, *build_package,
+                   *setup_hosting_for_packages_centos7,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
+                   *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
