@@ -3,7 +3,7 @@
 # A Docker image for building RPMs in a clean CentOS 7 build environment.
 #
 
-FROM azulinho/fpm-centos-7:latest
+FROM clusterhqci/fpm-centos-7
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 COPY requirements.txt /tmp/
 RUN ["pip", "install", "-r", "/tmp/requirements.txt"]

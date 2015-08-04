@@ -4,7 +4,7 @@
 # environment.
 #
 
-FROM ubuntu:15.04
+FROM clusterhqci/fpm-ubuntu-vivid
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["apt-get", "update"]
 RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "libffi-dev", "libssl-dev", "build-essential", "python-pip", "python2.7-dev", "lintian"]
