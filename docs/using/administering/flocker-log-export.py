@@ -6,7 +6,7 @@ A script to export Flocker log files and system information.
 
 from gzip import open as gzip_open
 import os
-import platform
+from platform import dist as platform_dist
 from shutil import copyfileobj, make_archive, rmtree
 from socket import gethostname
 import sys
@@ -274,11 +274,12 @@ def current_platform():
     :returns: A ``Platform`` for the operating system where this script.
     :raises: ``UnsupportedPlatform`` if the current platform is unsupported.
     """
-    name, version, nickname = platform.dist()
+    name, version, nickname = platform_dist()
     distribution = name.lower() + '-' + version
-    try:
-        return _PLATFORM_BY_LABEL[distribution]
-    except KeyError:
+    for supported_distribution, platform in _PLATFORM_BY_LABEL.items():
+        if distribution.startswith(supported_distribution):
+            return platform
+    else:
         raise UnsupportedDistribution(distribution)
 
 
