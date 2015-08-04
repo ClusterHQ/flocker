@@ -26,7 +26,6 @@ from flocker.provision._ssh._conch import perform_sudo, perform_put
 from flocker.provision._ssh._model import Run, Sudo, Put, Comment
 
 DOCKER_IMAGES = {
-    'centos-7': 'centos:7',
     'ubuntu-14.04': 'ubuntu:14.04',
     'ubuntu-15.04': 'ubuntu:15.04',
 }
