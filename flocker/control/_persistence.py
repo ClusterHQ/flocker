@@ -170,22 +170,28 @@ class ConfigurationPersistenceService(MultiService):
             self._path.makedirs()
         self._config_version, self._config_path = self._versioned_config()
         if self._config_version < _CURRENT_VERSION:
+            # We know the file exists at this point.
             pass  # upgrade here
-        if self._config_path:
+            self._config_version = _CURRENT_VERSION
+        if self._config_path.exists():
             self._deployment = wire_decode(
                 self._config_path.getContent())
         else:
+            # This will always write a configuration file in the
+            # latest version.
             self._deployment = Deployment(nodes=frozenset())
             self._sync_save(self._deployment)
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
-    def _versioned_config(self):
+    def _versioned_config(self, force_latest=False):
         """
         Sequentially and decrementally check for versioned configuration
         files, from the current version to version 1. Return the file
-        found along with its version number, or None if no valid
-        configuration file exists.
+        found along with its version number, or if no valid
+        configuration file exists, return the current version number
+        and the expected file path of a configuration file matching
+        the latest version.
 
         :return: A ``tuple`` comprising a version ``int`` and
             config ``FilePath``.
@@ -197,10 +203,17 @@ class ConfigurationPersistenceService(MultiService):
             )
             for version in range(_CURRENT_VERSION, 0, -1)
         ]
+        # Check for each possible versioned config file, from newest
+        # to oldest and return the first match.
         for version, config_file in config_files:
             if config_file.exists():
                 return (version, config_file)
-        return (None, None)
+        return (
+            _CURRENT_VERSION,
+            self._path.child(
+                b"current_configuration.v%d.json" % _CURRENT_VERSION
+            )
+        )
 
     def register(self, change_callback):
         """
