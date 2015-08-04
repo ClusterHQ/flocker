@@ -169,23 +169,19 @@ class RunOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        # XXX - remove the following flag once Buildbot is updated
-        ['provider', None, None, 'No longer used'],
-        ['config-file', None, None,
-         'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
-    ]
-
-    optFlags = [
-        ["keep", "k", "Keep VMs around, if the tests fail."],
+        # XXX - remove the remaining flags once Buildbot is updated
+        ['provider', None, None, 'No longer used.'],
+        ['config-file', None, None, 'No longer used.'],
     ]
 
     synopsis = ('Usage: run-client-tests --distribution <distribution> '
-                '[--provider <provider>]')
+                '[--branch <branch>] [--flocker-version <version>] '
+                '[--build-server <url>]')
 
     def __init__(self, top_level):
         """
@@ -229,7 +225,7 @@ def main(args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
+    :param FilePath top_level: The top-level of the Flocker repository.
     """
     options = RunOptions(top_level=top_level)
 
