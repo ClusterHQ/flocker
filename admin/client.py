@@ -8,7 +8,7 @@ import sys
 import tempfile
 import yaml
 
-import docker as dockerpy
+import docker
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from flocker.common.version import make_rpm_version
@@ -77,45 +77,50 @@ def make_script_file(effects):
     return filename
 
 
-def run_script_file(docker, container_id, script):
-    session = docker.exec_create(container_id, script)
-    session_id = session[u'Id']
-    output = docker.exec_start(session)
-    status = docker.exec_inspect(session_id)[u'ExitCode']
-    if status == 0:
-        sys.stdout.write(output)
-    else:
-        sys.exit(output)
+class DockerRunner:
 
+    def __init__(self, docker):
+        self.docker = docker
 
-def install_client(distribution, package_source, docker):
-    install = make_script_file(task_install_cli(distribution, package_source))
-    try:
-        dotest = make_script_file(task_client_installation_test())
+    def run_script_file(self, container_id, script):
+        session = self.docker.exec_create(container_id, script)
+        session_id = session[u'Id']
+        output = self.docker.exec_start(session)
+        status = self.docker.exec_inspect(session_id)[u'ExitCode']
+        if status == 0:
+            sys.stdout.write(output)
+        else:
+            sys.exit(output)
+
+    def install_client(self, distribution, package_source):
+        install = make_script_file(
+            task_install_cli(distribution, package_source))
         try:
-            image = DOCKER_IMAGES[distribution]
-            docker.pull(image)
-            container = docker.create_container(
-                image=image, command='/bin/bash', tty=True,
-                volumes=['/install.sh', '/dotest.sh'],
-            )
-            container_id = container[u'Id']
-            docker.start(
-                container_id,
-                binds={
-                    install: {'bind': '/install.sh', 'ro': True},
-                    dotest: {'bind': '/dotest.sh', 'ro': True}
-                }
-            )
+            dotest = make_script_file(task_client_installation_test())
             try:
-                run_script_file(docker, container_id, '/install.sh')
-                run_script_file(docker, container_id, '/dotest.sh')
+                image = DOCKER_IMAGES[distribution]
+                self.docker.pull(image)
+                container = self.docker.create_container(
+                    image=image, command='/bin/bash', tty=True,
+                    volumes=['/install.sh', '/dotest.sh'],
+                )
+                container_id = container[u'Id']
+                self.docker.start(
+                    container_id,
+                    binds={
+                        install: {'bind': '/install.sh', 'ro': True},
+                        dotest: {'bind': '/dotest.sh', 'ro': True}
+                    }
+                )
+                try:
+                    self.run_script_file(container_id, '/install.sh')
+                    self.run_script_file(container_id, '/dotest.sh')
+                finally:
+                    self.docker.stop(container_id)
             finally:
-                docker.stop(container_id)
+                os.remove(dotest)
         finally:
-            os.remove(dotest)
-    finally:
-        os.remove(install)
+            os.remove(install)
 
 
 class RunOptions(Options):
@@ -198,5 +203,6 @@ def main(args, base_path, top_level):
 
     distribution = options['distribution']
     package_source = options['package_source']
-    docker = dockerpy.Client(version='1.18')
-    install_client(distribution, package_source, docker)
+    docker_client = docker.Client(version='1.18')
+    runner = DockerRunner(docker_client)
+    runner.install_client(distribution, package_source)
