@@ -226,10 +226,10 @@ The nodes should be configured to allow key based SSH connections as user ``root
 
 .. _client-acceptance-tests:
 
-Client Testing
-==============
+Client Installation Testing
+===========================
 
-Flocker includes client installation tests and a tool for running them.
+Flocker includes client installation tests and a tool for running them in Docker containers.
 It is called like this:
 
 .. prompt:: bash $
