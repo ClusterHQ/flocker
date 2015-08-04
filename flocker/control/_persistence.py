@@ -31,6 +31,9 @@ _CLASS_MARKER = u"$__class__$"
 # always integers.
 _CURRENT_VERSION = 2
 
+# Formatted bytes representing a versioned config file name.
+_VERSIONED_CONFIG_FILE = b"current_configuration.v%d.json"
+
 
 class _ConfigurationEncoder(JSONEncoder):
     """
@@ -170,7 +173,7 @@ class ConfigurationPersistenceService(MultiService):
             self._path.makedirs()
         self._config_version, self._config_path = self._versioned_config()
         if self._config_version < _CURRENT_VERSION:
-            # We know the file exists at this point.
+            # We know the file exists at this point - see _versioned_config
             pass  # upgrade here
             # upgrades will need to happen from _config_version up to
             # _CURRENT_VERSION - this may involve an arbitrary number of
@@ -178,6 +181,14 @@ class ConfigurationPersistenceService(MultiService):
             self._config_version = _CURRENT_VERSION
             # At the end of this, self._config_path should also point to
             # the latest version, e.g. current_configuration.v3.json
+            self._config_path = _VERSIONED_CONFIG_FILE % _CURRENT_VERSION
+            # if we've just done an upgrade in this code path, we know
+            # self._config_path doesn't exist at this point, so will be
+            # written in the else clause below.
+            # XXX we want to write the upgraded config, not an empty
+            # Deployment, so let's write the file here with our loaded,
+            # upgraded config, thereby causing it to be simply re-loaded
+            # (and therefore re-validated) in the if clause below.
         if self._config_path.exists():
             self._deployment = wire_decode(
                 self._config_path.getContent())
@@ -204,7 +215,7 @@ class ConfigurationPersistenceService(MultiService):
         config_files = [
             (
                 version,
-                self._path.child(b"current_configuration.v%d.json" % version)
+                self._path.child(_VERSIONED_CONFIG_FILE % version)
             )
             for version in range(_CURRENT_VERSION, 0, -1)
         ]
