@@ -42,12 +42,18 @@ class FlockerDebugArchive(object):
     def create(self):
         os.makedirs(self._archive_path)
         try:
-            for service in self._service_manager.flocker_services():
+            for service_name, service_status in self._service_manager.flocker_services():
                 self._log_exporter.export_service(
-                    service_name=service,
-                    target_path=self._logfile_path(service)
+                    service_name=service_name,
+                    target_path=self._logfile_path(service_name)
                 )
             self._log_exporter.export_all(self._logfile_path('all'))
+
+            # Log the status of all services
+            with self._open_logfile('service-status') as output:
+                for service_name, service_status in self._service_manager.all_services():
+                    output.write(service_name + " " + service_status + "\n")
+
             # Export Docker version and configuration
             check_call(
                 ['docker', 'info'],
@@ -77,23 +83,27 @@ class FlockerDebugArchive(object):
 
 
 class SystemdServiceManager(object):
-    def _parse_units(self, output):
-        for line in output.splitlines():
-            unit_name, status = line.split()
-            if (unit_name.startswith('flocker-') and status == 'enabled'):
-                yield unit_name
+    def all_services(self):
+        for line in check_output(['systemctl', 'list-unit-files', '--no-legend']).splitlines():
+            service_name, service_status = line.split(None, 1)
+            yield service_name, service_status
 
     def flocker_services(self):
-        output = check_output(['systemctl', 'list-unit-files', '--no-legend'])
-        return self._parse_units(output)
+        for service_name, service_status in self.all_services():
+            if service_name.startswith('flocker-'):
+                yield service_name, service_status
 
 
 class UpstartServiceManager(object):
-    def flocker_services(self):
+    def all_services(self):
         for line in check_output(['initctl', 'list']).splitlines():
-            service_name, remainder = line.split(None, 1)
+            service_name, service_status = line.split(None, 1)
+            yield service_name, service_status
+
+    def flocker_services(self):
+        for service_name, service_status in self.all_services():
             if service_name.startswith('flocker-'):
-                yield service_name
+                yield service_name, service_status
 
 
 class JournaldLogExporter(object):
