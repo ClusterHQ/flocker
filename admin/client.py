@@ -22,8 +22,8 @@ from flocker.provision._install import (
     task_install_cli,
     task_client_installation_test,
 )
-from flocker.provision._ssh._conch import perform_sudo, perform_put
-from flocker.provision._ssh._model import Run, Sudo, Put, Comment
+from flocker.provision._ssh import (
+    Run, Sudo, Put, Comment, perform_sudo, perform_put)
 
 DOCKER_IMAGES = {
     'ubuntu-14.04': 'ubuntu:14.04',
