@@ -27,6 +27,10 @@ from ._model import SERIALIZABLE_CLASSES, Deployment
 # Serialization marker storing the class name:
 _CLASS_MARKER = u"$__class__$"
 
+# The latest configuration version. Configuration versions are
+# always integers.
+_CURRENT_VERSION = 2
+
 
 class _ConfigurationEncoder(JSONEncoder):
     """
@@ -83,7 +87,8 @@ def wire_decode(data):
             return classes[class_name].create(dictionary)
         else:
             return dictionary
-    return loads(data, object_hook=decode_object)
+    loaded = loads(data, object_hook=decode_object)
+    return loaded
 
 
 _DEPLOYMENT_FIELD = Field(u"configuration", repr)
@@ -163,8 +168,10 @@ class ConfigurationPersistenceService(MultiService):
     def startService(self):
         if not self._path.exists():
             self._path.makedirs()
-        self._config_path = self._path.child(b"current_configuration.v1.json")
-        if self._config_path.exists():
+        self._config_version, self._config_path = self._versioned_config()
+        if self._config_version < _CURRENT_VERSION:
+            pass  # upgrade here
+        if self._config_path:
             self._deployment = wire_decode(
                 self._config_path.getContent())
         else:
@@ -172,6 +179,28 @@ class ConfigurationPersistenceService(MultiService):
             self._sync_save(self._deployment)
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
+
+    def _versioned_config(self):
+        """
+        Sequentially and decrementally check for versioned configuration
+        files, from the current version to version 1. Return the file
+        found along with its version number, or None if no valid
+        configuration file exists.
+
+        :return: A ``tuple`` comprising a version ``int`` and
+            config ``FilePath``.
+        """
+        config_files = [
+            (
+                version,
+                self._path.child(b"current_configuration.v%d.json" % version)
+            )
+            for version in range(_CURRENT_VERSION, 0, -1)
+        ]
+        for version, config_file in config_files:
+            if config_file.exists():
+                return (version, config_file)
+        return (None, None)
 
     def register(self, change_callback):
         """

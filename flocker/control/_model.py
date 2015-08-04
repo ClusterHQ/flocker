@@ -625,6 +625,7 @@ class Deployment(PRecord):
     :ivar Leases leases: A map of ``Lease`` instances by dataset id.
     """
     nodes = pset_field(Node)
+    leases = field(type=Leases, initial=Leases())
 
     get_node = _get_node(Node)
 
