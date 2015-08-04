@@ -4,6 +4,7 @@ Run the acceptance tests.
 """
 
 import os
+import shutil
 import sys
 import tempfile
 import yaml
@@ -68,13 +69,13 @@ class ScriptBuilder(TypeDispatcher):
         return self._script
 
 
-def make_script_file(effects):
+def make_script_file(dir, effects):
     builder = ScriptBuilder(effects)
-    fd, filename = tempfile.mkstemp(text=True)
+    fd, filename = tempfile.mkstemp(dir=dir, text=True)
     os.write(fd, builder.script())
     os.close(fd)
     os.chmod(filename, 0555)
-    return filename
+    return os.path.basename(filename)
 
 
 class DockerRunner:
@@ -93,34 +94,33 @@ class DockerRunner:
             sys.exit(output)
 
     def install_client(self, distribution, package_source):
-        install = make_script_file(
-            task_install_cli(distribution, package_source))
+        tmpdir = tempfile.mkdtemp()
         try:
-            dotest = make_script_file(task_client_installation_test())
+            install = make_script_file(
+                tmpdir, task_install_cli(distribution, package_source))
+            dotest = make_script_file(tmpdir, task_client_installation_test())
+            image = DOCKER_IMAGES[distribution]
+            self.docker.pull(image)
+            container = self.docker.create_container(
+                image=image, command='/bin/bash', tty=True,
+                volumes=['/mnt/script'],
+            )
+            container_id = container[u'Id']
+            self.docker.start(
+                container_id,
+                binds={
+                    tmpdir: {'bind': '/mnt/script', 'ro': True},
+                }
+            )
             try:
-                image = DOCKER_IMAGES[distribution]
-                self.docker.pull(image)
-                container = self.docker.create_container(
-                    image=image, command='/bin/bash', tty=True,
-                    volumes=['/install.sh', '/dotest.sh'],
-                )
-                container_id = container[u'Id']
-                self.docker.start(
-                    container_id,
-                    binds={
-                        install: {'bind': '/install.sh', 'ro': True},
-                        dotest: {'bind': '/dotest.sh', 'ro': True}
-                    }
-                )
-                try:
-                    self.run_script_file(container_id, '/install.sh')
-                    self.run_script_file(container_id, '/dotest.sh')
-                finally:
-                    self.docker.stop(container_id)
+                self.run_script_file(
+                    container_id, '/mnt/script/{}'.format(install))
+                self.run_script_file(
+                    container_id, '/mnt/script/{}'.format(dotest))
             finally:
-                os.remove(dotest)
+                self.docker.stop(container_id)
         finally:
-            os.remove(install)
+            shutil.rmtree(tmpdir)
 
 
 class RunOptions(Options):
