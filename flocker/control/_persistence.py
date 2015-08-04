@@ -4,6 +4,8 @@
 Persistence of cluster configuration.
 """
 
+import sys
+
 from json import dumps, loads, JSONEncoder
 from uuid import UUID
 
@@ -29,10 +31,24 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CURRENT_VERSION = 2
+_CURRENT_VERSION = 1
 
 # Formatted bytes representing a versioned config file name.
 _VERSIONED_CONFIG_FILE = b"current_configuration.v%d.json"
+
+
+class _ConfigurationV1ToV2(object):
+    """
+    Upgrade a V1 configuration to a V2 configuration.
+    """
+    def __init__(self, configuration):
+        """
+        Perform the migration on the supplied configuration.
+
+        :param bytes configuration: The JSON blob to migrate.
+        :return bytes: The migrated configuration.
+        """
+        pass
 
 
 class _ConfigurationEncoder(JSONEncoder):
@@ -91,6 +107,7 @@ def wire_decode(data):
         else:
             return dictionary
     loaded = loads(data, object_hook=decode_object)
+    import pdb;pdb.set_trace()
     return loaded
 
 
@@ -174,26 +191,28 @@ class ConfigurationPersistenceService(MultiService):
         self._config_version, self._config_path = self._versioned_config()
         if self._config_version < _CURRENT_VERSION:
             # We know the file exists at this point - see _versioned_config
+            # Get the unparsed config data.
+            current_config = self._config_path.getContent()
             # The required version upgrades
             required_upgrades = range(
                 self._config_version + 1, _CURRENT_VERSION + 1)
             for new_version in required_upgrades:
                 # convert vX config to vY config where X is
                 # self._config_version and Y is self._config_version + 1
-                pass  # actual upgrade will take place here
+                migration = (
+                    u"_ConfigurationV%dToV%d"
+                    % (self._config_version, new_version)
+                )
+                migration_class = getattr(sys.modules[__name__], migration)
+                current_config = migration_class(current_config)
                 # increment version and proceed to next upgrade
-                self._config_version = self._config_version + 1
+                self._config_version = new_version
                 self._config_path = self._path.child(
                     _VERSIONED_CONFIG_FILE % new_version)
-            # if we've just done an upgrade in this code path, we know
-            # self._config_path doesn't exist at this point, so will be
-            # written in the else clause below.
-            # XXX we want to write the upgraded config, not an empty
-            # Deployment, so let's write the file here with our loaded,
-            # upgraded config, thereby causing it to be simply re-loaded
-            # (and therefore re-validated) in the if clause below.
-            upgraded_deployment = Deployment(nodes=frozenset())
-            self._sync_save(upgraded_deployment)
+            # Migrations are complete, write the config file for the
+            # latest version.
+            # XXX current_config must be a Deployment object at this point.
+            self._sync_save(current_config)
         if self._config_path.exists():
             self._deployment = wire_decode(
                 self._config_path.getContent())
