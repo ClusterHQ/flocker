@@ -172,7 +172,12 @@ class ConfigurationPersistenceService(MultiService):
         if self._config_version < _CURRENT_VERSION:
             # We know the file exists at this point.
             pass  # upgrade here
+            # upgrades will need to happen from _config_version up to
+            # _CURRENT_VERSION - this may involve an arbitrary number of
+            # sequential upgrades, e.g. v1 to v2 to v3 to v4
             self._config_version = _CURRENT_VERSION
+            # At the end of this, self._config_path should also point to
+            # the latest version, e.g. current_configuration.v3.json
         if self._config_path.exists():
             self._deployment = wire_decode(
                 self._config_path.getContent())
