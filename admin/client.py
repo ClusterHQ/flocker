@@ -88,6 +88,36 @@ def run_script_file(docker, container_id, script):
         sys.exit(output)
 
 
+def install_client(distribution, package_source, docker):
+    install = make_script_file(task_install_cli(distribution, package_source))
+    try:
+        dotest = make_script_file(task_client_installation_test())
+        try:
+            image = DOCKER_IMAGES[distribution]
+            docker.pull(image)
+            container = docker.create_container(
+                image=image, command='/bin/bash', tty=True,
+                volumes=['/install.sh', '/dotest.sh'],
+            )
+            container_id = container[u'Id']
+            docker.start(
+                container_id,
+                binds={
+                    install: {'bind': '/install.sh', 'ro': True},
+                    dotest: {'bind': '/dotest.sh', 'ro': True}
+                }
+            )
+            try:
+                run_script_file(docker, container_id, '/install.sh')
+                run_script_file(docker, container_id, '/dotest.sh')
+            finally:
+                docker.stop(container_id)
+        finally:
+            os.remove(dotest)
+    finally:
+        os.remove(install)
+
+
 class RunOptions(Options):
     description = "Run the client tests."
 
@@ -170,33 +200,3 @@ def main(args, base_path, top_level):
     package_source = options['package_source']
     docker = dockerpy.Client(version='1.18')
     install_client(distribution, package_source, docker)
-
-
-def install_client(distribution, package_source, docker):
-    install = make_script_file(task_install_cli(distribution, package_source))
-    try:
-        dotest = make_script_file(task_client_installation_test())
-        try:
-            image = DOCKER_IMAGES[distribution]
-            docker.pull(image)
-            container = docker.create_container(
-                image=image, command='/bin/bash', tty=True,
-                volumes=['/install.sh', '/dotest.sh'],
-            )
-            container_id = container[u'Id']
-            docker.start(
-                container_id,
-                binds={
-                    install: {'bind': '/install.sh', 'ro': True},
-                    dotest: {'bind': '/dotest.sh', 'ro': True}
-                }
-            )
-            try:
-                run_script_file(docker, container_id, '/install.sh')
-                run_script_file(docker, container_id, '/dotest.sh')
-            finally:
-                docker.stop(container_id)
-        finally:
-            os.remove(dotest)
-    finally:
-        os.remove(install)
