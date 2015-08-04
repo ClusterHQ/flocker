@@ -1,6 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Run the acceptance tests.
+Run the client installation tests.
 """
 
 import os
@@ -10,21 +10,20 @@ import tempfile
 import yaml
 
 import docker
+from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+
+import flocker
 from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
-import flocker
-from flocker.provision._install import (
-    task_client_installation_test,
-    task_install_cli,
-)
-from effect.twisted import perform
-
-from effect import TypeDispatcher, sync_performer
 from flocker.provision._effect import Sequence, perform_sequence
-from flocker.provision._ssh._model import Run, Sudo, Put, Comment
+from flocker.provision._install import (
+    task_install_cli,
+    task_client_installation_test,
+)
 from flocker.provision._ssh._conch import perform_sudo, perform_put
+from flocker.provision._ssh._model import Run, Sudo, Put, Comment
 
 DOCKER_IMAGES = {
     'centos-7': 'centos:7',
@@ -44,7 +43,10 @@ class ScriptBuilder(TypeDispatcher):
     """
 
     def __init__(self, effects):
-        self.lines = ['#!/bin/bash', 'set -ex']
+        self.lines = [
+            '#!/bin/bash',
+            'set -ex'
+        ]
         TypeDispatcher.__init__(self, {
             Run: self.perform_run,
             Sudo: perform_sudo,
