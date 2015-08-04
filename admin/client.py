@@ -80,8 +80,8 @@ def make_script_file(dir, effects):
 
 class DockerRunner:
 
-    def __init__(self, docker, image):
-        self.docker = docker
+    def __init__(self, image):
+        self.docker = docker.Client(version='1.18')
         self.image = image
 
     def start(self):
@@ -107,15 +107,13 @@ class DockerRunner:
         self.docker.stop(self.container_id)
         shutil.rmtree(self.tmpdir)
 
-    def install_client(self, distribution, package_source):
-        install = make_script_file(
-            self.tmpdir, task_install_cli(distribution, package_source))
-        self.run_script_file('/mnt/script/{}'.format(install))
-        dotest = make_script_file(
-            self.tmpdir, task_client_installation_test())
-        self.run_script_file('/mnt/script/{}'.format(dotest))
-
-    def run_script_file(self, script):
+    def execute(self, commands):
+        """
+        :param commands: An Effect containing the commands to run, probably a
+            Sequence of Effects, one for each command to run.
+        """
+        script_file = make_script_file(self.tmpdir, commands)
+        script = '/mnt/script/{}'.format(script_file)
         session = self.docker.exec_create(self.container_id, script)
         session_id = session[u'Id']
         output = self.docker.exec_start(session)
@@ -191,7 +189,6 @@ class RunOptions(Options):
 
 def main(args, base_path, top_level):
     """
-    :param reactor: Reactor to use.
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
@@ -201,16 +198,18 @@ def main(args, base_path, top_level):
     try:
         options.parseOptions(args)
     except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
+        sys.exit("%s: %s\n" % (base_path.basename(), e))
 
     distribution = options['distribution']
     package_source = options['package_source']
-    docker_client = docker.Client(version='1.18')
-    image = DOCKER_IMAGES[distribution]
-    runner = DockerRunner(docker_client, image)
+    steps = [
+        task_install_cli(distribution, package_source),
+        task_client_installation_test(),
+    ]
+    runner = DockerRunner(DOCKER_IMAGES[distribution])
     runner.start()
     try:
-        runner.install_client(distribution, package_source)
+        for commands in steps:
+            runner.execute(commands)
     finally:
         runner.stop()
