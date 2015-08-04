@@ -168,11 +168,15 @@ def main(args, base_path, top_level):
 
     distribution = options['distribution']
     package_source = options['package_source']
+    docker = dockerpy.Client(version='1.18')
+    install_client(distribution, package_source, docker)
+
+
+def install_client(distribution, package_source, docker):
     install = make_script_file(task_install_cli(distribution, package_source))
     try:
         dotest = make_script_file(task_client_installation_test())
         try:
-            docker = dockerpy.Client(version='1.18')
             image = DOCKER_IMAGES[distribution]
             docker.pull(image)
             container = docker.create_container(
