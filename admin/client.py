@@ -80,11 +80,43 @@ def make_script_file(dir, effects):
 
 class DockerRunner:
 
-    def __init__(self, docker):
+    def __init__(self, docker, image):
         self.docker = docker
+        self.image = image
 
-    def run_script_file(self, container_id, script):
-        session = self.docker.exec_create(container_id, script)
+    def start(self):
+        self.tmpdir = tempfile.mkdtemp()
+        try:
+            self.docker.pull(self.image)
+            container = self.docker.create_container(
+                image=self.image, command='/bin/bash', tty=True,
+                volumes=['/mnt/script'],
+            )
+            self.container_id = container[u'Id']
+            self.docker.start(
+                self.container_id,
+                binds={
+                    self.tmpdir: {'bind': '/mnt/script', 'ro': True},
+                }
+            )
+        except:
+            os.rmdir(self.tmpdir)
+            raise
+
+    def stop(self):
+        self.docker.stop(self.container_id)
+        shutil.rmtree(self.tmpdir)
+
+    def install_client(self, distribution, package_source):
+        install = make_script_file(
+            self.tmpdir, task_install_cli(distribution, package_source))
+        self.run_script_file('/mnt/script/{}'.format(install))
+        dotest = make_script_file(
+            self.tmpdir, task_client_installation_test())
+        self.run_script_file('/mnt/script/{}'.format(dotest))
+
+    def run_script_file(self, script):
+        session = self.docker.exec_create(self.container_id, script)
         session_id = session[u'Id']
         output = self.docker.exec_start(session)
         status = self.docker.exec_inspect(session_id)[u'ExitCode']
@@ -92,36 +124,6 @@ class DockerRunner:
             sys.stdout.write(output)
         else:
             sys.exit(output)
-
-    def install_client(self, distribution, package_source):
-        tmpdir = tempfile.mkdtemp()
-        try:
-            image = DOCKER_IMAGES[distribution]
-            self.docker.pull(image)
-            container = self.docker.create_container(
-                image=image, command='/bin/bash', tty=True,
-                volumes=['/mnt/script'],
-            )
-            container_id = container[u'Id']
-            self.docker.start(
-                container_id,
-                binds={
-                    tmpdir: {'bind': '/mnt/script', 'ro': True},
-                }
-            )
-            try:
-                install = make_script_file(
-                    tmpdir, task_install_cli(distribution, package_source))
-                self.run_script_file(
-                    container_id, '/mnt/script/{}'.format(install))
-                dotest = make_script_file(
-                    tmpdir, task_client_installation_test())
-                self.run_script_file(
-                    container_id, '/mnt/script/{}'.format(dotest))
-            finally:
-                self.docker.stop(container_id)
-        finally:
-            shutil.rmtree(tmpdir)
 
 
 class RunOptions(Options):
@@ -205,5 +207,10 @@ def main(args, base_path, top_level):
     distribution = options['distribution']
     package_source = options['package_source']
     docker_client = docker.Client(version='1.18')
-    runner = DockerRunner(docker_client)
-    runner.install_client(distribution, package_source)
+    image = DOCKER_IMAGES[distribution]
+    runner = DockerRunner(docker_client, image)
+    runner.start()
+    try:
+        runner.install_client(distribution, package_source)
+    finally:
+        runner.stop()
