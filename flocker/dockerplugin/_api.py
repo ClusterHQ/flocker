@@ -157,3 +157,19 @@ class VolumePlugin(object):
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating
+
+    @app.route("/VolumeDriver.Mount", methods=["POST"])
+    @_endpoint(u"Mount")
+    def volumedriver_mount(self, Name):
+        """
+        Move a volume with the given name to the current node and mount it.
+
+        Since we need to return the filesystem path we wait until the
+        dataset is mounted locally.
+
+        :param unicode Name: The name of the volume.
+
+        :return: Result indicating success.
+        """
+        return {"Err": "x"}
+

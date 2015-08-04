@@ -61,3 +61,23 @@ PluginActivateTests = build_schema_test(
     passing_instances=[
         {"Implements": ["VolumeDriver"]},
     ])
+
+
+MountTests = build_schema_test(
+    name=str("MountTests"),
+    schema={"$ref": "/endpoints.json#/definitions/Mount"},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Wrong types:
+        [], "", None,
+        # Missing field:
+        {}, {"Mountpoint": "/x"},
+        # Wrong fields:
+        {"Result": "hello"},
+        # Extra field:
+        {"Err": None, "Mountpoint": "/x", "extra": "y"},
+    ],
+    passing_instances=[
+        {"Err": "Something went wrong."},
+        {"Err": None, "Mountpoint": "/x/"},
+    ])
