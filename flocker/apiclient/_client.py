@@ -11,6 +11,7 @@ from zope.interface import Interface, implementer
 from pyrsistent import PClass, field, pmap_field, pmap
 
 from twisted.internet.defer import succeed, fail
+from twisted.python.filepath import FilePath
 
 
 class Dataset(PClass):
@@ -37,10 +38,13 @@ class DatasetState(PClass):
     :attr UUID primary: The node where the dataset should manifest.
     :attr int maximum_size: Size of new dataset, in bytes.
     :attr UUID dataset_id: The UUID of the dataset.
+    :attr FilePath|None path: Filesytem path where the dataset is mounted,
+        or ``None`` if not mounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     primary = field(type=UUID, mandatory=True)
     maximum_size = field(type=int, mandatory=True)
+    path = field(mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):
@@ -134,8 +138,10 @@ class FakeFlockerClient(object):
         Copy configuration into state.
         """
         self._state_datasets = [
-            DatasetState(dataset_id=dataset.dataset_id,
-                         primary=dataset.primary,
-                         maximum_size=dataset.maximum_size)
+            DatasetState(
+                dataset_id=dataset.dataset_id,
+                primary=dataset.primary,
+                maximum_size=dataset.maximum_size,
+                path=FilePath(b"/flocker/{}".format(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
         return succeed(None)
