@@ -1,3 +1,4 @@
+# vim: ft=yaml:fdm=indent
 # To modify an existing job, simply update the jobs_type: dictionary
 # commit, push
 # Then click 'deploy' on the jenkins job related to this repository
@@ -92,7 +93,7 @@ common_cli:
 
   run_acceptance_tests: &run_acceptance_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
-    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
+    /tmp/v/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   disable_selinux: &disable_selinux |
     sudo setenforce 0
@@ -104,7 +105,7 @@ common_cli:
     /tmp/v/bin/python setup.py sdist
 
   build_package: &build_package  |
-    /tmp/v/bin/python admin/build-package --destination-path repo --distribution \$DISTRIBUTION_NAME /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    /tmp/v/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   setup_hosting_for_packages: &setup_hosting_for_packages |
       # the acceptance tests look for a package in a yum repository,
@@ -126,6 +127,49 @@ common_cli:
 
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     exit \$RC
+
+  push_image_to_dockerhub: &push_image_to_dockerhub |
+    export D_USER=\$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
+    export D_PASSWORD=\$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
+    export D_EMAIL=\$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
+    docker login -u \$D_USER -p \$D_PASSWORD -e \$D_EMAIL
+    echo y | docker push \$DOCKER_IMAGE
+
+  build_docker_image: &build_docker_image |
+    docker build -t \$DOCKER_IMAGE .
+
+  build_dockerfile_centos7: &build_dockerfile_centos7 |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "# URLGRABBER_DEBUG=1 to log low-level network info - see FLOC-2640" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum groupinstall --assumeyes 'Development Tools'" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes epel-release" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes git ruby-devel python-devel libffi-devel openssl-devel python-pip rpmlint" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y git ruby-dev libffi-dev libssl-dev build-essential python-pip python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y git ruby-dev libffi-dev libssl-dev build-essential python-pip python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
 # the job definitions, they consume the aliases defined in the common_cli block
 #
@@ -223,9 +267,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.endtoend.test_dataset',
@@ -239,9 +283,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_mongodb',
@@ -255,9 +299,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_postgres',
@@ -271,9 +315,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_cli',
@@ -287,9 +331,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
@@ -303,9 +347,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_aws_env_vars, *check_version,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
@@ -314,3 +358,37 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
 
+  cronly_jobs:
+    run_docker_build_centos7_fpm:
+      at: '0 0 * * *'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-centos-7',
+                   *build_dockerfile_centos7,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+    run_docker_build_ubuntu_trusty_fpm:
+      at: '0 1 * * *'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-trusty',
+                   *build_dockerfile_ubuntu_trusty,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+    run_docker_build_ubuntu_vivid_fpm:
+      at: '0 2 * * *'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
+                   *build_dockerfile_ubuntu_vivid,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
