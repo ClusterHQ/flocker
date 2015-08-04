@@ -7,14 +7,20 @@ See https://github.com/docker/docker/tree/master/docs/extend for details.
 """
 
 from functools import wraps
+from uuid import UUID
 
 import yaml
+
+from bitmath import GiB
 
 from twisted.python.filepath import FilePath
 
 from klein import Klein
 
 from ..restapi import structured
+from ..control._config import dataset_id_from_name
+from ..apiclient import DatasetAlreadyExists
+
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
 SCHEMAS = {
@@ -23,6 +29,10 @@ SCHEMAS = {
     b'/endpoints.json': yaml.safe_load(
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
+
+
+# The default size of a created volume:
+DEFAULT_SIZE = int(GiB(100).to_Byte().value)
 
 
 def _endpoint(name):
@@ -65,9 +75,8 @@ class VolumePlugin(object):
         :param UUID node_id: The identity of the local node this plugin is
             running on.
         """
-        # These parameters will get used in latter issues: FLOC-2784,
-        # FLOC-2785 and FLOC-2786.
-        pass
+        self._flocker_client = flocker_client
+        self._node_id = node_id
 
     @app.route("/Plugin.Activate", methods=["POST"])
     @_endpoint(u"PluginActivate")
@@ -109,3 +118,42 @@ class VolumePlugin(object):
         :return: Result indicating success.
         """
         return {u"Err": None}
+
+    @app.route("/VolumeDriver.Create", methods=["POST"])
+    @_endpoint(u"Create")
+    def volumedriver_create(self, Name):
+        """
+        Create a volume with the given name.
+
+        We hash the name to give a consistent dataset. This ensures that
+        if due to race condition we attempt to create two volumes with
+        same name only one will be created.
+
+        We also check for existence of matching dataset based on
+        ``"name"`` field in metadata, in case we're talking to cluster
+        that has datasets that weren't created with this hashing
+        mechanism.
+
+        If there is a duplicate we don't return an error, but rather
+        success: we will likely get unneeded creates from Docker since it
+        doesn't necessarily know about existing persistent volumes.
+
+        :param unicode Name: The name of the volume.
+
+        :return: Result indicating success.
+        """
+        listing = self._flocker_client.list_datasets_configuration()
+
+        def got_configured(configured):
+            for dataset in configured:
+                if dataset.metadata.get(u"name") == Name:
+                    raise DatasetAlreadyExists
+        listing.addCallback(got_configured)
+
+        creating = listing.addCallback(
+            lambda _: self._flocker_client.create_dataset(
+                self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
+                dataset_id=UUID(dataset_id_from_name(Name))))
+        creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
+        creating.addCallback(lambda _: {u"Err": None})
+        return creating

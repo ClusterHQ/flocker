@@ -23,10 +23,10 @@ class Dataset(PClass):
     :attr metadata: A mapping between unicode keys and values.
     :attr bool deleted: If true indicates this dataset should be deleted.
     """
-    dataset_id = field(type=UUID)
-    primary = field(type=UUID)
-    maximum_size = field(type=int)
-    deleted = field(type=bool)
+    dataset_id = field(type=UUID, mandatory=True)
+    primary = field(type=UUID, mandatory=True)
+    maximum_size = field(type=int, mandatory=True)
+    deleted = field(type=bool, mandatory=True, initial=False)
     metadata = pmap_field(unicode, unicode)
 
 
@@ -38,9 +38,9 @@ class DatasetState(PClass):
     :attr int maximum_size: Size of new dataset, in bytes.
     :attr UUID dataset_id: The UUID of the dataset.
     """
-    dataset_id = field(type=UUID)
-    primary = field(type=UUID)
-    maximum_size = field(type=int)
+    dataset_id = field(type=UUID, mandatory=True)
+    primary = field(type=UUID, mandatory=True)
+    maximum_size = field(type=int, mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):

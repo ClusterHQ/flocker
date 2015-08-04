@@ -41,6 +41,7 @@ def build_simple_test(command_name):
 
 RemoveTests = build_simple_test("Remove")
 UnmountTests = build_simple_test("Unmount")
+CreateTests = build_simple_test("Create")
 
 
 PluginActivateTests = build_schema_test(
