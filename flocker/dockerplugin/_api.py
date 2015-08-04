@@ -192,4 +192,3 @@ class VolumePlugin(object):
                                     u"Mountpoint": path.path})
         return d
 
-
