@@ -1,3 +1,4 @@
+# vim: ft=yaml:fdm=indent
 # To modify an existing job, simply update the jobs_type: dictionary
 # commit, push
 # Then click 'deploy' on the jenkins job related to this repository
@@ -127,6 +128,49 @@ common_cli:
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     exit \$RC
 
+  push_image_to_dockerhub: &push_image_to_dockerhub |
+    export D_USER=\$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
+    export D_PASSWORD=\$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
+    export D_EMAIL=\$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
+    docker login -u \$D_USER -p \$D_PASSWORD -e \$D_EMAIL
+    echo y | docker push \$DOCKER_IMAGE
+
+  build_docker_image: &build_docker_image |
+    docker build -t \$DOCKER_IMAGE .
+
+  build_dockerfile_centos7: &build_dockerfile_centos7 |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "# URLGRABBER_DEBUG=1 to log low-level network info - see FLOC-2640" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum groupinstall --assumeyes 'Development Tools'" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes epel-release" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes git ruby-devel python-devel libffi-devel openssl-devel python-pip rpmlint" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y git ruby-dev libffi-dev libssl-dev build-essential python-pip python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y git ruby-dev libffi-dev libssl-dev build-essential python-pip python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
 # the job definitions, they consume the aliases defined in the common_cli block
 #
 # flocker.node.functional is hanging, so we don't run it
@@ -231,3 +275,37 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
 
+  cronly_jobs:
+    run_docker_build_centos7_fpm:
+      at: '0 * * * *'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-centos-7',
+                   *build_dockerfile_centos7,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+    run_docker_build_ubuntu_trusty_fpm:
+      at: '1 * * * *'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-trusty',
+                   *build_dockerfile_ubuntu_trusty,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+    run_docker_build_ubuntu_vivid_fpm:
+      at: '2 * * * *'
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
+                   *build_dockerfile_ubuntu_vivid,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
