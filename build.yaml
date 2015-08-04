@@ -92,7 +92,7 @@ common_cli:
 
   run_acceptance_tests: &run_acceptance_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
-    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \$TRIGGERED_BRANCH --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \$ACCEPTANCE_TEST_MODULE ; RC=\$?
+    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   disable_selinux: &disable_selinux |
     sudo setenforce 0
@@ -104,18 +104,18 @@ common_cli:
     /tmp/v/bin/python setup.py sdist
 
   build_package: &build_package  |
-    /tmp/v/bin/python admin/build-package --destination-path repo --distribution centos-7 /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    /tmp/v/bin/python admin/build-package --destination-path repo --distribution \$DISTRIBUTION_NAME /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
-  setup_hosting_for_packages_centos7: &setup_hosting_for_packages_centos7 |
+  setup_hosting_for_packages: &setup_hosting_for_packages |
       # the acceptance tests look for a package in a yum repository,
       # we provide one by starting a webserver and pointing the tests
       # to look over there
       sudo yum install -y nginx
       sudo service nginx start
-      sudo rm -rf /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7
-      sudo mkdir -p /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7
-      sudo cp repo/* /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7/
-      cd /usr/share/nginx/html/results/omnibus/\$TRIGGERED_BRANCH/centos-7/
+      sudo rm -rf /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+      sudo mkdir -p /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+      sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+      cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
       sudo createrepo .
       cd -
 
@@ -225,7 +225,8 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages_centos7,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.endtoend.test_dataset',
                    *run_acceptance_tests,
@@ -240,7 +241,8 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages_centos7,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_mongodb',
                    *run_acceptance_tests,
@@ -255,7 +257,8 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages_centos7,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_postgres',
                    *run_acceptance_tests,
@@ -270,7 +273,8 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages_centos7,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_cli',
                    *run_acceptance_tests,
@@ -285,7 +289,24 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages_centos7,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_hosting_for_packages,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+    run_acceptance_obsolete_containers_on_AWS_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
                    *run_acceptance_tests,
