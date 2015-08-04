@@ -174,14 +174,17 @@ class ConfigurationPersistenceService(MultiService):
         self._config_version, self._config_path = self._versioned_config()
         if self._config_version < _CURRENT_VERSION:
             # We know the file exists at this point - see _versioned_config
-            pass  # upgrade here
-            # upgrades will need to happen from _config_version up to
-            # _CURRENT_VERSION - this may involve an arbitrary number of
-            # sequential upgrades, e.g. v1 to v2 to v3 to v4
-            self._config_version = _CURRENT_VERSION
-            # At the end of this, self._config_path should also point to
-            # the latest version, e.g. current_configuration.v3.json
-            self._config_path = _VERSIONED_CONFIG_FILE % _CURRENT_VERSION
+            # The required version upgrades
+            required_upgrades = range(
+                self._config_version + 1, _CURRENT_VERSION + 1)
+            for new_version in required_upgrades:
+                # convert vX config to vY config where X is
+                # self._config_version and Y is self._config_version + 1
+                pass  # actual upgrade will take place here
+                # increment version and proceed to next upgrade
+                self._config_version = self._config_version + 1
+                self._config_path = self._path.child(
+                    _VERSIONED_CONFIG_FILE % new_version)
             # if we've just done an upgrade in this code path, we know
             # self._config_path doesn't exist at this point, so will be
             # written in the else clause below.
@@ -189,6 +192,8 @@ class ConfigurationPersistenceService(MultiService):
             # Deployment, so let's write the file here with our loaded,
             # upgraded config, thereby causing it to be simply re-loaded
             # (and therefore re-validated) in the if clause below.
+            upgraded_deployment = Deployment(nodes=frozenset())
+            self._sync_save(upgraded_deployment)
         if self._config_path.exists():
             self._deployment = wire_decode(
                 self._config_path.getContent())
