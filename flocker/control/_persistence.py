@@ -290,16 +290,16 @@ class ConfigurationPersistenceService(MultiService):
         Load the persisted configuration, upgrading the configuration format
         if an older version is detected.
         """
-        self._config_version, self._config_path = self._versioned_config()
-        if self._config_version < _CURRENT_VERSION:
+        config_version, self._config_path = self._versioned_config()
+        if config_version < _CURRENT_VERSION:
             current_config = self._config_path.getContent()
             required_upgrades = range(
-                self._config_version + 1, _CURRENT_VERSION + 1)
+                config_version + 1, _CURRENT_VERSION + 1)
             for new_version in required_upgrades:
                 current_config = migrate_configuration(
-                    self._config_version, new_version, current_config
+                    config_version, new_version, current_config
                 )
-                self._config_version = new_version
+                config_version = new_version
                 self._config_path = self._path.child(
                     _VERSIONED_CONFIG_FILE % new_version)
             self._deployment = wire_decode(current_config)
