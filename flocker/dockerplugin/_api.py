@@ -14,6 +14,7 @@ import yaml
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
+from twisted.internet.task import deferLater
 
 from klein import Klein
 
@@ -67,14 +68,15 @@ class VolumePlugin(object):
     """
     app = Klein()
 
-    def __init__(self, flocker_client, node_id):
+    def __init__(self, reactor, flocker_client, node_id):
         """
+        :param IReactorTime reactor: Reactor time interface implementation.
         :param IFlockerAPIV1Client flocker_client: Client that allows
             communication with Flocker.
-
         :param UUID node_id: The identity of the local node this plugin is
             running on.
         """
+        self._reactor = reactor
         self._flocker_client = flocker_client
         self._node_id = node_id
 
@@ -157,3 +159,36 @@ class VolumePlugin(object):
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating
+
+    @app.route("/VolumeDriver.Mount", methods=["POST"])
+    @_endpoint(u"Mount")
+    def volumedriver_mount(self, Name):
+        """
+        Move a volume with the given name to the current node and mount it.
+
+        Since we need to return the filesystem path we wait until the
+        dataset is mounted locally.
+
+        :param unicode Name: The name of the volume.
+
+        :return: Result indicating success.
+        """
+        dataset_id = UUID(dataset_id_from_name(Name))
+        d = self._flocker_client.move_dataset(self._node_id, dataset_id)
+
+        def get_state():
+            d = self._flocker_client.list_datasets_state()
+
+            def got_state(datasets):
+                datasets = [dataset for dataset in datasets
+                            if dataset.dataset_id == dataset_id]
+                if datasets and datasets[0].primary == self._node_id:
+                    return datasets[0].path
+                return deferLater(self._reactor, 0.05, get_state)
+            d.addCallback(got_state)
+            return d
+        d.addCallback(lambda _: get_state())
+        d.addCallback(lambda path: {u"Err": None,
+                                    u"Mountpoint": path.path})
+        return d
+

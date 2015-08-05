@@ -7,6 +7,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 from uuid import uuid4, UUID
 
 from twisted.web.http import OK
+from twisted.internet import reactor
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
@@ -54,13 +55,24 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
+    def create(self, name):
+        """
+        Call the ``/VolumeDriver.Create`` API to create a volume with the
+        given name.
+
+        :param unicode name: The name of the volume to create.
+
+        :return: ``Deferred`` that fires when the volume that was created.
+        """
+        return self.assertResult(b"POST", b"/VolumeDriver.Create",
+                                 {u"Name": name}, OK, {u"Err": None})
+
     def test_create_creates(self):
         """
         ``/VolumeDriver.Create`` creates a new dataset in the configuration.
         """
         name = u"myvol"
-        d = self.assertResult(b"POST", b"/VolumeDriver.Create",
-                              {u"Name": name}, OK, {u"Err": None})
+        d = self.create(name)
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(self.assertItemsEqual, [
@@ -81,9 +93,7 @@ class APITestsMixin(APIAssertionsMixin):
         # dataset ID:
         d = self.flocker_client.create_dataset(
             self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
-        d.addCallback(lambda _: self.assertResult(
-            b"POST", b"/VolumeDriver.Create",
-            {u"Name": name}, OK, {u"Err": None}))
+        d.addCallback(lambda _: self.create(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(lambda results: self.assertEqual(len(results), 1))
@@ -112,13 +122,39 @@ class APITestsMixin(APIAssertionsMixin):
             return d
         self.flocker_client.list_datasets_configuration = create_after_list
 
-        return self.assertResult(
-            b"POST", b"/VolumeDriver.Create",
-            {u"Name": name}, OK, {u"Err": None})
+        return self.create(name)
+
+    def test_mount(self):
+        """
+        ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
+        name to the current node and then waits for the dataset to
+        actually arrive.
+        """
+        name = u"myvol"
+        dataset_id = UUID(dataset_id_from_name(name))
+        # Create dataset on a different node:
+        d = self.flocker_client.create_dataset(
+            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
+            dataset_id=dataset_id)
+
+        # In 0.1 seconds the dataset arrives as state:
+        reactor.callLater(0.1, self.flocker_client.synchronize_state)
+
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Mount",
+                          {u"Name": name}, OK,
+                          {u"Err": None,
+                           u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
+        d.addCallback(lambda _: self.flocker_client.list_datasets_state())
+        d.addCallback(lambda ds: self.assertEqual(
+            [self.NODE_A], [d.primary for d in ds
+                            if d.dataset_id == dataset_id]))
+        return d
 
 
 def _build_app(test):
     test.initialize()
-    return VolumePlugin(test.flocker_client, test.NODE_A).app
+    return VolumePlugin(reactor, test.flocker_client, test.NODE_A).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     APITestsMixin, "API", _build_app)
