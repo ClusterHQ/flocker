@@ -337,7 +337,7 @@ branches.each {
 {%        set _job_name = job_name                                          -%}
 {# lets place these jobs inside the 'master' branch folder, as its likely
    people will be looking into that view when monitoring the master branch   #}
-  job("${dashProject}/master{{ _job_name }}") {
+  job("${dashProject}/master/{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ triggers('cron', job_values.at) }}
