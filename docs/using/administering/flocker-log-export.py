@@ -74,7 +74,7 @@ class FlockerDebugArchive(object):
             # Export Flocker logs.
             services = self._service_manager.flocker_services()
             for service_name, service_status in services:
-                self._log_exporter.export_service(
+                self._log_exporter.export_flocker(
                     service_name=service_name,
                     target_path=self._logfile_path(service_name)
                 )
@@ -165,7 +165,7 @@ class JournaldLogExporter(object):
     """
     Export logs managed by JournalD.
     """
-    def export_service(self, service_name, target_path):
+    def export_flocker(self, service_name, target_path):
         """
         Export logs for ``service_name`` to ``target_path`` compressed using
         ``gzip``.
@@ -192,10 +192,10 @@ class UpstartLogExporter(object):
     """
     Export logs for services managed by Upstart and written by RSyslog.
     """
-    def export_service(self, service_name, target_path):
+    def export_flocker(self, service_name, target_path):
         """
-        Export logs for ``service_name`` to ``target_path`` compressed using
-        ``gzip``.
+        Export both the Upstart startup logs and the Eliot logs for
+        ``service_name`` to a gzip compressed tar file at ``target_path``.
         """
         with tarfile_open(target_path + '.tar.gz', 'w|gz') as tar:
             files = [
