@@ -4,6 +4,8 @@
 Debugging
 =========
 
+.. _flocker-logging:
+
 Logging
 -------
 
@@ -40,20 +42,44 @@ Bug Reporting
 
 When reporting issues with Flocker please include:
 
-* Operating System and version,
-* kernel version,
-* Docker info and version,
-* all Flocker log files.
+* operating system and version,
+* Linux kernel version,
+* Docker version and configuration,
+* Flocker log files and
+* recent Syslog content.
 
-The following script can be used to gather this information on Ubuntu and CentOS.
+The following script can be used to gather this information on Ubuntu-14.04, Ubuntu-15.04 and CentOS.
 
 * :download:`flocker-log-export.py`
 
-Save the script to a file and then run it as root
+Save the script to a file and then run it as root.
 
 .. prompt:: bash #
 
    python flocker-log-export.py
+
+Alternatively, the information can be gathered manually using the following commands:
+
+* Operating system and version:
+
+  .. prompt:: bash #
+
+     cat /etc/os-release
+
+* Linux kernel version
+
+  .. prompt:: bash #
+
+     uname -a
+
+* Docker version and configuration
+
+  .. prompt:: bash #
+
+     docker version
+     docker info
+
+* Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`eliot`: https://github.com/ClusterHQ/eliot

@@ -106,7 +106,7 @@ class FlockerDebugArchive(object):
             )
 
             # Create a single archive file
-            make_archive(
+            archive_path = make_archive(
                 base_name=self._archive_name,
                 format='tar',
                 root_dir=os.path.dirname(self._archive_path),
@@ -115,6 +115,7 @@ class FlockerDebugArchive(object):
         finally:
             # Attempt to remove the source directory.
             rmtree(self._archive_path)
+        return archive_path
 
 
 class SystemdServiceManager(object):
@@ -288,14 +289,19 @@ def main():
         platform = current_platform()
     except UnsupportedDistribution as e:
         sys.stderr.write(
-            "This script is not supported on {!r}.\n".format(e.distribution)
+            "ERROR: flocker-log-export "
+            "is not supported on this operating system ({!r}).\n"
+            "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
+            "for alternative ways to export Flocker logs "
+            "and diagnostic data.\n".format(e.distribution)
         )
         sys.exit(1)
 
-    FlockerDebugArchive(
+    archive_path = FlockerDebugArchive(
         service_manager=platform.service_manager,
         log_exporter=platform.log_exporter
     ).create()
+    sys.stdout.write(archive_path + '\n')
 
 
 if __name__ == "__main__":
