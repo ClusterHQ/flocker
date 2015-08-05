@@ -58,10 +58,12 @@ def migrate_configuration(source_version, target_version, config):
         % tuple(sorted([source_version, target_version]))
     )
     migration_class = getattr(sys.modules[__name__], migration)
+    config_dict = loads(config)
     if source_version < target_version:
-        return migration_class.up(config)
+        result = migration_class.up(config_dict)
     else:
-        return migration_class.down(config)
+        result = migration_class.down(config_dict)
+    return dumps(result)
 
 
 class _IConfigurationMigration(Interface):
@@ -82,18 +84,18 @@ class _IConfigurationMigration(Interface):
     """
     def up(configuration):
         """
-        Migrate a Vx source configuration format JSON to a Vy target
-        configuration format and return the updated JSON blob.
+        Migrate a Vx source configuration dict to a Vy target
+        configuration format and return the updated dictionary.
 
-        :param bytes configuration: The JSON Vx configuration.
+        :param dict configuration: The Vx configuration.
         """
 
     def down(configuration):
         """
-        Migrate a Vy source configuration format JSON to a Vx target
-        configuration format and return the updated JSON blob.
+        Migrate a Vy source configuration dict to a Vx target
+        configuration format and return the updated dictionary.
 
-        :param bytes configuration: The JSON Vy configuration.
+        :param dict configuration: The Vy configuration.
         """
 
 
@@ -105,15 +107,13 @@ class _ConfigurationMigration_V0_V1(object):
     """
     @classmethod
     def up(cls, configuration):
-        config_dict = loads(configuration)
-        config_dict[u"nodes"] = []
-        return dumps(config_dict)
+        configuration[u"nodes"] = []
+        return configuration
 
     @classmethod
     def down(cls, configuration):
-        config_dict = loads(configuration)
-        config_dict.pop(u"nodes")
-        return dumps(config_dict)
+        configuration.pop(u"nodes")
+        return configuration
 
 
 class _ConfigurationEncoder(JSONEncoder):

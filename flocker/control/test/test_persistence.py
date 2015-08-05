@@ -258,25 +258,26 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     """
     Tests for ``_ConfigurationMigration``.
     """
-    def test_v1_v2_configuration(self):
+    configurations_dir = FilePath(__file__).sibling('configurations')
+
+    def test_v0_v1_configuration(self):
         """
         A V0 JSON configuration blob is transformed to a V1 configuration
         blob, with the result validating when loaded.
         """
-        config_dict = {_CLASS_MARKER: u"Deployment"}
-        v0_json = json.dumps(config_dict)
-        config_dict['nodes'] = []
+        v0_json = self.configurations_dir.child(
+            'configuration_v0.json').getContent()
         v1_json = migrate_configuration(0, 1, v0_json)
         v1_config = wire_decode(v1_json)
-        self.assertEqual(v1_json, json.dumps(config_dict))
         self.assertEqual(v1_config, Deployment(nodes=frozenset()))
 
-    def test_v2_v1_configuration(self):
+    def test_v1_v0_configuration(self):
         """
         A V1 JSON configuration blob is transformed to a V0 configuration
         blob.
         """
         config_dict = {_CLASS_MARKER: u"Deployment"}
-        v1_json = wire_encode(TEST_DEPLOYMENT)
+        v1_json = self.configurations_dir.child(
+            'configuration_v1.json').getContent()
         v0_json = migrate_configuration(1, 0, v1_json)
         self.assertEqual(v0_json, json.dumps(config_dict))
