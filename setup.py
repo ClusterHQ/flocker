@@ -69,6 +69,8 @@ setup(
         # These data files are used by the volumes API to define input and
         # output schemas.
         'flocker.control': ['schema/*.yml'],
+        # These files are used by the Docker plugin API:
+        'flocker.dockerplugin': ['schema/*.yml'],
     },
 
     entry_points={

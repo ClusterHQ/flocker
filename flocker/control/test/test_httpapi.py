@@ -3,7 +3,6 @@
 Tests for ``flocker.control.httpapi``.
 """
 
-from io import BytesIO
 from uuid import uuid4
 from copy import deepcopy
 
@@ -20,15 +19,14 @@ from twisted.web.http import (
     CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
     NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
-from twisted.web.http_headers import Headers
-from twisted.web.client import FileBodyProducer, readBody
+from twisted.web.client import readBody
 from twisted.application.service import IService
 from twisted.python.filepath import FilePath
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from ...restapi.testtools import (
-    buildIntegrationTests, dumps, loads)
+    buildIntegrationTests, loads, APIAssertionsMixin)
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
@@ -48,7 +46,7 @@ from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
 
 
-class APITestsMixin(object):
+class APITestsMixin(APIAssertionsMixin):
     """
     Helpers for writing integration tests for the Dataset Manager API.
     """
@@ -71,96 +69,6 @@ class APITestsMixin(object):
         self.cluster_state_service.startService()
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
-
-    def assertResponseCode(self, method, path, request_body, expected_code):
-        """
-        Issue an HTTP request and make an assertion about the response code.
-
-        :param bytes method: The HTTP method to use in the request.
-        :param bytes path: The resource path to use in the request.
-        :param dict request_body: A JSON-encodable object to encode (as JSON)
-            into the request body.  Or ``None`` for no request body.
-        :param int expected_code: The status code expected in the response.
-
-        :return: A ``Deferred`` that will fire when the response has been
-            received.  It will fire with a failure if the status code is
-            not what was expected.  Otherwise it will fire with an
-            ``IResponse`` provider representing the response.
-        """
-        if request_body is None:
-            headers = None
-            body_producer = None
-        else:
-            headers = Headers({b"content-type": [b"application/json"]})
-            body_producer = FileBodyProducer(BytesIO(dumps(request_body)))
-
-        requesting = self.agent.request(
-            method, path, headers, body_producer
-        )
-
-        def check_code(response):
-            self.assertEqual(expected_code, response.code)
-            return response
-        requesting.addCallback(check_code)
-        return requesting
-
-    def assertResult(self, method, path, request_body,
-                     expected_code, expected_result):
-        """
-        Assert a particular JSON response for the given API request.
-
-        :param bytes method: HTTP method to request.
-        :param bytes path: HTTP path.
-        :param unicode request_body: Body of HTTP request.
-        :param int expected_code: The code expected in the response.
-            response.
-        :param list|dict expected_result: The body expected in the response.
-
-        :return: A ``Deferred`` that fires when test is done.
-        """
-        requesting = self.assertResponseCode(
-            method, path, request_body, expected_code)
-        requesting.addCallback(readBody)
-        requesting.addCallback(loads)
-
-        def assertEqualAndReturn(expected, actual):
-            """
-            Assert that ``expected`` is equal to ``actual`` and return
-            ``actual`` for further processing.
-            """
-            self.assertEqual(expected, actual)
-            return actual
-
-        requesting.addCallback(
-            lambda actual_result: assertEqualAndReturn(
-                expected_result, actual_result)
-        )
-        return requesting
-
-    def assertResultItems(self, method, path, request_body,
-                          expected_code, expected_result):
-        """
-        Assert a JSON array response for the given API request.
-
-        The API returns a JSON array, which matches a Python list, by
-        comparing that matching items exist in each sequence, but may
-        appear in a different order.
-
-        :param bytes method: HTTP method to request.
-        :param bytes path: HTTP path.
-        :param unicode request_body: Body of HTTP request.
-        :param int expected_code: The code expected in the response.
-        :param list expected_result: A list of items expects in a
-            JSON array response.
-
-        :return: A ``Deferred`` that fires when test is done.
-        """
-        requesting = self.assertResponseCode(
-            method, path, request_body, expected_code)
-        requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertItemsEqual(
-            expected_result, loads(body)))
-        return requesting
 
 
 class VersionTestsMixin(APITestsMixin):

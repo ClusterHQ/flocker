@@ -19,6 +19,10 @@ The value of the hostname field should be a hostname or IP that is routable from
 When configuring node agents, consider whether the control service location you choose will have multiple possible addresses, and ensure the hostname you provide is the correct one.
 You should never choose ``127.0.0.1`` or ``localhost`` as the hostname, even if the control service is on same machine as the node agent, as this will keep the control service from correctly identifying the agent's IP address.
 
+.. warning::
+	It is important to note that the flocker nodes will refuse to communicate with the flocker agent if there is a misconfiguration in the hostname.
+	Please ensure that your hostname is configured correctly before proceeding, because any errors can result in failures.
+
 Please note that the interface you choose will be the one that linked traffic will be routed over.
 If you're in environment where some interfaces have bandwidth costs and some are free (for example, AWS), ensure that you choose the private interface where bandwidth costs don't apply.
 
@@ -30,6 +34,18 @@ Omit the ``port`` from both configurations and the services will automatically a
 The file must also include a ``dataset`` item.
 This selects and configures a dataset backend.
 All nodes must be configured to use the same dataset backend.
+
+.. note::
+	You can only choose a single backend at a time, and changing backends is not currently supported.
+
+The following sections describe how to configure the backends currently supported by Flocker:
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 1
+
+.. XXX FLOC 2442 improves this section, by creating a page solely for a list of supported backends, which is scaleable as the list grows.
 
 .. _openstack-dataset-backend:
 

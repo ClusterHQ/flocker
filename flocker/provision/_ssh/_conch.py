@@ -1,12 +1,9 @@
-from pipes import quote as shell_quote
 
 from characteristic import attributes
 
 from eliot import Message, MessageType, Field
 
-from effect import (
-    sync_performer, TypeDispatcher, ComposedDispatcher, Effect,
-    )
+from effect import TypeDispatcher, ComposedDispatcher
 from effect.twisted import (
     make_twisted_dispatcher,
 )
@@ -32,7 +29,9 @@ import os
 
 from flocker.testtools import loop_until
 
-from ._model import Run, Sudo, Put, Comment, RunRemotely, identity
+from ._model import (
+    Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
+    perform_sudo)
 
 from .._effect import dispatcher as base_dispatcher
 
@@ -87,36 +86,6 @@ class CommandProtocol(LineOnlyReceiver, object):
             message_type="flocker.provision.ssh:run:output",
             line=line,
         ).write()
-
-
-@sync_performer
-def perform_sudo(dispatcher, intent):
-    """
-    See :py:class:`Sudo`.
-    """
-    return Effect(Run(
-        command='sudo ' + intent.command, log_command_filter=identity))
-
-
-@sync_performer
-def perform_put(dispatcher, intent):
-    """
-    See :py:class:`Put`.
-    """
-    def create_put_command(content, path):
-        return 'printf -- %s > %s' % (shell_quote(content), shell_quote(path))
-    return Effect(Run(
-        command=create_put_command(intent.content, intent.path),
-        log_command_filter=lambda _: create_put_command(
-            intent.log_content_filter(intent.content), intent.path)
-        ))
-
-
-@sync_performer
-def perform_comment(dispatcher, intent):
-    """
-    See :py:class:`Comment`.
-    """
 
 
 def get_ssh_dispatcher(connection, context):

@@ -65,6 +65,7 @@ namespace
 NAT'd
 online
 OpenStack
+pathnames
 pem
 petabyte
 petabytes
