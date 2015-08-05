@@ -6,12 +6,6 @@
 
 FROM clusterhqci/fpm-ubuntu-vivid
 MAINTAINER ClusterHQ <contact@clusterhq.com>
-RUN ["apt-get", "update"]
-RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "libffi-dev", "libssl-dev", "build-essential", "python-pip", "python2.7-dev", "lintian"]
-# Despite being a packaging tool, fpm isn't yet packaged for Ubuntu
-# See https://github.com/jordansissel/fpm/issues/611 and
-# https://github.com/jordansissel/fpm/issues/657
-RUN ["gem", "install", "fpm"]
 COPY requirements.txt /tmp/
 RUN ["pip", "install", "-r", "/tmp/requirements.txt"]
 VOLUME /flocker
