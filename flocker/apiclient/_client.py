@@ -13,7 +13,7 @@ from pyrsistent import PClass, field, pmap_field, pmap
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
-from twisted.web.http import CREATED, OK
+from twisted.web.http import CREATED, OK, CONFLICT
 
 from treq import json_content, content
 
@@ -163,17 +163,21 @@ class ResponseError(Exception):
         self.code = code
 
 
-def _check_and_decode_json(result, response_code):
+def _check_and_decode_json(result, response_code, error_codes={}):
     """
     Given ``treq`` response object, extract JSON and ensure response code
     is the expected one.
 
     :param result: ``treq`` response.
     :param int response_code: Expected response code.
+    :param error_codes: Mapping from HTTP response code to exception to be
+        raised if it is present.
 
     :return: ``Deferred`` firing with decoded JSON.
     """
     def error(body):
+        if result.code in error_codes:
+            raise error_codes[result.code](body)
         raise ResponseError(result.code, body)
 
     if result.code != response_code:
@@ -220,12 +224,21 @@ class FlockerClient(object):
             headers={b"content-type": b"application/json"},
             persistent=False
         )
-        request.addCallback(_check_and_decode_json, CREATED)
+        request.addCallback(_check_and_decode_json, CREATED,
+                            {CONFLICT: DatasetAlreadyExists})
         request.addCallback(self._parse_configuration_dataset)
         return request
 
     def move_dataset(self, primary, dataset_id):
-        pass
+        request = self._treq.post(
+            self._base_url + b"/configuration/datasets/{}".format(dataset_id),
+            data=dumps({u"primary": unicode(primary)}),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+        request.addCallback(_check_and_decode_json, OK),
+        request.addCallback(self._parse_configuration_dataset)
+        return request
 
     def list_datasets_configuration(self):
         request = self._treq.get(
