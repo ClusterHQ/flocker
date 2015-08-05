@@ -46,9 +46,9 @@ When reporting issues with Flocker please include:
 * Linux kernel version,
 * Docker version and configuration,
 * Flocker log files and
-* recent Syslog content.
+* recent syslog content.
 
-The following script can be used to gather this information on Ubuntu-14.04, Ubuntu-15.04 and CentOS.
+The following script can be used to gather this information on Ubuntu 14.04 and CentOS 7.
 
 * :download:`flocker-log-export.py`
 

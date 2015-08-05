@@ -85,6 +85,7 @@ roadmap
 snapshotting
 stateful
 sysadmin
+syslog
 terabytes
 timestamp
 unauthorised
