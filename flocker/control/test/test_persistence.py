@@ -4,6 +4,8 @@
 Tests for ``flocker.control._persistence``.
 """
 
+import json
+
 from uuid import uuid4
 
 from eliot.testing import validate_logging, assertHasMessage, assertHasAction
@@ -16,7 +18,8 @@ from pyrsistent import PRecord
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
-    _LOG_SAVE, _LOG_STARTUP, LeaseService,
+    _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
+    _CLASS_MARKER,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -249,3 +252,31 @@ class WireEncodeDecodeTests(SynchronousTestCase):
                                manifestations={}, paths={},
                                devices={uuid4(): FilePath(b"/tmp")})
         self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
+
+
+class ConfigurationMigrationTests(SynchronousTestCase):
+    """
+    Tests for ``_ConfigurationMigration``.
+    """
+    def test_v1_v2_configuration(self):
+        """
+        A V0 JSON configuration blob is transformed to a V1 configuration
+        blob, with the result validating when loaded.
+        """
+        config_dict = {_CLASS_MARKER: u"Deployment"}
+        v0_json = json.dumps(config_dict)
+        config_dict['nodes'] = []
+        v1_json = migrate_configuration(0, 1, v0_json)
+        v1_config = wire_decode(v1_json)
+        self.assertEqual(v1_json, json.dumps(config_dict))
+        self.assertEqual(v1_config, Deployment(nodes=frozenset()))
+
+    def test_v2_v1_configuration(self):
+        """
+        A V1 JSON configuration blob is transformed to a V0 configuration
+        blob.
+        """
+        config_dict = {_CLASS_MARKER: u"Deployment"}
+        v1_json = wire_encode(TEST_DEPLOYMENT)
+        v0_json = migrate_configuration(1, 0, v1_json)
+        self.assertEqual(v0_json, json.dumps(config_dict))

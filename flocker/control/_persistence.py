@@ -23,6 +23,8 @@ from twisted.internet import reactor as default_reactor
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
 
+from zope.interface import Interface, implementer
+
 from ._model import SERIALIZABLE_CLASSES, Deployment
 
 
@@ -36,19 +38,82 @@ _CURRENT_VERSION = 1
 # Formatted bytes representing a versioned config file name.
 _VERSIONED_CONFIG_FILE = b"current_configuration.v%d.json"
 
+# Map of serializable class names to classes
+_CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
 
-class _ConfigurationV1ToV2(object):
-    """
-    Upgrade a V1 configuration to a V2 configuration.
-    """
-    def __init__(self, configuration):
-        """
-        Perform the migration on the supplied configuration.
 
-        :param bytes configuration: The JSON blob to migrate.
-        :return bytes: The migrated configuration.
+def migrate_configuration(source_version, target_version, config):
+    """
+    Instantiates the applicable configuration migration class for two
+    versions of a persisted configuration and performs a migration.
+
+    :param int source_version: The version to migrate from.
+    :param int target_version: The version to migrate to.
+    :param bytes config: The JSON-encoded source configuration.
+
+    :return bytes: The updated JSON configuration after migration.
+    """
+    migration = (
+        u"_ConfigurationMigration_V%d_V%d"
+        % tuple(sorted([source_version, target_version]))
+    )
+    migration_class = getattr(sys.modules[__name__], migration)
+    if source_version < target_version:
+        return migration_class.up(config)
+    else:
+        return migration_class.down(config)
+
+
+class _IConfigurationMigration(Interface):
+    """
+    A ConfigurationMigration class provides an interface to migrate between
+    two different versions of a persisted cluster configuration.
+
+    A ConfigurationMigration class must follow a particular naming
+    convention of ``_ConfigurationMigration_Vx_Vy`` where x and y represent
+    the pre and post migration version numbers. This is because the persistence
+    service, upon start, performs automatic sequential upgrades from the most
+    recent configuration format detected on storage to the latest version
+    available and looks for the required migration classes according to
+    this convention.
+
+    Example: a class to migrate between version 1 and 2 configuration formats
+    will be called ``_ConfigurationMigration_V1_V2``.
+    """
+    def up(configuration):
         """
-        pass
+        Migrate a Vx source configuration format JSON to a Vy target
+        configuration format and return the updated JSON blob.
+
+        :param bytes configuration: The JSON Vx configuration.
+        """
+
+    def down(configuration):
+        """
+        Migrate a Vy source configuration format JSON to a Vx target
+        configuration format and return the updated JSON blob.
+
+        :param bytes configuration: The JSON Vy configuration.
+        """
+
+
+@implementer(_IConfigurationMigration)
+class _ConfigurationMigration_V0_V1(object):
+    """
+    Migrate between v0 and v1 configurations.
+    v1 adds the ``nodes`` key to a ``Deployment`` configuration.
+    """
+    @classmethod
+    def up(cls, configuration):
+        config_dict = loads(configuration)
+        config_dict[u"nodes"] = []
+        return dumps(config_dict)
+
+    @classmethod
+    def down(cls, configuration):
+        config_dict = loads(configuration)
+        config_dict.pop(u"nodes")
+        return dumps(config_dict)
 
 
 class _ConfigurationEncoder(JSONEncoder):
@@ -90,7 +155,7 @@ def wire_decode(data):
     :param bytes data: Encoded object.
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     """
-    classes = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
+    classes = _CONFIG_CLASS_MAP
 
     def decode_object(dictionary):
         class_name = dictionary.get(_CLASS_MARKER, None)
@@ -107,7 +172,6 @@ def wire_decode(data):
         else:
             return dictionary
     loaded = loads(data, object_hook=decode_object)
-    import pdb;pdb.set_trace()
     return loaded
 
 
@@ -188,39 +252,7 @@ class ConfigurationPersistenceService(MultiService):
     def startService(self):
         if not self._path.exists():
             self._path.makedirs()
-        self._config_version, self._config_path = self._versioned_config()
-        if self._config_version < _CURRENT_VERSION:
-            # We know the file exists at this point - see _versioned_config
-            # Get the unparsed config data.
-            current_config = self._config_path.getContent()
-            # The required version upgrades
-            required_upgrades = range(
-                self._config_version + 1, _CURRENT_VERSION + 1)
-            for new_version in required_upgrades:
-                # convert vX config to vY config where X is
-                # self._config_version and Y is self._config_version + 1
-                migration = (
-                    u"_ConfigurationV%dToV%d"
-                    % (self._config_version, new_version)
-                )
-                migration_class = getattr(sys.modules[__name__], migration)
-                current_config = migration_class(current_config)
-                # increment version and proceed to next upgrade
-                self._config_version = new_version
-                self._config_path = self._path.child(
-                    _VERSIONED_CONFIG_FILE % new_version)
-            # Migrations are complete, write the config file for the
-            # latest version.
-            # XXX current_config must be a Deployment object at this point.
-            self._sync_save(current_config)
-        if self._config_path.exists():
-            self._deployment = wire_decode(
-                self._config_path.getContent())
-        else:
-            # This will always write a configuration file in the
-            # latest version.
-            self._deployment = Deployment(nodes=frozenset())
-            self._sync_save(self._deployment)
+        self.load_configuration()
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
@@ -241,7 +273,7 @@ class ConfigurationPersistenceService(MultiService):
                 version,
                 self._path.child(_VERSIONED_CONFIG_FILE % version)
             )
-            for version in range(_CURRENT_VERSION, 0, -1)
+            for version in range(_CURRENT_VERSION, -1, -1)
         ]
         # Check for each possible versioned config file, from newest
         # to oldest and return the first match.
@@ -254,6 +286,32 @@ class ConfigurationPersistenceService(MultiService):
                 b"current_configuration.v%d.json" % _CURRENT_VERSION
             )
         )
+
+    def load_configuration(self):
+        """
+        Load the persisted configuration, upgrading the configuration format
+        if an older version is detected.
+        """
+        self._config_version, self._config_path = self._versioned_config()
+        if self._config_version < _CURRENT_VERSION:
+            current_config = self._config_path.getContent()
+            required_upgrades = range(
+                self._config_version + 1, _CURRENT_VERSION + 1)
+            for new_version in required_upgrades:
+                current_config = migrate_configuration(
+                    self._config_version, new_version, current_config
+                )
+                self._config_version = new_version
+                self._config_path = self._path.child(
+                    _VERSIONED_CONFIG_FILE % new_version)
+            self._deployment = wire_decode(current_config)
+            self._sync_save(self._deployment)
+        elif self._config_path.exists():
+            self._deployment = wire_decode(
+                self._config_path.getContent())
+        else:
+            self._deployment = Deployment(nodes=frozenset())
+            self._sync_save(self._deployment)
 
     def register(self, change_callback):
         """
