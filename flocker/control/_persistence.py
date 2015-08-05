@@ -256,7 +256,7 @@ class ConfigurationPersistenceService(MultiService):
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
-    def _versioned_config(self, force_latest=False):
+    def _versioned_config(self):
         """
         Sequentially and decrementally check for versioned configuration
         files, from the current version to version 1. Return the file
@@ -282,9 +282,7 @@ class ConfigurationPersistenceService(MultiService):
                 return (version, config_file)
         return (
             _CURRENT_VERSION,
-            self._path.child(
-                b"current_configuration.v%d.json" % _CURRENT_VERSION
-            )
+            self._path.child(_VERSIONED_CONFIG_FILE % _CURRENT_VERSION)
         )
 
     def load_configuration(self):
