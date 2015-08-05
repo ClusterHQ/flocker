@@ -27,12 +27,13 @@ from ...testtools import find_free_port
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
+from ...control import NodeState, Manifestation
 
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
 
 
-def make_clientv1_tests(client_factory, synchronize_state):
+def make_clientv1_tests():
     """
     Create a ``TestCase`` for testing ``IFlockerAPIV1Client``.
 
@@ -40,23 +41,22 @@ def make_clientv1_tests(client_factory, synchronize_state):
     control of this process. So when testing a real client it will be
     talking to a in-process server.
 
-    :param client_factory: 1-argument callable that takes test instance
-        and returns a ``IFlockerAPIV1Client`` provider.
+    The ``TestCase`` should have two 0-argument methods:
 
-    :param synchronize_state: 1-argument callable that takes a client
-        instances and makes or waits for state to match configuration.
+    create_client: Returns a ``IFlockerAPIV1Client`` provider.
+    synchronize_state: Make state match the configuration.
     """
     class InterfaceTests(TestCase):
         def setUp(self):
             self.node_1 = uuid4()
             self.node_2 = uuid4()
+            self.client = self.create_client()
 
         def test_interface(self):
             """
             The created client provides ``IFlockerAPIV1Client``.
             """
-            client = client_factory(self)
-            self.assertTrue(verifyObject(IFlockerAPIV1Client, client))
+            self.assertTrue(verifyObject(IFlockerAPIV1Client, self.client))
 
         def assert_creates(self, client, dataset_id=None, **create_kwargs):
             """
@@ -98,7 +98,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             If no ``dataset_id`` is specified when calling ``create_dataset``,
             a new one is generated.
             """
-            return self.assert_creates(client_factory(self),
+            return self.assert_creates(self.client,
                                        primary=self.node_1,
                                        maximum_size=DATASET_SIZE)
 
@@ -108,7 +108,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             it is used as the ID for the resulting created dataset.
             """
             dataset_id = uuid4()
-            d = self.assert_creates(client_factory(self), primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(lambda dataset: self.assertEqual(dataset.dataset_id,
@@ -120,7 +120,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             The metadata passed to ``create_dataset`` is stored with the
             dataset.
             """
-            d = self.assert_creates(client_factory(self), primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE,
                                     metadata={u"hello": u"there"})
             d.addCallback(lambda dataset: self.assertEqual(
@@ -132,14 +132,13 @@ def make_clientv1_tests(client_factory, synchronize_state):
             Creating two datasets with same ``dataset_id`` results in an
             ``DatasetAlreadyExists``.
             """
-            client = client_factory(self)
-            d = self.assert_creates(client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE)
 
             def got_result(dataset):
-                d = client.create_dataset(primary=self.node_1,
-                                          maximum_size=DATASET_SIZE,
-                                          dataset_id=dataset.dataset_id)
+                d = self.client.create_dataset(primary=self.node_1,
+                                               maximum_size=DATASET_SIZE,
+                                               dataset_id=dataset.dataset_id)
                 return self.assertFailure(d, DatasetAlreadyExists)
             d.addCallback(got_result)
             return d
@@ -148,17 +147,16 @@ def make_clientv1_tests(client_factory, synchronize_state):
             """
             ``move_dataset`` changes the dataset's primary.
             """
-            client = client_factory(self)
             dataset_id = uuid4()
 
-            d = self.assert_creates(client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(
-                lambda _: client.move_dataset(self.node_2, dataset_id))
+                lambda _: self.client.move_dataset(self.node_2, dataset_id))
 
             def got_result(dataset):
-                listed = client.list_datasets_configuration()
+                listed = self.client.list_datasets_configuration()
                 listed.addCallback(lambda l: (dataset, l))
                 return listed
             d.addCallback(got_result)
@@ -177,14 +175,13 @@ def make_clientv1_tests(client_factory, synchronize_state):
             """
             ``list_datasets_state`` returns information about state.
             """
-            client = client_factory(self)
             dataset_id = uuid4()
             expected_path = FilePath(b"/flocker/{}".format(dataset_id))
-            d = self.assert_creates(client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE * 2,
                                     dataset_id=dataset_id)
-            d.addCallback(lambda _: synchronize_state(client))
-            d.addCallback(lambda _: client.list_datasets_state())
+            d.addCallback(lambda _: self.synchronize_state())
+            d.addCallback(lambda _: self.client.list_datasets_state())
             d.addCallback(lambda states:
                           self.assertIn(
                               DatasetState(dataset_id=dataset_id,
@@ -197,17 +194,18 @@ def make_clientv1_tests(client_factory, synchronize_state):
     return InterfaceTests
 
 
-class FakeFlockerClientTests(
-        make_clientv1_tests(lambda test: FakeFlockerClient(),
-                            lambda client: client.synchronize_state())):
+class FakeFlockerClientTests(make_clientv1_tests()):
     """
     Interface tests for ``FakeFlockerClient``.
     """
+    def create_client(self):
+        return FakeFlockerClient()
+
+    def synchronize_state(self):
+        return self.client.synchronize_state()
 
 
-class FlockerClientTests(
-        make_clientv1_tests(lambda test: test.create_client(),
-                            lambda client: client.synchronize_state())):
+class FlockerClientTests(make_clientv1_tests()):
     """
     Interface tests for ``FlockerClient``.
     """
@@ -245,3 +243,16 @@ class FlockerClientTests(
                              credentials_path.child(b"cluster.crt"),
                              credentials_path.child(b"user.crt"),
                              credentials_path.child(b"user.key"))
+
+    def synchronize_state(self):
+        deployment = self.persistence_service.get()
+        node_states = [NodeState(uuid=node.uuid, hostname=unicode(node.uuid),
+                                 manifestations=node.manifestations,
+                                 paths={manifestation.dataset_id:
+                                        FilePath(b"/flocker").child(bytes(
+                                            manifestation.dataset_id))
+                                        for manifestation
+                                        in node.manifestations.values()},
+                                 devices={})
+                       for node in deployment.nodes]
+        self.cluster_state_service.apply_changes(node_states)

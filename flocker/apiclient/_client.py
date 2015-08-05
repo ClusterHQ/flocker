@@ -150,7 +150,6 @@ class FakeFlockerClient(object):
                 maximum_size=dataset.maximum_size,
                 path=FilePath(b"/flocker/{}".format(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
-        return succeed(None)
 
 
 class ResponseError(Exception):
@@ -252,4 +251,19 @@ class FlockerClient(object):
         return request
 
     def list_datasets_state(self):
-        pass
+        request = self._treq.get(
+            self._base_url + b"/state/datasets",
+            persistent=False
+        )
+        request.addCallback(_check_and_decode_json, OK)
+
+        def parse_dataset_state(dataset_dict):
+            return DatasetState(primary=UUID(dataset_dict[u"primary"]),
+                                maximum_size=dataset_dict[u"maximum_size"],
+                                dataset_id=UUID(dataset_dict[u"dataset_id"]),
+                                path=FilePath(dataset_dict[u"path"]))
+
+        request.addCallback(
+            lambda results: [parse_dataset_state(d) for d in results])
+        return request
+
