@@ -100,13 +100,8 @@ def get_ssh_dispatcher(connection, context):
             message_type="flocker.provision.ssh:run",
             command=intent.log_command_filter(intent.command),
         ).write()
-        pre_command = getattr(intent, 'pre_command', None)
-        if pre_command:
-            command = '{}; {}'.format(pre_command, intent.command)
-        else:
-            command = intent.command
         endpoint = SSHCommandClientEndpoint.existingConnection(
-            connection, command)
+            connection, intent.command)
         d = Deferred()
         connectProtocol(endpoint, CommandProtocol(
             deferred=d, context=context))
