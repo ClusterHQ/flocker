@@ -174,7 +174,7 @@ class RunOptions(Options):
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
-        # XXX - remove the remaining flags once Buildbot is updated
+        # XXX - remove the remaining flags once Buildbot is updated (FLOC-2813)
         ['provider', None, None, 'No longer used.'],
         ['config-file', None, None, 'No longer used.'],
     ]
