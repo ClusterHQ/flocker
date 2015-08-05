@@ -241,9 +241,9 @@ def install_cli_commands_ubuntu(distribution, package_source):
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
         # ensure that we start from a good base system with the required
-        # capabilities, particularly that the add-apt-repository command
-        # and HTTPS URLs are supported.
-        # FLOC-1880 will ensure these are necessary and sufficient.
+        # capabilities, particularly that sudo and add-apt-repository
+        # commands are available, and HTTPS URLs are supported.
+        run("which sudo || su root -c 'apt-get -y install sudo'"),
         sudo_from_args(["apt-get", "update"]),
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
