@@ -4,6 +4,7 @@
 A script to export Flocker log files and system information.
 """
 
+from argparse import ArgumentParser
 from gzip import open as gzip_open
 import os
 from platform import dist as platform_dist
@@ -285,6 +286,14 @@ def current_platform():
 
 
 def main():
+    ArgumentParser(
+        description="Export Flocker log files and diagnostic data.",
+        epilog=(
+            "Run this script as root, on an Ubuntu 14.04 or Centos 7 server "
+            "where the clusterhq-flocker-node package has been installed. "
+        )
+    ).parse_args()
+
     try:
         platform = current_platform()
     except UnsupportedDistribution as e:
