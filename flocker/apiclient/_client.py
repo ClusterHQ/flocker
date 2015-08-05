@@ -5,6 +5,7 @@ Client for the Flocker REST API.
 """
 
 from uuid import UUID, uuid4
+from json import dumps
 
 from zope.interface import Interface, implementer
 
@@ -12,6 +13,11 @@ from pyrsistent import PClass, field, pmap_field, pmap
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
+from twisted.web.http import CREATED, OK
+
+from treq import json_content, content
+
+from ..ca import treq_with_authentication
 
 
 class Dataset(PClass):
@@ -145,3 +151,92 @@ class FakeFlockerClient(object):
                 path=FilePath(b"/flocker/{}".format(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
         return succeed(None)
+
+
+class ResponseError(Exception):
+    """
+    An unexpected response from the REST API.
+    """
+    def __init__(self, code, body):
+        Exception.__init__(self, "Unexpected response code {}:\n{}\n".format(
+            code, body))
+        self.code = code
+
+
+def _check_and_decode_json(result, response_code):
+    """
+    Given ``treq`` response object, extract JSON and ensure response code
+    is the expected one.
+
+    :param result: ``treq`` response.
+    :param int response_code: Expected response code.
+
+    :return: ``Deferred`` firing with decoded JSON.
+    """
+    def error(body):
+        raise ResponseError(result.code, body)
+
+    if result.code != response_code:
+        d = content(result)
+        d.addCallback(error)
+        return d
+
+    return json_content(result)
+
+
+@implementer(IFlockerAPIV1Client)
+class FlockerClient(object):
+    """
+    A client for the Flocker V1 REST API.
+    """
+    def __init__(self, reactor, host, port,
+                 ca_cluster_path, cert_path, key_path):
+        self._treq = treq_with_authentication(reactor, ca_cluster_path,
+                                              cert_path, key_path)
+        self._base_url = b"https://{}:{}/v1".format(host, port)
+
+    def _parse_configuration_dataset(self, dataset_dict):
+        """
+        Convert a dictionary decoded from JSON with a dataset's configuration.
+
+        :param dataset_dict: Dictionary describing a dataset.
+        :return: ``Dataset`` instance.
+        """
+        return Dataset(primary=UUID(dataset_dict[u"primary"]),
+                       maximum_size=dataset_dict[u"maximum_size"],
+                       dataset_id=UUID(dataset_dict[u"dataset_id"]),
+                       metadata=dataset_dict[u"metadata"])
+
+    def create_dataset(self, primary, maximum_size, dataset_id=None,
+                       metadata=pmap()):
+        dataset = {u"primary": unicode(primary),
+                   u"maximum_size": maximum_size,
+                   u"metadata": dict(metadata)}
+        if dataset_id is not None:
+            dataset[u"dataset_id"] = unicode(dataset_id)
+        request = self._treq.post(
+            self._base_url + b"/configuration/datasets",
+            data=dumps(dataset),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+        request.addCallback(_check_and_decode_json, CREATED)
+        request.addCallback(self._parse_configuration_dataset)
+        return request
+
+    def move_dataset(self, primary, dataset_id):
+        pass
+
+    def list_datasets_configuration(self):
+        request = self._treq.get(
+            self._base_url + b"/configuration/datasets",
+            persistent=False
+        )
+        request.addCallback(_check_and_decode_json, OK)
+        request.addCallback(
+            lambda results:
+            [self._parse_configuration_dataset(d) for d in results])
+        return request
+
+    def list_datasets_state(self):
+        pass

@@ -14,11 +14,20 @@ from pyrsistent import pmap
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet import reactor
+from twisted.internet.endpoints import TCP4ServerEndpoint
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
-    DatasetState,
+    DatasetState, FlockerClient,
 )
+from ...ca import rest_api_context_factory
+from ...ca.testtools import get_credential_sets
+from ...testtools import find_free_port
+from ...control._persistence import ConfigurationPersistenceService
+from ...control._clusterstate import ClusterStateService
+from ...control.httpapi import create_api_service
+
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
 
@@ -31,8 +40,8 @@ def make_clientv1_tests(client_factory, synchronize_state):
     control of this process. So when testing a real client it will be
     talking to a in-process server.
 
-    :param client_factory: 0-argument callable that returns a
-        ``IFlockerAPIV1Client`` provider.
+    :param client_factory: 1-argument callable that takes test instance
+        and returns a ``IFlockerAPIV1Client`` provider.
 
     :param synchronize_state: 1-argument callable that takes a client
         instances and makes or waits for state to match configuration.
@@ -46,7 +55,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             """
             The created client provides ``IFlockerAPIV1Client``.
             """
-            client = client_factory()
+            client = client_factory(self)
             self.assertTrue(verifyObject(IFlockerAPIV1Client, client))
 
         def assert_creates(self, client, dataset_id=None, **create_kwargs):
@@ -89,7 +98,8 @@ def make_clientv1_tests(client_factory, synchronize_state):
             If no ``dataset_id`` is specified when calling ``create_dataset``,
             a new one is generated.
             """
-            return self.assert_creates(client_factory(), primary=self.node_1,
+            return self.assert_creates(client_factory(self),
+                                       primary=self.node_1,
                                        maximum_size=DATASET_SIZE)
 
         def test_create_given_dataset(self):
@@ -98,7 +108,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             it is used as the ID for the resulting created dataset.
             """
             dataset_id = uuid4()
-            d = self.assert_creates(client_factory(), primary=self.node_1,
+            d = self.assert_creates(client_factory(self), primary=self.node_1,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(lambda dataset: self.assertEqual(dataset.dataset_id,
@@ -110,7 +120,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             The metadata passed to ``create_dataset`` is stored with the
             dataset.
             """
-            d = self.assert_creates(client_factory(), primary=self.node_1,
+            d = self.assert_creates(client_factory(self), primary=self.node_1,
                                     maximum_size=DATASET_SIZE,
                                     metadata={u"hello": u"there"})
             d.addCallback(lambda dataset: self.assertEqual(
@@ -122,7 +132,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             Creating two datasets with same ``dataset_id`` results in an
             ``DatasetAlreadyExists``.
             """
-            client = client_factory()
+            client = client_factory(self)
             d = self.assert_creates(client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE)
 
@@ -138,7 +148,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             """
             ``move_dataset`` changes the dataset's primary.
             """
-            client = client_factory()
+            client = client_factory(self)
             dataset_id = uuid4()
 
             d = self.assert_creates(client, primary=self.node_1,
@@ -167,7 +177,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             """
             ``list_datasets_state`` returns information about state.
             """
-            client = client_factory()
+            client = client_factory(self)
             dataset_id = uuid4()
             expected_path = FilePath(b"/flocker/{}".format(dataset_id))
             d = self.assert_creates(client, primary=self.node_1,
@@ -188,8 +198,50 @@ def make_clientv1_tests(client_factory, synchronize_state):
 
 
 class FakeFlockerClientTests(
-        make_clientv1_tests(FakeFlockerClient,
+        make_clientv1_tests(lambda test: FakeFlockerClient(),
                             lambda client: client.synchronize_state())):
     """
     Interface tests for ``FakeFlockerClient``.
     """
+
+
+class FlockerClientTests(
+        make_clientv1_tests(lambda test: test.create_client(),
+                            lambda client: client.synchronize_state())):
+    """
+    Interface tests for ``FlockerClient``.
+    """
+    def create_client(self):
+        """
+        Create a new ``FlockerClient`` instance pointing at a running control
+        service REST API.
+
+        :return: ``FlockerClient`` instance.
+        """
+        _, port = find_free_port()
+        self.persistence_service = ConfigurationPersistenceService(
+            reactor, FilePath(self.mktemp()))
+        self.persistence_service.startService()
+        self.cluster_state_service = ClusterStateService(reactor)
+        self.cluster_state_service.startService()
+        self.addCleanup(self.cluster_state_service.stopService)
+        self.addCleanup(self.persistence_service.stopService)
+        credential_set, _ = get_credential_sets()
+        credentials_path = FilePath(self.mktemp())
+        credentials_path.makedirs()
+
+        api_service = create_api_service(
+            self.persistence_service,
+            self.cluster_state_service,
+            TCP4ServerEndpoint(reactor, port, interface=b"127.0.0.1"),
+            rest_api_context_factory(
+                credential_set.root.credential.certificate,
+                credential_set.control))
+        api_service.startService()
+        self.addCleanup(api_service.stopService)
+
+        credential_set.copy_to(credentials_path, user=True)
+        return FlockerClient(reactor, b"127.0.0.1", port,
+                             credentials_path.child(b"cluster.crt"),
+                             credentials_path.child(b"user.crt"),
+                             credentials_path.child(b"user.key"))
