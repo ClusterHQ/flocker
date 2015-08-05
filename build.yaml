@@ -93,7 +93,7 @@ common_cli:
 
   run_acceptance_tests: &run_acceptance_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
-    /tmp/v/bin/python admin/run-acceptance-tests --distribution centos-7 --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
+    /tmp/v/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   disable_selinux: &disable_selinux |
     sudo setenforce 0
@@ -105,7 +105,7 @@ common_cli:
     /tmp/v/bin/python setup.py sdist
 
   build_package: &build_package  |
-    /tmp/v/bin/python admin/build-package --destination-path repo --distribution \$DISTRIBUTION_NAME /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    /tmp/v/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   setup_hosting_for_packages: &setup_hosting_for_packages |
       # the acceptance tests look for a package in a yum repository,
@@ -267,9 +267,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.endtoend.test_dataset',
@@ -283,9 +283,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_mongodb',
@@ -299,9 +299,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_postgres',
@@ -315,9 +315,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_cli',
@@ -331,9 +331,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=centos-7',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
@@ -347,9 +347,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_aws_env_vars, *check_version,
                    *build_sdist, *build_package,
-                   'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_hosting_for_packages,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
