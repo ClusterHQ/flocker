@@ -21,11 +21,15 @@ from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
     task_install_cli,
     task_client_installation_test,
+    task_cli_pip_prereqs,
+    task_cli_pip_install,
+    task_cli_pip_test,
 )
 from flocker.provision._ssh import (
     Run, Sudo, Put, Comment, perform_sudo, perform_put)
 
 DOCKER_IMAGES = {
+    'centos-7': 'centos:7',
     'ubuntu-14.04': 'ubuntu:14.04',
     'ubuntu-15.04': 'ubuntu:15.04',
 }
@@ -179,9 +183,13 @@ class RunOptions(Options):
         ['config-file', None, None, 'No longer used.'],
     ]
 
+    optFlags = [
+        ['pip', None, 'Install using pip rather than packages.'],
+    ]
+
     synopsis = ('Usage: run-client-tests --distribution <distribution> '
                 '[--branch <branch>] [--flocker-version <version>] '
-                '[--build-server <url>]')
+                '[--build-server <url>] [--pip]')
 
     def __init__(self, top_level):
         """
@@ -236,10 +244,22 @@ def main(args, base_path, top_level):
 
     distribution = options['distribution']
     package_source = options['package_source']
-    steps = [
-        task_install_cli(distribution, package_source),
-        task_client_installation_test(),
-    ]
+    if options['pip']:
+        virtualenv = 'flocker-client'
+        steps = [
+            task_cli_pip_prereqs(distribution),
+            task_cli_pip_install(virtualenv, package_source),
+            task_cli_pip_test(virtualenv),
+        ]
+    else:
+        if distribution == 'centos-7':
+            raise UsageError(
+                "Distribution %r not supported using packages" % distribution)
+
+        steps = [
+            task_install_cli(distribution, package_source),
+            task_client_installation_test(),
+        ]
     runner = DockerRunner(DOCKER_IMAGES[distribution])
     runner.start()
     try:

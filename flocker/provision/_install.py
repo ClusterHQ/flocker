@@ -325,6 +325,12 @@ def install_cli(package_source, node):
         task_install_cli(node.distribution, package_source))
 
 
+YUM_INSTALL_PREREQ = [
+    'gcc', 'libffi-devel', 'python', 'python-devel', 'python-virtualenv',
+    'openssl-devel'
+]
+
+
 def task_cli_pip_prereqs(distribution):
     """
     Install the pre-requisites for pip installation of the Flocker client.
@@ -333,17 +339,14 @@ def task_cli_pip_prereqs(distribution):
     :return: an Effect to install the pre-requisites.
     """
     if distribution in ('centos-7',):
-        return sudo_from_args([
-            'yum', '-y', 'install',
-            'gcc',
-            'libffi-devel',
-            'python',
-            'python-devel',
-            'python-virtualenv',
-            'openssl-devel',
-            ])
+        # Fedora/CentOS sometimes configured to require tty for sudo
+        # ("sorry, you must have a tty to run sudo"), so avoid using it
+        return run(
+            "su root -c 'yum -y install {}'".format(
+                ' '.join(YUM_INSTALL_PREREQ)))
     elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         return sequence([
+            run("which sudo || su root -c 'apt-get -y install sudo'"),
             sudo_from_args(['apt-get', 'update']),
             sudo_from_args([
                 'apt-get', '-y', 'install',
