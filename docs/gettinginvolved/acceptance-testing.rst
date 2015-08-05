@@ -224,57 +224,6 @@ The nodes should be configured to allow key based SSH connections as user ``root
    admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
 
 
-.. _client-acceptance-tests:
-
-Client Installation Testing
-===========================
-
-Flocker includes client installation tests and a tool for running them in Docker containers.
-It is called like this:
-
-.. prompt:: bash $
-
-   admin/run-client-tests <options>
-
-
-The :program:`admin/run-client-tests` script has several options:
-
-.. program:: admin/run-client-tests
-
-.. option:: --distribution <distribution>
-
-   Specifies the distribution on which to run the installation test.
-
-.. option:: --flocker-version <version>
-
-   Specifies the version of flocker to install.
-   If this isn't specified, the most recent version will be installed.
-   If a branch is also specified, the most recent version from that branch will be installed.
-   If a branch is not specified, the most recent release will be installed.
-
-   .. note::
-
-      The build server merges forward before building packages, except on release branches.
-      If you want to run the client tests against a branch in development,
-      you probably only want to specify the branch.
-
-.. option:: --branch <branch>
-
-   Specifies the branch from which packages are installed.
-   If this isn't specified, packages will be installed from the release repository.
-
-.. option:: --build-server <buildserver>
-
-   Specifies the base URL of the build server to install from.
-   This is probably only useful when testing changes to the build server.
-
-To see the supported values for each option, run:
-
-.. prompt:: bash $
-
-   admin/run-client-tests --help
-
-
 Functional Testing
 ==================
 
