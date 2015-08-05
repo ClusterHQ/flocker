@@ -84,7 +84,7 @@ def make_script_file(dir, effects):
     Create a shell script file from a sequence of effects.
 
     :param bytes dir: The directory in which to create the script.
-    :param Effect effects: An effect which contain the commands,
+    :param Effect effects: An effect which contains the commands,
         typically a Sequence containing multiple commands.
     :return: The base filename of the script.
     """
@@ -98,7 +98,7 @@ def make_script_file(dir, effects):
 
 class DockerRunner:
     """
-    Run commands on Docker.
+    Run commands in a Docker container.
     """
 
     def __init__(self, image):
