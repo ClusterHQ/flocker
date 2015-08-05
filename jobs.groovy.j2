@@ -335,7 +335,9 @@ branches.each {
 {# apply config related to 'cronly_jobs' jobs                                #}
 {%    if job_type == 'cronly_jobs'                                          -%}
 {%        set _job_name = job_name                                          -%}
-  job("${dashProject}/_{{ _job_name }}") {
+{# lets place these jobs inside the 'master' branch folder, as its likely
+   people will be looking into that view when monitoring the master branch   #}
+  job("${dashProject}/master{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers() }}
     {{ triggers('cron', job_values.at) }}
