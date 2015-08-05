@@ -129,6 +129,7 @@ class SystemdServiceManager(object):
         """
         output = check_output(['systemctl', 'list-unit-files', '--no-legend'])
         for line in output.splitlines():
+            line = line.rstrip()
             service_name, service_status = line.split(None, 1)
             yield service_name, service_status
 
@@ -138,7 +139,8 @@ class SystemdServiceManager(object):
         """
         for service_name, service_status in self.all_services():
             if service_name.startswith('flocker-'):
-                yield service_name, service_status
+                if service_status == 'enabled':
+                    yield service_name, service_status
 
 
 class UpstartServiceManager(object):
@@ -172,7 +174,7 @@ class JournaldLogExporter(object):
         ``gzip``.
         """
         check_call(
-            'journalctl --all --output cat --unit {unit} '
+            'journalctl --all --output cat --unit {} '
             '| gzip'.format(service_name),
             stdout=open(target_path + '.gz', 'w'),
             shell=True
