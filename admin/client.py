@@ -81,10 +81,11 @@ class ScriptBuilder(TypeDispatcher):
 
 def make_script_file(dir, effects):
     """
-    Create a shell script file from a set of effects.
+    Create a shell script file from a sequence of effects.
 
-    :param dir: The directory in which to create the script.
-    :param effects: The effects which contain the commands.
+    :param bytes dir: The directory in which to create the script.
+    :param Effect effects: An effect which contain the commands,
+        typically a Sequence containing multiple commands.
     :return: The base filename of the script.
     """
     builder = ScriptBuilder(effects)
@@ -144,10 +145,10 @@ class DockerRunner:
         The output of the commands is sent to the ``out`` file object,
         which must have a ``write`` method.
 
-        :param commands: An Effect containing the commands to run,
+        :param Effect commands: An Effect containing the commands to run,
             probably a Sequence of Effects, one for each command to run.
-        :param out: Where to send command output. A file-like object
-            with a ``write`` method.
+        :param out: Where to send command output. Any object with a
+            ``write`` method.
         :return int: The exit status of the commands.  If all commands
             succeed, this will be zero. If any command fails, this will
             be non-zero.
