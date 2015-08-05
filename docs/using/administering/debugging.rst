@@ -45,35 +45,15 @@ When reporting issues with Flocker please include:
 * Docker info and version,
 * all Flocker log files.
 
-The following scripts can be used to gather this information on Ubuntu and CentOS.
+The following script can be used to gather this information on Ubuntu and CentOS.
 
-Save the appropriate script to a file and then run it as root
+* :download:`flocker-log-export.py`
 
-Ubuntu
-^^^^^^
-
-:download:`flocker-log-export-ubuntu.sh`
-
-.. literalinclude:: flocker-log-export-ubuntu.sh
-   :language: sh
+Save the script to a file and then run it as root
 
 .. prompt:: bash #
 
-   sh flocker-log-export-ubuntu.sh
-
-
-CentOS 7
-^^^^^^^^
-
-:download:`flocker-log-export-centos.sh`
-
-.. literalinclude:: flocker-log-export-centos.sh
-   :language: sh
-
-
-.. prompt:: bash #
-
-   sh flocker-log-export-centos.sh
+   python flocker-log-export.py
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`eliot`: https://github.com/ClusterHQ/eliot
