@@ -189,15 +189,13 @@ class GenericDockerClientTests(TestCase):
         """
         registry_name = random_name(self)
         registry_port = find_free_port()[1]
-
+        repository = '127.0.0.1:{}'.format(registry_port)
+        name = random_name(self).lower()[-(29 - len(repository)):]
         private_image = DockerImage(
             # XXX: See FLOC-246 for followup improvements to
             # ``flocker.control.DockerImage`` to allow parsing of alternative
             # registry hostnames and ports.
-            repository='127.0.0.1:{}/{}'.format(
-                registry_port,
-                random_name(self).lower()
-            )[:30],
+            repository=repository + '/' + name,
             tag='latest'
         )
 
@@ -216,42 +214,33 @@ class GenericDockerClientTests(TestCase):
             lambda ignored: self.request_until_response(registry_port)
         )
 
-        def build_image(ignored):
-            path = FilePath(self.mktemp())
-            path.makedirs()
-            path.child(b"Dockerfile.in").setContent(
-                b"FROM busybox\nCMD /bin/echo {message}\n")
-            builder = DockerImageBuilder(
-                test=self,
-                source_dir=path,
-                cleanup=False
-            )
-            return builder.build(
-                dockerfile_variables=dict(
-                    message=random_name(self)
-                )
-            )
-
-        image_building = registry_listening.addCallback(build_image)
-
-        def push_image(local_image_name):
+        def tag_and_push_image(ignored):
             client = Client()
+            # Tag an image with a repository name matching the locally running
+            # registry container.
             client.tag(
-                image=local_image_name,
+                image='openshift/busybox-http-app',
                 repository=private_image.repository,
                 tag=private_image.tag,
             )
+            # Push to the local registry.
             client.push(
                 repository=private_image.repository,
                 tag=private_image.tag,
             )
-            client.remove_image(
-                image=local_image_name,
-            )
+            # Remove the local tag of the random image
             client.remove_image(
                 image=private_image.full_name,
             )
-        pushing_image = image_building.addCallback(push_image)
+            # And the image will (hopefully) have been downloaded again from
+            # the private registry in the next step, so cleanup that local
+            # image once the test finishes.
+            self.addCleanup(
+                client.remove_image,
+                image=private_image.full_name
+            )
+
+        pushing_image = registry_listening.addCallback(tag_and_push_image)
 
         def start_private_image(ignored):
             return self.start_container(
