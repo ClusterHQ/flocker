@@ -348,7 +348,7 @@ def task_cli_pkg_install(distribution, package_source=PackageSource()):
     return _task_install_commands[distribution](distribution, package_source)
 
 
-APT_INSTALL_PREREQ = [
+PIP_CLI_PREREQ_APT = [
     'gcc',
     'libffi-dev',
     'libssl-dev',
@@ -357,7 +357,7 @@ APT_INSTALL_PREREQ = [
     'python-virtualenv',
 ]
 
-YUM_INSTALL_PREREQ = [
+PIP_CLI_PREREQ_YUM = [
     'gcc',
     'libffi-devel',
     'openssl-devel',
@@ -376,12 +376,12 @@ def task_cli_pip_prereqs(package_manager):
     """
     if package_manager in ('dnf', 'yum'):
         return sudo_from_args(
-            [package_manager, '-y', 'install'] + YUM_INSTALL_PREREQ
+            [package_manager, '-y', 'install'] + PIP_CLI_PREREQ_YUM
         )
     elif package_manager == 'apt':
         return sequence([
             sudo_from_args(['apt-get', 'update']),
-            sudo_from_args(['apt-get', '-y', 'install'] + APT_INSTALL_PREREQ),
+            sudo_from_args(['apt-get', '-y', 'install'] + PIP_CLI_PREREQ_APT),
         ])
     else:
         raise UnsupportedDistribution()
