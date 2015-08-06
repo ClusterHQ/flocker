@@ -216,10 +216,24 @@ class GenericDockerClientTests(TestCase):
             lambda ignored: self.request_until_response(registry_port)
         )
 
-        def push_image(ignored):
+        def build_image(ignored):
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            path.child(b"Dockerfile.in").setContent(
+                b"FROM busybox\nCMD /bin/true\n")
+            builder = DockerImageBuilder(
+                test=self,
+                source_dir=path,
+                cleanup=False
+            )
+            return builder.build()
+
+        image_building = registry_listening.addCallback(build_image)
+
+        def push_image(local_image_name):
             client = Client()
             client.tag(
-                image='busybox',
+                image=local_image_name,
                 repository=private_image.repository,
                 tag=private_image.tag,
             )
@@ -228,9 +242,12 @@ class GenericDockerClientTests(TestCase):
                 tag=private_image.tag,
             )
             client.remove_image(
+                image=local_image_name,
+            )
+            client.remove_image(
                 image=private_image.full_name,
             )
-        pushing_image = registry_listening.addBoth(push_image)
+        pushing_image = image_building.addBoth(push_image)
 
         def start_private_image(ignored):
             return self.start_container(
