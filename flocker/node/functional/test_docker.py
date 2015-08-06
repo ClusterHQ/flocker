@@ -175,13 +175,8 @@ class GenericDockerClientTests(TestCase):
         ``DockerClient.add`` can start containers based on an image from a
         private registry.
         """
-        address_user = socket.socket()
-        self.addCleanup(address_user.close)
-        address_user.bind(('', 0))
-        used_address = address_user.getsockname()
-        address_user.close()
         registry_name = random_name(self)
-        registry_port = used_address[1]
+        registry_port = find_free_port()
         registry_starting = self.start_container(
             unit_name=registry_name,
             image_name='registry:2',
