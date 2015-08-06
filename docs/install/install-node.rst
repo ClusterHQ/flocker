@@ -189,4 +189,4 @@ Please continue onto the next section, with the cluster authentication instructi
 Next Step
 =========
 
-In the next step :ref:`the node control and agent services will be configured and started.<post-installation-configuration>`.
+In the next step :ref:`the node control and agent services will be configured and started<post-installation-configuration>`.

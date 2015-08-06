@@ -27,80 +27,83 @@ The following sections describe how to install the Flocker client on your platfo
    :backlinks: none
    :depth: 2
 
-.. _installing-flocker-cli-ubuntu-15.04:
+.. _installing-flocker-cli-ubuntu:
 
-Ubuntu 15.04
-============
+Linux
+=====
 
-On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
+.. tabs::
 
-.. task:: install_cli ubuntu-15.04
-   :prompt: alice@mercury:~$
+  Ubuntu 15.04
+  ------------
 
-.. _installing-flocker-cli-ubuntu-14.04:
+  On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
-Ubuntu 14.04
-============
+  .. task:: install_cli ubuntu-15.04
+     :prompt: alice@mercury:~$
 
-On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
+  Ubuntu 14.04
+  ------------
 
-.. task:: install_cli ubuntu-14.04
-   :prompt: alice@mercury:~$
+  On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
-Other Linux Distributions
-=========================
+  .. task:: install_cli ubuntu-14.04
+     :prompt: alice@mercury:~$
 
-.. warning::
+  Other Linux Distributions
+  -------------------------
 
-   These are guidelines for installing Flocker on a Linux distribution which we do not provide native packages for.
-   These guidelines may require some tweaks, depending on the details of the Linux distribution in use.
+  .. warning::
 
-Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
+     These are guidelines for installing Flocker on a Linux distribution which we do not provide native packages for.
+     These guidelines may require some tweaks, depending on the details of the Linux distribution in use.
 
-To install these with the ``yum`` package manager, run:
+  Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 
-.. prompt:: bash alice@mercury:~$
+  To install these with the ``yum`` package manager, run:
 
-   sudo yum install gcc python python-devel python-virtualenv libffi-devel openssl-devel
+  .. prompt:: bash alice@mercury:~$
 
-To install these with ``apt``, run:
+     sudo yum install gcc python python-devel python-virtualenv libffi-devel openssl-devel
 
-.. prompt:: bash alice@mercury:~$
+  To install these with ``apt``, run:
 
-   sudo apt-get update
-   sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
+  .. prompt:: bash alice@mercury:~$
 
-Then run the following script to install ``flocker-cli``:
+     sudo apt-get update
+     sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
 
-:version-download:`linux-install.sh.template`
+  Then run the following script to install ``flocker-cli``:
 
-.. version-literalinclude:: linux-install.sh.template
-   :language: sh
+  :version-download:`linux-install.sh.template`
 
-Save the script to a file and then run it:
+  .. version-literalinclude:: linux-install.sh.template
+     :language: sh
 
-.. prompt:: bash alice@mercury:~$
+  Save the script to a file and then run it:
 
-   sh linux-install.sh
+  .. prompt:: bash alice@mercury:~$
 
-The ``flocker-deploy`` command line program will now be available in :file:`flocker-tutorial/bin/`:
+     sh linux-install.sh
 
-.. version-code-block:: console
+  The ``flocker-deploy`` command line program will now be available in :file:`flocker-tutorial/bin/`:
 
-   alice@mercury:~$ cd flocker-tutorial
-   alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   |latest-installable|
-   alice@mercury:~/flocker-tutorial$
+  .. version-code-block:: console
 
-If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
-You'll need to do this every time you start a new shell.
+     alice@mercury:~$ cd flocker-tutorial
+     alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
+     |latest-installable|
+     alice@mercury:~/flocker-tutorial$
 
-.. version-code-block:: console
+  If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
+  You'll need to do this every time you start a new shell.
 
-   alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
-   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   |latest-installable|
-   alice@mercury:~/flocker-tutorial$
+  .. version-code-block:: console
+
+     alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
+     alice@mercury:~/flocker-tutorial$ flocker-deploy --version
+     |latest-installable|
+     alice@mercury:~/flocker-tutorial$
 
 OS X
 ====
