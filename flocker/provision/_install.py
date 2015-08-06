@@ -333,20 +333,20 @@ YUM_INSTALL_PREREQ = [
 ]
 
 
-def task_cli_pip_prereqs(distribution):
+def task_cli_pip_prereqs(package_manager):
     """
     Install the pre-requisites for pip installation of the Flocker client.
 
-    :param bytes distribution: The distribution name.
+    :param bytes package_manager: The package manager (apt, dnf, yum).
     :return: an Effect to install the pre-requisites.
     """
-    if distribution in ('centos-7',):
+    if package_manager in ('dnf', 'yum'):
         # Fedora/CentOS sometimes configured to require tty for sudo
         # ("sorry, you must have a tty to run sudo"), so avoid using it
         command = " ".join(
             map(shell_quote, ['yum', '-y', 'install'] + YUM_INSTALL_PREREQ))
         return run_from_args(['su', 'root', '-c', command])
-    elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
+    elif package_manager == 'apt':
         return sequence([
             run("which sudo || su root -c 'apt-get -y install sudo'"),
             sudo_from_args(['apt-get', 'update']),

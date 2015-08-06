@@ -9,6 +9,7 @@ import sys
 import tempfile
 import yaml
 
+from characteristic import attributes
 import docker
 from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
@@ -28,13 +29,21 @@ from flocker.provision._install import (
 from flocker.provision._ssh import (
     Run, Sudo, Put, Comment, perform_sudo, perform_put)
 
+
+@attributes(['image', 'package_manager'])
+class DockerImage(object):
+    """Holder for Docker image information."""
+
 DOCKER_IMAGES = {
-    'centos-7': 'centos:7',
-    'ubuntu-14.04': 'ubuntu:14.04',
-    'ubuntu-15.04': 'ubuntu:15.04',
+    'centos-7': DockerImage(image='centos:7', package_manager='yum'),
+    'debian-8': DockerImage(image='debian:8', package_manager='apt'),
+    'fedora-22': DockerImage(image='fedora:22', package_manager='dnf'),
+    'ubuntu-14.04': DockerImage(image='ubuntu:14.04', package_manager='apt'),
+    'ubuntu-15.04': DockerImage(image='ubuntu:15.04', package_manager='apt'),
 }
 
-DISTRIBUTIONS = DOCKER_IMAGES.keys()
+PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
+PKG_DISTRIBUTIONS = ['ubuntu-14.04', 'ubuntu-15.04']
 
 
 class ScriptBuilder(TypeDispatcher):
@@ -172,7 +181,8 @@ class RunOptions(Options):
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
-         'One of {}.'.format(', '.join(DISTRIBUTIONS))],
+         'One of {}.  For --pip, one of {}'.format(
+            ', '.join(PKG_DISTRIBUTIONS), ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
@@ -223,10 +233,14 @@ class RunOptions(Options):
             build_server=self['build-server'],
         )
 
-        if self['distribution'] not in DISTRIBUTIONS:
+        if self['pip']:
+            supported = PIP_DISTRIBUTIONS
+        else:
+            supported = PKG_DISTRIBUTIONS
+        if self['distribution'] not in supported:
             raise UsageError(
                 "Distribution %r not supported. Available distributions: %s"
-                % (self['distribution'], ', '.join(DISTRIBUTIONS)))
+                % (self['distribution'], ', '.join(supported)))
 
 
 def main(args, base_path, top_level):
@@ -247,7 +261,7 @@ def main(args, base_path, top_level):
     if options['pip']:
         virtualenv = 'flocker-client'
         steps = [
-            task_cli_pip_prereqs(distribution),
+            task_cli_pip_prereqs(DOCKER_IMAGES[distribution].package_manager),
             task_cli_pip_install(virtualenv, package_source),
             task_cli_pip_test(virtualenv),
         ]
@@ -260,7 +274,7 @@ def main(args, base_path, top_level):
             task_cli_pkg_install(distribution, package_source),
             task_cli_pkg_test(),
         ]
-    runner = DockerRunner(DOCKER_IMAGES[distribution])
+    runner = DockerRunner(DOCKER_IMAGES[distribution].image)
     runner.start()
     try:
         for commands in steps:
