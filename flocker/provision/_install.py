@@ -151,6 +151,9 @@ def ensure_minimal_setup(package_manager):
 
     Although we could publish these commands in the docs, they add a lot
     of noise for many users.  Ensure that systems have sudo enabled.
+
+    :param bytes package_manager: The package manager (apt, dnf, yum).
+    :return: a sequence of commands to run on the distribution
     """
     if package_manager in ('dnf', 'yum'):
         # Fedora/CentOS sometimes configured to require tty for sudo
