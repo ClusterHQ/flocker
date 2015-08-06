@@ -174,6 +174,16 @@ class GenericDockerClientTests(TestCase):
         """
         ``DockerClient.add`` can start containers based on an image from a
         private registry.
+
+        A private registry is started in a container according to the
+        instructions at:
+         * https://docs.docker.com/registry/deploying/
+
+        An image is pushed to that private registry and then a Flocker
+        application is started that uses that private repository image name.
+
+        Docker can pull from a private registry without any TLS configuration
+        as long as it's running on the local host.
         """
         registry_name = random_name(self)
         registry_port = find_free_port()
