@@ -247,7 +247,7 @@ class GenericDockerClientTests(TestCase):
             client.remove_image(
                 image=private_image.full_name,
             )
-        pushing_image = image_building.addBoth(push_image)
+        pushing_image = image_building.addCallback(push_image)
 
         def start_private_image(ignored):
             return self.start_container(
