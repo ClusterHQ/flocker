@@ -197,8 +197,8 @@ class GenericDockerClientTests(TestCase):
             repository='127.0.0.1:{}/{}'.format(
                 registry_port,
                 random_name(self).lower()
-            ),
-            tag=random_name(self).lower()
+            )[:30],
+            tag='latest'
         )
 
         registry_starting = self.start_container(
