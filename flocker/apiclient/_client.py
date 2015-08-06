@@ -162,31 +162,6 @@ class ResponseError(Exception):
         self.code = code
 
 
-def _check_and_decode_json(result, response_code, error_codes={}):
-    """
-    Given ``treq`` response object, extract JSON and ensure response code
-    is the expected one.
-
-    :param result: ``treq`` response.
-    :param int response_code: Expected response code.
-    :param error_codes: Mapping from HTTP response code to exception to be
-        raised if it is present.
-
-    :return: ``Deferred`` firing with decoded JSON.
-    """
-    def error(body):
-        if result.code in error_codes:
-            raise error_codes[result.code](body)
-        raise ResponseError(result.code, body)
-
-    if result.code != response_code:
-        d = content(result)
-        d.addCallback(error)
-        return d
-
-    return json_content(result)
-
-
 @implementer(IFlockerAPIV1Client)
 class FlockerClient(object):
     """
@@ -197,6 +172,47 @@ class FlockerClient(object):
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
         self._base_url = b"https://{}:{}/v1".format(host, port)
+
+    def _request(self, method, path, body, success_code, error_codes={}):
+        """
+        Send a HTTP request to the Flocker API, return decoded JSON body.
+
+        :param bytes method: HTTP method, e.g. PUT.
+        :param bytes path: Path to add to base URL.
+        :param body: If not ``None``, JSON encode this and send as the
+            body of the request.
+        :param int success_code: Expected success response code.
+        :param error_codes: Mapping from HTTP response code to exception to be
+            raised if it is present.
+
+        :return: ``Deferred`` firing with decoded JSON.
+        """
+        def error(body, code):
+            if code in error_codes:
+                raise error_codes[code](body)
+            raise ResponseError(code, body)
+
+        def got_result(result):
+            if result.code == success_code:
+                return json_content(result)
+            else:
+                d = content(result)
+                d.addCallback(error, result.code)
+                return d
+
+        headers = None
+        data = None
+        if body is not None:
+            headers = {b"content-type": b"application/json"}
+            data = dumps(body)
+        request = self._treq.request(
+            method, self._base_url + path,
+            data=data, headers=headers,
+            # Keep tests from having dirty reactor problems:
+            persistent=False
+        )
+        request.addCallback(got_result)
+        return request
 
     def _parse_configuration_dataset(self, dataset_dict):
         """
@@ -217,45 +233,29 @@ class FlockerClient(object):
                    u"metadata": dict(metadata)}
         if dataset_id is not None:
             dataset[u"dataset_id"] = unicode(dataset_id)
-        request = self._treq.post(
-            self._base_url + b"/configuration/datasets",
-            data=dumps(dataset),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-        request.addCallback(_check_and_decode_json, CREATED,
-                            {CONFLICT: DatasetAlreadyExists})
+
+        request = self._request(b"POST", b"/configuration/datasets",
+                                dataset, CREATED,
+                                {CONFLICT: DatasetAlreadyExists})
         request.addCallback(self._parse_configuration_dataset)
         return request
 
     def move_dataset(self, primary, dataset_id):
-        request = self._treq.post(
-            self._base_url + b"/configuration/datasets/{}".format(dataset_id),
-            data=dumps({u"primary": unicode(primary)}),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-        request.addCallback(_check_and_decode_json, OK),
+        request = self._request(
+            b"POST", b"/configuration/datasets/{}".format(dataset_id),
+            {u"primary": unicode(primary)}, OK)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
     def list_datasets_configuration(self):
-        request = self._treq.get(
-            self._base_url + b"/configuration/datasets",
-            persistent=False
-        )
-        request.addCallback(_check_and_decode_json, OK)
+        request = self._request(b"GET", b"/configuration/datasets", None, OK)
         request.addCallback(
             lambda results:
             [self._parse_configuration_dataset(d) for d in results])
         return request
 
     def list_datasets_state(self):
-        request = self._treq.get(
-            self._base_url + b"/state/datasets",
-            persistent=False
-        )
-        request.addCallback(_check_and_decode_json, OK)
+        request = self._request(b"GET", b"/state/datasets", None, OK)
 
         def parse_dataset_state(dataset_dict):
             return DatasetState(primary=UUID(dataset_dict[u"primary"]),
