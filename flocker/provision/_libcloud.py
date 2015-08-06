@@ -174,7 +174,7 @@ class LibcloudProvisioner(object):
 
     def get_ssh_key(self):
         """
-        Return the public key assoicated with the provided keyname.
+        Return the public key associated with the provided keyname.
 
         :return Key: The ssh public key or ``None`` if it can't be determined.
         """

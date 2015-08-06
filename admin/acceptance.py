@@ -160,7 +160,7 @@ class IClusterRunner(Interface):
 
         :param reactor: Reactor to use.
         :return Deferred: That fires with a succesful result if the key is
-            found.  Otherwise, fires with ``AgentNotFound`` or ``KeyNotFound``.
+            found.  Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
         """
 
 

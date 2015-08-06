@@ -45,7 +45,7 @@ def ensure_agent_has_ssh_key(reactor, key):
     :param Key key: The ssh key to check for in the agent.
 
     :return Deferred: That fires with a successful result if the key is found.
-       Otherwise, fires with ``AgentNotFound`` or ``KeyNotFound``.
+       Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
     """
     try:
         agent_socket = os.environ["SSH_AUTH_SOCK"]
