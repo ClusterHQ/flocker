@@ -189,6 +189,18 @@ class GenericDockerClientTests(TestCase):
         """
         registry_name = random_name(self)
         registry_port = find_free_port()[1]
+
+        private_image = DockerImage(
+            # XXX: See FLOC-246 for followup improvements to
+            # ``flocker.control.DockerImage`` to allow parsing of alternative
+            # registry hostnames and ports.
+            repository='127.0.0.1:{}/{}'.format(
+                registry_port,
+                random_name(self).lower()
+            ),
+            tag=random_name(self).lower()
+        )
+
         registry_starting = self.start_container(
             unit_name=registry_name,
             image_name='registry:2',
@@ -199,37 +211,31 @@ class GenericDockerClientTests(TestCase):
                 ),
             ]
         )
-        private_image = DockerImage(
-            # XXX: See FLOC-246 for followup improvements to
-            # ``flocker.control.DockerImage`` to allow parsing of alternative
-            # registry hostnames and ports.
-            repository='127.0.0.1:{}/{}'.format(
-                registry_port,
-                random_name()
-            ),
-            tag=random_name(self)
+
+        registry_listening = registry_starting.addCallback(
+            lambda ignored: self.request_until_response(registry_port)
         )
 
-        def push_image(client):
-            client._client.tag(
+        def push_image(ignored):
+            client = Client()
+            client.tag(
                 image='busybox',
                 repository=private_image.repository,
                 tag=private_image.tag,
             )
-            client._client.push(
+            client.push(
                 repository=private_image.repository,
                 tag=private_image.tag,
             )
-            client._client.remove_image(
-                image=private_image.full_name(),
+            client.remove_image(
+                image=private_image.full_name,
             )
-            return client
-        pushing_image = registry_starting.addBoth(push_image)
+        pushing_image = registry_listening.addBoth(push_image)
 
-        def start_private_image(client):
+        def start_private_image(ignored):
             return self.start_container(
                 unit_name=random_name(self),
-                image_name=private_image.full_name(),
+                image_name=private_image.full_name,
             )
         starting_private_image = pushing_image.addCallback(
             start_private_image
