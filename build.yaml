@@ -165,18 +165,18 @@ common_cli:
     # and build a rpm/deb package using docker
     parse_logs /tmp/v/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
-  setup_hosting_for_packages: &setup_hosting_for_packages |
-      # the acceptance tests look for a package in a yum repository,
-      # we provide one by starting a webserver and pointing the tests
-      # to look over there
-      sudo yum install -y nginx
-      sudo service nginx start
-      sudo rm -rf /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-      sudo mkdir -p /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-      sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-      cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-      sudo createrepo .
-      cd -
+  build_repo_metadata: &build_repo_metadata |
+    # the acceptance tests look for a package in a yum repository,
+    # we provide one by starting a webserver and pointing the tests
+    # to look over there
+    sudo rm -rf /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    sudo mkdir -p /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    # create a repo on either centos or ubuntu
+    test -e /home/ubuntu && sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+    test -e /home/centos && sudo createrepo .
+    cd -
 
   clean_packages: &clean_packages |
     # jenkins is unable to clean the git repository as some files are owned
@@ -328,13 +328,14 @@ job_type:
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages,
+                   *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.endtoend.test_dataset',
                    *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
     run_acceptance_integration_mongodb_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
@@ -344,13 +345,14 @@ job_type:
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages,
+                   *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_mongodb',
                    *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
     run_acceptance_integration_postgres_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
@@ -360,13 +362,14 @@ job_type:
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages,
+                   *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_postgres',
                    *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
     run_acceptance_obsolete_cli_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
@@ -376,13 +379,14 @@ job_type:
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages,
+                   *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_cli',
                    *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
     run_acceptance_obsolete_containers_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_steps:
@@ -392,13 +396,82 @@ job_type:
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version, *disable_selinux,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages,
+                   *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
                    *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
+    run_acceptance_end_to_end_dataset_on_AWS_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.endtoend.test_dataset',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+    run_acceptance_integration_mongodb_on_AWS_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_mongodb',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+    run_acceptance_integration_postgres_on_AWS_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.integration.test_postgres',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+    run_acceptance_obsolete_cli_on_AWS_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_cli',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
     run_acceptance_obsolete_containers_on_AWS_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
       with_steps:
@@ -408,13 +481,14 @@ job_type:
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_aws_env_vars, *check_version,
                    *build_sdist, *build_package,
-                   *setup_hosting_for_packages,
+                   *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance.obsolete.test_containers',
                    *run_acceptance_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
 
   cronly_jobs:
     run_docker_build_centos7_fpm:

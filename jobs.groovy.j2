@@ -8,7 +8,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {#
 
 #}
-{% macro wrappers()                                                         -%}
+
+{% macro wrappers(v, repo_dir)                                              -%}
 {# adds a list of common wrappers to the build jobs                          #}
     wrappers {
       timestamps()
@@ -17,6 +18,13 @@ folder("{{folder}}") { displayName("{{display_name}}") }
           absolute(30)
           failBuild()
       }
+{% if v.clean_repo %}
+      preScmSteps {
+          steps {
+          shell("sudo rm -rf {{ repo_dir }}")
+          }
+      }
+{% endif %}
     }
 {%- endmacro                                                                -%}
 {#
@@ -171,7 +179,7 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers() }}
+    {{ wrappers(job_values) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -187,7 +195,7 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers() }}
+    {{ wrappers(job_values) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -201,7 +209,9 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers() }}
+
+{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+    {{ wrappers(job_values, repo_dir) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -212,7 +222,7 @@ branches.each {
 {%        set _job_name = job_name                                          -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers() }}
+    {{ wrappers(job_values) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
