@@ -220,13 +220,17 @@ class GenericDockerClientTests(TestCase):
             path = FilePath(self.mktemp())
             path.makedirs()
             path.child(b"Dockerfile.in").setContent(
-                b"FROM busybox\nCMD /bin/true\n")
+                b"FROM busybox\nCMD /bin/echo {message}\n")
             builder = DockerImageBuilder(
                 test=self,
                 source_dir=path,
                 cleanup=False
             )
-            return builder.build()
+            return builder.build(
+                dockerfile_variables=dict(
+                    message=random_name(self)
+                )
+            )
 
         image_building = registry_listening.addCallback(build_image)
 
