@@ -188,7 +188,7 @@ class GenericDockerClientTests(TestCase):
         as long as it's running on the local host.
         """
         registry_name = random_name(self)
-        registry_port = find_free_port()
+        registry_port = find_free_port()[1]
         registry_starting = self.start_container(
             unit_name=registry_name,
             image_name='registry:2',
