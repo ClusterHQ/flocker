@@ -16,10 +16,11 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.web.http import BAD_REQUEST
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
-    DatasetState, FlockerClient,
+    DatasetState, FlockerClient, ResponseError,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -27,7 +28,7 @@ from ...testtools import find_free_port
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
-from ...control import NodeState, Manifestation
+from ...control import NodeState
 
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -256,3 +257,14 @@ class FlockerClientTests(make_clientv1_tests()):
                                  devices={})
                        for node in deployment.nodes]
         self.cluster_state_service.apply_changes(node_states)
+
+    def test_unexpected_error(self):
+        """
+        If the ``FlockerClient`` receives an unexpected HTTP response code it
+        returns a ``ResponseError`` failure.
+        """
+        d = self.client.create_dataset(
+            primary=self.node_1, maximum_size=u"notint")
+        self.assertFailure(d, ResponseError)
+        d.addCallback(lambda exc: self.assertEqual(exc.code, BAD_REQUEST))
+        return d
