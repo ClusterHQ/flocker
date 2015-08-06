@@ -190,7 +190,7 @@ class GenericDockerClientTests(TestCase):
         registry_name = random_name(self)
         registry_port = find_free_port()[1]
         repository = '127.0.0.1:{}'.format(registry_port)
-        name = random_name(self).lower()[-(29 - len(repository)):]
+        name = random_name(self).lower()
         private_image = DockerImage(
             # XXX: See FLOC-246 for followup improvements to
             # ``flocker.control.DockerImage`` to allow parsing of alternative
