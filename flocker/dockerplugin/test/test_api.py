@@ -138,7 +138,7 @@ class APITestsMixin(APIAssertionsMixin):
             dataset_id=dataset_id)
 
         # After two polling intervals the dataset arrives as state:
-        reactor.callLater(VolumePlugin._POLL_INTERNVAL,
+        reactor.callLater(VolumePlugin._POLL_INTERVAL,
                           self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
@@ -151,6 +151,29 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(lambda ds: self.assertEqual(
             [self.NODE_A], [d.primary for d in ds
                             if d.dataset_id == dataset_id]))
+        return d
+
+    def test_path(self):
+        """
+        ``/VolumeDriver.Path`` returns the mount path of the given volume.
+        """
+        name = u"myvol"
+        dataset_id = UUID(dataset_id_from_name(name))
+
+        d = self.create(name)
+        # After two polling intervals the dataset arrives as state:
+        reactor.callLater(VolumePlugin._POLL_INTERVAL,
+                          self.flocker_client.synchronize_state)
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/VolumeDriver.Mount", {u"Name": name}, OK))
+
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Path",
+                          {u"Name": name}, OK,
+                          {u"Err": None,
+                           u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         return d
 
 

@@ -66,7 +66,7 @@ class VolumePlugin(object):
     can't be sure they won't change things in minor ways. We do validate
     outputs to ensure we output the documented requirements.
     """
-    _POLL_INTERNVAL = 0.05
+    _POLL_INTERVAL = 0.05
 
     app = Klein()
 
@@ -162,6 +162,35 @@ class VolumePlugin(object):
         creating.addCallback(lambda _: {u"Err": None})
         return creating
 
+    def _path_response(self, name):
+        """
+        Wait until a dataset has been mounted and then return its path.
+
+        :param unicode name: The name of the volume.
+
+        :return: Result that includes the mountpoint.
+        """
+        # If we ever get rid of dataset_id hashing hack we'll need to
+        # lookup the dataset by its metadata, not its id.
+        def get_state():
+            dataset_id = UUID(dataset_id_from_name(name))
+            d = self._flocker_client.list_datasets_state()
+
+            def got_state(datasets):
+                datasets = [dataset for dataset in datasets
+                            if dataset.dataset_id == dataset_id]
+                if datasets and datasets[0].primary == self._node_id:
+                    return datasets[0].path
+                return deferLater(
+                    self._reactor, self._POLL_INTERVAL, get_state)
+            d.addCallback(got_state)
+            return d
+
+        result = get_state()
+        result.addCallback(lambda path: {u"Err": None,
+                                         u"Mountpoint": path.path})
+        return result
+
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")
     def volumedriver_mount(self, Name):
@@ -173,24 +202,21 @@ class VolumePlugin(object):
 
         :param unicode Name: The name of the volume.
 
-        :return: Result indicating success.
+        :return: Result that includes the mountpoint.
         """
         dataset_id = UUID(dataset_id_from_name(Name))
         d = self._flocker_client.move_dataset(self._node_id, dataset_id)
-
-        def get_state():
-            d = self._flocker_client.list_datasets_state()
-
-            def got_state(datasets):
-                datasets = [dataset for dataset in datasets
-                            if dataset.dataset_id == dataset_id]
-                if datasets and datasets[0].primary == self._node_id:
-                    return datasets[0].path
-                return deferLater(
-                    self._reactor, self._POLL_INTERNVAL, get_state)
-            d.addCallback(got_state)
-            return d
-        d.addCallback(lambda _: get_state())
-        d.addCallback(lambda path: {u"Err": None,
-                                    u"Mountpoint": path.path})
+        d.addCallback(lambda _: self._path_response(Name))
         return d
+
+    @app.route("/VolumeDriver.Path", methods=["POST"])
+    @_endpoint(u"Path")
+    def volumedriver_path(self, Name):
+        """
+        Wait until the dataset is mounted locally, then return its path.
+
+        :param unicode Name: The name of the volume.
+
+        :return: Result indicating success.
+        """
+        return self._path_response(Name)
