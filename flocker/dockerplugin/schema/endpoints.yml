@@ -45,3 +45,15 @@ definitions:
     required:
       - "Err"
     additionalProperties: false
+
+  Mount:
+    description: "Mount response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+      Mountpoint:
+        type: string
+    required:
+      - "Err"
+    additionalProperties: false

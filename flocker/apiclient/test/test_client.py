@@ -13,6 +13,7 @@ from zope.interface.verify import verifyObject
 from pyrsistent import pmap
 
 from twisted.trial.unittest import TestCase
+from twisted.python.filepath import FilePath
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
@@ -168,6 +169,7 @@ def make_clientv1_tests(client_factory, synchronize_state):
             """
             client = client_factory()
             dataset_id = uuid4()
+            expected_path = FilePath(b"/flocker/{}".format(dataset_id))
             d = self.assert_creates(client, primary=self.node_1,
                                     maximum_size=DATASET_SIZE * 2,
                                     dataset_id=dataset_id)
@@ -177,7 +179,8 @@ def make_clientv1_tests(client_factory, synchronize_state):
                           self.assertIn(
                               DatasetState(dataset_id=dataset_id,
                                            primary=self.node_1,
-                                           maximum_size=DATASET_SIZE * 2),
+                                           maximum_size=DATASET_SIZE * 2,
+                                           path=expected_path),
                               states))
             return d
 
