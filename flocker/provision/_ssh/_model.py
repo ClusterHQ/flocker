@@ -1,3 +1,4 @@
+from collections import MutableSequence
 from pipes import quote as shell_quote
 from pyrsistent import PRecord, field
 from effect import Effect, sync_performer
@@ -45,7 +46,7 @@ def run_remotely(
         log_command_filter=log_command_filter))
 
 
-def _escape_args(seq):
+def _shell_join(seq):
     """
     Convert a nested list of strings to a shell command.
 
@@ -59,8 +60,8 @@ def _escape_args(seq):
     """
     result = []
     for word in seq:
-        if hasattr(word, 'append'):
-            word = _escape_args(word)
+        if isinstance(word, (tuple, MutableSequence)):
+            word = _shell_join(word)
         escaped = shell_quote(word)
         result.append(escaped)
     return ' '.join(result)
@@ -80,7 +81,7 @@ class Run(PRecord):
     @classmethod
     def from_args(cls, command_args, log_command_filter=identity):
         return cls(
-            command=_escape_args(command_args),
+            command=_shell_join(command_args),
             log_command_filter=log_command_filter)
 
 
@@ -98,7 +99,7 @@ class Sudo(PRecord):
     @classmethod
     def from_args(cls, command_args, log_command_filter=identity):
         return cls(
-            command=_escape_args(command_args),
+            command=_shell_join(command_args),
             log_command_filter=log_command_filter)
 
 
