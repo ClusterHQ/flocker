@@ -6,6 +6,7 @@ Install flocker on a remote node.
 """
 
 import posixpath
+from pipes import quote as shell_quote
 from textwrap import dedent
 from urlparse import urljoin, urlparse
 from effect import Func, Effect
@@ -342,9 +343,9 @@ def task_cli_pip_prereqs(distribution):
     if distribution in ('centos-7',):
         # Fedora/CentOS sometimes configured to require tty for sudo
         # ("sorry, you must have a tty to run sudo"), so avoid using it
-        return run(
-            "su root -c 'yum -y install {}'".format(
-                ' '.join(YUM_INSTALL_PREREQ)))
+        command = " ".join(
+            map(shell_quote, ['yum', '-y', 'install'] + YUM_INSTALL_PREREQ))
+        return run_from_args(['su', 'root', '-c', command])
     elif distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         return sequence([
             run("which sudo || su root -c 'apt-get -y install sudo'"),
