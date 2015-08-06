@@ -35,7 +35,9 @@ from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse,
 )
-from ...control._model import RestartNever, RestartAlways, RestartOnFailure
+from ...control import (
+    RestartNever, RestartAlways, RestartOnFailure, DockerImage
+)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -197,23 +199,29 @@ class GenericDockerClientTests(TestCase):
                 ),
             ]
         )
-        repository = '127.0.0.1:{}/clusterhq/testimage'.format(
-            registry_port
+        private_image = DockerImage(
+            # XXX: See FLOC-246 for followup improvements to
+            # ``flocker.control.DockerImage`` to allow parsing of alternative
+            # registry hostnames and ports.
+            repository='127.0.0.1:{}/{}'.format(
+                registry_port,
+                random_name()
+            ),
+            tag=random_name(self)
         )
-        tag = '123'
 
         def push_image(client):
             client._client.tag(
                 image='busybox',
-                repository=repository,
-                tag=tag,
+                repository=private_image.repository,
+                tag=private_image.tag,
             )
             client._client.push(
-                repository=repository,
-                tag=tag,
+                repository=private_image.repository,
+                tag=private_image.tag,
             )
             client._client.remove_image(
-                image=repository + ':' + tag,
+                image=private_image.full_name(),
             )
             return client
         pushing_image = registry_starting.addBoth(push_image)
@@ -221,7 +229,7 @@ class GenericDockerClientTests(TestCase):
         def start_private_image(client):
             return self.start_container(
                 unit_name=random_name(self),
-                image_name=repository + ':' + tag,
+                image_name=private_image.full_name(),
             )
         starting_private_image = pushing_image.addCallback(
             start_private_image
