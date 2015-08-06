@@ -14,6 +14,7 @@ from boto.ec2.volume import (
 )
 from boto.exception import EC2ResponseError
 
+from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
 from eliot.testing import LoggedMessage, capture_logging
 
@@ -167,6 +168,13 @@ class VolumeStateTransitionTests(TestCase):
     Tests for volume state operations and resulting volume state changes.
     """
 
+    class VolumeEndStateTypes(Names):
+        """
+        """
+        ERROR = NamedConstant()
+        TRANSITIONING = NamedConstant()
+        DESTINATION = NamedConstant()
+
     def _create_template_ebs_volume(self, operation):
         """
         Helper function to create template EBS volume to work on.
@@ -196,36 +204,36 @@ class VolumeStateTransitionTests(TestCase):
 
         return volume
 
-    def _pick_invalid_state(self, operation):
-        """
-        Helper function to pick an invalid volume state for input operation.
+    def _invalid_update(self, operation, testcase):
 
-        :param NamedConstant operation: Volume operation to pick a state for.
-            A value from ``VolumeOperations``.
+        def _pick_invalid_state(operation, testcase):
+            """
+            Helper function to pick an invalid volume state for input
+            operation.
 
-        :returns: A state from ``VolumeStates`` that will not be part of
-            a volume's states resulting from input operation.
-        :rtype: ValueConstant
-        """
-        volume_state_table = VolumeStateTable()
-        state_flow = volume_state_table.table[operation]
-        valid_states = set([state_flow.start_state,
-                            state_flow.transient_state,
-                            state_flow.end_state])
-        invalid_states = set(VolumeStates._enumerants.values()) - valid_states
-        invalid_state = invalid_states.pop()
-        if invalid_state is None:
-            return None
-        else:
-            return invalid_state.value
+            :param NamedConstant operation: Volume operation to pick a
+                state for. A value from ``VolumeOperations``.
 
-    def test_error_volume_state_during_attach(self):
-        """
-        Assert that ``Exception`` is thrown when attach volume operation leads
-        to an unexpected state.
-        """
-        operation = VolumeOperations.ATTACH
-        volume = self._create_template_ebs_volume(operation)
+            :returns: A state from ``VolumeStates`` that will not be part of
+                a volume's states resulting from input operation.
+            :rtype: ValueConstant
+            """
+            volume_state_table = VolumeStateTable()
+            state_flow = volume_state_table.table[operation]
+
+            if testcase == self.VolumeEndStateTypes.ERROR:
+                valid_states = set([state_flow.start_state,
+                                    state_flow.transient_state,
+                                    state_flow.end_state])
+
+                error_states = set(VolumeStates._enumerants.values()) - valid_states
+                error_state = error_states.pop()
+                if error_state is None:
+                    return None
+                else:
+                    return error_state.value
+            if testcase == self.VolumeEndStateTypes.TRANSITIONING:
+                return state_flow.transient_state.value
 
         def update(volume):
             """
@@ -234,30 +242,84 @@ class VolumeStateTransitionTests(TestCase):
             :param boto.ec2.volume.Volume volume: Volume to move to
                 invalid state.
             """
-            volume.status = self._pick_invalid_state(operation)
+            volume.status = self._pick_invalid_state(operation, testcase)
+        return update
 
+    def _assert_raises_invalid_state(self, operation, testcase):
+        """
+        """
+        volume = self._create_template_ebs_volume(operation)
         self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
+                          operation, volume,
+                          self._invalid_update(operation, testcase), TIMEOUT)
 
-    def test_detach_stuck_detaching(self):
+    def test_create_invalid_state(self):
+        """
+        Assert that ``Exception`` is thrown if create volume operation fails.
+        """
+        operation = VolumeOperations.CREATE
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.ERROR)
+
+    def test_destroy_invalid_state(self):
+        """
+        Assert that ``Exception`` is thrown if destroy volume operation fails.
+        """
+        operation = VolumeOperations.DESTROY
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.ERROR)
+
+    def test_attach_invalid_state(self):
+        """
+        Assert that ``Exception`` is thrown if attach volume operation fails.
+        """
+        operation = VolumeOperations.ATTACH
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.ERROR)
+
+    def test_detach_invalid_state(self):
+        """
+        Assert that ``Exception`` is thrown if detach volume operation fails.
+        """
+        operation = VolumeOperations.DETACH
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.ERROR)
+
+    def test_stuck_create(self):
+        """
+        Assert that ``Exception`` is thrown if create volume operation is stuck
+        creating.
+        """
+        operation = VolumeOperations.CREATE
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.TRANSITIONING)
+
+    def test_stuck_destroy(self):
+        """
+        Assert that ``Exception`` is thrown if destroy volume operation is stuck
+        destroying.
+        """
+        operation = VolumeOperations.DESTROY
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.TRANSITIONING)
+
+    def test_stuck_attach(self):
+        """
+        Assert that ``Exception`` is thrown if attach volume operation is stuck
+        attaching.
+        """
+        operation = VolumeOperations.ATTACH
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.TRANSITIONING)
+
+    def test_stuck_detach(self):
         """
         Assert that ``Exception`` is thrown if detach volume operation is stuck
         detaching.
         """
         operation = VolumeOperations.DETACH
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to ``detaching`` state.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to
-                ``detaching`` state.
-            """
-            volume.status = u'detaching'
-
-        self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
+        self._assert_raises_invalid_state(operation,
+                                          self.VolumeEndStateTypes.TRANSITIONING)
 
     def test_attach_missing_attach_data(self):
         """
@@ -351,25 +413,6 @@ class VolumeStateTransitionTests(TestCase):
         self.assertRaises(Exception, _wait_for_volume_state_change,
                           operation, volume, update, TIMEOUT)
 
-    def test_create_error_state(self):
-        """
-        Assert that ``Exception`` is thrown if create volume operation fails.
-        """
-        operation = VolumeOperations.CREATE
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to failed creation state.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to a
-                failed creation state.
-            """
-            volume.status = self._pick_invalid_state(operation)
-
-        self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
-
     def test_create_success(self):
         """
         Test if successful create volume operation leaves volume in
@@ -389,27 +432,6 @@ class VolumeStateTransitionTests(TestCase):
 
         _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
         self.assertEquals(volume.status, u'available')
-
-    def test_destroy_error_state(self):
-        """
-        Assert that ``Exception`` is thrown when a destroy volume operation
-        leads to an unexpected volume state.
-        """
-        operation = VolumeOperations.DESTROY
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to a state that is not encountered on a
-            successful destroy path.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to a failed
-                destroy state.
-            """
-            volume.status = self._pick_invalid_state(operation)
-
-        self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
 
     def test_destroy_success(self):
         """
