@@ -23,7 +23,7 @@ from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet import defer
-from twisted.web.client import ProxyAgent, readBody
+from twisted.web.client import ProxyAgent, readBody, FileBodyProducer
 from twisted.web.server import NOT_DONE_YET, Site
 from twisted.web.resource import getChildForRequest
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -564,3 +564,98 @@ def build_schema_test(name, schema, schema_store,
         body[test.__name__] = test
 
     return type(name, (SynchronousTestCase, object), body)
+
+
+class APIAssertionsMixin(object):
+    """
+    Additional assertion methods useful for testing an API.
+    """
+    def assertResponseCode(self, method, path, request_body, expected_code):
+        """
+        Issue an HTTP request and make an assertion about the response code.
+
+        :param bytes method: The HTTP method to use in the request.
+        :param bytes path: The resource path to use in the request.
+        :param dict request_body: A JSON-encodable object to encode (as JSON)
+            into the request body.  Or ``None`` for no request body.
+        :param int expected_code: The status code expected in the response.
+
+        :return: A ``Deferred`` that will fire when the response has been
+            received.  It will fire with a failure if the status code is
+            not what was expected.  Otherwise it will fire with an
+            ``IResponse`` provider representing the response.
+        """
+        if request_body is None:
+            headers = None
+            body_producer = None
+        else:
+            headers = Headers({b"content-type": [b"application/json"]})
+            body_producer = FileBodyProducer(BytesIO(dumps(request_body)))
+
+        requesting = self.agent.request(
+            method, path, headers, body_producer
+        )
+
+        def check_code(response):
+            self.assertEqual(expected_code, response.code)
+            return response
+        requesting.addCallback(check_code)
+        return requesting
+
+    def assertResult(self, method, path, request_body,
+                     expected_code, expected_result):
+        """
+        Assert a particular JSON response for the given API request.
+
+        :param bytes method: HTTP method to request.
+        :param bytes path: HTTP path.
+        :param unicode request_body: Body of HTTP request.
+        :param int expected_code: The code expected in the response.
+            response.
+        :param list|dict expected_result: The body expected in the response.
+
+        :return: A ``Deferred`` that fires when test is done.
+        """
+        requesting = self.assertResponseCode(
+            method, path, request_body, expected_code)
+        requesting.addCallback(readBody)
+        requesting.addCallback(loads)
+
+        def assertEqualAndReturn(expected, actual):
+            """
+            Assert that ``expected`` is equal to ``actual`` and return
+            ``actual`` for further processing.
+            """
+            self.assertEqual(expected, actual)
+            return actual
+
+        requesting.addCallback(
+            lambda actual_result: assertEqualAndReturn(
+                expected_result, actual_result)
+        )
+        return requesting
+
+    def assertResultItems(self, method, path, request_body,
+                          expected_code, expected_result):
+        """
+        Assert a JSON array response for the given API request.
+
+        The API returns a JSON array, which matches a Python list, by
+        comparing that matching items exist in each sequence, but may
+        appear in a different order.
+
+        :param bytes method: HTTP method to request.
+        :param bytes path: HTTP path.
+        :param unicode request_body: Body of HTTP request.
+        :param int expected_code: The code expected in the response.
+        :param list expected_result: A list of items expects in a
+            JSON array response.
+
+        :return: A ``Deferred`` that fires when test is done.
+        """
+        requesting = self.assertResponseCode(
+            method, path, request_body, expected_code)
+        requesting.addCallback(readBody)
+        requesting.addCallback(lambda body: self.assertItemsEqual(
+            expected_result, loads(body)))
+        return requesting

@@ -1,6 +1,6 @@
 from pipes import quote as shell_quote
 from pyrsistent import PRecord, field
-from effect import Effect
+from effect import Effect, sync_performer
 
 
 def identity(arg):
@@ -81,6 +81,15 @@ class Sudo(PRecord):
             log_command_filter=log_command_filter)
 
 
+@sync_performer
+def perform_sudo(dispatcher, intent):
+    """
+    Default implementation of `Sudo`.
+    """
+    return Effect(Run(
+        command='sudo ' + intent.command, log_command_filter=identity))
+
+
 class Put(PRecord):
     """
     Create a file with the given content on a remote host.
@@ -95,6 +104,20 @@ class Put(PRecord):
     log_content_filter = field(mandatory=True)
 
 
+@sync_performer
+def perform_put(dispatcher, intent):
+    """
+    Default implementation of `Put`.
+    """
+    def create_put_command(content, path):
+        return 'printf -- %s > %s' % (shell_quote(content), shell_quote(path))
+    return Effect(Run(
+        command=create_put_command(intent.content, intent.path),
+        log_command_filter=lambda _: create_put_command(
+            intent.log_content_filter(intent.content), intent.path)
+        ))
+
+
 class Comment(PRecord):
     """
     Record a comment to be shown in the documentation corresponding to a task.
@@ -102,6 +125,13 @@ class Comment(PRecord):
     :ivar bytes comment: The desired comment.
     """
     comment = field(type=bytes, mandatory=True)
+
+
+@sync_performer
+def perform_comment(dispatcher, intent):
+    """
+    Default implementation of `Comment`.
+    """
 
 
 def run(command, log_command_filter=identity):
