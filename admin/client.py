@@ -182,8 +182,9 @@ class RunOptions(Options):
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
-         'One of {}.  For --pip, one of {}'.format(
-            ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS), ', '.join(PIP_DISTRIBUTIONS))],
+         'One of {}.  With --pip, one of {}'.format(
+            ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
+            ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
@@ -258,18 +259,19 @@ def main(args, base_path, top_level):
         sys.exit("%s: %s\n" % (base_path.basename(), e))
 
     distribution = options['distribution']
+    package_manager = DOCKER_IMAGES[distribution].package_manager
     package_source = options['package_source']
     if options['pip']:
         virtualenv = 'flocker-client'
         steps = [
-            ensure_minimal_setup(DOCKER_IMAGES[distribution].package_manager),
-            task_cli_pip_prereqs(DOCKER_IMAGES[distribution].package_manager),
+            ensure_minimal_setup(package_manager),
+            task_cli_pip_prereqs(package_manager),
             task_cli_pip_install(virtualenv, package_source),
             task_cli_pip_test(virtualenv),
         ]
     else:
         steps = [
-            ensure_minimal_setup(DOCKER_IMAGES[distribution].package_manager),
+            ensure_minimal_setup(package_manager),
             task_cli_pkg_install(distribution, package_source),
             task_cli_pkg_test(),
         ]
