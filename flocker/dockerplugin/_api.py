@@ -66,6 +66,8 @@ class VolumePlugin(object):
     can't be sure they won't change things in minor ways. We do validate
     outputs to ensure we output the documented requirements.
     """
+    _POLL_INTERNVAL = 0.05
+
     app = Klein()
 
     def __init__(self, reactor, flocker_client, node_id):
@@ -184,11 +186,11 @@ class VolumePlugin(object):
                             if dataset.dataset_id == dataset_id]
                 if datasets and datasets[0].primary == self._node_id:
                     return datasets[0].path
-                return deferLater(self._reactor, 0.05, get_state)
+                return deferLater(
+                    self._reactor, self._POLL_INTERNVAL, get_state)
             d.addCallback(got_state)
             return d
         d.addCallback(lambda _: get_state())
         d.addCallback(lambda path: {u"Err": None,
                                     u"Mountpoint": path.path})
         return d
-

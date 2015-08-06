@@ -19,6 +19,7 @@ from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.conch.ssh.keys import Key
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -29,7 +30,9 @@ from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._ssh import (
-    run_remotely)
+    run_remotely,
+    ensure_agent_has_ssh_key,
+)
 from flocker.provision._install import (
     ManagedNode,
     task_pull_docker_images,
@@ -150,6 +153,16 @@ class IClusterRunner(Interface):
             stopped.
         """
 
+    def ensure_keys(reactor):
+        """
+        Ensure that the running ssh-agent has the ssh-keys needed to connect to
+        created nodes.
+
+        :param reactor: Reactor to use.
+        :return Deferred: That fires with a succesful result if the key is
+            found.  Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
+        """
+
 
 RUNNER_ATTRIBUTES = [
     # Name of the distribution the nodes run - eg "ubuntu-14.04"
@@ -226,6 +239,13 @@ class ManagedRunner(object):
             )
         installing = uninstalling.addCallback(install)
         return installing
+
+    def ensure_keys(self, reactor):
+        """
+        Assume we have keys, since there's no way of asking the nodes what keys
+        they'll accept.
+        """
+        return succeed(None)
 
     def start_cluster(self, reactor):
         """
@@ -358,6 +378,11 @@ class VagrantRunner(object):
 
         if self.variants:
             raise UsageError("Variants unsupported on vagrant.")
+
+    def ensure_keys(self, reactor):
+        key = Key.fromFile(os.path.expanduser(
+            "~/.vagrant.d/insecure_private_key"))
+        return ensure_agent_has_ssh_key(reactor, key)
 
     @inlineCallbacks
     def start_cluster(self, reactor):
@@ -505,6 +530,13 @@ class LibcloudRunner(object):
                 node.destroy()
             except Exception as e:
                 print "Failed to destroy %s: %s" % (node.name, e)
+
+    def ensure_keys(self, reactor):
+        key = self.provisioner.get_ssh_key()
+        if key is not None:
+            return ensure_agent_has_ssh_key(reactor, key)
+        else:
+            return succeed(None)
 
 
 DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
@@ -890,6 +922,7 @@ def main(reactor, args, base_path, top_level):
 
     cluster = None
     try:
+        yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
 
         if options['distribution'] in ('centos-7',):

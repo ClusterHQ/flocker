@@ -45,6 +45,10 @@ The :program:`admin/run-client-tests` script has several options:
    Specifies the base URL of the build server to install from.
    This is probably only useful when testing changes to the build server.
 
+.. option:: --pip
+
+   Use pip to install the client, rather than using packages.
+
 To see the supported values for each option, run:
 
 .. prompt:: bash $

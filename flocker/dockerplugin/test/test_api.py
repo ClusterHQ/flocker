@@ -137,8 +137,9 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
 
-        # In 0.1 seconds the dataset arrives as state:
-        reactor.callLater(0.1, self.flocker_client.synchronize_state)
+        # After two polling intervals the dataset arrives as state:
+        reactor.callLater(VolumePlugin._POLL_INTERNVAL,
+                          self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
                       self.assertResult(
