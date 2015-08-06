@@ -216,6 +216,9 @@ class GenericDockerClientTests(TestCase):
 
         def tag_and_push_image(ignored):
             client = Client()
+            # The image will normally have been pre-pulled on build slaves, but
+            # may not already be available when running tests locally.
+            client.pull('openshift/busybox-http-app')
             # Tag an image with a repository name matching the locally running
             # registry container.
             client.tag(
