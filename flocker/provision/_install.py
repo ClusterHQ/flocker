@@ -145,7 +145,7 @@ class ManagedNode(PRecord):
     distribution = field(type=bytes, mandatory=True)
 
 
-def task_client_installation_test():
+def task_cli_pkg_test():
     """
     Check that the CLI is working.
     """
@@ -295,7 +295,7 @@ _task_install_commands = {
 }
 
 
-def task_install_cli(distribution, package_source=PackageSource()):
+def task_cli_pkg_install(distribution, package_source=PackageSource()):
     """
     Install flocker CLI on a distribution.
 
@@ -322,7 +322,7 @@ def install_cli(package_source, node):
     """
     return run_remotely(
         node.get_default_username(), node.address,
-        task_install_cli(node.distribution, package_source))
+        task_cli_pkg_install(node.distribution, package_source))
 
 
 YUM_INSTALL_PREREQ = [

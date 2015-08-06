@@ -19,8 +19,8 @@ from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
-    task_install_cli,
-    task_client_installation_test,
+    task_cli_pkg_install,
+    task_cli_pkg_test,
     task_cli_pip_prereqs,
     task_cli_pip_install,
     task_cli_pip_test,
@@ -257,8 +257,8 @@ def main(args, base_path, top_level):
                 "Distribution %r not supported using packages" % distribution)
 
         steps = [
-            task_install_cli(distribution, package_source),
-            task_client_installation_test(),
+            task_cli_pkg_install(distribution, package_source),
+            task_cli_pkg_test(),
         ]
     runner = DockerRunner(DOCKER_IMAGES[distribution])
     runner.start()
