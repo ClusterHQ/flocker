@@ -6,6 +6,7 @@ from ._model import (
     Put, put,
     Comment, comment,
     RunRemotely, run_remotely,
+    perform_comment, perform_put, perform_sudo
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "Put", "put",
     "Comment", "comment",
     "RunRemotely", "run_remotely",
+    "perform_comment", "perform_put", "perform_sudo",
 ]

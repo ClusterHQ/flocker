@@ -100,7 +100,8 @@ class LibcloudNode(object):
         def do_reboot(_):
             self._node.reboot()
             self._node, self.addresses = (
-                self._node.driver.wait_until_running([self._node])[0])
+                self._node.driver.wait_until_running(
+                    [self._node], wait_period=15)[0])
             return
 
         return run_remotely(
@@ -203,7 +204,8 @@ class LibcloudProvisioner(object):
             **create_node_arguments
         )
 
-        node, addresses = self._driver.wait_until_running([node])[0]
+        node, addresses = self._driver.wait_until_running(
+            [node], wait_period=15)[0]
 
         public_address = addresses[0]
 
