@@ -20,6 +20,7 @@ from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
+    ensure_minimal_setup,
     task_cli_pkg_install,
     task_cli_pkg_test,
     task_cli_pip_prereqs,
@@ -43,7 +44,7 @@ DOCKER_IMAGES = {
 }
 
 PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
-PKG_DISTRIBUTIONS = ['ubuntu-14.04', 'ubuntu-15.04']
+PACKAGED_CLIENT_DISTRIBUTIONS = ('ubuntu-14.04', 'ubuntu-15.04')
 
 
 class ScriptBuilder(TypeDispatcher):
@@ -182,7 +183,7 @@ class RunOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.  For --pip, one of {}'.format(
-            ', '.join(PKG_DISTRIBUTIONS), ', '.join(PIP_DISTRIBUTIONS))],
+            ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS), ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
@@ -236,7 +237,7 @@ class RunOptions(Options):
         if self['pip']:
             supported = PIP_DISTRIBUTIONS
         else:
-            supported = PKG_DISTRIBUTIONS
+            supported = PACKAGED_CLIENT_DISTRIBUTIONS
         if self['distribution'] not in supported:
             raise UsageError(
                 "Distribution %r not supported. Available distributions: %s"
@@ -261,16 +262,14 @@ def main(args, base_path, top_level):
     if options['pip']:
         virtualenv = 'flocker-client'
         steps = [
+            ensure_minimal_setup(DOCKER_IMAGES[distribution].package_manager),
             task_cli_pip_prereqs(DOCKER_IMAGES[distribution].package_manager),
             task_cli_pip_install(virtualenv, package_source),
             task_cli_pip_test(virtualenv),
         ]
     else:
-        if distribution == 'centos-7':
-            raise UsageError(
-                "Distribution %r not supported using packages" % distribution)
-
         steps = [
+            ensure_minimal_setup(DOCKER_IMAGES[distribution].package_manager),
             task_cli_pkg_install(distribution, package_source),
             task_cli_pkg_test(),
         ]

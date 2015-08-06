@@ -6,7 +6,6 @@ Install flocker on a remote node.
 """
 
 import posixpath
-from pipes import quote as shell_quote
 from textwrap import dedent
 from urlparse import urljoin, urlparse
 from effect import Func, Effect
@@ -146,6 +145,39 @@ class ManagedNode(PRecord):
     distribution = field(type=bytes, mandatory=True)
 
 
+def ensure_minimal_setup(package_manager):
+    """
+    Get any system into a reasonable state for installation.
+
+    Although we could publish these commands in the docs, they add a lot
+    of noise for many users.  Ensure that systems have sudo enabled.
+    """
+    if package_manager in ('dnf', 'yum'):
+        # Fedora/CentOS sometimes configured to require tty for sudo
+        # ("sorry, you must have a tty to run sudo"). Disable that to
+        # allow automated tests to run.
+        return sequence([
+            run_from_args([
+                'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
+            ]),
+            run_from_args([
+                'su', 'root', '-c', [
+                    'sed', '--in-place', '-e',
+                    's/Defaults.*requiretty/Defaults !requiretty/',
+                    '/etc/sudoers'
+                ]]),
+        ])
+    elif package_manager == 'apt':
+        return sequence([
+            run_from_args(['su', 'root', '-c', ['apt-get', 'update']]),
+            run_from_args([
+                'su', 'root', '-c', ['apt-get', '-y', 'install', 'sudo']
+            ]),
+        ])
+    else:
+        raise UnsupportedDistribution()
+
+
 def task_cli_pkg_test():
     """
     Check that the CLI is working.
@@ -242,9 +274,8 @@ def install_cli_commands_ubuntu(distribution, package_source):
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
         # ensure that we start from a good base system with the required
-        # capabilities, particularly that sudo and add-apt-repository
-        # commands are available, and HTTPS URLs are supported.
-        run("which sudo || su root -c 'apt-get -y install sudo'"),
+        # capabilities, particularly that the add-apt-repository command
+        # is available, and HTTPS URLs are supported.
         sudo_from_args(["apt-get", "update"]),
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
@@ -341,14 +372,11 @@ def task_cli_pip_prereqs(package_manager):
     :return: an Effect to install the pre-requisites.
     """
     if package_manager in ('dnf', 'yum'):
-        # Fedora/CentOS sometimes configured to require tty for sudo
-        # ("sorry, you must have a tty to run sudo"), so avoid using it
-        command = " ".join(
-            map(shell_quote, ['yum', '-y', 'install'] + YUM_INSTALL_PREREQ))
-        return run_from_args(['su', 'root', '-c', command])
+        return sudo_from_args(
+            [package_manager, '-y', 'install'] + YUM_INSTALL_PREREQ
+        )
     elif package_manager == 'apt':
         return sequence([
-            run("which sudo || su root -c 'apt-get -y install sudo'"),
             sudo_from_args(['apt-get', 'update']),
             sudo_from_args(['apt-get', '-y', 'install'] + APT_INSTALL_PREREQ),
         ])

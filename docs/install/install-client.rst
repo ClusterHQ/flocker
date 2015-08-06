@@ -4,22 +4,6 @@
 Installing the Flocker Client
 =============================
 
-The Flocker CLI is installed on your local machine and provides command line tools to control the cluster. 
-This also includes the ``flocker-ca`` tool, which you use to generate certificates for all the Flocker components.
-
-The Flocker agents are installed on any number of nodes in the cluster where your containers will run.
-The agent software is included in the ``clusterhq-flocker-node`` package.
-
-There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. 
-The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
-
-.. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
-
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
-
-This document will describe how to install the CLI locally and install the agents and control service on cloud infrastructure.
-It also describes how to get Vagrant nodes started which already have these services running.
-
 The following sections describe how to install the Flocker client on your platform:
 
 .. contents::
@@ -32,6 +16,8 @@ The following sections describe how to install the Flocker client on your platfo
 Ubuntu 15.04
 ============
 
+.. note:: These instructions require that you have ``sudo`` access.
+
 On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-15.04
@@ -41,6 +27,8 @@ On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
 Ubuntu 14.04
 ============
+
+.. note:: These instructions require that you have ``sudo`` access.
 
 On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
@@ -55,17 +43,19 @@ Other Linux Distributions
    These are guidelines for installing Flocker on a Linux distribution for which we do not provide native packages.
    These guidelines may require some tweaks, depending on the details of the Linux distribution in use.
 
+.. note:: These instructions require that you have ``sudo`` access.
+
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 
 To install these pre-requisites with the ``yum`` package manager, run:
 
-.. task:: cli_pip_prereqs centos-7
+.. task:: cli_pip_prereqs yum
    :prompt: alice@mercury:~$
 
 
 To install these pre-requisites with the ``apt`` package manager, run:
 
-.. task:: cli_pip_prereqs ubuntu-15.04
+.. task:: cli_pip_prereqs apt
    :prompt: alice@mercury:~$
 
 To install ``flocker-cli`` in a Python virtualenv, run:

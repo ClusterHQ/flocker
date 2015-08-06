@@ -45,6 +45,27 @@ def run_remotely(
         log_command_filter=log_command_filter))
 
 
+def _escape_args(seq):
+    """
+    Convert a nested list of strings to a shell command.
+
+    Each string in the list is escaped as necessary to allow it to be
+    passed to a shell as a single word. If an item is a list, it is a
+    nested command, which will be escaped first, and then added as a
+    single word to the top-level command.
+
+    For example, ['su', 'root', '-c', ['apt-get', 'update']] becomes
+    "su root -c 'apt-get update'".
+    """
+    result = []
+    for word in seq:
+        if hasattr(word, 'append'):
+            word = _escape_args(word)
+        escaped = shell_quote(word)
+        result.append(escaped)
+    return ' '.join(result)
+
+
 class Run(PRecord):
     """
     Run a shell command on a remote host.
@@ -59,7 +80,7 @@ class Run(PRecord):
     @classmethod
     def from_args(cls, command_args, log_command_filter=identity):
         return cls(
-            command=" ".join(map(shell_quote, command_args)),
+            command=_escape_args(command_args),
             log_command_filter=log_command_filter)
 
 
@@ -77,7 +98,7 @@ class Sudo(PRecord):
     @classmethod
     def from_args(cls, command_args, log_command_filter=identity):
         return cls(
-            command=" ".join(map(shell_quote, command_args)),
+            command=_escape_args(command_args),
             log_command_filter=log_command_filter)
 
 
