@@ -313,18 +313,6 @@ def task_cli_pkg_install(distribution, package_source=PackageSource()):
     return _task_install_commands[distribution](distribution, package_source)
 
 
-def install_cli(package_source, node):
-    """
-    Return an effect to install the CLI using packages on a remote node.
-
-    :param package_source: Package source description
-    :param node: Remote node description
-    """
-    return run_remotely(
-        node.get_default_username(), node.address,
-        task_cli_pkg_install(node.distribution, package_source))
-
-
 YUM_INSTALL_PREREQ = [
     'gcc', 'libffi-devel', 'python', 'python-devel', 'python-virtualenv',
     'openssl-devel'
@@ -402,23 +390,6 @@ def task_cli_pip_test(venv_name='flocker-client'):
         run_from_args(
             ['flocker-deploy', '--version']),
         ])
-
-
-def install_cli_pip(package_source, node):
-    """
-    Return an effect to install the CLI using pip on a remote node.
-
-    :param package_source: Package source description
-    :param node: Remote node description
-    """
-    return sequence([
-        run_remotely(
-            node.get_default_username(), node.address,
-            task_cli_pip_prereqs(node.distribution)),
-        run_remotely(
-            node.get_default_username(), node.address,
-            task_cli_pip_install('flocker-client', package_source)),
-    ])
 
 
 def task_configure_brew_path():
