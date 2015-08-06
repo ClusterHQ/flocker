@@ -169,6 +169,14 @@ class FlockerClient(object):
     """
     def __init__(self, reactor, host, port,
                  ca_cluster_path, cert_path, key_path):
+        """
+        :param reactor: Reactor to use for connections.
+        :param bytes host: Host to connect to.
+        :param int port: Port to connect to:
+        :param FilePath ca_cluster_path: Path to cluster's CA certificate.
+        :param FilePath cert_path: Path to user certificate.
+        :param FilePath key_path: Path to user private key.
+        """
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
         self._base_url = b"https://{}:{}/v1".format(host, port)
@@ -266,4 +274,3 @@ class FlockerClient(object):
         request.addCallback(
             lambda results: [parse_dataset_state(d) for d in results])
         return request
-
