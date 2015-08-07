@@ -13,6 +13,8 @@ from subprocess import check_call, check_output
 from tarfile import open as tarfile_open
 from time import time
 
+from flocker import __version__
+
 
 class FlockerDebugArchive(object):
     """
@@ -70,6 +72,10 @@ class FlockerDebugArchive(object):
         """
         os.makedirs(self._archive_path)
         try:
+            # Export Flocker version
+            with self._open_logfile('flocker-version') as output:
+                output.write(__version__.encode('utf-8') + b'\n')
+
             # Export Flocker logs.
             services = self._service_manager.flocker_services()
             for service_name, service_status in services:
@@ -242,6 +248,12 @@ PLATFORMS = (
     Platform(
         name='centos',
         version='7',
+        service_manager=SystemdServiceManager(),
+        log_exporter=JournaldLogExporter()
+    ),
+    Platform(
+        name='fedora',
+        version='22',
         service_manager=SystemdServiceManager(),
         log_exporter=JournaldLogExporter()
     ),
