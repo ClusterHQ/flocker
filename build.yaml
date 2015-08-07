@@ -54,10 +54,11 @@ common_cli:
         /.*exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
         /.*Exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
         /.*fail.*/      {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.*ERROR.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.*error.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /.* ERROR.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /.* error.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
         /build finished with problems./     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
         /return 1/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /Could not find valid repo at/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
 
         # yellow lines
         /.*Warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
