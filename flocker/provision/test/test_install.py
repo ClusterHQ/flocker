@@ -160,7 +160,7 @@ class GetRepoOptionsTests(SynchronousTestCase):
         version is not a marketing release.
         """
         self.assertEqual(
-            get_repo_options(flocker_version='0.3.0dev1'),
+            get_repo_options(flocker_version='0.3.0.dev1'),
             ['--enablerepo=clusterhq-testing'])
 
 
@@ -233,7 +233,7 @@ class GetRepositoryURLTests(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='ubuntu-14.04',
-                flocker_version='0.3.0dev1'),
+                flocker_version='0.3.0.dev1'),
             expected
         )
 
@@ -248,7 +248,7 @@ class GetRepositoryURLTests(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='centos-7',
-                flocker_version='0.3.0dev1'),
+                flocker_version='0.3.0.dev1'),
             expected
         )
 

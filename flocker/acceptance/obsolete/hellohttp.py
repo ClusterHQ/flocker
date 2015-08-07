@@ -12,6 +12,5 @@ class Handler(BaseHTTPRequestHandler):
         s.wfile.write(b"hi")
         s.wfile.close()
 
-
 httpd = HTTPServer((b"0.0.0.0", 8080), Handler)
 httpd.serve_forever()

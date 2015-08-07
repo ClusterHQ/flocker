@@ -10,6 +10,16 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* ``flocker-deploy`` supports specification of the pathnames of certificate and key files.
+  See :ref:`flocker-deploy-authentication`.
+* The agent configuration file allows specification of a CA certificate for OpenStack HTTPS verification.
+  See :ref:`openstack-dataset-backend`.
+* Flocker can now start containers using images from private Docker registries.
+* On CentOS 7, installing or upgrading the ``clusterhq-flocker-node`` package now reloads the ``rsyslog`` service to ensure that Flocker logging policy takes immediate effect.
+
 v1.0.3
 ======
 
