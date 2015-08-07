@@ -653,3 +653,7 @@ class DatasetServiceFactory(PRecord):
         loop_service = agent_service.get_loop_service(deployer)
 
         return loop_service
+
+
+def flocker_diagnostics_main():
+    print "DIAGNOSTICS"

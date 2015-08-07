@@ -313,7 +313,3 @@ def main():
         log_exporter=platform.log_exporter
     ).create()
     sys.stdout.write(archive_path + '\n')
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
