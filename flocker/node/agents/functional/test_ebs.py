@@ -20,7 +20,8 @@ from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
-    VolumeOperations, VolumeStateTable, VolumeStates
+    VolumeOperations, VolumeStateTable, VolumeStates,
+    TimeoutException
 )
 
 from .._logging import (
@@ -181,7 +182,8 @@ class VolumeStateTransitionTests(TestCase):
         MISSING = NamedConstant()
         MISSING_INSTANCE_ID = NamedConstant()
         MISSING_DEVICE = NamedConstant()
-        SUCCESS = NamedConstant()
+        ATTACH_SUCCESS = NamedConstant()
+        DETACH_SUCCESS = NamedConstant()
 
     V = VolumeOperations
     S = VolumeEndStateTypes
@@ -236,37 +238,39 @@ class VolumeStateTransitionTests(TestCase):
                                 state_flow.transient_state,
                                 state_flow.end_state])
 
-            states = set(VolumeStates._enumerants.values()) - valid_states
-            error_state = states.pop()
-            if error_state is None:
+            err_states = set(VolumeStates._enumerants.values()) - valid_states
+            err_state = err_states.pop()
+            if err_state is None:
                 return None
             else:
-                return error_state.value
-        if state_type == self.S.IN_TRANSIT:
+                return err_state.value
+        elif state_type == self.S.IN_TRANSIT:
             return state_flow.transient_state.value
-        if state_type == self.S.DESTINATION:
+        elif state_type == self.S.DESTINATION:
             return state_flow.end_state.value
 
-    def _pick_attach_data(self, attach_data):
+    def _pick_attach_data(self, attach_type):
         """
         """
-        if attach_data == self.A.MISSING:
+        if attach_type == self.A.MISSING:
             return None
-        elif attach_data == self.A.MISSING_INSTANCE_ID:
+        elif attach_type == self.A.MISSING_INSTANCE_ID:
             attach_data = AttachmentSet()
             attach_data.device = u'/dev/sdf'
             attach_data.instance_id = ''
             return attach_data
-        elif attach_data == self.A.MISSING_DEVICE:
+        elif attach_type == self.A.MISSING_DEVICE:
             attach_data = AttachmentSet()
             attach_data.device = ''
             attach_data.instance_id = u'i-xyz'
             return attach_data
-        elif attach_data == self.A.SUCCESS:
+        elif attach_type == self.A.ATTACH_SUCCESS:
             attach_data = AttachmentSet()
             attach_data.device = u'/dev/sdf'
             attach_data.instance_id = u'i-xyz'
             return attach_data
+        elif attach_type == self.A.DETACH_SUCCESS:
+            return None
 
     def _custom_update(self, operation, state_type, attach_data=A.MISSING):
         def update(volume):
@@ -281,24 +285,24 @@ class VolumeStateTransitionTests(TestCase):
         return update
 
     def _assert_raises_invalid_state(self, operation, testcase,
-                                     attach_data=A.MISSING):
+                                     attach_data_type=A.MISSING):
         """
         """
         volume = self._create_template_ebs_volume(operation)
-        self.assertRaises(Exception, _wait_for_volume_state_change,
+        self.assertRaises(TimeoutException, _wait_for_volume_state_change,
                           operation, volume,
                           self._custom_update(operation, testcase,
-                                              attach_data),
+                                              attach_data_type),
                           TIMEOUT)
 
     def _assert_success(self, operation, testcase,
-                        attach_data=A.SUCCESS):
+                        attach_data_type=A.ATTACH_SUCCESS):
         """
         """
         volume = self._create_template_ebs_volume(operation)
         _wait_for_volume_state_change(operation, volume,
                                       self._custom_update(operation, testcase,
-                                                          attach_data),
+                                                          attach_data_type),
                                       TIMEOUT)
 
         if operation == self.V.CREATE:
@@ -412,4 +416,5 @@ class VolumeStateTransitionTests(TestCase):
         """
         Test if successful detach volume operation leads to expected state.
         """
-        self._assert_success(self.V.DETACH, self.S.DESTINATION)
+        self._assert_success(self.V.DETACH, self.S.DESTINATION,
+                             self.A.DETACH_SUCCESS)

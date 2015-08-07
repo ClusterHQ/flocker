@@ -127,6 +127,23 @@ class VolumeStateTable(PRecord):
 VOLUME_STATE_TABLE = VolumeStateTable()
 
 
+class TimeoutException(Exception):
+    """
+    """
+    def __init__(self, blockdevice_id, start_state, transient_state,
+                 end_state, current_state):
+        Exception.__init__(self, blockdevice_id)
+        self.blockdevice_id = blockdevice_id
+        Exception.__init__(self, start_state)
+        self.start_state = start_state
+        Exception.__init__(self, transient_state)
+        self.transient_state = transient_state
+        Exception.__init__(self, end_state)
+        self.end_state = end_state
+        Exception.__init__(self, current_state)
+        self.current_state = current_state
+
+
 class EliotLogHandler(logging.Handler):
     _to_log = {"Method", "Path", "Params"}
 
@@ -352,6 +369,16 @@ def _should_finish(operation, volume, update, start_time,
     sets_attach = state_flow.sets_attach
     unsets_attach = state_flow.unsets_attach
 
+    if time.time() - start_time > timeout:
+        # We either:
+        # 1) Timed out waiting to reach ``end_status``, or,
+        # 2) Reached an unexpected status (state change resulted in error), or,
+        # 3) Reached ``end_status``, but ``end_status`` comes with
+        #    attach data, and we timed out waiting for attach data.
+        # Raise a ``TimeoutException`` in all cases.
+        raise TimeoutException(unicode(volume.id), start_state,
+                               transient_state, end_state, volume.status)
+
     try:
         update(volume)
     except EC2ResponseError as e:
@@ -380,32 +407,7 @@ def _should_finish(operation, volume, update, start_time,
                 return False
         else:
             return True
-
-    if time.time() - start_time < timeout:
-        return False
-    else:
-        return True
-
-    # We either:
-    # 1) Timed out waiting to reach ``end_status``, or,
-    # 2) Reached an unexpected status (state change resulted in error), or,
-    # 3) Reached ``end_status``, but ``end_status`` comes with
-    #    attach data, and we timed out waiting for attach data.
-    # Raise an ``Exception`` in all cases.
-    raise Exception(
-        'Volume state transition failed. '
-        'Volume: {!r}, '
-        'Start Status: {!r}, '
-        'Transient Status: {!r}, '
-        'Expected End Status: {!r}, '
-        'Discovered End Status: {!r},'
-        'Wait time: {!r},'
-        'Time limit: {!r}.'.format(
-            volume, start_state, transient_state, end_state,
-            volume.status, time.time() - start_time,
-            timeout
-            )
-        )
+    return False
 
 
 def _wait_for_volume_state_change(operation,
