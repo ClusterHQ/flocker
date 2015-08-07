@@ -72,15 +72,40 @@ class _AccumulatingProtocol(Protocol):
 
 
 class _AsyncLZC(object):
+    """
+    A proxy class for the asynchronous execution using a given reactor and its
+    thread pool.
+
+    Primarily this class dispatches its method calls to the functions in
+    :mod:`libzfs_core`.  But it can also be used for the asynchronous execution
+    of an arbitrary function.
+    """
+
     def __init__(self, reactor):
+        """
+        :param reactor: the reactor that is to be used for the asynchronous
+                        execution.
+        """
         self._reactor = reactor
         self._cache = {}
 
     def callDeferred(self, func, *args, **kwargs):
+        """
+        This is a thin wrapper around :func:`deferToThreadPool`.
+
+        Its primary advantage is that the reactor is already associated with
+        an instance of :class:`_AsyncLZC` and :meth:`getThreadPool` is called
+        to get the reactor's thread pool.
+        """
         return deferToThreadPool(self._reactor, self._reactor.getThreadPool(),
                                  func, *args, **kwargs)
 
     def __getattr__(self, name):
+        """
+        Pretend that this class provides the same methods as the functions
+        in :mod:`libzfs_core`.  The proxy methods execute the functions
+        in the asynchronous mode using the reactor and its thread pool.
+        """
         try:
             return self._cache[name]
         except KeyError:
@@ -95,6 +120,16 @@ class _AsyncLZC(object):
 
 
 class _FakeAsyncLZC(object):
+    """
+    A proxy class that emulates the asynchronous execution.
+
+    This class simulates behavior of :class:`_AsyncLZC`, but all the calls
+    are actually synchronous and returned :class:`Deferred` objects already
+    have results.
+
+    This is useful for testing when a reactor used does not have a thread pool.
+    """
+
     def __init__(self):
         self._cache = {}
 
@@ -119,6 +154,15 @@ _reactor_to_alzc = {}
 
 
 def _async_lzc(reactor):
+    """
+    Return an instance of either :class:`_AsyncLZC` or :class:`_FakeAsyncLZC`
+    for the given reactor depending on its capabilities.
+
+    :param reactor: the reactor.
+
+    The instance gets associated with the reactor and the same instance will
+    be returned for subsequent calls with the same ``reactor`` argument.
+    """
     try:
         return _reactor_to_alzc[reactor]
     except KeyError:
