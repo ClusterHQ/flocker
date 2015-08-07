@@ -24,10 +24,10 @@ common_cli:
     # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
     parse_logs() {
       # ubuntu defaults to mawk, which causes some things to break
-      if [ "X\$(os)" == "XUbuntu" ]
-      then
-        alias awk='mawk -W interactive'
-      fi
+      case "\$(os)"
+      in
+        "Xubuntu") alias awk='mawk -W interactive'
+      esac
 
       "\$@" | awk '
         # exceptions to rules below, these are always printed black
