@@ -74,6 +74,8 @@ common_cli:
       '
       return \${PIPESTATUS[0]}
     }
+    # fix the docker permission issue
+    sudo chmod 777 /var/run/docker.sock
 
 
   cleanup: &cleanup |
