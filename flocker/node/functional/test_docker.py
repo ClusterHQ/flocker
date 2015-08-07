@@ -38,7 +38,9 @@ from .._docker import (
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
 )
-from ..testtools import if_docker_configured, wait_for_unit_state
+from ..testtools import (
+    if_docker_configured, wait_for_unit_state, require_docker_version
+)
 
 
 def namespace_for_test(test_case):
@@ -172,6 +174,12 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
+    @require_docker_version(
+        '1.6.0',
+        'This test uses the registry:2 image '
+        'which requires Docker-1.6.0 or newer. '
+        'See https://docs.docker.com/registry/deploying/ for details.'
+    )
     def test_private_registry_image(self):
         """
         ``DockerClient.add`` can start containers based on an image from a

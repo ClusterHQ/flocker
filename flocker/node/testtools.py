@@ -4,16 +4,19 @@
 Testing utilities for ``flocker.node``.
 """
 
+from functools import wraps
 import os
 import pwd
 from unittest import skipIf
 from uuid import uuid4
 
+from distutils.version import LooseVersion
+
 from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SkipTest
 from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
@@ -50,6 +53,42 @@ if_docker_configured = skipIf(
         pwd.getpwuid(os.geteuid()).pw_name,
         _docker_reason,
     ))
+
+
+def require_docker_version(minimum_docker_version, message='N/A'):
+    """
+    Skip the wrapped test if the actual Docker version is less than
+    ``minimum_docker_version``.
+
+    :param str minimum_docker_version: The minimum version required by the
+        test.
+    :param str message: An explanatory message which will be printed when
+        skipping the test.
+    """
+    minimum_docker_version = LooseVersion(
+        minimum_docker_version
+    )
+
+    def decorator(wrapped):
+        @wraps(wrapped)
+        def wrapper(*args, **kwargs):
+            client = DockerClient()
+            docker_version = LooseVersion(
+                client._client.version()['Version']
+            )
+            if docker_version < minimum_docker_version:
+                raise SkipTest(
+                    'Minimum required Docker version: {}. '
+                    'Actual Docker version: {}. '
+                    'Details: {}'.format(
+                        minimum_docker_version,
+                        docker_version,
+                        message,
+                    )
+                )
+            return wrapped(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
