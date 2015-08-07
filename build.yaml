@@ -11,7 +11,7 @@ git_url: 'https://github.com/ClusterHQ/flocker.git'
 # used during the build process
 common_cli:
   hashbang: &hashbang |
-    #!/bin/bash
+    #!/bin/bash -l
     set -x
     set -e
     os() {
