@@ -28,7 +28,7 @@ common_cli:
           fi
       fi
       # For everything else (or if above failed), just use generic identifier
-      if [ "\$DISTRO" == "" ]
+      if [ "X\$DISTRO" == "X" ]
       then
         export DISTRO=\$UNAME
       fi
