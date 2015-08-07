@@ -42,23 +42,26 @@ Bug Reporting
 
 When reporting issues with Flocker please include:
 
+* Flocker version,
 * operating system and version,
 * Linux kernel version,
 * Docker version and configuration,
 * Flocker log files and
 * recent syslog content.
 
-The following script can be used to gather this information on Ubuntu 14.04 and CentOS 7.
-
-* :download:`flocker-log-export.py`
-
-Save the script to a file and then run it as root.
+The ``flocker-diagnostics`` command can be used to gather this information on Ubuntu 14.04 and CentOS 7.
 
 .. prompt:: bash #
 
-   python flocker-log-export.py
+   flocker-diagnostics
 
 Alternatively, the information can be gathered manually using the following commands:
+
+* Flocker version
+
+  .. prompt:: bash #
+
+     flocker-control --version
 
 * Operating system and version:
 
