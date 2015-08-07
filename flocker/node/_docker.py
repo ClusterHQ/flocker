@@ -516,12 +516,12 @@ class DockerClient(object):
         restart_policy_dict = self._serialize_restart_policy(restart_policy)
 
         def _create():
-            binds = [
+            binds = list(
                 u"{}:{}:Z".format(
                     volume.node_path.path, volume.container_path.path
                 )
                 for volume in volumes
-            }
+            )
             port_bindings = {
                 p.internal_port: p.external_port
                 for p in ports
