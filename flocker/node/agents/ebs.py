@@ -103,6 +103,7 @@ class VolumeStateTable(PRecord):
         def add_flow(operation, start, transient, end, sets_attach,
                      unsets_attach):
             """
+            Helper to add expected volume states for given operation.
             """
             return table.set(operation,
                              VolumeStateFlow(start_state=start,
@@ -129,11 +130,21 @@ VOLUME_STATE_TABLE = VolumeStateTable()
 
 class TimeoutException(Exception):
     """
+    A timeout on waiting for volume to reach destination end state.
+
+    :param unicode blockdevice_id: Unique identifier for a volume.
+    :param NamedConstant operation: Operation performed on volume.
+    :param unicode start_state: Volume's start state before operation.
+    :param unicode transient_state: Expected transient state during operation.
+    :param unicode end_state: Expected end state on operation completion.
+    :param unicode current_state: Volume's state at timeout.
     """
-    def __init__(self, blockdevice_id, start_state, transient_state,
-                 end_state, current_state):
+    def __init__(self, blockdevice_id, operation,
+                 start_state, transient_state, end_state, current_state):
         Exception.__init__(self, blockdevice_id)
         self.blockdevice_id = blockdevice_id
+        Exception.__init__(self, operation)
+        self.operation = operation
         Exception.__init__(self, start_state)
         self.start_state = start_state
         Exception.__init__(self, transient_state)
@@ -361,6 +372,21 @@ def _get_ebs_volume_state(volume):
 def _should_finish(operation, volume, update, start_time,
                    timeout=VOLUME_STATE_CHANGE_TIMEOUT):
     """
+    Helper function to determine if wait for volume's state transition
+    resulting from given operation is over.
+    The method completes if volume reached expected end state, or, failed
+    to reach expected end state, or we timed out waiting for the volume to
+    reach expected end state.
+
+    :param NamedConstant operation: Operation performed on given volume.
+    :param boto.ec2.volume volume: Target volume of given operation.
+    :param method update: Method to use to check volume state.
+    :param float start_time: Time when operation was executed on volume.
+    :param int timeout: Time, in seconds, to wait for volume to reach expected
+        destination state.
+
+    :returns: True or False indicating end of wait for volume state transition.
+    :rtype: bool
     """
     state_flow = VOLUME_STATE_TABLE.table[operation]
     start_state = state_flow.start_state.value
@@ -376,7 +402,7 @@ def _should_finish(operation, volume, update, start_time,
         # 3) Reached ``end_status``, but ``end_status`` comes with
         #    attach data, and we timed out waiting for attach data.
         # Raise a ``TimeoutException`` in all cases.
-        raise TimeoutException(unicode(volume.id), start_state,
+        raise TimeoutException(unicode(volume.id), operation, start_state,
                                transient_state, end_state, volume.status)
 
     try:

@@ -171,6 +171,7 @@ class VolumeStateTransitionTests(TestCase):
 
     class VolumeEndStateTypes(Names):
         """
+        Types of volume states to simulate.
         """
         ERROR = NamedConstant()
         IN_TRANSIT = NamedConstant()
@@ -178,6 +179,7 @@ class VolumeStateTransitionTests(TestCase):
 
     class VolumeAttachDataTypes(Names):
         """
+        Types of volume's attach data states to simulate.
         """
         MISSING = NamedConstant()
         MISSING_INSTANCE_ID = NamedConstant()
@@ -220,11 +222,12 @@ class VolumeStateTransitionTests(TestCase):
 
     def _pick_end_state(self, operation, state_type):
         """
-        Helper function to pick an invalid volume state for input
+        Helper function to pick a desired volume state for given input
         operation.
 
         :param NamedConstant operation: Volume operation to pick a
             state for. A value from ``VolumeOperations``.
+        :param NamedConstant state_type: Volume state type request.
 
         :returns: A state from ``VolumeStates`` that will not be part of
             a volume's states resulting from input operation.
@@ -240,10 +243,7 @@ class VolumeStateTransitionTests(TestCase):
 
             err_states = set(VolumeStates._enumerants.values()) - valid_states
             err_state = err_states.pop()
-            if err_state is None:
-                return None
-            else:
-                return err_state.value
+            return err_state.value
         elif state_type == self.S.IN_TRANSIT:
             return state_flow.transient_state.value
         elif state_type == self.S.DESTINATION:
@@ -251,6 +251,12 @@ class VolumeStateTransitionTests(TestCase):
 
     def _pick_attach_data(self, attach_type):
         """
+        Helper function to create desired volume attach data.
+
+        :param NamedConstant attach_type: Type of attach data to create.
+
+        :returns: A volume attachment set that conforms to requested attach type.
+        :rtype: AttachmentSet
         """
         if attach_type == self.A.MISSING:
             return None
@@ -273,6 +279,9 @@ class VolumeStateTransitionTests(TestCase):
             return None
 
     def _custom_update(self, operation, state_type, attach_data=A.MISSING):
+        """
+        Create a custom update function for a volume.
+        """
         def update(volume):
             """
             Transition volume to desired end state and attach data.
@@ -287,6 +296,8 @@ class VolumeStateTransitionTests(TestCase):
     def _assert_raises_invalid_state(self, operation, testcase,
                                      attach_data_type=A.MISSING):
         """
+        Helper function to validate that ``TimeoutException`` is raised as
+        a result of performing input operation a volume.
         """
         volume = self._create_template_ebs_volume(operation)
         self.assertRaises(TimeoutException, _wait_for_volume_state_change,
