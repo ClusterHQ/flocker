@@ -5,8 +5,8 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 
 """
 
+import time
 from uuid import uuid4
-
 from bitmath import Byte
 
 from boto.ec2.volume import (
@@ -21,7 +21,7 @@ from eliot.testing import LoggedMessage, capture_logging
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException
+    TimeoutException, _should_finish, UnexpectedStateException
 )
 
 from .._logging import (
@@ -181,7 +181,7 @@ class VolumeStateTransitionTests(TestCase):
         """
         Types of volume's attach data states to simulate.
         """
-        MISSING = NamedConstant()
+        MISSING_ATTACH_DATA = NamedConstant()
         MISSING_INSTANCE_ID = NamedConstant()
         MISSING_DEVICE = NamedConstant()
         ATTACH_SUCCESS = NamedConstant()
@@ -258,7 +258,7 @@ class VolumeStateTransitionTests(TestCase):
         :returns: Volume attachment set that conforms to requested attach type.
         :rtype: AttachmentSet
         """
-        if attach_type == self.A.MISSING:
+        if attach_type == self.A.MISSING_ATTACH_DATA:
             return None
         elif attach_type == self.A.MISSING_INSTANCE_ID:
             attach_data = AttachmentSet()
@@ -278,7 +278,8 @@ class VolumeStateTransitionTests(TestCase):
         elif attach_type == self.A.DETACH_SUCCESS:
             return None
 
-    def _custom_update(self, operation, state_type, attach_data=A.MISSING):
+    def _custom_update(self, operation, state_type,
+                       attach_data=A.MISSING_ATTACH_DATA):
         """
         Create a custom update function for a volume.
         """
@@ -293,18 +294,37 @@ class VolumeStateTransitionTests(TestCase):
             volume.attach_data = self._pick_attach_data(attach_data)
         return update
 
-    def _assert_raises_invalid_state(self, operation, testcase,
-                                     attach_data_type=A.MISSING):
+    def _assert_fail(self, operation, testcase,
+                     attach_data_type=A.MISSING_ATTACH_DATA):
+        """
+        Assert that configured volume state change for given testcase indicates
+        incomplete operation execution.
+        """
+        volume = self._create_template_ebs_volume(operation)
+        update = self._custom_update(operation, testcase, attach_data_type)
+        start_time = time.time()
+
+        if testcase == self.S.ERROR:
+            self.assertRaises(UnexpectedStateException, _should_finish,
+                              operation, volume, update, start_time, TIMEOUT)
+        else:
+            finish_result = _should_finish(operation, volume, update,
+                                           start_time)
+            self.assertEqual(False, finish_result)
+
+    def _assert_timeout(self, operation, testcase,
+                        attach_data_type=A.MISSING_ATTACH_DATA):
         """
         Helper function to validate that ``TimeoutException`` is raised as
         a result of performing input operation for given testcase on a volume.
         """
         volume = self._create_template_ebs_volume(operation)
-        self.assertRaises(TimeoutException, _wait_for_volume_state_change,
-                          operation, volume,
-                          self._custom_update(operation, testcase,
-                                              attach_data_type),
-                          TIMEOUT)
+        update = self._custom_update(operation, testcase, attach_data_type)
+
+        start_time = time.time()
+        time.sleep(TIMEOUT)
+        self.assertRaises(TimeoutException, _should_finish,
+                          operation, volume, update, start_time, TIMEOUT)
 
     def _assert_success(self, operation, testcase,
                         attach_data_type=A.ATTACH_SUCCESS):
@@ -319,7 +339,7 @@ class VolumeStateTransitionTests(TestCase):
                                       TIMEOUT)
 
         if operation == self.V.CREATE:
-            self.assertEquals(volume.status, u'available')
+            self.assertEqual(volume.status, u'available')
         elif operation == self.V.DESTROY:
             self.assertEquals(volume.status, u'')
         elif operation == self.V.ATTACH:
@@ -331,77 +351,82 @@ class VolumeStateTransitionTests(TestCase):
 
     def test_create_invalid_state(self):
         """
-        Assert that ``TimeoutException`` is thrown if create fails.
+        Assert that error volume state during creation raises
+        ``UnexpectedStateException``.
         """
-        self._assert_raises_invalid_state(self.V.CREATE, self.S.ERROR)
+        self._assert_fail(self.V.CREATE, self.S.ERROR)
 
     def test_destroy_invalid_state(self):
         """
-        Assert that ``TimeoutException`` is thrown if destroy fails.
+        Assert that error volume state during destroy raises
+        ``UnexpectedStateException``.
         """
-        self._assert_raises_invalid_state(self.V.DESTROY, self.S.ERROR)
+        self._assert_fail(self.V.DESTROY, self.S.ERROR)
 
     def test_attach_invalid_state(self):
         """
-        Assert that ``TimeoutException`` is thrown if attach fails.
+        Assert that error volume state during attach raises
+        ``UnexpectedStateException``.
         """
-        self._assert_raises_invalid_state(self.V.ATTACH, self.S.ERROR)
+        self._assert_fail(self.V.ATTACH, self.S.ERROR)
 
     def test_detach_invalid_state(self):
         """
-        Assert that ``TimeoutException`` is thrown if detach fails.
+        Assert that error volume state during detach raises
+        ``UnexpectedStateException``.
         """
-        self._assert_raises_invalid_state(self.V.DETACH, self.S.ERROR)
+        self._assert_fail(self.V.DETACH, self.S.ERROR)
 
     def test_stuck_create(self):
         """
-        Assert that ``TimeoutException`` is thrown if create gets stuck.
+        Assert that stuck create state indicates operation in progress.
         """
-        self._assert_raises_invalid_state(self.V.CREATE, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.CREATE, self.S.IN_TRANSIT)
 
     def test_stuck_destroy(self):
         """
-        Assert that ``TimeoutException`` is thrown if destroy gets stuck.
+        Assert that stuck destroy state indicates operation in progress.
         """
-        self._assert_raises_invalid_state(self.V.DESTROY, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.DESTROY, self.S.IN_TRANSIT)
 
     def test_stuck_attach(self):
         """
-        Assert that ``TimeoutException`` is thrown if attach gets stuck.
+        Assert that stuck attach state indicates operation in progress.
         """
-        self._assert_raises_invalid_state(self.V.ATTACH, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.ATTACH, self.S.IN_TRANSIT)
 
     def test_stuck_detach(self):
         """
-        Assert that ``TimeoutException`` is thrown if detach gets stuck.
+        Assert that stuck detach state indicates operation in progress.
         """
-        self._assert_raises_invalid_state(self.V.DETACH, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.DETACH, self.S.IN_TRANSIT)
 
     def test_attach_missing_attach_data(self):
         """
-        Assert that ``TimeoutException`` is thrown if attach fails to update
-        AttachmentSet.
+        Assert that missing attach data indicates attach in progress.
         """
-        self._assert_raises_invalid_state(self.V.ATTACH, self.S.DESTINATION)
+        self._assert_fail(self.V.ATTACH, self.S.DESTINATION)
 
     def test_attach_missing_instance_id(self):
         """
-        Assert that ``TimeoutException`` is thrown if attach fails to update
-        volume's attach data for compute instance id.
+        Assert that missing attach instance id indicates attach in progress.
         """
-        self._assert_raises_invalid_state(self.V.ATTACH,
-                                          self.S.DESTINATION,
-                                          self.A.MISSING_INSTANCE_ID)
+        self._assert_fail(self.V.ATTACH, self.S.DESTINATION,
+                          self.A.MISSING_INSTANCE_ID)
 
     def test_attach_missing_device(self):
         """
-        Assert that ``TimeoutException`` is thrown if attach fails to update
-        volume's attached device information.
-
+        Assert that missing attached device name indicates attach in progress.
         """
-        self._assert_raises_invalid_state(self.V.ATTACH,
-                                          self.S.DESTINATION,
-                                          self.A.MISSING_DEVICE)
+        self._assert_fail(self.V.ATTACH, self.S.DESTINATION,
+                          self.A.MISSING_DEVICE)
+
+    def test_timeout(self):
+        """
+        Assert that ``TimeoutException`` is thrown if volume state transition
+        takes longer than configured timeout.
+        """
+        self._assert_timeout(self.V.ATTACH, self.S.DESTINATION)
 
     def test_create_success(self):
         """

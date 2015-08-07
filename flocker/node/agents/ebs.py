@@ -155,6 +155,33 @@ class TimeoutException(Exception):
         self.current_state = current_state
 
 
+class UnexpectedStateException(Exception):
+    """
+    An unexpected state was encountered by a volume as a result of operation.
+
+    :param unicode blockdevice_id: Unique identifier for a volume.
+    :param NamedConstant operation: Operation performed on volume.
+    :param unicode start_state: Volume's start state before operation.
+    :param unicode transient_state: Expected transient state during operation.
+    :param unicode end_state: Expected end state on operation completion.
+    :param unicode current_state: Volume's state at timeout.
+    """
+    def __init__(self, blockdevice_id, operation,
+                 start_state, transient_state, end_state, current_state):
+        Exception.__init__(self, blockdevice_id)
+        self.blockdevice_id = blockdevice_id
+        Exception.__init__(self, operation)
+        self.operation = operation
+        Exception.__init__(self, start_state)
+        self.start_state = start_state
+        Exception.__init__(self, transient_state)
+        self.transient_state = transient_state
+        Exception.__init__(self, end_state)
+        self.end_state = end_state
+        Exception.__init__(self, current_state)
+        self.current_state = current_state
+
+
 class EliotLogHandler(logging.Handler):
     _to_log = {"Method", "Path", "Params"}
 
@@ -433,6 +460,10 @@ def _should_finish(operation, volume, update, start_time,
                 return False
         else:
             return True
+    elif volume.status not in [start_state, transient_state, end_state]:
+        raise UnexpectedStateException(unicode(volume.id), operation,
+                                       start_state, transient_state, end_state,
+                                       volume.status)
     return False
 
 
