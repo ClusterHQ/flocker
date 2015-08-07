@@ -608,7 +608,7 @@ class StoragePool(Service):
             properties[b"readonly"] = 0
         if volume.size.maximum_size is not None:
             properties[b"refquota"] = volume.size.maximum_size
-        d = self._async_lzc.lzc_create(filesystem.name, False, properties)
+        d = self._async_lzc.lzc_create(filesystem.name, props=properties)
         d.addErrback(self._check_for_out_of_space)
         d.addCallback(
             lambda _: zfs_command(self._reactor, [b"mount", filesystem.name]))
