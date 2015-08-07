@@ -172,8 +172,20 @@ class VolumeStateTransitionTests(TestCase):
         """
         """
         ERROR = NamedConstant()
-        TRANSITIONING = NamedConstant()
+        IN_TRANSIT = NamedConstant()
         DESTINATION = NamedConstant()
+
+    class VolumeAttachDataTypes(Names):
+        """
+        """
+        MISSING = NamedConstant()
+        MISSING_INSTANCE_ID = NamedConstant()
+        MISSING_DEVICE = NamedConstant()
+        SUCCESS = NamedConstant()
+
+    V = VolumeOperations
+    S = VolumeEndStateTypes
+    A = VolumeAttachDataTypes
 
     def _create_template_ebs_volume(self, operation):
         """
@@ -204,189 +216,169 @@ class VolumeStateTransitionTests(TestCase):
 
         return volume
 
-    def _invalid_update(self, operation, testcase):
+    def _pick_end_state(self, operation, state_type):
+        """
+        Helper function to pick an invalid volume state for input
+        operation.
 
-        def _pick_invalid_state(operation, testcase):
-            """
-            Helper function to pick an invalid volume state for input
-            operation.
+        :param NamedConstant operation: Volume operation to pick a
+            state for. A value from ``VolumeOperations``.
 
-            :param NamedConstant operation: Volume operation to pick a
-                state for. A value from ``VolumeOperations``.
+        :returns: A state from ``VolumeStates`` that will not be part of
+            a volume's states resulting from input operation.
+        :rtype: ValueConstant
+        """
+        volume_state_table = VolumeStateTable()
+        state_flow = volume_state_table.table[operation]
 
-            :returns: A state from ``VolumeStates`` that will not be part of
-                a volume's states resulting from input operation.
-            :rtype: ValueConstant
-            """
-            volume_state_table = VolumeStateTable()
-            state_flow = volume_state_table.table[operation]
+        if state_type == self.S.ERROR:
+            valid_states = set([state_flow.start_state,
+                                state_flow.transient_state,
+                                state_flow.end_state])
 
-            if testcase == self.VolumeEndStateTypes.ERROR:
-                valid_states = set([state_flow.start_state,
-                                    state_flow.transient_state,
-                                    state_flow.end_state])
+            states = set(VolumeStates._enumerants.values()) - valid_states
+            error_state = states.pop()
+            if error_state is None:
+                return None
+            else:
+                return error_state.value
+        if state_type == self.S.IN_TRANSIT:
+            return state_flow.transient_state.value
+        if state_type == self.S.DESTINATION:
+            return state_flow.end_state.value
 
-                error_states = set(VolumeStates._enumerants.values()) - valid_states
-                error_state = error_states.pop()
-                if error_state is None:
-                    return None
-                else:
-                    return error_state.value
-            if testcase == self.VolumeEndStateTypes.TRANSITIONING:
-                return state_flow.transient_state.value
+    def _pick_attach_data(self, attach_data):
+        """
+        """
+        if attach_data == self.A.MISSING:
+            return None
+        elif attach_data == self.A.MISSING_INSTANCE_ID:
+            attach_data = AttachmentSet()
+            attach_data.device = u'/dev/sdf'
+            attach_data.instance_id = ''
+            return attach_data
+        elif attach_data == self.A.MISSING_DEVICE:
+            attach_data = AttachmentSet()
+            attach_data.device = ''
+            attach_data.instance_id = u'i-xyz'
+            return attach_data
+        elif attach_data == self.A.SUCCESS:
+            attach_data = AttachmentSet()
+            attach_data.device = u'/dev/sdf'
+            attach_data.instance_id = u'i-xyz'
+            return attach_data
 
+    def _custom_update(self, operation, state_type, attach_data=A.MISSING):
         def update(volume):
             """
-            Transition volume to invalid state.
+            Transition volume to desired end state and attach data.
 
             :param boto.ec2.volume.Volume volume: Volume to move to
                 invalid state.
             """
-            volume.status = self._pick_invalid_state(operation, testcase)
+            volume.status = self._pick_end_state(operation, state_type)
+            volume.attach_data = self._pick_attach_data(attach_data)
         return update
 
-    def _assert_raises_invalid_state(self, operation, testcase):
+    def _assert_raises_invalid_state(self, operation, testcase,
+                                     attach_data=A.MISSING):
         """
         """
         volume = self._create_template_ebs_volume(operation)
         self.assertRaises(Exception, _wait_for_volume_state_change,
                           operation, volume,
-                          self._invalid_update(operation, testcase), TIMEOUT)
+                          self._custom_update(operation, testcase,
+                                              attach_data),
+                          TIMEOUT)
+
+    def _assert_success(self, operation, testcase,
+                        attach_data=A.SUCCESS):
+        """
+        """
+        volume = self._create_template_ebs_volume(operation)
+        _wait_for_volume_state_change(operation, volume,
+                                      self._custom_update(operation, testcase,
+                                                          attach_data),
+                                      TIMEOUT)
+
+        if operation == self.V.CREATE:
+            self.assertEquals(volume.status, u'available')
+        elif operation == self.V.DESTROY:
+            self.assertEquals(volume.status, u'')
+        elif operation == self.V.ATTACH:
+            self.assertEqual([volume.status, volume.attach_data.device,
+                              volume.attach_data.instance_id],
+                             [u'in-use', u'/dev/sdf', u'i-xyz'])
+        elif operation == self.V.DETACH:
+            self.assertEqual(volume.status, u'available')
 
     def test_create_invalid_state(self):
         """
         Assert that ``Exception`` is thrown if create volume operation fails.
         """
-        operation = VolumeOperations.CREATE
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.ERROR)
+        self._assert_raises_invalid_state(self.V.CREATE, self.S.ERROR)
 
     def test_destroy_invalid_state(self):
         """
         Assert that ``Exception`` is thrown if destroy volume operation fails.
         """
-        operation = VolumeOperations.DESTROY
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.ERROR)
+        self._assert_raises_invalid_state(self.V.DESTROY, self.S.ERROR)
 
     def test_attach_invalid_state(self):
         """
         Assert that ``Exception`` is thrown if attach volume operation fails.
         """
-        operation = VolumeOperations.ATTACH
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.ERROR)
+        self._assert_raises_invalid_state(self.V.ATTACH, self.S.ERROR)
 
     def test_detach_invalid_state(self):
         """
         Assert that ``Exception`` is thrown if detach volume operation fails.
         """
-        operation = VolumeOperations.DETACH
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.ERROR)
+        self._assert_raises_invalid_state(self.V.DETACH, self.S.ERROR)
 
     def test_stuck_create(self):
         """
-        Assert that ``Exception`` is thrown if create volume operation is stuck
+        Assert that ``Exception`` is thrown if create operation is stuck
         creating.
         """
-        operation = VolumeOperations.CREATE
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.TRANSITIONING)
+        self._assert_raises_invalid_state(self.V.CREATE, self.S.IN_TRANSIT)
 
     def test_stuck_destroy(self):
         """
-        Assert that ``Exception`` is thrown if destroy volume operation is stuck
+        Assert that ``Exception`` is thrown if destroy operation is stuck
         destroying.
         """
-        operation = VolumeOperations.DESTROY
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.TRANSITIONING)
+        self._assert_raises_invalid_state(self.V.DESTROY, self.S.IN_TRANSIT)
 
     def test_stuck_attach(self):
         """
-        Assert that ``Exception`` is thrown if attach volume operation is stuck
+        Assert that ``Exception`` is thrown if attach operation is stuck
         attaching.
         """
-        operation = VolumeOperations.ATTACH
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.TRANSITIONING)
+        self._assert_raises_invalid_state(self.V.ATTACH, self.S.IN_TRANSIT)
 
     def test_stuck_detach(self):
         """
-        Assert that ``Exception`` is thrown if detach volume operation is stuck
+        Assert that ``Exception`` is thrown if detach operation is stuck
         detaching.
         """
-        operation = VolumeOperations.DETACH
-        self._assert_raises_invalid_state(operation,
-                                          self.VolumeEndStateTypes.TRANSITIONING)
+        self._assert_raises_invalid_state(self.V.DETACH, self.S.IN_TRANSIT)
 
     def test_attach_missing_attach_data(self):
         """
         Assert that ``Exception`` is thrown when attach volume fails to update
         AttachmentSet.
         """
-        operation = VolumeOperations.ATTACH
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to ``in-use`` state indicating successful attach.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to ``in-use``
-                state.
-            """
-            volume.status = u'in-use'
-
-        self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
+        self._assert_raises_invalid_state(self.V.ATTACH, self.S.DESTINATION)
 
     def test_attach_missing_instance_id(self):
         """
         Assert that ``Exception`` is thrown when attach volume fails to update
         volume's attach data for compute instance id.
         """
-        operation = VolumeOperations.ATTACH
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to ``in-use`` state, update its attached device,
-            and leave attached compute instance field empty.
-
-            :param boto.ec2.volume.Volume volume: Volume to partially attach.
-            """
-            volume.status = u'in-use'
-            volume.attach_data = AttachmentSet()
-            volume.attach_data.device = u'/dev/sdf'
-            volume.attach_data.instance_id = ''
-
-        self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
-
-    def test_attach_sucess(self):
-        """
-        Test if successful attach volume operation leads to expected state.
-        """
-        operation = VolumeOperations.ATTACH
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to a successfully attached state.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to a
-                successfully attach state.
-            """
-            volume.status = u'in-use'
-            volume.attach_data = AttachmentSet()
-            volume.attach_data.device = u'/dev/sdf'
-            volume.attach_data.instance_id = u'i-xyz'
-
-        _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
-        self.assertEqual([volume.status, volume.attach_data.device,
-                          volume.attach_data.instance_id],
-                         [u'in-use', u'/dev/sdf', u'i-xyz'])
+        self._assert_raises_invalid_state(self.V.ATTACH,
+                                          self.S.DESTINATION,
+                                          self.A.MISSING_INSTANCE_ID)
 
     def test_attach_missing_device(self):
         """
@@ -394,61 +386,30 @@ class VolumeStateTransitionTests(TestCase):
         to update volume's attached device information.
 
         """
-        operation = VolumeOperations.ATTACH
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to ``in-use`` state, populate its attached
-            instance id, and set attached device name to empty.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to an
-                incomplete attach state.
-            """
-            volume.status = u'in-use'
-            volume.attach_data = AttachmentSet()
-            volume.attach_data.device = ''
-            volume.attach_data.instance_id = u'i-xyz'
-
-        self.assertRaises(Exception, _wait_for_volume_state_change,
-                          operation, volume, update, TIMEOUT)
+        self._assert_raises_invalid_state(self.V.ATTACH,
+                                          self.S.DESTINATION,
+                                          self.A.MISSING_DEVICE)
 
     def test_create_success(self):
         """
-        Test if successful create volume operation leaves volume in
-        ``available`` state.
+        Assert that successful volume creation leads to valid volume end state.
         """
-        operation = VolumeOperations.CREATE
-        volume = self._create_template_ebs_volume(operation)
-
-        def update(volume):
-            """
-            Transition volume to end state of a successful create operation.
-
-            :param boto.ec2.volume.Volume volume: Volume to move to
-                successful creation state.
-            """
-            volume.status = u'available'
-
-        _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
-        self.assertEquals(volume.status, u'available')
+        self._assert_success(self.V.CREATE, self.S.DESTINATION)
 
     def test_destroy_success(self):
         """
-        Test if successful destroy volume operation leaves the volume in
-        expected end state.
+        Assert that successful volume destruction leads to valid end state.
         """
-        operation = VolumeOperations.DESTROY
-        volume = self._create_template_ebs_volume(operation)
+        self._assert_success(self.V.DESTROY, self.S.DESTINATION)
 
-        def update(volume):
-            """
-            Transition volume to valid end state of destroy volume operation.
+    def test_attach_sucess(self):
+        """
+        Test if successful attach volume operation leads to expected state.
+        """
+        self._assert_success(self.V.ATTACH, self.S.DESTINATION)
 
-            :param boto.ec2.volume.Volume volume: Volume to move to end state
-            for destroy operation.
-            """
-            volume.status = u''
-
-        _wait_for_volume_state_change(operation, volume, update, TIMEOUT)
-        self.assertEquals(volume.status, u'')
+    def test_detach_success(self):
+        """
+        Test if successful detach volume operation leads to expected state.
+        """
+        self._assert_success(self.V.DETACH, self.S.DESTINATION)
