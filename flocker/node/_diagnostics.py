@@ -4,13 +4,11 @@
 A script to export Flocker log files and system information.
 """
 
-from argparse import ArgumentParser
 from gzip import open as gzip_open
 import os
 from platform import dist as platform_dist
 from shutil import copyfileobj, make_archive, rmtree
 from socket import gethostname
-import sys
 from subprocess import check_call, check_output
 from tarfile import open as tarfile_open
 from time import time
@@ -285,31 +283,3 @@ def current_platform():
             return platform
     else:
         raise UnsupportedDistribution(distribution)
-
-
-def main():
-    ArgumentParser(
-        description="Export Flocker log files and diagnostic data.",
-        epilog=(
-            "Run this script as root, on an Ubuntu 14.04 or Centos 7 server "
-            "where the clusterhq-flocker-node package has been installed. "
-        )
-    ).parse_args()
-
-    try:
-        platform = current_platform()
-    except UnsupportedDistribution as e:
-        sys.stderr.write(
-            "ERROR: flocker-log-export "
-            "is not supported on this operating system ({!r}).\n"
-            "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
-            "for alternative ways to export Flocker logs "
-            "and diagnostic data.\n".format(e.distribution)
-        )
-        sys.exit(1)
-
-    archive_path = FlockerDebugArchive(
-        service_manager=platform.service_manager,
-        log_exporter=platform.log_exporter
-    ).create()
-    sys.stdout.write(archive_path + '\n')

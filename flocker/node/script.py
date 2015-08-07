@@ -5,8 +5,10 @@
 The command-line ``flocker-*-agent`` tools.
 """
 
+from argparse import ArgumentParser
 from socket import socket
 from contextlib import closing
+import sys
 from time import sleep
 
 import yaml
@@ -35,6 +37,9 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
+from ._diagnostics import (
+    current_platform, UnsupportedDistribution, FlockerDebugArchive
+)
 from .agents.blockdevice import (
     LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
 )
@@ -656,4 +661,28 @@ class DatasetServiceFactory(PRecord):
 
 
 def flocker_diagnostics_main():
-    print "DIAGNOSTICS"
+    ArgumentParser(
+        description="Export Flocker log files and diagnostic data.",
+        epilog=(
+            "Run this script as root, on an Ubuntu 14.04 or Centos 7 server "
+            "where the clusterhq-flocker-node package has been installed. "
+        )
+    ).parse_args()
+
+    try:
+        platform = current_platform()
+    except UnsupportedDistribution as e:
+        sys.stderr.write(
+            "ERROR: flocker-log-export "
+            "is not supported on this operating system ({!r}).\n"
+            "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
+            "for alternative ways to export Flocker logs "
+            "and diagnostic data.\n".format(e.distribution)
+        )
+        sys.exit(1)
+
+    archive_path = FlockerDebugArchive(
+        service_manager=platform.service_manager,
+        log_exporter=platform.log_exporter
+    ).create()
+    sys.stdout.write(archive_path + '\n')
