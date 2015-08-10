@@ -265,6 +265,8 @@ class Filesystem(object):
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
     """
+    logger = Logger()
+
     def __init__(self, pool, dataset, mountpoint=None, size=None,
                  reactor=None):
         """
@@ -359,6 +361,10 @@ class Filesystem(object):
         def send_and_close():
             try:
                 libzfs_core.lzc_send(snapshot, latest_common_name, wfd)
+            except Exception as e:
+                message = ZFS_ERROR(zfs_command="lzc_send " + snapshot,
+                                    output=str(e), status=e.errno)
+                message.write(self.logger)
             finally:
                 os.close(wfd)
                 queue.put(None)
@@ -404,8 +410,11 @@ class Filesystem(object):
             try:
                 libzfs_core.lzc_receive(self.name, rfd, force)
                 success = True
-            except Exception:
+            except Exception as e:
                 success = False
+                message = ZFS_ERROR(zfs_command="lzc_receive " + self.name,
+                                    output=str(e), status=e.errno)
+                message.write(self.logger)
             finally:
                 os.close(rfd)
                 queue.put(success)
