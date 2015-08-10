@@ -24,9 +24,8 @@ from eliot import Field, MessageType, Logger
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
-from twisted.internet.interfaces import IReactorThreads
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import Deferred, succeed, maybeDeferred
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.threads import deferToThreadPool
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
@@ -119,44 +118,12 @@ class _AsyncLZC(object):
             return self._cache[name]
 
 
-class _FakeAsyncLZC(object):
-    """
-    A proxy class that emulates the asynchronous execution.
-
-    This class simulates behavior of :class:`_AsyncLZC`, but all the calls
-    are actually synchronous and returned :class:`Deferred` objects already
-    have results.
-
-    This is useful for testing when a reactor used does not have a thread pool.
-    """
-
-    def __init__(self):
-        self._cache = {}
-
-    def callDeferred(self, func, *args, **kwargs):
-        return maybeDeferred(func, *args, **kwargs)
-
-    def __getattr__(self, name):
-        try:
-            return self._cache[name]
-        except KeyError:
-            func = getattr(libzfs_core, name)
-
-            @wraps(func)
-            def _async_wrapper(*args, **kwargs):
-                return maybeDeferred(func, *args, **kwargs)
-
-            self._cache[name] = _async_wrapper
-            return self._cache[name]
-
-
 _reactor_to_alzc = {}
 
 
 def _async_lzc(reactor):
     """
-    Return an instance of either :class:`_AsyncLZC` or :class:`_FakeAsyncLZC`
-    for the given reactor depending on its capabilities.
+    Return an instance of :class:`_AsyncLZC` for the given reactor.
 
     :param reactor: the reactor.
 
@@ -166,10 +133,7 @@ def _async_lzc(reactor):
     try:
         return _reactor_to_alzc[reactor]
     except KeyError:
-        if IReactorThreads.providedBy(reactor):
-            _reactor_to_alzc[reactor] = _AsyncLZC(reactor)
-        else:
-            _reactor_to_alzc[reactor] = _FakeAsyncLZC()
+        _reactor_to_alzc[reactor] = _AsyncLZC(reactor)
         return _reactor_to_alzc[reactor]
 
 
