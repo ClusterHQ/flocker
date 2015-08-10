@@ -704,7 +704,7 @@ class Configuration(PRecord):
     A ``Configuration`` represents the persisted configured state of a
     cluster.
     """
-    version = field(mandatory=True, type=int)
+    version = field(mandatory=True, type=int, initial=2)
     deployment = field(mandatory=True, type=Deployment)
 
 

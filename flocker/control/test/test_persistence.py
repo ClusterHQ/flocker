@@ -4,8 +4,6 @@
 Tests for ``flocker.control._persistence``.
 """
 
-import json
-
 from uuid import uuid4
 
 from eliot.testing import validate_logging, assertHasMessage, assertHasAction
@@ -19,7 +17,6 @@ from pyrsistent import PRecord
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
-    _CLASS_MARKER,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -134,7 +131,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         """
         path = FilePath(self.mktemp())
         self.service(path)
-        self.assertTrue(path.child(b"current_configuration.v1.json").exists())
+        self.assertTrue(path.child(b"current_configuration.json").exists())
 
     @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
                       startFields=dict(configuration=TEST_DEPLOYMENT))
@@ -260,24 +257,13 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     """
     configurations_dir = FilePath(__file__).sibling('configurations')
 
-    def test_v0_v1_configuration(self):
+    def test_v1_v2_configuration(self):
         """
         A V0 JSON configuration blob is transformed to a V1 configuration
         blob, with the result validating when loaded.
         """
-        v0_json = self.configurations_dir.child(
-            'configuration_v0.json').getContent()
-        v1_json = migrate_configuration(0, 1, v0_json)
-        v1_config = wire_decode(v1_json)
-        self.assertEqual(v1_config, Deployment(nodes=frozenset()))
-
-    def test_v1_v0_configuration(self):
-        """
-        A V1 JSON configuration blob is transformed to a V0 configuration
-        blob.
-        """
-        config_dict = {_CLASS_MARKER: u"Deployment"}
         v1_json = self.configurations_dir.child(
             'configuration_v1.json').getContent()
-        v0_json = migrate_configuration(1, 0, v1_json)
-        self.assertEqual(v0_json, json.dumps(config_dict))
+        v2_json = migrate_configuration(1, 2, v1_json)
+        v2_config = wire_decode(v2_json)
+        self.assertEqual(v2_config, Deployment(nodes=frozenset()))
