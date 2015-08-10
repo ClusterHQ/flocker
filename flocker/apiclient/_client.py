@@ -148,7 +148,7 @@ class FakeFlockerClient(object):
                 dataset_id=dataset.dataset_id,
                 primary=dataset.primary,
                 maximum_size=dataset.maximum_size,
-                path=FilePath(b"/flocker/{}".format(dataset.dataset_id)))
+                path=FilePath(b"/flocker").child(bytes(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
 
 
@@ -179,7 +179,7 @@ class FlockerClient(object):
         """
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
-        self._base_url = b"https://{}:{}/v1".format(host, port)
+        self._base_url = b"https://%:%/v1" % (host, port)
 
     def _request(self, method, path, body, success_code, error_codes=None):
         """
@@ -253,7 +253,7 @@ class FlockerClient(object):
 
     def move_dataset(self, primary, dataset_id):
         request = self._request(
-            b"POST", b"/configuration/datasets/{}".format(dataset_id),
+            b"POST", b"/configuration/datasets/{}" % (dataset_id),
             {u"primary": unicode(primary)}, OK)
         request.addCallback(self._parse_configuration_dataset)
         return request
