@@ -55,7 +55,7 @@ if_docker_configured = skipIf(
     ))
 
 
-def require_docker_version(minimum_docker_version, message='N/A'):
+def require_docker_version(minimum_docker_version, message):
     """
     Skip the wrapped test if the actual Docker version is less than
     ``minimum_docker_version``.
