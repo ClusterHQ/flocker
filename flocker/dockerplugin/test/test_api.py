@@ -161,7 +161,7 @@ class APITestsMixin(APIAssertionsMixin):
         dataset_id = UUID(dataset_id_from_name(name))
 
         d = self.create(name)
-        # After two polling intervals the dataset arrives as state:
+        # After a polling interval the dataset arrives as state:
         reactor.callLater(VolumePlugin._POLL_INTERVAL,
                           self.flocker_client.synchronize_state)
 
