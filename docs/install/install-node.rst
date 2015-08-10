@@ -159,7 +159,7 @@ Paste them into a root console on the target node:
 .. task:: install_flocker centos-7
    :prompt: [root@centos]#
 
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+The steps above will install Docker but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker centos-7
