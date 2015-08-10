@@ -699,6 +699,15 @@ class Deployment(PRecord):
         return deployment
 
 
+class Configuration(PRecord):
+    """
+    A ``Configuration`` represents the persisted configured state of a
+    cluster.
+    """
+    version = field(mandatory=True, type=int)
+    deployment = field(mandatory=True, type=Deployment)
+
+
 @attributes(["dataset", "hostname"])
 class DatasetHandoff(object):
     """
@@ -1078,5 +1087,5 @@ class _NonManifestDatasetsWipe(object):
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState, NonManifestDatasets,
+    NodeState, DeploymentState, NonManifestDatasets, Configuration,
 ]

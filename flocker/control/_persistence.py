@@ -116,6 +116,40 @@ class _ConfigurationMigration_V0_V1(object):
         return configuration
 
 
+class IConfiguration(Interface):
+    """
+    An ``IConfiguration`` implementation provides a serializer and
+    deserializer for a ``Configuration`` model.
+    """
+    def serialize(config):
+        """
+        Serialize the supplied configuration model to JSON.
+
+        :param Configuration config: The configuration to serialize.
+        :return bytes: The JSON representation.
+        """
+
+    def deserialize(config):
+        """
+        Deserialize the supplied JSON to a ``Configuration`` model.
+
+        :param bytes config: The JSON configuration to deserialize.
+        :return Configuration: The configuration model.
+        """
+
+
+@implementer(IConfiguration)
+class Configuration_V1(object):
+    """
+    A version 1 configuration.
+    """
+    def serialize(config):
+        pass
+
+    def deserialize(config):
+        pass
+
+
 class _ConfigurationEncoder(JSONEncoder):
     """
     JSON encoder that can encode the configuration model.
@@ -140,7 +174,7 @@ class _ConfigurationEncoder(JSONEncoder):
 
 def wire_encode(obj):
     """
-    Encode the given configuration object into bytes.
+    Encode the given model object into bytes.
 
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     :return bytes: Encoded object.
@@ -150,10 +184,9 @@ def wire_encode(obj):
 
 def wire_decode(data):
     """
-    Decode the given configuration object from bytes.
+    Decode the given model object from bytes.
 
     :param bytes data: Encoded object.
-    :param obj: An object from the configuration model, e.g. ``Deployment``.
     """
     classes = _CONFIG_CLASS_MAP
 
@@ -258,39 +291,27 @@ class ConfigurationPersistenceService(MultiService):
 
     def _versioned_config(self):
         """
-        Sequentially and decrementally check for versioned configuration
-        files, from the current version to version 1. Return the file
-        found along with its version number, or if no valid
-        configuration file exists, return the current version number
-        and the expected file path of a configuration file matching
-        the latest version.
+        Determine the file path to a persisted configuration.
+        Version 1 configurations have a version indicator as part of
+        the filename. All later versions use ``current_configuration.json``
+        as the filename.
 
-        :return: A ``tuple`` comprising a version ``int`` and
-            config ``FilePath``.
+        :return FilePath: The path to the service configuration file.
         """
-        config_files = [
-            (
-                version,
-                self._path.child(_VERSIONED_CONFIG_FILE % version)
-            )
-            for version in range(_CURRENT_VERSION, -1, -1)
-        ]
-        # Check for each possible versioned config file, from newest
-        # to oldest and return the first match.
-        for version, config_file in config_files:
-            if config_file.exists():
-                return (version, config_file)
-        return (
-            _CURRENT_VERSION,
-            self._path.child(_VERSIONED_CONFIG_FILE % _CURRENT_VERSION)
-        )
+        config_file = self._path.child(b"current_configuration.json")
+        v1_config_file = self._path.child(
+            b"current_configuration.v1.json")
+        if v1_config_file.exists():
+            return v1_config_file
+        else:
+            return config_file
 
     def load_configuration(self):
         """
         Load the persisted configuration, upgrading the configuration format
         if an older version is detected.
         """
-        config_version, self._config_path = self._versioned_config()
+        self._config_path = self._versioned_config()
         if config_version < _CURRENT_VERSION:
             current_config = self._config_path.getContent()
             required_upgrades = range(
