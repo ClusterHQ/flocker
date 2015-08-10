@@ -181,7 +181,7 @@ class FlockerClient(object):
                                               cert_path, key_path)
         self._base_url = b"https://{}:{}/v1".format(host, port)
 
-    def _request(self, method, path, body, success_code, error_codes={}):
+    def _request(self, method, path, body, success_code, error_codes=None):
         """
         Send a HTTP request to the Flocker API, return decoded JSON body.
 
@@ -191,10 +191,13 @@ class FlockerClient(object):
             body of the request.
         :param int success_code: Expected success response code.
         :param error_codes: Mapping from HTTP response code to exception to be
-            raised if it is present.
+            raised if it is present, or ``None`` to send no headers.
 
         :return: ``Deferred`` firing with decoded JSON.
         """
+        if error_codes is None:
+            error_codes = {}
+
         def error(body, code):
             if code in error_codes:
                 raise error_codes[code](body)
