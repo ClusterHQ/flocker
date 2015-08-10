@@ -817,8 +817,11 @@ def task_install_flocker(
 
     script_path = b"/tmp/install-docker.sh"
     docker_url = b"https://get.docker.com/"
+    get_script = u"curl {} > {}".format(
+        docker_url, script_path
+    ).encode("ascii")
     commands = [
-        run_from_args([b"curl", docker_url, b">", script_path]),
+        run(command=get_script),
         run_from_args([b"sh", script_path]),
     ]
 
