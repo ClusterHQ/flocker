@@ -3,7 +3,6 @@
 """
 Tests for the flocker-diagnostics.
 """
-
 from twisted.trial.unittest import TestCase
 
 from ...testtools import loop_until
@@ -14,14 +13,31 @@ from ..testtools import (
 )
 
 
-class DatasetAPITests(TestCase):
+class DiagnosticsTests(TestCase):
     """
-    Tests for the dataset API.
+    Tests for ``flocker-diagnostics``.
     """
-    @require_cluster(1)
-    def test_export(self, cluster):
+    # @require_cluster(1)
+    def test_export(self):
         """
-        A dataset can be created on a specific node.
+        ``flocker-diagnostics`` creates an archive of all Flocker service logs
+        and server diagnostics information.
         """
-        import pdb; pdb.set_trace()
-        self.fail('not implemented')
+        from twisted.internet import reactor
+        from effect.twisted import perform
+        from flocker.provision._ssh._conch import make_dispatcher
+        from flocker.provision._ssh._model import run_remotely, run_from_args
+        dispatcher = make_dispatcher(reactor)
+        remote_command = run_remotely(
+            username='root',
+            address='119.9.110.111',
+            commands=run_from_args(['date']),
+        )
+        running = perform(dispatcher, remote_command)
+
+        def verify(result):
+            import pdb; pdb.set_trace()
+
+
+        running.addBoth(verify)
+        return running
