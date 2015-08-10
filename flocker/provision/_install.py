@@ -815,18 +815,9 @@ def task_install_flocker(
     else:
         use_development_branch = False
 
-    script_path = b"/tmp/install-docker.sh"
-    docker_url = b"https://get.docker.com/"
-    get_script = u"curl {} > {}".format(
-        docker_url, script_path
-    ).encode("ascii")
-    commands = [
-        run(command=get_script),
-        run_from_args([b"sh", script_path]),
-    ]
 
     if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
-        commands += [
+        commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
             # FLOC-1880 will ensure these are necessary and sufficient
             run_from_args([
@@ -874,7 +865,7 @@ def task_install_flocker(
 
         return sequence(commands)
     elif distribution in ('centos-7',):
-        commands += [
+        commands = [
             run(command="yum clean all"),
             run(command="yum install -y " + get_repository_url(
                 distribution=distribution,
