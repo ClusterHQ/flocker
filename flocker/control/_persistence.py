@@ -36,9 +36,6 @@ _HASH_MARKER = u"$__hash__$"
 # always integers.
 _CURRENT_VERSION = 1
 
-# Formatted bytes representing a versioned config file name.
-_VERSIONED_CONFIG_FILE = b"current_configuration.v%d.json"
-
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
 
@@ -52,8 +49,12 @@ class ConfigurationMigrationError(Exception):
 
 def migrate_configuration(source_version, target_version, config):
     """
-    Migrate a persisted configuration from one version to another.
-    Calls the correct ``ConfigurationMigration`` class method for
+    Migrate a persisted configuration from one version to another
+    in sequential upgrades, e.g. a source version of 1 and target
+    version of 3 will perform two upgrades, from version 1 to 2,
+    followed by 2 to 3.
+
+    Calls the correct ``ConfigurationMigration`` class methods for
     the suppled source and target versions.
 
     :param int source_version: The version to migrate from.
@@ -62,21 +63,75 @@ def migrate_configuration(source_version, target_version, config):
 
     :return bytes: The updated JSON configuration after migration.
     """
-    migration_method = (
-        u"configuration_v%d_v%d"
-        % (source_version, target_version)
-    )
-    try:
-        migration = getattr(ConfigurationMigration, migration_method)
-    except AttributeError:
-        message = (
-            u"Unable to find a migration path for a version " +
-            unicode(source_version) + u" to version " +
-            unicode(target_version) + u" configuration. " +
-            u"No migration method exists."
+    upgraded_config = config
+    current_version = source_version
+    for upgrade_version in range(source_version + 1, target_version + 1):
+        migration_method = (
+            u"configuration_v%d_v%d"
+            % (current_version, upgrade_version)
         )
-        raise ConfigurationMigrationError(message)
-    return migration(config)
+        try:
+            migration = getattr(ConfigurationMigration, migration_method)
+        except AttributeError:
+            message = (
+                u"Unable to find a migration path for a version " +
+                unicode(source_version) + u" to version " +
+                unicode(target_version) + u" configuration. " +
+                u"No migration method exists for v" +
+                unicode(current_version) + u" to v" +
+                unicode(upgrade_version) + u"."
+            )
+            raise ConfigurationMigrationError(message)
+        upgraded_config = migration(config)
+        current_version = current_version + 1
+    return upgraded_config
+
+
+class _Configuration_V1_Encoder(JSONEncoder):
+    """
+    JSON encoder that can encode the configuration model.
+    Base encoder for version 1 configurations.
+    """
+    def default(self, obj):
+        if isinstance(obj, PRecord):
+            result = dict(obj)
+            result[_CLASS_MARKER] = obj.__class__.__name__
+            return result
+        elif isinstance(obj, PMap):
+            return {
+                _CLASS_MARKER: u"PMap", u"values": dict(obj).items()
+            }
+        elif isinstance(obj, (PSet, PVector, set)):
+            return list(obj)
+        elif isinstance(obj, FilePath):
+            return {_CLASS_MARKER: u"FilePath",
+                    u"path": obj.path.decode("utf-8")}
+        elif isinstance(obj, UUID):
+            return {_CLASS_MARKER: u"UUID",
+                    "hex": unicode(obj)}
+        return JSONEncoder.default(self, obj)
+
+
+class _Configuration_V1_Decoder(object):
+    """
+    JSON decoder that maps a dictionary of keys / JSON byte values to
+    configuration model objects. Base decoder for version 1 configurations.
+    """
+    @classmethod
+    def decode(cls, dictionary):
+        class_name = dictionary.get(_CLASS_MARKER, None)
+        if class_name == u"FilePath":
+            return FilePath(dictionary.get(u"path").encode("utf-8"))
+        elif class_name == u"PMap":
+            return pmap(dictionary[u"values"])
+        elif class_name == u"UUID":
+            return UUID(dictionary[u"hex"])
+        elif class_name in _CONFIG_CLASS_MAP:
+            dictionary = dictionary.copy()
+            dictionary.pop(_CLASS_MARKER)
+            return _CONFIG_CLASS_MAP[class_name].create(dictionary)
+        else:
+            return dictionary
 
 
 class IConfiguration(Interface):
@@ -139,51 +194,11 @@ class Configuration_V1(object):
 
     @classmethod
     def encoder(cls):
-        class _Configuration_V1_Encoder(JSONEncoder):
-            """
-            JSON encoder that can encode the configuration model.
-            """
-            def default(self, obj):
-                if isinstance(obj, PRecord):
-                    result = dict(obj)
-                    result[_CLASS_MARKER] = obj.__class__.__name__
-                    return result
-                elif isinstance(obj, PMap):
-                    return {
-                        _CLASS_MARKER: u"PMap", u"values": dict(obj).items()
-                    }
-                elif isinstance(obj, (PSet, PVector, set)):
-                    return list(obj)
-                elif isinstance(obj, FilePath):
-                    return {_CLASS_MARKER: u"FilePath",
-                            u"path": obj.path.decode("utf-8")}
-                elif isinstance(obj, UUID):
-                    return {_CLASS_MARKER: u"UUID",
-                            "hex": unicode(obj)}
-                return JSONEncoder.default(self, obj)
-
         return _Configuration_V1_Encoder
 
     @classmethod
     def decoder(cls):
-        classes = _CONFIG_CLASS_MAP
-
-        def decode_object(dictionary):
-            class_name = dictionary.get(_CLASS_MARKER, None)
-            if class_name == u"FilePath":
-                return FilePath(dictionary.get(u"path").encode("utf-8"))
-            elif class_name == u"PMap":
-                return pmap(dictionary[u"values"])
-            elif class_name == u"UUID":
-                return UUID(dictionary[u"hex"])
-            elif class_name in classes:
-                dictionary = dictionary.copy()
-                dictionary.pop(_CLASS_MARKER)
-                return classes[class_name].create(dictionary)
-            else:
-                return dictionary
-
-        return decode_object
+        return _Configuration_V1_Decoder.decode
 
 
 class Configuration_V2(object):
@@ -192,11 +207,19 @@ class Configuration_V2(object):
     """
     @classmethod
     def serialize(cls, config):
-        return wire_encode(config, encoder=cls.encoder())
+        return wire_encode(config, encoder=cls)
 
     @classmethod
     def deserialize(cls, config):
-        return wire_decode(config, decoder=cls.decoder())
+        return wire_decode(config, decoder=cls)
+
+    @classmethod
+    def encoder(cls):
+        return Configuration_V1.encoder()
+
+    @classmethod
+    def decoder(cls):
+        return Configuration_V1.decoder()
 
 
 class ConfigurationMigration(object):
@@ -212,7 +235,8 @@ class ConfigurationMigration(object):
         :return bytes: The v2 JSON data.
         """
         v1_config = Configuration_V1.deserialize(config)
-        return Configuration_V2.serialize(v1_config)
+        v2_config = v1_config.update(dict(version=2))
+        return Configuration_V2.serialize(v2_config)
 
 
 def wire_encode(obj, encoder=Configuration_V1):
@@ -351,7 +375,7 @@ class ConfigurationPersistenceService(MultiService):
                 )
                 config_version = new_version
                 self._config_path = self._path.child(
-                    _VERSIONED_CONFIG_FILE % new_version)
+                    b"current_configuration.json")
             self._deployment = wire_decode(current_config)
             self._sync_save(self._deployment)
         elif self._config_path.exists():
