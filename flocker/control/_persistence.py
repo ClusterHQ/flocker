@@ -30,6 +30,11 @@ from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
 _CLASS_MARKER = u"$__class__$"
 
 # Serialization marker storing the hash of a class's field identifiers.
+# The idea here is that a v2 config will use this to hash a tuple of the
+# field names in a model, so that if a model has changed without the
+# underlying config parser changing, or a new version created, we can
+# have some tests that will start failing because the hash of fields in
+# some model class no longer matches up.
 _HASH_MARKER = u"$__hash__$"
 
 # The latest configuration version. Configuration versions are
@@ -215,6 +220,17 @@ class Configuration_V2(object):
 
     @classmethod
     def encoder(cls):
+        """
+        The encoders and decoders here may inherit and change the
+        behaviour of the v1 methods.
+
+        We may later replace the return value here with a class that
+        inherits ``_Configuration_V1_Encoder`` and does something
+        different in its ``default`` method, for example.
+
+        For this design, we'll just leave them as the originals,
+        since we don't need to do anything different right now.
+        """
         return Configuration_V1.encoder()
 
     @classmethod
@@ -343,7 +359,7 @@ class ConfigurationPersistenceService(MultiService):
 
     def _versioned_config(self):
         """
-        Determine the file path to a persisted configuration.
+        Return the file path to a persisted configuration.
         Version 1 configurations have a version indicator as part of
         the filename. All later versions use ``current_configuration.json``
         as the filename.
@@ -353,10 +369,13 @@ class ConfigurationPersistenceService(MultiService):
         config_file = self._path.child(b"current_configuration.json")
         v1_config_file = self._path.child(
             b"current_configuration.v1.json")
+        # For backwards compatibility, we look for a v1 named config file.
+        # If we have a v1 file but no file representing a more modern config,
+        # we copy the old configuration to the new file path.
         if v1_config_file.exists():
-            return v1_config_file
-        else:
-            return config_file
+            if not config_file.exists():
+                config_file.setContent(v1_config_file.getContent())
+        return config_file
 
     def load_configuration(self):
         """
