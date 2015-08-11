@@ -203,9 +203,11 @@ branches.each {
 
 {# apply config related to 'run_acceptance' jobs                             #}
 {%    if job_type == 'run_acceptance'                                       -%}
-{%        set _job_name = job_name                                          -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                          -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     parameters {
+        textParam("MODULE", "{{ _module }}", "Module to test" )
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
@@ -215,6 +217,7 @@ branches.each {
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
+{%      endfor                                                              -%}
 {%    endif                                                                  %}
 
 {# apply config related to 'run_client' jobs                                 #}
@@ -285,10 +288,12 @@ branches.each {
 {# add the 'run_acceptance' style jobs                                       #}
 {%  if job_type == 'run_acceptance'                                         -%}
 {%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                           %}
               job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
                 killPhaseCondition("NEVER")
               }
+{%      endfor                                                                -%}
 {%    endfor                                                                -%}
 {%  endif                                                                    %}
 
