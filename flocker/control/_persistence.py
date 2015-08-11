@@ -30,7 +30,7 @@ _CLASS_MARKER = u"$__class__$"
 # The latest configuration version. Configuration versions are
 # always integers. Requires a corresponding Configuration_Vx class,
 # where x is the _CONFIG_VERSION.
-_CONFIG_VERSION = 1
+_CONFIG_VERSION = 2
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}

@@ -17,6 +17,7 @@ from pyrsistent import PRecord
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
+    _CONFIG_VERSION,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -258,16 +259,16 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     """
     configurations_dir = FilePath(__file__).sibling('configurations')
 
-    def test_v1_v2_configuration(self):
+    def test_v1_latest_configuration(self):
         """
-        A V1 JSON configuration blob is transformed to a V2 configuration
-        blob, with the result validating when loaded.
+        A V1 JSON configuration blob is transformed to the latest
+        configuration, with the result validating when loaded.
         """
         v1_json = self.configurations_dir.child(
             b"configuration_v1.json").getContent()
-        v2_json = migrate_configuration(1, 2, v1_json)
-        v2_config = wire_decode(v2_json)
+        upgraded_json = migrate_configuration(1, 2, v1_json)
+        upgraded_config = wire_decode(upgraded_json)
         expected_configuration = Configuration(
-            version=2, deployment=TEST_DEPLOYMENT
+            version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT
         )
-        self.assertEqual(v2_config, expected_configuration)
+        self.assertEqual(upgraded_config, expected_configuration)
