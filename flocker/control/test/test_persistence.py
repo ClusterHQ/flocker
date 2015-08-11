@@ -4,7 +4,9 @@
 Tests for ``flocker.control._persistence``.
 """
 
-from uuid import uuid4
+import json
+
+from uuid import uuid4, UUID
 
 from eliot.testing import validate_logging, assertHasMessage, assertHasAction
 
@@ -24,11 +26,11 @@ from .._model import (
     )
 
 
-DATASET = Dataset(dataset_id=unicode(uuid4()),
+DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
 TEST_DEPLOYMENT = Deployment(
-    nodes=[Node(uuid=uuid4(),
+    nodes=[Node(uuid=UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c'),
                 applications=[
                     Application(
                         name=u'myapp',
@@ -260,15 +262,14 @@ class ConfigurationMigrationTests(SynchronousTestCase):
 
     def test_v1_v2_configuration(self):
         """
-        A V0 JSON configuration blob is transformed to a V1 configuration
+        A V1 JSON configuration blob is transformed to a V2 configuration
         blob, with the result validating when loaded.
         """
         v1_json = self.configurations_dir.child(
             b"configuration_v1.json").getContent()
-        v1_deployment = wire_decode(v1_json)
         v2_json = migrate_configuration(1, 2, v1_json)
         v2_config = wire_decode(v2_json)
         expected_configuration = Configuration(
-            version=2, deployment=v1_deployment
+            version=2, deployment=TEST_DEPLOYMENT
         )
         self.assertEqual(v2_config, expected_configuration)
