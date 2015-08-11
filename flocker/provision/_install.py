@@ -793,9 +793,10 @@ def task_install_docker():
     Return an ``Effect`` for installing Docker if it is not already installed.
     """
     return run(command=(
-        b"[[ -e /usr/bin/docker ]] || "
+        b"[[ -e /usr/bin/docker ]] || {"
         b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
         b"sh /tmp/install-docker.sh"
+        b"; }"
     ))
 
 
