@@ -7,6 +7,7 @@ A script to export Flocker log files and system information.
 from gzip import open as gzip_open
 import os
 from platform import dist as platform_dist
+import re
 from shutil import copyfileobj, make_archive, rmtree
 from socket import gethostname
 from subprocess import check_call, check_output
@@ -140,8 +141,11 @@ class SystemdServiceManager(object):
         """
         Iterate the name and status of the Flocker services known to SystemD.
         """
+        service_pattern = r'^(?P<service_name>flocker-.+)\.service'
         for service_name, service_status in self.all_services():
-            if service_name.startswith('flocker-'):
+            match = re.match(service_pattern, service_name)
+            if match:
+                service_name = match.group('service_name')
                 if service_status == 'enabled':
                     yield service_name, service_status
 
@@ -177,7 +181,7 @@ class JournaldLogExporter(object):
         ``gzip``.
         """
         check_call(
-            'journalctl --all --output cat --unit {} '
+            'journalctl --all --output cat --unit {}.service '
             '| gzip'.format(service_name),
             stdout=open(target_path + '.gz', 'w'),
             shell=True
