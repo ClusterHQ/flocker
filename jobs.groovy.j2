@@ -217,6 +217,23 @@ branches.each {
   }
 {%    endif                                                                  %}
 
+{# apply config related to 'run_client' jobs                                 #}
+{%    if job_type == 'run_client'                                           -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+    label("{{ job_values.on_nodes_with_labels }}")
+
+{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+    {{ wrappers(job_values, repo_dir) }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+
+
 {# apply config related to 'omnbibus' jobs                                   #}
 {%    if job_type == 'omnibus'                                              -%}
 {%        set _job_name = job_name                                          -%}
