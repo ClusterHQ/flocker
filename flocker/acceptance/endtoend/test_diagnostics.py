@@ -48,9 +48,12 @@ class DiagnosticsTests(TestCase):
                 actual_basenames.append(basename)
 
         expected_basenames = [
-            'flocker-control.tar.gz',
-            'flocker-dataset-agent.tar.gz',
-            'flocker-container-agent.tar.gz',
+            'flocker-control_startup.gz',
+            'flocker-control_eliot.gz',
+            'flocker-dataset-agent_startup.gz',
+            'flocker-dataset-agent_eliot.gz',
+            'flocker-container-agent_startup.gz',
+            'flocker-container-agent_eliot.gz',
             'flocker-version',
             'docker-info',
             'docker-version',

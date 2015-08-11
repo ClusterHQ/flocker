@@ -11,10 +11,18 @@ import re
 from shutil import copyfileobj, make_archive, rmtree
 from socket import gethostname
 from subprocess import check_call, check_output
-from tarfile import open as tarfile_open
 from time import time
 
 from flocker import __version__
+
+
+def gzip_file(source_path, archive_path):
+    """
+    Create a gzip compressed archive of ``source_path`` at ``archive_path``.
+    """
+    with open(source_path, 'rb') as source:
+        with gzip_open(archive_path, 'wb') as archive:
+            copyfileobj(source, archive)
 
 
 class FlockerDebugArchive(object):
@@ -180,10 +188,12 @@ class JournaldLogExporter(object):
         Export logs for ``service_name`` to ``target_path`` compressed using
         ``gzip``.
         """
+        # Centos-7 doesn't have separate startup logs.
+        open(target_path + '_startup.gz', 'w').close()
         check_call(
             'journalctl --all --output cat --unit {}.service '
             '| gzip'.format(service_name),
-            stdout=open(target_path + '.gz', 'w'),
+            stdout=open(target_path + '_eliot.gz', 'w'),
             shell=True
         )
 
@@ -204,27 +214,24 @@ class UpstartLogExporter(object):
     """
     def export_flocker(self, service_name, target_path):
         """
-        Export both the Upstart startup logs and the Eliot logs for
-        ``service_name`` to a gzip compressed tar file at ``target_path``.
+        Export logs for ``service_name`` to ``target_path`` compressed using
+        ``gzip``.
         """
-        with tarfile_open(target_path + '.tar.gz', 'w|gz') as tar:
-            files = [
-                ("/var/log/upstart/{}.log".format(service_name),
-                 service_name + '-upstart.log'),
-                ("/var/log/flocker/{}.log".format(service_name),
-                 service_name + '-eliot.log'),
-            ]
-            for input_path, archive_name in files:
-                if os.path.isfile(input_path):
-                    tar.add(input_path, arcname=archive_name)
+        files = [
+            ("/var/log/upstart/{}.log".format(service_name),
+             target_path + '_startup.gz'),
+            ("/var/log/flocker/{}.log".format(service_name),
+             target_path + '_eliot.gz'),
+        ]
+        for source_path, archive_path in files:
+            if os.path.isfile(source_path):
+                gzip_file(source_path, archive_path)
 
     def export_all(self, target_path):
         """
         Export all system logs to ``target_path`` compressed using ``gzip``.
         """
-        with open('/var/log/syslog', 'rb') as f_in:
-            with gzip_open(target_path + '.gz', 'wb') as f_out:
-                copyfileobj(f_in, f_out)
+        gzip_file('/var/log/syslog', target_path + '.gz')
 
 
 class Platform(object):
