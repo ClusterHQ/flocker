@@ -910,6 +910,8 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                      flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-docker-plugin'),
+                     flocker_node_path),
                 ]
             ),
             BuildPackage(
