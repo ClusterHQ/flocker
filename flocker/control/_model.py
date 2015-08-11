@@ -628,6 +628,13 @@ class Deployment(PRecord):
 
     get_node = _get_node(Node)
 
+    @classmethod
+    def create_empty(cls):
+        """
+        Return a ``Deployment`` object representing an empty configuration.
+        """
+        return cls(nodes=frozenset())
+
     def applications(self):
         """
         Return all applications in all nodes.
@@ -704,7 +711,7 @@ class Configuration(PRecord):
     A ``Configuration`` represents the persisted configured state of a
     cluster.
     """
-    version = field(mandatory=True, type=int, initial=2)
+    version = field(mandatory=True, type=int)
     deployment = field(mandatory=True, type=Deployment)
 
 

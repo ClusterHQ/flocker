@@ -4,6 +4,8 @@
 Persistence of cluster configuration.
 """
 
+import sys
+
 from json import dumps, loads, JSONEncoder
 from uuid import UUID
 
@@ -29,17 +31,10 @@ from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
 # Serialization marker storing the class name:
 _CLASS_MARKER = u"$__class__$"
 
-# Serialization marker storing the hash of a class's field identifiers.
-# The idea here is that a v2 config will use this to hash a tuple of the
-# field names in a model, so that if a model has changed without the
-# underlying config parser changing, or a new version created, we can
-# have some tests that will start failing because the hash of fields in
-# some model class no longer matches up.
-_HASH_MARKER = u"$__hash__$"
-
 # The latest configuration version. Configuration versions are
-# always integers.
-_CURRENT_VERSION = 1
+# always integers. Requires a corresponding Configuration_Vx class,
+# where x is the _CONFIG_VERSION.
+_CONFIG_VERSION = 1
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -92,7 +87,84 @@ def migrate_configuration(source_version, target_version, config):
     return upgraded_config
 
 
-class _Configuration_V1_Encoder(JSONEncoder):
+class IConfiguration(Interface):
+    """
+    An ``IConfiguration`` implementation provides a serializer and
+    deserializer for a ``Configuration`` model.
+    """
+    def serialize(config):
+        """
+        Serialize the supplied configuration model to JSON.
+
+        :param Configuration config: The configuration to serialize.
+        :return bytes: The JSON representation.
+        """
+
+    def deserialize(config):
+        """
+        Deserialize the supplied JSON to a ``Configuration`` model.
+
+        :param bytes config: The JSON configuration to deserialize.
+        :return Configuration: The configuration model.
+        """
+
+
+@implementer(IConfiguration)
+class Configuration_V1(object):
+    """
+    A version 1 configuration.
+    """
+    @classmethod
+    def serialize(cls, config):
+        # Serialized v1 configs are represented as Deployment objects,
+        # not Configuration objects. This is to retain backwards
+        # compatibility.
+        return wire_encode(config.deployment)
+
+    @classmethod
+    def deserialize(cls, config):
+        return Configuration(
+            version=1,
+            deployment=wire_decode(config)
+        )
+
+
+@implementer(IConfiguration)
+class Configuration_V2(object):
+    """
+    A version 2 configuration.
+    """
+    @classmethod
+    def serialize(cls, config):
+        return wire_encode(config)
+
+    @classmethod
+    def deserialize(cls, config):
+        return wire_decode(config)
+
+
+class ConfigurationMigration(object):
+    """
+    Migrate a JSON configuration from one version to another.
+    """
+    @classmethod
+    def configuration_v1_v2(cls, config):
+        """
+        Migrate a v1 JSON configuration to v2.
+
+        :param bytes config: The v1 JSON data.
+        :return bytes: The v2 JSON data.
+        """
+        # In reality, this will transform JSON in some way to ensure
+        # the models line up, e.g. by creating a Leases object,
+        # wire_encode'ing it, then adding that JSON in to the Deployment
+        # object's JSON before deserializing and reserialzing.
+        v1_config = Configuration_V1.deserialize(config)
+        v2_config = v1_config.update(dict(version=2))
+        return Configuration_V2.serialize(v2_config)
+
+
+class _Configuration_Encoder(JSONEncoder):
     """
     JSON encoder that can encode the configuration model.
     Base encoder for version 1 configurations.
@@ -117,13 +189,23 @@ class _Configuration_V1_Encoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 
-class _Configuration_V1_Decoder(object):
+def wire_encode(obj):
     """
-    JSON decoder that maps a dictionary of keys / JSON byte values to
-    configuration model objects. Base decoder for version 1 configurations.
+    Encode the given model object into bytes.
+
+    :param obj: An object from the configuration model, e.g. ``Deployment``.
+    :return bytes: Encoded object.
     """
-    @classmethod
-    def decode(cls, dictionary):
+    return dumps(obj, cls=_Configuration_Encoder)
+
+
+def wire_decode(data):
+    """
+    Decode the given model object from bytes.
+
+    :param bytes data: Encoded object.
+    """
+    def decode(dictionary):
         class_name = dictionary.get(_CLASS_MARKER, None)
         if class_name == u"FilePath":
             return FilePath(dictionary.get(u"path").encode("utf-8"))
@@ -138,142 +220,7 @@ class _Configuration_V1_Decoder(object):
         else:
             return dictionary
 
-
-class IConfiguration(Interface):
-    """
-    An ``IConfiguration`` implementation provides a serializer and
-    deserializer for a ``Configuration`` model.
-    """
-    def serialize(config):
-        """
-        Serialize the supplied configuration model to JSON.
-
-        :param Configuration config: The configuration to serialize.
-        :return bytes: The JSON representation.
-        """
-
-    def deserialize(config):
-        """
-        Deserialize the supplied JSON to a ``Configuration`` model.
-
-        :param bytes config: The JSON configuration to deserialize.
-        :return Configuration: The configuration model.
-        """
-
-    def encoder():
-        """
-        Supply an encoder that can map a series of objects to JSON.
-
-        :return JSONEncoder encoder: A class that implements a
-        ``JSONEncoder``.
-        """
-
-    def decoder():
-        """
-        Supply a decoder that can map a dictionary of parsed JSON
-        (keys paired with byte values) to decoded model objects.
-
-        :return function decoder: A decoding function that can be used
-            as an object hook in ``json.loads``.
-        """
-
-
-@implementer(IConfiguration)
-class Configuration_V1(object):
-    """
-    A version 1 configuration.
-    """
-    @classmethod
-    def serialize(cls, config):
-        # Serialized v1 configs are represented as Deployment objects,
-        # not Configuration objects. This is to retain backwards
-        # compatibility.
-        return wire_encode(config.deployment, encoder=cls)
-
-    @classmethod
-    def deserialize(cls, config):
-        return Configuration(
-            version=1,
-            deployment=wire_decode(config, decoder=cls)
-        )
-
-    @classmethod
-    def encoder(cls):
-        return _Configuration_V1_Encoder
-
-    @classmethod
-    def decoder(cls):
-        return _Configuration_V1_Decoder.decode
-
-
-class Configuration_V2(object):
-    """
-    A version 2 configuration.
-    """
-    @classmethod
-    def serialize(cls, config):
-        return wire_encode(config, encoder=cls)
-
-    @classmethod
-    def deserialize(cls, config):
-        return wire_decode(config, decoder=cls)
-
-    @classmethod
-    def encoder(cls):
-        """
-        The encoders and decoders here may inherit and change the
-        behaviour of the v1 methods.
-
-        We may later replace the return value here with a class that
-        inherits ``_Configuration_V1_Encoder`` and does something
-        different in its ``default`` method, for example.
-
-        For this design, we'll just leave them as the originals,
-        since we don't need to do anything different right now.
-        """
-        return Configuration_V1.encoder()
-
-    @classmethod
-    def decoder(cls):
-        return Configuration_V1.decoder()
-
-
-class ConfigurationMigration(object):
-    """
-    Migrate a JSON configuration from one version to another.
-    """
-    @classmethod
-    def configuration_v1_v2(cls, config):
-        """
-        Migrate a v1 JSON configuration to v2.
-
-        :param bytes config: The v1 JSON data.
-        :return bytes: The v2 JSON data.
-        """
-        v1_config = Configuration_V1.deserialize(config)
-        v2_config = v1_config.update(dict(version=2))
-        return Configuration_V2.serialize(v2_config)
-
-
-def wire_encode(obj, encoder=Configuration_V1):
-    """
-    Encode the given model object into bytes.
-
-    :param obj: An object from the configuration model, e.g. ``Deployment``.
-    :param class encoder: The configuration class to use when serializing.
-    :return bytes: Encoded object.
-    """
-    return dumps(obj, cls=encoder.encoder())
-
-
-def wire_decode(data, decoder=Configuration_V1):
-    """
-    Decode the given model object from bytes.
-
-    :param bytes data: Encoded object.
-    :param class decoder: The configuration class to use when serializing.
-    """
-    return loads(data, object_hook=decoder.decoder())
+    return loads(data, object_hook=decode)
 
 
 _DEPLOYMENT_FIELD = Field(u"configuration", repr)
@@ -348,6 +295,10 @@ class ConfigurationPersistenceService(MultiService):
         MultiService.__init__(self)
         self._path = path
         self._change_callbacks = []
+        self._config_class = getattr(
+            sys.modules[__name__],
+            u"Configuration_V" + unicode(_CONFIG_VERSION)
+        )
         LeaseService(reactor, self).setServiceParent(self)
 
     def startService(self):
@@ -357,51 +308,36 @@ class ConfigurationPersistenceService(MultiService):
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
-    def _versioned_config(self):
-        """
-        Return the file path to a persisted configuration.
-        Version 1 configurations have a version indicator as part of
-        the filename. All later versions use ``current_configuration.json``
-        as the filename.
-
-        :return FilePath: The path to the service configuration file.
-        """
-        config_file = self._path.child(b"current_configuration.json")
-        v1_config_file = self._path.child(
-            b"current_configuration.v1.json")
-        # For backwards compatibility, we look for a v1 named config file.
-        # If we have a v1 file but no file representing a more modern config,
-        # we copy the old configuration to the new file path.
-        if v1_config_file.exists():
-            if not config_file.exists():
-                config_file.setContent(v1_config_file.getContent())
-        return config_file
-
     def load_configuration(self):
         """
         Load the persisted configuration, upgrading the configuration format
         if an older version is detected.
         """
-        self._config_path = self._versioned_config()
-        config_version = 1
-        if config_version < _CURRENT_VERSION:
-            current_config = self._config_path.getContent()
-            required_upgrades = range(
-                config_version + 1, _CURRENT_VERSION + 1)
-            for new_version in required_upgrades:
-                current_config = migrate_configuration(
-                    config_version, new_version, current_config
-                )
-                config_version = new_version
-                self._config_path = self._path.child(
-                    b"current_configuration.json")
-            self._deployment = wire_decode(current_config)
-            self._sync_save(self._deployment)
-        elif self._config_path.exists():
-            self._deployment = wire_decode(
-                self._config_path.getContent())
+        self._config_path = self._path.child(b"current_configuration.json")
+        v1_config_path = self._path.child(
+            b"current_configuration.v1.json")
+        # Check for a v1 config and upgrade to latest if found.
+        if v1_config_path.exists():
+            if not self._config_path.exists():
+                v1_json = v1_config_path.getContent()
+                updated_json = migrate_configuration(
+                    1, _CONFIG_VERSION, v1_json)
+                self._config_path.setContent(updated_json)
+        if self._config_path.exists():
+            config_json = self._config_path.getContent()
+            config_dict = loads(config_json)
+            if 'version' in config_dict:
+                config_version = config_dict['version']
+            else:
+                config_version = 1
+            if config_version < _CONFIG_VERSION:
+                config_json = migrate_configuration(
+                    config_version, _CONFIG_VERSION, config_json)
+            config = self._config_class.deserialize(config_json)
+            self._deployment = config.deployment
+            self._sync_save(config.deployment)
         else:
-            self._deployment = Deployment(nodes=frozenset())
+            self._deployment = Deployment.create_empty()
             self._sync_save(self._deployment)
 
     def register(self, change_callback):
@@ -415,9 +351,12 @@ class ConfigurationPersistenceService(MultiService):
 
     def _sync_save(self, deployment):
         """
-        Save and flush new deployment to disk synchronously.
+        Save and flush new configuration to disk synchronously.
         """
-        self._config_path.setContent(wire_encode(deployment))
+        config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
+        self._config_path.setContent(
+            self._config_class.serialize(config)
+        )
 
     def save(self, deployment):
         """
