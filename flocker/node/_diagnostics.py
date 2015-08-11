@@ -19,10 +19,12 @@ from flocker import __version__
 def gzip_file(source_path, archive_path):
     """
     Create a gzip compressed archive of ``source_path`` at ``archive_path``.
+    An empty archive file will be created if the source file does not exist.
     """
-    with open(source_path, 'rb') as source:
-        with gzip_open(archive_path, 'wb') as archive:
-            copyfileobj(source, archive)
+    with gzip_open(archive_path, 'wb') as archive:
+        if os.path.isfile(source_path):
+            with open(source_path, 'rb') as source:
+                copyfileobj(source, archive)
 
 
 class FlockerDebugArchive(object):
@@ -224,8 +226,7 @@ class UpstartLogExporter(object):
              target_path + '_eliot.gz'),
         ]
         for source_path, archive_path in files:
-            if os.path.isfile(source_path):
-                gzip_file(source_path, archive_path)
+            gzip_file(source_path, archive_path)
 
     def export_all(self, target_path):
         """
