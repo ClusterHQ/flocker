@@ -179,7 +179,7 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values) }}
+    {{ wrappers(job_values, 'none') }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -195,7 +195,7 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values) }}
+    {{ wrappers(job_values, 'none') }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -242,7 +242,7 @@ branches.each {
 {%        set _job_name = job_name                                          -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values) }}
+    {{ wrappers(job_values, 'none') }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -371,7 +371,7 @@ branches.each {
    people will be looking into that view when monitoring the master branch   #}
   job("${dashProject}/master/_{{ _job_name }}") {
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values) }}
+    {{ wrappers(job_values, 'none') }}
     {{ triggers('cron', job_values.at) }}
     {{ scm("${git_url}", "master") }}
     {{ steps(job_values.with_steps) }}
