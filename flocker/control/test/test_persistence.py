@@ -4,8 +4,6 @@
 Tests for ``flocker.control._persistence``.
 """
 
-import json
-
 from uuid import uuid4, UUID
 
 from eliot.testing import validate_logging, assertHasMessage, assertHasAction
