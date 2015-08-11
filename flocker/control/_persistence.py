@@ -28,8 +28,7 @@ from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
 _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
-# always integers. Requires a corresponding Configuration_Vx class,
-# where x is the _CONFIG_VERSION.
+# always integers.
 _CONFIG_VERSION = 2
 
 # Map of serializable class names to classes
