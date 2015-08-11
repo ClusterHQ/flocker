@@ -4,8 +4,6 @@
 Persistence of cluster configuration.
 """
 
-import sys
-
 from json import dumps, loads, JSONEncoder
 from uuid import UUID
 
@@ -22,8 +20,6 @@ from twisted.application.service import Service, MultiService
 from twisted.internet import reactor as default_reactor
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
-
-from zope.interface import Interface, implementer
 
 from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
 
@@ -87,62 +83,6 @@ def migrate_configuration(source_version, target_version, config):
     return upgraded_config
 
 
-class IConfiguration(Interface):
-    """
-    An ``IConfiguration`` implementation provides a serializer and
-    deserializer for a ``Configuration`` model.
-    """
-    def serialize(config):
-        """
-        Serialize the supplied configuration model to JSON.
-
-        :param Configuration config: The configuration to serialize.
-        :return bytes: The JSON representation.
-        """
-
-    def deserialize(config):
-        """
-        Deserialize the supplied JSON to a ``Configuration`` model.
-
-        :param bytes config: The JSON configuration to deserialize.
-        :return Configuration: The configuration model.
-        """
-
-
-@implementer(IConfiguration)
-class Configuration_V1(object):
-    """
-    A version 1 configuration.
-    """
-    @classmethod
-    def serialize(cls, config):
-        # Serialized v1 configs are represented as Deployment objects,
-        # not Configuration objects. This is to retain backwards
-        # compatibility.
-        return wire_encode(config.deployment)
-
-    @classmethod
-    def deserialize(cls, config):
-        return Configuration(
-            version=1,
-            deployment=wire_decode(config)
-        )
-
-
-@implementer(IConfiguration)
-class Configuration_V2(object):
-    """
-    A version 2 configuration.
-    """
-    @classmethod
-    def serialize(cls, config):
-        return wire_encode(config)
-
-    @classmethod
-    def deserialize(cls, config):
-        return wire_decode(config)
-
-
 class ConfigurationMigration(object):
     """
     Migrate a JSON configuration from one version to another.
@@ -155,13 +95,9 @@ class ConfigurationMigration(object):
         :param bytes config: The v1 JSON data.
         :return bytes: The v2 JSON data.
         """
-        # In reality, this will transform JSON in some way to ensure
-        # the models line up, e.g. by creating a Leases object,
-        # wire_encode'ing it, then adding that JSON in to the Deployment
-        # object's JSON before deserializing and reserialzing.
-        v1_config = Configuration_V1.deserialize(config)
-        v2_config = v1_config.update(dict(version=2))
-        return Configuration_V2.serialize(v2_config)
+        v2_config = Configuration(
+            version=2, deployment=wire_decode(config))
+        return wire_encode(v2_config)
 
 
 class _Configuration_Encoder(JSONEncoder):
@@ -295,10 +231,6 @@ class ConfigurationPersistenceService(MultiService):
         MultiService.__init__(self)
         self._path = path
         self._change_callbacks = []
-        self._config_class = getattr(
-            sys.modules[__name__],
-            u"Configuration_V" + unicode(_CONFIG_VERSION)
-        )
         LeaseService(reactor, self).setServiceParent(self)
 
     def startService(self):
@@ -333,7 +265,7 @@ class ConfigurationPersistenceService(MultiService):
             if config_version < _CONFIG_VERSION:
                 config_json = migrate_configuration(
                     config_version, _CONFIG_VERSION, config_json)
-            config = self._config_class.deserialize(config_json)
+            config = wire_decode(config_json)
             self._deployment = config.deployment
             self._sync_save(config.deployment)
         else:
@@ -354,9 +286,7 @@ class ConfigurationPersistenceService(MultiService):
         Save and flush new configuration to disk synchronously.
         """
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
-        self._config_path.setContent(
-            self._config_class.serialize(config)
-        )
+        self._config_path.setContent(wire_encode(config))
 
     def save(self, deployment):
         """
