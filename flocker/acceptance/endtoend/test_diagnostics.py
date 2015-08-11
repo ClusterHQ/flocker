@@ -39,17 +39,22 @@ class DiagnosticsTests(TestCase):
         ).rstrip()
 
         with tarfile.open(local_archive_path) as f:
-            actual_basenames = [
-                os.path.basename(os.path.splitext(m.name)[0])
-                for m in f.getmembers()
-            ]
+            actual_basenames = []
+            for name in f.getnames():
+                basename = os.path.basename(name)
+                if name == basename:
+                    # Ignore the directory entry
+                    continue
+                basename = os.path.splitext(basename)[0]
+                actual_basenames.append(basename)
 
         expected_basenames = [
-            'flocker-version',
             'flocker-control',
             'flocker-dataset-agent',
             'flocker-container-agent',
+            'flocker-version',
             'docker-info',
+            'docker-version',
             'os-release',
             'syslog',
             'uname',
@@ -59,10 +64,17 @@ class DiagnosticsTests(TestCase):
         missing_basenames = set(expected_basenames) - set(actual_basenames)
         unexpected_basenames = set(actual_basenames) - set(expected_basenames)
 
+        message = []
         if unexpected_basenames:
-            # with tarfile.open(local_archive_path) as f:
-            self.fail('Unexpected entries: {!r}'.format(unexpected_basenames))
+            message.append(
+                'Unexpected entries: {!r}'.format(unexpected_basenames)
+            )
 
         if missing_basenames:
-            # with tarfile.open(local_archive_path) as f:
-            self.fail('Missing entries: {!r}'.format(missing_basenames))
+            message.append('Missing entries: {!r}'.format(missing_basenames))
+
+        if message:
+            self.fail(
+                'Unexpected Archive Content\n'
+                + '\n'.join(message)
+            )
