@@ -791,6 +791,9 @@ def uninstall_flocker(nodes):
 def task_install_docker():
     """
     Return an ``Effect`` for installing Docker if it is not already installed.
+
+    The state of ``https://get.docker.com/`` at the time the task is run
+    determines the version of Docker installed.
     """
     return run(command=(
         b"[[ -e /usr/bin/docker ]] || { "
