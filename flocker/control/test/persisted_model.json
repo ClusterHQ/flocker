@@ -1,0 +1,1 @@
+{"model": {"classes": {"flocker.control._model.NodePSet": null, "flocker.control._model.Deployment": {"category": "record", "fields": {"nodes": ["flocker.control._model.NodePSet"]}}}, "root": "flocker.control._model.Deployment"}, "git_hash": "dea57a9396e9b86b3afaf69f50f03d73b284f3f4"}
