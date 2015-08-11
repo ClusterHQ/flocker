@@ -216,6 +216,7 @@ branches.each {
     {{ wrappers(job_values, repo_dir) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
   }
 {%      endfor                                                              -%}
 {%    endif                                                                  %}
@@ -233,6 +234,7 @@ branches.each {
     {{ wrappers(job_values, repo_dir) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
   }
 {%    endif                                                                  %}
 
