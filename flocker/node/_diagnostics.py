@@ -43,8 +43,7 @@ class FlockerDebugArchive(object):
 
     def _logfile_path(self, name):
         """
-        Generate a path to a file inside the archive directory. The file name
-        will have a suffix that matches the name of the archive.
+        Generate a path to a file inside the archive directory.
 
         :param str name: A unique label for the file.
         :returns: An absolute path string for a file inside the archive
@@ -52,7 +51,7 @@ class FlockerDebugArchive(object):
         """
         return os.path.join(
             self._archive_name,
-            '{}-{}'.format(name, self._suffix)
+            name,
         )
 
     def _open_logfile(self, name):
@@ -95,11 +94,11 @@ class FlockerDebugArchive(object):
             # Export Docker version and configuration
             check_call(
                 ['docker', 'version'],
-                stdout=self._open_logfile('docker_version')
+                stdout=self._open_logfile('docker-version')
             )
             check_call(
                 ['docker', 'info'],
-                stdout=self._open_logfile('docker_info')
+                stdout=self._open_logfile('docker-info')
             )
 
             # Export Kernel version

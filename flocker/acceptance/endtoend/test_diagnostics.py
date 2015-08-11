@@ -7,6 +7,7 @@ Tests for the flocker-diagnostics.
 from subprocess import check_output
 import tarfile
 
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from ..testtools import require_cluster
@@ -37,6 +38,21 @@ class DiagnosticsTests(TestCase):
              local_archive_path]
         ).rstrip()
 
+        expected_basenames = [
+            'flocker-version',
+            'flocker-control',
+            'flocker-dataset-agent',
+            'flocker-container-agent',
+            'docker-info',
+            'os-release',
+            'syslog',
+            'uname',
+            'service-status',
+        ]
+
         with tarfile.open(local_archive_path) as f:
-            members = [m.name for m in f.getmembers()]
-            self.assertEqual([], members)
+            self.assertEqual(
+                expected_basenames,
+                [FilePath(m.name).basename().splitext()
+                 for m in f.getmembers()]
+            )
