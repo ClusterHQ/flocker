@@ -4,10 +4,10 @@
 Tests for the flocker-diagnostics.
 """
 
+import os
 from subprocess import check_output
 import tarfile
 
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from ..testtools import require_cluster
@@ -38,6 +38,12 @@ class DiagnosticsTests(TestCase):
              local_archive_path]
         ).rstrip()
 
+        with tarfile.open(local_archive_path) as f:
+            actual_basenames = [
+                os.path.basename(os.path.splitext(m.name)[0])
+                for m in f.getmembers()
+            ]
+
         expected_basenames = [
             'flocker-version',
             'flocker-control',
@@ -50,9 +56,13 @@ class DiagnosticsTests(TestCase):
             'service-status',
         ]
 
-        with tarfile.open(local_archive_path) as f:
-            self.assertEqual(
-                expected_basenames,
-                [FilePath(m.name).basename().splitext()
-                 for m in f.getmembers()]
-            )
+        missing_basenames = set(expected_basenames) - set(actual_basenames)
+        unexpected_basenames = set(actual_basenames) - set(expected_basenames)
+
+        if unexpected_basenames:
+            # with tarfile.open(local_archive_path) as f:
+            self.fail('Unexpected entries: {!r}'.format(unexpected_basenames))
+
+        if missing_basenames:
+            # with tarfile.open(local_archive_path) as f:
+            self.fail('Missing entries: {!r}'.format(missing_basenames))
