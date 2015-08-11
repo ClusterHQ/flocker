@@ -45,18 +45,17 @@ class DiagnosticsTests(TestCase):
                 if name == basename:
                     # Ignore the directory entry
                     continue
-                basename = os.path.splitext(basename)[0]
                 actual_basenames.append(basename)
 
         expected_basenames = [
-            'flocker-control',
-            'flocker-dataset-agent',
-            'flocker-container-agent',
+            'flocker-control.tar.gz',
+            'flocker-dataset-agent.tar.gz',
+            'flocker-container-agent.tar.gz',
             'flocker-version',
             'docker-info',
             'docker-version',
             'os-release',
-            'syslog',
+            'syslog.gz',
             'uname',
             'service-status',
         ]
