@@ -374,6 +374,58 @@ job_type:
       coverage_report: true
       clean_repo: true
 
+    run_acceptance_on_Rackspace_CentOS_7_for:
+      on_nodes_with_labels: 'jenkins-slave-centos7-standard-4'
+      with_modules:
+        - flocker.acceptance.endtoend.test_dataset
+        - flocker.acceptance.integration.test_mongodb
+        - flocker.acceptance.integration.test_postgres
+        - flocker.acceptance.obsolete.test_cli
+        - flocker.acceptance.obsolete.test_containers
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version, *disable_selinux,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+
+    run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
+      on_nodes_with_labels: 'jenkins-slave-ubuntu14-standard-4'
+      with_modules:
+        - flocker.acceptance.endtoend.test_dataset
+        - flocker.acceptance.integration.test_mongodb
+        - flocker.acceptance.integration.test_postgres
+        - flocker.acceptance.obsolete.test_cli
+        - flocker.acceptance.obsolete.test_containers
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
