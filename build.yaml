@@ -151,6 +151,9 @@ common_cli:
     # we gather the return code, but make sure we come out of these tests with '0'
     parse_logs /tmp/v/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
+  run_client_tests: &run_client_tests |
+    parse_logs /tmp/v/bin/python admin/run-client-tests --distribution \${DISTRIBUTION_NAME} --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) ; RC=\$?
+
   disable_selinux: &disable_selinux |
     sudo setenforce 0
 
@@ -489,6 +492,36 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+
+  run_client:
+    run_client_installation_on_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *run_client_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+    run_client_installation_on_Ubuntu_Vivid:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-15.04',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *run_client_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
