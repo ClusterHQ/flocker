@@ -788,6 +788,17 @@ def uninstall_flocker(nodes):
     )
 
 
+def task_install_docker():
+    """
+    Return an ``Effect`` for installing Docker if it is not already installed.
+    """
+    return run(command=(
+        b"[[ -e /usr/bin/docker ]] || "
+        b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
+        b"sh /tmp/install-docker.sh"
+    ))
+
+
 def task_install_flocker(
     distribution=None,
     package_source=PackageSource(),
@@ -814,7 +825,6 @@ def task_install_flocker(
         base_url = urljoin(package_source.build_server, result_path)
     else:
         use_development_branch = False
-
 
     if distribution in ('ubuntu-14.04', 'ubuntu-15.04'):
         commands = [
@@ -972,7 +982,7 @@ def provision(distribution, package_source, variants):
         commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
-
+    commands.append(task_install_docker())
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
