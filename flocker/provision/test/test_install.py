@@ -12,9 +12,7 @@ from pyrsistent import freeze, thaw
 
 from textwrap import dedent
 
-from .. import PackageSource
 from .._install import (
-    task_install_flocker,
     task_configure_flocker_agent,
     task_enable_flocker_agent,
     run, put, run_from_args,
