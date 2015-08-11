@@ -63,21 +63,33 @@ PluginActivateTests = build_schema_test(
     ])
 
 
-MountTests = build_schema_test(
-    name=str("MountTests"),
-    schema={"$ref": "/endpoints.json#/definitions/Mount"},
-    schema_store=SCHEMAS,
-    failing_instances=[
-        # Wrong types:
-        [], "", None,
-        # Missing field:
-        {}, {"Mountpoint": "/x"},
-        # Wrong fields:
-        {"Result": "hello"},
-        # Extra field:
-        {"Err": None, "Mountpoint": "/x", "extra": "y"},
-    ],
-    passing_instances=[
-        {"Err": "Something went wrong."},
-        {"Err": None, "Mountpoint": "/x/"},
-    ])
+def build_path_result_tests(name):
+    """
+    Build a test for API commands that respond with ``Err`` and
+    ``Mountpoint`` fields.
+
+    :param unicode command_name: The command in the schema to validate.
+
+    :return: ``TestCase``.
+    """
+    return build_schema_test(
+        name=str(name + "Tests"),
+        schema={"$ref": "/endpoints.json#/definitions/" + name},
+        schema_store=SCHEMAS,
+        failing_instances=[
+            # Wrong types:
+            [], "", None,
+            # Missing field:
+            {}, {"Mountpoint": "/x"},
+            # Wrong fields:
+            {"Result": "hello"},
+            # Extra field:
+            {"Err": None, "Mountpoint": "/x", "extra": "y"},
+        ],
+        passing_instances=[
+            {"Err": "Something went wrong."},
+            {"Err": None, "Mountpoint": "/x/"},
+        ])
+
+MountTests = build_path_result_tests("Mount")
+PathTests = build_path_result_tests("Path")
