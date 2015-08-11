@@ -266,7 +266,8 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         """
         v1_json = self.configurations_dir.child(
             b"configuration_v1.json").getContent()
-        upgraded_json = migrate_configuration(1, 2, v1_json)
+        upgraded_json = migrate_configuration(
+            1, _CONFIG_VERSION, v1_json)
         upgraded_config = wire_decode(upgraded_json)
         expected_configuration = Configuration(
             version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT
