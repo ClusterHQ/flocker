@@ -498,7 +498,24 @@ def task_enable_docker(distribution):
     Start docker and configure it to start automatically.
     """
     if is_centos(distribution):
+        conf_path = (
+            "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
+        )
         return sequence([
+            # Give Docker a long time to start up.  On the first start, it
+            # initializes a 100G filesystem which can take a while.  The
+            # default startup timeout is frequently too low to let this
+            # complete.
+            put(
+                path=conf_path,
+                content=(
+                    dedent("""\
+                    [Service]
+                    TimeoutStartSec=10min
+                    """
+                    ),
+                ),
+            ),
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
         ])
