@@ -58,6 +58,8 @@ Access
 
 - The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
+- Access to ClusterHQ's Google Drive.
+
 .. _preparing-for-a-release:
 
 Preparing For a Release
