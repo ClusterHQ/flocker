@@ -325,10 +325,7 @@ job_type:
       archive_artifacts: *flocker_artifacts
       coverage_report: true
 
-
-
-
-  run_trial_storage_driver:
+  run_trial_for_storage_driver:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_modules:
@@ -389,9 +386,6 @@ job_type:
           }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
-
-
-
 
 
   # http://build.clusterhq.com/builders/flocker-docs

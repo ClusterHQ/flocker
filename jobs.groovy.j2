@@ -304,6 +304,18 @@ branches.each {
 {%    endfor                                                                -%}
 {%  endif                                                                    %}
 
+{# add the 'run_trial_for_storage_driver' style jobs                                            #}
+{%  if job_type == 'run_trial_for_storage_driver'                                              -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                           %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+                killPhaseCondition("NEVER")
+              }
+{%      endfor                                                              -%}
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
 {# add the 'run_sphinx' style jobs                                           #}
 {%  if job_type == 'run_sphinx'                                             -%}
 {%    for job_name, job_values  in job_type_values.iteritems()              -%}
