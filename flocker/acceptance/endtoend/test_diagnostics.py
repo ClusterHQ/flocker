@@ -77,6 +77,7 @@ class DiagnosticsTests(TestCase):
             'syslog.gz',
             'uname',
             'service-status',
+            'ip-addr',
         ]
 
         missing_basenames = set(expected_basenames) - set(actual_basenames)
