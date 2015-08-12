@@ -46,14 +46,27 @@ When reporting issues with Flocker please include:
 * operating system and version,
 * Linux kernel version,
 * Docker version and configuration,
-* Flocker log files and
-* recent syslog content.
+* node IP addresses,
+* node hostname,
+* recent syslog content,
+* and separate Flocker log files.
+
+.. warning:: The exported log files may contain sensitive information.
+
+Export Logs Using ``flocker-diagnostics``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``flocker-diagnostics`` command can be used to gather this information on Ubuntu 14.04 and CentOS 7.
 
 .. prompt:: bash #
 
    flocker-diagnostics
+
+``flocker-diagnostics`` will create a ``tar`` archive in the current directory.
+It will print the full path of the archive before it exits.
+
+Exporting logs manually
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Alternatively, the information can be gathered manually using the following commands:
 
