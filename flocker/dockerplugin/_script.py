@@ -16,6 +16,7 @@ from ..common.script import (
 from ._api import VolumePlugin
 from ..node.script import get_configuration
 from ..apiclient import FlockerClient
+from ..control.httpapi import REST_API_PORT
 
 PLUGIN_PATH = FilePath("/run/docker/plugins/flocker/flocker.sock")
 
@@ -26,6 +27,8 @@ class DockerPluginOptions(Options):
     Command-line options for the Docker plugin.
     """
     optParameters = [
+        ["rest-api-port", "p", REST_API_PORT,
+         "Port to connect to for control service REST API."],
         ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file for the local agent."],
     ]
@@ -48,10 +51,10 @@ class DockerPluginScript(object):
         # some information we need:
         agent_config = get_configuration(options)
         control_host = agent_config['control-service']['hostname']
-        control_port = agent_config['control-service']['port']
         node_id = agent_config['node-credential'].uuid
 
         certificates_path = options["agent-config"].parent()
+        control_port = options["rest-api-port"]
         flocker_client = FlockerClient(reactor, control_host, control_port,
                                        certificates_path.child(b"cluster.crt"),
                                        certificates_path.child(b"api.crt"),
