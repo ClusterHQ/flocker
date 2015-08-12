@@ -35,8 +35,12 @@ from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse,
 )
-from ...control._model import RestartNever, RestartAlways, RestartOnFailure
-from ..testtools import if_docker_configured, wait_for_unit_state
+from ...control import (
+    RestartNever, RestartAlways, RestartOnFailure, DockerImage
+)
+from ..testtools import (
+    if_docker_configured, wait_for_unit_state, require_docker_version
+)
 
 
 def namespace_for_test(test_case):
@@ -140,15 +144,6 @@ class GenericDockerClientTests(TestCase):
 
         return d
 
-    def test_default_base_url(self):
-        """
-        ``DockerClient`` instantiated with a default base URL for a socket
-        connection has a client HTTP url after the connection is made.
-        """
-        client = DockerClient()
-        self.assertEqual(client._client.base_url,
-                         u'http+unix://var/run/docker.sock')
-
     def test_custom_base_url_tcp_http(self):
         """
         ``DockerClient`` instantiated with a custom base URL for a TCP
@@ -178,6 +173,95 @@ class GenericDockerClientTests(TestCase):
                              u"openshift/busybox-http-app")
         d.addCallback(started)
         return d
+
+    @require_docker_version(
+        '1.6.0',
+        'This test uses the registry:2 image '
+        'which requires Docker-1.6.0 or newer. '
+        'See https://docs.docker.com/registry/deploying/ for details.'
+    )
+    def test_private_registry_image(self):
+        """
+        ``DockerClient.add`` can start containers based on an image from a
+        private registry.
+
+        A private registry is started in a container according to the
+        instructions at:
+         * https://docs.docker.com/registry/deploying/
+
+        An image is pushed to that private registry and then a Flocker
+        application is started that uses that private repository image name.
+
+        Docker can pull from a private registry without any TLS configuration
+        as long as it's running on the local host.
+        """
+        registry_name = random_name(self)
+        registry_port = find_free_port()[1]
+        repository = '127.0.0.1:{}'.format(registry_port)
+        name = random_name(self).lower()
+        private_image = DockerImage(
+            # XXX: See FLOC-246 for followup improvements to
+            # ``flocker.control.DockerImage`` to allow parsing of alternative
+            # registry hostnames and ports.
+            repository=repository + '/' + name,
+            tag='latest'
+        )
+
+        registry_starting = self.start_container(
+            unit_name=registry_name,
+            image_name='registry:2',
+            ports=[
+                PortMap(
+                    internal_port=5000,
+                    external_port=registry_port
+                ),
+            ]
+        )
+
+        registry_listening = registry_starting.addCallback(
+            lambda ignored: self.request_until_response(registry_port)
+        )
+
+        def tag_and_push_image(ignored):
+            client = Client()
+            # The image will normally have been pre-pulled on build slaves, but
+            # may not already be available when running tests locally.
+            client.pull('openshift/busybox-http-app')
+            # Tag an image with a repository name matching the locally running
+            # registry container.
+            client.tag(
+                image='openshift/busybox-http-app',
+                repository=private_image.repository,
+                tag=private_image.tag,
+            )
+            # Push to the local registry.
+            client.push(
+                repository=private_image.repository,
+                tag=private_image.tag,
+            )
+            # Remove the local tag of the random image
+            client.remove_image(
+                image=private_image.full_name,
+            )
+            # And the image will (hopefully) have been downloaded again from
+            # the private registry in the next step, so cleanup that local
+            # image once the test finishes.
+            self.addCleanup(
+                client.remove_image,
+                image=private_image.full_name
+            )
+
+        pushing_image = registry_listening.addCallback(tag_and_push_image)
+
+        def start_private_image(ignored):
+            return self.start_container(
+                unit_name=random_name(self),
+                image_name=private_image.full_name,
+            )
+        starting_private_image = pushing_image.addCallback(
+            start_private_image
+        )
+        return starting_private_image
 
     def test_add_error(self):
         """

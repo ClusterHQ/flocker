@@ -4,59 +4,91 @@
 Testing utilities for ``flocker.node``.
 """
 
+from functools import wraps
 import os
 import pwd
-import socket
 from unittest import skipIf
-from contextlib import closing
 from uuid import uuid4
+
+from distutils.version import LooseVersion
 
 from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SkipTest
 from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType
 
-from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid
-
-DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
+from ._docker import DockerClient
 
 
 def docker_accessible():
     """
     Attempt to connect to the Docker control socket.
 
-    This may address https://clusterhq.atlassian.net/browse/FLOC-85.
-
     :return: A ``bytes`` string describing the reason Docker is not
         accessible or ``None`` if it appears to be accessible.
     """
     try:
-        with closing(socket.socket(family=socket.AF_UNIX)) as docker_socket:
-            docker_socket.connect(DOCKER_SOCKET_PATH)
-    except socket.error as e:
-        return os.strerror(e.errno)
+        client = DockerClient()
+        client._client.ping()
+    except Exception as e:
+        return str(e)
     return None
 
 _docker_reason = docker_accessible()
 
 if_docker_configured = skipIf(
     _docker_reason,
-    "User {!r} cannot access Docker via {!r}: {}".format(
+    "User {!r} cannot access Docker: {}".format(
         pwd.getpwuid(os.geteuid()).pw_name,
-        DOCKER_SOCKET_PATH,
         _docker_reason,
     ))
+
+
+def require_docker_version(minimum_docker_version, message):
+    """
+    Skip the wrapped test if the actual Docker version is less than
+    ``minimum_docker_version``.
+
+    :param str minimum_docker_version: The minimum version required by the
+        test.
+    :param str message: An explanatory message which will be printed when
+        skipping the test.
+    """
+    minimum_docker_version = LooseVersion(
+        minimum_docker_version
+    )
+
+    def decorator(wrapped):
+        @wraps(wrapped)
+        def wrapper(*args, **kwargs):
+            client = DockerClient()
+            docker_version = LooseVersion(
+                client._client.version()['Version']
+            )
+            if docker_version < minimum_docker_version:
+                raise SkipTest(
+                    'Minimum required Docker version: {}. '
+                    'Actual Docker version: {}. '
+                    'Details: {}'.format(
+                        minimum_docker_version,
+                        docker_version,
+                        message,
+                    )
+                )
+            return wrapped(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):

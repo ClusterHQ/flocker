@@ -4,6 +4,12 @@
 Before You Begin
 ================
 
+.. note::
+	To start this tutorial, you will need to have installed the ``flocker-cli``, which provides the ``flocker-deploy`` command.
+	For more information, see :ref:`installing-flocker-cli`.
+
+	If you have a version of ``flocker-cli`` installed that is older than |version|, delete the install script and directory, and install the latest version.
+
 Requirements
 ============
 
@@ -16,11 +22,6 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
 * bash
 * The ``mongo`` MongoDB interactive shell (see below for installation instructions)
-
-You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
-See :ref:`installing-flocker-cli`.
-
-.. note:: If you already have a version of ``flocker-cli`` older than |version| installed, delete the install script and directory before installing the latest version.
 
 Setup
 =====
@@ -91,7 +92,9 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    If these addresses conflict with your local network configuration, you will need to edit the ``Vagrantfile`` to change the IP addresses.
    You will then need to generate a new set of certificates and keys using the Flocker CLI ``flocker-ca`` tool and copy these to the virtual machines.
    This will also require you to start the node services manually.
-   Therefore if your IP addresses conflict with the tutorial, please see the full :doc:`installation instructions <../installing/index>` for more information.
+   Therefore if your IP addresses conflict with the tutorial, please see the full :ref:`installation instructions <installing-flocker>` for more information.
+
+.. XXX This warning needs to be reviewed, as the link is vague. See FLOC 2661
 
 .. warning::
 

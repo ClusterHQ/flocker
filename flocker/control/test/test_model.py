@@ -4,6 +4,8 @@
 Tests for ``flocker.node._model``.
 """
 
+import datetime
+
 from uuid import uuid4, UUID
 
 from pyrsistent import (
@@ -24,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link,
+    Link, Lease, Leases, LeaseError
 )
 
 
@@ -1460,3 +1462,176 @@ class LinkTests(SynchronousTestCase):
         link = Link(alias=u'myLINK', local_port=1, remote_port=1)
         link2 = link.set('alias', u'MYlink')
         self.assertEqual(link, link2)
+
+
+class LeaseTests(SynchronousTestCase):
+    """
+    Tests for ``Leases``.
+    """
+    def setUp(self):
+        """
+        Setup for each test.
+        """
+        self.leases = Leases()
+        self.now = datetime.datetime.now()
+        self.dataset_id = uuid4()
+        self.node_id = uuid4()
+        self.dataset = Dataset(dataset_id=unicode(self.dataset_id))
+        self.node = Node(uuid=self.node_id)
+        self.lease_duration = 60 * 60
+
+    def test_lease_expiry_datetime(self):
+        """
+        An lease has an expiry date/time after the specified number
+        of seconds from the time of acquisition.
+        """
+        expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration)
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, expected_expiration)
+
+    def test_indefinite_lease(self):
+        """
+        An acquired lease can be set to never expire.
+        """
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        lease = leases.get(self.dataset_id)
+        self.assertIsNone(lease.expiration)
+
+    def test_lease_expires(self):
+        """
+        An acquired lease expires after the specified number of seconds and
+        is removed from the ``Leases`` map.
+        """
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        # Assert the lease has been acquired successfully.
+        self.assertIn(self.dataset_id, leases)
+        # Fake a time the first lease has expired.
+        now = self.now + datetime.timedelta(seconds=self.lease_duration + 1)
+        leases = leases.expire(now)
+        # Assert the lease has been removed successfully.
+        self.assertNotIn(self.dataset_id, leases)
+
+    def test_indefinite_lease_never_expires(self):
+        """
+        An acquired lease set to never expire is not removed from ``Leases``
+        map.
+        """
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        self.assertIn(self.dataset_id, leases)
+        now = self.now + datetime.timedelta(seconds=self.lease_duration)
+        leases = leases.expire(now)
+        self.assertIn(self.dataset_id, leases)
+
+    def test_lease_renewable(self):
+        """
+        A lease that is renewed is updated in the Leases map with its new
+        expiry date/time.
+        """
+        # Acquire a lease on a node with an expiration time.
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        # Assert that the lease has the expected expiration time.
+        expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration)
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, expected_expiration)
+        # Acquire the same lease with a different expiration time.
+        leases = leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration * 2
+        )
+        # Assert the lease's expiration time has been updated.
+        new_expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration * 2)
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, new_expected_expiration)
+
+    def test_lease_release(self):
+        """
+        A lease that has been released is removed from the Leases map.
+        """
+        # Acquire a lease.
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Assert the lease was acquired successfully.
+        self.assertIn(self.dataset_id, leases)
+        # Release the lease.
+        leases = leases.release(self.dataset_id, self.node_id)
+        # Assert the lease has been released successfully.
+        self.assertNotIn(self.dataset_id, leases)
+
+    def test_error_on_release_lease_held_by_other_node(self):
+        """
+        A ``LeaseReleaseError`` is raised when attempting to release a lease
+        held by another node.
+        """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration)
+        # Create a second node
+        node2 = Node(uuid=uuid4())
+        # Attempt to release a lease on node2 for the existing dataset
+        exception = self.assertRaises(
+            LeaseError, leases.release,
+            self.dataset_id, node2.uuid
+        )
+        expected_error = (
+            u"Cannot release lease " + unicode(self.dataset_id)
+            + " for node " + unicode(node2.uuid)
+            + u": Lease already held by another node"
+        )
+        self.assertEqual(
+            exception.message, expected_error
+        )
+
+    def test_error_on_acquire_lease_held_by_other_node(self):
+        """
+        A ``LeaseAcquisitionError`` is raised when attempting to acquire
+        a lease held by another node.
+        """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Create a second node
+        node2 = Node(uuid=uuid4())
+        # Attempt to acquire the lease for node2 for the existing dataset
+        exception = self.assertRaises(
+            LeaseError, leases.acquire,
+            self.now, self.dataset_id, node2.uuid
+        )
+        expected_error = (
+            u"Cannot acquire lease " + unicode(self.dataset_id)
+            + " for node " + unicode(node2.uuid)
+            + u": Lease already held by another node"
+        )
+        self.assertEqual(
+            exception.message, expected_error
+        )
+
+    def test_invariant_success(self):
+        """
+        A lease's ID (key in the ``Leases`` map) must match its dataset ID.
+        """
+        lease = Lease(
+            dataset_id=self.dataset_id, node_id=self.node_id, expiration=None
+        )
+        # This test's "assertion" is that this does not raise an exception.
+        self.leases.set(self.dataset_id, lease)
+
+    def test_invariant_fail(self):
+        """
+        An ``InvariantException`` is raised if a lease's ID (key in the
+        ``Leases`` map) does not match its dataset ID.
+        """
+        lease = Lease(
+            dataset_id=self.dataset_id, node_id=self.node_id, expiration=None
+        )
+        # Try to map this lease to a different UUID.
+        self.assertRaises(
+            InvariantException,
+            self.leases.set, uuid4(), lease
+        )

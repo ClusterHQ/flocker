@@ -7,19 +7,7 @@ Generate a Flocker package that can be deployed onto cluster nodes.
 import os
 import platform
 from setuptools import setup, find_packages
-
 import versioneer
-versioneer.vcs = "git"
-versioneer.versionfile_source = "flocker/_version.py"
-versioneer.versionfile_build = "flocker/_version.py"
-versioneer.tag_prefix = ""
-versioneer.parentdir_prefix = "flocker-"
-
-cmdclass = {}
-
-# Let versioneer hook into the various distutils commands so it can rewrite
-# certain data at appropriate times.
-cmdclass.update(versioneer.get_cmdclass())
 
 # Hard linking doesn't work inside VirtualBox shared folders. This means that
 # you can't use tox in a directory that is being shared with Vagrant,
@@ -81,6 +69,8 @@ setup(
         # These data files are used by the volumes API to define input and
         # output schemas.
         'flocker.control': ['schema/*.yml'],
+        # These files are used by the Docker plugin API:
+        'flocker.dockerplugin': ['schema/*.yml'],
     },
 
     entry_points={
@@ -105,7 +95,7 @@ setup(
         "dev": dev_requires,
         },
 
-    cmdclass=cmdclass,
+    cmdclass=versioneer.get_cmdclass(),
 
     # Some "trove classifiers" which are relevant.
     classifiers=[

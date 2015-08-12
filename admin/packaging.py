@@ -592,11 +592,6 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
-
-        # We require an old version of setuptools
-        # XXX This should not be necessary after
-        # https://clusterhq.atlassian.net/browse/FLOC-1373
-        'backup-file-in-package /opt/flocker/lib/python2.7/site-packages/setuptools-3.6.dist-info/requires.txt.orig',  # noqa
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (

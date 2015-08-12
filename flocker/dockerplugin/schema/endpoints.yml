@@ -1,0 +1,71 @@
+$schema: http://json-schema.org/draft-04/schema#
+id: http://api.clusterhq.com/dockerplugin/dockerplugin.json
+definitions:
+  PluginActivate:
+    description: "Initial handshake."
+    type: object
+    properties:
+      Implements:
+        type: "array"
+        title: "List of APIs we support."
+        decription: "See Docker plugin API docs."
+        items:
+          - type: "string"
+            enum: "VolumeDriver"
+    required:
+      - "Implements"
+    additionalProperties: false
+
+  Remove:
+    description: "Remove response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+    required:
+      - "Err"
+    additionalProperties: false
+
+  Unmount:
+    description: "Unmount response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+    required:
+      - "Err"
+    additionalProperties: false
+
+  Create:
+    description: "Create response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+    required:
+      - "Err"
+    additionalProperties: false
+
+  Mount:
+    description: "Mount response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+      Mountpoint:
+        type: string
+    required:
+      - "Err"
+    additionalProperties: false
+
+  Path:
+    description: "Path response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+      Mountpoint:
+        type: string
+    required:
+      - "Err"
+    additionalProperties: false

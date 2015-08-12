@@ -145,7 +145,43 @@ class ManagedNode(PRecord):
     distribution = field(type=bytes, mandatory=True)
 
 
-def task_client_installation_test():
+def ensure_minimal_setup(package_manager):
+    """
+    Get any system into a reasonable state for installation.
+
+    Although we could publish these commands in the docs, they add a lot
+    of noise for many users.  Ensure that systems have sudo enabled.
+
+    :param bytes package_manager: The package manager (apt, dnf, yum).
+    :return: a sequence of commands to run on the distribution
+    """
+    if package_manager in ('dnf', 'yum'):
+        # Fedora/CentOS sometimes configured to require tty for sudo
+        # ("sorry, you must have a tty to run sudo"). Disable that to
+        # allow automated tests to run.
+        return sequence([
+            run_from_args([
+                'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
+            ]),
+            run_from_args([
+                'su', 'root', '-c', [
+                    'sed', '--in-place', '-e',
+                    's/Defaults.*requiretty/Defaults !requiretty/',
+                    '/etc/sudoers'
+                ]]),
+        ])
+    elif package_manager == 'apt':
+        return sequence([
+            run_from_args(['su', 'root', '-c', ['apt-get', 'update']]),
+            run_from_args([
+                'su', 'root', '-c', ['apt-get', '-y', 'install', 'sudo']
+            ]),
+        ])
+    else:
+        raise UnsupportedDistribution()
+
+
+def task_cli_pkg_test():
     """
     Check that the CLI is working.
     """
@@ -242,8 +278,7 @@ def install_cli_commands_ubuntu(distribution, package_source):
         # packages that are common in a typical release.  These commands
         # ensure that we start from a good base system with the required
         # capabilities, particularly that the add-apt-repository command
-        # and HTTPS URLs are supported.
-        # FLOC-1880 will ensure these are necessary and sufficient.
+        # is available, and HTTPS URLs are supported.
         sudo_from_args(["apt-get", "update"]),
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
@@ -295,7 +330,7 @@ _task_install_commands = {
 }
 
 
-def task_install_cli(distribution, package_source=PackageSource()):
+def task_cli_pkg_install(distribution, package_source=PackageSource()):
     """
     Install flocker CLI on a distribution.
 
@@ -313,16 +348,85 @@ def task_install_cli(distribution, package_source=PackageSource()):
     return _task_install_commands[distribution](distribution, package_source)
 
 
-def install_cli(package_source, node):
-    """
-    Return an effect to run the CLI installation tasks on a remote node.
+PIP_CLI_PREREQ_APT = [
+    'gcc',
+    'libffi-dev',
+    'libssl-dev',
+    'python2.7',
+    'python2.7-dev',
+    'python-virtualenv',
+]
 
-    :param package_source: Package source description
-    :param node: Remote node description
+PIP_CLI_PREREQ_YUM = [
+    'gcc',
+    'libffi-devel',
+    'openssl-devel',
+    'python',
+    'python-devel',
+    'python-virtualenv',
+]
+
+
+def task_cli_pip_prereqs(package_manager):
     """
-    return run_remotely(
-        node.get_default_username(), node.address,
-        task_install_cli(node.distribution, package_source))
+    Install the pre-requisites for pip installation of the Flocker client.
+
+    :param bytes package_manager: The package manager (apt, dnf, yum).
+    :return: an Effect to install the pre-requisites.
+    """
+    if package_manager in ('dnf', 'yum'):
+        return sudo_from_args(
+            [package_manager, '-y', 'install'] + PIP_CLI_PREREQ_YUM
+        )
+    elif package_manager == 'apt':
+        return sequence([
+            sudo_from_args(['apt-get', 'update']),
+            sudo_from_args(['apt-get', '-y', 'install'] + PIP_CLI_PREREQ_APT),
+        ])
+    else:
+        raise UnsupportedDistribution()
+
+
+def task_cli_pip_install(
+        venv_name='flocker-client', package_source=PackageSource()):
+    """
+    Install the Flocker client into a virtualenv using pip.
+
+    :param bytes venv_name: Name for the virtualenv.
+    :param package_source: Package source description
+    :return: an Effect to install the client.
+    """
+    vers = package_source.version
+    if vers is None:
+        vers = version
+    url = (
+        'https://{bucket}.s3.amazonaws.com/{key}/'
+        'Flocker-{version}-py2-none-any.whl'.format(
+            bucket=ARCHIVE_BUCKET, key='python',
+            version=get_installable_version(vers))
+        )
+    return sequence([
+        run_from_args(
+            ['virtualenv', '--python=/usr/bin/python2.7', venv_name]),
+        run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
+        run_from_args(['pip', 'install', '--upgrade', 'pip']),
+        run_from_args(
+            ['pip', 'install', url]),
+        ])
+
+
+def task_cli_pip_test(venv_name='flocker-client'):
+    """
+    Test the Flocker client installed in a virtualenv.
+
+    :param bytes venv_name: Name for the virtualenv.
+    :return: an Effect to test the client.
+    """
+    return sequence([
+        run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
+        run_from_args(
+            ['flocker-deploy', '--version']),
+        ])
 
 
 def task_configure_brew_path():
@@ -906,8 +1010,7 @@ def task_install_flocker(
 ACCEPTANCE_IMAGES = [
     "postgres:latest",
     "clusterhq/mongodb:latest",
-    "clusterhq/flask",
-    "clusterhq/flaskenv",
+    "python:2.7-slim",
     "busybox",
 ]
 
