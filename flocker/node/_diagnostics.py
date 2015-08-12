@@ -80,40 +80,43 @@ class FlockerDebugArchive(object):
         """
         os.makedirs(self._archive_path)
         try:
-            # Export Flocker version
+            # Flocker version
             with self._open_logfile('flocker-version') as output:
                 output.write(__version__.encode('utf-8') + b'\n')
 
-            # Export Flocker logs.
+            # Flocker logs.
             services = self._service_manager.flocker_services()
             for service_name, service_status in services:
                 self._log_exporter.export_flocker(
                     service_name=service_name,
                     target_path=self._logfile_path(service_name)
                 )
-            # Export syslog.
+
+            # Syslog.
             self._log_exporter.export_all(self._logfile_path('syslog'))
 
-            # Export the status of all services.
+            # Status of all services.
             with self._open_logfile('service-status') as output:
                 services = self._service_manager.all_services()
                 for service_name, service_status in services:
                     output.write(service_name + " " + service_status + "\n")
 
-            # Export Docker version and configuration
+            # Docker version
             check_call(
                 ['docker', 'version'],
                 stdout=self._open_logfile('docker-version')
             )
+
+            # Docker configuration
             check_call(
                 ['docker', 'info'],
                 stdout=self._open_logfile('docker-info')
             )
 
-            # Export Kernel version
+            # Kernel version
             self._open_logfile('uname').write(' '.join(os.uname()))
 
-            # Export Distribution version
+            # Distribution version
             self._open_logfile('os-release').write(
                 open('/etc/os-release').read()
             )
