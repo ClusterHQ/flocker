@@ -892,6 +892,22 @@ def uninstall_flocker(nodes):
     )
 
 
+def task_install_docker():
+    """
+    Return an ``Effect`` for installing Docker if it is not already installed.
+
+    The state of ``https://get.docker.com/`` at the time the task is run
+    determines the version of Docker installed.
+    """
+    return run(command=(
+        b"[[ -e /usr/bin/docker ]] || { "
+        b"yum --assumeyes update && "
+        b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
+        b"sh /tmp/install-docker.sh"
+        b"; }"
+    ))
+
+
 def task_install_flocker(
     distribution=None,
     package_source=PackageSource(),
@@ -926,9 +942,6 @@ def task_install_flocker(
             run_from_args([
                 "apt-get", "-y", "install", "apt-transport-https",
                 "software-properties-common"]),
-            # Add Docker repo for recent Docker versions
-            run_from_args([
-                "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
@@ -1078,7 +1091,7 @@ def provision(distribution, package_source, variants):
         commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
-
+    commands.append(task_install_docker())
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))

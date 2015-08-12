@@ -239,13 +239,10 @@ DEPENDENCIES = {
     },
     'node': {
         'centos': (
-            DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
-            # trust-updates version
-            DockerDependency(package='docker.io'),
             Dependency(package='iptables'),
             Dependency(package='openssh-client'),
         ),
