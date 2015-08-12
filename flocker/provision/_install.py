@@ -508,13 +508,11 @@ def task_enable_docker(distribution):
             # complete.
             put(
                 path=conf_path,
-                content=(
-                    dedent(
-                        """\
-                        [Service]
-                        TimeoutStartSec=10min
-                        """
-                    ),
+                content=dedent(
+                    """\
+                    [Service]
+                    TimeoutStartSec=10min
+                    """
                 ),
             ),
             run_from_args(["systemctl", "enable", "docker.service"]),
