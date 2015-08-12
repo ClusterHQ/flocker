@@ -97,7 +97,8 @@ common_cli:
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
-    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
+    FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - http://169.254.169.254/latest/meta-data/placement/availability-zone`"
+    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
 
   setup_rackspace_env_vars: &setup_rackspace_env_vars |
@@ -358,7 +359,7 @@ job_type:
 
 
     run_trial_for_cinder_storage_driver_on_CentOS_7:
-      on_nodes_with_labels: 'aws-centos-7-T2Micro'
+      on_nodes_with_labels: 'rackspace-centos7-jenkins-slave-DFW-standard-4'
       with_modules:
         - flocker/node/agents/cinder.py
       with_steps:
@@ -373,7 +374,7 @@ job_type:
       coverage_report: true
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
+      on_nodes_with_labels: 'rackspace-ubuntu14-jenkins-slave-DFW-standard-4'
       with_modules:
         - flocker/node/agents/cinder.py
       with_steps:
