@@ -506,6 +506,7 @@ def task_enable_docker(distribution):
             # initializes a 100G filesystem which can take a while.  The
             # default startup timeout is frequently too low to let this
             # complete.
+            run("mkdir -p /etc/systemd/system/docker.service.d"),
             put(
                 path=conf_path,
                 content=dedent(
