@@ -42,7 +42,8 @@ class ConfigurationMigrationError(Exception):
     """
 
 
-def migrate_configuration(source_version, target_version, config):
+def migrate_configuration(source_version, target_version,
+                          config, migration_class):
     """
     Migrate a persisted configuration from one version to another
     in sequential upgrades, e.g. a source version of 1 and target
@@ -55,6 +56,8 @@ def migrate_configuration(source_version, target_version, config):
     :param int source_version: The version to migrate from.
     :param int target_version: The version to migrate to.
     :param bytes config: The JSON-encoded source configuration.
+    :param class migration_class: The class containing the methods
+        that will be used for migration.
 
     :return bytes: The updated JSON configuration after migration.
     """
@@ -66,7 +69,7 @@ def migrate_configuration(source_version, target_version, config):
             % (current_version, upgrade_version)
         )
         try:
-            migration = getattr(ConfigurationMigration, migration_method)
+            migration = getattr(migration_class, migration_method)
         except AttributeError:
             message = (
                 u"Unable to find a migration path for a version " +
@@ -77,7 +80,7 @@ def migrate_configuration(source_version, target_version, config):
                 unicode(upgrade_version) + u"."
             )
             raise ConfigurationMigrationError(message)
-        upgraded_config = migration(config)
+        upgraded_config = migration(upgraded_config)
         current_version = current_version + 1
     return upgraded_config
 
@@ -163,6 +166,8 @@ _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
                            [_DEPLOYMENT_FIELD])
 _LOG_SAVE = ActionType(u"flocker-control:persistence:save",
                        [_DEPLOYMENT_FIELD], [])
+_LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
+                          [_DEPLOYMENT_FIELD], [])
 
 
 class LeaseService(Service):
@@ -252,7 +257,8 @@ class ConfigurationPersistenceService(MultiService):
             if not self._config_path.exists():
                 v1_json = v1_config_path.getContent()
                 updated_json = migrate_configuration(
-                    1, _CONFIG_VERSION, v1_json)
+                    1, _CONFIG_VERSION, v1_json,
+                    ConfigurationMigration)
                 self._config_path.setContent(updated_json)
         if self._config_path.exists():
             config_json = self._config_path.getContent()
@@ -263,7 +269,8 @@ class ConfigurationPersistenceService(MultiService):
                 config_version = 1
             if config_version < _CONFIG_VERSION:
                 config_json = migrate_configuration(
-                    config_version, _CONFIG_VERSION, config_json)
+                    config_version, _CONFIG_VERSION,
+                    config_json, ConfigurationMigration)
             config = wire_decode(config_json)
             self._deployment = config.deployment
             self._sync_save(config.deployment)

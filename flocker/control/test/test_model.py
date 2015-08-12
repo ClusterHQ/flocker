@@ -521,6 +521,15 @@ class DeploymentTests(SynchronousTestCase):
     """
     Tests for ``Deployment``.
     """
+    def test_create_empty(self):
+        """
+        ``Deployment.create_empty`` returns a ``Deployment`` object
+        representing an empty configuration.
+        """
+        deployment = Deployment.create_empty()
+        expected = Deployment(nodes=frozenset())
+        self.assertEqual(deployment, expected)
+
     def test_applications(self):
         """
         ``Deployment.applications()`` returns applications from all nodes.

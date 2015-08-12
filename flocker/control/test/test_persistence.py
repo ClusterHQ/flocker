@@ -3,6 +3,7 @@
 """
 Tests for ``flocker.control._persistence``.
 """
+import json
 
 from uuid import uuid4, UUID
 
@@ -17,7 +18,7 @@ from pyrsistent import PRecord
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
-    _CONFIG_VERSION,
+    _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -134,6 +135,37 @@ class ConfigurationPersistenceServiceTests(TestCase):
         path = FilePath(self.mktemp())
         self.service(path)
         self.assertTrue(path.child(b"current_configuration.json").exists())
+
+    def test_v1_file_creates_updated_file(self):
+        """
+        If a version 1 configuration file exists under name
+        current_configuration.v1.json, a new configuration file is
+        created with the >v1 naming convention, current_configuration.json
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        v1_config_file = path.child(b"current_configuration.v1.json")
+        v1_config_json = FilePath(__file__).sibling(
+            'configurations').child(b"configuration_v1.json").getContent()
+        v1_config_file.setContent(v1_config_json)
+        self.service(path)
+        self.assertTrue(path.child(b"current_configuration.json").exists())
+
+    def test_old_configuration_is_upgraded(self):
+        """
+        The persistence service will detect if an existing configuration
+        saved in a file is a previous version and perform a migration to
+        the latest version.
+        """
+        self.fail("not implemented yet")
+
+    def test_current_configuration_unchanged(self):
+        """
+        A persisted configuration saved in the latest configuration
+        version is not upgraded and therefore remains unchanged on
+        service startup.
+        """
+        self.fail("not implemented yet")
 
     @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
                       startFields=dict(configuration=TEST_DEPLOYMENT))
@@ -253,11 +285,63 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
 
 
+class FakeMigration(object):
+    """
+    A simple fake migration class, used to test ``migrate_configuration``.
+    """
+    @classmethod
+    def configuration_v1_v2(cls, config):
+        config = json.loads(config)
+        if config['version'] != 1:
+            raise ConfigurationMigrationError(
+                "Supplied configuration was not a valid v1 config."
+            )
+        return json.dumps({"version": 2, "configuration": "fake"})
+
+    @classmethod
+    def configuration_v2_v3(cls, config):
+        config = json.loads(config)
+        #import pdb;pdb.set_trace()
+        if config['version'] != 2:
+            raise ConfigurationMigrationError(
+                "Supplied configuration was not a valid v2 config."
+            )
+        return json.dumps({"version": 3, "configuration": "fake"})
+
+
 class ConfigurationMigrationTests(SynchronousTestCase):
     """
-    Tests for ``_ConfigurationMigration``.
+    Tests for ``ConfigurationMigration`` and ``migrate_configuration``.
     """
     configurations_dir = FilePath(__file__).sibling('configurations')
+    v1_config = json.dumps({"version": 1})
+
+    def test_error_on_undefined_migration_path(self):
+        """
+        A ``ConfigurationMigrationError`` is raised if a migration path
+        from one version to another cannot be found in the supplied
+        migration class.
+        """
+        e = self.assertRaises(
+            ConfigurationMigrationError,
+            migrate_configuration, 1, 4, self.v1_config, FakeMigration
+        )
+        expected_error = (
+            u'Unable to find a migration path for a version 1 '
+            u'to version 4 configuration. No migration method exists '
+            u'for v3 to v4.'
+        )
+        self.assertEqual(e.message, expected_error)
+
+    def test_sequential_migrations(self):
+        """
+        A migration from one configuration version to another will
+        sequentially perform all necessary upgrades, e.g. v1 to v2 followed
+        by v2 to v3.
+        """
+        v2_config = migrate_configuration(1, 2, self.v1_config, FakeMigration)
+        result = migrate_configuration(1, 3, self.v1_config, FakeMigration)
+        self.assertEqual(result, FakeMigration.configuration_v2_v3(v2_config))
 
     def test_v1_latest_configuration(self):
         """
@@ -267,7 +351,7 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         v1_json = self.configurations_dir.child(
             b"configuration_v1.json").getContent()
         upgraded_json = migrate_configuration(
-            1, _CONFIG_VERSION, v1_json)
+            1, _CONFIG_VERSION, v1_json, ConfigurationMigration)
         upgraded_config = wire_decode(upgraded_json)
         expected_configuration = Configuration(
             version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT
