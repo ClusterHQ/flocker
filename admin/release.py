@@ -1076,3 +1076,59 @@ def publish_dev_box_main(args, base_path, top_level):
             ),
         ]),
     )
+
+
+def publish_dev_box_main(args, base_path, top_level):
+    """
+    Publish a development Vagrant box.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = PublishDevBoxOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    scratch_directory = FilePath(tempfile.mkdtemp(
+        prefix=b'flocker-upload-'))
+    scratch_directory.child('vagrant').createDirectory()
+
+    box_type = "flocker-dev"
+    prefix = 'vagrant/dev/'
+
+    box_name = "{box_type}-{version}.box".format(
+        box_type=box_type,
+        version=options['flocker-version'],
+    )
+
+    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
+        bucket=options['target'],
+        key=prefix + box_name,
+    )
+
+    sync_perform(
+        dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
+        effect=sequence([
+            Effect(
+                CopyS3Keys(
+                    source_bucket=DEV_ARCHIVE_BUCKET,
+                    source_prefix=prefix,
+                    destination_bucket=options['target'],
+                    destination_prefix=prefix,
+                    keys=[box_name],
+                )
+            ),
+            publish_vagrant_metadata(
+                version=options['flocker-version'],
+                box_url=box_url,
+                scratch_directory=scratch_directory.child('vagrant'),
+                box_name=box_type,
+                target_bucket=options['target'],
+            ),
+        ]),
+    )
