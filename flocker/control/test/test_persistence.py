@@ -19,6 +19,7 @@ from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
+    _LOG_UPGRADE,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -40,6 +41,10 @@ TEST_DEPLOYMENT = Deployment(
                             mountpoint=FilePath(b"/xxx/yyy"))
                     )],
                 manifestations={DATASET.dataset_id: MANIFESTATION})])
+
+
+V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
+    'configurations').child(b"configuration_v1.json").getContent()
 
 
 class FakePersistenceService(object):
@@ -136,7 +141,10 @@ class ConfigurationPersistenceServiceTests(TestCase):
         self.service(path)
         self.assertTrue(path.child(b"current_configuration.json").exists())
 
-    def test_v1_file_creates_updated_file(self):
+    @validate_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
+                      startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
+                                       source_version=1, target_version=2))
+    def test_v1_file_creates_updated_file(self, logger):
         """
         If a version 1 configuration file exists under name
         current_configuration.v1.json, a new configuration file is
@@ -145,10 +153,8 @@ class ConfigurationPersistenceServiceTests(TestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         v1_config_file = path.child(b"current_configuration.v1.json")
-        v1_config_json = FilePath(__file__).sibling(
-            'configurations').child(b"configuration_v1.json").getContent()
-        v1_config_file.setContent(v1_config_json)
-        self.service(path)
+        v1_config_file.setContent(V1_TEST_DEPLOYMENT_JSON)
+        self.service(path, logger)
         self.assertTrue(path.child(b"current_configuration.json").exists())
 
     def test_old_configuration_is_upgraded(self):
@@ -301,7 +307,6 @@ class FakeMigration(object):
     @classmethod
     def configuration_v2_v3(cls, config):
         config = json.loads(config)
-        #import pdb;pdb.set_trace()
         if config['version'] != 2:
             raise ConfigurationMigrationError(
                 "Supplied configuration was not a valid v2 config."
@@ -313,7 +318,6 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     """
     Tests for ``ConfigurationMigration`` and ``migrate_configuration``.
     """
-    configurations_dir = FilePath(__file__).sibling('configurations')
     v1_config = json.dumps({"version": 1})
 
     def test_error_on_undefined_migration_path(self):
@@ -340,6 +344,8 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         by v2 to v3.
         """
         v2_config = migrate_configuration(1, 2, self.v1_config, FakeMigration)
+        # Perform two sequential migrations to get from v1 to v3, starting
+        # with a v1 config.
         result = migrate_configuration(1, 3, self.v1_config, FakeMigration)
         self.assertEqual(result, FakeMigration.configuration_v2_v3(v2_config))
 
@@ -348,10 +354,9 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         A V1 JSON configuration blob is transformed to the latest
         configuration, with the result validating when loaded.
         """
-        v1_json = self.configurations_dir.child(
-            b"configuration_v1.json").getContent()
         upgraded_json = migrate_configuration(
-            1, _CONFIG_VERSION, v1_json, ConfigurationMigration)
+            1, _CONFIG_VERSION, V1_TEST_DEPLOYMENT_JSON,
+            ConfigurationMigration)
         upgraded_config = wire_decode(upgraded_json)
         expected_configuration = Configuration(
             version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT

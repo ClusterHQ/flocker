@@ -167,7 +167,9 @@ _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
 _LOG_SAVE = ActionType(u"flocker-control:persistence:save",
                        [_DEPLOYMENT_FIELD], [])
 _LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
-                          [_DEPLOYMENT_FIELD], [])
+                          [_DEPLOYMENT_FIELD,
+                           Field(u"source_version", repr),
+                           Field(u"target_version", repr)], [])
 
 
 class LeaseService(Service):
@@ -256,10 +258,14 @@ class ConfigurationPersistenceService(MultiService):
         if v1_config_path.exists():
             if not self._config_path.exists():
                 v1_json = v1_config_path.getContent()
-                updated_json = migrate_configuration(
-                    1, _CONFIG_VERSION, v1_json,
-                    ConfigurationMigration)
-                self._config_path.setContent(updated_json)
+                with _LOG_UPGRADE(self.logger,
+                                  configuration=v1_json,
+                                  source_version=1,
+                                  target_version=_CONFIG_VERSION):
+                    updated_json = migrate_configuration(
+                        1, _CONFIG_VERSION, v1_json,
+                        ConfigurationMigration)
+                    self._config_path.setContent(updated_json)
         if self._config_path.exists():
             config_json = self._config_path.getContent()
             config_dict = loads(config_json)
@@ -268,9 +274,13 @@ class ConfigurationPersistenceService(MultiService):
             else:
                 config_version = 1
             if config_version < _CONFIG_VERSION:
-                config_json = migrate_configuration(
-                    config_version, _CONFIG_VERSION,
-                    config_json, ConfigurationMigration)
+                with _LOG_UPGRADE(self.logger,
+                                  configuration=config_json,
+                                  source_version=config_version,
+                                  target_version=_CONFIG_VERSION):
+                    config_json = migrate_configuration(
+                        config_version, _CONFIG_VERSION,
+                        config_json, ConfigurationMigration)
             config = wire_decode(config_json)
             self._deployment = config.deployment
             self._sync_save(config.deployment)
