@@ -509,10 +509,11 @@ def task_enable_docker(distribution):
             put(
                 path=conf_path,
                 content=(
-                    dedent("""\
-                    [Service]
-                    TimeoutStartSec=10min
-                    """
+                    dedent(
+                        """\
+                        [Service]
+                        TimeoutStartSec=10min
+                        """
                     ),
                 ),
             ),
