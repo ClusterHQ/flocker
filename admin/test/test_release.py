@@ -2126,3 +2126,11 @@ class TestRedirectsOptionsTests(SynchronousTestCase):
         options = TestRedirectsOptions()
         options.parseOptions(['--production'])
         self.assertEqual(options.environment, Environments.PRODUCTION)
+
+class UpdateLicenseFileTests(SynchronousTestCase):
+    """
+    Tests for :func:`update_license_file`.
+    """
+
+    def test_update_license_file(self):
+        pass
