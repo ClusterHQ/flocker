@@ -329,7 +329,7 @@ job_type:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_modules:
-        - build/flocker/node/agents/cinder.py
+        - build/flocker/node/agents/ebs.py
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
@@ -344,7 +344,7 @@ job_type:
     run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
       with_modules:
-        - build/flocker/node/agents/cinder.py
+        - build/flocker/node/agents/ebs.py
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,

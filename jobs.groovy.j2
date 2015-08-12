@@ -199,7 +199,7 @@ branches.each {
 {# apply config related to 'run_trial_storage_driver' jobs                   #}
 {%    if job_type == 'run_trial_for_storage_driver'                         -%}
 {%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                          -%}
+{%        set _job_name = job_name + '_' + _module.replace('/', '_')        -%}
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
     parameters {
         textParam("MODULE", "{{ _module }}", "Module to test" )
@@ -308,7 +308,7 @@ branches.each {
 {%  if job_type == 'run_trial_for_storage_driver'                                              -%}
 {%    for job_name, job_values  in job_type_values.iteritems()              -%}
 {%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                           %}
+{%        set _job_name = job_name + '_' + _module.replace('/', '_')         %}
               job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
                 killPhaseCondition("NEVER")
               }
