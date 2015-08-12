@@ -127,6 +127,9 @@ class FlockerDebugArchive(object):
                 stdout=self._open_logfile('ip-addr')
             )
 
+            # Hostname
+            self._open_logfile('hostname').write(gethostname() + '\n')
+
             # Create a single archive file
             archive_path = make_archive(
                 base_name=self._archive_name,

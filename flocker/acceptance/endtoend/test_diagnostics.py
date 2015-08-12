@@ -78,6 +78,7 @@ class DiagnosticsTests(TestCase):
             'uname',
             'service-status',
             'ip-addr',
+            'hostname',
         ]
 
         missing_basenames = set(expected_basenames) - set(actual_basenames)

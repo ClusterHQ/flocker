@@ -88,6 +88,12 @@ Alternatively, the information can be gathered manually using the following comm
 
      ip addr
 
+* Hostname
+
+  .. prompt:: bash #
+
+     hostname
+
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
