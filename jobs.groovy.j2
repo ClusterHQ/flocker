@@ -46,6 +46,11 @@ folder("{{folder}}") { displayName("{{display_name}}") }
     param: git_url - example: https://github.com/clusterhq/flocker
     param: branch - remote branch name to configure                          #}
     scm {
+{#      configure the git user merging the branches                         #}
+      git('git@git') { node ->
+            node / gitConfigName('Jenkins')
+            node / gitConfigEmail('jenkins@clusterhq.com')
+        }
       git {
         remote {
           name("upstream")
@@ -58,11 +63,6 @@ folder("{{folder}}") { displayName("{{display_name}}") }
             remote('upstream')
             branch('master')
             strategy("resolve")
-        }
-        {#      configure the git user merging the branches                         #}
-        { node ->
-            node / gitConfigName('Jenkins')
-            node / gitConfigEmail('jenkins@clusterhq.com')
         }
       }
     }
