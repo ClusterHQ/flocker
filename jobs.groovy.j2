@@ -54,7 +54,16 @@ folder("{{folder}}") { displayName("{{display_name}}") }
         branch("{{branch}}")
         clean(true)
         createTag(false)
-        mergeOptions('upstream', "master")
+        mergeOptions {
+            remote('upstream')
+            branch('master')
+            strategy("resolve")
+        }
+        {#      configure the git user merging the branches                         #}
+        { node ->
+            node / gitConfigName('Jenkins')
+            node / gitConfigEmail('jenkins@clusterhq.com')
+        }
       }
     }
 {%- endmacro                                                                -%}
