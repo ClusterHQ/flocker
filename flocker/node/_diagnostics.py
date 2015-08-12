@@ -30,6 +30,7 @@ def gzip_file(source_path, archive_path):
 class FlockerDebugArchive(object):
     """
     Create a tar archive containing:
+    * Flocker version,
     * logs from all installed Flocker services,
     * some or all of the syslog depending on the logging system,
     * Docker version and configuration information, and
