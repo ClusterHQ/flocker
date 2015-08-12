@@ -235,10 +235,10 @@ class UpstartLogExporter(object):
         gzip_file('/var/log/syslog', target_path + '.gz')
 
 
-class Platform(object):
+class Distribution(object):
     """
     A record of the service manager and log exported to be used on each
-    supported operating system.
+    supported Linux distribution.
     """
     def __init__(self, name, version, service_manager, log_exporter):
         """
@@ -255,31 +255,31 @@ class Platform(object):
         self.log_exporter = log_exporter
 
 
-PLATFORMS = (
-    Platform(
+DISTRIBUTIONS = (
+    Distribution(
         name='centos',
         version='7',
-        service_manager=SystemdServiceManager(),
-        log_exporter=JournaldLogExporter()
+        service_manager=SystemdServiceManager,
+        log_exporter=JournaldLogExporter,
     ),
-    Platform(
+    Distribution(
         name='fedora',
         version='22',
-        service_manager=SystemdServiceManager(),
-        log_exporter=JournaldLogExporter()
+        service_manager=SystemdServiceManager,
+        log_exporter=JournaldLogExporter,
     ),
-    Platform(
+    Distribution(
         name='ubuntu',
         version='14.04',
-        service_manager=UpstartServiceManager(),
-        log_exporter=UpstartLogExporter()
+        service_manager=UpstartServiceManager,
+        log_exporter=UpstartLogExporter,
     )
 )
 
 
-_PLATFORM_BY_LABEL = dict(
+_DISTRIBUTION_BY_LABEL = dict(
     ('{}-{}'.format(p.name, p.version), p)
-    for p in PLATFORMS
+    for p in DISTRIBUTIONS
 )
 
 
@@ -294,15 +294,15 @@ class UnsupportedDistribution(Exception):
         self.distribution = distribution
 
 
-def current_platform():
+def current_distribution():
     """
     :returns: A ``Platform`` for the operating system where this script.
     :raises: ``UnsupportedPlatform`` if the current platform is unsupported.
     """
     name, version, nickname = platform_dist()
-    distribution = name.lower() + '-' + version
-    for supported_distribution, platform in _PLATFORM_BY_LABEL.items():
-        if distribution.startswith(supported_distribution):
-            return platform
+    current_distribution_label = name.lower() + '-' + version
+    for distribution_label, distribution in _DISTRIBUTION_BY_LABEL.items():
+        if current_distribution_label.startswith(distribution_label):
+            return distribution
     else:
-        raise UnsupportedDistribution(distribution)
+        raise UnsupportedDistribution(current_distribution_label)

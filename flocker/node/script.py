@@ -38,7 +38,7 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from ._diagnostics import (
-    current_platform, UnsupportedDistribution, FlockerDebugArchive
+    current_distribution, UnsupportedDistribution, FlockerDebugArchive
 )
 from .agents.blockdevice import (
     LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
@@ -670,11 +670,11 @@ def flocker_diagnostics_main():
     ).parse_args()
 
     try:
-        platform = current_platform()
+        distribution = current_distribution()
     except UnsupportedDistribution as e:
         sys.stderr.write(
             "ERROR: flocker-log-export "
-            "is not supported on this operating system ({!r}).\n"
+            "is not supported on this distribution ({!r}).\n"
             "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
             "for alternative ways to export Flocker logs "
             "and diagnostic data.\n".format(e.distribution)
@@ -682,7 +682,7 @@ def flocker_diagnostics_main():
         sys.exit(1)
 
     archive_path = FlockerDebugArchive(
-        service_manager=platform.service_manager,
-        log_exporter=platform.log_exporter
+        service_manager=distribution.service_manager(),
+        log_exporter=distribution.log_exporter()
     ).create()
     sys.stdout.write(archive_path + '\n')
