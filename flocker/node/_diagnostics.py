@@ -284,32 +284,27 @@ DISTRIBUTIONS = (
 )
 
 
-_DISTRIBUTION_BY_LABEL = dict(
+DISTRIBUTION_BY_LABEL = dict(
     ('{}-{}'.format(p.name, p.version), p)
     for p in DISTRIBUTIONS
 )
 
 
-class UnsupportedDistribution(Exception):
-    """
-    The distribution is not supported.
-    """
-    def __init__(self, distribution):
-        """
-        :param str distribution: The unsupported distribution.
-        """
-        self.distribution = distribution
-
-
 def current_distribution():
     """
-    :returns: A ``Platform`` for the operating system where this script.
-    :raises: ``UnsupportedPlatform`` if the current platform is unsupported.
+    :returns: A ``str`` label for the operating system distribution running
+        this script.
     """
     name, version, nickname = platform_dist()
-    current_distribution_label = name.lower() + '-' + version
-    for distribution_label, distribution in _DISTRIBUTION_BY_LABEL.items():
-        if current_distribution_label.startswith(distribution_label):
+    return name.lower() + '-' + version
+
+
+def lookup_distribution(distribution_label):
+    """
+    :param str distribution_label: The label of the distribution to lookup.
+    :returns: A ``Distribution`` matching the supplied ``distribution_label``
+        of ``None`` if the ``distribution_label`` is not supported.
+    """
+    for label, distribution in DISTRIBUTION_BY_LABEL.items():
+        if distribution_label.startswith(label):
             return distribution
-    else:
-        raise UnsupportedDistribution(current_distribution_label)

@@ -38,7 +38,8 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from ._diagnostics import (
-    current_distribution, UnsupportedDistribution, FlockerDebugArchive
+    current_distribution, FlockerDebugArchive, DISTRIBUTION_BY_LABEL,
+    lookup_distribution,
 )
 from .agents.blockdevice import (
     LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
@@ -674,17 +675,31 @@ class DiagnosticsOptions(Options):
 
     synopsis = "Usage: flocker-diagnostics [OPTIONS]"
 
+    optParameters = [
+        ["distribution-name", "d", "auto",
+         "Force the use of ``distribution`` specific tools "
+         "when gathering diagnostic information. "
+         "One of {}".format(
+             ', '.join(['auto'] + DISTRIBUTION_BY_LABEL.keys())
+         )],
+    ]
+
     def postOptions(self):
-        try:
-            self.distribution = current_distribution()
-        except UnsupportedDistribution as e:
+        distribution_name = self['distribution-name']
+        if distribution_name is 'auto':
+            distribution_name = current_distribution()
+
+        distribution = lookup_distribution(distribution_name)
+
+        if distribution is None:
             raise UsageError(
-                "ERROR: flocker-diagnostics "
+                "flocker-diagnostics "
                 "is not supported on this distribution ({!r}).\n"
                 "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
                 "for alternative ways to export Flocker logs "
-                "and diagnostic data.\n".format(e.distribution)
+                "and diagnostic data.\n".format(distribution_name)
             )
+        self.distribution = distribution
 
 
 @implementer(ICommandLineScript)
