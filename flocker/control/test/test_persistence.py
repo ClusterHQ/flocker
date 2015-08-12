@@ -163,7 +163,14 @@ class ConfigurationPersistenceServiceTests(TestCase):
         saved in a file is a previous version and perform a migration to
         the latest version.
         """
-        self.fail("not implemented yet")
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        v1_config_file = path.child(b"current_configuration.v1.json")
+        v1_config_file.setContent(V1_TEST_DEPLOYMENT_JSON)
+        config_path = path.child(b"current_configuration.json")
+        self.service(path)
+        configuration = wire_decode(config_path.getContent())
+        self.assertEqual(configuration.version, _CONFIG_VERSION)
 
     def test_current_configuration_unchanged(self):
         """
@@ -171,7 +178,14 @@ class ConfigurationPersistenceServiceTests(TestCase):
         version is not upgraded and therefore remains unchanged on
         service startup.
         """
-        self.fail("not implemented yet")
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        config_path = path.child(b"current_configuration.json")
+        config_path.setContent(wire_encode(TEST_DEPLOYMENT))
+        self.service(path)
+        configuration = wire_decode(config_path.getContent())
+        configured_deployment = configuration.deployment
+        self.assertEqual(configured_deployment, TEST_DEPLOYMENT)
 
     @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
                       startFields=dict(configuration=TEST_DEPLOYMENT))
