@@ -797,6 +797,7 @@ def task_install_docker():
     """
     return run(command=(
         b"[[ -e /usr/bin/docker ]] || { "
+        b"yum --assumeyes update && "
         b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
         b"sh /tmp/install-docker.sh"
         b"; }"
