@@ -262,6 +262,12 @@ Release
 
       admin/test-redirects --production
 
+#. Remove your temporary release environment:
+
+   .. prompt:: bash (flocker-release)flocker$
+
+      deactivate
+
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
 
