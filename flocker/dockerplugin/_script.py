@@ -9,6 +9,7 @@ from twisted.internet.endpoints import serverFromString
 from twisted.application.internet import StreamServerEndpointService
 from twisted.web.server import Site
 from twisted.python.filepath import FilePath
+from twisted.internet.address import UNIXAddress
 
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -38,6 +39,11 @@ class DockerPluginScript(object):
     Start the Docker plugin.
     """
     def main(self, reactor, options):
+        # Many places in both twisted.web and Klein are unhappy with
+        # listening on Unix socket, fix that by pretending we have a port
+        # number:
+        UNIXAddress.port = 0
+
         # We can use /etc/flocker/agent.yml and /etc/flocker/node.crt to load
         # some information we need:
         agent_config = get_configuration(options)
@@ -51,7 +57,9 @@ class DockerPluginScript(object):
                                        certificates_path.child(b"api.crt"),
                                        certificates_path.child(b"api.key"))
 
-        PLUGIN_PATH.parent().makedirs()
+        parent = PLUGIN_PATH.parent()
+        if not parent.exists():
+            parent.makedirs()
         endpoint = serverFromString(
             reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
         service = StreamServerEndpointService(endpoint, Site(
