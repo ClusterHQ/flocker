@@ -800,16 +800,23 @@ def uninstall_flocker(nodes):
     )
 
 
-def task_install_docker():
+def task_install_docker(distribution):
     """
     Return an ``Effect`` for installing Docker if it is not already installed.
 
     The state of ``https://get.docker.com/`` at the time the task is run
     determines the version of Docker installed.
     """
+    if is_centos(distribution):
+        # The Docker packages don't declare all of their dependencies.  They
+        # seem to work on an up-to-date system, though, so make sure the system
+        # is up to date.
+        update = b"yum --assumeyes update && "
+    else:
+        update = b""
+
     return run(command=(
-        b"[[ -e /usr/bin/docker ]] || { "
-        b"yum --assumeyes update && "
+        b"[[ -e /usr/bin/docker ]] || { " + update +
         b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
         b"sh /tmp/install-docker.sh"
         b"; }"
@@ -999,7 +1006,7 @@ def provision(distribution, package_source, variants):
         commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
-    commands.append(task_install_docker())
+    commands.append(task_install_docker(distribution))
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
