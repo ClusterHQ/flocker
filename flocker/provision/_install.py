@@ -806,6 +806,27 @@ def task_install_docker(distribution):
 
     The state of ``https://get.docker.com/`` at the time the task is run
     determines the version of Docker installed.
+
+    The version of Docker is allowed to float this way because:
+
+    * Docker development is currently proceeding at a rapid pace.  There are
+    frequently compelling reasons to want to run Docker 1.(X+1) instead of 1.X.
+
+    * https://get.docker.com/ doesn't keep very old versions of Docker around.
+    Pinning a particular version makes it laborious to rely on this source for
+    Docker packages (due to the pinned version frequently disappearing from the
+    repository).
+
+    * Other package repositories frequently only have older packages available.
+
+    * Different packagers of Docker give the package different names.  The
+    different package names make it more difficult to request a specific
+    version.
+
+    * Different packagers apply different system-specific patches.  Users may
+    have reasons to prefer packages from one packager over another.  Thus if
+    Docker is already installed, no matter what version it is, the requirement
+    is considered satisfied (we treat the user as knowing what they're doing).
     """
     if is_centos(distribution):
         # The Docker packages don't declare all of their dependencies.  They
