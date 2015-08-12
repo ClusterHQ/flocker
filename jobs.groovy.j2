@@ -62,7 +62,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
         mergeOptions {
             remote('upstream')
             branch('master')
-            strategy('resolve')
+            strategy('recursive')
         }
       }
     }
