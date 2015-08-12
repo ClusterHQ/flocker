@@ -147,9 +147,13 @@ common_cli:
     eval `ssh-agent -s`
     ssh-add \$HOME/.ssh/id_rsa
 
-  run_acceptance_tests: &run_acceptance_tests |
+  run_acceptance_aws_tests: &run_acceptance_aws_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
     parse_logs /tmp/v/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
+
+  run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
+    # we gather the return code, but make sure we come out of these tests with '0'
+    parse_logs /tmp/v/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider rackspace --dataset-backend rackspace --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_client_tests: &run_client_tests |
     parse_logs /tmp/v/bin/python admin/run-client-tests --distribution \${DISTRIBUTION_NAME} --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) ; RC=\$?
@@ -340,7 +344,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_tests,
+                   *run_acceptance_aws_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
@@ -363,13 +367,15 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_tests,
+                   *run_acceptance_aws_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
     run_acceptance_on_Rackspace_CentOS_7_for:
-      on_nodes_with_labels: 'rackspace-centos7-jenkins-slave-DFW-standard-4'
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-centos-7-M3Medium'
       with_modules:
         - flocker.acceptance.endtoend.test_dataset
         - flocker.acceptance.integration.test_mongodb
@@ -386,13 +392,15 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_tests,
+                   *run_acceptance_rackspace_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
     run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
-      on_nodes_with_labels: 'rackspace-ubuntu14-jenkins-slave-DFW-standard-4'
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-ubuntu-14-M3Medium'
       with_modules:
         - flocker.acceptance.endtoend.test_dataset
         - flocker.acceptance.integration.test_mongodb
@@ -409,7 +417,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_tests,
+                   *run_acceptance_rackspace_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
