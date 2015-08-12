@@ -121,6 +121,12 @@ class FlockerDebugArchive(object):
                 open('/etc/os-release').read()
             )
 
+            # Network configuration
+            check_call(
+                ['ip', 'addr'],
+                stdout=self._open_logfile('ip-addr')
+            )
+
             # Create a single archive file
             archive_path = make_archive(
                 base_name=self._archive_name,
