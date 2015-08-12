@@ -1087,8 +1087,6 @@ def update_license_file(args, base_path, top_level):
     :param FilePath top_level: The top-level of the flocker repository.
     """
     license_template = top_level.child('admin').child('LICENSE.template')
-    with open(license_template) as input_file:
-        license_content = input_file.read().format(current_year=1000)
-
-    with open(top_level.child('LICENSE')) as output_file:
-        output_file.write(license_content)
+    with license_template.open() as input_file:
+        with top_level.child('LICENSE').open('w') as output_file:
+            output_file.write(input_file.read().format(current_year=1000))
