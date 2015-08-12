@@ -101,20 +101,8 @@ Preparing For a Release
       (flocker-release)tmp-5234cf9a4c8fad37$ ssh-keyscan github.com >> ~/.ssh/known_hosts
       (flocker-release)tmp-5234cf9a4c8fad37$ git clone git@github.com:ClusterHQ/flocker.git
       (flocker-release)tmp-5234cf9a4c8fad37$ cd flocker
-      (flocker-release)flocker$ pip install --editable .[release]
-
-#. Create a release branch, using the version number of the release being created, e.g.:
-
-   .. prompt:: bash (flocker-release)flocker$
-
-      # The following command means that you will not be asked whether
-      # you want to continue connecting
-      ssh-keyscan github.com >> ~/.ssh/known_hosts
-      git clone git@github.com:ClusterHQ/flocker.git
-      cd flocker
-      mkvirtualenv flocker-release
-      pip install --editable .[dev]
-      admin/create-release-branch --flocker-version="${VERSION}"
+      (flocker-release)flocker$ pip install --editable .[dev]
+      (flocker-release)flocker$ admin/create-release-branch --flocker-version="${VERSION}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
