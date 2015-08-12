@@ -46,15 +46,24 @@ folder("{{folder}}") { displayName("{{display_name}}") }
     param: git_url - example: https://github.com/clusterhq/flocker
     param: branch - remote branch name to configure                          #}
     scm {
+{#      configure the git user merging the branches                         #}
       git {
         remote {
           name("upstream")
           url("{{git_url}}")
         }
+        configure { node ->
+            node / gitConfigName('Jenkins')
+            node / gitConfigEmail('jenkins@clusterhq.com')
+        }
         branch("{{branch}}")
         clean(true)
         createTag(false)
-        mergeOptions('upstream', "master")
+        mergeOptions {
+            remote('upstream')
+            branch('master')
+            strategy('recursive')
+        }
       }
     }
 {%- endmacro                                                                -%}
