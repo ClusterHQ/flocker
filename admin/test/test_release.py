@@ -35,6 +35,7 @@ from ..release import (
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
     publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
+    update_license_file,
 )
 
 from ..packaging import Distribution
@@ -2133,4 +2134,25 @@ class UpdateLicenseFileTests(SynchronousTestCase):
     """
 
     def test_update_license_file(self):
-        pass
+        """
+        A LICENSE file is written to the top level directory from a template in
+        the admin directory, and is formatted to include the given year.
+        """
+        content = dedent("""
+            Some license text.
+
+            More, {current_year} even more.
+            """)
+
+        top_level = FilePath(self.mktemp())
+        top_level.child('admin').makedirs()
+        top_level.child('admin').child('LICENSE.template').setContent(content)
+        update_license_file(top_level=top_level, year=123)
+        self.assertEqual(
+            top_level.child('LICENSE').getContent(),
+            dedent("""
+                Some license text.
+
+                More, 123 even more.
+                """)
+        )

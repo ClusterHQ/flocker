@@ -4,10 +4,10 @@
 Update the Copyright years in the LICENSE file.
 """
 
-from _preamble import TOPLEVEL, BASEPATH
+from _preamble import TOPLEVEL
 
 import sys
 
 if __name__ == '__main__':
     from admin.release import update_license_file as main
-    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
+    main(sys.argv[1:], top_level=TOPLEVEL)
