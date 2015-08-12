@@ -11,7 +11,7 @@ import re
 from shutil import copyfileobj, make_archive, rmtree
 from socket import gethostname
 from subprocess import check_call, check_output
-from time import time
+from uuid import uuid1
 
 from flocker import __version__
 
@@ -43,10 +43,7 @@ class FlockerDebugArchive(object):
         self._service_manager = service_manager
         self._log_exporter = log_exporter
 
-        self._suffix = "{}_{}".format(
-            gethostname(),
-            time()
-        )
+        self._suffix = unicode(uuid1())
         self._archive_name = "clusterhq_flocker_logs_{}".format(
             self._suffix
         )
