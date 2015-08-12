@@ -1079,10 +1079,11 @@ def publish_dev_box_main(args, base_path, top_level):
     )
 
 
-def update_license_file(top_level, year=datetime.now().year):
+def update_license_file(args, top_level, year=datetime.now().year):
     """
     Update the LICENSE file to include the current year.
 
+    :param list args: The arguments passed to the script.
     :param FilePath top_level: The top-level of the flocker repository.
     """
     license_template = top_level.child('admin').child('LICENSE.template')
