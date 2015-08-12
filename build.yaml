@@ -96,13 +96,13 @@ common_cli:
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=us-west-2c
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
 
   setup_rackspace_env_vars: &setup_rackspace_env_vars |
     # set vars and run tests
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
 
