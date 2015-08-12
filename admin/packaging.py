@@ -62,6 +62,7 @@ BUILD_TARGETS_SEGMENTS = [b"admin", b"build_targets"]
 PACKAGE_ARCHITECTURE = {
     'clusterhq-flocker-cli': 'all',
     'clusterhq-flocker-node': 'all',
+    'clusterhq-flocker-docker-plugin': 'all',
     'clusterhq-python-flocker': 'native',
 }
 
@@ -219,12 +220,14 @@ class Dependency(object):
 # operating systems and are supplied later.
 DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
 
-# We generate three packages.  ``clusterhq-python-flocker`` contains the entire
-# code base.  ``clusterhq-flocker-cli`` and ``clusterhq-flocker-node`` are meta
-# packages which symlink only the cli or node specific scripts and load only
-# the dependencies required to satisfy those scripts.  This map represents the
-# dependencies for each of those three packages and accounts for differing
-# dependency package names and versions on various platforms.
+# We generate three packages.  ``clusterhq-python-flocker`` contains the
+# entire code base.  ``clusterhq-flocker-cli``,
+# ``clusterhq-flocker-docker-plugin`` and ``clusterhq-flocker-node`` are
+# meta packages which symlink only the cli or node specific scripts and
+# load only the dependencies required to satisfy those scripts.  This map
+# represents the dependencies for each of those three packages and
+# accounts for differing dependency package names and versions on various
+# platforms.
 DEPENDENCIES = {
     'python': {
         'centos': (
@@ -246,6 +249,13 @@ DEPENDENCIES = {
             Dependency(package='iptables'),
             Dependency(package='openssh-client'),
         ),
+    },
+    # For now the plan is to tell users to install Docker themselves,
+    # since packaging is still in flux, with different packages from
+    # vendor and OS:
+    'docker-plugin': {
+        'centos': (),
+        'ubuntu': (),
     },
     'cli': {
         'centos': (
@@ -272,7 +282,7 @@ def make_dependencies(package_name, package_version, distribution):
     :return: A list of ``Dependency`` instances.
     """
     dependencies = DEPENDENCIES[package_name][distribution.name]
-    if package_name in ('node', 'cli'):
+    if package_name in ('node', 'cli', 'docker-plugin'):
         dependencies += (
             Dependency(
                 package='clusterhq-python-flocker',
@@ -761,6 +771,14 @@ class PACKAGE_NODE(PACKAGE):
     )
 
 
+class PACKAGE_DOCKER_PLUGIN(PACKAGE):
+    DESCRIPTION = ValueConstant(
+        'Volume plugin for Docker\n'
+        + fill('This meta-package contains links to the Flocker Docker plugin',
+               79)
+    )
+
+
 def omnibus_package_builder(
         distribution, destination_path, package_uri,
         package_files, target_dir=None):
@@ -801,6 +819,8 @@ def omnibus_package_builder(
     flocker_cli_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
+    flocker_docker_plugin_path = target_dir.child('flocker-docker-plugin')
+    flocker_docker_plugin_path.makedirs()
     empty_path = target_dir.child('empty')
     empty_path.makedirs()
     # Flocker is installed in /opt.
@@ -961,6 +981,54 @@ def omnibus_package_builder(
                 package='clusterhq-flocker-node',
                 architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
             ),
+
+            # flocker-docker-plugin steps
+
+            # First, link command-line tools that should be available.  If you
+            # change this you may also want to change entry_points in setup.py.
+            CreateLinks(
+                links=[
+                    (FilePath('/opt/flocker/bin/flocker-docker-plugin'),
+                     flocker_docker_plugin_path),
+                ]
+            ),
+            BuildPackage(
+                package_type=distribution.package_type(),
+                destination_path=destination_path,
+                source_paths={
+                    flocker_docker_plugin_path: FilePath("/usr/sbin"),
+                    # SystemD configuration
+                    package_files.child('docker-plugin').child('systemd'):
+                        FilePath('/usr/lib/systemd/system'),
+                    # Upstart configuration
+                    package_files.child('docker-plugin').child('upstart'):
+                        FilePath('/etc/init'),
+                },
+                name='clusterhq-flocker-docker-plugin',
+                prefix=FilePath('/'),
+                epoch=PACKAGE.EPOCH.value,
+                rpm_version=rpm_version,
+                license=PACKAGE.LICENSE.value,
+                url=PACKAGE.URL.value,
+                vendor=PACKAGE.VENDOR.value,
+                maintainer=PACKAGE.MAINTAINER.value,
+                architecture=PACKAGE_ARCHITECTURE[
+                    'clusterhq-flocker-docker-plugin'],
+                description=PACKAGE_DOCKER_PLUGIN.DESCRIPTION.value,
+                category=category,
+                dependencies=make_dependencies(
+                    'docker-plugin', rpm_version, distribution),
+            ),
+            LintPackage(
+                package_type=distribution.package_type(),
+                destination_path=destination_path,
+                epoch=PACKAGE.EPOCH.value,
+                rpm_version=rpm_version,
+                package='clusterhq-flocker-docker-plugin',
+                architecture=PACKAGE_ARCHITECTURE[
+                    'clusterhq-flocker-docker-plugin'],
+            ),
+
         )
     )
 
