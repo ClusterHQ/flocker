@@ -1025,7 +1025,7 @@ class UpdateRepoTests(SynchronousTestCase):
             'test/target/key/clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':  # noqa
                 'docker-plugin-package',
             'test/target/key/Packages.gz':
-                'Packages.gz for: ' + ','.join(expected_packages),
+                'Packages.gz for: ' + ','.join(sorted(expected_packages)),
             })
 
         self.assertEqual(

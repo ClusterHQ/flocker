@@ -593,6 +593,7 @@ IGNORED_WARNINGS = {
         'non-conffile-in-etc /etc/init/flocker-dataset-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-container-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-control.conf',
+        'non-conffile-in-etc /etc/init/flocker-docker-plugin.conf',
 
         # rsyslog files are not installed as conffiles.
         'non-conffile-in-etc /etc/rsyslog.d/flocker.conf',

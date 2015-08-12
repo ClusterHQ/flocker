@@ -178,7 +178,7 @@ class FakeYum(object):
             return {'repodata/repomod.xml', 'repodata/<newhash>-metadata.xml'}
         elif package_type == PackageTypes.DEB:
             index = intent.repository_path.child('Packages.gz')
-            index.setContent("Packages.gz for: " + ",".join(packages))
+            index.setContent("Packages.gz for: " + ",".join(sorted(packages)))
             intent.repository_path.child('Release').setContent(
                 "Origin: ClusterHQ\n")
             return {'Packages.gz', 'Release'}
