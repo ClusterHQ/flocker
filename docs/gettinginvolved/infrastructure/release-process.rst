@@ -58,6 +58,9 @@ Access
 
 - The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
+- The ability to force builds on ClusterHQ's BuildBot.
+  This requires an administrator password which can be found in ClusterHQ's LastPass.
+
 - Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
 
 .. _preparing-for-a-release:
