@@ -172,7 +172,7 @@ common_cli:
     parse_logs /tmp/v/bin/python admin/run-client-tests --distribution \${DISTRIBUTION_NAME} --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) ; RC=\$?
 
   disable_selinux: &disable_selinux |
-    sudo setenforce 0
+    sudo /usr/sbin/setenforce 0
 
   check_version: &check_version |
     export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
