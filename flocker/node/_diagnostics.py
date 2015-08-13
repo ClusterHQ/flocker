@@ -273,12 +273,6 @@ DISTRIBUTIONS = (
         log_exporter=JournaldLogExporter,
     ),
     Distribution(
-        name='fedora',
-        version='22',
-        service_manager=SystemdServiceManager,
-        log_exporter=JournaldLogExporter,
-    ),
-    Distribution(
         name='ubuntu',
         version='14.04',
         service_manager=UpstartServiceManager,
