@@ -142,7 +142,8 @@ def _serialize(outputValidator):
     return deco
 
 
-def structured(inputSchema, outputSchema, schema_store=None):
+def structured(inputSchema, outputSchema, schema_store=None,
+               ignore_body=False):
     """
     Decorate a Klein-style endpoint method so that the request body is
     automatically decoded and the response body is automatically encoded.
@@ -165,6 +166,9 @@ def structured(inputSchema, outputSchema, schema_store=None):
     :param schema_store: A mapping between schema paths
         (e.g. ``b/v1/types.json``) and the JSON schema structure, allowing
         input/output schemas to just be references.
+    :param ignore_body: If true, ignore the contents of the body for all
+        HTTP methods, including ``POST``. By default the body is only
+        ignored for ``GET`` and ``HEAD``.
     """
     if schema_store is None:
         schema_store = {}
@@ -176,7 +180,7 @@ def structured(inputSchema, outputSchema, schema_store=None):
         @_logging
         @_serialize(outputValidator)
         def loadAndDispatch(self, request, **routeArguments):
-            if request.method in (b"GET", b"DELETE"):
+            if request.method in (b"GET", b"DELETE") or ignore_body:
                 objects = {}
             else:
                 contentType = request.requestHeaders.getRawHeaders(
