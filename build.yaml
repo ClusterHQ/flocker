@@ -341,6 +341,7 @@ job_type:
           }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
+      clean_repo: true
 
     run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T1Micro'
@@ -356,6 +357,7 @@ job_type:
           }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
+      clean_repo: true
 
 
     run_trial_for_cinder_storage_driver_on_CentOS_7:
@@ -372,6 +374,7 @@ job_type:
           }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
+      clean_repo: true
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'rackspace-ubuntu14-jenkins-slave-DFW-standard-4'
@@ -387,6 +390,7 @@ job_type:
           }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
+      clean_repo: true
 
 
   # http://build.clusterhq.com/builders/flocker-docs
