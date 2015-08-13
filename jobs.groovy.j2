@@ -5,9 +5,7 @@
 println("creating {{folder}}...")
 folder("{{folder}}") { displayName("{{display_name}}") }
 {%- endmacro                                                                -%}
-{#
 
-#}
 
 {% macro wrappers(v, repo_dir)                                              -%}
 {# adds a list of common wrappers to the build jobs                          #}
@@ -27,9 +25,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {% endif %}
     }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
 {% macro triggers(_type, _value )                                                         -%}
 {# adds a list of triggers to the build job                                  #}
     triggers {
@@ -38,9 +35,9 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {%      endif                                                                %}
     }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
+
 {% macro scm(git_url, branch) -%}
 {# configures a remote git repository, and merges 'branch' before build
     param: git_url - example: https://github.com/clusterhq/flocker
@@ -67,9 +64,9 @@ folder("{{folder}}") { displayName("{{display_name}}") }
       }
     }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
+
 {% macro publishers(v)                                                      -%}
 {# adds a publishers block to the jenkins job configuration, containing:
    an action for archiving artifacts
@@ -107,7 +104,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {%      endif                                                               -%}
     }
 {%- endmacro                                                                -%}
-{#                                                                           #}
+
+
 {% macro steps(v)                                                           -%}
 {#  builds a list of job steps based on the type of the job:
     ( 'shell', others )
@@ -125,10 +123,103 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {%  endfor                                                                   %}
     }
 {%- endmacro                                                                -%}
-{#
 
 
-#}
+{% macro create_job(job_type, job_name, job_values)                          %}
+
+{#  apply config related to 'run_trial','storage_driver.'run_acceptance'     #}
+{%    if job_type == 'run_trial'
+      or job_type == 'run_trial_for_storage_driver'
+      or job_type == 'run_acceptance'                                       -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module.replace('/', '_')        -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+        textParam("MODULE", "{{ _module }}", "Module to test" )
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+    label("{{ job_values.on_nodes_with_labels }}")
+
+{# the run_acceptance jobs require us to run a pre-scm step which will
+   remove any /repo files left behind from previous job runs.
+   These files are created as root, so jenkins is unable to do a git reset
+   operation properly if they exist                                      #}
+{%    if job_type == 'run_acceptance'                                       %}
+{%      set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+{{ wrappers(job_values, repo_dir) }}
+{%    else                                                                   %}
+{{ wrappers(job_values, 'none') }}
+{%    endif                                                                  %}
+{{ scm("${git_url}", "${branchName}") }}
+{{ steps(job_values.with_steps) }}
+{{ publishers(job_values) }}
+  }
+{%      endfor                                                           %}
+{%    endif                                                              %}
+
+{# apply config related to 'run_sphinx', 'omnibus', 'run_client' jobs    #}
+{%    if job_type == 'run_sphinx' or
+         job_type == 'omnibus' or
+         job_type == 'run_client'                                        %}
+{%        set _job_name = job_name                                      -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {# the run_client jobs publish artifacts                             #}
+    {{ wrappers(job_values, repo_dir) }}
+{# the run_client jobs require us to run a pre-scm step which will
+   remove any /repo files left behind from previous job runs.
+   These files are created as root, so jenkins is unable to do a git reset
+   operation properly if they exist                                      #}
+    {% if job_type == 'run_client'                                       %}
+{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+{#  note that only the run_client jobs publishes archifacts              #}
+        {{ wrappers(job_values, repo_dir) }}
+        {{ publishers(job_values) }}
+    {% else                                                              %}
+        {{ wrappers(job_values, 'none') }}
+    {% endif                                                             %}
+
+  }
+{%    endif                                                              %}
+
+{% endmacro                                                                 -%}
+
+{% macro add_job_to_multijob(job_type, job_name, job_type_values)            %}
+
+    {# add the 'run_trial','storage_driver','run_acceptance' jobs            #}
+    {%  if job_type == 'run_trial' or
+           job_type == 'run_trial_for_storage_driver' or
+           job_type == 'run_acceptance'                                     -%}
+    {%    for job_name, job_values  in job_type_values.iteritems()          -%}
+    {%      for _module in job_values.with_modules                          -%}
+    {%        set _job_name = job_name + '_' + _module.replace('/','_')      %}
+                  job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+                    killPhaseCondition("NEVER")
+                  }
+    {%      endfor                                                          -%}
+    {%    endfor                                                            -%}
+    {%  endif                                                                %}
+
+    {# add the 'run_sphinx' or 'omnibus' style jobs                          #}
+    {%  if job_type == 'run_sphinx' or
+           job_type == 'omnibus' or
+           job_type == 'run_client'                                          %}
+    {%    for job_name, job_values  in job_type_values.iteritems()          -%}
+    {%      set _job_name = job_name                                         %}
+                  job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+                    killPhaseCondition("NEVER")
+                  }
+    {%    endfor                                                            -%}
+    {%  endif                                                                %}
+
+{% endmacro                                                                  %}
+
+
 {# groov lacks a loop...until ...                                            #}
 class Looper {
    private Closure code
@@ -144,6 +235,7 @@ class Looper {
       }
    }
 }
+
 
 def project = "{{ cfg.project }}"
 def git_url = "{{ cfg.git_url }}"
@@ -178,104 +270,8 @@ branches.each {
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
 {%  for job_name, job_values  in job_type_values.iteritems()                -%}
 
-{# apply config related to 'run_trial' jobs                                  #}
-{%    if job_type == 'run_trial'                                            -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-        textParam("MODULE", "{{ _module }}", "Module to test" )
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
-    }
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%      endfor                                                               %}
-{%    endif                                                                  %}
+{{  create_job(job_type, job_name, job_values)                               }}
 
-{# apply config related to 'run_trial_storage_driver' jobs                   #}
-{%    if job_type == 'run_trial_for_storage_driver'                         -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module.replace('/', '_')        -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-        textParam("MODULE", "{{ _module }}", "Module to test" )
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
-    }
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%      endfor                                                               %}
-{%    endif                                                                  %}
-
-{# apply config related to 'run_sphinx' jobs                                 #}
-{%    if job_type == 'run_sphinx'                                           -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
-    }
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-  }
-{%    endif                                                                  %}
-
-{# apply config related to 'run_acceptance' jobs                             #}
-{%    if job_type == 'run_acceptance'                                       -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-        textParam("MODULE", "{{ _module }}", "Module to test" )
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
-    }
-    label("{{ job_values.on_nodes_with_labels }}")
-
-{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
-    {{ wrappers(job_values, repo_dir) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%      endfor                                                              -%}
-{%    endif                                                                  %}
-
-{# apply config related to 'run_client' jobs                                 #}
-{%    if job_type == 'run_client'                                           -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
-    }
-    label("{{ job_values.on_nodes_with_labels }}")
-
-{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
-    {{ wrappers(job_values, repo_dir) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%    endif                                                                  %}
-
-
-{# apply config related to 'omnbibus' jobs                                   #}
-{%    if job_type == 'omnibus'                                              -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-  }
-{%    endif                                                                  %}
 {%  endfor                                                                   %}
 {% endfor                                                                    %}
 
@@ -292,61 +288,7 @@ branches.each {
               continuationCondition('ALWAYS')
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
 
-{# add the 'run_trial' style jobs                                            #}
-{%  if job_type == 'run_trial'                                              -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                           %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                killPhaseCondition("NEVER")
-              }
-{%      endfor                                                              -%}
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-{# add the 'run_trial_for_storage_driver' style jobs                                            #}
-{%  if job_type == 'run_trial_for_storage_driver'                                              -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module.replace('/', '_')         %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                killPhaseCondition("NEVER")
-              }
-{%      endfor                                                              -%}
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-{# add the 'run_sphinx' style jobs                                           #}
-{%  if job_type == 'run_sphinx'                                             -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                killPhaseCondition("NEVER")
-              }
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-{# add the 'run_acceptance' style jobs                                       #}
-{%  if job_type == 'run_acceptance'                                         -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                           %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                killPhaseCondition("NEVER")
-              }
-{%      endfor                                                                -%}
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-{# add the 'omnibus' style jobs                                              #}
-{%  if job_type == 'omnibus'                                                -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                killPhaseCondition("NEVER")
-              }
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
+{{  add_job_to_multijob(job_type, job_name, job_type_values)                      }}
 
 {% endfor                                                                    %}
           }
@@ -398,6 +340,7 @@ branches.each {
       }
   }
 }
+
 {# Configure cronly jobs, these are not part of the main branches loop       #}
 {# As we only run them from the master branch, they get executed a few       #}
 {# times a day based on a cron type schedule.                                #}
