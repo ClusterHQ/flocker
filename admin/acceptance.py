@@ -819,11 +819,11 @@ MESSAGE_FORMATS = {
         "[%(username)s@%(address)s]: Running %(command)s\n",
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
-    "admin.runner:run:output":
+    "flocker.common.runner:run:output":
         "%(line)s\n",
 }
 ACTION_START_FORMATS = {
-    "admin.runner:run":
+    "flocker.common.runner:run":
         "Running %(command)s\n",
 }
 
