@@ -30,7 +30,7 @@ v1.1
 v1.0.3
 ======
 
-* On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk. 
+* On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk.
 
 v1.0.2
 ======
