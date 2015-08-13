@@ -48,10 +48,14 @@ def generate_model(root_class=ROOT_CLASS):
         if klass_name in classes_result:
             continue
         record = None
-        if issubclass(klass, PRecord):
+        if issubclass(klass, (PRecord, PClass)):
+            if issubclass(klass, PRecord):
+                attr_name = "_precord_fields"
+            else:
+                attr_name = "_pclass_fields"
             record = {u"category": u"record",
                       u"fields": {}}
-            for name, field_info in klass._precord_fields.items():
+            for name, field_info in getattr(klass, attr_name).items():
                 record[u"fields"][name] = list(
                     fqpn(cls) for cls in field_info.type)
                 for cls in field_info.type:
@@ -162,18 +166,64 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If a new field is added to a ``PClass`` the output changes.
         """
+        class Original(PClass):
+            pass
+
+        class Different(PClass):
+            x = field()
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
     def test_pclass_removed_field(self):
         """
         If an existing field is removed from a ``PClass`` the output
         changes.
         """
+        class Original(PClass):
+            x = field()
+            y = field()
+
+        class Different(PClass):
+            x = field()
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
     def test_pclass_field_changed_types(self):
         """
         If an existing field has its type changed in a ``PClass`` the output
         changes.
         """
+        class Original(PClass):
+            x = field()
+
+        class Different(PClass):
+            x = field(type=int)
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
+
+    def test_pclass_field_type_changed(self):
+        """
+        If the an existing field in a ``PClass`` has the same type, but the
+        type changed somehow, the output changes.
+        """
+        class Subtype(PClass):
+            pass
+
+        class ChangedSubtype(PClass):
+            x = field()
+        ChangedSubtype.__name__ = "Subtype"
+
+        class Original(PClass):
+            x = field(type=Subtype)
+
+        class Different(PClass):
+            x = field(type=ChangedSubtype)
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
     def test_pmap_key_type_changes(self):
         """
