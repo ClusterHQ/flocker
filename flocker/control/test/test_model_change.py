@@ -379,9 +379,9 @@ def persist_model():
     git_hash = check_output(
         [b"git", b"show", b'--format=%H', b"-s"]).strip()
     model = generate_model()
-    PERSISTED_MODEL.setContent(dumps({
-        u"git_hash": git_hash, u"model": model,
-    }))
+    PERSISTED_MODEL.setContent(dumps(
+        {u"git_hash": git_hash, u"model": model}, sort_keys=True, indent=4,
+        separators=(',', ': ')))
     print("Persisted model for git hash {}.".format(git_hash))
 
 
