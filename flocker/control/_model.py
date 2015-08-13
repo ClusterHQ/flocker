@@ -621,9 +621,6 @@ class Deployment(PRecord):
     :ivar Leases leases: A map of ``Lease`` instances by dataset id.
     """
     nodes = pset_field(Node)
-    # XXX delete in final version, this demonstrates how changing the
-    # model results in failed test:
-    uhoh_new_field = field()
 
     get_node = _get_node(Node)
 
