@@ -49,8 +49,7 @@ from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
 
-
-from .runner import run
+from flocker.common.runner import run
 
 
 def extend_environ(**kwargs):

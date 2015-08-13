@@ -1,6 +1,6 @@
 # -*- test-case-name: admin.test.test_runner -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: admin.test.test_runner -*-
+# -*- test-case-name: flocker.common.test.test_runner -*-
 """
 Tools for running commands.
 """
@@ -19,7 +19,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 
 
 RUN_ACTION = ActionType(
-    action_type="admin.runner:run",
+    action_type="flocker.common.runner:run",
     startFields=[
         Field.for_types(u"command", [list], u"The command.")
     ],
@@ -27,7 +27,7 @@ RUN_ACTION = ActionType(
     description="Run a command.",
 )
 RUN_OUTPUT_MESSAGE = MessageType(
-    message_type="admin.runner:run:output",
+    message_type="flocker.common.runner:run:output",
     fields=[
         Field.for_types(u"line", [bytes], u"The output."),
     ],
