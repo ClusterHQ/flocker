@@ -22,6 +22,7 @@ from effect.do import do
 
 from characteristic import attributes
 from git import GitCommandError, Repo
+from pytz import UTC
 
 import requests
 
@@ -1079,7 +1080,7 @@ def publish_dev_box_main(args, base_path, top_level):
     )
 
 
-def update_license_file(args, top_level, year=datetime.now().year):
+def update_license_file(args, top_level, year=datetime.now(UTC).year):
     """
     Update the LICENSE file to include the current year.
 
