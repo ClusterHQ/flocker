@@ -96,9 +96,6 @@ Preparing For a Release
    .. prompt:: bash $,(flocker-release)tmp-1234$,(flocker-release)flocker$ auto
 
       $ mktmpenv --prompt="(flocker-release)"
-      # The following command means that you will not be asked whether
-      # you want to continue connecting
-      (flocker-release)tmp-1234$ ssh-keyscan github.com >> ~/.ssh/known_hosts
       (flocker-release)tmp-1234$ git clone git@github.com:ClusterHQ/flocker.git
       (flocker-release)tmp-1234$ cd flocker
       (flocker-release)flocker$ pip install --editable .[dev]
