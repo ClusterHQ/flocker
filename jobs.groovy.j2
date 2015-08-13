@@ -251,7 +251,7 @@ def dashProject = "{{ cfg.project }}".replace('/', '-')
 {{ folder("${dashProject}","${dashProject}") }}
 
 {# branches contains the passed parameter RECONFIGURE_BRANCH from jenkins    #}
-branches << "${RECONFIGURE_BRANCH}"
+branches.add("${RECONFIGURE_BRANCH}")
 
 {# Iterate over every branch, and create folders, jobs                       #}
 branches.each {
