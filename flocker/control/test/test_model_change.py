@@ -60,9 +60,32 @@ def generate_model(root_class=ROOT_CLASS):
                     fqpn(cls) for cls in field_info.type)
                 for cls in field_info.type:
                     classes.add(cls)
-        # XXX CheckedPMap and friends
+        elif issubclass(klass, CheckedPMap):
+            record = {
+                u"category": u"map",
+                u"fields": {
+                    u"key": list(
+                        fqpn(cls) for cls in klass._checked_key_types),
+                    u"value": list(
+                        fqpn(cls) for cls in klass._checked_value_types)}}
+            for cls in klass._checked_key_types + klass._checked_value_types:
+                classes.add(cls)
         classes_result[klass_name] = record
     return result
+
+
+class Subtype(PRecord):
+    """
+    A sub-type used in ``GenerateModelTests``.
+    """
+
+
+class ChangedSubtype(PRecord):
+    """
+    A changed variant of ``Subtype``.
+    """
+    x = field()
+ChangedSubtype.__name__ = "Subtype"
 
 
 class GenerateModelTests(SynchronousTestCase):
@@ -79,6 +102,9 @@ class GenerateModelTests(SynchronousTestCase):
         """
         original_model = generate_model(original_class)
         changed_model = generate_model(changed_class)
+        # Make sure result is JSON serializable:
+        dumps(original_model)
+        dumps(changed_model)
         self.assertEqual(
             # Changes result in a difference:
             (original_model != changed_model,
@@ -146,13 +172,6 @@ class GenerateModelTests(SynchronousTestCase):
         If the an existing field in a ``PRecord`` has the same type, but the
         type changed somehow, the output changes.
         """
-        class Subtype(PRecord):
-            pass
-
-        class ChangedSubtype(PRecord):
-            x = field()
-        ChangedSubtype.__name__ = "Subtype"
-
         class Original(PRecord):
             x = field(type=Subtype)
 
@@ -225,24 +244,88 @@ class GenerateModelTests(SynchronousTestCase):
 
         self.assert_catches_changes(Original, Different)
 
-    def test_pmap_key_type_changes(self):
+    def test_pmap_key_new_type(self):
         """
         If the type of the key of a ``PMap`` changes the output changes.
         """
+        class Original(CheckedPMap):
+            __key_type__ = int
+            __value_type__ = int
 
-    def test_pmap_value_type_changes(self):
+        class Different(CheckedPMap):
+            __key_type__ = str
+            __value_type__ = int
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
+
+    def test_pmap_value_new_type(self):
         """
         If the type of the value of a ``PMap`` changes the output changes.
         """
+        class Original(CheckedPMap):
+            __key_type__ = int
+            __value_type__ = int
 
-    def test_pset_value_type_changes(self):
+        class Different(CheckedPMap):
+            __key_type__ = int
+            __value_type__ = str
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
+
+    def test_pmap_key_type_changed(self):
+        """
+        If the type of the key of a ``PMap`` is the same, but it has
+        internally changed then the output changes.
+        """
+        class Original(CheckedPMap):
+            __key_type__ = Subtype
+            __value_type__ = int
+
+        class Different(CheckedPMap):
+            __key_type__ = ChangedSubtype
+            __value_type__ = int
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
+
+    def test_pmap_value_type_changed(self):
+        """
+        If the type of the value of a ``PMap`` is the same, but it has
+        internally changed then the output changes.
+        """
+        class Original(CheckedPMap):
+            __key_type__ = int
+            __value_type__ = Subtype
+
+        class Different(CheckedPMap):
+            __key_type__ = int
+            __value_type__ = ChangedSubtype
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
+
+    def test_pset_value_new_type(self):
         """
         If the type of the value of a ``PSet`` changes the output changes.
         """
 
-    def test_pvector_value_type_changes(self):
+    def test_pset_value_type_changed(self):
+        """
+        If the type of the value of a ``PSet`` is the same, but it has
+        internally changed then the output changes.
+        """
+
+    def test_pvector_value_new_type(self):
         """
         If the type of the value of a ``PVector`` changes the output changes.
+        """
+
+    def test_pvector_value_type_changed(self):
+        """
+        If the type of the value of a ``PVector`` is the same, but it has
+        internally changed then the output changes.
         """
 
 
