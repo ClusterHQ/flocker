@@ -4,22 +4,6 @@
 Installing the Flocker Client
 =============================
 
-The Flocker CLI is installed on your local machine and provides command line tools to control the cluster. 
-This also includes the ``flocker-ca`` tool, which you use to generate certificates for all the Flocker components.
-
-The Flocker agents are installed on any number of nodes in the cluster where your containers will run.
-The agent software is included in the ``clusterhq-flocker-node`` package.
-
-There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine. 
-The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
-
-.. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
-
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
-
-This document will describe how to install the CLI locally and install the agents and control service on cloud infrastructure.
-It also describes how to get Vagrant nodes started which already have these services running.
-
 The following sections describe how to install the Flocker client on your platform:
 
 .. contents::
@@ -32,9 +16,11 @@ The following sections describe how to install the Flocker client on your platfo
 Ubuntu 15.04
 ============
 
+.. note:: These instructions require that you have ``sudo`` access.
+
 On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
-.. task:: install_cli ubuntu-15.04
+.. task:: cli_pkg_install ubuntu-15.04
    :prompt: alice@mercury:~$
 
 .. _installing-flocker-cli-ubuntu-14.04:
@@ -42,9 +28,11 @@ On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 Ubuntu 14.04
 ============
 
+.. note:: These instructions require that you have ``sudo`` access.
+
 On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
-.. task:: install_cli ubuntu-14.04
+.. task:: cli_pkg_install ubuntu-14.04
    :prompt: alice@mercury:~$
 
 Other Linux Distributions
@@ -52,55 +40,33 @@ Other Linux Distributions
 
 .. warning::
 
-   These are guidelines for installing Flocker on a Linux distribution which we do not provide native packages for.
+   These are guidelines for installing Flocker on a Linux distribution for which we do not provide native packages.
    These guidelines may require some tweaks, depending on the details of the Linux distribution in use.
+
+.. note:: These instructions require that you have ``sudo`` access.
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 
-To install these with the ``yum`` package manager, run:
+To install these pre-requisites with the ``yum`` package manager, run:
 
-.. prompt:: bash alice@mercury:~$
+.. task:: cli_pip_prereqs yum
+   :prompt: alice@mercury:~$
 
-   sudo yum install gcc python python-devel python-virtualenv libffi-devel openssl-devel
 
-To install these with ``apt``, run:
+To install these pre-requisites with the ``apt`` package manager, run:
 
-.. prompt:: bash alice@mercury:~$
+.. task:: cli_pip_prereqs apt
+   :prompt: alice@mercury:~$
 
-   sudo apt-get update
-   sudo apt-get install gcc libssl-dev libffi-dev python2.7 python-virtualenv python2.7-dev
+To install ``flocker-cli`` in a Python virtualenv, run:
 
-Then run the following script to install ``flocker-cli``:
+.. task:: cli_pip_install flocker-client
+   :prompt: alice@mercury:~$
 
-:version-download:`linux-install.sh.template`
+Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 
-.. version-literalinclude:: linux-install.sh.template
-   :language: sh
-
-Save the script to a file and then run it:
-
-.. prompt:: bash alice@mercury:~$
-
-   sh linux-install.sh
-
-The ``flocker-deploy`` command line program will now be available in :file:`flocker-tutorial/bin/`:
-
-.. version-code-block:: console
-
-   alice@mercury:~$ cd flocker-tutorial
-   alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   |latest-installable|
-   alice@mercury:~/flocker-tutorial$
-
-If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
-You'll need to do this every time you start a new shell.
-
-.. version-code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
-   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   |latest-installable|
-   alice@mercury:~/flocker-tutorial$
+.. task:: cli_pip_test flocker-client
+   :prompt: alice@mercury:~$
 
 OS X
 ====

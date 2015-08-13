@@ -68,6 +68,7 @@ Using Amazon Web Services
      * For example, if you run the MongoDB tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
      * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
      * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
+     * If you run the MongoDB tutorial using AWS, you will need to open port 27017 to allow your MongoDB client to connect to the database.
 
    * Review to ensure your instances have sufficient storage and your security groups have the required ports.
 

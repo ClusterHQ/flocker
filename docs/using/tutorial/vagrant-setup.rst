@@ -4,6 +4,12 @@
 Before You Begin
 ================
 
+.. note::
+	To start this tutorial, you will need to have installed the ``flocker-cli``, which provides the ``flocker-deploy`` command.
+	For more information, see :ref:`installing-flocker-cli`.
+
+	If you have a version of ``flocker-cli`` installed that is older than |version|, delete the install script and directory, and install the latest version.
+
 Requirements
 ============
 
@@ -16,11 +22,6 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
 * bash
 * The ``mongo`` MongoDB interactive shell (see below for installation instructions)
-
-You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
-See :ref:`installing-flocker-cli`.
-
-.. note:: If you already have a version of ``flocker-cli`` older than |version| installed, delete the install script and directory before installing the latest version.
 
 Setup
 =====

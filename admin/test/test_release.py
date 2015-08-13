@@ -35,6 +35,7 @@ from ..release import (
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
     publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
+    update_license_file,
 )
 
 from ..packaging import Distribution
@@ -1977,9 +1978,11 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         # Making a recipe involves interacting with PyPI, this should be
         # a parameter, not a patch. See:
         # https://clusterhq.atlassian.net/browse/FLOC-1759
-        self.patch(release, 'make_recipe',
-            lambda version, sdist_url:
-                "Recipe for " + version + " at " + sdist_url)
+        self.patch(
+            release, 'make_recipe',
+            lambda version, sdist_url, requirements_path:
+            "Recipe for " + version + " at " + sdist_url
+        )
 
     def test_commit_message(self):
         """
@@ -1990,6 +1993,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         self.assertEqual(
@@ -2005,6 +2009,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="bucket-name",
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
@@ -2019,7 +2024,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         self.assertRaises(
             PushFailed,
             publish_homebrew_recipe,
-            non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
+            non_bare_repo.git_dir,
+            '0.3.0',
+            "archive",
+            FilePath(self.mktemp()),
+            top_level=FLOCKER_PATH,
+        )
 
     def test_recipe_already_exists(self):
         """
@@ -2030,20 +2040,23 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         self.patch(release, 'make_recipe',
-            lambda version, sdist_url: "New content")
+                   lambda version, sdist_url, requirements_path: "New content")
 
         publish_homebrew_recipe(
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
+
 
 class GetExpectedRedirectsTests(SynchronousTestCase):
     """
@@ -2114,3 +2127,24 @@ class TestRedirectsOptionsTests(SynchronousTestCase):
         options = TestRedirectsOptions()
         options.parseOptions(['--production'])
         self.assertEqual(options.environment, Environments.PRODUCTION)
+
+class UpdateLicenseFileTests(SynchronousTestCase):
+    """
+    Tests for :func:`update_license_file`.
+    """
+
+    def test_update_license_file(self):
+        """
+        A LICENSE file is written to the top level directory from a template in
+        the admin directory, and is formatted to include the given year.
+        """
+        top_level = FilePath(self.mktemp())
+        top_level.child('admin').makedirs()
+        top_level.child('admin').child('LICENSE.template').setContent(
+            "Text including the current year: {current_year}.")
+        update_license_file(args=[], top_level=top_level, year=123)
+
+        self.assertEqual(
+            top_level.child('LICENSE').getContent(),
+            "Text including the current year: 123."
+        )

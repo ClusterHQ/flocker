@@ -16,7 +16,7 @@ from pyrsistent import PRecord
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
-    _LOG_SAVE, _LOG_STARTUP,
+    _LOG_SAVE, _LOG_STARTUP, LeaseService,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -37,6 +37,56 @@ TEST_DEPLOYMENT = Deployment(
                             mountpoint=FilePath(b"/xxx/yyy"))
                     )],
                 manifestations={DATASET.dataset_id: MANIFESTATION})])
+
+
+class FakePersistenceService(object):
+    """
+    A very simple fake persistence service that does nothing.
+    """
+    def __init__(self):
+        self._deployment = Deployment(nodes=frozenset())
+
+    def save(self, deployment):
+        self._deployment = deployment
+
+    def get(self):
+        return self._deployment
+
+
+class LeaseServiceTests(TestCase):
+    """
+    Tests for ``LeaseService``.
+    """
+    def service(self):
+        """
+        Start a lease service and schedule it to stop.
+
+        :return: Started ``LeaseService``.
+        """
+        service = LeaseService(reactor, FakePersistenceService())
+        service.startService()
+        self.addCleanup(service.stopService)
+        return service
+
+    def test_expired_lease_removed(self):
+        """
+        A lease that has expired is removed from the persisted
+        configuration.
+
+        XXX Leases cannot be manipulated in this branch. See FLOC-2375.
+        This is a skeletal test that merely ensures the call to
+        ``update_leases`` takes place when ``_expire`` is called and should
+        be rewritten to test the updated configuration once the configuration
+        is aware of Leases.
+        """
+        service = self.service()
+        d = service._expire()
+
+        def check_expired(updated):
+            self.assertIsNone(updated)
+
+        d.addCallback(check_expired)
+        return d
 
 
 class ConfigurationPersistenceServiceTests(TestCase):

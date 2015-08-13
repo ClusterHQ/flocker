@@ -8,9 +8,9 @@ The experimental installer makes installing Flocker as easy as copying and editi
 
 It also supports deploying the :ref:`Flocker Docker plugin <labs-docker-plugin>` onto the same set of nodes.
 
-See the :ref:`official Flocker install instructions <installing-flocker>` for the full long-form installation instructions.
-
 The installer is part of the `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ repository, so we will install that to begin with.
+
+.. note:: For the full, long-form installation instructions, see the  :ref:`official Flocker install instructions <installing-flocker>`.
 
 .. _labs-installing-unofficial-flocker-tools:
 

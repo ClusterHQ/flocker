@@ -9,11 +9,11 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 import json
-import logging
 import os
 import sys
 import tempfile
 
+from datetime import datetime
 from subprocess import check_call
 
 from effect import (
@@ -22,6 +22,7 @@ from effect.do import do
 
 from characteristic import attributes
 from git import GitCommandError, Repo
+from pytz import UTC
 
 import requests
 
@@ -68,12 +69,6 @@ from .yum import (
 from .vagrant import vagrant_version
 from .homebrew import make_recipe
 from .packaging import available_distributions, DISTRIBUTION_NAME_MAP
-
-# Log information about network connections
-logging.basicConfig()
-requests_log = logging.getLogger("requests.packages.urllib3")
-requests_log.setLevel(logging.DEBUG)
-requests_log.propagate = True
 
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
@@ -382,7 +377,7 @@ FLOCKER_PACKAGES = [
 
 
 def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
-                            scratch_directory):
+                            scratch_directory, top_level):
     """
     Publish a Homebrew recipe to a Git repository.
 
@@ -392,12 +387,16 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
     :param bytes source_bucket: S3 bucket to get source distribution from.
     :param FilePath scratch_directory: Temporary directory to create a recipe
         in.
+    :param FilePath top_level: The top-level of the flocker repository.
     """
     url_template = 'https://{bucket}.s3.amazonaws.com/python/Flocker-{version}.tar.gz'  # noqa
     sdist_url = url_template.format(bucket=source_bucket, version=version)
+    requirements_path = top_level.child('requirements.txt')
     content = make_recipe(
         version=version,
-        sdist_url=sdist_url)
+        sdist_url=sdist_url,
+        requirements_path=requirements_path,
+    )
     homebrew_repo = Repo.clone_from(
         url=homebrew_repo_url,
         to_path=scratch_directory.path)
@@ -768,6 +767,7 @@ def publish_artifacts_main(args, base_path, top_level):
             version=options['flocker-version'],
             source_bucket=options['target'],
             scratch_directory=scratch_directory.child('homebrew'),
+            top_level=top_level,
         )
 
     finally:
@@ -1078,3 +1078,16 @@ def publish_dev_box_main(args, base_path, top_level):
             ),
         ]),
     )
+
+
+def update_license_file(args, top_level, year=datetime.now(UTC).year):
+    """
+    Update the LICENSE file to include the current year.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    license_template = top_level.child('admin').child('LICENSE.template')
+    with license_template.open() as input_file:
+        with top_level.child('LICENSE').open('w') as output_file:
+            output_file.write(input_file.read().format(current_year=year))
