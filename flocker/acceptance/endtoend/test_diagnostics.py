@@ -36,7 +36,7 @@ class DiagnosticsTests(TestCase):
                 ['flocker-diagnostics'],
                 handle_line=remote_archive_path.append
             ).addCallback(
-                lambda ignored: FilePath(remote_archive_path.pop[0])
+                lambda ignored: FilePath(remote_archive_path[0])
             )
         creating = create_archive()
 

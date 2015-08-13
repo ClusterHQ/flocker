@@ -169,8 +169,6 @@ def run_ssh(reactor, username, host, command, handle_line=None, **kwargs):
 
     return run(
         reactor,
-        username,
-        host,
         ssh_command,
         handle_line=handle_line,
         **kwargs
@@ -198,7 +196,5 @@ def download_file(reactor, username, host, remote_path, local_path):
 
     return run(
         reactor,
-        username,
-        host,
         scp_command,
     )
