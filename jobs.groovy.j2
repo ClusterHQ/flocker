@@ -206,7 +206,8 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
+    {{ wrappers(job_values, repo_dir) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
