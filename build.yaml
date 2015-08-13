@@ -514,6 +514,7 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
     run_client_installation_on_Ubuntu_Vivid:
       on_nodes_with_labels: 'aws-ubuntu-trusty-M3Medium'
       with_steps:
@@ -528,6 +529,7 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
+      clean_repo: true
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
