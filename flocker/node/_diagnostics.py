@@ -20,6 +20,8 @@ def gzip_file(source_path, archive_path):
     """
     Create a gzip compressed archive of ``source_path`` at ``archive_path``.
     An empty archive file will be created if the source file does not exist.
+    This gives the diagnostic archive a consistent set of files which can
+    easily be tested.
     """
     with gzip_open(archive_path, 'wb') as archive:
         if os.path.isfile(source_path):
