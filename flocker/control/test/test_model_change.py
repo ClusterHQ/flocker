@@ -70,6 +70,14 @@ def generate_model(root_class=ROOT_CLASS):
                         fqpn(cls) for cls in klass._checked_value_types)}}
             for cls in klass._checked_key_types + klass._checked_value_types:
                 classes.add(cls)
+        elif issubclass(klass, (CheckedPSet, CheckedPVector)):
+            category = u"set" if issubclass(klass, CheckedPSet) else u"list"
+            record = {
+                u"category": category,
+                u"type": list(fqpn(cls) for cls in klass._checked_types),
+            }
+            for cls in klass._checked_types:
+                classes.add(cls)
         classes_result[klass_name] = record
     return result
 
@@ -310,23 +318,55 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If the type of the value of a ``PSet`` changes the output changes.
         """
+        class Original(CheckedPSet):
+            __type__ = int
+
+        class Different(CheckedPSet):
+            __type__ = str
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
     def test_pset_value_type_changed(self):
         """
         If the type of the value of a ``PSet`` is the same, but it has
         internally changed then the output changes.
         """
+        class Original(CheckedPSet):
+            __type__ = Subtype
+
+        class Different(CheckedPSet):
+            __type__ = ChangedSubtype
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
     def test_pvector_value_new_type(self):
         """
         If the type of the value of a ``PVector`` changes the output changes.
         """
+        class Original(CheckedPVector):
+            __type__ = int
+
+        class Different(CheckedPVector):
+            __type__ = str
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
     def test_pvector_value_type_changed(self):
         """
         If the type of the value of a ``PVector`` is the same, but it has
         internally changed then the output changes.
         """
+        class Original(CheckedPVector):
+            __type__ = Subtype
+
+        class Different(CheckedPVector):
+            __type__ = ChangedSubtype
+        Different.__name__ = "Original"
+
+        self.assert_catches_changes(Original, Different)
 
 
 def persist_model():
