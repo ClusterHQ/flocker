@@ -5,6 +5,7 @@
 Tools for running commands.
 """
 import os
+from pipes import quote as shell_quote
 from collections import defaultdict
 
 from characteristic import attributes
@@ -127,3 +128,77 @@ def run(reactor, command, handle_line=None, **kwargs):
         protocol_done.addBoth(unregister_killer, trigger_id)
 
         return protocol_done.addActionFinish()
+
+SSH_OPTIONS = [
+    b"-C",  # compress traffic
+    b"-q",  # suppress warnings
+    # We're ok with unknown hosts.
+    b"-o", b"StrictHostKeyChecking=no",
+    # The tests hang if ControlMaster is set, since OpenSSH won't
+    # ever close the connection to the test server.
+    b"-o", b"ControlMaster=no",
+    # Some systems (notably Ubuntu) enable GSSAPI authentication which
+    # involves a slow DNS operation before failing and moving on to a
+    # working mechanism.  The expectation is that key-based auth will
+    # be in use so just jump straight to that.
+    b"-o", b"PreferredAuthentications=publickey"
+]
+
+
+def run_ssh(reactor, username, host, command, handle_line=None, **kwargs):
+    """
+    Run a process on a remote server using the locally installed ``ssh``
+    command and kill it if the reactor stops.
+
+    :param reactor: Reactor to use.
+    :param username: The username to use when logging into the remote server.
+    :param host: The hostname or IP address of the remote server.
+    :param list command: The command to run remotely.
+    :param handle_line: Callable that will be called with lines parsed
+        from the command output. By default logs an Eliot message.
+
+    :return Deferred: Deferred that fires when the process is ended.
+    """
+    ssh_command = [
+        b"ssh",
+    ] + SSH_OPTIONS + [
+        b"-l", username,
+        host,
+        ' '.join(map(shell_quote, command)),
+    ]
+
+    return run(
+        reactor,
+        username,
+        host,
+        ssh_command,
+        handle_line=handle_line,
+        **kwargs
+    )
+
+
+def download_file(reactor, username, host, remote_path, local_path):
+    """
+    Run the local ``scp`` command to download a single file from a remote
+    host and kill it if the reactor stops.
+
+    :param reactor: Reactor to use.
+    :param username: The username to use when logging into the remote server.
+    :param host: The hostname or IP address of the remote server.
+    :param FilePath remote_path: The path of the file on the remote host.
+    :param FilePath local_path: The path of the file on the local host.
+    :return Deferred: Deferred that fires when the process is ended.
+    """
+    scp_command = [
+        b"scp",
+    ] + SSH_OPTIONS + [
+        username + b'@' + host + b':' + remote_path.path,
+        local_path.path
+    ]
+
+    return run(
+        reactor,
+        username,
+        host,
+        scp_command,
+    )
