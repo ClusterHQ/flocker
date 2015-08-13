@@ -53,15 +53,15 @@ Ubuntu
 
 .. prompt:: bash $
 
-   apt-get update
-   apt-get install -y dpkg-dev createrepo
+   sudo apt-get update
+   sudo apt-get install -y dpkg-dev createrepo
 
 Fedora
 ******
 
 .. prompt:: bash $
 
-   yum install -y dpkg-dev createrepo
+   sudo yum install -y dpkg-dev createrepo
 
 
 Access
