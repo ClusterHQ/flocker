@@ -92,11 +92,11 @@ Preparing For a Release
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
 
-#. Export the version number of the release being created as an environment variable for later use:
+#. Set the version number of the release being created as an environment variable for later use:
 
    .. prompt:: bash $
 
-      export VERSION=0.1.2
+      VERSION=0.1.2
 
 #. Create an issue in JIRA:
 
@@ -127,7 +127,8 @@ Preparing For a Release
       .. prompt:: bash (flocker-0.1.2)$
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
-          export OLD_VERSION=0.3.0
+          OLD_VERSION=0.3.0
+
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           git log --first-parent ${OLD_VERSION}..${BRANCH}
 
