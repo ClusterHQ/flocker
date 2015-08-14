@@ -431,7 +431,7 @@ class ConfigurationModelChanged(SynchronousTestCase):
     def test_model_changed(self):
         """
         Most of the time if the configuration model changes this test will
-        fail.
+        fail. If you changed configuration and it didn't fail, see below.
 
         This does not indicate a bug. Rather, it indicates that you should
         implement upgrade code for the on-disk configuration. Once you are
@@ -445,12 +445,14 @@ class ConfigurationModelChanged(SynchronousTestCase):
 
         Note that this test may *not* fail in some cases where you still
         need to write upgrade code, so don't rely on it to always tell you
-        when you need to write upgrade code.
+        when you need to write upgrade code. In that case you should also
+        try to extend this module so it catches that category of change
+        next time someone makes it.
         """
         current_model = generate_model()
         previous_model = loads(PERSISTED_MODEL.getContent())[u"model"]
-        self.assertEqual(current_model, previous_model,
-                         self.test_model_changed.__doc__)
+        self.assertDictEqual(current_model, previous_model,
+                             self.test_model_changed.__doc__)
 
 
 if __name__ == '__main__':
