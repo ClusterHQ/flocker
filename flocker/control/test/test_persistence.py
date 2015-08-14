@@ -387,5 +387,4 @@ class ConfigurationMigrationTests(SynchronousTestCase):
             1, 2, V1_TEST_DEPLOYMENT_JSON, ConfigurationMigration)
         expected_upgraded_json = FilePath(__file__).sibling(
             'configurations').child(b"configuration_v2.json").getContent()
-        expected_upgraded_json = expected_upgraded_json.rstrip()
         self.assertEqual(upgraded_json, expected_upgraded_json)
