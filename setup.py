@@ -69,6 +69,8 @@ setup(
         # These data files are used by the volumes API to define input and
         # output schemas.
         'flocker.control': ['schema/*.yml'],
+        # Used by persistence service tests.
+        'flocker.control.test': ['configurations/*.json'],
     },
 
     entry_points={
