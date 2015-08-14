@@ -17,14 +17,10 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import qual as fqpn
 
-from .._model import Deployment
+from .._persistence import ROOT_CLASS
 from ... import __version__
 
 PERSISTED_MODEL = FilePath(__file__).sibling(b"persisted_model.json")
-
-# The class at the root of the configuration tree. This may need to be
-# changed if the configuration's root class changes.
-ROOT_CLASS = Deployment
 
 
 def _precord_model(klass):
