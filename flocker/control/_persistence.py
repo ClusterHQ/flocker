@@ -64,24 +64,27 @@ def migrate_configuration(source_version, target_version,
     upgraded_config = config
     current_version = source_version
     for upgrade_version in range(source_version + 1, target_version + 1):
-        migration_method = (
-            u"configuration_v%d_v%d"
-            % (current_version, upgrade_version)
-        )
-        try:
-            migration = getattr(migration_class, migration_method)
-        except AttributeError:
-            message = (
-                u"Unable to find a migration path for a version " +
-                unicode(source_version) + u" to version " +
-                unicode(target_version) + u" configuration. " +
-                u"No migration method exists for v" +
-                unicode(current_version) + u" to v" +
-                unicode(upgrade_version) + u"."
+        with _LOG_UPGRADE(configuration=upgraded_config,
+                          source_version=current_version,
+                          target_version=upgrade_version):
+            migration_method = (
+                u"configuration_v%d_v%d"
+                % (current_version, upgrade_version)
             )
-            raise ConfigurationMigrationError(message)
-        upgraded_config = migration(upgraded_config)
-        current_version = current_version + 1
+            try:
+                migration = getattr(migration_class, migration_method)
+            except AttributeError:
+                message = (
+                    u"Unable to find a migration path for a version " +
+                    unicode(source_version) + u" to version " +
+                    unicode(target_version) + u" configuration. " +
+                    u"No migration method exists for v" +
+                    unicode(current_version) + u" to v" +
+                    unicode(upgrade_version) + u"."
+                )
+                raise ConfigurationMigrationError(message)
+            upgraded_config = migration(upgraded_config)
+            current_version = current_version + 1
     return upgraded_config
 
 
