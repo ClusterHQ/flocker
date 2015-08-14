@@ -125,14 +125,16 @@ class Subtype(PRecord):
     """
     A sub-type used in ``GenerateModelTests``.
     """
+OriginalSubtype = Subtype
 
 
-class ChangedSubtype(PRecord):
+class Subtype(PRecord):
     """
     A changed variant of ``Subtype``.
     """
     x = field()
-ChangedSubtype.__name__ = "Subtype"
+ChangedSubtype = Subtype
+Subtype = OriginalSubtype
 
 
 class GenerateModelTests(SynchronousTestCase):
@@ -153,12 +155,15 @@ class GenerateModelTests(SynchronousTestCase):
         dumps(original_model)
         dumps(changed_model)
         self.assertEqual(
-            # Changes result in a difference:
-            (original_model != changed_model,
+            # If not the calling test is buggy, since it's catching wrong
+            # thing, a mere name change:
+            (fqpn(original_class) == fqpn(changed_class),
+             # Changes result in a difference:
+             original_model != changed_model,
              # No changes result in same output:
              original_model == generate_model(original_class),
              changed_model == generate_model(changed_class)),
-            (True, True, True))
+            (True, True, True, True))
 
     def test_different_class(self):
         """
@@ -170,18 +175,19 @@ class GenerateModelTests(SynchronousTestCase):
         class Different(PClass):
             pass
 
-        self.assert_catches_changes(Original, Different)
+        self.assertNotEqual(generate_model(Original),
+                            generate_model(Different))
 
     def test_precord_new_field(self):
         """
         If a new field is added to a ``PRecord`` the output changes.
         """
-        class Original(PRecord):
+        class Different(PRecord):
             pass
+        Original = Different
 
         class Different(PRecord):
             x = field()
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -190,13 +196,13 @@ class GenerateModelTests(SynchronousTestCase):
         If an existing field is removed from a ``PRecord`` the output
         changes.
         """
-        class Original(PRecord):
+        class Different(PRecord):
             x = field()
             y = field()
+        Original = Different
 
         class Different(PRecord):
             x = field()
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -205,12 +211,12 @@ class GenerateModelTests(SynchronousTestCase):
         If an existing field has its type changed in a ``PRecord`` the output
         changes.
         """
-        class Original(PRecord):
+        class Different(PRecord):
             x = field()
+        Original = Different
 
         class Different(PRecord):
             x = field(type=int)
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -219,12 +225,12 @@ class GenerateModelTests(SynchronousTestCase):
         If the an existing field in a ``PRecord`` has the same type, but the
         type changed somehow, the output changes.
         """
-        class Original(PRecord):
+        class Different(PRecord):
             x = field(type=Subtype)
+        Original = Different
 
         class Different(PRecord):
             x = field(type=ChangedSubtype)
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -232,12 +238,12 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If a new field is added to a ``PClass`` the output changes.
         """
-        class Original(PClass):
+        class Different(PClass):
             pass
+        Original = Different
 
         class Different(PClass):
             x = field()
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -246,13 +252,13 @@ class GenerateModelTests(SynchronousTestCase):
         If an existing field is removed from a ``PClass`` the output
         changes.
         """
-        class Original(PClass):
+        class Different(PClass):
             x = field()
             y = field()
+        Original = Different
 
         class Different(PClass):
             x = field()
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -261,12 +267,12 @@ class GenerateModelTests(SynchronousTestCase):
         If an existing field has its type changed in a ``PClass`` the output
         changes.
         """
-        class Original(PClass):
+        class Different(PClass):
             x = field()
+        Original = Different
 
         class Different(PClass):
             x = field(type=int)
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -275,19 +281,12 @@ class GenerateModelTests(SynchronousTestCase):
         If the an existing field in a ``PClass`` has the same type, but the
         type changed somehow, the output changes.
         """
-        class Subtype(PClass):
-            pass
-
-        class ChangedSubtype(PClass):
-            x = field()
-        ChangedSubtype.__name__ = "Subtype"
-
-        class Original(PClass):
+        class Different(PClass):
             x = field(type=Subtype)
+        Original = Different
 
         class Different(PClass):
             x = field(type=ChangedSubtype)
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -295,14 +294,14 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If the type of the key of a ``PMap`` changes the output changes.
         """
-        class Original(CheckedPMap):
+        class Different(CheckedPMap):
             __key_type__ = int
             __value_type__ = int
+        Original = Different
 
         class Different(CheckedPMap):
             __key_type__ = str
             __value_type__ = int
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -310,14 +309,14 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If the type of the value of a ``PMap`` changes the output changes.
         """
-        class Original(CheckedPMap):
+        class Different(CheckedPMap):
             __key_type__ = int
             __value_type__ = int
+        Original = Different
 
         class Different(CheckedPMap):
             __key_type__ = int
             __value_type__ = str
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -326,14 +325,14 @@ class GenerateModelTests(SynchronousTestCase):
         If the type of the key of a ``PMap`` is the same, but it has
         internally changed then the output changes.
         """
-        class Original(CheckedPMap):
+        class Different(CheckedPMap):
             __key_type__ = Subtype
             __value_type__ = int
+        Original = Different
 
         class Different(CheckedPMap):
             __key_type__ = ChangedSubtype
             __value_type__ = int
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -342,14 +341,14 @@ class GenerateModelTests(SynchronousTestCase):
         If the type of the value of a ``PMap`` is the same, but it has
         internally changed then the output changes.
         """
-        class Original(CheckedPMap):
+        class Different(CheckedPMap):
             __key_type__ = int
             __value_type__ = Subtype
+        Original = Different
 
         class Different(CheckedPMap):
             __key_type__ = int
             __value_type__ = ChangedSubtype
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -357,12 +356,12 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If the type of the value of a ``PSet`` changes the output changes.
         """
-        class Original(CheckedPSet):
+        class Different(CheckedPSet):
             __type__ = int
+        Original = Different
 
         class Different(CheckedPSet):
             __type__ = str
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -371,12 +370,12 @@ class GenerateModelTests(SynchronousTestCase):
         If the type of the value of a ``PSet`` is the same, but it has
         internally changed then the output changes.
         """
-        class Original(CheckedPSet):
+        class Different(CheckedPSet):
             __type__ = Subtype
+        Original = Different
 
         class Different(CheckedPSet):
             __type__ = ChangedSubtype
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -384,12 +383,12 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If the type of the value of a ``PVector`` changes the output changes.
         """
-        class Original(CheckedPVector):
+        class Different(CheckedPVector):
             __type__ = int
+        Original = Different
 
         class Different(CheckedPVector):
             __type__ = str
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
@@ -398,12 +397,12 @@ class GenerateModelTests(SynchronousTestCase):
         If the type of the value of a ``PVector`` is the same, but it has
         internally changed then the output changes.
         """
-        class Original(CheckedPVector):
+        class Different(CheckedPVector):
             __type__ = Subtype
+        Original = Different
 
         class Different(CheckedPVector):
             __type__ = ChangedSubtype
-        Different.__name__ = "Original"
 
         self.assert_catches_changes(Original, Different)
 
