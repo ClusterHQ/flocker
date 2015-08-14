@@ -8,7 +8,6 @@ code is always implemented when necessary.
 """
 
 from json import loads, dumps
-from subprocess import check_output
 
 from pyrsistent import (
     PRecord, PClass, CheckedPSet, CheckedPVector, CheckedPMap, field,
@@ -19,6 +18,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.reflect import qual as fqpn
 
 from .._model import Deployment
+from ... import __version__
 
 PERSISTED_MODEL = FilePath(__file__).sibling(b"persisted_model.json")
 
@@ -414,13 +414,10 @@ def persist_model():
     We also store the git hash of current checkout, so it's clear what
     version of code was used to generate the model.
     """
-    git_hash = check_output(
-        [b"git", b"show", b'--format=%H', b"-s"]).strip()
     model = generate_model()
     PERSISTED_MODEL.setContent(dumps(
-        {u"git_hash": git_hash, u"model": model}, sort_keys=True, indent=4,
-        separators=(',', ': ')))
-    print("Persisted model for git hash {}.".format(git_hash))
+        {u"version": __version__, u"model": model},
+        sort_keys=True, indent=4, separators=(',', ': ')))
 
 
 class ConfigurationModelChanged(SynchronousTestCase):
@@ -456,3 +453,4 @@ class ConfigurationModelChanged(SynchronousTestCase):
 
 if __name__ == '__main__':
     persist_model()
+    print("Persisted model for version {}.".format(__version__))

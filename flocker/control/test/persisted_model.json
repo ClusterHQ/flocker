@@ -1,5 +1,4 @@
 {
-    "git_hash": "0cb9fbd1170a935f454593e1386828475a573861",
     "model": {
         "classes": {
             "__builtin__.NoneType": null,
@@ -158,5 +157,6 @@
             "uuid.UUID": null
         },
         "root": "flocker.control._model.Deployment"
-    }
+    },
+    "version": "1.1.0.dev2+274.gc8672ea.dirty"
 }
