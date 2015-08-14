@@ -28,7 +28,7 @@ from ...testtools import find_free_port
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
-from ...control import NodeState
+from ...control import NodeState, NonManifestDatasets, Dataset as ModelDataset
 
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -278,4 +278,25 @@ class FlockerClientTests(make_clientv1_tests()):
             primary=self.node_1, maximum_size=u"notint")
         self.assertFailure(d, ResponseError)
         d.addCallback(lambda exc: self.assertEqual(exc.code, BAD_REQUEST))
+        return d
+
+    def test_unset_primary(self):
+        """
+        If the ``FlockerClient`` receives a dataset state where primary is
+        ``None`` it parses it correctly.
+        """
+        dataset_id = uuid4()
+        self.cluster_state_service.apply_changes([
+            NonManifestDatasets(datasets={
+                unicode(dataset_id): ModelDataset(
+                    dataset_id=unicode(dataset_id)),
+                })])
+        d = self.client.list_datasets_state()
+        d.addCallback(lambda states:
+                      self.assertEqual(
+                          [DatasetState(dataset_id=dataset_id,
+                                        primary=None,
+                                        maximum_size=None,
+                                        path=None)],
+                          states))
         return d

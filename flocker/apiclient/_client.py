@@ -41,16 +41,18 @@ class DatasetState(PClass):
     """
     The state of a dataset in the cluster.
 
-    :attr UUID primary: The node where the dataset should manifest.
-    :attr int maximum_size: Size of new dataset, in bytes.
+    :attr primary: The ``UUID`` of the node where the dataset is manifest,
+        or ``None`` if has no manifestation.
+    :attr maximum_size: Size of new dataset in bytes, or ``None`` if it
+        has none.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr FilePath|None path: Filesytem path where the dataset is mounted,
         or ``None`` if not mounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
-    primary = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
-    path = field(mandatory=True)
+    primary = field(type=(UUID, None.__class__), mandatory=True)
+    maximum_size = field(type=(int, None.__class__), mandatory=True)
+    path = field(type=(FilePath, None.__class__), mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):
@@ -270,10 +272,17 @@ class FlockerClient(object):
         request = self._request(b"GET", b"/state/datasets", None, OK)
 
         def parse_dataset_state(dataset_dict):
-            return DatasetState(primary=UUID(dataset_dict[u"primary"]),
-                                maximum_size=dataset_dict[u"maximum_size"],
+            primary = dataset_dict.get(u"primary")
+            if primary is not None:
+                primary = UUID(primary)
+            path = dataset_dict.get(u"path")
+            if path is not None:
+                path = FilePath(path)
+            return DatasetState(primary=primary,
+                                maximum_size=dataset_dict.get(
+                                    u"maximum_size", None),
                                 dataset_id=UUID(dataset_dict[u"dataset_id"]),
-                                path=FilePath(dataset_dict[u"path"]))
+                                path=path)
 
         request.addCallback(
             lambda results: [parse_dataset_state(d) for d in results])
