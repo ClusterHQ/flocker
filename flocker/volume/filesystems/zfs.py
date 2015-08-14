@@ -19,7 +19,7 @@ from characteristic import attributes, with_cmp, with_repr
 
 from zope.interface import implementer
 
-from eliot import Field, MessageType, Logger
+from eliot import Field, MessageType, Logger, write_traceback
 
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
@@ -329,6 +329,7 @@ class Filesystem(object):
                 message = ZFS_ERROR(zfs_command="lzc_send " + snapshot,
                                     output=str(e), status=e.errno)
                 message.write(self.logger)
+                write_traceback(self.logger)
             finally:
                 os.close(wfd)
                 queue.put(None)
@@ -379,6 +380,7 @@ class Filesystem(object):
                 message = ZFS_ERROR(zfs_command="lzc_receive " + self.name,
                                     output=str(e), status=e.errno)
                 message.write(self.logger)
+                write_traceback(self.logger)
             finally:
                 os.close(rfd)
                 queue.put(success)
