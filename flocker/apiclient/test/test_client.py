@@ -59,7 +59,8 @@ def make_clientv1_tests():
             """
             self.assertTrue(verifyObject(IFlockerAPIV1Client, self.client))
 
-        def assert_creates(self, client, dataset_id=None, **create_kwargs):
+        def assert_creates(self, client, dataset_id=None, maximum_size=None,
+                           **create_kwargs):
             """
             Create a dataset and ensure it shows up in the configuration and
             return result of the ``create_dataset`` call.
@@ -67,6 +68,7 @@ def make_clientv1_tests():
             :param IFlockerAPIV1Client client: Client to use.
             :param dataset_id: Dataset ID to use, or ``None`` if it should
                 be generated.
+            :param maximum_size: Maximum size to use, or ``None`` if not set.
             :param create_kwargs: Additional arguments to pass to
                 ``create_dataset``.
 
@@ -74,7 +76,8 @@ def make_clientv1_tests():
                 ``create_dataset``.
             """
             created = client.create_dataset(
-                dataset_id=dataset_id, **create_kwargs)
+                dataset_id=dataset_id, maximum_size=maximum_size,
+                **create_kwargs)
 
             def got_result(dataset):
                 if dataset_id is None:
@@ -82,6 +85,7 @@ def make_clientv1_tests():
                 else:
                     expected_dataset_id = dataset_id
                 expected = Dataset(dataset_id=expected_dataset_id,
+                                   maximum_size=maximum_size,
                                    **create_kwargs)
                 self.assertEqual(expected, dataset)
 
@@ -102,6 +106,13 @@ def make_clientv1_tests():
             return self.assert_creates(self.client,
                                        primary=self.node_1,
                                        maximum_size=DATASET_SIZE)
+
+        def test_create_no_size(self):
+            """
+            If no ``maximum_size`` is specified when calling ``create_dataset``
+            the result has no size set.
+            """
+            return self.assert_creates(self.client, primary=self.node_1)
 
         def test_create_given_dataset(self):
             """

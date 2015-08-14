@@ -25,14 +25,14 @@ class Dataset(PClass):
     A dataset in the configuration.
 
     :attr UUID primary: The node where the dataset should manifest.
-    :attr int maximum_size: Size of new dataset, in bytes.
+    :attr maximum_size: Size of new dataset in bytes (as ``int``) or ``None``.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr metadata: A mapping between unicode keys and values.
     :attr bool deleted: If true indicates this dataset should be deleted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     primary = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
+    maximum_size = field(type=(int, None.__class__), mandatory=True)
     deleted = field(type=bool, mandatory=True, initial=False)
     metadata = pmap_field(unicode, unicode)
 
@@ -63,13 +63,14 @@ class IFlockerAPIV1Client(Interface):
     """
     The Flocker REST API v1 client.
     """
-    def create_dataset(primary, maximum_size, dataset_id=None,
+    def create_dataset(primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
         """
         Create a new dataset in the configuration.
 
         :param UUID primary: The node where the dataset should manifest.
-        :param int maximum_size: Size of new dataset, in bytes.
+        :param maximum_size: Size of new dataset in bytes (as ``int``) or
+            ``None`` if no particular size is required (not recommended).
         :param dataset_id: If given, the UUID to use for the dataset.
         :param metadata: A mapping between unicode keys and values, to be
             stored as dataset metadata.
@@ -114,7 +115,7 @@ class FakeFlockerClient(object):
         self._configured_datasets = pmap()
         self.synchronize_state()
 
-    def create_dataset(self, primary, maximum_size, dataset_id=None,
+    def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
         # In real implementation the server will generate the new ID, but
         # we have to do it ourselves:
@@ -233,18 +234,18 @@ class FlockerClient(object):
         :return: ``Dataset`` instance.
         """
         return Dataset(primary=UUID(dataset_dict[u"primary"]),
-                       maximum_size=dataset_dict[u"maximum_size"],
+                       maximum_size=dataset_dict.get(u"maximum_size", None),
                        dataset_id=UUID(dataset_dict[u"dataset_id"]),
                        metadata=dataset_dict[u"metadata"])
 
-    def create_dataset(self, primary, maximum_size, dataset_id=None,
+    def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
         dataset = {u"primary": unicode(primary),
-                   u"maximum_size": maximum_size,
                    u"metadata": dict(metadata)}
         if dataset_id is not None:
             dataset[u"dataset_id"] = unicode(dataset_id)
-
+        if maximum_size is not None:
+            dataset[u"maximum_size"] = maximum_size
         request = self._request(b"POST", b"/configuration/datasets",
                                 dataset, CREATED,
                                 {CONFLICT: DatasetAlreadyExists})
