@@ -105,13 +105,13 @@ Preparing For a Release
 
 #. Create an environment to do a release in:
 
-   .. prompt:: bash $
+   .. prompt:: bash $,(flocker-0.1.2)$ auto
 
       $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       $ mkvirtualenv -a "flocker-${VERSION}" "flocker-${VERSION}" -r requirements.txt -r dev-requirements.txt
-      $ admin/create-release-branch --flocker-version=${VERSION}
-      $ admin/update-license
-      $ git commit -am "Updated copyright in LICENSE file"
+      (flocker-0.1.2)$ admin/create-release-branch --flocker-version=${VERSION}
+      (flocker-0.1.2)$ admin/update-license
+      (flocker-0.1.2)$ git commit -am "Updated copyright in LICENSE file"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -123,14 +123,14 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash (flocker-release)flocker$
+      .. prompt:: bash (flocker-0.1.2)$
 
           # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           git log --first-parent ${OLD_VERSION}..${BRANCH}
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       git commit -am "Updated NEWS"
 
@@ -146,13 +146,13 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       git commit -am "Updated Release Notes"
 
 #. Push the changes:
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
@@ -225,7 +225,7 @@ Release
 
 #. Tag the version being released:
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       BRANCH=$(git rev-parse --abbrev-ref HEAD)
       RELEASE_BRANCH_PREFIX="release\/flocker-"
@@ -244,13 +244,13 @@ Release
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       aws configure
 
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       admin/publish-artifacts
       admin/publish-docs --production
@@ -261,23 +261,25 @@ Release
    It outputs a success message if the documentation does redirect correctly.
    It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$
 
       admin/test-redirects --production
 
 #. Remove the release virtual environment:
 
-   .. prompt:: bash (flocker-release)flocker$
+   .. prompt:: bash (flocker-0.1.2)$,$ auto
 
-      export RELEASE_DIRECTORY_PATH=${PWD}
-      deactivate
-      rmvirtualenv ${RELEASE_DIRECTORY_PATH##*/}
+      (flocker-0.1.2)$ export RELEASE_DIRECTORY_PATH=${PWD}
+      (flocker-0.1.2)$ deactivate
+      $ rmvirtualenv ${RELEASE_DIRECTORY_PATH##*/}
 
 #. Remove the release Flocker clone:
 
-   .. warning:: rm -r can be dangerous, run this at your own risk.
+   .. warning:: rm -rf can be dangerous, run this at your own risk.
 
-      rm -r ${RELEASE_DIRECTORY_BASENAME}
+   .. prompt:: bash $
+
+      rm -rf ${RELEASE_DIRECTORY_PATH}
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
