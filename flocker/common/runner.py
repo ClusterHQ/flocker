@@ -77,15 +77,16 @@ class CommandProtocol(ProcessProtocol, object):
         Otherwise, errbacks with the reason.
     :ivar handle_stdout: Callable to call with lines from stdout.
     :ivar handle_stderr: Callable to call with lines from stderr.
-
-    :ivar defaultdict _fds: Mapping from file descriptors to `_LineParsers`.
     """
     def __init__(self):
-        self._fds = defaultdict(
-            lambda: _LineParser(handle_line=self.handle_line))
+        self._stdout_parser = _LineParser(handle_line=self.handle_stdout)
+        self._stderr_parser = _LineParser(handle_line=self.handle_stderr)
 
-    def childDataReceived(self, childFD, data):
-        self._fds[childFD].dataReceived(data)
+    def outReceived(self, data):
+        self._stdout_parser.dataReceived(data)
+
+    def errReceived(self, data):
+        self._stderr_parser.dataReceived(data)
 
     def processEnded(self, reason):
         if reason.check(ProcessDone):

@@ -820,7 +820,7 @@ MESSAGE_FORMATS = {
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
     "flocker.common.runner:run:stdout":
-        "stdout:%(line)s\n",
+        "%(line)s\n",
     "flocker.common.runner:run:stderr":
         "stderr:%(line)s\n",
 }
