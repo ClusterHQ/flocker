@@ -5,12 +5,19 @@ Client for the Flocker REST API.
 """
 
 from uuid import UUID, uuid4
+from json import dumps
 
 from zope.interface import Interface, implementer
 
 from pyrsistent import PClass, field, pmap_field, pmap
 
 from twisted.internet.defer import succeed, fail
+from twisted.python.filepath import FilePath
+from twisted.web.http import CREATED, OK, CONFLICT
+
+from treq import json_content, content
+
+from ..ca import treq_with_authentication
 
 
 class Dataset(PClass):
@@ -23,10 +30,10 @@ class Dataset(PClass):
     :attr metadata: A mapping between unicode keys and values.
     :attr bool deleted: If true indicates this dataset should be deleted.
     """
-    dataset_id = field(type=UUID)
-    primary = field(type=UUID)
-    maximum_size = field(type=int)
-    deleted = field(type=bool)
+    dataset_id = field(type=UUID, mandatory=True)
+    primary = field(type=UUID, mandatory=True)
+    maximum_size = field(type=int, mandatory=True)
+    deleted = field(type=bool, mandatory=True, initial=False)
     metadata = pmap_field(unicode, unicode)
 
 
@@ -37,10 +44,13 @@ class DatasetState(PClass):
     :attr UUID primary: The node where the dataset should manifest.
     :attr int maximum_size: Size of new dataset, in bytes.
     :attr UUID dataset_id: The UUID of the dataset.
+    :attr FilePath|None path: Filesytem path where the dataset is mounted,
+        or ``None`` if not mounted.
     """
-    dataset_id = field(type=UUID)
-    primary = field(type=UUID)
-    maximum_size = field(type=int)
+    dataset_id = field(type=UUID, mandatory=True)
+    primary = field(type=UUID, mandatory=True)
+    maximum_size = field(type=int, mandatory=True)
+    path = field(mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):
@@ -134,8 +144,136 @@ class FakeFlockerClient(object):
         Copy configuration into state.
         """
         self._state_datasets = [
-            DatasetState(dataset_id=dataset.dataset_id,
-                         primary=dataset.primary,
-                         maximum_size=dataset.maximum_size)
+            DatasetState(
+                dataset_id=dataset.dataset_id,
+                primary=dataset.primary,
+                maximum_size=dataset.maximum_size,
+                path=FilePath(b"/flocker").child(bytes(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
-        return succeed(None)
+
+
+class ResponseError(Exception):
+    """
+    An unexpected response from the REST API.
+    """
+    def __init__(self, code, body):
+        Exception.__init__(self, "Unexpected response code {}:\n{}\n".format(
+            code, body))
+        self.code = code
+
+
+@implementer(IFlockerAPIV1Client)
+class FlockerClient(object):
+    """
+    A client for the Flocker V1 REST API.
+    """
+    def __init__(self, reactor, host, port,
+                 ca_cluster_path, cert_path, key_path):
+        """
+        :param reactor: Reactor to use for connections.
+        :param bytes host: Host to connect to.
+        :param int port: Port to connect to:
+        :param FilePath ca_cluster_path: Path to cluster's CA certificate.
+        :param FilePath cert_path: Path to user certificate.
+        :param FilePath key_path: Path to user private key.
+        """
+        self._treq = treq_with_authentication(reactor, ca_cluster_path,
+                                              cert_path, key_path)
+        self._base_url = b"https://%s:%d/v1" % (host, port)
+
+    def _request(self, method, path, body, success_code, error_codes=None):
+        """
+        Send a HTTP request to the Flocker API, return decoded JSON body.
+
+        :param bytes method: HTTP method, e.g. PUT.
+        :param bytes path: Path to add to base URL.
+        :param body: If not ``None``, JSON encode this and send as the
+            body of the request.
+        :param int success_code: Expected success response code.
+        :param error_codes: Mapping from HTTP response code to exception to be
+            raised if it is present, or ``None`` to send no headers.
+
+        :return: ``Deferred`` firing with decoded JSON.
+        """
+        if error_codes is None:
+            error_codes = {}
+
+        def error(body, code):
+            if code in error_codes:
+                raise error_codes[code](body)
+            raise ResponseError(code, body)
+
+        def got_result(result):
+            if result.code == success_code:
+                return json_content(result)
+            else:
+                d = content(result)
+                d.addCallback(error, result.code)
+                return d
+
+        headers = None
+        data = None
+        if body is not None:
+            headers = {b"content-type": b"application/json"}
+            data = dumps(body)
+        request = self._treq.request(
+            method, self._base_url + path,
+            data=data, headers=headers,
+            # Keep tests from having dirty reactor problems:
+            persistent=False
+        )
+        request.addCallback(got_result)
+        return request
+
+    def _parse_configuration_dataset(self, dataset_dict):
+        """
+        Convert a dictionary decoded from JSON with a dataset's configuration.
+
+        :param dataset_dict: Dictionary describing a dataset.
+        :return: ``Dataset`` instance.
+        """
+        return Dataset(primary=UUID(dataset_dict[u"primary"]),
+                       maximum_size=dataset_dict[u"maximum_size"],
+                       dataset_id=UUID(dataset_dict[u"dataset_id"]),
+                       metadata=dataset_dict[u"metadata"])
+
+    def create_dataset(self, primary, maximum_size, dataset_id=None,
+                       metadata=pmap()):
+        dataset = {u"primary": unicode(primary),
+                   u"maximum_size": maximum_size,
+                   u"metadata": dict(metadata)}
+        if dataset_id is not None:
+            dataset[u"dataset_id"] = unicode(dataset_id)
+
+        request = self._request(b"POST", b"/configuration/datasets",
+                                dataset, CREATED,
+                                {CONFLICT: DatasetAlreadyExists})
+        request.addCallback(self._parse_configuration_dataset)
+        return request
+
+    def move_dataset(self, primary, dataset_id):
+        request = self._request(
+            b"POST", b"/configuration/datasets/%s" % (dataset_id,),
+            {u"primary": unicode(primary)}, OK)
+        request.addCallback(self._parse_configuration_dataset)
+        return request
+
+    def list_datasets_configuration(self):
+        request = self._request(b"GET", b"/configuration/datasets", None, OK)
+        request.addCallback(
+            lambda results:
+            [self._parse_configuration_dataset(d) for d in results])
+        return request
+
+    def list_datasets_state(self):
+        request = self._request(b"GET", b"/state/datasets", None, OK)
+
+        def parse_dataset_state(dataset_dict):
+            return DatasetState(primary=UUID(dataset_dict[u"primary"]),
+                                maximum_size=dataset_dict[u"maximum_size"],
+                                dataset_id=UUID(dataset_dict[u"dataset_id"]),
+                                path=FilePath(dataset_dict[u"path"]))
+
+        request.addCallback(
+            lambda results: [parse_dataset_state(d) for d in results])
+        return request
