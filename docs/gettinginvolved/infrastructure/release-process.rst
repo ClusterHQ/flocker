@@ -270,7 +270,7 @@ Release
 
    .. prompt:: bash (flocker-0.1.2)$,$ auto
 
-      (flocker-0.1.2)$ export RELEASE_DIRECTORY_PATH=${PWD}
+      (flocker-0.1.2)$ RELEASE_DIRECTORY_PATH=${PWD}
       (flocker-0.1.2)$ deactivate
       $ rmvirtualenv ${RELEASE_DIRECTORY_PATH##*/}
 
