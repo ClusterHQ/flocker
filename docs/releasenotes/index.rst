@@ -10,8 +10,15 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
-============
+v1.2
+====
+
+* Flocker ``.deb`` and ``.rpm`` packages no longer declare any dependency on a Docker package.
+  Docker is required for the container management functionality but a Docker package must be selected and installed manually.
+  This provides more control over the version of Docker used with Flocker.
+
+v1.1
+====
 
 * ``flocker-deploy`` supports specification of the pathnames of certificate and key files.
   See :ref:`flocker-deploy-authentication`.
@@ -23,7 +30,7 @@ Next Release
 v1.0.3
 ======
 
-* On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk. 
+* On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk.
 
 v1.0.2
 ======

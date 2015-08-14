@@ -46,6 +46,18 @@ ZFS_REPO = {
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
 
+def is_centos(distribution):
+    """
+    Determine whether the named distribution is a version of CentOS.
+
+    :param bytes distribution: The name of the distribution to inspect.
+
+    :return: ``True`` if the distribution named is a version of CentOS,
+        ``False`` otherwise.
+    """
+    return distribution.startswith("centos-")
+
+
 def get_repository_url(distribution, flocker_version):
     """
     Return the URL for the repository of a given distribution.
@@ -480,7 +492,7 @@ def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
     """
-    if distribution == 'centos-7':
+    if is_centos(distribution):
         return sequence([
             run_from_args([
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
@@ -568,8 +580,25 @@ def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
-    if distribution in ('centos-7',):
+    if is_centos(distribution):
+        conf_path = (
+            "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
+        )
         return sequence([
+            # Give Docker a long time to start up.  On the first start, it
+            # initializes a 100G filesystem which can take a while.  The
+            # default startup timeout is frequently too low to let this
+            # complete.
+            run("mkdir -p /etc/systemd/system/docker.service.d"),
+            put(
+                path=conf_path,
+                content=dedent(
+                    """\
+                    [Service]
+                    TimeoutStartSec=10min
+                    """
+                ),
+            ),
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
         ])
@@ -607,7 +636,7 @@ def task_enable_flocker_control(distribution):
     """
     Enable flocker-control service.
     """
-    if distribution in ('centos-7',):
+    if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', START, 'flocker-control']),
@@ -637,7 +666,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if distribution in ('centos-7',):
+    if is_centos(distribution):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
@@ -714,7 +743,7 @@ def task_enable_flocker_agent(distribution):
 
     :param bytes distribution: The distribution name.
     """
-    if distribution in ('centos-7',):
+    if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
             run_from_args(['systemctl', START, 'flocker-dataset-agent']),
@@ -766,7 +795,7 @@ def task_install_zfs(distribution, variants=set()):
             run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
             ]
 
-    elif distribution in ('centos-7',):
+    elif is_centos(distribution):
         commands += [
             run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
         ]
@@ -871,6 +900,50 @@ def uninstall_flocker(nodes):
     )
 
 
+def task_install_docker(distribution):
+    """
+    Return an ``Effect`` for installing Docker if it is not already installed.
+
+    The state of ``https://get.docker.com/`` at the time the task is run
+    determines the version of Docker installed.
+
+    The version of Docker is allowed to float this way because:
+
+    * Docker development is currently proceeding at a rapid pace.  There are
+    frequently compelling reasons to want to run Docker 1.(X+1) instead of 1.X.
+
+    * https://get.docker.com/ doesn't keep very old versions of Docker around.
+    Pinning a particular version makes it laborious to rely on this source for
+    Docker packages (due to the pinned version frequently disappearing from the
+    repository).
+
+    * Other package repositories frequently only have older packages available.
+
+    * Different packagers of Docker give the package different names.  The
+    different package names make it more difficult to request a specific
+    version.
+
+    * Different packagers apply different system-specific patches.  Users may
+    have reasons to prefer packages from one packager over another.  Thus if
+    Docker is already installed, no matter what version it is, the requirement
+    is considered satisfied (we treat the user as knowing what they're doing).
+    """
+    if is_centos(distribution):
+        # The Docker packages don't declare all of their dependencies.  They
+        # seem to work on an up-to-date system, though, so make sure the system
+        # is up to date.
+        update = b"yum --assumeyes update && "
+    else:
+        update = b""
+
+    return run(command=(
+        b"[[ -e /usr/bin/docker ]] || { " + update +
+        b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
+        b"sh /tmp/install-docker.sh"
+        b"; }"
+    ))
+
+
 def task_install_flocker(
     distribution=None,
     package_source=PackageSource(),
@@ -905,9 +978,6 @@ def task_install_flocker(
             run_from_args([
                 "apt-get", "-y", "install", "apt-transport-https",
                 "software-properties-common"]),
-            # Add Docker repo for recent Docker versions
-            run_from_args([
-                "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
             run(command='add-apt-repository -y "deb {} /"'.format(
                 get_repository_url(
@@ -949,7 +1019,7 @@ def task_install_flocker(
             'apt-get', '-y', '--force-yes', 'install', package]))
 
         return sequence(commands)
-    elif distribution in ('centos-7',):
+    elif is_centos(distribution):
         commands = [
             run(command="yum clean all"),
             run(command="yum install -y " + get_repository_url(
@@ -1022,7 +1092,7 @@ def task_enable_docker_head_repository(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if distribution == "centos-7":
+    if is_centos(distribution):
         return sequence([
             put(content=dedent("""\
                 [virt7-testing]
@@ -1057,7 +1127,7 @@ def provision(distribution, package_source, variants):
         commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
-
+    commands.append(task_install_docker(distribution))
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
