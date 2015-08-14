@@ -27,6 +27,66 @@ PERSISTED_MODEL = FilePath(__file__).sibling(b"persisted_model.json")
 ROOT_CLASS = Deployment
 
 
+def _precord_model(klass):
+    """
+    Serialize a ``PRecord`` or ``PClass`` model to something
+    JSON-encodable.
+
+    :param klass: A ``PRecord`` or ``PClass`` subclass.
+    :return: Tuple of (model dictionary, further classes to process).
+    """
+    further_classes = set()
+    if issubclass(klass, PRecord):
+        attr_name = "_precord_fields"
+    else:
+        attr_name = "_pclass_fields"
+    record = {u"category": u"record",
+              u"fields": {}}
+    for name, field_info in getattr(klass, attr_name).items():
+        record[u"fields"][name] = list(
+            fqpn(cls) for cls in field_info.type)
+        for cls in field_info.type:
+            further_classes.add(cls)
+    return record, further_classes
+
+
+def _pmap_model(klass):
+    """
+    Serialize a ``PMap`` model to something JSON-encodable.
+
+    :param klass: A ``PMap`` subclass.
+    :return: Tuple of (model dictionary, further classes to process).
+    """
+    record = {
+        u"category": u"map",
+        u"fields": {
+            u"key": list(
+                fqpn(cls) for cls in klass._checked_key_types),
+            u"value": list(
+                fqpn(cls) for cls in klass._checked_value_types)}}
+    further_classes = set()
+    for cls in klass._checked_key_types + klass._checked_value_types:
+        further_classes.add(cls)
+    return record, further_classes
+
+
+def _psequence_model(klass):
+    """
+    Serialize a ``PVector`` or ``PSet`` model to something
+    JSON-encodable.
+
+    :param klass: A ``PVector`` or ``PSet`` subclass.
+    :return: Tuple of (model dictionary, further classes to process).
+    """
+    category = u"set" if issubclass(klass, CheckedPSet) else u"list"
+    record = {
+        u"category": category,
+        u"type": list(fqpn(cls) for cls in klass._checked_types),
+    }
+    further_classes = set(klass._checked_types)
+    return record, further_classes
+
+
 def generate_model(root_class=ROOT_CLASS):
     """
     Generate a data-structure that represents the current configuration
@@ -47,38 +107,17 @@ def generate_model(root_class=ROOT_CLASS):
         klass_name = fqpn(klass)
         if klass_name in classes_result:
             continue
-        record = None
         if issubclass(klass, (PRecord, PClass)):
-            if issubclass(klass, PRecord):
-                attr_name = "_precord_fields"
-            else:
-                attr_name = "_pclass_fields"
-            record = {u"category": u"record",
-                      u"fields": {}}
-            for name, field_info in getattr(klass, attr_name).items():
-                record[u"fields"][name] = list(
-                    fqpn(cls) for cls in field_info.type)
-                for cls in field_info.type:
-                    classes.add(cls)
+            to_model = _precord_model
         elif issubclass(klass, CheckedPMap):
-            record = {
-                u"category": u"map",
-                u"fields": {
-                    u"key": list(
-                        fqpn(cls) for cls in klass._checked_key_types),
-                    u"value": list(
-                        fqpn(cls) for cls in klass._checked_value_types)}}
-            for cls in klass._checked_key_types + klass._checked_value_types:
-                classes.add(cls)
+            to_model = _pmap_model
         elif issubclass(klass, (CheckedPSet, CheckedPVector)):
-            category = u"set" if issubclass(klass, CheckedPSet) else u"list"
-            record = {
-                u"category": category,
-                u"type": list(fqpn(cls) for cls in klass._checked_types),
-            }
-            for cls in klass._checked_types:
-                classes.add(cls)
+            to_model = _psequence_model
+        else:
+            to_model = lambda klass: (None, set())
+        record, further_classes = to_model(klass)
         classes_result[klass_name] = record
+        classes |= further_classes
     return result
 
 
