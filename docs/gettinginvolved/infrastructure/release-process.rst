@@ -91,32 +91,27 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
+
+#. Export the version number of the release being created as an environment variable for later use:
+
+   .. prompt:: bash $
+
+      export VERSION=0.1.2
+
 #. Create an issue in JIRA:
 
-   This should be an "Improvement" in the current sprint, with "Release Flocker <version-being-released>" as the title, and it should be assigned to yourself.
+   This should be an "Improvement" in the current sprint, with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create an environment to do a release in:
 
-   .. prompt:: bash $,(flocker-release)tmp-1234$,(flocker-release)flocker$ auto
+   .. prompt:: bash $
 
-      $ mktmpenv --prompt="(flocker-release)"
-      (flocker-release)tmp-1234$ git clone git@github.com:ClusterHQ/flocker.git
-      (flocker-release)tmp-1234$ cd flocker
-      (flocker-release)flocker$ pip install --editable .[dev]
-
-#. Create a release branch, setting the Flocker version to the version being released:
-
-   .. prompt:: bash (flocker-release)flocker$
-
-      admin/create-release-branch --flocker-version=<version-being-released>
-
-#. Ensure that the LICENSE file is up to date:
-
-   .. prompt:: bash (flocker-release)flocker$
-
-      admin/update-license
-      git commit -am "Updated copyright in LICENSE file"
+      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      $ mkvirtualenv -a "flocker-${VERSION}" "flocker-${VERSION}" -r requirements.txt -r dev-requirements.txt
+      $ admin/create-release-branch --flocker-version=${VERSION}
+      $ admin/update-license
+      $ git commit -am "Updated copyright in LICENSE file"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -224,6 +219,10 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
+.. note::
+
+   The following commands must be run from within the virtualenv and directory created in :ref:`preparing-for-a-release`.
+
 #. Tag the version being released:
 
    .. prompt:: bash (flocker-release)flocker$
@@ -266,11 +265,15 @@ Release
 
       admin/test-redirects --production
 
-#. Remove your temporary release environment:
+#. Optionally remove the release directory and virtual environment:
 
    .. prompt:: bash (flocker-release)flocker$
 
+      export RELEASE_DIRECTORY_BASENAME=${PWD##*/}
+      cd ..
+      rm -rf ${RELEASE_DIRECTORY_BASENAME}
       deactivate
+      rmvirtualenv RELEASE_DIRECTORY_BASENAME
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
