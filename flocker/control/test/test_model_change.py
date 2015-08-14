@@ -422,14 +422,15 @@ class ConfigurationModelChanged(SynchronousTestCase):
     """
     def test_model_changed(self):
         """
-        Most of the time if the configuration model changes this test will
-        fail. If you changed configuration and it didn't fail, see below.
+        If the configuration model changes this test will (usually) fail.
+        If you changed configuration and it didn't fail, see below.
 
-        This does not indicate a bug. Rather, it indicates that you should
-        implement upgrade code for the on-disk configuration. Once you are
-        confident it is possible to upgrade from older versions of Flocker
-        to the new version of the code you have introduced, you can update
-        this test by running:
+        This failing test does not indicate a bug. Rather, it is a
+        reminder that since you have changed the model, you MUST IMPLEMENT
+        UPGRADE CODE for the on-disk configuration. Once you are confident
+        it is possible to upgrade from older versions of Flocker to the
+        new version of the code you have introduced, you can update this
+        test by running:
 
             $ python -m flocker.control.test.test_model_change
 
