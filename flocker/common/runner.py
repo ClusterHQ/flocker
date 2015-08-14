@@ -6,7 +6,6 @@ Tools for running commands.
 """
 import os
 from pipes import quote as shell_quote
-from collections import defaultdict
 
 from characteristic import attributes
 from eliot import MessageType, ActionType, Field
