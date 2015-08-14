@@ -21,16 +21,94 @@ from twisted.internet import reactor as default_reactor
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
 
-from ._model import SERIALIZABLE_CLASSES, Deployment
+from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
 
 
 # Serialization marker storing the class name:
 _CLASS_MARKER = u"$__class__$"
 
+# The latest configuration version. Configuration versions are
+# always integers.
+_CONFIG_VERSION = 2
 
-class _ConfigurationEncoder(JSONEncoder):
+# Map of serializable class names to classes
+_CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
+
+
+class ConfigurationMigrationError(Exception):
+    """
+    Error raised when a configuration migration is unable to take place
+    or complete successfully.
+    """
+
+
+def migrate_configuration(source_version, target_version,
+                          config, migration_class):
+    """
+    Migrate a persisted configuration from one version to another
+    in sequential upgrades, e.g. a source version of 1 and target
+    version of 3 will perform two upgrades, from version 1 to 2,
+    followed by 2 to 3.
+
+    Calls the correct ``ConfigurationMigration`` class methods for
+    the suppled source and target versions.
+
+    :param int source_version: The version to migrate from.
+    :param int target_version: The version to migrate to.
+    :param bytes config: The JSON-encoded source configuration.
+    :param class migration_class: The class containing the methods
+        that will be used for migration.
+
+    :return bytes: The updated JSON configuration after migration.
+    """
+    upgraded_config = config
+    current_version = source_version
+    for upgrade_version in range(source_version + 1, target_version + 1):
+        with _LOG_UPGRADE(configuration=upgraded_config,
+                          source_version=current_version,
+                          target_version=upgrade_version):
+            migration_method = (
+                u"configuration_v%d_v%d"
+                % (current_version, upgrade_version)
+            )
+            try:
+                migration = getattr(migration_class, migration_method)
+            except AttributeError:
+                message = (
+                    u"Unable to find a migration path for a version " +
+                    unicode(source_version) + u" to version " +
+                    unicode(target_version) + u" configuration. " +
+                    u"No migration method exists for v" +
+                    unicode(current_version) + u" to v" +
+                    unicode(upgrade_version) + u"."
+                )
+                raise ConfigurationMigrationError(message)
+            upgraded_config = migration(upgraded_config)
+            current_version = current_version + 1
+    return upgraded_config
+
+
+class ConfigurationMigration(object):
+    """
+    Migrate a JSON configuration from one version to another.
+    """
+    @classmethod
+    def configuration_v1_v2(cls, config):
+        """
+        Migrate a v1 JSON configuration to v2.
+
+        :param bytes config: The v1 JSON data.
+        :return bytes: The v2 JSON data.
+        """
+        v2_config = Configuration(
+            version=2, deployment=wire_decode(config))
+        return wire_encode(v2_config)
+
+
+class _Configuration_Encoder(JSONEncoder):
     """
     JSON encoder that can encode the configuration model.
+    Base encoder for version 1 configurations.
     """
     def default(self, obj):
         if isinstance(obj, PRecord):
@@ -38,7 +116,9 @@ class _ConfigurationEncoder(JSONEncoder):
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
-            return {_CLASS_MARKER: u"PMap", u"values": dict(obj).items()}
+            return {
+                _CLASS_MARKER: u"PMap", u"values": dict(obj).items()
+            }
         elif isinstance(obj, (PSet, PVector, set)):
             return list(obj)
         elif isinstance(obj, FilePath):
@@ -52,24 +132,21 @@ class _ConfigurationEncoder(JSONEncoder):
 
 def wire_encode(obj):
     """
-    Encode the given configuration object into bytes.
+    Encode the given model object into bytes.
 
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     :return bytes: Encoded object.
     """
-    return dumps(obj, cls=_ConfigurationEncoder)
+    return dumps(obj, cls=_Configuration_Encoder)
 
 
 def wire_decode(data):
     """
-    Decode the given configuration object from bytes.
+    Decode the given model object from bytes.
 
     :param bytes data: Encoded object.
-    :param obj: An object from the configuration model, e.g. ``Deployment``.
     """
-    classes = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
-
-    def decode_object(dictionary):
+    def decode(dictionary):
         class_name = dictionary.get(_CLASS_MARKER, None)
         if class_name == u"FilePath":
             return FilePath(dictionary.get(u"path").encode("utf-8"))
@@ -77,13 +154,14 @@ def wire_decode(data):
             return pmap(dictionary[u"values"])
         elif class_name == u"UUID":
             return UUID(dictionary[u"hex"])
-        elif class_name in classes:
+        elif class_name in _CONFIG_CLASS_MAP:
             dictionary = dictionary.copy()
             dictionary.pop(_CLASS_MARKER)
-            return classes[class_name].create(dictionary)
+            return _CONFIG_CLASS_MAP[class_name].create(dictionary)
         else:
             return dictionary
-    return loads(data, object_hook=decode_object)
+
+    return loads(data, object_hook=decode)
 
 
 _DEPLOYMENT_FIELD = Field(u"configuration", repr)
@@ -91,6 +169,10 @@ _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
                            [_DEPLOYMENT_FIELD])
 _LOG_SAVE = ActionType(u"flocker-control:persistence:save",
                        [_DEPLOYMENT_FIELD], [])
+_LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
+                          [_DEPLOYMENT_FIELD,
+                           Field(u"source_version", repr),
+                           Field(u"target_version", repr)], [])
 
 
 class LeaseService(Service):
@@ -163,15 +245,51 @@ class ConfigurationPersistenceService(MultiService):
     def startService(self):
         if not self._path.exists():
             self._path.makedirs()
-        self._config_path = self._path.child(b"current_configuration.v1.json")
-        if self._config_path.exists():
-            self._deployment = wire_decode(
-                self._config_path.getContent())
-        else:
-            self._deployment = Deployment(nodes=frozenset())
-            self._sync_save(self._deployment)
+        self.load_configuration()
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
+
+    def load_configuration(self):
+        """
+        Load the persisted configuration, upgrading the configuration format
+        if an older version is detected.
+        """
+        self._config_path = self._path.child(b"current_configuration.json")
+        v1_config_path = self._path.child(
+            b"current_configuration.v1.json")
+        # Check for a v1 config and upgrade to latest if found.
+        if v1_config_path.exists():
+            if not self._config_path.exists():
+                v1_json = v1_config_path.getContent()
+                with _LOG_UPGRADE(self.logger,
+                                  configuration=v1_json,
+                                  source_version=1,
+                                  target_version=_CONFIG_VERSION):
+                    updated_json = migrate_configuration(
+                        1, _CONFIG_VERSION, v1_json,
+                        ConfigurationMigration)
+                    self._config_path.setContent(updated_json)
+        if self._config_path.exists():
+            config_json = self._config_path.getContent()
+            config_dict = loads(config_json)
+            if 'version' in config_dict:
+                config_version = config_dict['version']
+            else:
+                config_version = 1
+            if config_version < _CONFIG_VERSION:
+                with _LOG_UPGRADE(self.logger,
+                                  configuration=config_json,
+                                  source_version=config_version,
+                                  target_version=_CONFIG_VERSION):
+                    config_json = migrate_configuration(
+                        config_version, _CONFIG_VERSION,
+                        config_json, ConfigurationMigration)
+            config = wire_decode(config_json)
+            self._deployment = config.deployment
+            self._sync_save(config.deployment)
+        else:
+            self._deployment = Deployment.create_empty()
+            self._sync_save(self._deployment)
 
     def register(self, change_callback):
         """
@@ -184,9 +302,10 @@ class ConfigurationPersistenceService(MultiService):
 
     def _sync_save(self, deployment):
         """
-        Save and flush new deployment to disk synchronously.
+        Save and flush new configuration to disk synchronously.
         """
-        self._config_path.setContent(wire_encode(deployment))
+        config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
+        self._config_path.setContent(wire_encode(config))
 
     def save(self, deployment):
         """

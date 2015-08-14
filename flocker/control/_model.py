@@ -628,6 +628,13 @@ class Deployment(PRecord):
 
     get_node = _get_node(Node)
 
+    @classmethod
+    def create_empty(cls):
+        """
+        Return a ``Deployment`` object representing an empty configuration.
+        """
+        return cls(nodes=frozenset())
+
     def applications(self):
         """
         Return all applications in all nodes.
@@ -697,6 +704,15 @@ class Deployment(PRecord):
                         deployment = deployment.update_node(node)
                         deployment = deployment.update_node(target_node)
         return deployment
+
+
+class Configuration(PRecord):
+    """
+    A ``Configuration`` represents the persisted configured state of a
+    cluster.
+    """
+    version = field(mandatory=True, type=int)
+    deployment = field(mandatory=True, type=Deployment)
 
 
 @attributes(["dataset", "hostname"])
@@ -1078,5 +1094,5 @@ class _NonManifestDatasetsWipe(object):
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState, NonManifestDatasets,
+    NodeState, DeploymentState, NonManifestDatasets, Configuration,
 ]
