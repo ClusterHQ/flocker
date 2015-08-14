@@ -166,9 +166,9 @@ def structured(inputSchema, outputSchema, schema_store=None,
     :param schema_store: A mapping between schema paths
         (e.g. ``b/v1/types.json``) and the JSON schema structure, allowing
         input/output schemas to just be references.
-    :param ignore_body: If true, ignore the contents of the body for all
-        HTTP methods, including ``POST``. By default the body is only
-        ignored for ``GET`` and ``HEAD``.
+    :param ignore_body: If true, the body is not passed to the endpoint
+        regardless of HTTP method, in particular including ``POST``. By
+        default the body is only ignored for ``GET`` and ``HEAD``.
     """
     if schema_store is None:
         schema_store = {}

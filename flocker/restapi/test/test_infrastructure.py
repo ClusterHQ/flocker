@@ -458,7 +458,7 @@ class StructuredJSONTests(SynchronousTestCase):
     def test_noBodyPOST(self, logger):
         """
         The I{JSON}-encoded request is body is ignored for methods with
-        {{ignore_body}} set to {{True}}.
+        C{{ignore_body}} set to C{{True}}.
         """
         self.assertNoDecodeLogged(logger, b"POST", b"/foo/ignore_body")
 
