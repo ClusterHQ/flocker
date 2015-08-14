@@ -16,6 +16,8 @@ v1.2
 * Flocker ``.deb`` and ``.rpm`` packages no longer declare any dependency on a Docker package.
   Docker is required for the container management functionality but a Docker package must be selected and installed manually.
   This provides more control over the version of Docker used with Flocker.
+* Flocker's container management functionality now integrates with SELinux.
+  Flocker can now be used in ``SELinux=enforcing`` environments.
 
 v1.1
 ====
