@@ -28,11 +28,18 @@ RUN_ACTION = ActionType(
     description="Run a command.",
 )
 RUN_OUTPUT_MESSAGE = MessageType(
-    message_type="flocker.common.runner:run:output",
+    message_type="flocker.common.runner:run:stdout",
     fields=[
         Field.for_types(u"line", [bytes], u"The output."),
     ],
     description=u"A line of command output.",
+)
+RUN_ERROR_MESSAGE = MessageType(
+    message_type="flocker.common.runner:run:stderr",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The error."),
+    ],
+    description=u"A line of command stderr.",
 )
 
 
@@ -58,7 +65,8 @@ class _LineParser(LineOnlyReceiver, object):
 
 @attributes([
     "deferred",
-    "handle_line",
+    "handle_stdout",
+    "handle_stderr",
 ])
 class CommandProtocol(ProcessProtocol, object):
     """
@@ -67,7 +75,8 @@ class CommandProtocol(ProcessProtocol, object):
     :ivar Deferred deferred: Deferred to fire when the command finishes
         If the command finished successfully, will fire with ``None``.
         Otherwise, errbacks with the reason.
-    :ivar handle_line: Callable to call with parsed lines.
+    :ivar handle_stdout: Callable to call with lines from stdout.
+    :ivar handle_stderr: Callable to call with lines from stderr.
 
     :ivar defaultdict _fds: Mapping from file descriptors to `_LineParsers`.
     """
@@ -85,15 +94,16 @@ class CommandProtocol(ProcessProtocol, object):
             self.deferred.errback(reason)
 
 
-def run(reactor, command, handle_line=None, **kwargs):
+def run(reactor, command, handle_stdout=None, handle_stderr=None, **kwargs):
     """
     Run a process and kill it if the reactor stops.
 
     :param reactor: Reactor to use.
     :param list command: The command to run.
-    :param handle_line: Callable that will be called with lines parsed
-        from the command output. By default logs an Eliot message.
-
+    :param handle_stdout: Callable that will be called with lines parsed
+        from the command stdout. By default logs an Eliot message.
+    :param handle_stderr: Callable that will be called with lines parsed
+        from the command stderr. By default logs an Eliot message.
     :return Deferred: Deferred that fires when the process is ended.
     """
     if 'env' not in kwargs:
@@ -101,14 +111,24 @@ def run(reactor, command, handle_line=None, **kwargs):
 
     action = RUN_ACTION(command=command)
 
-    if handle_line is None:
-        def handle_line(line):
+    if handle_stdout is None:
+        def handle_stdout(line):
             RUN_OUTPUT_MESSAGE(
                 line=line,
             ).write(action=action)
 
+    if handle_stderr is None:
+        def handle_stderr(line):
+            RUN_ERROR_MESSAGE(
+                line=line,
+            ).write(action=action)
+
     protocol_done = Deferred()
-    protocol = CommandProtocol(deferred=protocol_done, handle_line=handle_line)
+    protocol = CommandProtocol(
+        deferred=protocol_done,
+        handle_stdout=handle_stdout,
+        handle_stderr=handle_stderr,
+    )
 
     with action.context():
         protocol_done = DeferredContext(protocol_done)
@@ -145,7 +165,7 @@ SSH_OPTIONS = [
 ]
 
 
-def run_ssh(reactor, username, host, command, handle_line=None, **kwargs):
+def run_ssh(reactor, username, host, command, **kwargs):
     """
     Run a process on a remote server using the locally installed ``ssh``
     command and kill it if the reactor stops.
@@ -154,9 +174,7 @@ def run_ssh(reactor, username, host, command, handle_line=None, **kwargs):
     :param username: The username to use when logging into the remote server.
     :param host: The hostname or IP address of the remote server.
     :param list command: The command to run remotely.
-    :param handle_line: Callable that will be called with lines parsed
-        from the command output. By default logs an Eliot message.
-
+    :param dict kwargs: Remaining keyword arguments to pass to ``run``.
     :return Deferred: Deferred that fires when the process is ended.
     """
     ssh_command = [
@@ -170,7 +188,6 @@ def run_ssh(reactor, username, host, command, handle_line=None, **kwargs):
     return run(
         reactor,
         ssh_command,
-        handle_line=handle_line,
         **kwargs
     )
 

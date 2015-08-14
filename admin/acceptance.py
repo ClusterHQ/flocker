@@ -819,8 +819,10 @@ MESSAGE_FORMATS = {
         "[%(username)s@%(address)s]: Running %(command)s\n",
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
-    "flocker.common.runner:run:output":
-        "%(line)s\n",
+    "flocker.common.runner:run:stdout":
+        "stdout:%(line)s\n",
+    "flocker.common.runner:run:stderr":
+        "stderr:%(line)s\n",
 }
 ACTION_START_FORMATS = {
     "flocker.common.runner:run":
@@ -874,7 +876,7 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-dataset-agent',
             b'-u', b'flocker-container-agent',
         ],
-        handle_line=lambda line: output_file.write(line + b'\n')
+        handle_stdout=lambda line: output_file.write(line + b'\n')
     )
     ran.addErrback(write_failure, logger=None)
 

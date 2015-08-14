@@ -34,7 +34,7 @@ class DiagnosticsTests(TestCase):
                 'root',
                 node_address,
                 ['flocker-diagnostics'],
-                handle_line=remote_archive_path.append
+                handle_stdout=remote_archive_path.append
             ).addCallback(
                 lambda ignored: FilePath(remote_archive_path[0])
             )

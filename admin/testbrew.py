@@ -88,7 +88,7 @@ MESSAGE_FORMATS = {
         "[%(username)s@%(address)s]: %(line)s\n",
     "flocker.common.runner:run":
         "Running %(command)s\n",
-    "flocker.common.runner:run:output":
+    "flocker.common.runner:run:stdout":
         "%(line)s\n",
 }
 
