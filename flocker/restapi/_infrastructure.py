@@ -183,11 +183,6 @@ def structured(inputSchema, outputSchema, schema_store=None,
             if request.method in (b"GET", b"DELETE") or ignore_body:
                 objects = {}
             else:
-                contentType = request.requestHeaders.getRawHeaders(
-                    b"content-type", [None])[0]
-                if contentType != b"application/json":
-                    raise ILLEGAL_CONTENT_TYPE
-
                 body = request.content.read()
                 try:
                     objects = loads(body)
