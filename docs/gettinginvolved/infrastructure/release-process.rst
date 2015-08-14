@@ -104,9 +104,19 @@ Preparing For a Release
       (flocker-release)tmp-1234$ git clone git@github.com:ClusterHQ/flocker.git
       (flocker-release)tmp-1234$ cd flocker
       (flocker-release)flocker$ pip install --editable .[dev]
-      (flocker-release)flocker$ admin/create-release-branch --flocker-version="${VERSION}
-      (flocker-release)flocker$ admin/update-license
-      (flocker-release)flocker$ git commit -am "Updated copyright in LICENSE file"
+
+#. Create a release branch, setting the Flocker version to the version being released:
+
+   .. prompt:: bash (flocker-release)flocker$
+
+      admin/create-release-branch --flocker-version=<version-being-released>
+
+#. Ensure that the LICENSE file is up to date:
+
+   .. prompt:: bash (flocker-release)flocker$
+
+      admin/update-license
+      git commit -am "Updated copyright in LICENSE file"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
