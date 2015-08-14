@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 # Generate a v1 configuration.
-# Commit Hash: 7bd476e2fdc7353018ff1fc446b9b4c76e7c7c17
+# Commit Hash: 9db24de578a3dfa3bfbbbac8e000d30da0a2ae48
 
 from flocker.control._model import Configuration
 from flocker.control._persistence import wire_encode
