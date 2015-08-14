@@ -1,8 +1,9 @@
 Flocker 1.2.0.dev1 (2015-08-14)
 ===============================
 
-- Installing Flocker now requires Docker to be installed beforehand.
-  This allows users to install any version of Docker. (FLOC-2447)
+- Flocker ``.deb`` and ``.rpm`` packages no longer declare any dependency on a Docker package.
+  This allows users to install any version of Docker.
+  Users must now install Docker on agent nodes before installing Flocker. (FLOC-2447)
 
 Flocker 1.1.0 (2015-08-13)
 ==========================
