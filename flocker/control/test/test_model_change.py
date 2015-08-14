@@ -43,7 +43,7 @@ def _precord_model(klass):
     record = {u"category": u"record",
               u"fields": {}}
     for name, field_info in getattr(klass, attr_name).items():
-        record[u"fields"][name] = list(
+        record[u"fields"][name] = sorted(
             fqpn(cls) for cls in field_info.type)
         for cls in field_info.type:
             further_classes.add(cls)
@@ -60,9 +60,9 @@ def _pmap_model(klass):
     record = {
         u"category": u"map",
         u"fields": {
-            u"key": list(
+            u"key": sorted(
                 fqpn(cls) for cls in klass._checked_key_types),
-            u"value": list(
+            u"value": sorted(
                 fqpn(cls) for cls in klass._checked_value_types)}}
     further_classes = set()
     for cls in klass._checked_key_types + klass._checked_value_types:
@@ -81,7 +81,7 @@ def _psequence_model(klass):
     category = u"set" if issubclass(klass, CheckedPSet) else u"list"
     record = {
         u"category": category,
-        u"type": list(fqpn(cls) for cls in klass._checked_types),
+        u"type": sorted(fqpn(cls) for cls in klass._checked_types),
     }
     further_classes = set(klass._checked_types)
     return record, further_classes
