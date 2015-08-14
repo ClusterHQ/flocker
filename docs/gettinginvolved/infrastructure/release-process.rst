@@ -265,15 +265,19 @@ Release
 
       admin/test-redirects --production
 
-#. Optionally remove the release directory and virtual environment:
+#. Remove the release virtual environment:
 
    .. prompt:: bash (flocker-release)flocker$
 
-      export RELEASE_DIRECTORY_BASENAME=${PWD##*/}
-      cd ..
-      rm -rf ${RELEASE_DIRECTORY_BASENAME}
+      export RELEASE_DIRECTORY_PATH=${PWD}
       deactivate
-      rmvirtualenv RELEASE_DIRECTORY_BASENAME
+      rmvirtualenv ${RELEASE_DIRECTORY_PATH##*/}
+
+#. Remove the release Flocker clone:
+
+   .. warning:: rm -r can be dangerous, run this at your own risk.
+
+      rm -r ${RELEASE_DIRECTORY_BASENAME}
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
