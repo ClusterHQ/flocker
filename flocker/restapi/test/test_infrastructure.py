@@ -24,8 +24,7 @@ from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
 from .._error import (
-    ILLEGAL_CONTENT_TYPE_DESCRIPTION, DECODING_ERROR_DESCRIPTION,
-    BadRequest)
+    DECODING_ERROR_DESCRIPTION, BadRequest)
 
 
 from eliot.testing import validateLogging, LoggedAction

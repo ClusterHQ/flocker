@@ -22,7 +22,7 @@ from eliot import Logger, writeFailure
 from eliot.twisted import DeferredContext
 
 from ._error import (
-    ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
+    DECODING_ERROR, BadRequest, InvalidRequestJSON)
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
 
