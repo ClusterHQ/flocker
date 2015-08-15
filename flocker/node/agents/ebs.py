@@ -143,15 +143,10 @@ class TimeoutException(Exception):
                  start_state, transient_state, end_state, current_state):
         Exception.__init__(self, blockdevice_id)
         self.blockdevice_id = blockdevice_id
-        Exception.__init__(self, operation)
         self.operation = operation
-        Exception.__init__(self, start_state)
         self.start_state = start_state
-        Exception.__init__(self, transient_state)
         self.transient_state = transient_state
-        Exception.__init__(self, end_state)
         self.end_state = end_state
-        Exception.__init__(self, current_state)
         self.current_state = current_state
 
 
@@ -170,15 +165,10 @@ class UnexpectedStateException(Exception):
                  start_state, transient_state, end_state, current_state):
         Exception.__init__(self, blockdevice_id)
         self.blockdevice_id = blockdevice_id
-        Exception.__init__(self, operation)
         self.operation = operation
-        Exception.__init__(self, start_state)
         self.start_state = start_state
-        Exception.__init__(self, transient_state)
         self.transient_state = transient_state
-        Exception.__init__(self, end_state)
         self.end_state = end_state
-        Exception.__init__(self, current_state)
         self.current_state = current_state
 
 
@@ -441,30 +431,25 @@ def _should_finish(operation, volume, update, start_time,
         if e.code == u'InvalidVolume.NotFound':
             raise UnknownVolume(volume.id)
 
-    if volume.status == end_state:
-        # If end state for the volume comes with attach data,
-        # declare success only upon discovering attach data.
-        if sets_attach:
-            if (volume.attach_data is not None and
-                    (volume.attach_data.device != '' and
-                     volume.attach_data.instance_id != '')):
-                return True
-            else:
-                return False
-        elif unsets_attach:
-            if (volume.attach_data is None or
-                    (volume.attach_data.device is None and
-                     volume.attach_data.instance_id is None)):
-                return True
-            else:
-                return False
-        else:
-            return True
-    elif volume.status not in [start_state, transient_state, end_state]:
+    if volume.status not in [start_state, transient_state, end_state]:
         raise UnexpectedStateException(unicode(volume.id), operation,
                                        start_state, transient_state, end_state,
                                        volume.status)
-    return False
+    if volume.status != end_state:
+        return False
+
+    # If end state for the volume comes with attach data,
+    # declare success only upon discovering attach data.
+    if sets_attach:
+        return (volume.attach_data is not None and
+                (volume.attach_data.device != '' and
+                 volume.attach_data.instance_id != ''))
+    elif unsets_attach:
+        return (volume.attach_data is None or
+                (volume.attach_data.device is None and
+                 volume.attach_data.instance_id is None))
+    else:
+        return True
 
 
 def _wait_for_volume_state_change(operation,
@@ -493,10 +478,7 @@ def _wait_for_volume_state_change(operation,
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while True:
-        if _should_finish(operation, volume, update, start_time, timeout):
-            return
-
+    while not _should_finish(operation, volume, update, start_time, timeout):
         time.sleep(1.0)
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
                                          status=volume.status,
