@@ -173,9 +173,9 @@ class VolumeStateTransitionTests(TestCase):
         """
         Types of volume states to simulate.
         """
-        ERROR = NamedConstant()
-        IN_TRANSIT = NamedConstant()
-        DESTINATION = NamedConstant()
+        ERROR_STATE = NamedConstant()
+        TRANSIT_STATE = NamedConstant()
+        DESTINATION_STATE = NamedConstant()
 
     class VolumeAttachDataTypes(Names):
         """
@@ -236,7 +236,7 @@ class VolumeStateTransitionTests(TestCase):
         volume_state_table = VolumeStateTable()
         state_flow = volume_state_table.table[operation]
 
-        if state_type == self.S.ERROR:
+        if state_type == self.S.ERROR_STATE:
             valid_states = set([state_flow.start_state,
                                 state_flow.transient_state,
                                 state_flow.end_state])
@@ -244,9 +244,9 @@ class VolumeStateTransitionTests(TestCase):
             err_states = set(VolumeStates._enumerants.values()) - valid_states
             err_state = err_states.pop()
             return err_state.value
-        elif state_type == self.S.IN_TRANSIT:
+        elif state_type == self.S.TRANSIT_STATE:
             return state_flow.transient_state.value
-        elif state_type == self.S.DESTINATION:
+        elif state_type == self.S.DESTINATION_STATE:
             return state_flow.end_state.value
 
     def _pick_attach_data(self, attach_type):
@@ -294,23 +294,32 @@ class VolumeStateTransitionTests(TestCase):
             volume.attach_data = self._pick_attach_data(attach_data)
         return update
 
-    def _assert_fail(self, operation, testcase,
+    def _assert_unexpected_state_exception(self, operation,
+                                           volume_end_state_type,
+                                           attach_type=A.MISSING_ATTACH_DATA):
+        """
+        Assert that configured volume state change for given testcase indicates
+        incomplete operation execution.
+        """
+        volume = self._create_template_ebs_volume(operation)
+        update = self._custom_update(operation, volume_end_state_type,
+                                     attach_type)
+        start_time = time.time()
+        self.assertRaises(UnexpectedStateException, _should_finish,
+                          operation, volume, update, start_time, TIMEOUT)
+
+    def _assert_fail(self, operation, volume_end_state_type,
                      attach_data_type=A.MISSING_ATTACH_DATA):
         """
         Assert that configured volume state change for given testcase indicates
         incomplete operation execution.
         """
         volume = self._create_template_ebs_volume(operation)
-        update = self._custom_update(operation, testcase, attach_data_type)
+        update = self._custom_update(operation, volume_end_state_type,
+                                     attach_data_type)
         start_time = time.time()
-
-        if testcase == self.S.ERROR:
-            self.assertRaises(UnexpectedStateException, _should_finish,
-                              operation, volume, update, start_time, TIMEOUT)
-        else:
-            finish_result = _should_finish(operation, volume, update,
-                                           start_time)
-            self.assertEqual(False, finish_result)
+        finish_result = _should_finish(operation, volume, update, start_time)
+        self.assertEqual(False, finish_result)
 
     def _assert_timeout(self, operation, testcase,
                         attach_data_type=A.MISSING_ATTACH_DATA):
@@ -344,71 +353,75 @@ class VolumeStateTransitionTests(TestCase):
         Assert that error volume state during creation raises
         ``UnexpectedStateException``.
         """
-        self._assert_fail(self.V.CREATE, self.S.ERROR)
+        self._assert_unexpected_state_exception(self.V.CREATE,
+                                                self.S.ERROR_STATE)
 
     def test_destroy_invalid_state(self):
         """
         Assert that error volume state during destroy raises
         ``UnexpectedStateException``.
         """
-        self._assert_fail(self.V.DESTROY, self.S.ERROR)
+        self._assert_unexpected_state_exception(self.V.DESTROY,
+                                                self.S.ERROR_STATE)
 
     def test_attach_invalid_state(self):
         """
         Assert that error volume state during attach raises
         ``UnexpectedStateException``.
         """
-        self._assert_fail(self.V.ATTACH, self.S.ERROR)
+        self._assert_unexpected_state_exception(self.V.ATTACH,
+                                                self.S.ERROR_STATE)
 
     def test_detach_invalid_state(self):
         """
         Assert that error volume state during detach raises
         ``UnexpectedStateException``.
         """
-        self._assert_fail(self.V.DETACH, self.S.ERROR)
+        self._assert_unexpected_state_exception(self.V.DETACH,
+                                                self.S.ERROR_STATE)
 
     def test_stuck_create(self):
         """
         Assert that stuck create state indicates operation in progress.
         """
-        self._assert_fail(self.V.CREATE, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.CREATE, self.S.TRANSIT_STATE)
 
     def test_stuck_destroy(self):
         """
         Assert that stuck destroy state indicates operation in progress.
         """
-        self._assert_fail(self.V.DESTROY, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.DESTROY, self.S.TRANSIT_STATE)
 
     def test_stuck_attach(self):
         """
         Assert that stuck attach state indicates operation in progress.
         """
-        self._assert_fail(self.V.ATTACH, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.ATTACH, self.S.TRANSIT_STATE)
 
     def test_stuck_detach(self):
         """
         Assert that stuck detach state indicates operation in progress.
         """
-        self._assert_fail(self.V.DETACH, self.S.IN_TRANSIT)
+        self._assert_fail(self.V.DETACH, self.S.TRANSIT_STATE)
 
     def test_attach_missing_attach_data(self):
         """
         Assert that missing attach data indicates attach in progress.
         """
-        self._assert_fail(self.V.ATTACH, self.S.DESTINATION)
+        self._assert_fail(self.V.ATTACH, self.S.DESTINATION_STATE)
 
     def test_attach_missing_instance_id(self):
         """
         Assert that missing attach instance id indicates attach in progress.
         """
-        self._assert_fail(self.V.ATTACH, self.S.DESTINATION,
+        self._assert_fail(self.V.ATTACH, self.S.DESTINATION_STATE,
                           self.A.MISSING_INSTANCE_ID)
 
     def test_attach_missing_device(self):
         """
         Assert that missing attached device name indicates attach in progress.
         """
-        self._assert_fail(self.V.ATTACH, self.S.DESTINATION,
+        self._assert_fail(self.V.ATTACH, self.S.DESTINATION_STATE,
                           self.A.MISSING_DEVICE)
 
     def test_timeout(self):
@@ -416,27 +429,27 @@ class VolumeStateTransitionTests(TestCase):
         Assert that ``TimeoutException`` is thrown if volume state transition
         takes longer than configured timeout.
         """
-        self._assert_timeout(self.V.ATTACH, self.S.DESTINATION)
+        self._assert_timeout(self.V.ATTACH, self.S.DESTINATION_STATE)
 
     def test_create_success(self):
         """
         Assert that successful volume creation leads to valid volume end state.
         """
-        volume = self._process_volume(self.V.CREATE, self.S.DESTINATION)
+        volume = self._process_volume(self.V.CREATE, self.S.DESTINATION_STATE)
         self.assertEqual(volume.status, u'available')
 
     def test_destroy_success(self):
         """
         Assert that successful volume destruction leads to valid end state.
         """
-        volume = self._process_volume(self.V.DESTROY, self.S.DESTINATION)
+        volume = self._process_volume(self.V.DESTROY, self.S.DESTINATION_STATE)
         self.assertEquals(volume.status, u'')
 
     def test_attach_sucess(self):
         """
         Test if successful attach volume operation leads to expected state.
         """
-        volume = self._process_volume(self.V.ATTACH, self.S.DESTINATION)
+        volume = self._process_volume(self.V.ATTACH, self.S.DESTINATION_STATE)
         self.assertEqual([volume.status, volume.attach_data.device,
                           volume.attach_data.instance_id],
                          [u'in-use', u'/dev/sdf', u'i-xyz'])
@@ -445,6 +458,6 @@ class VolumeStateTransitionTests(TestCase):
         """
         Test if successful detach volume operation leads to expected state.
         """
-        volume = self._process_volume(self.V.DETACH, self.S.DESTINATION,
+        volume = self._process_volume(self.V.DETACH, self.S.DESTINATION_STATE,
                                       self.A.DETACH_SUCCESS)
         self.assertEqual(volume.status, u'available')
