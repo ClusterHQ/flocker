@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Various utilities to help with unit and functional testing.
@@ -16,18 +16,18 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
 import shutil
-from functools import wraps
+from functools import wraps, partial
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GiB
+from bitmath import GiB, MiB
 
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
-from eliot import ActionType, Message, MessageType, start_action, fields
+from eliot import ActionType, Message, MessageType, start_action, fields, Field
 from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
@@ -37,7 +37,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import prefixedMethodNames
+from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -48,7 +48,7 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
-from twisted.python.log import msg
+from twisted.python.logfile import LogFile
 
 from .. import __version__
 from ..common.script import (
@@ -195,33 +195,67 @@ def assert_not_equal_comparison(case, a, b):
             "Expected a and b to be not-equal: " + "; ".join(messages))
 
 
-def loop_until(predicate):
+def function_serializer(function):
+    """
+    Serialize the given function for logging by eliot.
+
+    :param function: Function to serialize.
+
+    :return: Serialized version of function for inclusion in logs.
+    """
+    try:
+        return {
+            "function": str(function),
+            "file": getfile(function),
+            "line": getsourcelines(function)[1]
+        }
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        return {
+            "function": str(function),
+        }
+
+LOOP_UNTIL_ACTION = ActionType(
+    action_type="flocker:testtools:loop_until",
+    startFields=[Field("predicate", function_serializer)],
+    successFields=[Field("result", serializer=safe_repr)],
+    description="Looping until predicate is true.")
+
+LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
+    message_type="flocker:testtools:loop_until:iteration",
+    fields=[Field("result", serializer=safe_repr)],
+    description="Predicate failed, trying again.")
+
+
+def loop_until(predicate, reactor=reactor):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
 
+    :param reactor: The reactor implementation to use to delay.
+    :type reactor: ``IReactorTime``.
+
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    try:
-        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                       getsourcelines(predicate)[1]))
-    except IOError:
-        # One debugging method involves changing .py files and is incompatible
-        # with inspecting the source.
-        msg("Looping on %s" % (predicate,))
+    action = LOOP_UNTIL_ACTION(predicate=predicate)
 
-    d = maybeDeferred(predicate)
+    d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
 
     def loop(result):
         if not result:
-            d = deferLater(reactor, 0.1, predicate)
-            d.addCallback(loop)
+            LOOP_UNTIL_ITERATION_MESSAGE(
+                result=result
+            ).write()
+            d = deferLater(reactor, 0.1, action.run, predicate)
+            d.addCallback(partial(action.run, loop))
             return d
+        action.addSuccessFields(result=result)
         return result
     d.addCallback(loop)
-    return d
+    return d.addActionFinish()
 
 
 def random_name(case):
@@ -344,10 +378,10 @@ class StandardOptionsTestsMixin(object):
         ``flocker_standard_options`` adds a ``sys_module`` argument to the
         initialiser which is assigned to ``_sys_module``.
         """
-        dummy_sys_module = object()
+        fake_sys_module = FakeSysModule()
         self.assertIs(
-            dummy_sys_module,
-            self.options(sys_module=dummy_sys_module)._sys_module
+            fake_sys_module,
+            self.options(sys_module=fake_sys_module)._sys_module
         )
 
     def test_version(self):
@@ -414,6 +448,41 @@ class StandardOptionsTestsMixin(object):
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+    def test_logfile_default(self):
+        """
+        `--logfile` is optional and if ommited, the default value will be
+        ``stdout``.
+        """
+        sys = FakeSysModule()
+        options = self.options(sys_module=sys)
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions([])
+        self.assertIs(sys.stdout, options['logfile'])
+
+    def test_logfile_override(self):
+        """
+        If `--logfile` is supplied, its value is stored as a
+        ``twisted.python.logfile.LogFile``.
+        """
+        options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        expected_path = FilePath(self.mktemp()).path
+        options.parseOptions(['--logfile={}'.format(expected_path)])
+        logfile = options['logfile']
+        self.assertEqual(
+            (LogFile, expected_path, int(MiB(100).to_Byte().value), 5),
+            (logfile.__class__, logfile.path,
+             logfile.rotateLength, logfile.maxRotatedFiles)
+        )
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
@@ -905,7 +974,7 @@ class _LoggingProcessProtocol(ProcessProtocol):
     Intended to be used by ``logged_run_process``.
     """
 
-    def __init__(self, deferred):
+    def __init__(self, deferred, action):
         """
         Construct a ``_LoggingProcessProtocol``.
 
@@ -915,21 +984,27 @@ class _LoggingProcessProtocol(ProcessProtocol):
             reason for the process ending (see ``IProcessProtocol``), and
             ``output`` are the bytes outputted by the process (both to stdout
             and stderr).
+        :param action: The Eliot ``Action`` under which this process is being
+            run.
         """
         self._deferred = deferred
+        self._action = action
         self._output_buffer = StringIO()
 
     def outReceived(self, data):
-        self._output_buffer.write(data)
-        STDOUT_RECEIVED(output=data).write()
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDOUT_RECEIVED(output=data).write()
 
     def errReceived(self, data):
-        self._output_buffer.write(data)
-        STDERR_RECEIVED(output=data).write()
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDERR_RECEIVED(output=data).write()
 
     def processExited(self, reason):
-        PROCESS_ENDED(status=reason.value.status).write()
-        self._deferred.callback((reason, self._output_buffer.getvalue()))
+        with self._action.context():
+            PROCESS_ENDED(status=reason.value.status).write()
+            self._deferred.callback((reason, self._output_buffer.getvalue()))
 
 
 def logged_run_process(reactor, command):
@@ -947,7 +1022,7 @@ def logged_run_process(reactor, command):
     action = TWISTED_CHILD_PROCESS_ACTION(command=command)
     with action.context():
         d2 = DeferredContext(d)
-        protocol = _LoggingProcessProtocol(d)
+        protocol = _LoggingProcessProtocol(d, action)
         reactor.spawnProcess(protocol, command[0], command)
 
         def process_ended((reason, output)):

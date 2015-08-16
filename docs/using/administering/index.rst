@@ -7,4 +7,3 @@ Administering Flocker
 
    upgrading
    debugging
-   cleanup

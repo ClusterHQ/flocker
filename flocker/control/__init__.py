@@ -20,7 +20,7 @@ from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
     RestartAlways, DeploymentState, NonManifestDatasets, same_node,
-    IClusterStateWipe, pmap_field
+    IClusterStateWipe, Leases, Lease, LeaseError, pmap_field
 )
 from ._protocol import (
     IConvergenceAgent,
@@ -56,4 +56,7 @@ __all__ = [
     'NodeStateCommand',
     'AgentAMP',
     'pmap_field',
+    'Lease',
+    'Leases',
+    'LeaseError',
 ]

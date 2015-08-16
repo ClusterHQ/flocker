@@ -120,7 +120,7 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git
       cd flocker
       mkvirtualenv flocker-release
-      pip install --editable .[release]
+      pip install --editable .[dev]
       admin/create-release-branch --flocker-version="${VERSION}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
@@ -176,18 +176,9 @@ Preparing For a Release
       git config push.default current
       git push
 
-#. Go to the `BuildBot web status`_ and force a build on the just-created branch.
-
-#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
-
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      aws configure
-
 #. Ensure all the required tests pass on BuildBot:
+
+   Pushing the branch in the previous step should have started a build on BuildBot.
 
    Unfortunately it is acceptable or expected for some tests to fail.
    Discuss with the team whether the release can continue given any failed tests.
@@ -202,22 +193,6 @@ Preparing For a Release
    - ``flocker-vagrant-dev-box``
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
-
-#. Update the staging documentation:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      admin/publish-docs --doc-version ${VERSION}
-
-#. Check that the staging documentation is set up correctly:
-
-   The following command outputs error messages if the documentation does not redirect correctly.
-   It outputs a success message if the documentation does redirect correctly.
-   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      admin/test-redirects --doc-version ${VERSION}
 
 #. Make a pull request on GitHub:
 
@@ -281,7 +256,7 @@ Release
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
-#. Go to the `BuildBot web status`_ and force a build on the tag.
+#. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
@@ -290,6 +265,15 @@ Release
 
    Wait for the build to complete successfully.
 
+#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
+
+   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
+   This means that ``awscli`` may have correct defaults.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      aws configure
+
 #. Publish artifacts and documentation:
 
    .. prompt:: bash [vagrant@localhost]$
@@ -297,11 +281,11 @@ Release
       admin/publish-artifacts
       admin/publish-docs --production
 
-#. Check that the staging documentation is set up correctly:
+#. Check that the documentation is set up correctly:
 
    The following command outputs error messages if the documentation does not redirect correctly.
    It outputs a success message if the documentation does redirect correctly.
-   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -329,11 +313,5 @@ If there is no existing issue for the planned improvements then a new one should
 Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
-
-.. _wheel: https://pypi.python.org/pypi/wheel
-.. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenv: https://pypi.python.org/pypi/virtualenv
-.. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home

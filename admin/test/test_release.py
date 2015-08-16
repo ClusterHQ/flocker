@@ -13,8 +13,6 @@ import tempfile
 from textwrap import dedent
 from unittest import skipUnless
 
-from setuptools import __version__ as setuptools_version
-
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import GitCommandError, Repo
 
@@ -35,7 +33,6 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion,
     publish_homebrew_recipe, PushFailed,
     publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
 )
@@ -104,15 +101,15 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': 'index-content',
-                    '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
-                    '0.3.0-444-gf05215b/other.html': 'other-content',
-                    '0.3.0-392-gd50b558/index.html': 'bad-index',
-                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0-392-gd50b558/other.html': 'bad-other',
+                    '0.3.0+444.gf05215b/index.html': 'index-content',
+                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    '0.3.0+444.gf05215b/other.html': 'other-content',
+                    '0.3.0+392.gd50b558/index.html': 'bad-index',
+                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0+392.gd50b558/other.html': 'bad-other',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
@@ -146,10 +143,10 @@ class PublishDocsTests(SynchronousTestCase):
                     '0.3.1/index.html': 'index-content',
                     '0.3.1/sub/index.html': 'sub-index-content',
                     '0.3.1/other.html': 'other-content',
-                    '0.3.0-392-gd50b558/index.html': 'bad-index',
-                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0-392-gd50b558/other.html': 'bad-other',
-                },
+                    '0.3.0+392.gd50b558/index.html': 'bad-index',
+                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
@@ -187,11 +184,11 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1/other.html': 'other-content',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': 'index-content',
-                    '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
+                    '0.3.0+444.gf05215b/index.html': 'index-content',
+                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
@@ -219,7 +216,7 @@ class PublishDocsTests(SynchronousTestCase):
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
@@ -239,20 +236,20 @@ class PublishDocsTests(SynchronousTestCase):
             routing_rules={
                 'clusterhq-staging-docs': {
                     'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1dev4/',
+                    'en/devel/': 'en/0.3.1.dev4/',
                 },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf01215b', '0.3.1dev5',
+        self.publish_docs(aws, '0.3.0+444.gf01215b', '0.3.1.dev5',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
                 'clusterhq-staging-docs': {
                     'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1dev5/',
+                    'en/devel/': 'en/0.3.1.dev5/',
                 },
             })
 
@@ -306,12 +303,12 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/0.3.1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': '',
-                    '0.3.0-444-gf05215b/sub/index.html': '',
-                    '0.3.0-444-gf05215b/sub/other.html': '',
+                    '0.3.0+444.gf05215b/index.html': '',
+                    '0.3.0+444.gf05215b/sub/index.html': '',
+                    '0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -349,10 +346,10 @@ class PublishDocsTests(SynchronousTestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/sub_index.html': '',
+                    '0.3.0+444.gf05215b/sub_index.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -390,7 +387,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -433,7 +430,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -470,16 +467,16 @@ class PublishDocsTests(SynchronousTestCase):
                     'index.html': '',
                     'en/index.html': '',
                     'en/devel/index.html': '',
-                    'en/0.3.1dev1/index.html': '',
-                    'en/0.3.1dev1/sub/index.html': '',
+                    'en/0.3.1.dev1/index.html': '',
+                    'en/0.3.1.dev1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {
-                    '0.3.0-444-gf05215b/index.html': '',
-                    '0.3.0-444-gf05215b/sub/index.html': '',
-                    '0.3.0-444-gf05215b/sub/other.html': '',
+                    '0.3.0+444.gf05215b/index.html': '',
+                    '0.3.0+444.gf05215b/sub/index.html': '',
+                    '0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -491,11 +488,11 @@ class PublishDocsTests(SynchronousTestCase):
                         'en/devel/sub/',
                         'en/devel/sub/index.html',
                         'en/devel/sub/other.html',
-                        'en/0.3.1dev1/',
-                        'en/0.3.1dev1/index.html',
-                        'en/0.3.1dev1/sub/',
-                        'en/0.3.1dev1/sub/index.html',
-                        'en/0.3.1dev1/sub/other.html',
+                        'en/0.3.1.dev1/',
+                        'en/0.3.1.dev1/index.html',
+                        'en/0.3.1.dev1/sub/',
+                        'en/0.3.1.dev1/sub/index.html',
+                        'en/0.3.1.dev1/sub/other.html',
                     }),
             ])
 
@@ -518,12 +515,12 @@ class PublishDocsTests(SynchronousTestCase):
                     'index.html': '',
                     'en/index.html': '',
                     'en/devel/index.html': '',
-                    'en/0.3.1dev1/index.html': '',
-                    'en/0.3.1dev1/sub/index.html': '',
+                    'en/0.3.1.dev1/index.html': '',
+                    'en/0.3.1.dev1/sub/index.html': '',
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -534,10 +531,10 @@ class PublishDocsTests(SynchronousTestCase):
                         'en/devel/index.html',
                         'en/devel/sub/',
                         'en/devel/sub/index.html',
-                        'en/0.3.1dev1/',
-                        'en/0.3.1dev1/index.html',
-                        'en/0.3.1dev1/sub/',
-                        'en/0.3.1dev1/sub/index.html',
+                        'en/0.3.1.dev1/',
+                        'en/0.3.1.dev1/index.html',
+                        'en/0.3.1.dev1/sub/',
+                        'en/0.3.1.dev1/sub/index.html',
                     }),
             ])
 
@@ -566,7 +563,7 @@ class PublishDocsTests(SynchronousTestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
@@ -577,10 +574,10 @@ class PublishDocsTests(SynchronousTestCase):
                         'en/devel/index.html',
                         'en/devel/sub/',
                         'en/devel/sub/index.html',
-                        'en/0.3.1dev1/',
-                        'en/0.3.1dev1/index.html',
-                        'en/0.3.1dev1/sub/',
-                        'en/0.3.1dev1/sub/index.html',
+                        'en/0.3.1.dev1/',
+                        'en/0.3.1.dev1/index.html',
+                        'en/0.3.1.dev1/sub/',
+                        'en/0.3.1.dev1/sub/index.html',
                     }),
             ])
 
@@ -632,7 +629,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.assertRaises(
             NotTagged,
             self.publish_docs,
-            aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+            aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
             environment=Environments.PRODUCTION)
 
     def test_publish_to_doc_version(self):
@@ -652,7 +649,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
 
         self.publish_docs(
-            aws, '0.3.1-444-gf05215b', '0.3.1+doc1',
+            aws, '0.3.1+444.gf05215b', '0.3.1.post1',
             environment=Environments.STAGING)
 
         self.assertEqual(
@@ -679,7 +676,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
         # Does not raise:
         self.publish_docs(
-            aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
+            aws, '0.3.1.post1', '0.3.1', environment=Environments.PRODUCTION)
 
     def test_production_can_publish_prerelease(self):
         """
@@ -697,7 +694,7 @@ class PublishDocsTests(SynchronousTestCase):
             })
         # Does not raise:
         self.publish_docs(
-            aws, '0.3.2pre1', '0.3.2pre1', environment=Environments.PRODUCTION)
+            aws, '0.3.2rc1', '0.3.2rc1', environment=Environments.PRODUCTION)
 
     def test_publish_non_release_fails(self):
         """
@@ -707,7 +704,7 @@ class PublishDocsTests(SynchronousTestCase):
         self.assertRaises(
             NotARelease,
             self.publish_docs,
-            aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
+            aws, '0.3.0+444.gf05215b', '0.3.0+444.gf05215b',
             environment=Environments.STAGING)
 
     def assert_error_key_update(self, doc_version, environment, should_update):
@@ -783,7 +780,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, updates the error_key in that bucket only.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1dev1',
+            doc_version='0.4.1.dev1',
             environment=Environments.STAGING,
             should_update=True
         )
@@ -794,7 +791,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, does not update the error_key in any of the buckets.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1dev1',
+            doc_version='0.4.1.dev1',
             environment=Environments.PRODUCTION,
             should_update=False
         )
@@ -805,7 +802,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, updates the error_key in that bucket only.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1pre1',
+            doc_version='0.4.1rc1',
             environment=Environments.STAGING,
             should_update=True
         )
@@ -816,7 +813,7 @@ class PublishDocsTests(SynchronousTestCase):
         bucket, does not update the error_key in any of the buckets.
         """
         self.assert_error_key_update(
-            doc_version='0.4.1pre1',
+            doc_version='0.4.1rc1',
             environment=Environments.PRODUCTION,
             should_update=False
         )
@@ -928,7 +925,7 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
-            flocker_version='0.3.3dev7',
+            flocker_version='0.3.3.dev7',
             distribution=Distribution(name='centos', version='7'),
         )
 
@@ -999,7 +996,7 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
-            flocker_version='0.3.3dev7',
+            flocker_version='0.3.3.dev7',
             distribution=Distribution(name='ubuntu', version='14.04'),
         )
 
@@ -1047,7 +1044,7 @@ class UpdateRepoTests(SynchronousTestCase):
                 source_repo=create_fake_repository(
                     self, files={}),
                 packages=self.packages,
-                flocker_version='0.3.3dev7',
+                flocker_version='0.3.3.dev7',
                 distribution=Distribution(name="centos", version="7"),
             )
 
@@ -1085,7 +1082,7 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
-            flocker_version='0.3.3dev7',
+            flocker_version='0.3.3.dev7',
             distribution=Distribution(name='centos', version='7'),
         )
 
@@ -1167,7 +1164,7 @@ class UpdateRepoTests(SynchronousTestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
-            flocker_version='0.3.3dev7',
+            flocker_version='0.3.3.dev7',
             distribution=Distribution(name="ubuntu", version="14.04"),
         )
 
@@ -1242,15 +1239,15 @@ class UploadPackagesTests(SynchronousTestCase):
         distributions.
         """
         repo_contents = {
-            'results/omnibus/0.3.3dev1/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev1/centos-7/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev1/centos-7/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
-            'results/omnibus/0.3.3dev1/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev1/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev1/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
-            'results/omnibus/0.3.3dev1/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev1/ubuntu-15.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3dev1/ubuntu-15.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
         }
 
         self.upload_packages(
@@ -1258,7 +1255,7 @@ class UploadPackagesTests(SynchronousTestCase):
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
-            version='0.3.3dev1',
+            version='0.3.3.dev1',
             build_server=create_fake_repository(self, files=repo_contents),
             top_level=FLOCKER_PATH,
         )
@@ -1373,7 +1370,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                 )
             )
 
-    @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
     @skipUnless(hard_linking_possible(),
                 "Hard linking is not possible in the current directory.")
     def test_distributions_uploaded(self):
@@ -1400,16 +1396,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             ['python/Flocker-0.3.0-py2-none-any.whl',
              'python/Flocker-0.3.0.tar.gz'])
 
-    def test_setuptools_version_requirement(self):
-        """
-        When setuptools' version is not 3.6, an error is raised.
-        """
-        self.patch(
-            release, 'setuptools_version', '15.1')
-        self.assertRaises(
-            IncorrectSetuptoolsVersion,
-            self.upload_python_packages)
-
 
 class UploadOptionsTests(SynchronousTestCase):
     """
@@ -1425,7 +1411,7 @@ class UploadOptionsTests(SynchronousTestCase):
         self.assertRaises(
             NotARelease,
             options.parseOptions,
-            ['--flocker-version', '0.3.0-444-gf05215b'])
+            ['--flocker-version', '0.3.0+444.gf05215b'])
 
     def test_documentation_release_fails(self):
         """
@@ -1435,7 +1421,7 @@ class UploadOptionsTests(SynchronousTestCase):
         self.assertRaises(
             DocumentationRelease,
             options.parseOptions,
-            ['--flocker-version', '0.3.0+doc1'])
+            ['--flocker-version', '0.3.0.post1'])
 
 
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
@@ -1494,7 +1480,7 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         Creating a release branch changes the active branch on the given
         branch's repository.
         """
-        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch = self.repo.create_head('release/flocker-0.3.0rc1')
 
         create_release_branch(version='0.3.0', base_branch=branch)
         self.assertEqual(
@@ -1506,7 +1492,7 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         The new branch is created from the given branch.
         """
         master = self.repo.active_branch
-        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch = self.repo.create_head('release/flocker-0.3.0rc1')
         branch.checkout()
         FilePath(self.repo.working_dir).child('NEW_FILE').touch()
         self.repo.index.add(['NEW_FILE'])
@@ -1658,14 +1644,14 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.assertRaises(
             NotARelease,
-            self.calculate_base_branch, '0.3.0-444-gf05215b')
+            self.calculate_base_branch, '0.3.0+444.gf05215b')
 
     def test_weekly_release_base(self):
         """
         A weekly release is created from the "master" branch.
         """
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0dev1').name,
+            self.calculate_base_branch(version='0.3.0.dev1').name,
             "master")
 
     def test_doc_release_base(self):
@@ -1675,7 +1661,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.repo.create_head('release/flocker-0.3.0')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0+doc1').name,
+            self.calculate_base_branch(version='0.3.0.post1').name,
             "release/flocker-0.3.0")
 
     def test_first_pre_release(self):
@@ -1684,7 +1670,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         "master" branch.
         """
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0pre1').name,
+            self.calculate_base_branch(version='0.3.0rc1').name,
             "master")
 
     def test_uses_previous_pre_release(self):
@@ -1692,13 +1678,13 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         The second pre-release for a marketing release is created from the
         previous pre-release release branch.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
-        self.repo.create_head('release/flocker-0.3.0pre2')
-        self.repo.create_tag('0.3.0pre2')
+        self.repo.create_head('release/flocker-0.3.0rc1')
+        self.repo.create_tag('0.3.0rc1')
+        self.repo.create_head('release/flocker-0.3.0rc2')
+        self.repo.create_tag('0.3.0rc2')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0pre3').name,
-            "release/flocker-0.3.0pre2")
+            self.calculate_base_branch(version='0.3.0rc3').name,
+            "release/flocker-0.3.0rc2")
 
     def test_unparseable_tags(self):
         """
@@ -1707,11 +1693,11 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.repo.create_head('release/flocker-0.3.0unparseable')
         self.repo.create_tag('0.3.0unparseable')
-        self.repo.create_head('release/flocker-0.3.0pre2')
-        self.repo.create_tag('0.3.0pre2')
+        self.repo.create_head('release/flocker-0.3.0rc2')
+        self.repo.create_tag('0.3.0rc2')
         self.assertEqual(
-            self.calculate_base_branch(version='0.3.0pre3').name,
-            "release/flocker-0.3.0pre2")
+            self.calculate_base_branch(version='0.3.0rc3').name,
+            "release/flocker-0.3.0rc2")
 
     def test_parent_repository_used(self):
         """
@@ -1720,7 +1706,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         """
         self.assertEqual(
             calculate_base_branch(
-                version='0.3.0dev1',
+                version='0.3.0.dev1',
                 path=FilePath(self.repo.working_dir).child('README').path,
             ).name,
             "master")
@@ -1739,17 +1725,17 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         Trying to release a pre-release when the previous pre-release does not
         exist fails.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0rc1')
+        self.repo.create_tag('0.3.0rc1')
         self.assertRaises(
             MissingPreRelease,
-            self.calculate_base_branch, '0.3.0pre3')
+            self.calculate_base_branch, '0.3.0rc3')
 
     def test_base_branch_does_not_exist_fails(self):
         """
         Trying to create a release when the base branch does not exist fails.
         """
-        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_tag('0.3.0rc1')
 
         self.assertRaises(
             GitCommandError,
@@ -1770,16 +1756,16 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         If the test branch does not exist locally, but does exist as a remote
         branch a base branch can still be calculated.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0rc1')
+        self.repo.create_tag('0.3.0rc1')
         directory = FilePath(self.mktemp())
         clone = self.repo.clone(path=directory.path)
 
         self.assertEqual(
             calculate_base_branch(
-                    version='0.3.0pre2',
+                    version='0.3.0rc2',
                     path=clone.working_dir).name,
-            "release/flocker-0.3.0pre1")
+            "release/flocker-0.3.0rc1")
 
 
 class PublishVagrantMetadataTests(SynchronousTestCase):
@@ -1991,9 +1977,11 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         # Making a recipe involves interacting with PyPI, this should be
         # a parameter, not a patch. See:
         # https://clusterhq.atlassian.net/browse/FLOC-1759
-        self.patch(release, 'make_recipe',
-            lambda version, sdist_url:
-                "Recipe for " + version + " at " + sdist_url)
+        self.patch(
+            release, 'make_recipe',
+            lambda version, sdist_url, requirements_path:
+            "Recipe for " + version + " at " + sdist_url
+        )
 
     def test_commit_message(self):
         """
@@ -2004,6 +1992,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         self.assertEqual(
@@ -2019,6 +2008,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="bucket-name",
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
@@ -2033,7 +2023,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         self.assertRaises(
             PushFailed,
             publish_homebrew_recipe,
-            non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
+            non_bare_repo.git_dir,
+            '0.3.0',
+            "archive",
+            FilePath(self.mktemp()),
+            top_level=FLOCKER_PATH,
+        )
 
     def test_recipe_already_exists(self):
         """
@@ -2044,20 +2039,23 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         self.patch(release, 'make_recipe',
-            lambda version, sdist_url: "New content")
+                   lambda version, sdist_url, requirements_path: "New content")
 
         publish_homebrew_recipe(
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
             source_bucket="archive",
+            top_level=FLOCKER_PATH,
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
+
 
 class GetExpectedRedirectsTests(SynchronousTestCase):
     """
@@ -2085,10 +2083,10 @@ class GetExpectedRedirectsTests(SynchronousTestCase):
         redirects are returned.
         """
         self.assertEqual(
-            get_expected_redirects(flocker_version='0.3.0dev1'),
+            get_expected_redirects(flocker_version='0.3.0.dev1'),
             {
-                '/en/devel': '/en/0.3.0dev1/',
-                '/en/devel/faq/index.html': '/en/0.3.0dev1/faq/index.html',
+                '/en/devel': '/en/0.3.0.dev1/',
+                '/en/devel/faq/index.html': '/en/0.3.0.dev1/faq/index.html',
             }
         )
 
@@ -2098,7 +2096,7 @@ class GetExpectedRedirectsTests(SynchronousTestCase):
         redirects are returned for the versions which is being updated.
         """
         self.assertEqual(
-            get_expected_redirects(flocker_version='0.3.0+doc1'),
+            get_expected_redirects(flocker_version='0.3.0.post1'),
             {
                 '/': '/en/0.3.0/',
                 '/en/': '/en/0.3.0/',

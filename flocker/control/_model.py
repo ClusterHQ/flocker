@@ -17,14 +17,14 @@ There are different categories of classes:
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
-    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type, CheckedPVector,
+    pmap, PClass, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
+    optional as optional_type, CheckedPVector
     )
 
 from zope.interface import Interface, implementer
@@ -504,6 +504,117 @@ def _get_node(default_factory):
     return get_node
 
 
+LEASE_ACTION_ACQUIRE = u"acquire"
+LEASE_ACTION_RELEASE = u"release"
+
+
+class LeaseError(Exception):
+    """
+    Exception raised when a ``Lease`` cannot be acquired.
+    """
+    def __init__(self, dataset_id, node_id, action):
+        """
+        :param UUID dataset_id: The dataset UUID.
+        :param UUID node_id: The node UUID.
+        :param unicode action: The action that failed.
+        """
+        message = (u"Cannot " + action + " lease " + unicode(dataset_id)
+                   + u" for node " + unicode(node_id)
+                   + u": Lease already held by another node")
+        return super(LeaseError, self).__init__(message)
+
+
+class Lease(PClass):
+    """
+    A lease mapping a dataset to a node, with optional expiry.
+
+    :ivar UUID dataset_id: The dataset this lease represents.
+    :ivar UUID node_id: The node holding this lease.
+    :ivar datetime expiration: The ``datetime`` at which this lease expires.
+    """
+    dataset_id = field(type=UUID)
+    node_id = field(type=UUID)
+    expiration = field(
+        type=(datetime, type(None)), mandatory=True, initial=None
+    )
+
+
+class Leases(CheckedPMap):
+    """
+    A representation of all leases in a cluster, mapped by dataset id.
+    """
+    __key_type__ = UUID
+    __value_type__ = Lease
+
+    def __invariant__(dataset_id, lease):
+        """
+        The UUID of the dataset (key) must match the dataset UUID of
+        the Lease instance (value).
+        """
+        if dataset_id != lease.dataset_id:
+            return (False, "dataset_id {} does not match lease {}".format(
+                dataset_id, lease.dataset_id
+            ))
+        return (True, "")
+
+    def _check_lease(self, dataset_id, node_id, action):
+        """
+        Check if a lease for a given dataset is already held by a
+        node other than the one given and raise an error if it is.
+
+        :param UUID dataset_id: The dataset to check.
+        :param UUID node_uuid: The node that should hold a lease
+            on the given dataset.
+        :param unicode action: The action we are attempting.
+        """
+        if dataset_id in self and self[dataset_id].node_id != node_id:
+            raise LeaseError(dataset_id, node_id, action)
+
+    def acquire(self, now, dataset_id, node_id, expires=None):
+        """
+        Acquire and renew a lease.
+
+        :param datetime now: The current date/time.
+        :param UUID dataset_id: The dataset on which to acquire a lease.
+        :param UUID node_uuid: The node which will hold this lease.
+        :param int expires: The number of seconds from ``now`` until the
+            lease expires.
+        :return: The updated ``Leases`` representation.
+        """
+        self._check_lease(dataset_id, node_id, LEASE_ACTION_ACQUIRE)
+        if expires is None:
+            expiration = None
+        else:
+            expiration = now + timedelta(seconds=expires)
+        lease = Lease(dataset_id=dataset_id, node_id=node_id,
+                      expiration=expiration)
+        return self.set(dataset_id, lease)
+
+    def release(self, dataset_id, node_id):
+        """
+        Release the lease, if given node is the owner.
+
+        :param UUID dataset_id: The dataset on which to release a lease.
+        :param UUID node_id: The node which currently holds the lease.
+        :return: The updated ``Leases`` representation.
+        """
+        self._check_lease(dataset_id, node_id, LEASE_ACTION_RELEASE)
+        return self.remove(dataset_id)
+
+    def expire(self, now):
+        """
+        Remove all expired leases.
+
+        :param datetime now: The current date/time.
+        :return: The updated ``Leases`` representation.
+        """
+        updated = self
+        for lease in self.values():
+            if lease.expiration is not None and lease.expiration < now:
+                updated = updated.release(lease.dataset_id, lease.node_id)
+        return updated
+
+
 class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
@@ -511,6 +622,7 @@ class Deployment(PRecord):
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
+    :ivar Leases leases: A map of ``Lease`` instances by dataset id.
     """
     nodes = pset_field(Node)
 
