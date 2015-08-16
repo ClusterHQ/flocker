@@ -326,7 +326,7 @@ class VolumeStateTransitionTests(TestCase):
         self.assertRaises(TimeoutException, _should_finish,
                           operation, volume, update, start_time, TIMEOUT)
 
-    def _assert_success(self, operation, testcase,
+    def _process_volume(self, operation, testcase,
                         attach_data_type=A.ATTACH_SUCCESS):
         """
         Helper function to validate that performing given operation for given
@@ -337,17 +337,7 @@ class VolumeStateTransitionTests(TestCase):
                                       self._custom_update(operation, testcase,
                                                           attach_data_type),
                                       TIMEOUT)
-
-        if operation == self.V.CREATE:
-            self.assertEqual(volume.status, u'available')
-        elif operation == self.V.DESTROY:
-            self.assertEquals(volume.status, u'')
-        elif operation == self.V.ATTACH:
-            self.assertEqual([volume.status, volume.attach_data.device,
-                              volume.attach_data.instance_id],
-                             [u'in-use', u'/dev/sdf', u'i-xyz'])
-        elif operation == self.V.DETACH:
-            self.assertEqual(volume.status, u'available')
+        return volume
 
     def test_create_invalid_state(self):
         """
@@ -432,23 +422,29 @@ class VolumeStateTransitionTests(TestCase):
         """
         Assert that successful volume creation leads to valid volume end state.
         """
-        self._assert_success(self.V.CREATE, self.S.DESTINATION)
+        volume = self._process_volume(self.V.CREATE, self.S.DESTINATION)
+        self.assertEqual(volume.status, u'available')
 
     def test_destroy_success(self):
         """
         Assert that successful volume destruction leads to valid end state.
         """
-        self._assert_success(self.V.DESTROY, self.S.DESTINATION)
+        volume = self._process_volume(self.V.DESTROY, self.S.DESTINATION)
+        self.assertEquals(volume.status, u'')
 
     def test_attach_sucess(self):
         """
         Test if successful attach volume operation leads to expected state.
         """
-        self._assert_success(self.V.ATTACH, self.S.DESTINATION)
+        volume = self._process_volume(self.V.ATTACH, self.S.DESTINATION)
+        self.assertEqual([volume.status, volume.attach_data.device,
+                          volume.attach_data.instance_id],
+                         [u'in-use', u'/dev/sdf', u'i-xyz'])
 
     def test_detach_success(self):
         """
         Test if successful detach volume operation leads to expected state.
         """
-        self._assert_success(self.V.DETACH, self.S.DESTINATION,
-                             self.A.DETACH_SUCCESS)
+        volume = self._process_volume(self.V.DETACH, self.S.DESTINATION,
+                                      self.A.DETACH_SUCCESS)
+        self.assertEqual(volume.status, u'available')
