@@ -37,6 +37,8 @@ It is possible to see the available unit names, and then view the logs with ``jo
    [root@node1]# journalctl -u flocker-container-agent
    [root@node1]# journalctl -u flocker-control
 
+.. _flocker-bug-reporting:
+
 Bug Reporting
 -------------
 
