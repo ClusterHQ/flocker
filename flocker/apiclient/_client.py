@@ -28,12 +28,10 @@ class Dataset(PClass):
     :attr int maximum_size: Size of new dataset, in bytes.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr metadata: A mapping between unicode keys and values.
-    :attr bool deleted: If true indicates this dataset should be deleted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     primary = field(type=UUID, mandatory=True)
     maximum_size = field(type=int, mandatory=True)
-    deleted = field(type=bool, mandatory=True, initial=False)
     metadata = pmap_field(unicode, unicode)
 
 
@@ -90,6 +88,16 @@ class IFlockerAPIV1Client(Interface):
             updated with the resulting ``Dataset``.
         """
 
+    def delete_dataset(dataset_id):
+        """
+        Delete a dataset.
+
+        :param dataset_id: The UUID of the dataset to be deleted.
+
+        :return: ``Deferred`` that fires after the configuration has been
+            updated with the ``Dataset`` that has just been deleted.
+        """
+
     def list_datasets_configuration():
         """
         Return the configured datasets.
@@ -127,6 +135,12 @@ class FakeFlockerClient(object):
         self._configured_datasets = self._configured_datasets.set(
             dataset_id, result)
         return succeed(result)
+
+    def delete_dataset(self, dataset_id):
+        dataset = self._configured_datasets[dataset_id]
+        self._configured_datasets = self._configured_datasets.remove(
+            dataset_id)
+        return succeed(dataset)
 
     def move_dataset(self, primary, dataset_id):
         self._configured_datasets = self._configured_datasets.transform(
@@ -237,6 +251,13 @@ class FlockerClient(object):
                        dataset_id=UUID(dataset_dict[u"dataset_id"]),
                        metadata=dataset_dict[u"metadata"])
 
+    def delete_dataset(self, dataset_id):
+        request = self._request(
+            b"DELETE", b"/configuration/datasets/%s" % (dataset_id,),
+            None, OK)
+        request.addCallback(self._parse_configuration_dataset)
+        return request
+
     def create_dataset(self, primary, maximum_size, dataset_id=None,
                        metadata=pmap()):
         dataset = {u"primary": unicode(primary),
@@ -262,7 +283,11 @@ class FlockerClient(object):
         request = self._request(b"GET", b"/configuration/datasets", None, OK)
         request.addCallback(
             lambda results:
-            [self._parse_configuration_dataset(d) for d in results])
+            [
+                self._parse_configuration_dataset(d)
+                for d in results if not d['deleted']
+            ]
+        )
         return request
 
     def list_datasets_state(self):
