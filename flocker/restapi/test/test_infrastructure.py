@@ -23,9 +23,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
-from .._error import (
-    ILLEGAL_CONTENT_TYPE_DESCRIPTION, DECODING_ERROR_DESCRIPTION,
-    BadRequest)
+from .._error import DECODING_ERROR_DESCRIPTION, BadRequest
 
 
 from eliot.testing import validateLogging, LoggedAction
@@ -98,6 +96,12 @@ class ResultHandlingApplication(object):
     @app.route(b"/foo/bar")
     @structured({}, {})
     def foo(self, **kwargs):
+        self.kwargs = kwargs
+        return self._constructSuccess(self.result)
+
+    @app.route(b"/foo/ignore_body")
+    @structured({}, {}, ignore_body=True)
+    def ignore_body(self, **kwargs):
         self.kwargs = kwargs
         return self._constructSuccess(self.result)
 
@@ -412,18 +416,43 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
         self.assertEqual(objects, app.kwargs)
 
-    def assertNoDecodeLogged(self, logger, method):
+    @validateLogging(
+        assertJSONLogged, b"POST", b"/foo/bar",
+        {"foo": "bar", "baz": ["quux"]}, None, OK
+    )
+    def test_decodeNoContentType(self, logger):
+        """
+        The I{JSON}-encoded request body is decoded into Python objects and
+        passed as keyword arguments to the decorated function even if the
+        content type is not I{{application/json}}.
+        """
+        objects = {"foo": "bar", "baz": ["quux"]}
+        request = dummyRequest(
+            b"POST", b"/foo/bar", Headers({}), dumps(objects))
+
+        app = self.Application(logger, None)
+        render(app.app.resource(), request)
+        self.assertEqual(objects, app.kwargs)
+
+    def assertNoDecodeLogged(self, logger, method, path=b"/foo/bar",
+                             content_type=b"application/json"):
         """
         The I{JSON}-encoded request body is ignored when the given method is
         used.
 
         @param method: A HTTP method.
         @type method: L{bytes}
+
+        @param path: Path to request.
+        @type path: L{bytes}
+
+        @param content_type: Content type to send, by default
+            I{application/json}.
         """
         objects = {"foo": "bar", "baz": ["quux"]}
         request = dummyRequest(
-            method, b"/foo/bar",
-            Headers({b"content-type": [b"application/json"]}), dumps(objects))
+            method, path,
+            Headers({b"content-type": [content_type]}), dumps(objects))
 
         app = self.Application(logger, None)
         render(app.app.resource(), request)
@@ -444,6 +473,23 @@ class StructuredJSONTests(SynchronousTestCase):
         is used.
         """
         self.assertNoDecodeLogged(logger, b"DELETE")
+
+    @validateLogging(_assertRequestLogged(b"/foo/ignore_body", b"POST"))
+    def test_noBodyPOST(self, logger):
+        """
+        The I{JSON}-encoded request body is ignored for methods with
+        C{{ignore_body}} set to C{{True}}.
+        """
+        self.assertNoDecodeLogged(logger, b"POST", b"/foo/ignore_body")
+
+    @validateLogging(_assertRequestLogged(b"/foo/ignore_body", b"POST"))
+    def test_noBodyPOSTnotJSON(self, logger):
+        """
+        A non-I{JSON} request body is ignored for methods with
+        C{{ignore_body}} set to C{{True}}.
+        """
+        self.assertNoDecodeLogged(logger, b"POST", b"/foo/ignore_body",
+                                  b"x-application/garbage")
 
     @validateLogging(_assertRequestLogged(b"/foo/bar", b"PUT"))
     def test_malformedRequest(self, logger):
@@ -503,26 +549,6 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
 
         self.assertEqual(request._code, INTERNAL_SERVER_ERROR)
-
-    @validateLogging(_assertRequestLogged(b"/foo/bar", b"PUT"))
-    def test_wrongContentTypeRequest(self, logger):
-        """
-        If the request does not use the I{GET} method and does not include a
-        I{Content-Type: application/json} header then it automatically receives
-        a I{BAD REQUEST} response.
-        """
-        app = self.Application(logger, None)
-        request = dummyRequest(b"PUT", b"/foo/bar", Headers(), dumps({}))
-        render(app.app.resource(), request)
-
-        # The endpoint should not have been called.
-        self.assertIs(None, app.kwargs)
-
-        expected = CloseEnoughJSONResponse(
-            BAD_REQUEST,
-            Headers({b"content-type": [b"application/json"]}),
-            {u"description": ILLEGAL_CONTENT_TYPE_DESCRIPTION})
-        return expected.verify(asResponse(request))
 
     @validateLogging(_assertRequestLogged(b"/baz/quux", b"POST"))
     def test_onlyArgumentsFromRoute(self, logger):

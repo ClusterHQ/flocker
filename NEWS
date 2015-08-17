@@ -1,5 +1,5 @@
-Flocker 1.1.0.dev2 (2015-07-29)
-===============================
+Flocker 1.1.0 (2015-08-13)
+==========================
 
 - The flocker-deploy command supports specification of the pathnames of certificate and key files. (FLOC-2398)
 - Allow specification of a CA certificate for OpenStack HTTPS verification. (FLOC-2504)
