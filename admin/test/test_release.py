@@ -2057,6 +2057,11 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
 
+    def test_push_hooks_ignored(self):
+        """
+        Pre-push hooks are ignored, in case they would cause the push to hang.
+        """
+        pass
 
 class GetExpectedRedirectsTests(SynchronousTestCase):
     """
