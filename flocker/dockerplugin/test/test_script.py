@@ -32,3 +32,12 @@ class DockerPluginScriptTests(SynchronousTestCase):
         path.makedirs()
         DockerPluginScript()._create_listening_directory(path)
         self.assertTrue(path.exists())
+
+    def test_permissions(self):
+        """
+        The directory is created with restrictive permissions.
+        """
+        path = FilePath(self.mktemp())
+        DockerPluginScript()._create_listening_directory(path)
+        path.restat()
+        self.assertEqual(path.getPermissions().shorthand(), "rwx------")

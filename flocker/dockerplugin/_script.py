@@ -4,6 +4,9 @@
 Command to start up the Docker plugin.
 """
 
+from os import umask
+from stat import S_IRUSR, S_IWUSR, S_IXUSR
+
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
 from twisted.application.internet import StreamServerEndpointService
@@ -47,8 +50,13 @@ class DockerPluginScript(object):
 
         :param FilePath directory_path: The directory to create.
         """
-        if not directory_path.exists():
-            directory_path.makedirs()
+        original_umask = umask(0)
+        try:
+            if not directory_path.exists():
+                directory_path.makedirs()
+            directory_path.chmod(S_IRUSR | S_IWUSR | S_IXUSR)
+        finally:
+            umask(original_umask)
 
     def main(self, reactor, options):
         # Many places in both twisted.web and Klein are unhappy with
