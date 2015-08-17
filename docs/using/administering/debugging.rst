@@ -65,7 +65,7 @@ The ``flocker-diagnostics`` command can be used to gather this information on Ub
 ``flocker-diagnostics`` will create a ``tar`` archive in the current directory.
 It will print the full path of the archive before it exits.
 
-Exporting logs manually
+Exporting Logs Manually
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Alternatively, the information can be gathered manually using the following commands:
