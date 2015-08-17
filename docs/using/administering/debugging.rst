@@ -70,7 +70,7 @@ Exporting logs manually
 
 Alternatively, the information can be gathered manually using the following commands:
 
-* Flocker version
+* Flocker version:
 
   .. prompt:: bash #
 
@@ -82,26 +82,26 @@ Alternatively, the information can be gathered manually using the following comm
 
      cat /etc/os-release
 
-* Linux kernel version
+* Linux kernel version:
 
   .. prompt:: bash #
 
      uname -a
 
-* Docker version and configuration
+* Docker version and configuration:
 
   .. prompt:: bash #
 
      docker version
      docker info
 
-* IP Addresses
+* IP Addresses:
 
   .. prompt:: bash #
 
      ip addr
 
-* Hostname
+* Hostname:
 
   .. prompt:: bash #
 
