@@ -144,6 +144,39 @@ def make_clientv1_tests():
             d.addCallback(got_result)
             return d
 
+        def test_delete(self):
+            """
+            ``delete_dataset`` removes a dataset.
+            """
+            dataset_id = uuid4()
+
+            d = self.assert_creates(self.client, primary=self.node_1,
+                                    maximum_size=DATASET_SIZE,
+                                    dataset_id=dataset_id)
+            d.addCallback(
+                lambda _: self.client.delete_dataset(dataset_id))
+
+            def got_result(dataset):
+                expected_removed = Dataset(
+                    dataset_id=dataset_id, primary=self.node_1,
+                    maximum_size=DATASET_SIZE
+                )
+                self.assertEqual(expected_removed, dataset)
+                listed = self.client.list_datasets_configuration()
+                return listed
+
+            d.addCallback(got_result)
+
+            def not_listed(listed_datasets):
+                expected_removed = Dataset(
+                    dataset_id=dataset_id, primary=self.node_1,
+                    maximum_size=DATASET_SIZE
+                )
+                self.assertNotIn(expected_removed, listed_datasets)
+
+            d.addCallback(not_listed)
+            return d
+
         def test_move(self):
             """
             ``move_dataset`` changes the dataset's primary.
