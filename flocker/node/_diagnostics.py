@@ -136,7 +136,7 @@ class FlockerDebugArchive(object):
 
             # Partition information
             check_call(
-                ['fdisk', '--list'],
+                ['fdisk', '-l'],
                 stdout=self._open_logfile('fdisk')
             )
 

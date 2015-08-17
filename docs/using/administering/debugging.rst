@@ -112,7 +112,7 @@ Alternatively, the information can be gathered manually using the following comm
 
   .. prompt:: bash #
 
-     fdisk --list
+     fdisk -l
      lsblk --all
 
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
