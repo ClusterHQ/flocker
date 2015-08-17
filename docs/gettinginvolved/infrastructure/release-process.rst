@@ -108,7 +108,9 @@ Preparing For a Release
    .. prompt:: bash $,(flocker-0.1.2)$ auto
 
       $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      $ mkvirtualenv -a "flocker-${VERSION}" "flocker-${VERSION}"
+      $ mkvirtualenv "flocker-${VERSION}"
+      $ cd "flocker-${VERSION}"
+      $ workon "flocker-${VERSION}"
       (flocker-0.1.2)$ pip install -e .[dev]
       (flocker-0.1.2)$ admin/create-release-branch --flocker-version=${VERSION}
       (flocker-0.1.2)$ admin/update-license
