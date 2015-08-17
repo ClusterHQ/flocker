@@ -134,6 +134,18 @@ class FlockerDebugArchive(object):
             # Hostname
             self._open_logfile('hostname').write(gethostname() + '\n')
 
+            # Partition information
+            check_call(
+                ['fdisk', '--list'],
+                stdout=self._open_logfile('fdisk')
+            )
+
+            # Block Device and filesystem information
+            check_call(
+                ['lsblk', '--all'],
+                stdout=self._open_logfile('lsblk')
+            )
+
             # Create a single archive file
             archive_path = make_archive(
                 base_name=self._archive_name,

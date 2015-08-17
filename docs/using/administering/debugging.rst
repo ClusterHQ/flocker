@@ -48,6 +48,7 @@ When reporting issues with Flocker please include:
 * The version of Docker you are using, and Docker configuration details.
 * Your node IP addresses.
 * Your node hostname.
+* Disk and partition configuration details.
 * All recent syslog content.
 * Any separate Flocker service log files.
 
@@ -106,6 +107,13 @@ Alternatively, the information can be gathered manually using the following comm
   .. prompt:: bash #
 
      hostname
+
+* Disk and partition configuration details:
+
+  .. prompt:: bash #
+
+     fdisk --list
+     lsblk --all
 
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 

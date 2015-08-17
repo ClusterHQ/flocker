@@ -77,6 +77,8 @@ class DiagnosticsTests(TestCase):
                 'service-status',
                 'ip-addr',
                 'hostname',
+                'lsblk',
+                'fdisk',
             ])
             self.assertEqual(expected_basenames, actual_basenames)
 
