@@ -230,6 +230,20 @@ class GenerateModelTests(SynchronousTestCase):
 
         self.assert_catches_changes(Original, Different)
 
+    def test_precord_field_types_reordered(self):
+        """
+        The order of types in a ``PRecord`` doesn't change the output.
+        """
+        class Different(PRecord):
+            x = field(type=(int, str))
+        Original = Different
+
+        class Different(PRecord):
+            x = field(type=(str, int))
+
+        self.assertEqual(generate_model(Original),
+                         generate_model(Different))
+
     def test_pclass_new_field(self):
         """
         If a new field is added to a ``PClass`` the output changes.
@@ -285,6 +299,20 @@ class GenerateModelTests(SynchronousTestCase):
             x = field(type=ChangedSubtype)
 
         self.assert_catches_changes(Original, Different)
+
+    def test_pclass_field_types_reordered(self):
+        """
+        The order of types in a ``PClass`` doesn't change the output.
+        """
+        class Different(PClass):
+            x = field(type=(int, str))
+        Original = Different
+
+        class Different(PClass):
+            x = field(type=(str, int))
+
+        self.assertEqual(generate_model(Original),
+                         generate_model(Different))
 
     def test_pmap_key_new_type(self):
         """
@@ -348,6 +376,38 @@ class GenerateModelTests(SynchronousTestCase):
 
         self.assert_catches_changes(Original, Different)
 
+    def test_pmap_key_types_reordered(self):
+        """
+        The order of types in a ``PMap`` key doesn't change the output.
+        """
+        class Different(CheckedPMap):
+            __key_type__ = (int, str)
+            __value_type__ = int
+        Original = Different
+
+        class Different(CheckedPMap):
+            __key_type__ = (str, int)
+            __value_type__ = int
+
+        self.assertEqual(generate_model(Original),
+                         generate_model(Different))
+
+    def test_pmap_value_types_reordered(self):
+        """
+        The order of types in a ``PMap`` value doesn't change the output.
+        """
+        class Different(CheckedPMap):
+            __value_type__ = (int, str)
+            __key_type__ = int
+        Original = Different
+
+        class Different(CheckedPMap):
+            __value_type__ = (str, int)
+            __key_type__ = int
+
+        self.assertEqual(generate_model(Original),
+                         generate_model(Different))
+
     def test_pset_value_new_type(self):
         """
         If the type of the value of a ``PSet`` changes the output changes.
@@ -375,6 +435,21 @@ class GenerateModelTests(SynchronousTestCase):
 
         self.assert_catches_changes(Original, Different)
 
+    def test_pset_value_types_reordered(self):
+        """
+        The order of types in a ``PSet`` type definition doesn't change the
+        output.
+        """
+        class Different(CheckedPSet):
+            __type__ = (int, str)
+        Original = Different
+
+        class Different(CheckedPSet):
+            __type__ = (str, int)
+
+        self.assertEqual(generate_model(Original),
+                         generate_model(Different))
+
     def test_pvector_value_new_type(self):
         """
         If the type of the value of a ``PVector`` changes the output changes.
@@ -401,6 +476,21 @@ class GenerateModelTests(SynchronousTestCase):
             __type__ = ChangedSubtype
 
         self.assert_catches_changes(Original, Different)
+
+    def test_pvector_value_types_reordered(self):
+        """
+        The order of types in a ``PVector`` type definition doesn't change the
+        output.
+        """
+        class Different(CheckedPVector):
+            __type__ = (int, str)
+        Original = Different
+
+        class Different(CheckedPVector):
+            __type__ = (str, int)
+
+        self.assertEqual(generate_model(Original),
+                         generate_model(Different))
 
 
 def persist_model():
