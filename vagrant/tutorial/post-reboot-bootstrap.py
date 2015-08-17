@@ -66,11 +66,13 @@ check_call(['yum', 'install', '-y'] + branch_opt + [package])
 # Install ZFS.
 check_call(['yum', 'install', '-y', 'zfs'])
 
-# Enable docker.
-# We don't need to start it, since when the box is packaged,
+# Install Docker.
+check_call(["curl", "-o", "/tmp/install-docker.sh", "https://get.docker.com/"])
+check_call(["sh", "/tmp/install-docker.sh"])
+
+# And enable it.  We don't need to start it, since when the box is packaged,
 # the machine will be reset.
 check_call(['systemctl', 'enable', 'docker'])
-
 
 # Enable firewalld
 # Typical deployments will have a firewall enabled, so enable it on vagrant to

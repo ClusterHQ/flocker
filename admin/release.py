@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 
+from datetime import datetime
 from subprocess import check_call
 
 from effect import (
@@ -21,6 +22,7 @@ from effect.do import do
 
 from characteristic import attributes
 from git import GitCommandError, Repo
+from pytz import UTC
 
 import requests
 
@@ -1076,3 +1078,16 @@ def publish_dev_box_main(args, base_path, top_level):
             ),
         ]),
     )
+
+
+def update_license_file(args, top_level, year=datetime.now(UTC).year):
+    """
+    Update the LICENSE file to include the current year.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    license_template = top_level.child('admin').child('LICENSE.template')
+    with license_template.open() as input_file:
+        with top_level.child('LICENSE').open('w') as output_file:
+            output_file.write(input_file.read().format(current_year=year))

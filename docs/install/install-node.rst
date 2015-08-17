@@ -160,11 +160,8 @@ Paste them into a root console on the target node:
 .. task:: install_flocker centos-7
    :prompt: [root@centos]#
 
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
-To enable and start Docker, run the following commands in a root console:
-
-.. task:: enable_docker centos-7
-   :prompt: [root@centos]#
+Flocker's container management features depend on Docker.
+Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/docker/installation/>` and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
@@ -181,6 +178,9 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
 
 .. task:: install_flocker ubuntu-14.04
    :prompt: [root@ubuntu]#
+
+Flocker's container management features depend on Docker.
+Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/docker/installation/>` and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.

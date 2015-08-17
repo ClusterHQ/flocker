@@ -33,12 +33,11 @@ class APITestsMixin(APIAssertionsMixin):
         """
         ``/Plugins.Activate`` indicates the plugin is a volume driver.
         """
-        # Really we should be sending a blank body, but that has some
-        # issues since @structured then expects a POST to have a
-        # application/json content type. Fixing up the content type issues
-        # (a necessary chunk of work) is covered by FLOC-2811, which
-        # should also fix this.
-        return self.assertResult(b"POST", b"/Plugin.Activate", {}, OK,
+        # Docker 1.8, at least, sends "null" as the body. Our test
+        # infrastructure has the opposite bug so just going to send some
+        # other garbage as the body (12345) to demonstrate that it's
+        # ignored as per the spec which declares no body.
+        return self.assertResult(b"POST", b"/Plugin.Activate", 12345, OK,
                                  {u"Implements": [u"VolumeDriver"]})
 
     def test_remove(self):
@@ -138,7 +137,7 @@ class APITestsMixin(APIAssertionsMixin):
             dataset_id=dataset_id)
 
         # After two polling intervals the dataset arrives as state:
-        reactor.callLater(VolumePlugin._POLL_INTERNVAL,
+        reactor.callLater(VolumePlugin._POLL_INTERVAL,
                           self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
@@ -151,6 +150,29 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(lambda ds: self.assertEqual(
             [self.NODE_A], [d.primary for d in ds
                             if d.dataset_id == dataset_id]))
+        return d
+
+    def test_path(self):
+        """
+        ``/VolumeDriver.Path`` returns the mount path of the given volume.
+        """
+        name = u"myvol"
+        dataset_id = UUID(dataset_id_from_name(name))
+
+        d = self.create(name)
+        # After a polling interval the dataset arrives as state:
+        reactor.callLater(VolumePlugin._POLL_INTERVAL,
+                          self.flocker_client.synchronize_state)
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/VolumeDriver.Mount", {u"Name": name}, OK))
+
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Path",
+                          {u"Name": name}, OK,
+                          {u"Err": None,
+                           u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         return d
 
 
