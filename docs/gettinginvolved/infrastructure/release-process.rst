@@ -280,7 +280,7 @@ Release
 
 #. Remove the release Flocker clone:
 
-   .. warning:: rm -rf can be dangerous, run this at your own risk.
+   .. warning:: ``rm -rf`` can be dangerous, run this at your own risk.
 
    .. prompt:: bash $
 
