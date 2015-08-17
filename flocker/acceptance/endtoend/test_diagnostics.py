@@ -78,26 +78,8 @@ class DiagnosticsTests(TestCase):
                 'ip-addr',
                 'hostname',
             ])
+            self.assertEqual(expected_basenames, actual_basenames)
 
-            missing_basenames = expected_basenames - actual_basenames
-            unexpected_basenames = actual_basenames - expected_basenames
-
-            message = []
-            if unexpected_basenames:
-                message.append(
-                    'Unexpected entries: {!r}'.format(unexpected_basenames)
-                )
-
-            if missing_basenames:
-                message.append(
-                    'Missing entries: {!r}'.format(missing_basenames)
-                )
-
-            if message:
-                self.fail(
-                    'Unexpected Archive Content\n'
-                    + '\n'.join(message)
-                )
         verifying = downloading.addCallback(verify_archive)
 
         return verifying
