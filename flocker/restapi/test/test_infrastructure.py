@@ -473,7 +473,7 @@ class StructuredJSONTests(SynchronousTestCase):
     @validateLogging(_assertRequestLogged(b"/foo/ignore_body", b"POST"))
     def test_noBodyPOST(self, logger):
         """
-        The I{JSON}-encoded request is body is ignored for methods with
+        The I{JSON}-encoded request body is ignored for methods with
         C{{ignore_body}} set to C{{True}}.
         """
         self.assertNoDecodeLogged(logger, b"POST", b"/foo/ignore_body")
@@ -481,7 +481,7 @@ class StructuredJSONTests(SynchronousTestCase):
     @validateLogging(_assertRequestLogged(b"/foo/ignore_body", b"POST"))
     def test_noBodyPOSTnotJSON(self, logger):
         """
-        A non-I{JSON} request is body is ignored for methods with
+        A non-I{JSON} request body is ignored for methods with
         C{{ignore_body}} set to C{{True}}.
         """
         request = dummyRequest(
