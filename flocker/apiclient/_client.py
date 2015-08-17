@@ -20,19 +20,23 @@ from treq import json_content, content
 from ..ca import treq_with_authentication
 
 
+NoneType = type(None)
+
+
 class Dataset(PClass):
     """
     A dataset in the configuration.
 
     :attr UUID primary: The node where the dataset should manifest.
-    :attr maximum_size: Size of new dataset in bytes (as ``int``) or ``None``.
+    :attr int|None maximum_size: Size of the dataset in bytes or ``None``
+        if no particular size was requested.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr metadata: A mapping between unicode keys and values.
     :attr bool deleted: If true indicates this dataset should be deleted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     primary = field(type=UUID, mandatory=True)
-    maximum_size = field(type=(int, None.__class__), mandatory=True)
+    maximum_size = field(type=(int, NoneType), mandatory=True)
     deleted = field(type=bool, mandatory=True, initial=False)
     metadata = pmap_field(unicode, unicode)
 
@@ -42,17 +46,17 @@ class DatasetState(PClass):
     The state of a dataset in the cluster.
 
     :attr primary: The ``UUID`` of the node where the dataset is manifest,
-        or ``None`` if has no manifestation.
-    :attr maximum_size: Size of new dataset in bytes, or ``None`` if it
-        has none.
+        or ``None`` if it has no primary manifestation.
+    :attr int|None maximum_size: Maximum size of the dataset in bytes, or
+        ``None`` if the maximum size is not set.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr FilePath|None path: Filesytem path where the dataset is mounted,
         or ``None`` if not mounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
-    primary = field(type=(UUID, None.__class__), mandatory=True)
-    maximum_size = field(type=(int, None.__class__), mandatory=True)
-    path = field(type=(FilePath, None.__class__), mandatory=True)
+    primary = field(type=(UUID, NoneType), mandatory=True)
+    maximum_size = field(type=(int, NoneType), mandatory=True)
+    path = field(type=(FilePath, NoneType), mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):
