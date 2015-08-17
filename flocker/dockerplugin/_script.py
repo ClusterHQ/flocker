@@ -41,6 +41,15 @@ class DockerPluginScript(object):
     """
     Start the Docker plugin.
     """
+    def _create_listening_directory(self, directory_path):
+        """
+        Create the parent directory for the Unix socket if it doesn't exist.
+
+        :param FilePath directory_path: The directory to create.
+        """
+        if not directory_path.exists():
+            directory_path.makedirs()
+
     def main(self, reactor, options):
         # Many places in both twisted.web and Klein are unhappy with
         # listening on Unix socket, fix that by pretending we have a port
@@ -60,9 +69,7 @@ class DockerPluginScript(object):
                                        certificates_path.child(b"api.crt"),
                                        certificates_path.child(b"api.key"))
 
-        parent = PLUGIN_PATH.parent()
-        if not parent.exists():
-            parent.makedirs()
+        self._create_listening_directory(PLUGIN_PATH.parent())
         endpoint = serverFromString(
             reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
         service = StreamServerEndpointService(endpoint, Site(
