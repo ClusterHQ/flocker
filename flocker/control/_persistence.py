@@ -23,6 +23,9 @@ from twisted.internet.task import LoopingCall
 
 from ._model import SERIALIZABLE_CLASSES, Deployment
 
+# The class at the root of the configuration tree.
+ROOT_CLASS = Deployment
+
 
 # Serialization marker storing the class name:
 _CLASS_MARKER = u"$__class__$"
