@@ -42,14 +42,14 @@ Bug Reporting
 
 When reporting issues with Flocker please include:
 
-* Flocker version,
-* operating system and version,
-* Linux kernel version,
-* Docker version and configuration,
-* node IP addresses,
-* node hostname,
-* recent syslog content,
-* and separate Flocker log files.
+* The version of Flocker you are using.
+* Your operating system and version.
+* Your Linux kernel version.
+* The version of Docker you are using, and Docker configuration details.
+* Your node IP addresses.
+* Your node hostname.
+* All recent syslog content.
+* Any separate Flocker service log files.
 
 .. warning:: The exported log files may contain sensitive information.
 
