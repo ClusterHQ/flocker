@@ -434,7 +434,8 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
         self.assertEqual(objects, app.kwargs)
 
-    def assertNoDecodeLogged(self, logger, method, path=b"/foo/bar"):
+    def assertNoDecodeLogged(self, logger, method, path=b"/foo/bar",
+                             content_type=b"application/json"):
         """
         The I{JSON}-encoded request body is ignored when the given method is
         used.
@@ -444,11 +445,14 @@ class StructuredJSONTests(SynchronousTestCase):
 
         @param path: Path to request.
         @type path: L{bytes}
+
+        @param content_type: Content type to send, by default
+            I{application/json}.
         """
         objects = {"foo": "bar", "baz": ["quux"]}
         request = dummyRequest(
             method, path,
-            Headers({b"content-type": [b"application/json"]}), dumps(objects))
+            Headers({b"content-type": [content_type]}), dumps(objects))
 
         app = self.Application(logger, None)
         render(app.app.resource(), request)
@@ -484,14 +488,8 @@ class StructuredJSONTests(SynchronousTestCase):
         A non-I{JSON} request body is ignored for methods with
         C{{ignore_body}} set to C{{True}}.
         """
-        request = dummyRequest(
-            b"POST", b"/foo/ignore_body",
-            Headers({b"content-type": [b"x-application/garbage"]}),
-            b"this is some non-JSON garbage! {} {}")
-
-        app = self.Application(logger, None)
-        render(app.app.resource(), request)
-        self.assertEqual({}, app.kwargs)
+        self.assertNoDecodeLogged(logger, b"POST", b"/foo/ignore_body",
+                                  b"x-application/garbage")
 
     @validateLogging(_assertRequestLogged(b"/foo/bar", b"PUT"))
     def test_malformedRequest(self, logger):
