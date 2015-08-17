@@ -13,6 +13,8 @@ from socket import gethostname
 from subprocess import check_call, check_output
 from uuid import uuid1
 
+from pyrsistent import PClass, field
+
 from flocker import __version__
 
 
@@ -247,36 +249,33 @@ class UpstartLogExporter(object):
         gzip_file('/var/log/syslog', target_path + '.gz')
 
 
-class Distribution(object):
+class Distribution(PClass):
     """
     A record of the service manager and log exported to be used on each
     supported Linux distribution.
+    :ivar str name: The name of the operating system.
+    :ivar str version: The version of the operating system.
+    :ivar service_manager: The service manager API to use for this
+        operating system.
+    :ivar log_exporter: The log exporter API to use for this operating
+        system.
     """
-    def __init__(self, name, version, service_manager, log_exporter):
-        """
-        :param str name: The name of the operating system.
-        :param str version: The version of the operating system.
-        :param service_manager: The service manager API to use for this
-            operating system.
-        :param log_exporter: The log exporter API to use for this operating
-            system.
-        """
-        self.name = name
-        self.version = version
-        self.service_manager = service_manager
-        self.log_exporter = log_exporter
+    name = field(type=unicode, mandatory=True)
+    version = field(type=unicode, mandatory=True)
+    service_manager = field(mandatory=True)
+    log_exporter = field(mandatory=True)
 
 
 DISTRIBUTIONS = (
     Distribution(
-        name='centos',
-        version='7',
+        name=u'centos',
+        version=u'7',
         service_manager=SystemdServiceManager,
         log_exporter=JournaldLogExporter,
     ),
     Distribution(
-        name='ubuntu',
-        version='14.04',
+        name=u'ubuntu',
+        version=u'14.04',
         service_manager=UpstartServiceManager,
         log_exporter=UpstartLogExporter,
     )
