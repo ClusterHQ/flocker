@@ -78,7 +78,6 @@ class APITestsMixin(APIAssertionsMixin):
             Dataset(dataset_id=UUID(dataset_id_from_name(name)),
                     primary=self.NODE_A,
                     maximum_size=DEFAULT_SIZE,
-                    deleted=False,
                     metadata={u"name": name})])
         return d
 
