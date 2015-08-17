@@ -144,9 +144,10 @@ def make_clientv1_tests():
             d.addCallback(got_result)
             return d
 
-        def test_delete(self):
+        def test_delete_returns_dataset(self):
             """
-            ``delete_dataset`` removes a dataset.
+            ``delete_dataset`` returns a deferred that fires with the
+            ``Dataset`` that has been deleted.
             """
             dataset_id = uuid4()
 
@@ -162,6 +163,23 @@ def make_clientv1_tests():
                     maximum_size=DATASET_SIZE
                 )
                 self.assertEqual(expected_removed, dataset)
+
+            d.addCallback(got_result)
+            return d
+
+        def test_deleted_not_listed(self):
+            """
+            ``list_datasets_configuration`` does not list deleted datasets.
+            """
+            dataset_id = uuid4()
+
+            d = self.assert_creates(self.client, primary=self.node_1,
+                                    maximum_size=DATASET_SIZE,
+                                    dataset_id=dataset_id)
+            d.addCallback(
+                lambda _: self.client.delete_dataset(dataset_id))
+
+            def got_result(_):
                 listed = self.client.list_datasets_configuration()
                 return listed
 

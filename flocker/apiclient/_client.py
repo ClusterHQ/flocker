@@ -94,13 +94,14 @@ class IFlockerAPIV1Client(Interface):
 
         :param dataset_id: The UUID of the dataset to be deleted.
 
-        :return: ``Deferred`` that fires after the configuration has been
-            updated with the ``Dataset`` that has just been deleted.
+        :return: ``Deferred`` that fires with the ``Dataset`` that has just
+        been deleted, after the configuration has been updated.
         """
 
     def list_datasets_configuration():
         """
-        Return the configured datasets.
+        Return the configured datasets, excluding any datasets that
+        have been deleted.
 
         :return: ``Deferred`` firing with iterable of ``Dataset``.
         """
