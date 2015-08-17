@@ -1,5 +1,6 @@
 [Unit]
 Description=Flocker Container Agent
+Requires=docker.service
 
 [Service]
 ExecStart=/usr/sbin/flocker-container-agent

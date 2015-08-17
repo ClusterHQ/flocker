@@ -36,12 +36,15 @@ SCHEMAS = {
 DEFAULT_SIZE = int(GiB(100).to_Byte().value)
 
 
-def _endpoint(name):
+def _endpoint(name, ignore_body=False):
     """
     Decorator factory for API endpoints, adding appropriate JSON in/out
     encoding.
 
     :param unicode name: The name of the endpoint in the schema.
+    :param ignore_body: If true, ignore the contents of the body for all
+        HTTP methods, including ``POST``. By default the body is only
+        ignored for ``GET`` and ``HEAD``.
 
     :return: Decorator for a method.
     """
@@ -50,7 +53,8 @@ def _endpoint(name):
         @structured(
             inputSchema={},
             outputSchema={u"$ref": u"/endpoints.json#/definitions/" + name},
-            schema_store=SCHEMAS)
+            schema_store=SCHEMAS,
+            ignore_body=ignore_body)
         def wrapped(*args, **kwargs):
             return f(*args, **kwargs)
         return wrapped
@@ -83,7 +87,7 @@ class VolumePlugin(object):
         self._node_id = node_id
 
     @app.route("/Plugin.Activate", methods=["POST"])
-    @_endpoint(u"PluginActivate")
+    @_endpoint(u"PluginActivate", ignore_body=True)
     def plugin_activate(self):
         """
         Return which Docker plugin APIs this object supports.
