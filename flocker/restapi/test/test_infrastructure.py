@@ -23,8 +23,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
-from .._error import (
-    DECODING_ERROR_DESCRIPTION, BadRequest)
+from .._error import DECODING_ERROR_DESCRIPTION, BadRequest
 
 
 from eliot.testing import validateLogging, LoggedAction

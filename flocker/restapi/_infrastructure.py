@@ -21,8 +21,7 @@ from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 from eliot import Logger, writeFailure
 from eliot.twisted import DeferredContext
 
-from ._error import (
-    DECODING_ERROR, BadRequest, InvalidRequestJSON)
+from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
 
