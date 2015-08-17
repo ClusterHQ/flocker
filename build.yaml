@@ -259,11 +259,13 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Micro'
       with_modules:
         - flocker.acceptance
+        - flocker.apiclient
         - flocker.ca.functional
         - flocker.ca.test
         - flocker.cli
         - flocker.common
         - flocker.control
+        - flocker.dockerplugin
         - flocker.node.agents
         - flocker.node.test
         # TODO:
@@ -296,11 +298,13 @@ job_type:
       with_modules:
         - admin
         - flocker.acceptance
+        - flocker.apiclient
         - flocker.ca.functional
         - flocker.ca.test
         - flocker.cli
         - flocker.common
         - flocker.control
+        - flocker.dockerplugin
         - flocker.node.agents
         - flocker.node.test
         # TODO:
