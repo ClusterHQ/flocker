@@ -412,7 +412,7 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
     push_info = homebrew_repo.remotes.origin.push(
         homebrew_repo.head,
         # Ignore any hooks which might prevent pushing (to master in this
-        # case).
+        # case). Without this, the release process can hang.
         no_verify=True,
         )[0]
 
