@@ -847,7 +847,6 @@ class UpdateRepoTests(SynchronousTestCase):
     Tests for :func:``update_repo``.
     """
     def setUp(self):
-        pass
         self.target_bucket = 'test-target-bucket'
         self.target_key = 'test/target/key'
         self.package_directory = FilePath(self.mktemp())
