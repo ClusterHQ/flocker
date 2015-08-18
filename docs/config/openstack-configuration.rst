@@ -69,3 +69,4 @@ For example:
 
 To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
 
+.. _OpenStack authentication plugin selected: http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name
