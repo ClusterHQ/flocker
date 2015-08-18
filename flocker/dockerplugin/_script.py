@@ -60,8 +60,9 @@ class DockerPluginScript(object):
 
     def main(self, reactor, options):
         # Many places in both twisted.web and Klein are unhappy with
-        # listening on Unix socket, fix that by pretending we have a port
-        # number:
+        # listening on Unix socket, e.g.
+        # https://twistedmatrix.com/trac/ticket/5406 "fix" that by
+        # pretending we have a port number. Yes, I feel guilty.
         UNIXAddress.port = 0
 
         # We can use /etc/flocker/agent.yml and /etc/flocker/node.crt to load
