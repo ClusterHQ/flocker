@@ -268,8 +268,13 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
-# the job definitions, they consume the aliases defined in the common_cli block
-#
+
+#-----------------------------------------------------------------------------#
+# Job Definitions below this point
+#-----------------------------------------------------------------------------#
+# the job definitions consume the aliases defined in the common_cli block.
+
+
 # flocker.node.functional is hanging, so we don't run it
 job_type:
   run_trial:
