@@ -9,6 +9,9 @@ from uuid import uuid4, UUID
 
 from eliot.testing import validate_logging, assertHasMessage, assertHasAction
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -330,9 +333,13 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
 
 
-class FakeMigration(object):
+class StubMigration(object):
     """
-    A simple fake migration class, used to test ``migrate_configuration``.
+    A simple stub migration class, used to test ``migrate_configuration``.
+    These upgrade methods are not concerned with manipulating the input
+    configurations; they are used simply to ensure ``migrate_configuration``
+    follows the correct sequence of method calls to upgrade from version X
+    to version Y.
     """
     @classmethod
     def upgrade_from_v1(cls, config):
@@ -361,13 +368,13 @@ class MigrateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_undefined_migration_path(self):
         """
-        A ``ConfigurationMigrationError`` is raised if a migration path
+        A ``MissingMigrationError`` is raised if a migration path
         from one version to another cannot be found in the supplied
         migration class.
         """
         e = self.assertRaises(
             MissingMigrationError,
-            migrate_configuration, 1, 4, self.v1_config, FakeMigration
+            migrate_configuration, 1, 4, self.v1_config, StubMigration
         )
         expected_error = (
             u'Unable to find a migration path for a version 3 to '
@@ -383,19 +390,21 @@ class MigrateConfigurationTests(SynchronousTestCase):
         by v2 to v3.
         """
         # Get a valid v2 config.
-        v2_config = migrate_configuration(1, 2, self.v1_config, FakeMigration)
+        v2_config = migrate_configuration(1, 2, self.v1_config, StubMigration)
         # Perform two sequential migrations to get from v1 to v3, starting
         # with a v1 config.
-        result = migrate_configuration(1, 3, self.v1_config, FakeMigration)
+        result = migrate_configuration(1, 3, self.v1_config, StubMigration)
         # Compare the v1 --> v3 upgrade to the direct result of the
         # v2 --> v3 upgrade on the v2 config, Both should be identical
         # and valid v3 configs.
-        self.assertEqual(result, FakeMigration.upgrade_from_v2(v2_config))
+        self.assertEqual(result, StubMigration.upgrade_from_v2(v2_config))
 
     def test_v1_latest_configuration(self):
         """
         A V1 JSON configuration blob is transformed to the latest
         configuration, with the result validating when loaded.
+        This test will need updating whenever the latest configuration
+        format changes (``expected_configuration``).
         """
         upgraded_json = migrate_configuration(
             1, _CONFIG_VERSION, V1_TEST_DEPLOYMENT_JSON,
@@ -406,21 +415,30 @@ class MigrateConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(upgraded_config, expected_configuration)
 
-    def test_v1_v2_configuration(self):
-        """
-        A V1 JSON configuration blob can be upgraded to version 2.
-        See flocker/control/test/configurations for individual
-        version JSON files and generation code.
-        """
-        upgraded_json = migrate_configuration(
-            1, 2, V1_TEST_DEPLOYMENT_JSON, ConfigurationMigration)
-        expected_upgraded_json = FilePath(__file__).sibling(
-            'configurations').child(b"configuration_v2.json").getContent()
-        self.assertEqual(upgraded_json, expected_upgraded_json)
-
 
 class ConfigurationMigrationTests(SynchronousTestCase):
     """
     Tests for ``ConfigurationMigration`` class that performs individual
     configuration upgrades.
     """
+    @given(st.tuples(
+        st.integers(min_value=1, max_value=2),
+        st.integers(min_value=2, max_value=2)
+    ))
+    def test_upgrade_configuration(self, data):
+        """
+        Test a range of version upgrades by ensuring the configuration
+        blob after upgrade matches that which is expected for the
+        particular version.
+
+        See flocker/control/test/configurations for individual
+        version JSON files and generation code.
+        """
+        configs_dir = FilePath(__file__).sibling('configurations')
+        source_json_file = b"configuration_v%d.json" % data[0]
+        target_json_file = b"configuration_v%d.json" % data[1]
+        source_json = configs_dir.child(source_json_file).getContent()
+        target_json = configs_dir.child(target_json_file).getContent()
+        upgraded_json = migrate_configuration(
+            data[0], data[1], source_json, ConfigurationMigration)
+        self.assertEqual(upgraded_json, target_json)

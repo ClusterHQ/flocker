@@ -81,11 +81,11 @@ def migrate_configuration(source_version, target_version,
 
     :param int source_version: The version to migrate from.
     :param int target_version: The version to migrate to.
-    :param bytes config: The JSON-encoded source configuration.
+    :param bytes config: The source configuration blob.
     :param class migration_class: The class containing the methods
         that will be used for migration.
 
-    :return bytes: The updated JSON configuration after migration.
+    :return bytes: The updated configuration blob after migration.
     :raises MissingMigrationError: Raises this exception if any of the
         required upgrade methods cannot be found in the supplied migration
         class, before attempting to execute any upgrade paths.
