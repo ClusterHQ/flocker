@@ -69,6 +69,9 @@ common_cli:
     # clean up the stuff from previous runs
     # due to the length of the jobname workspace, we are hitting limits in
     # our sheebang path name in pip.
+    # https://github.com/spotify/dh-virtualenv/issues/10
+    # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
+    # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     sudo rm -rf /tmp/v
     sudo rm -f results.xml
