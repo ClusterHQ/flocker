@@ -741,15 +741,15 @@ class PACKAGE(Values):
 class PACKAGE_PYTHON(PACKAGE):
     DESCRIPTION = ValueConstant(
         'Flocker: a container data volume manager for your '
-        + 'Dockerized applications\n',
+        + 'Dockerized applications\n'
         + fill('This is the base package of scripts and libraries.', 79)
     )
 
 
 class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Flocker: a container data volume manager for your' +
-        ' Dockerized applications\n',
+        'Flocker: a container data volume manager for your'
+        + ' Dockerized applications\n'
         + fill('This meta-package contains links to the Flocker client '
                'utilities, and has only the dependencies required to run '
                'those tools', 79)
@@ -758,8 +758,8 @@ class PACKAGE_CLI(PACKAGE):
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Flocker: a container data volume manager for your' +
-        ' Dockerized applications\n',
+        'Flocker: a container data volume manager for your'
+        + ' Dockerized applications\n'
         + fill('This meta-package contains links to the Flocker node '
                'utilities, and has only the dependencies required to run '
                'those tools', 79)
