@@ -26,7 +26,7 @@ common_cli:
       # ubuntu defaults to mawk, which causes some things to break
       case "\$(os)"
       in
-        "Xubuntu") alias awk='mawk -W interactive'
+        "Ubuntu") alias awk='mawk -W interactive'
       esac
 
       "\$@" | awk '
