@@ -64,7 +64,10 @@ common_cli:
       '
       return \${PIPESTATUS[0]}
     }
-    # fix the docker permission issue
+    # fix the docker permission issue, the base image doesn't have the correct
+    # permissions/owners.
+    # This is to be tackled as part of:
+    # https://clusterhq.atlassian.net/browse/FLOC-2689
     sudo chmod 777 /var/run/docker.sock
 
 
