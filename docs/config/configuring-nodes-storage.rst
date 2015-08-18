@@ -44,7 +44,7 @@ List of Supported Backends
 The following pages describe how to configure the backends currently supported by Flocker:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    
    openstack-configuration
    aws-configuration
