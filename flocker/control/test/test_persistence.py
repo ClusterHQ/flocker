@@ -420,6 +420,13 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     """
     Tests for ``ConfigurationMigration`` class that performs individual
     configuration upgrades.
+
+    Increment the given integer values below to define the test range
+    when new configuration upgraders are added. The first range is the
+    "upgrade from" versions range, where min_value should always be 1.
+    The second range is the "upgrade to" versions range, where min_value
+    should be 2 and max_value should be the latest supported configuration
+    version number.
     """
     @given(st.tuples(
         st.integers(min_value=1, max_value=2),
