@@ -52,6 +52,4 @@ The following pages describe how to configure the backends currently supported b
    zfs-configuration
    loopback-configuration
 
-.. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
-.. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
 .. _ZFS on Linux: http://zfsonlinux.org/
