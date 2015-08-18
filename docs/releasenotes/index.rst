@@ -16,6 +16,7 @@ v1.2
 * Flocker ``.deb`` and ``.rpm`` packages no longer declare any dependency on a Docker package.
   Docker is required for the container management functionality but a Docker package must be selected and installed manually.
   This provides more control over the version of Docker used with Flocker.
+* Flocker now includes :ref:`bug reporting documentation<flocker-bug-reporting>` and an accompanying command line tool called ``flocker-diagnostics``.
 
 v1.1
 ====

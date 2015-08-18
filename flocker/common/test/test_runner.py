@@ -1,6 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Tests for ``admin.runner``.
+Tests for ``flocker.common.runner``.
 """
 
 import os
