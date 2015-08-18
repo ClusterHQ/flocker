@@ -5,7 +5,6 @@
 Helper utilities for Flocker packaging.
 """
 
-from functools import partial
 import platform
 import sys
 import os
@@ -741,14 +740,16 @@ class PACKAGE(Values):
 
 class PACKAGE_PYTHON(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Docker orchestration and volume management tool\n'
+        'Flocker: a container data volume manager for your '
+        + 'Dockerized applications\n',
         + fill('This is the base package of scripts and libraries.', 79)
     )
 
 
 class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Docker orchestration and volume management tool\n'
+        'Flocker: a container data volume manager for your' +
+        ' Dockerized applications\n',
         + fill('This meta-package contains links to the Flocker client '
                'utilities, and has only the dependencies required to run '
                'those tools', 79)
@@ -757,7 +758,8 @@ class PACKAGE_CLI(PACKAGE):
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Docker orchestration and volume management tool\n'
+        'Flocker: a container data volume manager for your' +
+        ' Dockerized applications\n',
         + fill('This meta-package contains links to the Flocker node '
                'utilities, and has only the dependencies required to run '
                'those tools', 79)
@@ -766,7 +768,7 @@ class PACKAGE_NODE(PACKAGE):
 
 class PACKAGE_DOCKER_PLUGIN(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Volume plugin for Docker\n'
+        'Flocker volume plugin for Docker\n'
         + fill('This meta-package contains links to the Flocker Docker plugin',
                79)
     )
