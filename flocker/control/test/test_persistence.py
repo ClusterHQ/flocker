@@ -432,7 +432,7 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         st.integers(min_value=1, max_value=2),
         st.integers(min_value=2, max_value=2)
     ))
-    def test_upgrade_configuration(self, data):
+    def test_upgrade_configuration(self, versions):
         """
         Test a range of version upgrades by ensuring the configuration
         blob after upgrade matches that which is expected for the
@@ -442,10 +442,10 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         version JSON files and generation code.
         """
         configs_dir = FilePath(__file__).sibling('configurations')
-        source_json_file = b"configuration_v%d.json" % data[0]
-        target_json_file = b"configuration_v%d.json" % data[1]
+        source_json_file = b"configuration_v%d.json" % versions[0]
+        target_json_file = b"configuration_v%d.json" % versions[1]
         source_json = configs_dir.child(source_json_file).getContent()
         target_json = configs_dir.child(target_json_file).getContent()
         upgraded_json = migrate_configuration(
-            data[0], data[1], source_json, ConfigurationMigration)
-        self.assertEqual(upgraded_json, target_json)
+            versions[0], versions[1], source_json, ConfigurationMigration)
+        self.assertEqual(json.loads(upgraded_json), json.loads(target_json))

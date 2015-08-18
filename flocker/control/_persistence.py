@@ -121,9 +121,13 @@ class ConfigurationMigration(object):
         :param bytes config: The v1 JSON data.
         :return bytes: The v2 JSON data.
         """
-        v2_config = Configuration(
-            version=2, deployment=wire_decode(config))
-        return wire_encode(v2_config)
+        v1_config = loads(config)
+        v2_config = {
+            _CLASS_MARKER: u"Configuration",
+            u"version": 2,
+            u"deployment": v1_config
+        }
+        return dumps(v2_config)
 
 
 class _ConfigurationEncoder(JSONEncoder):
