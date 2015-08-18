@@ -1,5 +1,5 @@
 # vim ft=yaml:fdm=indent
-# Toodify an existing job, simply update the jobs_type: dictionary
+# To modify an existing job, simply update the jobs_type: dictionary
 # commit, push
 # Then click 'deploy' on the jenkins job related to this repository
 # available on the jenkins homepage.
