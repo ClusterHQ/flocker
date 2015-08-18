@@ -96,7 +96,7 @@ common_cli:
     # using the caching-layer, install all the dependencies
     parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
     # using the caching-layer, install flocker
-    parse_logs pip install -i \$PIP_INDEX_URL "Flocker[doc,dev,release]" --trusted-host \$TRUSTED_HOST
+    parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
     # using the caching-layer, install junix for our coverage report
     parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
 
