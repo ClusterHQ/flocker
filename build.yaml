@@ -16,9 +16,8 @@ common_cli:
     set -e
     os() {
       # Determine OS platform
-      test -e /home/centos && DISTRO="CentOS"
-      test -e /home/ubuntu && DISTRO="Ubuntu"
-      echo \$DISTRO
+      source /etc/os-release
+      echo \$ID
     }
     # add a function that we can consume to colorise output
     # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
@@ -26,7 +25,7 @@ common_cli:
       # ubuntu defaults to mawk, which causes some things to break
       case "\$(os)"
       in
-        "Ubuntu") alias awk='mawk -W interactive'
+        "ubuntu") alias awk='mawk -W interactive'
       esac
 
       "\$@" | awk '
@@ -194,8 +193,15 @@ common_cli:
     sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
     cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
     # create a repo on either centos or ubuntu
-    test -e /home/ubuntu && sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-    test -e /home/centos && sudo createrepo .
+    case "\$(os)"
+    in
+      "ubuntu")
+        sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+        ;;
+      "centos")
+        sudo createrepo .
+        ;;
+    esac
     cd -
 
   clean_packages: &clean_packages |
