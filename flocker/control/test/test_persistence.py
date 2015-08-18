@@ -143,7 +143,8 @@ class ConfigurationPersistenceServiceTests(TestCase):
 
     @validate_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
                       startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
-                                       source_version=1, target_version=2))
+                                       source_version=1,
+                                       target_version=_CONFIG_VERSION))
     def test_v1_file_creates_updated_file(self, logger):
         """
         If a version 1 configuration file exists under name
@@ -156,6 +157,29 @@ class ConfigurationPersistenceServiceTests(TestCase):
         v1_config_file.setContent(V1_TEST_DEPLOYMENT_JSON)
         self.service(path, logger)
         self.assertTrue(path.child(b"current_configuration.json").exists())
+
+    @validate_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
+                      startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
+                                       source_version=1,
+                                       target_version=_CONFIG_VERSION))
+    def test_v1_file_archived(self, logger):
+        """
+        If a version 1 configuration file exists, it is archived with a
+        new name current_configuration.v1.old.json after upgrading.
+        The original file name no longer exists.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        v1_config_file = path.child(b"current_configuration.v1.json")
+        v1_config_file.setContent(V1_TEST_DEPLOYMENT_JSON)
+        self.service(path, logger)
+        self.assertEqual(
+            (True, False),
+            (
+                path.child(b"current_configuration.v1.old.json").exists(),
+                path.child(b"current_configuration.v1.json").exists(),
+            )
+        )
 
     def test_old_configuration_is_upgraded(self):
         """
@@ -181,11 +205,12 @@ class ConfigurationPersistenceServiceTests(TestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         config_path = path.child(b"current_configuration.json")
-        config_path.setContent(wire_encode(TEST_DEPLOYMENT))
+        persisted_configuration = Configuration(
+            version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT)
+        config_path.setContent(wire_encode(persisted_configuration))
         self.service(path)
-        configuration = wire_decode(config_path.getContent())
-        configured_deployment = configuration.deployment
-        self.assertEqual(configured_deployment, TEST_DEPLOYMENT)
+        loaded_configuration = wire_decode(config_path.getContent())
+        self.assertEqual(loaded_configuration, persisted_configuration)
 
     @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
                       startFields=dict(configuration=TEST_DEPLOYMENT))

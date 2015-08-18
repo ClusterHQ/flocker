@@ -262,6 +262,7 @@ class ConfigurationPersistenceService(MultiService):
         """
         MultiService.__init__(self)
         self._path = path
+        self._config_path = self._path.child(b"current_configuration.json")
         self._change_callbacks = []
         LeaseService(reactor, self).setServiceParent(self)
 
@@ -272,33 +273,40 @@ class ConfigurationPersistenceService(MultiService):
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
+    def _process_v1_config(self):
+        """
+        Check if a v1 configuration file exists and upgrade it if necessary.
+        After upgrade, the v1 configuration file is retained with an archived
+        file name.
+        """
+        v1_config_path = self._path.child(
+            b"current_configuration.v1.json")
+        v1_archived_path = self._path.child(
+            b"current_configuration.v1.old.json")
+        # Check for a v1 config and upgrade to latest if found.
+        if v1_config_path.exists():
+            v1_json = v1_config_path.getContent()
+            with _LOG_UPGRADE(self.logger,
+                              configuration=v1_json,
+                              source_version=1,
+                              target_version=_CONFIG_VERSION):
+                updated_json = migrate_configuration(
+                    1, _CONFIG_VERSION, v1_json,
+                    ConfigurationMigration
+                )
+                self._config_path.setContent(updated_json)
+                v1_config_path.moveTo(v1_archived_path)
+
     def load_configuration(self):
         """
         Load the persisted configuration, upgrading the configuration format
         if an older version is detected.
         """
-        self._config_path = self._path.child(b"current_configuration.json")
-        v1_config_path = self._path.child(
-            b"current_configuration.v1.json")
-        # Check for a v1 config and upgrade to latest if found.
-        if v1_config_path.exists():
-            if not self._config_path.exists():
-                v1_json = v1_config_path.getContent()
-                with _LOG_UPGRADE(self.logger,
-                                  configuration=v1_json,
-                                  source_version=1,
-                                  target_version=_CONFIG_VERSION):
-                    updated_json = migrate_configuration(
-                        1, _CONFIG_VERSION, v1_json,
-                        ConfigurationMigration)
-                    self._config_path.setContent(updated_json)
+        self._process_v1_config()
         if self._config_path.exists():
             config_json = self._config_path.getContent()
             config_dict = loads(config_json)
-            if 'version' in config_dict:
-                config_version = config_dict['version']
-            else:
-                config_version = 1
+            config_version = config_dict['version']
             if config_version < _CONFIG_VERSION:
                 with _LOG_UPGRADE(self.logger,
                                   configuration=config_json,
