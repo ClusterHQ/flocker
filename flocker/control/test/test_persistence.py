@@ -19,7 +19,7 @@ from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
-    _LOG_UPGRADE,
+    _LOG_UPGRADE, MissingMigrationError,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -310,7 +310,7 @@ class FakeMigration(object):
     A simple fake migration class, used to test ``migrate_configuration``.
     """
     @classmethod
-    def configuration_v1_v2(cls, config):
+    def upgrade_from_v1(cls, config):
         config = json.loads(config)
         if config['version'] != 1:
             raise ConfigurationMigrationError(
@@ -319,7 +319,7 @@ class FakeMigration(object):
         return json.dumps({"version": 2, "configuration": "fake"})
 
     @classmethod
-    def configuration_v2_v3(cls, config):
+    def upgrade_from_v2(cls, config):
         config = json.loads(config)
         if config['version'] != 2:
             raise ConfigurationMigrationError(
@@ -328,9 +328,9 @@ class FakeMigration(object):
         return json.dumps({"version": 3, "configuration": "fake"})
 
 
-class ConfigurationMigrationTests(SynchronousTestCase):
+class MigrateConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``ConfigurationMigration`` and ``migrate_configuration``.
+    Tests for ``migrate_configuration``.
     """
     v1_config = json.dumps({"version": 1})
 
@@ -341,13 +341,13 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         migration class.
         """
         e = self.assertRaises(
-            ConfigurationMigrationError,
+            MissingMigrationError,
             migrate_configuration, 1, 4, self.v1_config, FakeMigration
         )
         expected_error = (
-            u'Unable to find a migration path for a version 1 '
-            u'to version 4 configuration. No migration method exists '
-            u'for v3 to v4.'
+            u'Unable to find a migration path for a version 3 to '
+            u'version 4 configuration. No migration method '
+            u'upgrade_from_v3 could be found.'
         )
         self.assertEqual(e.message, expected_error)
 
@@ -361,7 +361,7 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         # Perform two sequential migrations to get from v1 to v3, starting
         # with a v1 config.
         result = migrate_configuration(1, 3, self.v1_config, FakeMigration)
-        self.assertEqual(result, FakeMigration.configuration_v2_v3(v2_config))
+        self.assertEqual(result, FakeMigration.upgrade_from_v2(v2_config))
 
     def test_v1_latest_configuration(self):
         """
@@ -388,3 +388,10 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         expected_upgraded_json = FilePath(__file__).sibling(
             'configurations').child(b"configuration_v2.json").getContent()
         self.assertEqual(upgraded_json, expected_upgraded_json)
+
+
+class ConfigurationMigrationTests(SynchronousTestCase):
+    """
+    Tests for ``ConfigurationMigration`` class that performs individual
+    configuration upgrades.
+    """

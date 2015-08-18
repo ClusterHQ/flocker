@@ -40,9 +40,32 @@ _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
 
 class ConfigurationMigrationError(Exception):
     """
-    Error raised when a configuration migration is unable to take place
-    or complete successfully.
+    Error raised when a configuration migration is unable to
+    complete successfully.
     """
+
+
+class MissingMigrationError(Exception):
+    """
+    Error raised when a configuration migration method cannot be found.
+    """
+    def __init__(self, source_version, target_version):
+        """
+        Initialize a missing migration exception.
+
+        :param int source_version: The version to migrate from.
+        :param int target_version: The version to migrate to.
+        """
+        self.source_version = source_version
+        self.target_version = target_version
+        self.message = (
+            u"Unable to find a migration path for a version {source} "
+            u"to version {target} configuration. No migration method "
+            u"upgrade_from_v{source} could be found.".format(
+                source=self.source_version, target=self.target_version
+            )
+        )
+        super(MissingMigrationError, self).__init__(self.message)
 
 
 def migrate_configuration(source_version, target_version,
@@ -53,8 +76,8 @@ def migrate_configuration(source_version, target_version,
     version of 3 will perform two upgrades, from version 1 to 2,
     followed by 2 to 3.
 
-    Calls the correct ``ConfigurationMigration`` class methods for
-    the suppled source and target versions.
+    Calls the correct ``migration_class`` class methods for
+    sequential upgrades between the suppled source and target versions.
 
     :param int source_version: The version to migrate from.
     :param int target_version: The version to migrate to.
@@ -66,28 +89,20 @@ def migrate_configuration(source_version, target_version,
     """
     upgraded_config = config
     current_version = source_version
+    migrations_sequence = []
     for upgrade_version in range(source_version + 1, target_version + 1):
         with _LOG_UPGRADE(configuration=upgraded_config,
                           source_version=current_version,
                           target_version=upgrade_version):
-            migration_method = (
-                u"configuration_v%d_v%d"
-                % (current_version, upgrade_version)
-            )
+            migration_method = u"upgrade_from_v%d" % current_version
             try:
                 migration = getattr(migration_class, migration_method)
+                migrations_sequence.append(migration)
+                current_version = current_version + 1
             except AttributeError:
-                message = (
-                    u"Unable to find a migration path for a version " +
-                    unicode(source_version) + u" to version " +
-                    unicode(target_version) + u" configuration. " +
-                    u"No migration method exists for v" +
-                    unicode(current_version) + u" to v" +
-                    unicode(upgrade_version) + u"."
-                )
-                raise ConfigurationMigrationError(message)
-            upgraded_config = migration(upgraded_config)
-            current_version = current_version + 1
+                raise MissingMigrationError(current_version, upgrade_version)
+    for migration in migrations_sequence:
+        upgraded_config = migration(upgraded_config)
     return upgraded_config
 
 
@@ -96,7 +111,7 @@ class ConfigurationMigration(object):
     Migrate a JSON configuration from one version to another.
     """
     @classmethod
-    def configuration_v1_v2(cls, config):
+    def upgrade_from_v1(cls, config):
         """
         Migrate a v1 JSON configuration to v2.
 
@@ -108,7 +123,7 @@ class ConfigurationMigration(object):
         return wire_encode(v2_config)
 
 
-class _Configuration_Encoder(JSONEncoder):
+class _ConfigurationEncoder(JSONEncoder):
     """
     JSON encoder that can encode the configuration model.
     Base encoder for version 1 configurations.
@@ -119,9 +134,7 @@ class _Configuration_Encoder(JSONEncoder):
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
-            return {
-                _CLASS_MARKER: u"PMap", u"values": dict(obj).items()
-            }
+            return {_CLASS_MARKER: u"PMap", u"values": dict(obj).items()}
         elif isinstance(obj, (PSet, PVector, set)):
             return list(obj)
         elif isinstance(obj, FilePath):
@@ -140,7 +153,7 @@ def wire_encode(obj):
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     :return bytes: Encoded object.
     """
-    return dumps(obj, cls=_Configuration_Encoder)
+    return dumps(obj, cls=_ConfigurationEncoder)
 
 
 def wire_decode(data):
@@ -172,10 +185,14 @@ _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
                            [_DEPLOYMENT_FIELD])
 _LOG_SAVE = ActionType(u"flocker-control:persistence:save",
                        [_DEPLOYMENT_FIELD], [])
+
+_UPGRADE_SOURCE_FIELD = Field.for_types(
+    u"source_version", [int], u"Configuration version to upgrade from.")
+_UPGRADE_TARGET_FIELD = Field.for_types(
+    u"target_version", [int], u"Configuration version to upgrade to.")
 _LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
-                          [_DEPLOYMENT_FIELD,
-                           Field(u"source_version", repr),
-                           Field(u"target_version", repr)], [])
+                          [_DEPLOYMENT_FIELD, _UPGRADE_SOURCE_FIELD,
+                           _UPGRADE_TARGET_FIELD, ], [])
 
 
 class LeaseService(Service):
@@ -291,7 +308,7 @@ class ConfigurationPersistenceService(MultiService):
             self._deployment = config.deployment
             self._sync_save(config.deployment)
         else:
-            self._deployment = Deployment.create_empty()
+            self._deployment = Deployment()
             self._sync_save(self._deployment)
 
     def register(self, change_callback):

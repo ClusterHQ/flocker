@@ -620,13 +620,6 @@ class Deployment(PRecord):
 
     get_node = _get_node(Node)
 
-    @classmethod
-    def create_empty(cls):
-        """
-        Return a ``Deployment`` object representing an empty configuration.
-        """
-        return cls(nodes=frozenset())
-
     def applications(self):
         """
         Return all applications in all nodes.
