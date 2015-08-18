@@ -71,10 +71,8 @@ setup(
         'flocker.control': ['schema/*.yml'],
         # These files are used by the Docker plugin API:
         'flocker.dockerplugin': ['schema/*.yml'],
-        # Used by persistence service tests.
-        'flocker.control.test': ['configurations/*.json'],
         # Configuration schema, used to detect need for upgrade code:
-        'flocker.control.test': ['persisted_model.json'],
+        'flocker.control.test': ['persisted_model.json', 'configurations/*.json'],
     },
 
     entry_points={
