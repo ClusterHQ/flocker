@@ -52,9 +52,6 @@ The following pages describe how to configure the backends currently supported b
    zfs-configuration
    loopback-configuration
 
-.. _OpenStack authentication plugin selected: http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name
-.. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
-.. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
 .. _EMC ScaleIO Flocker driver on GitHub: https://github.com/emccorp/scaleio-flocker-driver
 .. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
 .. _ZFS on Linux: http://zfsonlinux.org/

@@ -10,3 +10,6 @@ For more information, including installation, testing and usage instructions, vi
 * `EMC XtremIO Flocker driver on GitHub`_
 
 .. XXX FLOC 2442 and 2443 to expand this EMC/Backend storage section
+
+.. _ScaleIO: https://www.emc.com/storage/scaleio/index.htm
+.. _XtremIO: https://www.emc.com/storage/xtremio/overview.htm
