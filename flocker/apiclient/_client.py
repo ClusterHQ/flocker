@@ -20,20 +20,22 @@ from treq import json_content, content
 from ..ca import treq_with_authentication
 
 
+NoneType = type(None)
+
+
 class Dataset(PClass):
     """
     A dataset in the configuration.
 
     :attr UUID primary: The node where the dataset should manifest.
-    :attr int maximum_size: Size of new dataset, in bytes.
+    :attr int|None maximum_size: Size of the dataset in bytes or ``None``
+        if no particular size was requested.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr metadata: A mapping between unicode keys and values.
-    :attr bool deleted: If true indicates this dataset should be deleted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     primary = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
-    deleted = field(type=bool, mandatory=True, initial=False)
+    maximum_size = field(type=(int, NoneType), mandatory=True)
     metadata = pmap_field(unicode, unicode)
 
 
@@ -41,16 +43,18 @@ class DatasetState(PClass):
     """
     The state of a dataset in the cluster.
 
-    :attr UUID primary: The node where the dataset should manifest.
-    :attr int maximum_size: Size of new dataset, in bytes.
+    :attr primary: The ``UUID`` of the node where the dataset is manifest,
+        or ``None`` if it has no primary manifestation.
+    :attr int|None maximum_size: Maximum size of the dataset in bytes, or
+        ``None`` if the maximum size is not set.
     :attr UUID dataset_id: The UUID of the dataset.
     :attr FilePath|None path: Filesytem path where the dataset is mounted,
         or ``None`` if not mounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
-    primary = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
-    path = field(mandatory=True)
+    primary = field(type=(UUID, NoneType), mandatory=True)
+    maximum_size = field(type=(int, NoneType), mandatory=True)
+    path = field(type=(FilePath, NoneType), mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):
@@ -63,13 +67,14 @@ class IFlockerAPIV1Client(Interface):
     """
     The Flocker REST API v1 client.
     """
-    def create_dataset(primary, maximum_size, dataset_id=None,
+    def create_dataset(primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
         """
         Create a new dataset in the configuration.
 
         :param UUID primary: The node where the dataset should manifest.
-        :param int maximum_size: Size of new dataset, in bytes.
+        :param maximum_size: Size of new dataset in bytes (as ``int``) or
+            ``None`` if no particular size is required (not recommended).
         :param dataset_id: If given, the UUID to use for the dataset.
         :param metadata: A mapping between unicode keys and values, to be
             stored as dataset metadata.
@@ -90,9 +95,20 @@ class IFlockerAPIV1Client(Interface):
             updated with the resulting ``Dataset``.
         """
 
+    def delete_dataset(dataset_id):
+        """
+        Delete a dataset.
+
+        :param dataset_id: The UUID of the dataset to be deleted.
+
+        :return: ``Deferred`` that fires with the ``Dataset`` that has just
+        been deleted, after the configuration has been updated.
+        """
+
     def list_datasets_configuration():
         """
-        Return the configured datasets.
+        Return the configured datasets, excluding any datasets that
+        have been deleted.
 
         :return: ``Deferred`` firing with iterable of ``Dataset``.
         """
@@ -114,7 +130,7 @@ class FakeFlockerClient(object):
         self._configured_datasets = pmap()
         self.synchronize_state()
 
-    def create_dataset(self, primary, maximum_size, dataset_id=None,
+    def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
         # In real implementation the server will generate the new ID, but
         # we have to do it ourselves:
@@ -127,6 +143,12 @@ class FakeFlockerClient(object):
         self._configured_datasets = self._configured_datasets.set(
             dataset_id, result)
         return succeed(result)
+
+    def delete_dataset(self, dataset_id):
+        dataset = self._configured_datasets[dataset_id]
+        self._configured_datasets = self._configured_datasets.remove(
+            dataset_id)
+        return succeed(dataset)
 
     def move_dataset(self, primary, dataset_id):
         self._configured_datasets = self._configured_datasets.transform(
@@ -233,18 +255,25 @@ class FlockerClient(object):
         :return: ``Dataset`` instance.
         """
         return Dataset(primary=UUID(dataset_dict[u"primary"]),
-                       maximum_size=dataset_dict[u"maximum_size"],
+                       maximum_size=dataset_dict.get(u"maximum_size", None),
                        dataset_id=UUID(dataset_dict[u"dataset_id"]),
                        metadata=dataset_dict[u"metadata"])
 
-    def create_dataset(self, primary, maximum_size, dataset_id=None,
+    def delete_dataset(self, dataset_id):
+        request = self._request(
+            b"DELETE", b"/configuration/datasets/%s" % (dataset_id,),
+            None, OK)
+        request.addCallback(self._parse_configuration_dataset)
+        return request
+
+    def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
         dataset = {u"primary": unicode(primary),
-                   u"maximum_size": maximum_size,
                    u"metadata": dict(metadata)}
         if dataset_id is not None:
             dataset[u"dataset_id"] = unicode(dataset_id)
-
+        if maximum_size is not None:
+            dataset[u"maximum_size"] = maximum_size
         request = self._request(b"POST", b"/configuration/datasets",
                                 dataset, CREATED,
                                 {CONFLICT: DatasetAlreadyExists})
@@ -262,17 +291,28 @@ class FlockerClient(object):
         request = self._request(b"GET", b"/configuration/datasets", None, OK)
         request.addCallback(
             lambda results:
-            [self._parse_configuration_dataset(d) for d in results])
+            [
+                self._parse_configuration_dataset(d)
+                for d in results if not d['deleted']
+            ]
+        )
         return request
 
     def list_datasets_state(self):
         request = self._request(b"GET", b"/state/datasets", None, OK)
 
         def parse_dataset_state(dataset_dict):
-            return DatasetState(primary=UUID(dataset_dict[u"primary"]),
-                                maximum_size=dataset_dict[u"maximum_size"],
+            primary = dataset_dict.get(u"primary")
+            if primary is not None:
+                primary = UUID(primary)
+            path = dataset_dict.get(u"path")
+            if path is not None:
+                path = FilePath(path)
+            return DatasetState(primary=primary,
+                                maximum_size=dataset_dict.get(
+                                    u"maximum_size", None),
                                 dataset_id=UUID(dataset_dict[u"dataset_id"]),
-                                path=FilePath(dataset_dict[u"path"]))
+                                path=path)
 
         request.addCallback(
             lambda results: [parse_dataset_state(d) for d in results])

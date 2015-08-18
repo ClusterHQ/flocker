@@ -4,14 +4,10 @@
 """
 Record types for representing deployment models.
 
-There are different categories of classes:
-
-1. Those that involve information that can be both in configuration and state.
-   This includes ``Deployment`` and all classes on it.
-   (Metadata should really be configuration only, but that hasn't been
-   fixed yet on the model level.)
-2. State-specific classes, currently ``NodeState``.
-3. Configuration-specific classes, none implemented yet.
+**IMPORTANT:**
+If you change classes in this module that get serialized as part of the
+cluster configuration file you need to write upgrade code to support
+upgrading from older versions of Flocker.
 """
 
 from uuid import UUID
@@ -326,11 +322,7 @@ class Dataset(PRecord):
 
     At some point we'll want a way of reserving metadata for ourselves.
 
-    :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
-        if this is coming out of human-supplied configuration, in which
-        case it will need to be looked up from actual state for existing
-        datasets, or a new one generated if a new dataset will need tbe
-        created.
+    :ivar dataset_id: A unique identifier, as ``unicode``.
 
     :ivar bool deleted: If ``True``, this dataset has been deleted and its
         data is unavailable, or will soon become unavailable.

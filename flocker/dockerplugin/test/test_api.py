@@ -33,12 +33,11 @@ class APITestsMixin(APIAssertionsMixin):
         """
         ``/Plugins.Activate`` indicates the plugin is a volume driver.
         """
-        # Really we should be sending a blank body, but that has some
-        # issues since @structured then expects a POST to have a
-        # application/json content type. Fixing up the content type issues
-        # (a necessary chunk of work) is covered by FLOC-2811, which
-        # should also fix this.
-        return self.assertResult(b"POST", b"/Plugin.Activate", {}, OK,
+        # Docker 1.8, at least, sends "null" as the body. Our test
+        # infrastructure has the opposite bug so just going to send some
+        # other garbage as the body (12345) to demonstrate that it's
+        # ignored as per the spec which declares no body.
+        return self.assertResult(b"POST", b"/Plugin.Activate", 12345, OK,
                                  {u"Implements": [u"VolumeDriver"]})
 
     def test_remove(self):
@@ -79,7 +78,6 @@ class APITestsMixin(APIAssertionsMixin):
             Dataset(dataset_id=UUID(dataset_id_from_name(name)),
                     primary=self.NODE_A,
                     maximum_size=DEFAULT_SIZE,
-                    deleted=False,
                     metadata={u"name": name})])
         return d
 

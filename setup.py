@@ -71,6 +71,8 @@ setup(
         'flocker.control': ['schema/*.yml'],
         # These files are used by the Docker plugin API:
         'flocker.dockerplugin': ['schema/*.yml'],
+        # Configuration schema, used to detect need for upgrade code:
+        'flocker.control.test': ['persisted_model.json'],
     },
 
     entry_points={
@@ -85,6 +87,8 @@ setup(
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker-ca = flocker.ca._script:flocker_ca_main',
             'flocker = flocker.cli.script:flocker_cli_main',
+            'flocker-diagnostics '
+            '= flocker.node.script:flocker_diagnostics_main',
         ],
     },
 
