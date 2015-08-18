@@ -86,6 +86,9 @@ def migrate_configuration(source_version, target_version,
         that will be used for migration.
 
     :return bytes: The updated JSON configuration after migration.
+    :raises MissingMigrationError: Raises this exception if any of the
+        required upgrade methods cannot be found in the supplied migration
+        class, before attempting to execute any upgrade paths.
     """
     upgraded_config = config
     current_version = source_version

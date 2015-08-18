@@ -357,10 +357,14 @@ class MigrateConfigurationTests(SynchronousTestCase):
         sequentially perform all necessary upgrades, e.g. v1 to v2 followed
         by v2 to v3.
         """
+        # Get a valid v2 config.
         v2_config = migrate_configuration(1, 2, self.v1_config, FakeMigration)
         # Perform two sequential migrations to get from v1 to v3, starting
         # with a v1 config.
         result = migrate_configuration(1, 3, self.v1_config, FakeMigration)
+        # Compare the v1 --> v3 upgrade to the direct result of the
+        # v2 --> v3 upgrade on the v2 config, Both should be identical
+        # and valid v3 configs.
         self.assertEqual(result, FakeMigration.upgrade_from_v2(v2_config))
 
     def test_v1_latest_configuration(self):
