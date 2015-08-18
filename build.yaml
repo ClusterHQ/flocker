@@ -232,6 +232,8 @@ common_cli:
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from master branch of flocker
     wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "# URLGRABBER_DEBUG=1 to log low-level network info - see FLOC-2640" >> Dockerfile
@@ -245,6 +247,8 @@ common_cli:
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from master branch of flocker
     wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
@@ -255,6 +259,8 @@ common_cli:
   build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
     # Download the latest pip requirements file from master branch of flocker
     wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
