@@ -49,8 +49,7 @@ from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
 
-
-from .runner import run
+from flocker.common.runner import run, run_ssh
 
 
 def extend_environ(**kwargs):
@@ -820,11 +819,13 @@ MESSAGE_FORMATS = {
         "[%(username)s@%(address)s]: Running %(command)s\n",
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
-    "admin.runner:run:output":
+    "flocker.common.runner:run:stdout":
         "%(line)s\n",
+    "flocker.common.runner:run:stderr":
+        "stderr:%(line)s\n",
 }
 ACTION_START_FORMATS = {
-    "admin.runner:run":
+    "flocker.common.runner:run":
         "Running %(command)s\n",
 }
 
@@ -861,23 +862,11 @@ def capture_journal(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
-    ran = run(reactor, [
-        b"ssh",
-        b"-C",  # compress traffic
-        b"-q",  # suppress warnings
-        b"-l", 'root',
-        # We're ok with unknown hosts.
-        b"-o", b"StrictHostKeyChecking=no",
-        # The tests hang if ControlMaster is set, since OpenSSH won't
-        # ever close the connection to the test server.
-        b"-o", b"ControlMaster=no",
-        # Some systems (notably Ubuntu) enable GSSAPI authentication which
-        # involves a slow DNS operation before failing and moving on to a
-        # working mechanism.  The expectation is that key-based auth will
-        # be in use so just jump straight to that.
-        b"-o", b"PreferredAuthentications=publickey",
-        host,
-        ' '.join(map(shell_quote, [
+    ran = run_ssh(
+        reactor=reactor,
+        host=host,
+        username='root',
+        command=[
             b'journalctl',
             b'--lines', b'0',
             b'--follow',
@@ -886,8 +875,9 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-control',
             b'-u', b'flocker-dataset-agent',
             b'-u', b'flocker-container-agent',
-        ])),
-    ], handle_line=lambda line: output_file.write(line + b'\n'))
+        ],
+        handle_stdout=lambda line: output_file.write(line + b'\n')
+    )
     ran.addErrback(write_failure, logger=None)
 
 
