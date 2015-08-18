@@ -732,7 +732,7 @@ class EBSBlockDeviceAPI(object):
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
-                ebs_volume.status != 'available'):
+                ebs_volume.status != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         ignore_devices = pset([])
@@ -818,7 +818,7 @@ class EBSBlockDeviceAPI(object):
             blockdevice_id is not currently 'in-use'.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        if ebs_volume.status != 'in-use':
+        if ebs_volume.status != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
 
         self.connection.detach_volume(blockdevice_id)
