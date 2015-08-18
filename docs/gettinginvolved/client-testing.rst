@@ -75,7 +75,7 @@ To test on various Linux distributions, it is possible to create either Docker c
 Using Docker
 ^^^^^^^^^^^^
 
-To create a Docker container, choose a Docker image from the `Docker Hub <https://registry.hub.docker.com>`_, and start it as below:
+To create a Docker container, choose a Docker image from the `Docker Hub <https://hub.docker.com/>`_, and start it as below:
 
 .. prompt:: bash $
 
