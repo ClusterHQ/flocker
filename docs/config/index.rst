@@ -12,9 +12,4 @@ The following topics describe how to complete the post-installation configuratio
    configuring-authentication
    enabling-control-service
    configuring-nodes-storage
-      openstack-configuration
-      aws-configuration
-      emc-configuration
-      zfs-configuration
-      loopback-configuration
    enabling-agent-service
