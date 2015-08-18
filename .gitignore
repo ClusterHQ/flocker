@@ -76,3 +76,4 @@ vagrant/dev/*.box
 .Trashes
 ehthumbs.db
 Thumbs.db
+jobs.groovy
