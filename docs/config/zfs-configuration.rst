@@ -1,5 +1,6 @@
 .. _zfs-dataset-backend:
 
+=====================================================
 ZFS Peer-to-Peer Backend Configuration (EXPERIMENTAL)
 =====================================================
 
@@ -11,7 +12,7 @@ To begin with, you will need to install ZFS on your platform, followed by creati
 .. _installing-ZFS-CentOS-7:
 
 Installing ZFS on CentOS 7
---------------------------
+==========================
 
 Installing ZFS requires the kernel development headers for the running kernel.
 Since CentOS doesn't provide easy access to old package versions, the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
@@ -32,14 +33,14 @@ You must also install the ZFS package repository.
 
 
 Installing ZFS on Ubuntu 14.04
-------------------------------
+==============================
 
 .. task:: install_zfs ubuntu-14.04
    :prompt: [root@ubuntu-14.04]#
 
 
 Creating a ZFS Pool
--------------------
+===================
 
 Flocker requires a ZFS pool.
 The pool is typically named ``flocker`` but this is not required.
@@ -58,7 +59,7 @@ So ensure that the firewall allows access to TCP port 22 on each node from the e
 You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
 
 ZFS Backend Configuration
--------------------------
+=========================
 
 The configuration item to use ZFS should look like:
 
