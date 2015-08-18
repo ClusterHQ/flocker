@@ -51,5 +51,3 @@ The following pages describe how to configure the backends currently supported b
    emc-configuration
    zfs-configuration
    loopback-configuration
-
-.. _ZFS on Linux: http://zfsonlinux.org/

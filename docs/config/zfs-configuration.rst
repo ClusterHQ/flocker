@@ -73,3 +73,5 @@ The configuration item to use ZFS should look like:
    FLOC-2092
 
 The pool name must match a ZFS storage pool that you have created on all of the Flocker agent nodes. For more information, see the `ZFS on Linux`_ documentation.
+
+.. _ZFS on Linux: http://zfsonlinux.org/
