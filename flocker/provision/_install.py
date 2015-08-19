@@ -1092,6 +1092,14 @@ def task_install_flocker(
         commands.append(run_from_args([
             'apt-get', '-y', '--force-yes', 'install', package]))
 
+        # We don't have publicly released docker-plugin packages yet
+        # (FLOC-2881). Also making this on by default impacts
+        # documentation...
+        if use_development_branch:
+            commands.append(run_from_args([
+                "apt-get", "-y", "--force-yes", "install",
+                "clusterhq-flocker-docker-plugin"]))
+
         return sequence(commands)
     elif is_centos(distribution):
         commands = [
@@ -1124,6 +1132,14 @@ def task_install_flocker(
 
         commands.append(run_from_args(
             ["yum", "install"] + repo_options + ["-y", package]))
+
+        # We don't have publicly released docker-plugin packages yet
+        # (FLOC-2881). Also making this on by default impacts
+        # documentation...
+        if use_development_branch:
+            commands.append(run_from_args(
+                ["yum", "install"] + repo_options +
+                ["-y", "clusterhq-flocker-docker-plugin"]))
 
         return sequence(commands)
     else:
