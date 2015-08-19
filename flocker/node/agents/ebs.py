@@ -662,7 +662,7 @@ class EBSBlockDeviceAPI(object):
         devices = pset({v.attach_data.device for v in volumes
                        if v.attach_data.instance_id == instance_id})
         devices = devices | devices_in_use
-        IN_USE_DEVICES(devices=devices).write()
+        IN_USE_DEVICES(devices=list(devices)).write()
 
         for suffix in b"fghijklmonp":
             file_name = u'/dev/sd' + suffix

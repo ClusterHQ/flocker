@@ -26,6 +26,7 @@ from ..ebs import (
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
+    IN_USE_DEVICES
 )
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
@@ -162,6 +163,39 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+    @capture_logging(None)
+    def test_in_use_devices_log(self, logger):
+        """
+        """
+        volume1 = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size,
+        )
+        attached_v1 = self.api.attach_volume(
+            volume1.blockdevice_id, attach_to=self.this_node,
+        )
+        device_path = self.api.get_device_path(attached_v1.blockdevice_id)
+
+        volume2 = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size,
+        )
+        attached_v2 = self.api.attach_volume(
+            volume2.blockdevice_id, attach_to=self.this_node,
+        )
+        messages = list(
+            message
+            for message
+            in logger.messages
+            if message.get("message_type") == IN_USE_DEVICES
+        )
+        self.assertNotEqual(
+            [], messages,
+            "Didn't find IN_USE_DEVICES in logged messages {}".format(
+                messages
+            )
+        )
 
 
 class VolumeStateTransitionTests(TestCase):
