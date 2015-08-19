@@ -109,9 +109,7 @@ Preparing For a Release
 
       $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       # Use system site packages e.g. so that "rpm" can be imported
-      $ mkvirtualenv "flocker-${VERSION}" --system-site-packages
-      $ cd "flocker-${VERSION}"
-      $ workon "flocker-${VERSION}"
+      $ mkvirtualenv -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
       (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
       (flocker-0.1.2)$ admin/create-release-branch --flocker-version=${VERSION}
       (flocker-0.1.2)$ admin/update-license
