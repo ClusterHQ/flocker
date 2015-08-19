@@ -43,11 +43,11 @@ Have questions or need help?
 
 * If you have problems running Flocker, please read our `debugging documentation`_.
 * If you want to follow our development plans, our main issue tracker is `JIRA`_.
-* You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports and `security issues`_  should be reported directly to our security team.
+* You can open an account there to file issues, but we're also happy to accept a `GitHub issue`_ with feature requests or bug reports. `Security issues`_  should be reported directly to our security team.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
 .. _debugging documentation: https://docs.clusterhq.com/en/latest/using/administering/debugging.html
-.. _security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
+.. _Security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
 
@@ -228,5 +228,5 @@ Your message will be forwarded to the ClusterHQ security team (a small group of 
 Once you have submitted an issue via email, you should receive an acknowledgment from a member of the security team within 48 hours, and depending on the action to be taken, you may receive further follow up emails.
 
 .. _JIRA: https://clusterhq.atlassian.net/secure/Dashboard.jspa
-.. _GitHub issues: https://github.com/ClusterHQ/flocker/issues
+.. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
 .. _reported publicly: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
