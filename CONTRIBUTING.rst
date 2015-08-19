@@ -131,10 +131,12 @@ You can view the result by opening ``docs/_build/html/index.html`` in your brows
 Contributing to Flocker
 =======================
 
+If you have any feature requests or suggestions, we would love to hear about them.
+
 At a minimum you can simply submit a GitHub Pull Request with your changes.
 In order to maximize your chances of getting your code accepted, and to keep you from wasting time:
 
-* Discuss your ideas with us in advance in a `JIRA`_ or GitHub issue.
+* Discuss your ideas with us in advance by using our `UserVoice`_ forum, or by filing a `GitHub issue`_.
 * Explain the purpose of your PR, and why these changes are necessary.
 * Limit your PR to fixing a single problem or adding a single feature.
 * See the merge requirements below for details about our testing and documentation requirements.
@@ -145,6 +147,8 @@ Once your pull request is merged, as a small thank you for contributing to Flock
 Just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
 We'll get something in the mail to you.
 
+.. _UserVoice: https://feedback.clusterhq.com/
+.. _GitHub issue: https://github.com/clusterhq/flocker/issues
 
 Merge Requirements
 ^^^^^^^^^^^^^^^^^^
