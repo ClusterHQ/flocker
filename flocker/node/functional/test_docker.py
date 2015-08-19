@@ -10,6 +10,7 @@ import time
 import socket
 from functools import partial
 
+from requests import Response
 from docker.errors import APIError
 from docker import Client
 # Docker-py uses 1.16 API by default, which isn't supported by docker, so force
@@ -924,6 +925,44 @@ nc -ll -p 8080 -e /tmp/script.sh
         return d
 
 
+def make_response(code, message):
+    """
+    Create a ``requests.Response`` with the given response code and message.
+
+    :param int code: The HTTP response code to include in the fake response.
+    :param unicode message: The HTTP response message to include in the fake
+        response.  The message will be encoded using ASCII.
+    """
+    response = Response()
+    response.status_code = code
+    response.reason = message
+    return response
+
+
+class MakeResponseTests(TestCase):
+    """
+    Tests for ``make_response``.
+    """
+    def test_str(self):
+        """
+        ``str(make_response(...))`` returns a string giving the response code.
+        """
+        self.assertEqual(
+            str(make_response(123, "Something")),
+            "<Response [123]>",
+        )
+
+    def test_apierror_str(self):
+        """
+        A string representation can be constructed of an ``APIError``
+        constructed with the response returned by ``make_response``.
+        """
+        self.assertEqual(
+            str(APIError("", make_response(500, "Simulated server error"))),
+            "500 Server Error: Simulated server error",
+        )
+
+
 class DockerClientTests(TestCase):
     """
     Tests for ``DockerClient`` specifically.
@@ -1013,12 +1052,10 @@ class DockerClientTests(TestCase):
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox:latest")
 
-        class Response(object):
-            status_code = 500
-            content = ""
+        response = make_response(500, "Simulated error")
 
         def error(name):
-            raise APIError("", Response())
+            raise APIError("", response)
 
         def added(_):
             # Monekypatch cause triggering non-404 errors from
