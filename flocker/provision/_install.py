@@ -601,6 +601,13 @@ def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
+    # Use the Flocker node TLS certificate, since it's readily
+    # available.
+    docker_tls_options = (
+        '"--tlsverify=true --tlscacert=/etc/flocker/cluster.crt'
+        ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
+        ' -H=0.0.0.0:2376"')
+
     if is_centos(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
@@ -622,10 +629,15 @@ def task_enable_docker(distribution):
             ),
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
+            put(path="/etc/default/docker",
+                content='OPTIONS=' + docker_tls_options),
         ])
     elif distribution == 'ubuntu-14.04':
         # Ubuntu enables docker service during installation
-        return sequence([])
+        return sequence([
+            put(path="/etc/sysconfig/docker",
+                content='DOCKER_OPTS=' + docker_tls_options),
+            ])
     else:
         raise DistributionNotSupported(distribution=distribution)
 
