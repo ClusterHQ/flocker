@@ -4,6 +4,7 @@
 Tests for the Flocker Docker plugin.
 """
 
+import ssl
 from twisted.trial.unittest import TestCase
 
 from docker import Client
@@ -24,7 +25,8 @@ class DockerPluginTests(TestCase):
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments):
         """
-        Run a Python script as a Docker container.
+        Run a Python script as a Docker container with the Flocker volume
+        driver.
 
         This is a blocking call.
 
@@ -42,17 +44,20 @@ class DockerPluginTests(TestCase):
             return cluster.certificates_path.child(name).path
 
         tls = TLSConfig(
-            ca_cert=get_path(b"cluster.crt"),
+            #ca_cert=get_path(b"cluster.crt"),
             client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
+            # Blows up if not set:
+            ssl_version=ssl.PROTOCOL_TLSv1,
             # Don't validate hostname, we don't generate it correctly:
-            assert_hostname=False)
-        client = Client(base_url="https://{}:2376/", tls=tls)
+            #assert_hostname=False)
+            verify=False)
+        client = Client(base_url="https://{}:2376".format(address), tls=tls)
         container = client.create_container(
-            "python2.7:slim",
+            "python:2.7-slim",
             ["python", "-c", script.getContent()] + list(script_arguments),
-            **docker_arguments)
+            volume_driver="flocker", **docker_arguments)
         client.start(container=container["Id"])
-        self.addCleanup(client.remove, container["Id"], force=True)
+        #self.addCleanup(client.remove_container, container["Id"], force=True)
 
     @require_cluster(1)
     def test_run_container_with_volume(self, cluster):
@@ -62,7 +67,7 @@ class DockerPluginTests(TestCase):
         data = "hello world"
         node = cluster.nodes[0]
 
-        volume_name = random_name()
+        volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             dict(host_config=create_host_config(
