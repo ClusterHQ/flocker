@@ -653,6 +653,7 @@ IGNORED_WARNINGS = {
         'file-in-etc-not-marked-as-conffile etc/init/flocker-dataset-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-container-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
+        'file-in-etc-not-marked-as-conffile etc/init/flocker-docker-plugin.conf',  # noqa
 
         # rsyslog files are not installed as conffiles.
         'file-in-etc-not-marked-as-conffile etc/rsyslog.d/flocker.conf',
