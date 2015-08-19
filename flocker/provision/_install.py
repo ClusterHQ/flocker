@@ -620,7 +620,10 @@ def task_install_api_certificates(api_cert, api_key):
 
 def task_enable_docker(distribution):
     """
-    Start docker and configure it to start automatically.
+    Configure docker.
+
+    We don't actually start it at this point since the certificates it
+    relies on have yet to be installed.
     """
     # Use the Flocker node TLS certificate, since it's readily
     # available.
