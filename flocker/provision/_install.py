@@ -1100,7 +1100,7 @@ def task_install_flocker(
         commands.append(run_from_args([
             'apt-get', '-y', '--force-yes', 'install', package]))
 
-        # We don't have publicly released docker-plugin packages yet
+        # XXXX We don't have publicly released docker-plugin packages yet
         # (FLOC-2881). Also making this on by default impacts
         # documentation...
         if use_development_branch:
@@ -1141,7 +1141,7 @@ def task_install_flocker(
         commands.append(run_from_args(
             ["yum", "install"] + repo_options + ["-y", package]))
 
-        # We don't have publicly released docker-plugin packages yet
+        # XXXX We don't have publicly released docker-plugin packages yet
         # (FLOC-2881). Also making this on by default impacts
         # documentation...
         if use_development_branch:
