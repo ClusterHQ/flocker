@@ -27,6 +27,7 @@ from .._persistence import (
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
     AttachedVolume, SERIALIZABLE_CLASSES, NodeState, Configuration,
+    Port, Link,
     )
 
 
@@ -399,21 +400,72 @@ class MigrateConfigurationTests(SynchronousTestCase):
         # and valid v3 configs.
         self.assertEqual(result, StubMigration.upgrade_from_v2(v2_config))
 
-    def test_v1_latest_configuration(self):
-        """
-        A V1 JSON configuration blob is transformed to the latest
-        configuration, with the result validating when loaded.
-        This test will need updating whenever the latest configuration
-        format changes (``expected_configuration``).
-        """
-        upgraded_json = migrate_configuration(
-            1, _CONFIG_VERSION, V1_TEST_DEPLOYMENT_JSON,
-            ConfigurationMigration)
-        upgraded_config = wire_decode(upgraded_json)
-        expected_configuration = Configuration(
-            version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT
+
+def manifestation_generator(random, _):
+    """
+    Hypothesis strategy generator to build a range of manifestations.
+    Generates a mapping of dataset IDs to ``Manifestation`` objects,
+    providing at random between 0 and 5 manifestations, with randomized
+    datasets and attributes.
+    """
+    manifestations = dict()
+    for count in range(0, random.randint(0, 5)):
+        dataset_id = unicode(UUID(int=random.getrandbits(128)))
+        manifestation = Manifestation(
+            primary=bool(random.getrandbits(1)),
+            dataset=Dataset(
+                dataset_id=dataset_id,
+                maximum_size=random.randint(1000000, 100000000)
+            )
         )
-        self.assertEqual(upgraded_config, expected_configuration)
+        manifestations[dataset_id] = manifestation
+    return manifestations
+
+
+ST_MANIFESTATIONS = st.basic(generate=manifestation_generator)
+UUIDS = st.basic(generate=lambda r, _: UUID(int=r.getrandbits(128)))
+ALPHABET = u"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlmnopqrstuvwxyz"
+SIMPLE_TEXT = st.text(
+    alphabet=ALPHABET, min_size=4, max_size=10, average_size=6
+)
+IMAGES = st.builds(DockerImage, tag=SIMPLE_TEXT, repository=SIMPLE_TEXT)
+NONE_OR_INT = st.one_of(
+    st.just(None),
+    st.integers(min_value=1000000, max_value=100000000)
+)
+PORTS = st.builds(
+    Port,
+    internal_port=st.integers(min_value=1, max_value=32000),
+    external_port=st.integers(min_value=1, max_value=32000)
+)
+LINKS = st.builds(
+    Link,
+    local_port=st.integers(min_value=1, max_value=32000),
+    remote_port=st.integers(min_value=1, max_value=32000),
+    alias=SIMPLE_TEXT
+)
+APPLICATIONS = st.builds(
+    Application, name=SIMPLE_TEXT, image=IMAGES,
+    # XXX at the moment there is a problem including AttachedVolume
+    # instances in each Application, because the Manifestation in
+    # a volume must also be present on the manifestations in a Node.
+    # So far I cannot find a way to do this with Hypothesis.
+    volume=st.just(None),
+    ports=st.sets(PORTS, min_size=0, max_size=3),
+    links=st.sets(LINKS, min_size=0, max_size=3),
+    environment=st.dictionaries(keys=SIMPLE_TEXT, values=SIMPLE_TEXT),
+    memory_limit=NONE_OR_INT,
+    cpu_shares=NONE_OR_INT,
+    running=st.booleans()
+)
+NODES = st.builds(
+    Node, uuid=UUIDS,
+    applications=st.sets(APPLICATIONS, min_size=0, max_size=3),
+    manifestations=ST_MANIFESTATIONS
+)
+DEPLOYMENTS = st.builds(
+    Deployment, nodes=st.sets(NODES, min_size=0, max_size=3)
+)
 
 
 class ConfigurationMigrationTests(SynchronousTestCase):
@@ -421,18 +473,32 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     Tests for ``ConfigurationMigration`` class that performs individual
     configuration upgrades.
 
-    Increment the given integer values below to define the test range
-    when new configuration upgraders are added. The first range is the
-    "upgrade from" versions range, where min_value should always be 1.
-    The second range is the "upgrade to" versions range, where min_value
-    should be 2 and max_value should be the latest supported configuration
-    version number.
+    There should be
     """
+    @given(DEPLOYMENTS)
+    def test_upgrade_configuration_v1_latest(self, deployment):
+        """
+        Test a range of generated configurations (deployments) can be
+        upgraded from v1 to the latest configuration version.
+
+        This test will need updating for each new configuration version
+        introduced to reflect the expected configuration format
+        (``expected_configuration``) after a successful upgrade.
+        """
+        source_json = wire_encode(deployment)
+        upgraded_json = migrate_configuration(
+            1, _CONFIG_VERSION, source_json, ConfigurationMigration)
+        upgraded_config = wire_decode(upgraded_json)
+        expected_configuration = Configuration(
+            version=_CONFIG_VERSION, deployment=deployment
+        )
+        self.assertEqual(upgraded_config, expected_configuration)
+
     @given(st.tuples(
         st.integers(min_value=1, max_value=2),
         st.integers(min_value=2, max_value=2)
     ))
-    def test_upgrade_configuration(self, versions):
+    def test_upgrade_configuration_versions(self, versions):
         """
         Test a range of version upgrades by ensuring the configuration
         blob after upgrade matches that which is expected for the
@@ -440,6 +506,13 @@ class ConfigurationMigrationTests(SynchronousTestCase):
 
         See flocker/control/test/configurations for individual
         version JSON files and generation code.
+
+        Increment the given integer values in the decorator above to define
+        the test range when new configuration upgraders are added. The first
+        range is the "upgrade from" versions range, where min_value should
+        always be 1. The second range is the "upgrade to" versions range,
+        where min_value should be 2 and max_value should be the latest
+        supported configuration version number.
         """
         configs_dir = FilePath(__file__).sibling('configurations')
         source_json_file = b"configuration_v%d.json" % versions[0]
