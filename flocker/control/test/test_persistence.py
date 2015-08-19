@@ -451,7 +451,9 @@ NODES = st.builds(
 )
 
 
-FILEPATHS = st.text().map(FilePath)
+# Let's assume that paths on disk are always made up of printable characters.
+import string
+FILEPATHS = st.text(alphabet=string.printable).map(FilePath)
 VOLUMES = st.builds(
     AttachedVolume, manifestation=MANIFESTATIONS, mountpoint=FILEPATHS)
 
@@ -463,25 +465,21 @@ def _build_node(applications):
     # All the manifestations in `applications`.
     app_manifestations = set(app.volume.manifestation for app in applications)
     # A set that contains all of those, plus an arbitrary set of manifestations.
+    dataset_ids = frozenset(app.volume.manifestation.dataset_id for app in applications if app.volume)
     manifestations = (
-        st.sets(MANIFESTATIONS)
+        st.sets(MANIFESTATIONS.filter(lambda m: m.dataset_id not in dataset_ids))
         .map(pset)
         .map(lambda ms: ms.union(app_manifestations))
         .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
-    # Because we might have generated two distinct datasets with the same
-    # dataset_id, and because the dict() phase above might have clobbered the
-    # wrong one, we reduce the set of applications to include only those that
-    # have a manifestation in manifestations.
-    apps_and_manifestations = manifestations.map(
-        lambda ms: (pset([app for app in applications if app.volume.manifestation in ms]), ms))
-    return apps_and_manifestations.flatmap(
-        lambda (apps, ms): st.builds(
-            Node, uuid=UUIDS,
-            applications=st.just(apps),
-            manifestations=st.just(ms)))
+    return st.builds(
+        Node, uuid=UUIDS,
+        applications=st.just(applications),
+        manifestations=manifestations)
 
 
-PROPER_NODES = st.sets(APPLICATIONS_WITH_VOLUMES).flatmap(_build_node)
+PROPER_NODES = st.sets(APPLICATIONS_WITH_VOLUMES).map(
+    lambda apps: pset(dict((app.volume.manifestation.dataset_id, app) for app in apps).values())
+).flatmap(_build_node)
 
 
 DEPLOYMENTS = st.builds(
