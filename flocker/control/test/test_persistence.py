@@ -460,17 +460,26 @@ APPLICATIONS_WITH_VOLUMES = st.tuples(APPLICATIONS, VOLUMES).map(lambda (a, v): 
 
 
 def _build_node(applications):
+    # All the manifestations in `applications`.
     app_manifestations = set(app.volume.manifestation for app in applications)
+    # A set that contains all of those, plus an arbitrary set of manifestations.
     manifestations = (
         st.sets(MANIFESTATIONS)
         .map(pset)
         .map(lambda ms: ms.union(app_manifestations))
         .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
-    # XXX: This almost but not quite builds a valid Node. The problem is that
-    # we can have two Datasets with the same value.
-    return st.builds(
-        Node, uuid=UUIDS, applications=st.just(applications),
-        manifestations=manifestations)
+    # Because we might have generated two distinct datasets with the same
+    # dataset_id, and because the dict() phase above might have clobbered the
+    # wrong one, we reduce the set of applications to include only those that
+    # have a manifestation in manifestations.
+    apps_and_manifestations = manifestations.map(
+        lambda ms: (pset([app for app in applications if app.volume.manifestation in ms]), ms))
+    return apps_and_manifestations.flatmap(
+        lambda (apps, ms): st.builds(
+            Node, uuid=UUIDS,
+            applications=st.just(apps),
+            manifestations=st.just(ms)))
+
 
 PROPER_NODES = st.sets(APPLICATIONS_WITH_VOLUMES).flatmap(_build_node)
 
