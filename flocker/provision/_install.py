@@ -625,9 +625,9 @@ def task_enable_docker(distribution):
     # Use the Flocker node TLS certificate, since it's readily
     # available.
     docker_tls_options = (
-        '"--tlsverify=true --tlscacert=/etc/flocker/cluster.crt'
+        '--tlsverify --tlscacert=/etc/flocker/cluster.crt'
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
-        ' -H=0.0.0.0:2376"')
+        ' -H=0.0.0.0:2376')
 
     if is_centos(distribution):
         conf_path = (
@@ -648,17 +648,20 @@ def task_enable_docker(distribution):
                     """
                 ),
             ),
+            put(path="/etc/systemd/system/docker.service.d/02-TLS.conf",
+                content=dedent(
+                    """\
+                    [Service]
+                    ExecStart=
+                    ExecStart=/usr/bin/docker daemon -H fd:// {}
+                    """.format(docker_tls_options))),
             run_from_args(["systemctl", "enable", "docker.service"]),
-            run_from_args(["systemctl", "start", "docker.service"]),
-            put(path="/etc/default/docker",
-                content='OPTIONS=' + docker_tls_options),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
             # Ubuntu enables docker service during installation
-            put(path="/etc/sysconfig/docker",
-                content='DOCKER_OPTS=' + docker_tls_options),
-            run_from_args(["service", "docker", "restart"]),
+            put(path="/etc/default/docker",
+                content='DOCKER_OPTS="{}"'.format(docker_tls_options)),
             ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -727,10 +730,12 @@ def task_enable_docker_plugin(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
+            run_from_args(['systemctl', START, 'docker']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            run_from_args(['service', 'flocker-docker-plugin', 'start']),
+            run_from_args(['service', 'flocker-docker-plugin', 'restart']),
+            run_from_args(['service', 'docker', 'restart']),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
