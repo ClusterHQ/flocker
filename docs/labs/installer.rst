@@ -72,13 +72,14 @@ Get some nodes
 So now let's use the tools we've just installed to deploy and configure a Flocker cluster quickly!
 
 Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace).
-Use Ubuntu 14.04 or CentOS 7.
+Use Ubuntu 14.04, CentOS 7, or CoreOS.
+
 We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
 
 Make sure you create the servers a reasonable amount of disk space, since Docker images will be stored on the VM root disk itself.
 
-* Use Amazon EC2 if you want to use our EBS backend (note VMs must be deployed in the same AZ).
-* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend (VMs must be deployed in the same region).
+* Use Amazon EC2 if you want to use our EBS backend. **Note that VMs must be deployed in the same AZ.**
+* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend. VMs must be deployed in the same region.
 
 .. warning::
     Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu on AWS, ``sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``)
@@ -98,8 +99,7 @@ This will create some sample configuration files that correspond to the backend 
 
 * AWS EBS: ``cluster.yml.ebs.sample``
 * OpenStack (including Rackspace): ``cluster.yml.openstack.sample``
-
-.. * ZFS: ``cluster.yml.zfs.sample`` XXX put this back when https://github.com/ClusterHQ/unofficial-flocker-tools/issues/2 lands
+* ZFS (local storage): ``cluster.yml.zfs.sample``
 
 Choose the one that's appropriate for you, and then customize it with your choice of text editor.
 For example:
@@ -138,7 +138,7 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
 
 .. warning::
-    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524 if you want to access the control service or API remotely.
+    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524.
 
 Install Flocker Docker plugin (optional)
 ========================================
@@ -177,9 +177,3 @@ Print a simple tutorial
     flocker-tutorial cluster.yml
 
 This will print out a short tutorial on exercising the Flocker volumes and containers APIs, customized to your deployment.
-
-Known limitations
-=================
-
-* This installer doesn't yet do the key management required for the ZFS backend to operate.
-  See `#2 <https://github.com/ClusterHQ/unofficial-flocker-tools/issues/2>`_.
