@@ -597,7 +597,7 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
         ])
 
 
-def task_install_api_certificates(ca_cert, api_cert, api_key):
+def task_install_api_certificates(api_cert, api_key):
     """
     Install certificate and private key required by Docker plugin to
     access the Flocker REST API.
