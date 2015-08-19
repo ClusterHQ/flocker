@@ -272,9 +272,9 @@ Release
 
    .. prompt:: bash (flocker-0.1.2)$,$ auto
 
-      (flocker-0.1.2)$ RELEASE_DIRECTORY_PATH=${PWD}
+      (flocker-0.1.2)$ VIRTUALENV_NAME=$(basename ${VIRTUAL_ENV})
       (flocker-0.1.2)$ deactivate
-      $ rmvirtualenv ${RELEASE_DIRECTORY_PATH##*/}
+      $ rmvirtualenv ${VIRTUALENV_NAME}
 
 #. Remove the release Flocker clone:
 
@@ -282,7 +282,7 @@ Release
 
    .. prompt:: bash $
 
-      rm -rf ${RELEASE_DIRECTORY_PATH}
+      rm -rf ${PWD}
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
