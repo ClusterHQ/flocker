@@ -16,7 +16,7 @@ from twisted.internet import reactor
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from pyrsistent import PRecord
+from pyrsistent import PRecord, pset
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
@@ -401,29 +401,15 @@ class MigrateConfigurationTests(SynchronousTestCase):
         self.assertEqual(result, StubMigration.upgrade_from_v2(v2_config))
 
 
-def manifestation_generator(random, _):
-    """
-    Hypothesis strategy generator to build a range of manifestations.
-    Generates a mapping of dataset IDs to ``Manifestation`` objects,
-    providing at random between 0 and 5 manifestations, with randomized
-    datasets and attributes.
-    """
-    manifestations = dict()
-    for count in range(0, random.randint(0, 5)):
-        dataset_id = unicode(UUID(int=random.getrandbits(128)))
-        manifestation = Manifestation(
-            primary=bool(random.getrandbits(1)),
-            dataset=Dataset(
-                dataset_id=dataset_id,
-                maximum_size=random.randint(1000000, 100000000)
-            )
-        )
-        manifestations[dataset_id] = manifestation
-    return manifestations
-
-
-ST_MANIFESTATIONS = st.basic(generate=manifestation_generator)
 UUIDS = st.basic(generate=lambda r, _: UUID(int=r.getrandbits(128)))
+
+DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
+
+# Constrain primary to be True so that we don't get invariant errors from Node
+# due to having two differing manifestations of the same dataset id.
+MANIFESTATIONS = st.builds(Manifestation, primary=st.just(True), dataset=DATASETS)
+
+
 ALPHABET = u"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlmnopqrstuvwxyz"
 SIMPLE_TEXT = st.text(
     alphabet=ALPHABET, min_size=4, max_size=10, average_size=6
@@ -461,11 +447,38 @@ APPLICATIONS = st.builds(
 NODES = st.builds(
     Node, uuid=UUIDS,
     applications=st.sets(APPLICATIONS, min_size=0, max_size=3),
-    manifestations=ST_MANIFESTATIONS
+    manifestations=MANIFESTATIONS
 )
+
+
+FILEPATHS = st.text().map(FilePath)
+VOLUMES = st.builds(
+    AttachedVolume, manifestation=MANIFESTATIONS, mountpoint=FILEPATHS)
+
+
+APPLICATIONS_WITH_VOLUMES = st.tuples(APPLICATIONS, VOLUMES).map(lambda (a, v): a.set(volume=v))
+
+
+def _build_node(applications):
+    app_manifestations = set(app.volume.manifestation for app in applications)
+    manifestations = (
+        st.sets(MANIFESTATIONS)
+        .map(pset)
+        .map(lambda ms: ms.union(app_manifestations))
+        .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
+    # XXX: This almost but not quite builds a valid Node. The problem is that
+    # we can have two Datasets with the same value.
+    return st.builds(
+        Node, uuid=UUIDS, applications=st.just(applications),
+        manifestations=manifestations)
+
+PROPER_NODES = st.sets(APPLICATIONS_WITH_VOLUMES).flatmap(_build_node)
+
+
 DEPLOYMENTS = st.builds(
-    Deployment, nodes=st.sets(NODES, min_size=0, max_size=3)
+    Deployment, nodes=st.sets(PROPER_NODES, min_size=0, max_size=3)
 )
+
 
 
 class ConfigurationMigrationTests(SynchronousTestCase):
