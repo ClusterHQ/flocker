@@ -4,6 +4,7 @@
 Tests for ``flocker.control._persistence``.
 """
 import json
+import string
 
 from uuid import uuid4, UUID
 
@@ -407,67 +408,56 @@ DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 
 # Constrain primary to be True so that we don't get invariant errors from Node
 # due to having two differing manifestations of the same dataset id.
-MANIFESTATIONS = st.builds(Manifestation, primary=st.just(True), dataset=DATASETS)
-
-
-ALPHABET = u"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlmnopqrstuvwxyz"
+MANIFESTATIONS = st.builds(
+    Manifestation, primary=st.just(True), dataset=DATASETS)
 SIMPLE_TEXT = st.text(
-    alphabet=ALPHABET, min_size=4, max_size=10, average_size=6
+    alphabet=string.letters, min_size=4, max_size=20, average_size=12
 )
 IMAGES = st.builds(DockerImage, tag=SIMPLE_TEXT, repository=SIMPLE_TEXT)
 NONE_OR_INT = st.one_of(
     st.just(None),
-    st.integers(min_value=1000000, max_value=100000000)
+    st.integers()
 )
+ST_PORTS = st.integers(min_value=1, max_value=65535)
 PORTS = st.builds(
     Port,
-    internal_port=st.integers(min_value=1, max_value=32000),
-    external_port=st.integers(min_value=1, max_value=32000)
+    internal_port=ST_PORTS,
+    external_port=ST_PORTS
 )
 LINKS = st.builds(
     Link,
-    local_port=st.integers(min_value=1, max_value=32000),
-    remote_port=st.integers(min_value=1, max_value=32000),
+    local_port=ST_PORTS,
+    remote_port=ST_PORTS,
     alias=SIMPLE_TEXT
 )
 APPLICATIONS = st.builds(
     Application, name=SIMPLE_TEXT, image=IMAGES,
-    # XXX at the moment there is a problem including AttachedVolume
-    # instances in each Application, because the Manifestation in
-    # a volume must also be present on the manifestations in a Node.
-    # So far I cannot find a way to do this with Hypothesis.
-    volume=st.just(None),
-    ports=st.sets(PORTS, min_size=0, max_size=3),
-    links=st.sets(LINKS, min_size=0, max_size=3),
+    ports=st.sets(PORTS, max_size=10),
+    links=st.sets(LINKS, max_size=10),
     environment=st.dictionaries(keys=SIMPLE_TEXT, values=SIMPLE_TEXT),
     memory_limit=NONE_OR_INT,
     cpu_shares=NONE_OR_INT,
     running=st.booleans()
 )
-NODES = st.builds(
-    Node, uuid=UUIDS,
-    applications=st.sets(APPLICATIONS, min_size=0, max_size=3),
-    manifestations=MANIFESTATIONS
-)
-
-
-# Let's assume that paths on disk are always made up of printable characters.
-import string
 FILEPATHS = st.text(alphabet=string.printable).map(FilePath)
 VOLUMES = st.builds(
     AttachedVolume, manifestation=MANIFESTATIONS, mountpoint=FILEPATHS)
-
-
-APPLICATIONS_WITH_VOLUMES = st.tuples(APPLICATIONS, VOLUMES).map(lambda (a, v): a.set(volume=v))
+APPLICATIONS_WITH_VOLUMES = st.tuples(
+    APPLICATIONS, VOLUMES).map(lambda (a, v): a.set(volume=v))
 
 
 def _build_node(applications):
     # All the manifestations in `applications`.
     app_manifestations = set(app.volume.manifestation for app in applications)
-    # A set that contains all of those, plus an arbitrary set of manifestations.
-    dataset_ids = frozenset(app.volume.manifestation.dataset_id for app in applications if app.volume)
+    # A set that contains all of those, plus an arbitrary set of
+    # manifestations.
+    dataset_ids = frozenset(
+        app.volume.manifestation.dataset_id
+        for app in applications if app.volume
+    )
     manifestations = (
-        st.sets(MANIFESTATIONS.filter(lambda m: m.dataset_id not in dataset_ids))
+        st.sets(MANIFESTATIONS.filter(
+            lambda m: m.dataset_id not in dataset_ids))
         .map(pset)
         .map(lambda ms: ms.union(app_manifestations))
         .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
@@ -477,15 +467,15 @@ def _build_node(applications):
         manifestations=manifestations)
 
 
-PROPER_NODES = st.sets(APPLICATIONS_WITH_VOLUMES).map(
-    lambda apps: pset(dict((app.volume.manifestation.dataset_id, app) for app in apps).values())
+NODES = st.sets(APPLICATIONS_WITH_VOLUMES).map(
+    lambda apps: pset(dict((
+        app.volume.manifestation.dataset_id, app) for app in apps).values())
 ).flatmap(_build_node)
 
 
 DEPLOYMENTS = st.builds(
-    Deployment, nodes=st.sets(PROPER_NODES, min_size=0, max_size=3)
+    Deployment, nodes=st.sets(NODES, min_size=0, max_size=3)
 )
-
 
 
 class ConfigurationMigrationTests(SynchronousTestCase):
