@@ -100,7 +100,7 @@ Preparing For a Release
 
 #. Create an issue in JIRA:
 
-   This should be an "Improvement" in the current sprint, with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
+   This should be a "Feature" with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create an environment to do a release in:
