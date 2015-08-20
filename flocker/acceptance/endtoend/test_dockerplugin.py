@@ -44,20 +44,27 @@ class DockerPluginTests(TestCase):
             return cluster.certificates_path.child(name).path
 
         tls = TLSConfig(
-            #ca_cert=get_path(b"cluster.crt"),
             client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
-            # Blows up if not set:
+            # Blows up if not set
+            # (https://github.com/shazow/urllib3/issues/695):
             ssl_version=ssl.PROTOCOL_TLSv1,
-            # Don't validate hostname, we don't generate it correctly:
-            #assert_hostname=False)
-            verify=False)
+            # Don't validate hostname, we don't generate it correctly, but
+            # do verify certificate authority signed the server certificate:
+            assert_hostname=False,
+            verify=get_path(b"cluster.crt"))
         client = Client(base_url="https://{}:2376".format(address), tls=tls)
+
+        # Remove all existing containers on the node, in case they're left
+        # over from previous test:
+        for container in client.containers():
+            client.remove_container(container["Id"], force=True)
+
         container = client.create_container(
             "python:2.7-slim",
             ["python", "-c", script.getContent()] + list(script_arguments),
             volume_driver="flocker", **docker_arguments)
         client.start(container=container["Id"])
-        #self.addCleanup(client.remove_container, container["Id"], force=True)
+        self.addCleanup(client.remove_container, container["Id"], force=True)
 
     @require_cluster(1)
     def test_run_container_with_volume(self, cluster):
@@ -70,8 +77,10 @@ class DockerPluginTests(TestCase):
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
-            dict(host_config=create_host_config(
-                binds=["{}:/data".format(volume_name)])),
+            {"host_config": create_host_config(
+                binds=["{}:/data".format(volume_name)],
+                port_bindings={8080: 8080}),
+             "ports": [8080]},
             CURRENT_DIRECTORY.child(b"datahttp.py"),
             [u"/data"])
 
