@@ -32,8 +32,10 @@ SCHEMAS = {
     }
 
 
-# The default size of a created volume:
-DEFAULT_SIZE = int(GiB(100).to_Byte().value)
+# The default size of a created volume. Pick a number that isn't the same
+# as devicemapper loopback size (100GiB) so we don't trigger
+# https://clusterhq.atlassian.net/browse/FLOC-2889
+DEFAULT_SIZE = int(GiB(48).to_Byte().value)
 
 
 def _endpoint(name, ignore_body=False):
