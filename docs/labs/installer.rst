@@ -71,8 +71,11 @@ Get some nodes
 
 So now let's use the tools we've just installed to deploy and configure a Flocker cluster quickly!
 
-Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace).
+Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace), or even bare metal if you want to try out the experimental ZFS backend.
 Use Ubuntu 14.04, CentOS 7, or CoreOS.
+
+.. warning::
+    Note that CoreOS support is experimental, and should not be used for production workloads. ZFS support is similarly experimental.
 
 We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
 
@@ -82,7 +85,7 @@ Make sure you create the servers a reasonable amount of disk space, since Docker
 * Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend. VMs must be deployed in the same region.
 
 .. warning::
-    Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu on AWS, ``sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``)
+    Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu or CoreOS on AWS, log in as the default user, then run ``sudo mkdir /root/.ssh; sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``)
 
 You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider). Using a DNS name is optional, you can also just use its IP address.
 
@@ -100,6 +103,9 @@ This will create some sample configuration files that correspond to the backend 
 * AWS EBS: ``cluster.yml.ebs.sample``
 * OpenStack (including Rackspace): ``cluster.yml.openstack.sample``
 * ZFS (local storage): ``cluster.yml.zfs.sample``
+
+.. warning::
+    Note that ZFS support is experimental, and should not be used for production workloads.
 
 Choose the one that's appropriate for you, and then customize it with your choice of text editor.
 For example:
