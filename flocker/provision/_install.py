@@ -20,7 +20,7 @@ from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
-    sudo, sudo_from_args,
+    sudo_from_args,
     put,
     run_remotely
 )
