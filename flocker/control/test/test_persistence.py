@@ -483,7 +483,7 @@ NODES = st.sets(APPLICATIONS).map(
 
 
 DEPLOYMENTS = st.builds(
-    Deployment, nodes=st.sets(NODES, min_size=0, max_size=3)
+    Deployment, nodes=st.sets(NODES)
 )
 
 SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
@@ -526,11 +526,13 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         See flocker/control/test/configurations for individual
         version JSON files and generation code.
         """
+        source_version, target_version = versions
         configs_dir = FilePath(__file__).sibling('configurations')
-        source_json_file = b"configuration_v%d.json" % versions[0]
+        source_json_file = b"configuration_v%d.json" % source_version
         target_json_file = b"configuration_v%d.json" % versions[1]
         source_json = configs_dir.child(source_json_file).getContent()
         target_json = configs_dir.child(target_json_file).getContent()
         upgraded_json = migrate_configuration(
-            versions[0], versions[1], source_json, ConfigurationMigration)
+            source_version, target_version,
+            source_json, ConfigurationMigration)
         self.assertEqual(json.loads(upgraded_json), json.loads(target_json))
