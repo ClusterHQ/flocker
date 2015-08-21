@@ -21,7 +21,7 @@ from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
     ensure_minimal_setup,
-    task_package_install,
+    task_cli_pkg_install,
     task_cli_pkg_test,
     task_cli_pip_prereqs,
     task_cli_pip_install,
@@ -272,8 +272,7 @@ def main(args, base_path, top_level):
     else:
         steps = [
             ensure_minimal_setup(package_manager),
-            task_package_install("clusterhq-flocker-cli",
-                                 distribution, package_source),
+            task_cli_pkg_install(distribution, package_source),
             task_cli_pkg_test(),
         ]
     runner = DockerRunner(DOCKER_IMAGES[distribution].image)

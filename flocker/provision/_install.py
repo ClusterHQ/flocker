@@ -359,6 +359,20 @@ def task_package_install(package_name, distribution,
     return installer(package_name, distribution, package_source)
 
 
+def task_cli_pkg_install(distribution, package_source=PackageSource()):
+    """
+    Install the Flocker CLI package.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: a sequence of commands to run on the distribution
+    """
+    return task_package_install("clusterhq-flocker-cli", distribution,
+                                package_source)
+
+
 PIP_CLI_PREREQ_APT = [
     'gcc',
     'libffi-dev',
