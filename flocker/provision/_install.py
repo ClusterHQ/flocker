@@ -226,7 +226,7 @@ def install_commands_yum(package_name, distribution, package_source):
         use_development_branch = False
 
     commands = [
-        sudo(command="yum install -y " + get_repository_url(
+        run(command="yum install -y " + get_repository_url(
             distribution=distribution,
             flocker_version=get_installable_version(version))),
     ]
@@ -240,10 +240,7 @@ def install_commands_yum(package_name, distribution, package_source):
             enabled=0
             """) % (base_url,)
         commands.append(put(content=repo,
-                            path='/tmp/clusterhq-build.repo'))
-        commands.append(sudo_from_args([
-            'cp', '/tmp/clusterhq-build.repo',
-            '/etc/yum.repos.d/clusterhq-build.repo']))
+                            path='/etc/yum.repos.d/clusterhq-build.repo'))
         repo_options = ['--enablerepo=clusterhq-build']
     else:
         repo_options = get_repo_options(
@@ -252,9 +249,9 @@ def install_commands_yum(package_name, distribution, package_source):
     if package_source.os_version:
         package_name += '-%s' % (package_source.os_version,)
 
-    # Install Flocker CLI and all dependencies
+    # Install package and all dependencies:
 
-    commands.append(sudo_from_args(
+    commands.append(run_from_args(
         ["yum", "install"] + repo_options + ["-y", package_name]))
 
     return sequence(commands)
@@ -291,13 +288,13 @@ def install_commands_ubuntu(package_name, distribution, package_source):
         # ensure that we start from a good base system with the required
         # capabilities, particularly that the add-apt-repository command
         # is available, and HTTPS URLs are supported.
-        sudo_from_args(["apt-get", "update"]),
-        sudo_from_args([
+        run_from_args(["apt-get", "update"]),
+        run_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
 
         # Add ClusterHQ repo for installation of Flocker packages.
-        sudo(command='add-apt-repository -y "deb {} /"'.format(
+        run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
                 flocker_version=get_installable_version(version))))
@@ -316,18 +313,16 @@ def install_commands_ubuntu(package_name, distribution, package_source):
             Package:  *
             Pin: origin {}
             Pin-Priority: 900
-            '''.format(buildbot_host)), '/tmp/apt-pref'))
-        commands.append(sudo_from_args([
-            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
+            '''.format(buildbot_host)), '/etc/apt/preferences.d/buildbot-900'))
 
     # Update to read package info from new repos
-    commands.append(sudo_from_args(["apt-get", "update"]))
+    commands.append(run_from_args(["apt-get", "update"]))
 
     if package_source.os_version:
         package_name += '=%s' % (package_source.os_version,)
 
-    # Install Flocker CLI and all dependencies
-    commands.append(sudo_from_args([
+    # Install package and all dependencies
+    commands.append(run_from_args([
         'apt-get', '-y', '--force-yes', 'install', package_name]))
 
     return sequence(commands)
