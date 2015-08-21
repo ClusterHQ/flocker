@@ -31,7 +31,12 @@ from .._model import (
     Port, Link,
     )
 
-
+# The UUID values for the Dataset and Node in TEST_DEPLOYMENT match
+# those in the versioned JSON configuration files used by tests in this
+# module. If these values are changed, you will also need to regenerate
+# the test JSON files using the scripts provided in the
+# flocker/control/test/configurations/ directory, using the correct
+# commit checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
@@ -410,12 +415,9 @@ DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 # due to having two differing manifestations of the same dataset id.
 MANIFESTATIONS = st.builds(
     Manifestation, primary=st.just(True), dataset=DATASETS)
-SIMPLE_TEXT = st.text(
-    alphabet=string.letters, min_size=4, max_size=20, average_size=12
-)
-IMAGES = st.builds(DockerImage, tag=SIMPLE_TEXT, repository=SIMPLE_TEXT)
+IMAGES = st.builds(DockerImage, tag=st.text(), repository=st.text())
 NONE_OR_INT = st.one_of(
-    st.just(None),
+    st.none(),
     st.integers()
 )
 ST_PORTS = st.integers(min_value=1, max_value=65535)
@@ -428,27 +430,33 @@ LINKS = st.builds(
     Link,
     local_port=ST_PORTS,
     remote_port=ST_PORTS,
-    alias=SIMPLE_TEXT
-)
-APPLICATIONS = st.builds(
-    Application, name=SIMPLE_TEXT, image=IMAGES,
-    ports=st.sets(PORTS, max_size=10),
-    links=st.sets(LINKS, max_size=10),
-    environment=st.dictionaries(keys=SIMPLE_TEXT, values=SIMPLE_TEXT),
-    memory_limit=NONE_OR_INT,
-    cpu_shares=NONE_OR_INT,
-    running=st.booleans()
+    alias=st.text(alphabet=string.letters, min_size=1)
 )
 FILEPATHS = st.text(alphabet=string.printable).map(FilePath)
 VOLUMES = st.builds(
     AttachedVolume, manifestation=MANIFESTATIONS, mountpoint=FILEPATHS)
-APPLICATIONS_WITH_VOLUMES = st.tuples(
-    APPLICATIONS, VOLUMES).map(lambda (a, v): a.set(volume=v))
+APPLICATIONS = st.builds(
+    Application, name=st.text(), image=IMAGES,
+    # A MemoryError will likely occur without the max_size limits on
+    # Ports and Links. The max_size value that will trigger memory errors
+    # will vary system to system. 10 is a reasonable test range for realistic
+    # container usage that should also not run out of memory on most modern
+    # systems.
+    ports=st.sets(PORTS, max_size=10),
+    links=st.sets(LINKS, max_size=10),
+    volume=st.none() | VOLUMES,
+    environment=st.dictionaries(keys=st.text(), values=st.text()),
+    memory_limit=NONE_OR_INT,
+    cpu_shares=NONE_OR_INT,
+    running=st.booleans()
+)
 
 
 def _build_node(applications):
     # All the manifestations in `applications`.
-    app_manifestations = set(app.volume.manifestation for app in applications)
+    app_manifestations = set(
+        app.volume.manifestation for app in applications if app.volume
+    )
     # A set that contains all of those, plus an arbitrary set of
     # manifestations.
     dataset_ids = frozenset(
@@ -467,15 +475,18 @@ def _build_node(applications):
         manifestations=manifestations)
 
 
-NODES = st.sets(APPLICATIONS_WITH_VOLUMES).map(
+NODES = st.sets(APPLICATIONS).map(
     lambda apps: pset(dict((
-        app.volume.manifestation.dataset_id, app) for app in apps).values())
+        app.volume.manifestation.dataset_id, app)
+        for app in apps if app.volume).values())
 ).flatmap(_build_node)
 
 
 DEPLOYMENTS = st.builds(
     Deployment, nodes=st.sets(NODES, min_size=0, max_size=3)
 )
+
+SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
 
 class ConfigurationMigrationTests(SynchronousTestCase):
@@ -488,7 +499,7 @@ class ConfigurationMigrationTests(SynchronousTestCase):
     @given(DEPLOYMENTS)
     def test_upgrade_configuration_v1_latest(self, deployment):
         """
-        Test a range of generated configurations (deployments) can be
+        A range of generated configurations (deployments) can be
         upgraded from v1 to the latest configuration version.
 
         This test will need updating for each new configuration version
@@ -504,25 +515,16 @@ class ConfigurationMigrationTests(SynchronousTestCase):
         )
         self.assertEqual(upgraded_config, expected_configuration)
 
-    @given(st.tuples(
-        st.integers(min_value=1, max_value=2),
-        st.integers(min_value=2, max_value=2)
-    ))
+    @given(st.tuples(SUPPORTED_VERSIONS, SUPPORTED_VERSIONS).map(
+        lambda x: tuple(sorted(x))))
     def test_upgrade_configuration_versions(self, versions):
         """
-        Test a range of version upgrades by ensuring the configuration
-        blob after upgrade matches that which is expected for the
+        A range of versions can be upgraded and the configuration
+        blob after upgrade will matche that which is expected for the
         particular version.
 
         See flocker/control/test/configurations for individual
         version JSON files and generation code.
-
-        Increment the given integer values in the decorator above to define
-        the test range when new configuration upgraders are added. The first
-        range is the "upgrade from" versions range, where min_value should
-        always be 1. The second range is the "upgrade to" versions range,
-        where min_value should be 2 and max_value should be the latest
-        supported configuration version number.
         """
         configs_dir = FilePath(__file__).sibling('configurations')
         source_json_file = b"configuration_v%d.json" % versions[0]

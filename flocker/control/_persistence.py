@@ -98,12 +98,11 @@ def migrate_configuration(source_version, target_version,
                           source_version=current_version,
                           target_version=upgrade_version):
             migration_method = u"upgrade_from_v%d" % current_version
-            try:
-                migration = getattr(migration_class, migration_method)
-                migrations_sequence.append(migration)
-                current_version = current_version + 1
-            except AttributeError:
+            migration = getattr(migration_class, migration_method, None)
+            if migration is None:
                 raise MissingMigrationError(current_version, upgrade_version)
+            migrations_sequence.append(migration)
+            current_version += 1
     for migration in migrations_sequence:
         upgraded_config = migration(upgraded_config)
     return upgraded_config
@@ -277,16 +276,20 @@ class ConfigurationPersistenceService(MultiService):
         MultiService.startService(self)
         _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
-    def _process_v1_config(self):
+    def _process_v1_config(self, file_name, archive_name):
         """
         Check if a v1 configuration file exists and upgrade it if necessary.
         After upgrade, the v1 configuration file is retained with an archived
-        file name.
+        file name, which ensures the data is not lost but we do not override
+        a newer configuration version next time the service starts.
+
+        :param bytes file_name: The expected file name of a version 1
+            configuration.
+        :param bytes archive_name: The file name to which a version 1
+            configuration should be moved after it has been processed.
         """
-        v1_config_path = self._path.child(
-            b"current_configuration.v1.json")
-        v1_archived_path = self._path.child(
-            b"current_configuration.v1.old.json")
+        v1_config_path = self._path.child(file_name)
+        v1_archived_path = self._path.child(archive_name)
         # Check for a v1 config and upgrade to latest if found.
         if v1_config_path.exists():
             v1_json = v1_config_path.getContent()
@@ -306,7 +309,20 @@ class ConfigurationPersistenceService(MultiService):
         Load the persisted configuration, upgrading the configuration format
         if an older version is detected.
         """
-        self._process_v1_config()
+        # Version 1 configurations are a special case. They do not store
+        # any version information in the configuration data itself, rather they
+        # can only be identified by the use of the file name
+        # current_configuration.v1.json
+        # Therefore we check for a version 1 configuration file and if it is
+        # found, the config is upgraded, written to current_configuration.json
+        # and the old file archived as current_configuration.v1.old.json
+        self._process_v1_config(
+            file_name=b"current_configuration.v1.json",
+            archive_name=b"current_configuration.v1.old.json"
+        )
+
+        # We can now safely attempt to detect and process a >v1 configuration
+        # file as normal.
         if self._config_path.exists():
             config_json = self._config_path.getContent()
             config_dict = loads(config_json)
