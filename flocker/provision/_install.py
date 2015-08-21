@@ -200,7 +200,8 @@ def task_cli_pkg_test():
     return run_from_args(['flocker-deploy', '--version'])
 
 
-def install_commands_yum(package_name, distribution, package_source):
+def install_commands_yum(package_name, distribution, package_source,
+                         base_url):
     """
     Install Flocker package on CentOS.
 
@@ -209,29 +210,22 @@ def install_commands_yum(package_name, distribution, package_source):
     be added to the package search path, to use in-development packages.
     Note, the ClusterHQ repo is always enabled, to provide dependencies.
 
+    :param str package_name: The name of the package to install.
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
-    :param str package_name: The name of the package to install.
+    :param base_url: URL of repository, or ``None`` if we're not using
+        development branch.
 
     :return: a sequence of commands to run on the distribution
     """
-    if package_source.branch:
-        # A development branch has been selected - add its Buildbot repo
-        use_development_branch = True
-        result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, distribution)
-        base_url = urljoin(package_source.build_server, result_path)
-    else:
-        use_development_branch = False
-
     commands = [
         run(command="yum install -y " + get_repository_url(
             distribution=distribution,
             flocker_version=get_installable_version(version))),
     ]
 
-    if use_development_branch:
+    if base_url is not None:
         repo = dedent(b"""\
             [clusterhq-build]
             name=clusterhq-build
@@ -257,7 +251,8 @@ def install_commands_yum(package_name, distribution, package_source):
     return sequence(commands)
 
 
-def install_commands_ubuntu(package_name, distribution, package_source):
+def install_commands_ubuntu(package_name, distribution, package_source,
+                            base_url):
     """
     Install Flocker package on Ubuntu.
 
@@ -269,19 +264,11 @@ def install_commands_ubuntu(package_name, distribution, package_source):
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
-    :param str package_name: The name of the package to install.
+    :param base_url: URL of repository, or ``None`` if we're not using
+        development branch.
 
     :return: a sequence of commands to run on the distribution
     """
-    if package_source.branch:
-        # A development branch has been selected - add its Buildbot repo
-        use_development_branch = True
-        result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, distribution)
-        base_url = urljoin(package_source.build_server, result_path)
-    else:
-        use_development_branch = False
-
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -300,7 +287,7 @@ def install_commands_ubuntu(package_name, distribution, package_source):
                 flocker_version=get_installable_version(version))))
         ]
 
-    if use_development_branch:
+    if base_url is not None:
         # Add BuildBot repo for running tests
         commands.append(run_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
@@ -352,11 +339,20 @@ def task_package_install(package_name, distribution,
 
     :return: a sequence of commands to run on the distribution
     """
+    if package_source.branch:
+        # A development branch has been selected - add its Buildbot repo
+        result_path = posixpath.join(
+            '/results/omnibus/', package_source.branch, distribution)
+        base_url = urljoin(package_source.build_server, result_path)
+    else:
+        base_url = None
+
     try:
         installer = _task_install_commands[distribution]
     except KeyError:
         raise UnsupportedDistribution()
-    return installer(package_name, distribution, package_source)
+    return installer(package_name, distribution, package_source,
+                     base_url)
 
 
 def task_cli_pkg_install(distribution, package_source=PackageSource()):
