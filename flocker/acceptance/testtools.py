@@ -33,7 +33,7 @@ from ..common import gather_deferreds
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
 from ..testtools import loop_until, random_name, REALISTIC_BLOCKDEVICE_SIZE
-
+from ..apiclient import FlockerClient, DatasetState
 
 try:
     from pymongo import MongoClient
@@ -304,11 +304,15 @@ class Cluster(PRecord):
     :ivar Node control_node: The node running the ``flocker-control``
         service.
     :ivar list nodes: The ``Node`` s in this cluster.
-    :ivar treq: A ``treq`` client.
+
+    :ivar treq: A ``treq`` client, eventually to be completely replaced by
+        ``FlockerClient`` usage.
+    :ivar client: A ``FlockerClient``.
     """
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
 
     @property
@@ -322,131 +326,42 @@ class Cluster(PRecord):
         )
 
     @log_method
-    def configured_datasets(self):
-        """
-        Return the configured dataset state of the cluster.
-
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the configuration of the cluster.
-        """
-        request = self.treq.get(
-            self.base_url + b"/configuration/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def datasets_state(self):
-        """
-        Return the actual dataset state of the cluster.
-
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the state of the cluster.
-        """
-        request = self.treq.get(
-            self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def wait_for_dataset(self, dataset_properties):
+    def wait_for_dataset(self, expected_dataset):
         """
         Poll the dataset state API until the supplied dataset exists.
 
-        :param dict dataset_properties: The attributes of the dataset that
-            we're waiting for.
-        :returns: A ``Deferred`` which fires with an API response when a
-            dataset with the supplied properties appears in the cluster.
+        :param Dataset expected_dataset: The configured dataset that
+            we're waiting for in state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when cluster state matches the configuration for the given
+            dataset.
         """
+        expected_dataset_state = DatasetState(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_dataset.primary,
+            maximum_size=expected_dataset.maximum_size,
+            path=None)
+
         def created():
             """
             Check the dataset state list for the expected dataset.
             """
-            request = self.datasets_state()
+            request = self.client.list_datasets_state()
 
-            def got_body(body):
-                # State listing doesn't have metadata or deleted, but does
-                # have unpredictable path.
-                expected_dataset = dataset_properties.copy()
-                del expected_dataset[u"metadata"]
-                del expected_dataset[u"deleted"]
-                for dataset in body:
-                    try:
-                        dataset.pop("path")
-                    except KeyError:
-                        # Non-manifest datasets don't have a path
-                        pass
-                return expected_dataset in body
-            request.addCallback(got_body)
+            def got_results(results):
+                # State has unpredictable path, so we don't bother
+                # checking for its contents:
+                for dataset in results:
+                    if dataset.set("path", None) == expected_dataset_state:
+                        return True
+                return False
+            request.addCallback(got_results)
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: dataset_properties)
+        waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
-
-    @log_method
-    def create_dataset(self, dataset_properties):
-        """
-        Create a dataset with the supplied ``dataset_properties``.
-
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with an API response when a
-            dataset with the supplied properties has been persisted to the
-            cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/datasets",
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, CREATED)
-        return request
-
-    @log_method
-    def update_dataset(self, dataset_id, dataset_properties):
-        """
-        Update a dataset with the supplied ``dataset_properties``.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with an API response when the
-            dataset update has been persisted to the cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def delete_dataset(self, dataset_id):
-        """
-        Delete a dataset.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-
-        :returns: A ``Deferred`` which fires with an API response when the
-            dataset deletion has been persisted to the cluster configuration.
-        """
-        request = self.treq.delete(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
 
     @log_method
     def create_container(self, properties):
@@ -638,16 +553,9 @@ class Cluster(PRecord):
 
         def cleanup_datasets():
             return api_clean_state(
-                lambda: self.configured_datasets().addCallback(
-                    lambda datasets: list(
-                        dataset
-                        for dataset
-                        in datasets
-                        if not dataset.get(u"deleted", False)
-                    )
-                ),
-                self.datasets_state,
-                lambda item: self.delete_dataset(item[u"dataset_id"]),
+                self.client.list_datasets_configuration,
+                self.client.list_datasets_state,
+                lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
         return cleanup_containers().addCallback(lambda _: cleanup_datasets())
@@ -692,6 +600,8 @@ def _get_test_cluster(reactor, node_count):
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
+        client=FlockerClient(reactor, control_node, REST_API_PORT,
+                             cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
     )
 
@@ -825,18 +735,12 @@ def create_dataset(test_case, cluster,
     :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
-    :return: ``Deferred`` firing with a dataset state dictionary once the
+    :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
-    # Configure a dataset on node1
-    requested_dataset = {
-        u"primary": cluster.nodes[0].uuid,
-        u"dataset_id": unicode(uuid4()),
-        u"maximum_size": maximum_size,
-        u"metadata": {u"name": u"my_volume"},
-    }
-
-    configuring_dataset = cluster.create_dataset(requested_dataset)
+    configuring_dataset = cluster.client.create_dataset(
+        cluster.nodes[0].uuid, maximum_size=maximum_size, dataset_id=uuid4(),
+        metadata={u"name": u"my_volume"})
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(

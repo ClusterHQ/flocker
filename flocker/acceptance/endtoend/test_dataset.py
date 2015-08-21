@@ -38,18 +38,15 @@ class DatasetAPITests(TestCase):
 
         # Once created, request to move the dataset to node2
         def move_dataset(dataset):
-            dataset_moving = cluster.update_dataset(
-                dataset['dataset_id'], {
-                    u'primary': cluster.nodes[1].uuid
-                })
+            dataset_moving = cluster.client.move_dataset(
+                cluster.nodes[1].uuid, dataset.dataset_id)
 
             # Wait for the dataset to be moved; we expect the state to
             # match that of the originally created dataset in all ways
             # other than the location.
-            moved_dataset = dataset.copy()
-            moved_dataset[u'primary'] = cluster.nodes[1].uuid
+            moved_dataset = dataset.set(u"primary", cluster.nodes[1].uuid)
             dataset_moving.addCallback(
-                lambda dataset: cluster.wait_for_dataset(dataset))
+                lambda dataset: cluster.wait_for_dataset(moved_dataset))
             return dataset_moving
 
         waiting_for_create.addCallback(move_dataset)
@@ -63,13 +60,13 @@ class DatasetAPITests(TestCase):
         created = create_dataset(self, cluster)
 
         def delete_dataset(dataset):
-            deleted = cluster.delete_dataset(dataset["dataset_id"])
+            deleted = cluster.client.delete_dataset(dataset.dataset_id)
 
             def not_exists():
-                request = cluster.datasets_state()
+                request = cluster.client.list_datasets_state()
                 request.addCallback(
-                    lambda actual_datasets: dataset["dataset_id"] not in
-                    (d["dataset_id"] for d in actual_datasets))
+                    lambda actual_datasets: dataset.dataset_id not in
+                    (d.dataset_id for d in actual_datasets))
                 return request
             deleted.addCallback(lambda _: loop_until(not_exists))
             return deleted
