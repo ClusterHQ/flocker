@@ -25,7 +25,8 @@ from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
-from pyrsistent import pvector
+from pyrsistent import PClass, pvector, field
+
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
@@ -72,6 +73,27 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
     @if_docker_configured
     def setUp(self):
         pass
+
+
+class Registry(PClass):
+    """
+    Describe a Docker image registry.
+
+    :ivar host: The IP address on which the registry is listening.
+    :ivar port: The port number on which the registry is listening.
+    :ivar name: The name of the container in which the registry is running.
+    """
+    host = field(mandatory=True, type=bytes, initial=b"127.0.0.1")
+    port = field(mandatory=True, type=int)
+    name = field(mandatory=True, type=unicode)
+
+    @property
+    def repository(self):
+        """
+        The string to use as an image name prefix to direct Docker to find that
+        image in this registry instead of the default.
+        """
+        return "{host}:{port}".format(host=self.host, port=self.port)
 
 
 class GenericDockerClientTests(TestCase):
@@ -199,34 +221,18 @@ class GenericDockerClientTests(TestCase):
         Docker can pull from a private registry without any TLS configuration
         as long as it's running on the local host.
         """
-        registry_name = random_name(self)
-        registry_port = find_free_port()[1]
-        repository = '127.0.0.1:{}'.format(registry_port)
-        name = random_name(self).lower()
-        private_image = DockerImage(
-            # XXX: See FLOC-246 for followup improvements to
-            # ``flocker.control.DockerImage`` to allow parsing of alternative
-            # registry hostnames and ports.
-            repository=repository + '/' + name,
-            tag='latest'
-        )
+        registry_listening = self.run_registry()
 
-        registry_starting = self.start_container(
-            unit_name=registry_name,
-            image_name='registry:2',
-            ports=[
-                PortMap(
-                    internal_port=5000,
-                    external_port=registry_port
-                ),
-            ]
-        )
+        def tag_and_push_image(registry):
+            name = random_name(self).lower()
+            private_image = DockerImage(
+                # XXX: See FLOC-246 for followup improvements to
+                # ``flocker.control.DockerImage`` to allow parsing of alternative
+                # registry hostnames and ports.
+                repository=registry.repository + '/' + name,
+                tag='latest'
+            )
 
-        registry_listening = registry_starting.addCallback(
-            lambda ignored: self.request_until_response(registry_port)
-        )
-
-        def tag_and_push_image(ignored):
             client = Client()
             image = ANY_IMAGE
             # The image will normally have been pre-pulled on build slaves, but
@@ -256,9 +262,11 @@ class GenericDockerClientTests(TestCase):
                 image=private_image.full_name
             )
 
+            return private_image
+
         pushing_image = registry_listening.addCallback(tag_and_push_image)
 
-        def start_private_image(ignored):
+        def start_private_image(private_image):
             return self.start_container(
                 unit_name=random_name(self),
                 image_name=private_image.full_name,
@@ -506,6 +514,35 @@ class GenericDockerClientTests(TestCase):
         d = client.add(name, image)
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
+
+    def run_registry(self):
+        """
+        Start a registry in a container.
+
+        The registry will be stopped and destroyed when the currently running
+        test finishes.
+
+        :return: A ``Registry`` describing the registry which was started.
+        """
+        registry = Registry(
+            name=random_name(self),
+            port=find_free_port()[1],
+        )
+        registry_starting = self.start_container(
+            unit_name=registry.name,
+            image_name='registry:2',
+            ports=[
+                PortMap(
+                    internal_port=5000,
+                    external_port=registry.port
+                ),
+            ]
+        )
+        registry_listening = registry_starting.addCallback(
+            lambda ignored: self.request_until_response(registry.port)
+        )
+        registry_listening.addCallback(lambda ignored: registry)
+        return registry_listening
 
     def test_pull_timeout(self):
         """
