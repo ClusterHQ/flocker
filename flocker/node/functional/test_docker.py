@@ -123,7 +123,7 @@ class GenericDockerClientTests(TestCase):
             name=container_name, image=image)
 
     def start_container(self, unit_name,
-                        image_name=u"openshift/busybox-http-app",
+                        image_name=u"openshift/busybox-http-app:latest",
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
@@ -186,14 +186,17 @@ class GenericDockerClientTests(TestCase):
         """
         ``DockerClient.add`` creates a container with the specified image.
         """
+        image_name = u"openshift/busybox-http-app:latest"
         name = random_name(self)
-        d = self.start_container(name)
+        d = self.start_container(name, image_name=image_name)
 
         def started(_):
             docker = Client()
             data = docker.inspect_container(self.namespacing_prefix + name)
-            self.assertEqual(data[u"Config"][u"Image"],
-                             u"openshift/busybox-http-app")
+            self.assertEqual(
+                image_name,
+                data[u"Config"][u"Image"],
+            )
         d.addCallback(started)
         return d
 
