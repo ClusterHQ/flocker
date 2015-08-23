@@ -224,56 +224,35 @@ class GenericDockerClientTests(TestCase):
         registry_listening = self.run_registry()
 
         def tag_and_push_image(registry):
-            name = random_name(self).lower()
-            private_image = DockerImage(
-                # XXX: See FLOC-246 for followup improvements to
-                # ``flocker.control.DockerImage`` to allow parsing of alternative
-                # registry hostnames and ports.
-                repository=registry.repository + '/' + name,
-                tag='latest'
-            )
-
             client = Client()
+            image_name = 'openshift/busybox-http-app:latest'
             # The image will normally have been pre-pulled on build slaves, but
             # may not already be available when running tests locally.
-            client.pull('openshift/busybox-http-app')
-            # Tag an image with a repository name matching the locally running
-            # registry container.
-            client.tag(
-                image='openshift/busybox-http-app',
-                repository=private_image.repository,
-                tag=private_image.tag,
-            )
-            # Push to the local registry.
-            client.push(
-                repository=private_image.repository,
-                tag=private_image.tag,
-            )
-            # Remove the local tag of the random image
-            client.remove_image(
-                image=private_image.full_name,
-            )
+            client.pull(image_name)
+
+            registry_image = self.push_to_registry(image_name, registry)
+
             # And the image will (hopefully) have been downloaded again from
             # the private registry in the next step, so cleanup that local
             # image once the test finishes.
             self.addCleanup(
                 client.remove_image,
-                image=private_image.full_name
+                image=registry_image.full_name
             )
 
-            return private_image
+            return registry_image
 
         pushing_image = registry_listening.addCallback(tag_and_push_image)
 
-        def start_private_image(private_image):
+        def start_registry_image(registry_image):
             return self.start_container(
                 unit_name=random_name(self),
-                image_name=private_image.full_name,
+                image_name=registry_image.full_name,
             )
-        starting_private_image = pushing_image.addCallback(
-            start_private_image
+        starting_registry_image = pushing_image.addCallback(
+            start_registry_image
         )
-        return starting_private_image
+        return starting_registry_image
 
     def test_add_error(self):
         """
@@ -513,6 +492,48 @@ class GenericDockerClientTests(TestCase):
         d = client.add(name, image)
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
+
+    def push_to_registry(self, image_name, registry):
+        """
+        Push an image identify by a local tag to the given registry.
+
+        :param unicode image_name: The local tag which identifies the image to
+            push.
+        :param Registry registry: The registry to which to push the image.
+
+        :return: A ``DockerImage`` describing the image in the registry.  Note
+            in particular the tag of the image in the registry will differ from
+            the local tag of the image.
+        """
+        registry_name = random_name(self).lower()
+        registry_image = DockerImage(
+            # XXX: See FLOC-246 for followup improvements to
+            # ``flocker.control.DockerImage`` to allow parsing of alternative
+            # registry hostnames and ports.
+            repository=registry.repository + '/' + registry_name,
+            tag='latest',
+        )
+        client = Client()
+
+        # Tag an image with a repository name matching the given registry.
+        client.tag(
+            image=image_name, repository=registry_image.repository,
+            tag=registry_image.tag,
+        )
+        try:
+            client.push(
+                repository=registry_image.repository,
+                tag=registry_image.tag,
+            )
+        finally:
+            # Remove the tag created above to make it possible to do the push.
+            client.remove_image(image=registry_image.full_name)
+
+        # Remove the original tag of the image as well.  Now only the registry
+        # tag refers to the desired image.
+        client.remove_image(image=image_name)
+
+        return registry_image
 
     def run_registry(self):
         """
