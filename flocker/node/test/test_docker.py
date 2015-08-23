@@ -23,7 +23,7 @@ from .._docker import (
 
 from ...control._model import RestartAlways, RestartNever, RestartOnFailure
 
-ANY_IMAGE = u"openshift/busybox-http-app"
+ANY_IMAGE = u"openshift/busybox-http-app:latest"
 
 ADDRESS_IN_USE = MessageType(
     u"flocker:test:address_in_use",
@@ -135,7 +135,7 @@ def make_idockerclient_tests(fixture):
             """
             client = fixture(self)
             name = random_name(self)
-            d = client.add(name, u"openshift/busybox-http-app")
+            d = client.add(name, ANY_IMAGE)
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.exists(name))
             d.addCallback(self.assertFalse)
@@ -209,7 +209,7 @@ def make_idockerclient_tests(fixture):
             """
             client = fixture(self)
             name = random_name(self)
-            image = u"openshift/busybox-http-app"
+            image = ANY_IMAGE
 
             portmaps = []
             volumes = (
@@ -293,7 +293,7 @@ def make_idockerclient_tests(fixture):
             client = fixture(self)
             name = random_name(self)
 
-            d = client.add(name, u"openshift/busybox-http-app")
+            d = client.add(name, ANY_IMAGE)
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.list())
 
