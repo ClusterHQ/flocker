@@ -698,7 +698,8 @@ class GenericDockerClientTests(TestCase):
             # Create a DockerClient with the default timeout
             docker_client = DockerClient(namespace=self.namespacing_prefix)
 
-            # Add an application using the Client, using the tag from the local registry
+            # Add an application using the Client, using the tag from the local
+            # registry
             app_name = random_name(self)
             adding = docker_client.add(app_name, registry_image.full_name)
 
