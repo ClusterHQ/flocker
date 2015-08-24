@@ -359,7 +359,7 @@ class MigrateConfigurationTests(SynchronousTestCase):
         self.assertEqual(result, StubMigration.upgrade_from_v2(v2_config))
 
 
-UUIDS = st.basic(generate=lambda r, _: UUID(int=r.getrandbits(128)))
+UUIDS = st.sampled_from([uuid4() for i in range(1000)])
 
 DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 
@@ -431,7 +431,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=10,
+    average_size=3,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
