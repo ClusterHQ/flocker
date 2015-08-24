@@ -353,7 +353,7 @@ class Cluster(PRecord):
                 # State has unpredictable path, so we don't bother
                 # checking for its contents:
                 for dataset in results:
-                    if dataset.set("path", None) == expected_dataset_state:
+                    if dataset.set(path=None) == expected_dataset_state:
                         return True
                 return False
             request.addCallback(got_results)
