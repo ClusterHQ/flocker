@@ -137,17 +137,6 @@ You can now connect to MySQL on its host and confirm the sample data has also mo
 
    Welcome to the MySQL monitor.  Commands end with ; or \g.
    ...
-   mysql> SHOW DATABASES;
-   +--------------------+
-   | Database           |
-   +--------------------+
-   | information_schema |
-   | example            |
-   | mysql              |
-   | performance_schema |
-   +--------------------+
-   4 rows in set (0.02 sec)
-   
    mysql> USE example;
    Reading table information for completion of table and column names
    You can turn off this feature to get a quicker startup with -A
