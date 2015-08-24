@@ -475,15 +475,21 @@ def _build_node(applications):
         manifestations=manifestations)
 
 
-NODES = st.sets(APPLICATIONS).map(
-    lambda apps: pset(dict((
-        app.volume.manifestation.dataset_id, app)
-        for app in apps if app.volume).values())
-).flatmap(_build_node)
+NODES = st.lists(
+    APPLICATIONS,
+    # If we add this hint on the number of applications, Hypothesis is able to
+    # run many more tests.
+    average_size=10,
+    unique_by=lambda app:
+    app if not app.volume else app.volume.manifestation.dataset_id).map(
+        pset).flatmap(_build_node)
 
 
 DEPLOYMENTS = st.builds(
-    Deployment, nodes=st.sets(NODES)
+    # If we leave the number of nodes unbounded, Hypothesis will take too long
+    # to build examples, causing intermittent timeouts. Making it roughly 3
+    # should give us adequate test coverage.
+    Deployment, nodes=st.sets(NODES, average_size=3)
 )
 
 SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
