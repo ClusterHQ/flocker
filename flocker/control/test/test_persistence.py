@@ -461,20 +461,11 @@ class WireEncodeDecodeTests(SynchronousTestCase):
     def test_roundtrip(self, deployment):
         """
         A range of generated configurations (deployments) can be
-        upgraded from v1 to the latest configuration version.
-
-        This test will need updating for each new configuration version
-        introduced to reflect the expected configuration format
-        (``expected_configuration``) after a successful upgrade.
+        roundtripped via the wire encode/decode.
         """
         source_json = wire_encode(deployment)
-        upgraded_json = migrate_configuration(
-            1, _CONFIG_VERSION, source_json, ConfigurationMigration)
-        upgraded_config = wire_decode(upgraded_json)
-        expected_configuration = Configuration(
-            version=_CONFIG_VERSION, deployment=deployment
-        )
-        self.assertEqual(upgraded_config, expected_configuration)
+        decoded_deployment = wire_decode(source_json)
+        self.assertEqual(decoded_deployment, deployment)
 
     def test_no_arbitrary_decoding(self):
         """
