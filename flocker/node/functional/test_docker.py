@@ -564,31 +564,97 @@ class GenericDockerClientTests(TestCase):
         registry_listening.addCallback(lambda ignored: registry)
         return registry_listening
 
+    def _pull_timeout(self):
+        """
+        Attempt to start an application using an image which must be pulled
+        from a registry but don't give the pull operation enough time to
+        complete.  Assert that the result is a timeout error of some kind.
+
+        :return: A ``Deferred`` firing with a two-tuple of a ``DockerImage``
+            and a ``Registry``.  The former represents the image we attempted
+            to use, the latter represents the registry we should have tried to
+            pull it from.
+        """
+        client = Client()
+
+        # Run a local registry
+        running = self.run_registry()
+
+        # Build a stub image
+        def build_dummy_image(registry):
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            path.child(b"Dockerfile.in").setContent(
+                b"FROM busybox\n"
+                b"CMD /bin/true\n"
+            )
+            builder = DockerImageBuilder(
+                test=self, source_dir=path,
+                # We're going to manipulate the various tags on the image
+                # ourselves in this test.  We'll do (the slightly more
+                # complicated) cleanup so the builder shouldn't (and will
+                # encounter errors if we let it).
+                cleanup=False,
+            )
+            building = builder.build()
+            building.addCallback(lambda image_name: (image_name, registry))
+            return building
+        running.addCallback(build_dummy_image)
+
+        def cleanup_image(image_name):
+            for image in client.images():
+                if image_name in image["RepoTags"]:
+                    client.remove_image(image_name, force=True)
+                    return
+
+        def cleanup_registry(registry):
+            try:
+                client.unpause(self.namespacing_prefix + registry.name)
+            except APIError:
+                # Already unpaused
+                pass
+
+        def setup_image((image_name, registry)):
+            registry_image = self.push_to_registry(image_name, registry)
+
+            # The image shouldn't be downloaded during the run of this test.
+            # In case something goes wrong and it is downloaded, though, clean
+            # it up.
+            self.addCleanup(cleanup_image, image_name)
+
+            # Pause the registry
+            client.pause(self.namespacing_prefix + registry.name)
+
+            # Cannot stop paused containers to make sure it gets unpaused.
+            self.addCleanup(cleanup_registry, registry)
+
+            # Create a DockerClient with a very short timeout
+            docker_client = DockerClient(
+                namespace=self.namespacing_prefix, long_timeout=1,
+            )
+            # Add an application using the DockerClient, using the tag from the
+            # local registry
+            app_name = random_name(self)
+            d = docker_client.add(app_name, registry_image.full_name)
+
+            # Assert that the timeout triggers requests has a TimeoutError, but
+            # timeout raises a ConnectionError.  Both are subclasses of
+            # IOError, so use that for now
+            # https://github.com/kennethreitz/requests/issues/2620
+            #
+            # XXX DockerClient.add is our API.  We could make it fail with a
+            # more coherent exception type if we wanted.
+            self.assertFailure(d, IOError)
+            d.addCallback(lambda ignored: (registry_image, registry))
+            return d
+        running.addCallback(setup_image)
+        return running
+
     def test_pull_timeout(self):
         """
         Pulling an image times-out if it takes longer than a provided timeout.
         """
-        # Use an image that isn't likely to be in use by anything, since
-        # it's old, and isn't used by other tests:
-        image = u"ubuntu:12.04"
-        # Make sure image is gone:
-        docker = Client()
-        try:
-            docker.remove_image(image, force=True)
-        except APIError as e:
-            if e.response.status_code != 404:
-                raise
-
-        name = random_name(self)
-        client = DockerClient(
-            namespace=self.namespacing_prefix, long_timeout=1)
-        self.addCleanup(client.remove, name)
-        d = client.add(name, image)
-        # requests has a TimeoutError, but timeout raises a ConnectionError.
-        # Both are subclasses of IOError, so use that for now
-        # https://github.com/kennethreitz/requests/issues/2620
-        self.assertFailure(d, IOError)
-        return d
+        return self._pull_timeout()
 
     def test_pull_timeout_pull(self):
         """
