@@ -75,7 +75,8 @@ Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace), or e
 Use Ubuntu 14.04, CentOS 7, or CoreOS.
 
 .. warning::
-    Note that CoreOS support is experimental, and should not be used for production workloads. ZFS support is similarly experimental.
+    CoreOS support is experimental, and should not be used for production workloads.
+	ZFS support is similarly experimental.
 
 We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
 
