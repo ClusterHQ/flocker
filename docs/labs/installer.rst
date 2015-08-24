@@ -168,7 +168,7 @@ This will configure API certificates for the Flocker Docker plugin and push them
 
 It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the :ref:`manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
 
-It will also download and install an experimental Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
+It will also download and install a Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
 
 It supports several optional environment variables:
 
