@@ -160,7 +160,7 @@ Paste them into a root console on the target node:
    :prompt: [root@centos]#
 
 Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/installation/>`_ and running.
+Make sure `Docker (at least 1.8) is installed`_ and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
@@ -179,7 +179,7 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
    :prompt: [root@ubuntu]#
 
 Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/docker/installation/>` and running.
+Make sure `Docker (at least 1.8) is installed`_  and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
@@ -189,3 +189,5 @@ Next Step
 =========
 
 In the next step :ref:`the node control and agent services will be configured and started.<post-installation-configuration>`.
+
+.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
