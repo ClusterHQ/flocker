@@ -160,7 +160,7 @@ Paste them into a root console on the target node:
    :prompt: [root@centos]#
 
 Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/docker/installation/>`_ and running.
+Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/installation/>`_ and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
