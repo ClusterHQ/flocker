@@ -24,7 +24,7 @@ As a user of Docker, it means you can use Flocker directly via:
 
 See the `Docker documentation on volume plugins`_.
 
-This depends on Docker 1.8.
+This depends on Docker 1.8 or later.
 
 See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
@@ -91,7 +91,8 @@ Then perform the following instructions on each of the hosts where you want to i
 Install Docker
 --------------
 
-Install Docker 1.8 or later:
+Install Docker 1.8 or later.
+The following command will install the latest version available:
 
 .. prompt:: bash $
 
