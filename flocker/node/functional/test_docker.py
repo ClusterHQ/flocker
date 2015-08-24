@@ -31,7 +31,7 @@ from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
     random_name)
 
-from ..test.test_docker import make_idockerclient_tests
+from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse,
@@ -228,13 +228,14 @@ class GenericDockerClientTests(TestCase):
 
         def tag_and_push_image(ignored):
             client = Client()
+            image = ANY_IMAGE
             # The image will normally have been pre-pulled on build slaves, but
             # may not already be available when running tests locally.
-            client.pull('openshift/busybox-http-app')
+            client.pull(image)
             # Tag an image with a repository name matching the locally running
             # registry container.
             client.tag(
-                image='openshift/busybox-http-app',
+                image=image,
                 repository=private_image.repository,
                 tag=private_image.tag,
             )
@@ -996,13 +997,11 @@ class DockerClientTests(TestCase):
         flocker_docker_client = DockerClient(namespace=namespace)
 
         name1 = random_name(self)
-        adding_unit1 = flocker_docker_client.add(
-            name1, u'openshift/busybox-http-app')
+        adding_unit1 = flocker_docker_client.add(name1, ANY_IMAGE)
         self.addCleanup(flocker_docker_client.remove, name1)
 
         name2 = random_name(self)
-        adding_unit2 = flocker_docker_client.add(
-            name2, u'openshift/busybox-http-app')
+        adding_unit2 = flocker_docker_client.add(name2, ANY_IMAGE)
         self.addCleanup(flocker_docker_client.remove, name2)
 
         docker_client = flocker_docker_client._client
