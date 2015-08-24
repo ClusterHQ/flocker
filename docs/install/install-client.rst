@@ -16,20 +16,24 @@ The following sections describe how to install the Flocker client on your platfo
 Ubuntu 15.04
 ============
 
-On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository as ``root``, e.g. by running ``sudo bash``:
+.. note:: These instructions require that you have ``sudo`` access.
+
+On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-15.04
-   :prompt: root@mercury:~$
+   :prompt: alice@mercury:~$
 
 .. _installing-flocker-cli-ubuntu-14.04:
 
 Ubuntu 14.04
 ============
 
-On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository as ``root``, e.g. by running ``sudo bash``:
+.. note:: These instructions require that you have ``sudo`` access.
+
+On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-14.04
-   :prompt: root@mercury:~$
+   :prompt: alice@mercury:~$
 
 Other Linux Distributions
 =========================

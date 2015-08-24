@@ -19,8 +19,8 @@ from pyrsistent import PRecord, field
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
-    run, run_from_args,
-    sudo_from_args,
+    run, run_from_args, Run,
+    sudo_from_args, Sudo,
     put,
     run_remotely
 )
@@ -56,6 +56,18 @@ def is_centos(distribution):
         ``False`` otherwise.
     """
     return distribution.startswith("centos-")
+
+
+def is_ubuntu(distribution):
+    """
+    Determine whether the named distribution is a version of Ubuntu.
+
+    :param bytes distribution: The name of the distribution to inspect.
+
+    :return: ``True`` if the distribution named is a version of Ubuntu,
+        ``False`` otherwise.
+    """
+    return distribution.startswith("ubuntu-")
 
 
 def get_repository_url(distribution, flocker_version):
@@ -234,7 +246,10 @@ def install_commands_yum(package_name, distribution, package_source,
             enabled=0
             """) % (base_url,)
         commands.append(put(content=repo,
-                            path='/etc/yum.repos.d/clusterhq-build.repo'))
+                            path='/tmp/clusterhq-build.repo'))
+        commands.append(run_from_args([
+            'cp', '/tmp/clusterhq-build.repo',
+            '/etc/yum.repos.d/clusterhq-build.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
     else:
         repo_options = get_repo_options(
@@ -300,7 +315,9 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             Package:  *
             Pin: origin {}
             Pin-Priority: 900
-            '''.format(buildbot_host)), '/etc/apt/preferences.d/buildbot-900'))
+        '''.format(buildbot_host)), '/tmp/apt-pref'))
+        commands.append(run_from_args([
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
 
     # Update to read package info from new repos
     commands.append(run_from_args(["apt-get", "update"]))
@@ -365,8 +382,18 @@ def task_cli_pkg_install(distribution, package_source=PackageSource()):
 
     :return: a sequence of commands to run on the distribution
     """
-    return task_package_install("clusterhq-flocker-cli", distribution,
-                                package_source)
+    commands = task_package_install("clusterhq-flocker-cli", distribution,
+                                    package_source)
+    if is_ubuntu(distribution):
+        # We want to use sudo for better documentation output, even though
+        # it's not actually necessary since this will run as root.
+        return sequence([
+            (Effect(Sudo(command=e.intent.command,
+                         log_command_filter=e.intent.log_command_filter))
+             if isinstance(e.intent, Run) else e)
+            for e in commands.intent.effects])
+    else:
+        return commands
 
 
 PIP_CLI_PREREQ_APT = [
