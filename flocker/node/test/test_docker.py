@@ -23,6 +23,12 @@ from .._docker import (
 
 from ...control._model import RestartAlways, RestartNever, RestartOnFailure
 
+# Just some image we can use to start a container.  No particularly behavior
+# should be expected from this image except that it exists.
+#
+# Note we explicitly select the "latest" tag to avoid tripping over a Docker
+# 1.8.1 / Docker hub interaction that results in pulls failing. See
+# https://github.com/docker/docker/issues/15699
 ANY_IMAGE = u"openshift/busybox-http-app:latest"
 
 ADDRESS_IN_USE = MessageType(
