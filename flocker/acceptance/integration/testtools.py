@@ -80,7 +80,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
             creating_dataset = create_dataset(self, cluster)
             creating_dataset.addCallback(
                 lambda dataset: self._start_container(random_name(self),
-                                                      dataset[u"dataset_id"],
+                                                      dataset.dataset_id,
                                                       port, cluster))
             creating_dataset.addCallback(
                 lambda _: insert_data(self, host, port))
@@ -103,7 +103,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
 
             def created(dataset):
                 started = self._start_container(first_container,
-                                                dataset[u"dataset_id"],
+                                                dataset.dataset_id,
                                                 port, cluster, cleanup=False)
                 started.addCallback(
                     lambda _: insert_data(self, host, port))
