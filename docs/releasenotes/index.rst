@@ -13,7 +13,7 @@ You can learn more about where we might be going with future releases by:
 v1.2
 ====
 
-* If you upgrade to Docker 1.8.1 you may find pulling images unreliable in flocker-deploy and the Flocker Containers API due to Docker bug #15699.
+* If you upgrade to Docker 1.8.1 you may find pulling images unreliable in flocker-deploy and the Flocker Containers API due to Docker bug `#15699`_.
   You may be able to workaround this by appending the image tag to the end of the image name (e.g. :latest).
 * Flocker ``.deb`` and ``.rpm`` packages no longer declare any dependency on a Docker package.
   Docker is required for the container management functionality but a Docker package must be selected and installed manually.
@@ -115,3 +115,4 @@ Everything is new since this is our first release.
 
 
 .. _`Fig`: http://www.fig.sh/yml.html
+.. _`#15699`: https://github.com/docker/docker/issues/15699
