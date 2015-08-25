@@ -52,7 +52,7 @@ BOTO_EC2RESPONSE_ERROR = MessageType(
 
 DEVICES = Field.for_types(
     u"devices", [list],
-    u"List of devices currently in use by the compute instance.")
+    u"Set of devices currently in use by the compute instance.")
 NO_AVAILABLE_DEVICE = MessageType(
     u"flocker:node:agents:blockdevice:aws:no_available_device",
     [DEVICES],

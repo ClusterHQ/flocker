@@ -16,7 +16,7 @@ from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging
+from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
@@ -164,37 +164,29 @@ class EBSBlockDeviceAPIInterfaceTests(
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
-    @capture_logging(None)
+    @capture_logging(
+        assertHasMessage, IN_USE_DEVICES, {
+            'devices': [u'/dev/sda1', u'/dev/sdf']
+        },
+    )
     def test_in_use_devices_log(self, logger):
         """
+        Test that attached device shows up as being in use during subsequent
+        ``attach_volume``.
         """
         volume1 = self.api.create_volume(
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size,
         )
-        attached_v1 = self.api.attach_volume(
+        self.api.attach_volume(
             volume1.blockdevice_id, attach_to=self.this_node,
         )
-        device_path = self.api.get_device_path(attached_v1.blockdevice_id)
-
         volume2 = self.api.create_volume(
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size,
         )
-        attached_v2 = self.api.attach_volume(
+        self.api.attach_volume(
             volume2.blockdevice_id, attach_to=self.this_node,
-        )
-        messages = list(
-            message
-            for message
-            in logger.messages
-            if message.get("message_type") == IN_USE_DEVICES
-        )
-        self.assertNotEqual(
-            [], messages,
-            "Didn't find IN_USE_DEVICES in logged messages {}".format(
-                messages
-            )
         )
 
 

@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap
+from pyrsistent import PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -662,7 +662,8 @@ class EBSBlockDeviceAPI(object):
         devices = pset({v.attach_data.device for v in volumes
                        if v.attach_data.instance_id == instance_id})
         devices = devices | devices_in_use
-        IN_USE_DEVICES(devices=list(devices)).write()
+        sorted_devices = sorted(list(thaw(devices)))
+        IN_USE_DEVICES(devices=sorted_devices).write()
 
         for suffix in b"fghijklmonp":
             file_name = u'/dev/sd' + suffix
@@ -671,7 +672,7 @@ class EBSBlockDeviceAPI(object):
 
         # Could not find any suitable device that is available
         # for attachment. Log to Eliot before giving up.
-        NO_AVAILABLE_DEVICE(devices=devices).write()
+        NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
         return None
 
     def create_volume(self, dataset_id, size):
