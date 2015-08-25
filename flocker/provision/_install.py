@@ -379,16 +379,13 @@ def task_cli_pkg_install(distribution, package_source=PackageSource()):
     """
     commands = task_package_install("clusterhq-flocker-cli", distribution,
                                     package_source)
-    if is_ubuntu(distribution):
-        # Although client testing is currently done as root.e want to use
-        # sudo for better documentation output.
-        return sequence([
-            (Effect(Sudo(command=e.intent.command,
-                         log_command_filter=e.intent.log_command_filter))
-             if isinstance(e.intent, Run) else e)
-            for e in commands.intent.effects])
-    else:
-        return commands
+    # Although client testing is currently done as root.e want to use
+    # sudo for better documentation output.
+    return sequence([
+        (Effect(Sudo(command=e.intent.command,
+                     log_command_filter=e.intent.log_command_filter))
+         if isinstance(e.intent, Run) else e)
+        for e in commands.intent.effects])
 
 
 PIP_CLI_PREREQ_APT = [
