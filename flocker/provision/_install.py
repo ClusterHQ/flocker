@@ -332,13 +332,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     return sequence(commands)
 
 
-_task_install_commands = {
-    'centos-7': install_commands_yum,
-    'ubuntu-14.04': install_commands_ubuntu,
-    'ubuntu-15.04': install_commands_ubuntu,
-}
-
-
 def task_package_install(package_name, distribution,
                          package_source=PackageSource()):
     """
@@ -364,9 +357,11 @@ def task_package_install(package_name, distribution,
     else:
         base_url = None
 
-    try:
-        installer = _task_install_commands[distribution]
-    except KeyError:
+    if is_centos(distribution):
+        installer = install_commands_yum
+    elif is_ubuntu(distribution):
+        installer = install_commands_ubuntu
+    else:
         raise UnsupportedDistribution()
     return installer(package_name, distribution, package_source,
                      base_url)
