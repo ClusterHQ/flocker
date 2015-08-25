@@ -25,13 +25,14 @@ from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
-from pyrsistent import pvector
+from pyrsistent import PClass, pvector, field
+
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
     random_name)
 
-from ..test.test_docker import make_idockerclient_tests
+from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse,
@@ -74,6 +75,27 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
         pass
 
 
+class Registry(PClass):
+    """
+    Describe a Docker image registry.
+
+    :ivar host: The IP address on which the registry is listening.
+    :ivar port: The port number on which the registry is listening.
+    :ivar name: The name of the container in which the registry is running.
+    """
+    host = field(mandatory=True, type=bytes, initial=b"127.0.0.1")
+    port = field(mandatory=True, type=int)
+    name = field(mandatory=True, type=unicode)
+
+    @property
+    def repository(self):
+        """
+        The string to use as an image name prefix to direct Docker to find that
+        image in this registry instead of the default.
+        """
+        return "{host}:{port}".format(host=self.host, port=self.port)
+
+
 class GenericDockerClientTests(TestCase):
     """
     Functional tests for ``DockerClient`` and other clients that talk to
@@ -101,7 +123,7 @@ class GenericDockerClientTests(TestCase):
             name=container_name, image=image)
 
     def start_container(self, unit_name,
-                        image_name=u"openshift/busybox-http-app",
+                        image_name=u"openshift/busybox-http-app:latest",
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
@@ -164,14 +186,17 @@ class GenericDockerClientTests(TestCase):
         """
         ``DockerClient.add`` creates a container with the specified image.
         """
+        image_name = u"openshift/busybox-http-app:latest"
         name = random_name(self)
-        d = self.start_container(name)
+        d = self.start_container(name, image_name=image_name)
 
         def started(_):
             docker = Client()
             data = docker.inspect_container(self.namespacing_prefix + name)
-            self.assertEqual(data[u"Config"][u"Image"],
-                             u"openshift/busybox-http-app")
+            self.assertEqual(
+                image_name,
+                data[u"Config"][u"Image"],
+            )
         d.addCallback(started)
         return d
 
@@ -196,73 +221,38 @@ class GenericDockerClientTests(TestCase):
         Docker can pull from a private registry without any TLS configuration
         as long as it's running on the local host.
         """
-        registry_name = random_name(self)
-        registry_port = find_free_port()[1]
-        repository = '127.0.0.1:{}'.format(registry_port)
-        name = random_name(self).lower()
-        private_image = DockerImage(
-            # XXX: See FLOC-246 for followup improvements to
-            # ``flocker.control.DockerImage`` to allow parsing of alternative
-            # registry hostnames and ports.
-            repository=repository + '/' + name,
-            tag='latest'
-        )
+        registry_listening = self.run_registry()
 
-        registry_starting = self.start_container(
-            unit_name=registry_name,
-            image_name='registry:2',
-            ports=[
-                PortMap(
-                    internal_port=5000,
-                    external_port=registry_port
-                ),
-            ]
-        )
-
-        registry_listening = registry_starting.addCallback(
-            lambda ignored: self.request_until_response(registry_port)
-        )
-
-        def tag_and_push_image(ignored):
+        def tag_and_push_image(registry):
             client = Client()
+            image_name = ANY_IMAGE
             # The image will normally have been pre-pulled on build slaves, but
             # may not already be available when running tests locally.
-            client.pull('openshift/busybox-http-app')
-            # Tag an image with a repository name matching the locally running
-            # registry container.
-            client.tag(
-                image='openshift/busybox-http-app',
-                repository=private_image.repository,
-                tag=private_image.tag,
-            )
-            # Push to the local registry.
-            client.push(
-                repository=private_image.repository,
-                tag=private_image.tag,
-            )
-            # Remove the local tag of the random image
-            client.remove_image(
-                image=private_image.full_name,
-            )
+            client.pull(image_name)
+
+            registry_image = self.push_to_registry(image_name, registry)
+
             # And the image will (hopefully) have been downloaded again from
             # the private registry in the next step, so cleanup that local
             # image once the test finishes.
             self.addCleanup(
                 client.remove_image,
-                image=private_image.full_name
+                image=registry_image.full_name
             )
+
+            return registry_image
 
         pushing_image = registry_listening.addCallback(tag_and_push_image)
 
-        def start_private_image(ignored):
+        def start_registry_image(registry_image):
             return self.start_container(
                 unit_name=random_name(self),
-                image_name=private_image.full_name,
+                image_name=registry_image.full_name,
             )
-        starting_private_image = pushing_image.addCallback(
-            start_private_image
+        starting_registry_image = pushing_image.addCallback(
+            start_registry_image
         )
-        return starting_private_image
+        return starting_registry_image
 
     def test_add_error(self):
         """
@@ -502,6 +492,77 @@ class GenericDockerClientTests(TestCase):
         d = client.add(name, image)
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
+
+    def push_to_registry(self, image_name, registry):
+        """
+        Push an image identified by a local tag to the given registry.
+
+        :param unicode image_name: The local tag which identifies the image to
+            push.
+        :param Registry registry: The registry to which to push the image.
+
+        :return: A ``DockerImage`` describing the image in the registry.  Note
+            in particular the tag of the image in the registry will differ from
+            the local tag of the image.
+        """
+        registry_name = random_name(self).lower()
+        registry_image = DockerImage(
+            # XXX: See FLOC-246 for followup improvements to
+            # ``flocker.control.DockerImage`` to allow parsing of alternative
+            # registry hostnames and ports.
+            repository=registry.repository + '/' + registry_name,
+            tag='latest',
+        )
+        client = Client()
+
+        # Tag an image with a repository name matching the given registry.
+        client.tag(
+            image=image_name, repository=registry_image.repository,
+            tag=registry_image.tag,
+        )
+        try:
+            client.push(
+                repository=registry_image.repository,
+                tag=registry_image.tag,
+            )
+        finally:
+            # Remove the tag created above to make it possible to do the push.
+            client.remove_image(image=registry_image.full_name)
+
+        # Remove the original tag of the image as well.  Now only the registry
+        # tag refers to the desired image.
+        client.remove_image(image=image_name)
+
+        return registry_image
+
+    def run_registry(self):
+        """
+        Start a registry in a container.
+
+        The registry will be stopped and destroyed when the currently running
+        test finishes.
+
+        :return: A ``Registry`` describing the registry which was started.
+        """
+        registry = Registry(
+            name=random_name(self),
+            port=find_free_port()[1],
+        )
+        registry_starting = self.start_container(
+            unit_name=registry.name,
+            image_name='registry:2',
+            ports=[
+                PortMap(
+                    internal_port=5000,
+                    external_port=registry.port
+                ),
+            ]
+        )
+        registry_listening = registry_starting.addCallback(
+            lambda ignored: self.request_until_response(registry.port)
+        )
+        registry_listening.addCallback(lambda ignored: registry)
+        return registry_listening
 
     def test_pull_timeout(self):
         """
@@ -993,13 +1054,11 @@ class DockerClientTests(TestCase):
         flocker_docker_client = DockerClient(namespace=namespace)
 
         name1 = random_name(self)
-        adding_unit1 = flocker_docker_client.add(
-            name1, u'openshift/busybox-http-app')
+        adding_unit1 = flocker_docker_client.add(name1, ANY_IMAGE)
         self.addCleanup(flocker_docker_client.remove, name1)
 
         name2 = random_name(self)
-        adding_unit2 = flocker_docker_client.add(
-            name2, u'openshift/busybox-http-app')
+        adding_unit2 = flocker_docker_client.add(name2, ANY_IMAGE)
         self.addCleanup(flocker_docker_client.remove, name2)
 
         docker_client = flocker_docker_client._client
