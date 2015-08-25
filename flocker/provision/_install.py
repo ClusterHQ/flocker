@@ -1146,6 +1146,9 @@ def provision(distribution, package_source, variants):
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
+    commands.append(
+        task_package_install(
+            "clusterhq-flocker-docker-plugin", package_source, distribution))
     if is_centos(distribution):
         commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
