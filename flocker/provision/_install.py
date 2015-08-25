@@ -650,8 +650,8 @@ def task_enable_docker(distribution):
     """
     Configure docker.
 
-    We don't actually start it at this point since the certificates it
-    relies on have yet to be installed.
+    We don't actually start it (or on Ubuntu, restart it) at this point
+    since the certificates it relies on have yet to be installed.
     """
     # Use the Flocker node TLS certificate, since it's readily
     # available.
@@ -690,7 +690,6 @@ def task_enable_docker(distribution):
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            # Ubuntu enables docker service during installation
             put(path="/etc/default/docker",
                 content='DOCKER_OPTS="{}"'.format(docker_tls_options)),
             ])
