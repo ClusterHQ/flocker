@@ -188,7 +188,7 @@ common_cli:
 
   build_sdist: &build_sdist  |
     # package the goodies
-    parse_logs \$venv\bin/python setup.py sdist
+    parse_logs \$venv/bin/python setup.py sdist
 
   build_package: &build_package  |
     # and build a rpm/deb package using docker

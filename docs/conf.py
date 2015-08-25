@@ -306,7 +306,9 @@ texinfo_documents = [
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #texinfo_show_urls = 'footnote'
 
-intersphinx_mapping = {}
+intersphinx_mapping = {
+    'latest': ('http://doc-dev.clusterhq.com/', None),
+}
 
 # Don't check anchors because many websites use #! for AJAX magic
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors
