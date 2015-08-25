@@ -16,7 +16,7 @@ from ...testtools import (
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
-    assert_http_server,
+    assert_http_server, query_http_server
 )
 
 CURRENT_DIRECTORY = FilePath(__file__).parent()
@@ -71,7 +71,7 @@ class ContainerAPITests(TestCase):
 
         def checked(_):
             host = cluster.nodes[0].public_address
-            d = self.query_http_server(host, 8080)
+            d = query_http_server(host, 8080)
             d.addCallback(lambda data: dict(loads(data)))
             return d
         d.addCallback(checked)
