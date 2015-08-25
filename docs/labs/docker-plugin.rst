@@ -24,7 +24,7 @@ As a user of Docker, it means you can use Flocker directly via:
 
 See the `Docker documentation on volume plugins`_.
 
-This currently depends on the `experimental build of Docker <https://github.com/docker/docker/tree/master/experimental>`_.
+This depends on Docker 1.8 or later.
 
 See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
@@ -88,17 +88,18 @@ Upload these files to ``/etc/flocker/plugin.key`` and ``/etc/flocker/plugin.crt`
 
 Then perform the following instructions on each of the hosts where you want to install the Flocker Docker plugin.
 
-Install Experimental Docker
----------------------------
+Install Docker
+--------------
 
-Install the experimental build of Docker:
+Install Docker 1.8 or later.
+The following command will install the latest version available:
 
 .. prompt:: bash $
 
-    wget -qO- https://experimental.docker.com/ | sudo sh
+    wget -qO- https://get.docker.com/ | sudo sh
 
-You must ensure that Docker is using the ``AUFS`` storage driver.
-The easiest way to do this is to add a ``-s aufs`` option to the ``/etc/defaults/docker`` file.
+On Ubuntu, it's best to ensure that Docker is using the ``AUFS`` storage driver.
+The easiest way to do this is to add a ``-s aufs`` option to the ``/etc/default/docker`` file.
 
 Here is an example::
 

@@ -11,6 +11,7 @@ import socket
 from functools import partial
 
 from requests import Response
+from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 from docker import Client
 # Docker-py uses 1.16 API by default, which isn't supported by docker, so force
@@ -495,7 +496,7 @@ class GenericDockerClientTests(TestCase):
 
     def push_to_registry(self, image_name, registry):
         """
-        Push an image identify by a local tag to the given registry.
+        Push an image identified by a local tag to the given registry.
 
         :param unicode image_name: The local tag which identifies the image to
             push.
@@ -637,14 +638,14 @@ class GenericDockerClientTests(TestCase):
             app_name = random_name(self)
             d = docker_client.add(app_name, registry_image.full_name)
 
-            # Assert that the timeout triggers requests has a TimeoutError, but
-            # timeout raises a ConnectionError.  Both are subclasses of
-            # IOError, so use that for now
+            # Assert that the timeout triggers.
+            #
+            # requests has a TimeoutError but timeout raises a ConnectionError.
             # https://github.com/kennethreitz/requests/issues/2620
             #
             # XXX DockerClient.add is our API.  We could make it fail with a
             # more coherent exception type if we wanted.
-            self.assertFailure(d, IOError)
+            self.assertFailure(d, ReadTimeout)
             d.addCallback(lambda ignored: (registry_image, registry))
             return d
         running.addCallback(setup_image)
