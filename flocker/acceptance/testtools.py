@@ -334,7 +334,7 @@ class Cluster(PRecord):
             we're waiting for in state.
 
         :returns: A ``Deferred`` which fires with ``expected_datasets``
-            when cluster state matches the configuration for the given
+            when the cluster state matches the configuration for the given
             dataset.
         """
         expected_dataset_state = DatasetState(
@@ -352,10 +352,8 @@ class Cluster(PRecord):
             def got_results(results):
                 # State has unpredictable path, so we don't bother
                 # checking for its contents:
-                for dataset in results:
-                    if dataset.set(path=None) == expected_dataset_state:
-                        return True
-                return False
+                actual_dataset_states = [d.set(path=None) for d in results]
+                return expected_dataset_state in actual_dataset_states
             request.addCallback(got_results)
             return request
 
