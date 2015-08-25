@@ -495,7 +495,7 @@ class GenericDockerClientTests(TestCase):
 
     def push_to_registry(self, image_name, registry):
         """
-        Push an image identify by a local tag to the given registry.
+        Push an image identified by a local tag to the given registry.
 
         :param unicode image_name: The local tag which identifies the image to
             push.

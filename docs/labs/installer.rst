@@ -71,19 +71,27 @@ Get some nodes
 
 So now let's use the tools we've just installed to deploy and configure a Flocker cluster quickly!
 
-Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace).
-Use Ubuntu 14.04 or CentOS 7.
+Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace), or even bare metal if you want to try out the experimental ZFS backend.
+Use Ubuntu 14.04, CentOS 7, or CoreOS.
+
+.. warning::
+    CoreOS support is experimental, and should not be used for production workloads.
+	ZFS support is similarly experimental.
+
 We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
 
 Make sure you create the servers a reasonable amount of disk space, since Docker images will be stored on the VM root disk itself.
 
-* Use Amazon EC2 if you want to use our EBS backend (note VMs must be deployed in the same AZ).
-* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend (VMs must be deployed in the same region).
+* Use Amazon EC2 if you want to use our EBS backend.
+  **Note that VMs must be deployed in the same AZ.**
+* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend.
+  VMs must be deployed in the same region.
 
 .. warning::
-    Make sure you can log into the nodes as **root** with a private key. (e.g. on Ubuntu on AWS, ``sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``)
+    Make sure you can log into the nodes as **root** with a private key (e.g. on Ubuntu or CoreOS on AWS, log in as the default user, then run ``sudo mkdir /root/.ssh; sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``).
 
-You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider). Using a DNS name is optional, you can also just use its IP address.
+You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider).
+Using a DNS name is optional, you can also just use its IP address.
 
 cluster.yml
 ===========
@@ -98,8 +106,10 @@ This will create some sample configuration files that correspond to the backend 
 
 * AWS EBS: ``cluster.yml.ebs.sample``
 * OpenStack (including Rackspace): ``cluster.yml.openstack.sample``
+* ZFS (local storage): ``cluster.yml.zfs.sample``
 
-.. * ZFS: ``cluster.yml.zfs.sample`` XXX put this back when https://github.com/ClusterHQ/unofficial-flocker-tools/issues/2 lands
+.. warning::
+    Note that ZFS support is experimental, and should not be used for production workloads.
 
 Choose the one that's appropriate for you, and then customize it with your choice of text editor.
 For example:
@@ -138,7 +148,7 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
 
 .. warning::
-    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524 if you want to access the control service or API remotely.
+    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524.
 
 Install Flocker Docker plugin (optional)
 ========================================
@@ -158,7 +168,7 @@ This will configure API certificates for the Flocker Docker plugin and push them
 
 It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the :ref:`manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
 
-It will also download and install an experimental Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
+It will also download and install a Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
 
 It supports several optional environment variables:
 
@@ -177,9 +187,3 @@ Print a simple tutorial
     flocker-tutorial cluster.yml
 
 This will print out a short tutorial on exercising the Flocker volumes and containers APIs, customized to your deployment.
-
-Known limitations
-=================
-
-* This installer doesn't yet do the key management required for the ZFS backend to operate.
-  See `#2 <https://github.com/ClusterHQ/unofficial-flocker-tools/issues/2>`_.

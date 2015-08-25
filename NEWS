@@ -1,11 +1,7 @@
-Flocker 1.2.0.dev2 (Not yet released)
+Flocker 1.2.0 (2015-08-25)
 =====================================
 
 - Flocker now includes bug reporting documentation and an accompanying command line tool called ``flocker-diagnostics``. (FLOC-2647)
-
-Flocker 1.2.0.dev1 (2015-08-14)
-===============================
-
 - Flocker ``.deb`` and ``.rpm`` packages no longer declare any dependency on a Docker package.
   This allows users to install any version of Docker.
   Users must now install Docker on agent nodes before installing Flocker. (FLOC-2447)
