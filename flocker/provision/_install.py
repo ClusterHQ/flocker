@@ -232,7 +232,9 @@ def install_commands_yum(package_name, distribution, package_source,
     :return: a sequence of commands to run on the distribution
     """
     commands = [
-        run(command="yum install -y " + get_repository_url(
+        # May have been previously installed by previous install run, so do
+        # update instead of install:
+        run(command="yum update -y " + get_repository_url(
             distribution=distribution,
             flocker_version=get_installable_version(version))),
     ]
