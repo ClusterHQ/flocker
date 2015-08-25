@@ -2,6 +2,6 @@
 Authors
 =======
 
-.. ifconfig:: is_spelling_check is False
+.. ifconfig:: not is_spelling_check
 
    .. include:: ../../AUTHORS.rst
