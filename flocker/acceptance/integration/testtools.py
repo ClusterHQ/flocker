@@ -40,7 +40,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
             Start a container with a volume.
 
             :param unicode name: The container name.
-            :param unicode dataset_id: The dataset ID.
+            :param UUID dataset_id: The dataset ID.
             :param cluster: The ``Cluster``.
             :param int external_port: External port to expose on the container.
             :param bool cleanup: If true, delete container when test is over.
@@ -55,7 +55,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
                 u"ports": [{u"internal": internal_port,
                             u"external": external_port}],
                 u'restart_policy': {u'name': u'never'},
-                u"volumes": [{u"dataset_id": dataset_id,
+                u"volumes": [{u"dataset_id": unicode(dataset_id),
                               u"mountpoint": volume_path.path}],
             }
             created = cluster.create_container(app)

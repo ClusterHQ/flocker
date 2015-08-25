@@ -4,6 +4,8 @@
 Tests for the datasets REST API.
 """
 
+from uuid import UUID
+
 from twisted.trial.unittest import TestCase
 
 from ...testtools import loop_until
@@ -39,12 +41,13 @@ class DatasetAPITests(TestCase):
         # Once created, request to move the dataset to node2
         def move_dataset(dataset):
             dataset_moving = cluster.client.move_dataset(
-                cluster.nodes[1].uuid, dataset.dataset_id)
+                UUID(cluster.nodes[1].uuid), dataset.dataset_id)
 
             # Wait for the dataset to be moved; we expect the state to
             # match that of the originally created dataset in all ways
             # other than the location.
-            moved_dataset = dataset.set(u"primary", cluster.nodes[1].uuid)
+            moved_dataset = dataset.set(
+                primary=UUID(cluster.nodes[1].uuid))
             dataset_moving.addCallback(
                 lambda dataset: cluster.wait_for_dataset(moved_dataset))
             return dataset_moving
