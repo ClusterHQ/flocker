@@ -292,54 +292,6 @@ class ConfigurationPersistenceServiceTests(TestCase):
         return d
 
 
-class WireEncodeDecodeTests(SynchronousTestCase):
-    """
-    Tests for ``wire_encode`` and ``wire_decode``.
-    """
-    def test_encode_to_bytes(self):
-        """
-        ``wire_encode`` converts the given object to ``bytes``.
-        """
-        self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
-
-    def test_roundtrip(self):
-        """
-        ``wire_decode`` returns object passed to ``wire_encode``.
-        """
-        self.assertEqual(TEST_DEPLOYMENT,
-                         wire_decode(wire_encode(TEST_DEPLOYMENT)))
-
-    def test_no_arbitrary_decoding(self):
-        """
-        ``wire_decode`` will not decode classes that are not in
-        ``SERIALIZABLE_CLASSES``.
-        """
-        class Temp(PRecord):
-            """A class."""
-        SERIALIZABLE_CLASSES.append(Temp)
-
-        def cleanup():
-            if Temp in SERIALIZABLE_CLASSES:
-                SERIALIZABLE_CLASSES.remove(Temp)
-        self.addCleanup(cleanup)
-
-        data = wire_encode(Temp())
-        SERIALIZABLE_CLASSES.remove(Temp)
-        # Possibly future versions might throw exception, the key point is
-        # that the returned object is not a Temp instance.
-        self.assertFalse(isinstance(wire_decode(data), Temp))
-
-    def test_complex_keys(self):
-        """
-        Objects with attributes that are ``PMap``\s with complex keys
-        (i.e. not strings) can be roundtripped.
-        """
-        node_state = NodeState(hostname=u'127.0.0.1', uuid=uuid4(),
-                               manifestations={}, paths={},
-                               devices={uuid4(): FilePath(b"/tmp")})
-        self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
-
-
 class StubMigration(object):
     """
     A simple stub migration class, used to test ``migrate_configuration``.
@@ -407,7 +359,7 @@ class MigrateConfigurationTests(SynchronousTestCase):
         self.assertEqual(result, StubMigration.upgrade_from_v2(v2_config))
 
 
-UUIDS = st.basic(generate=lambda r, _: UUID(int=r.getrandbits(128)))
+UUIDS = st.sampled_from([uuid4() for i in range(1000)])
 
 DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 
@@ -479,7 +431,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=10,
+    average_size=3,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
@@ -495,32 +447,62 @@ DEPLOYMENTS = st.builds(
 SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
 
+class WireEncodeDecodeTests(SynchronousTestCase):
+    """
+    Tests for ``wire_encode`` and ``wire_decode``.
+    """
+    def test_encode_to_bytes(self):
+        """
+        ``wire_encode`` converts the given object to ``bytes``.
+        """
+        self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
+
+    @given(DEPLOYMENTS)
+    def test_roundtrip(self, deployment):
+        """
+        A range of generated configurations (deployments) can be
+        roundtripped via the wire encode/decode.
+        """
+        source_json = wire_encode(deployment)
+        decoded_deployment = wire_decode(source_json)
+        self.assertEqual(decoded_deployment, deployment)
+
+    def test_no_arbitrary_decoding(self):
+        """
+        ``wire_decode`` will not decode classes that are not in
+        ``SERIALIZABLE_CLASSES``.
+        """
+        class Temp(PRecord):
+            """A class."""
+        SERIALIZABLE_CLASSES.append(Temp)
+
+        def cleanup():
+            if Temp in SERIALIZABLE_CLASSES:
+                SERIALIZABLE_CLASSES.remove(Temp)
+        self.addCleanup(cleanup)
+
+        data = wire_encode(Temp())
+        SERIALIZABLE_CLASSES.remove(Temp)
+        # Possibly future versions might throw exception, the key point is
+        # that the returned object is not a Temp instance.
+        self.assertFalse(isinstance(wire_decode(data), Temp))
+
+    def test_complex_keys(self):
+        """
+        Objects with attributes that are ``PMap``\s with complex keys
+        (i.e. not strings) can be roundtripped.
+        """
+        node_state = NodeState(hostname=u'127.0.0.1', uuid=uuid4(),
+                               manifestations={}, paths={},
+                               devices={uuid4(): FilePath(b"/tmp")})
+        self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
+
+
 class ConfigurationMigrationTests(SynchronousTestCase):
     """
     Tests for ``ConfigurationMigration`` class that performs individual
     configuration upgrades.
-
-    There should be
     """
-    @given(DEPLOYMENTS)
-    def test_upgrade_configuration_v1_latest(self, deployment):
-        """
-        A range of generated configurations (deployments) can be
-        upgraded from v1 to the latest configuration version.
-
-        This test will need updating for each new configuration version
-        introduced to reflect the expected configuration format
-        (``expected_configuration``) after a successful upgrade.
-        """
-        source_json = wire_encode(deployment)
-        upgraded_json = migrate_configuration(
-            1, _CONFIG_VERSION, source_json, ConfigurationMigration)
-        upgraded_config = wire_decode(upgraded_json)
-        expected_configuration = Configuration(
-            version=_CONFIG_VERSION, deployment=deployment
-        )
-        self.assertEqual(upgraded_config, expected_configuration)
-
     @given(st.tuples(SUPPORTED_VERSIONS, SUPPORTED_VERSIONS).map(
         lambda x: tuple(sorted(x))))
     def test_upgrade_configuration_versions(self, versions):
