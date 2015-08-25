@@ -693,7 +693,8 @@ def task_enable_docker(distribution):
     elif distribution == 'ubuntu-14.04':
         return sequence([
             put(path="/etc/default/docker",
-                content='DOCKER_OPTS="{}"'.format(docker_tls_options)),
+                content=('DOCKER_OPTS="-H unix:///var/run/docker.sock "' +
+                         docker_tls_options)),
             ])
     else:
         raise DistributionNotSupported(distribution=distribution)
