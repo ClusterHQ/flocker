@@ -17,6 +17,8 @@ from ..testtools import (
 )
 from ..scripts import SCRIPTS
 
+DOCKER_PORT = 2376
+
 
 class DockerPluginTests(TestCase):
     """
@@ -52,7 +54,8 @@ class DockerPluginTests(TestCase):
             # do verify certificate authority signed the server certificate:
             assert_hostname=False,
             verify=get_path(b"cluster.crt"))
-        client = Client(base_url="https://{}:2376".format(address), tls=tls)
+        client = Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
+                        tls=tls)
 
         # Remove all existing containers on the node, in case they're left
         # over from previous test:
