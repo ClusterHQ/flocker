@@ -35,7 +35,7 @@ from ..test.blockdevicefactory import (
     get_minimum_allocatable_size,
 )
 
-from ..cinder import wait_for_volume
+from ..cinder import wait_for_volume, _compute_instance_id
 
 
 def cinderblockdeviceapi_for_test(test_case):
@@ -49,6 +49,18 @@ def cinderblockdeviceapi_for_test(test_case):
         features).
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
+
+
+# XXX Refactor this function to one instance
+def openstack_clients():
+    """
+    Get a Nova client for use in tests.
+    """
+    try:
+        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+    except InvalidConfig as e:
+        raise SkipTest(str(e))
+    return kwargs
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
@@ -151,3 +163,41 @@ class CinderHttpsTests(SynchronousTestCase):
         except InvalidConfig as e:
             raise SkipTest(str(e))
         self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
+
+
+class CinderDevicePathTests(SynchronousTestCase):
+    """
+    get_device_path returns the correct device.
+    """
+    def setUp(self):
+        clients = openstack_clients()
+        self.cinder = clients['cinder_client']
+        self.nova = clients['nova_client']
+        self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
+
+    def test_get_device_path(self):
+        """
+        get_device_path returns the most recently attached device
+        """
+        this_instance_id = _compute_instance_id(
+            servers=self.nova.servers.list()
+        )
+
+        cinder_volume = self.cinder.volumes.create(1)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=cinder_volume,
+        )
+
+        devices_before = set(FilePath('/dev').children())
+
+        self.blockdevice_api.attach_volume(volume.id, this_instance_id)
+
+        devices_after = set(FilePath('/dev').children())
+        new_devices = devices_after - devices_before
+        [new_device] = new_devices
+
+        device_path = self.blockdevice_api.get_device_path(volume.id)
+
+        self.assertEqual(device_path, new_device)
+
