@@ -1,21 +1,93 @@
 # vim ft=yaml:fdm=indent
-# To modify an existing job, update the dictionary 'jobs_type'
-# commit, push
-# Then click 'deploy' on the jenkins job related to this repository
-# available on the jenkins homepage.
+#
+# build.yaml
+#
+# This file contains the Jenkins job defintions for the Flocker project.
+#
+# We add new or reconfigure existing jobs in Jenkins using the Job DSL plugin.
+# https://github.com/jenkinsci/job-dsl-plugin
+#
+# That plugin consumes 'groovy Job DSL' code through FreeStyle Jenkins job
+# types which contain a 'Process Job DSLs' step.
+#
+# As part of the provisioning process for the Jenkins Master, we configure a
+# job called 'setup_ClusterHQ_Flocker' which is responsible for querying the
+# github clusterhq/flocker respository and retrieving this build.yaml file, as
+# well as the jobs.groovy.j2 jinja file.
+#
+# As part of the provisioning process for the Jenkins Master, we also deploy
+# a small python script '/usr/local/bin/render.py', this script simply contains
+# code to read a YAML file into a dictionary and expand a Jinja2 template using
+# the k,v in that dict.
+#
+# Our job 'setup_ClusterHQ_Flocker' when running, will run the 'render.py' with
+# this build.yaml file and produce a jobs.groovy file.
+# We do this, because we'd rather configure our jobs with YAML than with Groovy
+#
+# The next step in the job is a 'Process JOB DSL's' step which consumes the
+# jobs.groovy file, and generates all the jenkins folders and jobs.
+#
+#
+# We pass the branch name as a parameter to the setup_clusterhq_flocker job,
+# the parameter is shown as 'RECONFIGURE_BRANCH'.
+# The setup job only produces jobs for a single branch . We don't produce jobs
+# for every branch due to the large number of branches in the repository, which
+# would generate over 16000 jobs and take over an hour to run.
+#
+# The workflow is that, when a developer is working on a feature branch and is
+# happy to start testing some of his code they will execute the job
+# setup_clusterhq_flocker passing his branch as the parameter.
+#
+# Their jobs will then be available under the path:
+# /ClusterHQ-Flocker/<branch>/
+#
+# Inside that folder there will be a large number of jobs, where at the top
+# she/he can see a job called '_main_multijob'. This job is responsible for
+# executing all other jobs in parallel and collecting the produced artifacts
+# from each job after its execution.
+# The artifacts in this case are trial logs, coverage xml reports, subunit
+# reports.
+# Those artifacts are consumed by the _main_multijob to produce an overall
+# coverage report, and an aggregated summary of all the executed tests and
+# their failures/skips/successes.
+#
 
+# The project contains the github owner and repository to build
 project: 'ClusterHQ/flocker'
+
+# git_url, contains the full HTTPS url for the repository to build
 git_url: 'https://github.com/ClusterHQ/flocker.git'
 
-# common_cli contains YAML aliases for common cli operations
-# used during the build process
+
+# We use a set of YAML aliases and anchors to define the different steps
+# in our jobs.
+# This helps us to keep some of the code DRY, we are not forced to use YAML
+# operators, a different approach could be used:
+#  - bash functions
+#  - python functions
+#  - Rust or D code
+#
 common_cli:
+
+  # our first line, jenkins will execute our code according to this shebang.
+  # Note:
+  # We noticed that our Ubuntu /bin/bash call were being executed as /bin/sh.
+  # So we as part of the slave image build process symlinked
+  # /bin/sh -> /bin/bash.
+  #
   hashbang: &hashbang |
     #!/bin/bash -l
     set -x
     set -e
 
-    # define the directory for our virtualenv
+    # The long directory names where we build our code cause pip to fail.
+    # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
+    # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
+    # https://github.com/spotify/dh-virtualenv/issues/10
+    # so we set our virtualenv dir to live in /tmp/v. We avoid any race
+    # conditions by only executing one build per jenkins_slave at any moment
+    # in time, and cleaning up old virtualenvs at the begining of the build.
+    #
     export venv=/tmp/v
 
     os() {
@@ -24,14 +96,29 @@ common_cli:
       echo \$ID
     }
     # add a function that we can consume to colorise output
+    # This could be better, for now it is a simple parser based on keywords
+    # which will highlight 'errors, warnings' or other type of messages we
+    # choose to configured.
+    # The list of ASCII codes it uses can be found here.
     # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
     parse_logs() {
       # ubuntu defaults to mawk, which causes some things to break
+      # it seems to be related to buffering, -W interactive seems to fix it.
       case "\$(os)"
       in
         "ubuntu") alias awk='mawk -W interactive'
       esac
 
+      # The 'awk' parse_logs function consumes the standard output from a piped
+      # command, and returns PIPESTATUS of that command (return code).
+      #
+      # we configure 4 groups for parsing our logs.
+      # Exceptions at the top, which are always printed black.
+      # Errors, which are printed in Red
+      # Warnings, which are printed in Yellow
+      # Successes or other messages that we print in Green
+      # Everything else that doesn't match is printed in Black.
+      #
       "\$@" | awk '
         # exceptions to rules below, these are always printed black
         /.*reading.sources.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
@@ -80,6 +167,7 @@ common_cli:
     # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
+    #
     sudo rm -rf \$venv
     sudo rm -f results.xml
     sudo rm -f trial.log
@@ -91,10 +179,23 @@ common_cli:
     . \${venv}/bin/activate
 
   setup_pip_cache: &setup_pip_cache |
+    # exports the PIP_INDEX_URL, TRUSTED_HOST variables to the environment.
+    # The /tmp/pip.sh file is copied to the Jenkins Slave by the Jenkins Master
+    # during the bootstrapping of the slave.
+    # This file is located in /etc/jenkins_slave on the Master box.
+    # These variables contain the PIP URL and IP address of our caching server.
     . /tmp/pip.sh
 
   setup_flocker_modules: &setup_flocker_modules |
-    # upgrade pip, we need pip 7.1 (--trusted-host option)
+    # installs all the required python modules as well as the flocker code.
+    # But first, we need to upgrade pip to 7.1.
+    # We have a devpi cache in AWS which we will consume instead of going
+    # upstream to the PyPi servers.
+    # We specify that devpi caching server using -i \$PIP_INDEX_URL
+    # which requires as to include --trusted_host as we are not (yet) using
+    # SSL on our caching box.
+    # The --trusted-host option is only available with pip 7.
+    #
     parse_logs pip install --upgrade pip
     # using the caching-layer, install all the dependencies
     parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
@@ -112,6 +213,9 @@ common_cli:
 
   setup_rackspace_env_vars: &setup_rackspace_env_vars |
     # set vars and run tests
+    # The /tmp/acceptance.yaml file is deployed to the jenkins slave during
+    # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
+    # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
@@ -120,9 +224,11 @@ common_cli:
     parse_logs pip install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl  --trusted-host \$TRUSTED_HOST
 
   run_coverage: &run_coverage |
+    # run coverage and produce a report
     parse_logs coverage xml --include=flocker*
 
   convert_results_to_junit: &convert_results_to_junit |
+    # pip the trial.log results through subunit and export them as junit in xml
     cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
@@ -145,16 +251,29 @@ common_cli:
     #upload-release-documentation
     cd -
 
+  # flocker artifacts contains the list of files we want to collect from our
+  # _main_multijob. These are used to produce the coverage, test reports.
   flocker_artifacts: &flocker_artifacts
     - results.xml
     - _trial_temp/test.log
     - coverage.xml
 
   run_trial_with_coverage: &run_trial_with_coverage |
-    # Consume the MODULE parameter set in the job configuration
+    # The jobs.groovy.j2 file produces jobs that contain a parameterized job
+    # type. These type of jobs always require a parameter to be passed on in
+    # order for they to be executed.
+    # We grab the value from the 'with_modules:' dictionary in the yaml job
+    # defintion, and feed it to the job configuration as the default value for
+    # the 'MODULE' parameter.
+    # This is how we tell trial which flocker module to call.
     coverage run \$venv/bin/trial --reporter=subunit \$MODULE 2>&1 | parse_logs tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
+    # The jobs.groovy.j2 file produces jobs that contain a parameterized job
+    # type. These type of jobs always require a parameter to be passed on in
+    # order for they to be executed.
+    # We grab the value from the 'with_modules:' dictionary in the yaml job
+    # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
     sudo -E \$venv/bin/coverage run \$venv/bin/trial --reporter=subunit --testmodule \$MODULE 2>&1 | parse_logs tee trial.log
 
@@ -171,13 +290,17 @@ common_cli:
 
   run_acceptance_aws_tests: &run_acceptance_aws_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
+    # we store that code into RC and pass it to the end of the job execution.
     parse_logs \$venv/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
     # we gather the return code, but make sure we come out of these tests with '0'
+    # we store that code into RC and pass it to the end of the job execution.
     parse_logs \$venv/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider rackspace --dataset-backend rackspace --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_client_tests: &run_client_tests |
+    # we gather the return code, but make sure we come out of these tests with '0'
+    # we store that code into RC and pass it to the end of the job execution.
     parse_logs \$venv/bin/python admin/run-client-tests --distribution \${DISTRIBUTION_NAME} --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) ; RC=\$?
 
   disable_selinux: &disable_selinux |
@@ -220,9 +343,16 @@ common_cli:
     sudo rm -rf repo/
 
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
+    # this is where we make sure we exit with the correct return code
+    # from the tests we executed above.
     exit \$RC
 
   push_image_to_dockerhub: &push_image_to_dockerhub |
+    # the /tmp/dockerhub_creds is copied from the Jenkins Master on
+    # /etc/slave_config to the slave during the bootstrap process of the slave.
+    # This contains the login details for our dockerhub instance, which is
+    # deployed as part of our caching platform.
+    #
     export D_USER=\$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
     export D_PASSWORD=\$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
     export D_EMAIL=\$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
@@ -232,6 +362,11 @@ common_cli:
   build_docker_image: &build_docker_image |
     docker build -t \$DOCKER_IMAGE .
 
+  # These are the docker images we will be using during our tests.
+  # We build them every 24 hours, making sure we have the latest OS updates
+  # installed on those images.
+  # By doing this we speed up the bootstrapping of our client/acceptance tests.
+  #
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from master branch of flocker
     wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
@@ -275,8 +410,19 @@ common_cli:
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
-# the job definitions consume the aliases defined in the common_cli block.
-
+# Job Types:
+#
+# * run_trial
+# * run_trial_for_storage_driver (ebs/cinder)
+# * run_sphinx (old docs job)
+# * run_acceptance (tests)
+# * cronly_jobs (builds docker images every 24 hours)
+#
+# Toggles:
+#   * archive_artifacts: ( define if there are files to be archived)
+#   * coverage_report: ( enable if this job produces a coverage report file)
+#   * clean_repo: (enable if we need to clean old files owned by root)
+#
 
 # flocker.node.functional is hanging, so we don't run it
 job_type:
