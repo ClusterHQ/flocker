@@ -42,7 +42,8 @@ from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
 )
 from ..testtools import (
-    if_docker_configured, wait_for_unit_state, require_docker_version
+    if_docker_configured, wait_for_unit_state, require_docker_version,
+    add_with_port_collision_retry,
 )
 
 
@@ -129,7 +130,8 @@ class GenericDockerClientTests(TestCase):
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
                         restart_policy=RestartNever(),
-                        command_line=None):
+                        command_line=None,
+                        retry_on_port_collision=False):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -149,7 +151,13 @@ class GenericDockerClientTests(TestCase):
             the unit reaches the expected state.
         """
         client = self.make_client()
-        d = client.add(
+
+        if retry_on_port_collision:
+            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+        else:
+            add = client.add
+
+        d = add(
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
@@ -541,25 +549,43 @@ class GenericDockerClientTests(TestCase):
 
         :return: A ``Registry`` describing the registry which was started.
         """
-        registry = Registry(
-            name=random_name(self),
-            port=find_free_port()[1],
-        )
+        registry_name = random_name(self)
         registry_starting = self.start_container(
-            unit_name=registry.name,
+            unit_name=registry_name,
             image_name='registry:2',
             ports=[
                 PortMap(
                     internal_port=5000,
-                    external_port=registry.port
+                    # Doesn't matter what port we expose this on.  We'll
+                    # discover what was assigned later.
+                    external_port=0,
                 ),
-            ]
+            ],
+            retry_on_port_collision=True,
         )
-        registry_listening = registry_starting.addCallback(
-            lambda ignored: self.request_until_response(registry.port)
-        )
-        registry_listening.addCallback(lambda ignored: registry)
-        return registry_listening
+
+        def extract_listening_port(client):
+            listing = client.list()
+            listing.addCallback(
+                lambda applications: list(
+                    next(iter(application.ports)).external_port
+                    for application
+                    in applications
+                )[0]
+            )
+            return listing
+        registry_starting.addCallback(extract_listening_port)
+
+        def wait_for_listening(external_port):
+            registry = Registry(
+                name=registry_name, port=external_port,
+            )
+            registry_listening = self.request_until_response(registry.port)
+            registry_listening.addCallback(lambda ignored: registry)
+            return registry_listening
+        registry_starting.addCallback(wait_for_listening)
+
+        return registry_starting
 
     def _pull_timeout(self):
         """
