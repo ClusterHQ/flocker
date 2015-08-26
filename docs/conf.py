@@ -335,3 +335,7 @@ linkcheck_ignore = [
     r'https://docs.staging.clusterhq.com/',
     r'https://docs.docker.com/\S+',
 ]
+
+def setup(app):
+    # This allows us to ignore spelling in any particular file
+    app.add_config_value('is_spelling_check', 'spelling' in sys.argv, True)
