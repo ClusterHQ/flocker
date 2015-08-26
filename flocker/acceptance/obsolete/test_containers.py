@@ -133,7 +133,7 @@ class ContainerAPITests(TestCase):
                     u"name": container_name,
                     u"ports": [{u"internal": 8080, u"external": 8080}],
                     u"node_uuid": node1.uuid,
-                    u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                    u"volumes": [{u"dataset_id": unicode(dataset.dataset_id),
                                   u"mountpoint": u"/data"}],
                 }, CURRENT_DIRECTORY.child(b"datahttp.py"),
                 additional_arguments=[u"/data"],
@@ -174,7 +174,7 @@ class ContainerAPITests(TestCase):
         self.dataset_id = None
 
         def create_container(dataset):
-            self.dataset_id = dataset[u"dataset_id"]
+            self.dataset_id = unicode(dataset.dataset_id)
             d = create_python_container(
                 self, cluster, {
                     u"name": container_name,
@@ -335,7 +335,7 @@ class ContainerAPITests(TestCase):
                 self, cluster, {
                     u"ports": [{u"internal": 8080, u"external": 8080}],
                     u"node_uuid": node.uuid,
-                    u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                    u"volumes": [{u"dataset_id": unicode(dataset.dataset_id),
                                   u"mountpoint": u"/data"}],
                 }, CURRENT_DIRECTORY.child(b"nonrootwritehttp.py"),
                 additional_arguments=[u"/data"])
