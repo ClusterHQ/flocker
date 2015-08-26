@@ -38,8 +38,6 @@ All Platforms
 
 `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
-`AWS CLI <http://docs.aws.amazon.com/cli/latest/userguide/installing.html>`_
-
 OS X
 *****
 
