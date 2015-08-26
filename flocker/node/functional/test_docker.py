@@ -530,10 +530,6 @@ class GenericDockerClientTests(TestCase):
             # Remove the tag created above to make it possible to do the push.
             client.remove_image(image=registry_image.full_name)
 
-        # Remove the original tag of the image as well.  Now only the registry
-        # tag refers to the desired image.
-        client.remove_image(image=image_name)
-
         return registry_image
 
     def run_registry(self):
