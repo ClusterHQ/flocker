@@ -7,7 +7,6 @@ Tests for the control service REST API.
 from json import loads, dumps
 
 from twisted.trial.unittest import TestCase
-from twisted.python.filepath import FilePath
 from twisted.internet.defer import gatherResults
 
 from ...testtools import (
@@ -18,8 +17,7 @@ from ..testtools import (
     create_python_container, verify_socket, post_http_server,
     assert_http_server, query_http_server
 )
-
-CURRENT_DIRECTORY = FilePath(__file__).parent()
+from ..scripts import SCRIPTS
 
 
 class ContainerAPITests(TestCase):
@@ -37,7 +35,7 @@ class ContainerAPITests(TestCase):
             self, cluster, {
                 u"ports": [{u"internal": 8080, u"external": 8080}],
                 u"node_uuid": cluster.nodes[0].uuid,
-            }, CURRENT_DIRECTORY.child(b"hellohttp.py"))
+            }, SCRIPTS.child(b"hellohttp.py"))
 
         def check_result(response):
             dl = verify_socket(cluster.nodes[0].public_address, 8080)
@@ -67,7 +65,7 @@ class ContainerAPITests(TestCase):
                 u"ports": [{u"internal": 8080, u"external": 8080}],
                 u"node_uuid": cluster.nodes[0].uuid,
                 u"environment": environment,
-            }, CURRENT_DIRECTORY.child(b"envhttp.py"))
+            }, SCRIPTS.child(b"envhttp.py"))
 
         def checked(_):
             host = cluster.nodes[0].public_address
@@ -104,7 +102,7 @@ class ContainerAPITests(TestCase):
                     u"node_uuid": node1.uuid,
                     u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
                                   u"mountpoint": u"/data"}],
-                }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                }, SCRIPTS.child(b"datahttp.py"),
                 additional_arguments=[u"/data"],
             )
             return d
@@ -151,7 +149,7 @@ class ContainerAPITests(TestCase):
                     u"node_uuid": node.uuid,
                     u"volumes": [{u"dataset_id": self.dataset_id,
                                   u"mountpoint": u"/data"}],
-                }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                }, SCRIPTS.child(b"datahttp.py"),
                 additional_arguments=[u"/data"],
                 cleanup=False,
             )
@@ -176,7 +174,7 @@ class ContainerAPITests(TestCase):
                     u"node_uuid": node.uuid,
                     u"volumes": [{u"dataset_id": self.dataset_id,
                                   u"mountpoint": u"/data"}],
-                }, CURRENT_DIRECTORY.child(b"datahttp.py"),
+                }, SCRIPTS.child(b"datahttp.py"),
                 additional_arguments=[u"/data"],
             )
             return d
@@ -222,7 +220,7 @@ class ContainerAPITests(TestCase):
                     u"node_uuid": node.uuid,
                     u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
                                   u"mountpoint": u"/data"}],
-                }, CURRENT_DIRECTORY.child(b"nonrootwritehttp.py"),
+                }, SCRIPTS.child(b"nonrootwritehttp.py"),
                 additional_arguments=[u"/data"])
         creating_dataset.addCallback(created_dataset)
 
@@ -250,7 +248,7 @@ class ContainerAPITests(TestCase):
                     u"ports": [{u"internal": 8080,
                                 u"external": destination_port}],
                     u"node_uuid": destination.uuid,
-                }, CURRENT_DIRECTORY.child(b"hellohttp.py")),
+                }, SCRIPTS.child(b"hellohttp.py")),
             create_python_container(
                 self, cluster, {
                     u"ports": [{u"internal": 8081,
@@ -258,7 +256,7 @@ class ContainerAPITests(TestCase):
                     u"links": [{u"alias": "dest", u"local_port": 80,
                                 u"remote_port": destination_port}],
                     u"node_uuid": origin.uuid,
-                }, CURRENT_DIRECTORY.child(b"proxyhttp.py")),
+                }, SCRIPTS.child(b"proxyhttp.py")),
             # Wait for the link target container to be accepting connections.
             verify_socket(destination.public_address, destination_port),
             # Wait for the link source container to be accepting connections.
@@ -285,7 +283,7 @@ class ContainerAPITests(TestCase):
                 self, cluster, {
                     u"ports": [{u"internal": 8080, u"external": port}],
                     u"node_uuid": destination.uuid,
-                }, CURRENT_DIRECTORY.child(b"hellohttp.py")),
+                }, SCRIPTS.child(b"hellohttp.py")),
             # Wait for the destination to be accepting connections.
             verify_socket(destination.public_address, port),
             # Wait for the origin container to be accepting connections.

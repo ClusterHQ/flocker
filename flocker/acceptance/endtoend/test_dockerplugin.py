@@ -15,7 +15,7 @@ from ...testtools import random_name
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
 )
-from ..obsolete.test_containers import CURRENT_DIRECTORY
+from ..scripts import SCRIPTS
 
 
 class DockerPluginTests(TestCase):
@@ -81,7 +81,7 @@ class DockerPluginTests(TestCase):
                 binds=["{}:/data".format(volume_name)],
                 port_bindings={8080: 8080}),
              "ports": [8080]},
-            CURRENT_DIRECTORY.child(b"datahttp.py"),
+            SCRIPTS.child(b"datahttp.py"),
             [u"/data"])
 
         d = post_http_server(self, node.public_address, 8080, {"data": data})
