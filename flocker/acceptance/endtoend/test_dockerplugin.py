@@ -73,18 +73,20 @@ class DockerPluginTests(TestCase):
         """
         data = "hello world"
         node = cluster.nodes[0]
+        http_port = 8080
 
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={8080: 8080}),
-             "ports": [8080]},
+                port_bindings={http_port: http_port}),
+             "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             [u"/data"])
 
-        d = post_http_server(self, node.public_address, 8080, {"data": data})
+        d = post_http_server(self, node.public_address, http_port,
+                             {"data": data})
         d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, 8080, expected_response=data))
+            self, node.public_address, http_port, expected_response=data))
         return d
