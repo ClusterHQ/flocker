@@ -191,7 +191,16 @@ class CinderDevicePathTests(SynchronousTestCase):
 
         devices_before = set(FilePath('/dev').children())
 
-        self.blockdevice_api.attach_volume(volume.id, this_instance_id)
+        attached_volume = self.nova.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=attached_volume,
+            expected_status=u'in-use',
+        )
 
         devices_after = set(FilePath('/dev').children())
         new_devices = devices_after - devices_before
