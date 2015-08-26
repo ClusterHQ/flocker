@@ -38,6 +38,8 @@ All Platforms
 
 `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
+`AWS CLI <http://docs.aws.amazon.com/cli/latest/userguide/installing.html>`_
+
 OS X
 *****
 
@@ -69,6 +71,18 @@ Access
 
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
+
+  - Check whether you have an existing access key by running the ``list-access-keys`` command:
+
+   .. prompt:: bash $
+
+      aws iam list-access-keys
+
+  - Create a new access key and secret token if necessary:
+
+   .. prompt:: bash $
+
+      aws iam create-access-key
 
 - SSH access to ClusterHQ's GitHub repositories.
 
@@ -162,20 +176,13 @@ Preparing For a Release
 #. Ensure all the required tests pass on BuildBot:
 
    Pushing the branch in the previous step should have started a build on BuildBot.
+   If not, you can force a build by logging in to BuildBot, entering the release branch name in to the box at the top right and clicking the ``Force`` button.
 
-   Unfortunately it is acceptable or expected for some tests to fail.
-   Discuss with the team whether the release can continue given any failed tests.
+   Build failures in the ``Expected failures`` section may be safely ignored.
+   Discuss with the team whether the release can continue given any failed tests outside of expected failures.
    Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
-
-   XXX This should be explicit in Buildbot, see :issue:`1700`.
-
-   At least the following builders do not have to pass in order to continue with the release process:
-
-   - ``flocker-vagrant-dev-box``
-   - Any ``docker-head`` builders.
-   - Any builders in the "Expected failures" section.
 
 #. Make a pull request on GitHub:
 
@@ -250,6 +257,9 @@ Release
    .. prompt:: bash (flocker-0.1.2)$
 
       aws configure
+
+   Enter your access key and secret token when prompted.
+   The other configurable values may be left as their defaults.
 
 #. Publish artifacts and documentation:
 
