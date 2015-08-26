@@ -175,6 +175,20 @@ class CinderDevicePathTests(SynchronousTestCase):
         self.nova = clients['nova_client']
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
 
+    def _detach(self, instance_id, volume):
+        self.nova.volumes.delete_server_volume(instance_id, volume.id)
+        return wait_for_volume(
+            volume_manager=test.nova.volumes,
+            expected_volume=volume,
+            expected_status=u'available',
+        )
+
+    def _cleanup(self, instance_id, volume):
+        volume.get()
+        if volume.attachments:
+            self._detach(instance_id, volume)
+        self.cinder.volumes.delete(volume.id)
+
     def test_get_device_path(self):
         """
         get_device_path returns the most recently attached device
@@ -184,6 +198,7 @@ class CinderDevicePathTests(SynchronousTestCase):
         )
 
         cinder_volume = self.cinder.volumes.create(1)
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume(
             volume_manager=self.cinder.volumes,
             expected_volume=cinder_volume,
