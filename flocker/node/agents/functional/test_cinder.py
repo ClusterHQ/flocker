@@ -191,7 +191,7 @@ class CinderDevicePathTests(SynchronousTestCase):
 
         devices_before = set(FilePath('/dev').children())
 
-        attached_volume = self.nova.create_server_volume(
+        attached_volume = self.nova.volumes.create_server_volume(
             server_id=instance_id,
             volume_id=volume.id,
             device=None,
