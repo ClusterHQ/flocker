@@ -688,10 +688,30 @@ def task_enable_docker(distribution):
                     ExecStart=
                     ExecStart=/usr/bin/docker daemon -H fd:// {}
                     """.format(docker_tls_options))),
+            put(path="/usr/lib/firewalld/services/docker.xml",
+                content=dedent(
+                    """\
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <service>
+                    <short>Docker API Port</short>
+                    <description>The Docker API, over TLS.</description>
+                    <port protocol="tcp" port="2376"/>
+                    </service>
+                    """)),
+            open_firewalld("docker"),
             run_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
+            put(path="/etc/ufw/applications.d/docker-api",
+                content=dedent(
+                    """
+                    [docker-api]
+                    title=Docker API
+                    description=Docker API.
+                    ports=2376/tcp
+                    """)),
+            open_ufw("docker"),
             put(path="/etc/default/docker",
                 content=(
                     'DOCKER_OPTS="-H unix:///var/run/docker.sock {}"'.format(
