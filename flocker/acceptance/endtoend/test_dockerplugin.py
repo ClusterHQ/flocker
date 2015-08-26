@@ -55,7 +55,7 @@ class DockerPluginTests(TestCase):
             assert_hostname=False,
             verify=get_path(b"cluster.crt"))
         client = Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
-                        tls=tls)
+                        tls=tls, timeout=100)
 
         # Remove all existing containers on the node, in case they're left
         # over from previous test:
