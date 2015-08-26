@@ -707,7 +707,7 @@ def open_firewalld(service):
 
     :param str service: Name of service.
     """
-    return sequence([
+    return sequence([run_from_args(['firewall-cmd', '--reload'])] + [
         run_from_args(command + [service])
         for command in [['firewall-cmd', '--permanent', '--add-service'],
                         ['firewall-cmd', '--add-service']]])
