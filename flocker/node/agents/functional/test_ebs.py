@@ -64,7 +64,7 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     def test_foreign_volume(self):
         """
-        Test that ``list_volumes`` lists only those volumes
+        ``list_volumes`` lists only those volumes
         belonging to the current Flocker cluster.
         """
         try:
@@ -85,7 +85,7 @@ class EBSBlockDeviceAPIInterfaceTests(
 
     def test_foreign_cluster_volume(self):
         """
-        Test that list_volumes() excludes volumes belonging to
+        ``list_volumes`` excludes volumes belonging to
         other Flocker clusters.
         """
         blockdevice_api2 = ebsblockdeviceapi_for_test(
@@ -100,7 +100,7 @@ class EBSBlockDeviceAPIInterfaceTests(
     @capture_logging(lambda self, logger: None)
     def test_boto_ec2response_error(self, logger):
         """
-        1. Test that invalid parameters to Boto's EBS API calls
+        1. Invalid parameters to Boto's EBS API calls
         raise the right exception after logging to Eliot.
         2. Verify Eliot log output for expected message fields
         from logging decorator for boto.exception.EC2Exception
@@ -166,12 +166,12 @@ class EBSBlockDeviceAPIInterfaceTests(
 
     @capture_logging(
         assertHasMessage, IN_USE_DEVICES, {
-            'devices': [u'/dev/sda1', u'/dev/sdf']
+            'devices': [u'/dev/sda1']
         },
     )
     def test_in_use_devices_log(self, logger):
         """
-        Test that attached device shows up as being in use during subsequent
+        Attached device shows up as being in use during subsequent
         ``attach_volume``.
         """
         volume1 = self.api.create_volume(
@@ -180,13 +180,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         self.api.attach_volume(
             volume1.blockdevice_id, attach_to=self.this_node,
-        )
-        volume2 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.attach_volume(
-            volume2.blockdevice_id, attach_to=self.this_node,
         )
 
 
