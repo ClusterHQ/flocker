@@ -698,7 +698,6 @@ def task_enable_docker(distribution):
                     <port protocol="tcp" port="2376"/>
                     </service>
                     """)),
-            open_firewalld("docker"),
             run_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif distribution == 'ubuntu-14.04':
@@ -711,7 +710,6 @@ def task_enable_docker(distribution):
                     description=Docker API.
                     ports=2376/tcp
                     """)),
-            open_ufw("docker"),
             put(path="/etc/default/docker",
                 content=(
                     'DOCKER_OPTS="-H unix:///var/run/docker.sock {}"'.format(
@@ -808,7 +806,8 @@ def task_open_control_firewall(distribution):
 
     return sequence([
         open_firewall(service)
-        for service in ['flocker-control-api', 'flocker-control-agent']
+        for service in ['flocker-control-api', 'flocker-control-agent',
+                        'docker']
     ])
 
 
