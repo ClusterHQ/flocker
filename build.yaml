@@ -10,7 +10,7 @@
 # That plugin consumes 'groovy Job DSL' code through FreeStyle Jenkins job
 # types which contain a 'Process Job DSLs' step.
 #
-# We as part of the provisioning process for the Jenkins Master, configure a
+# As part of the provisioning process for the Jenkins Master, we configure a
 # job called 'setup_ClusterHQ_Flocker' which is responsible for querying the
 # github clusterhq/flocker respository and retrieving this build.yaml file, as
 # well as the jobs.groovy.j2 jinja file.
@@ -22,20 +22,23 @@
 #
 # Our job 'setup_ClusterHQ_Flocker' when running, will run the 'render.py' with
 # this build.yaml file and produce a jobs.groovy file.
-# Then next step in the job is a 'Process JOB DSL's' step which consumes the
+# We do this, because we'd rather configure our jobs with YAML than with Groovy
+#
+# The next step in the job is a 'Process JOB DSL's' step which consumes the
 # jobs.groovy file, and generates all the jenkins folders and jobs.
+#
 #
 # We pass the branch name as a parameter to the setup_clusterhq_flocker job,
 # the parameter is shown as 'RECONFIGURE_BRANCH'.
-# The job only produce jobs for a single branch . We don't produce jobs
+# The setup job only produces jobs for a single branch . We don't produce jobs
 # for every branch due to the large number of branches in the repository, which
 # would generate over 16000 jobs and take over an hour to run.
 #
 # The workflow is that, when a developer is working on a feature branch and is
-# happy to start testing some of his code he will execute the job
+# happy to start testing some of his code they will execute the job
 # setup_clusterhq_flocker passing his branch as the parameter.
 #
-# Her/His jobs will then be available under the path:
+# Their jobs will then be available under the path:
 # /ClusterHQ-Flocker/<branch>/
 #
 # Inside that folder there will be a large number of jobs, where at the top
@@ -211,7 +214,7 @@ common_cli:
   setup_rackspace_env_vars: &setup_rackspace_env_vars |
     # set vars and run tests
     # The /tmp/acceptance.yaml file is deployed to the jenkins slave during
-    # bootstraping. These are copied from the Jenkins Master /etc/slave_config
+    # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack

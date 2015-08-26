@@ -11,7 +11,7 @@
    contains two build steps, the first executes a python file 'render.py' which
    reads the build.yaml file and expands this jobs.groovy.j2 template using
    the contents of that yaml dictionary. The resulting jobs.groovy file is then
-   read by a  second build step of type 'Process Job DSL' which produces all
+   read by a second build step of type 'Process Job DSL' which produces all
    the jenkins objects.
 
    A typical jenkins job contains the following sections, this is just an
@@ -48,7 +48,7 @@
 
     The structure of this jinja2 file is as follows:
 
-    a set of Jinja2 macro definitions which produce job dsl text for the
+    A set of Jinja2 macro definitions which produce job dsl text for the
     different sections of the job:
         - folder (creates a folder view in Jenkins to store the jobs)
         - wrappers
@@ -288,7 +288,7 @@ branches = []
    limits the number of API calls that can be done withouth authenticating   #}
 String token = new File('/var/lib/jenkins/.github_token').text.trim()
 
-{# lets call it ClusterHQ-Flocker instead of ClusterHQ/Flocker               #}
+{# Lets's call it ClusterHQ-Flocker instead of ClusterHQ/Flocker             #}
 def dashProject = "{{ cfg.project }}".replace('/', '-')
 
 {# Create a basefolder for our project, it should look like:
