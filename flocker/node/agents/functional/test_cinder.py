@@ -179,7 +179,7 @@ class CinderDevicePathTests(SynchronousTestCase):
         """
         get_device_path returns the most recently attached device
         """
-        this_instance_id = _compute_instance_id(
+        instance_id = _compute_instance_id(
             servers=self.nova.servers.list()
         )
 
