@@ -4,3 +4,4 @@ The following people and organizations contributed to its development; please ad
 
 * ClusterHQ (formerly Hybrid Logic Ltd.)
 * Scotch Media (Base for documentation theme)
+* Wentao Zhang (zhangwentao234@huaewi.com, Huawei Ltd.)
