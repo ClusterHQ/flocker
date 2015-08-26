@@ -13,6 +13,8 @@ from eliot import Message
 
 from pyrsistent import PRecord, field
 
+import pyudev
+
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
     HttpError as KeystoneHttpError,
@@ -488,9 +490,17 @@ class CinderBlockDeviceAPI(object):
         except ValueError:
             raise UnattachedVolume(blockdevice_id)
 
+        context = pyudev.Context()
+        for device in context.list_devices(subsystem='block'):
+            if device.get('ID_SERIAL') == blockdevice_id[:20]:
+                device_path = device.device_node
+                break
+        else:
+            device_path = attachment['device']
+
         # It could be attached somewher else...
         # https://clusterhq.atlassian.net/browse/FLOC-1830
-        return FilePath(attachment['device'])
+        return FilePath(device_path)
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):
