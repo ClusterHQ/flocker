@@ -11,6 +11,7 @@ from zope.interface.verify import verifyObject
 from pyrsistent import pset, pvector
 
 from eliot import MessageType, fields
+from docker.errors import APIError
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -203,9 +204,9 @@ def make_idockerclient_tests(fixture):
 
             def failed(exception):
                 self.assertEqual(
-                    AddressInUse(address=(b"0.0.0.0", self.external_port)),
-                    exception,
+                    exception.address, (b"0.0.0.0", self.external_port)
                 )
+                self.assertIsInstance(exception.apierror, APIError)
             d.addCallback(failed)
             return d
 

@@ -34,20 +34,23 @@ class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 
 
-@with_cmp(["address"])
+@with_cmp(["address", "apierror"])
 class AddressInUse(Exception):
     """
     The listen address for an exposed port was in use and could not be bound.
     """
-    def __init__(self, address):
+    def __init__(self, address, apierror):
         """
         :param tuple address: The conventional Python representation of the
             address which could not be bound (eg, an (ipv4 address, port
             number) pair for IPv4 addresses).
+        :param APIError apierror: The original Docker API error indicating this
+            problem.  Or ``None`` if the error was not derived from the result
+            of a Docker API call.
         """
-        Exception.__init__(self, address)
+        Exception.__init__(self, address, apierror)
         self.address = address
-
+        self.apierror = apierror
 
 class Environment(PRecord):
     """
@@ -270,7 +273,9 @@ class FakeDockerClient(object):
             return fail(AlreadyExists(unit_name))
         for port in ports:
             if port.external_port in self._used_ports:
-                raise AddressInUse(address=(b"0.0.0.0", port.external_port))
+                raise AddressInUse(
+                    address=(b"0.0.0.0", port.external_port), apierror=None,
+                )
 
         all_ports = set(range(2 ** 15, 2 ** 16))
         assigned_ports = []
@@ -501,7 +506,7 @@ class DockerClient(object):
             ip, port = parts[-2].split()[2].split(b":")
         else:
             return None
-        return AddressInUse(address=(ip, int(port)))
+        return AddressInUse(address=(ip, int(port)), apierror=apierror)
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
