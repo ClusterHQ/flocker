@@ -490,12 +490,19 @@ class CinderBlockDeviceAPI(object):
         except ValueError:
             raise UnattachedVolume(blockdevice_id)
 
+        # libvirt does not return the correct device path when additional
+        # disks have been attached using a client other than cinder.
+        # Return the path of the device that has an ID_SERIAL that matches
+        # the first 20 characters of the volume ID. See FLOC-2859.
         context = pyudev.Context()
         for device in context.list_devices(subsystem='block'):
             if device.get('ID_SERIAL') == blockdevice_id[:20]:
                 device_path = device.device_node
                 break
         else:
+            # If the matching ID_SERIAL is not available for any block
+            # devices, return the device path given by cinder.
+            # Cinder volumes on Rackspace do not provide ID_SERIAL.
             device_path = attachment['device']
 
         # It could be attached somewher else...
