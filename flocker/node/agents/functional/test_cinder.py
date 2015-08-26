@@ -178,7 +178,7 @@ class CinderDevicePathTests(SynchronousTestCase):
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
         return wait_for_volume(
-            volume_manager=test.nova.volumes,
+            volume_manager=self.nova.volumes,
             expected_volume=volume,
             expected_status=u'available',
         )
