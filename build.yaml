@@ -191,7 +191,7 @@ common_cli:
     # But first, we need to upgrade pip to 7.1.
     # We have a devpi cache in AWS which we will consume instead of going
     # upstream to the PyPi servers.
-    # We specify that devpi caching server using -i $PIP_INDEX_URL
+    # We specify that devpi caching server using -i \$PIP_INDEX_URL
     # which requires as to include --trusted_host as we are not (yet) using
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
