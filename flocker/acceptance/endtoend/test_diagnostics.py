@@ -68,6 +68,8 @@ class DiagnosticsTests(TestCase):
                 'flocker-dataset-agent_eliot.gz',
                 'flocker-container-agent_startup.gz',
                 'flocker-container-agent_eliot.gz',
+                'flocker-docker-plugin_startup.gz',
+                'flocker-docker-plugin_eliot.gz',
                 'flocker-version',
                 'docker-info',
                 'docker-version',
