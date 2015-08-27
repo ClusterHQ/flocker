@@ -17,6 +17,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from twisted.internet import reactor
+from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
@@ -24,9 +25,9 @@ from pyrsistent import PRecord, pset
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
-    _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
+    _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
-    _LOG_UPGRADE, MissingMigrationError,
+    _LOG_UPGRADE, MissingMigrationError, update_leases
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -62,53 +63,77 @@ V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
     'configurations').child(b"configuration_v1.json").getContent()
 
 
-class FakePersistenceService(object):
+class LeasesTests(TestCase):
     """
-    A very simple fake persistence service that does nothing.
+    Tests for ``LeaseService`` and ``update_leases``.
     """
-    def __init__(self):
-        self._deployment = Deployment(nodes=frozenset())
+    def setUp(self):
+        self.clock = Clock()
+        self.persistence_service = ConfigurationPersistenceService(
+            self.clock, FilePath(self.mktemp()))
+        self.persistence_service.startService()
+        self.addCleanup(self.persistence_service.stopService)
 
-    def save(self, deployment):
-        self._deployment = deployment
-
-    def get(self):
-        return self._deployment
-
-
-class LeaseServiceTests(TestCase):
-    """
-    Tests for ``LeaseService``.
-    """
-    def service(self):
+    def test_update_leases_saves_changed_leases(self):
         """
-        Start a lease service and schedule it to stop.
-
-        :return: Started ``LeaseService``.
+        ``update_leases`` only changes the leases stored in the configuration.
         """
-        service = LeaseService(reactor, FakePersistenceService())
-        service.startService()
-        self.addCleanup(service.stopService)
-        return service
+        node_id = uuid4()
+        dataset_id = uuid4()
+
+        original_leases = Leases().acquire(
+            datetime.fromtimestamp(0, UTC), uuid4(), node_id)
+
+        def update(leases):
+            return leases.acquire(
+                datetime.fromtimestamp(1000, UTC), dataset_id, node_id)
+
+        d = self.persistence_service.save(
+            TEST_DEPLOYMENT.set(leases=original_leases))
+        d.addCallback(
+            lambda _: update_leases(update, self.persistence_service))
+
+        def updated(_):
+            self.assertEqual(
+                self.persistence_service.get(),
+                TEST_DEPLOYMENT.set(leases=update(original_leases)))
+        d.addCallback(updated)
+        return d
 
     def test_expired_lease_removed(self):
         """
         A lease that has expired is removed from the persisted
         configuration.
-
-        XXX Leases cannot be manipulated in this branch. See FLOC-2375.
-        This is a skeletal test that merely ensures the call to
-        ``update_leases`` takes place when ``_expire`` is called and should
-        be rewritten to test the updated configuration once the configuration
-        is aware of Leases.
         """
-        service = self.service()
-        d = service._expire()
+        timestep = 100
+        node_id = uuid4()
+        ids = uuid4(), uuid4()
+        # First dataset lease expires at timestep:
+        now = self.clock.seconds()
+        leases = Leases().acquire(
+            datetime.fromtimestamp(now, UTC), ids[0], node_id, timestep)
+        # Second dataset lease expires at timestep * 2:
+        leases = leases.acquire(
+            datetime.fromtimestamp(now, UTC), ids[1], node_id, timestep * 2)
+        new_config = Deployment(leases=leases)
+        d = self.persistence_service.save(new_config)
 
-        def check_expired(updated):
-            self.assertIsNone(updated)
+        def saved(_):
+            self.clock.advance(timestep - 1)  # 99
+            before_first_expire = self.persistence_service.get().leases
+            self.clock.advance(2)  # 101
+            after_first_expire = self.persistence_service.get().leases
+            self.clock.advance(timestep - 2)  # 199
+            before_second_expire = self.persistence_service.get().leases
+            self.clock.advance(2)  # 201
+            after_second_expire = self.persistence_service.get().leases
 
-        d.addCallback(check_expired)
+            self.assertTupleEqual(
+                (before_first_expire, after_first_expire,
+                 before_second_expire, after_second_expire),
+                (leases, leases.remove(ids[0]), leases.remove(ids[0]),
+                 leases.remove(ids[0]).remove(ids[1])))
+        d.addCallback(saved)
         return d
 
 

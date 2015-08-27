@@ -254,7 +254,7 @@ class LeaseService(Service):
         self._lc.stop()
 
     def _expire(self):
-        now = datetime.now(tz=UTC)
+        now = datetime.fromtimestamp(self._reactor.seconds(), tz=UTC)
         return update_leases(lambda leases: leases.expire(now),
                              self._persistence_service)
 
@@ -270,10 +270,9 @@ def update_leases(transform, persistence_service):
 
     :return Deferred: Fires when the persistence service has saved.
     """
-    # config = persistence_service.get()
-    # new_config = config.set("leases", transform(config.leases))
-    # return persistence_service.save(new_config)
-    return succeed(None)
+    config = persistence_service.get()
+    new_config = config.set("leases", transform(config.leases))
+    return persistence_service.save(new_config)
 
 
 class ConfigurationPersistenceService(MultiService):
