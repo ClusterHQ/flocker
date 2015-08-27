@@ -441,7 +441,7 @@ job_type:
 
 
     run_trial_for_cinder_storage_driver_on_CentOS_7:
-      on_nodes_with_labels: 'rackspace-centos7-jenkins-slave-DFW-standard-4'
+      on_nodes_with_labels: 'rackspace-jenkins-slave-centos7-standard-4-DFW'
       with_modules:
         - flocker/node/agents/cinder.py
       with_steps:
@@ -456,7 +456,7 @@ job_type:
       coverage_report: true
       clean_repo: true
     run_trial_for_cinder_storage_driver_on_CentOS_7_with_SELinux:
-      on_nodes_with_labels: 'rackspace-centos7-selinux-jenkins-slave-DFW-general1-1'
+      on_nodes_with_labels: 'rackspace-jenkins-slave-centos7-selinux-standard-4-DFW'
       with_modules:
         - flocker/node/agents/cinder.py
       with_steps:
@@ -474,7 +474,7 @@ job_type:
 
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
-      on_nodes_with_labels: 'rackspace-ubuntu14-jenkins-slave-DFW-standard-4'
+      on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu14-standard-4-DFW'
       with_modules:
         - flocker/node/agents/cinder.py
       with_steps:
