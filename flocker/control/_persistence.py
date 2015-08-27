@@ -6,12 +6,12 @@ Persistence of cluster configuration.
 
 from json import dumps, loads, JSONEncoder
 from uuid import UUID
-
+from calendar import timegm
 from datetime import datetime
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
-from pyrsistent import PRecord, PVector, PMap, PSet, pmap
+from pyrsistent import PRecord, PVector, PMap, PSet, pmap, PClass
 
 from pytz import UTC
 
@@ -149,6 +149,12 @@ class _ConfigurationEncoder(JSONEncoder):
         elif isinstance(obj, UUID):
             return {_CLASS_MARKER: u"UUID",
                     "hex": unicode(obj)}
+        elif isinstance(obj, datetime):
+            if obj.tzinfo is None:
+                raise ValueError(
+                    "Datetime without a timezone: {}".format(obj))
+            return {_CLASS_MARKER: u"datetime",
+                    "seconds": timegm(obj.utctimetuple())}
         return JSONEncoder.default(self, obj)
 
 
@@ -176,6 +182,8 @@ def wire_decode(data):
             return pmap(dictionary[u"values"])
         elif class_name == u"UUID":
             return UUID(dictionary[u"hex"])
+        elif class_name == u"datetime":
+            return datetime.fromtimestamp(dictionary[u"seconds"], UTC)
         elif class_name in _CONFIG_CLASS_MAP:
             dictionary = dictionary.copy()
             dictionary.pop(_CLASS_MARKER)

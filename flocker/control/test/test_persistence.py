@@ -6,7 +6,10 @@ Tests for ``flocker.control._persistence``.
 import json
 import string
 
+from datetime import datetime, timedelta
 from uuid import uuid4, UUID
+
+from pytz import UTC
 
 from eliot.testing import validate_logging, assertHasMessage, assertHasAction
 
@@ -496,6 +499,22 @@ class WireEncodeDecodeTests(SynchronousTestCase):
                                manifestations={}, paths={},
                                devices={uuid4(): FilePath(b"/tmp")})
         self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
+
+    def test_datetime(self):
+        """
+        A datetime with a timezone can be roundtripped (with potential loss of
+        less-than-second resolution).
+        """
+        dt = datetime.now(tz=UTC)
+        self.assertTrue(
+            abs(wire_decode(wire_encode(dt)) - dt) < timedelta(seconds=1))
+
+    def test_naive_datetime(self):
+        """
+        A naive datetime will fail. Don't use those, always use an explicit
+        timezone.
+        """
+        self.assertRaises(ValueError, wire_encode, datetime.now())
 
 
 class ConfigurationMigrationTests(SynchronousTestCase):
