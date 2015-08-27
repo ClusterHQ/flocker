@@ -17,7 +17,6 @@ from pytz import UTC
 
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service, MultiService
-from twisted.internet import reactor as default_reactor
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
 
@@ -226,6 +225,10 @@ _UPGRADE_TARGET_FIELD = Field.for_types(
 _LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
                           [_DEPLOYMENT_FIELD, _UPGRADE_SOURCE_FIELD,
                            _UPGRADE_TARGET_FIELD, ], [])
+_LOG_EXPIRE = MessageType(
+    u"flocker-control:persistence:lease-expired",
+    [Field(u"dataset_id", unicode), Field(u"node_id", unicode)],
+    "A lease for a dataset has expired.")
 
 
 class LeaseService(Service):
@@ -253,8 +256,14 @@ class LeaseService(Service):
 
     def _expire(self):
         now = datetime.fromtimestamp(self._reactor.seconds(), tz=UTC)
-        return update_leases(lambda leases: leases.expire(now),
-                             self._persistence_service)
+
+        def expire(leases):
+            updated_leases = leases.expire(now)
+            for dataset_id in set(leases) - set(updated_leases):
+                _LOG_EXPIRE(dataset_id=dataset_id,
+                            node_id=leases[dataset_id].node_id).write()
+            return updated_leases
+        return update_leases(expire, self._persistence_service)
 
 
 def update_leases(transform, persistence_service):

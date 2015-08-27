@@ -11,7 +11,8 @@ from uuid import uuid4, UUID
 
 from pytz import UTC
 
-from eliot.testing import validate_logging, assertHasMessage, assertHasAction
+from eliot.testing import (
+    validate_logging, assertHasMessage, assertHasAction, capture_logging)
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -27,7 +28,7 @@ from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
-    _LOG_UPGRADE, MissingMigrationError, update_leases
+    _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -136,6 +137,26 @@ class LeasesTests(TestCase):
         d.addCallback(saved)
         return d
 
+    @capture_logging(None)
+    def test_expire_lease_logging(self, logger):
+        """
+        An expired lease is logged.
+        """
+        node_id = uuid4()
+        dataset_id = uuid4()
+        leases = Leases().acquire(
+            datetime.fromtimestamp(self.clock.seconds(), UTC),
+            dataset_id, node_id, 1)
+
+        d = self.persistence_service.save(Deployment(leases=leases))
+
+        def saved(_):
+            logger.reset()
+            self.clock.advance(1000)
+            assertHasMessage(self, logger, _LOG_EXPIRE, {
+                u"dataset_id": dataset_id, u"node_id": node_id})
+        d.addCallback(saved)
+        return d
 
 class ConfigurationPersistenceServiceTests(TestCase):
     """
