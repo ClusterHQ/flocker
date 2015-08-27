@@ -280,6 +280,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         A configuration that was saved can subsequently retrieved.
         """
         service = self.service(FilePath(self.mktemp()), logger)
+        logger.reset()
         d = service.save(TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.get())
         d.addCallback(self.assertEqual, TEST_DEPLOYMENT)
