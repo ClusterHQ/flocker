@@ -173,7 +173,8 @@ class UnexpectedStateException(Exception):
 
 
 class EliotLogHandler(logging.Handler):
-    _to_log = {"Method", "Path", "Params"}
+    # Whitelist ``"msg": "Params:`` field for logging.
+    _to_log = {"Params"}
 
     def emit(self, record):
         fields = vars(record)
