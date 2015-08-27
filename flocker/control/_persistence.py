@@ -32,7 +32,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 2
+_CONFIG_VERSION = 3
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -128,6 +128,21 @@ class ConfigurationMigration(object):
         }
         return dumps(v2_config)
 
+    @classmethod
+    def upgrade_from_v2(cls, config):
+        """
+        Migrate a v2 JSON configuration to v3.
+
+        :param bytes config: The v3 JSON data.
+        :return bytes: The v3 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 3
+        decoded_config[u"deployment"][u"leases"] = {
+            u"values": [], _CLASS_MARKER: u"PMap",
+        }
+        return dumps(decoded_config)
+
 
 class _ConfigurationEncoder(JSONEncoder):
     """
@@ -137,6 +152,10 @@ class _ConfigurationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, PRecord):
             result = dict(obj)
+            result[_CLASS_MARKER] = obj.__class__.__name__
+            return result
+        elif isinstance(obj, PClass):
+            result = obj.evolver().data
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
@@ -251,9 +270,9 @@ def update_leases(transform, persistence_service):
 
     :return Deferred: Fires when the persistence service has saved.
     """
-    # XXX we cannot manipulate leases in this branch since the configuration
-    # doesn't know anything about them yet. See FLOC-2735.
-    # So instead we do nothing for now.
+    # config = persistence_service.get()
+    # new_config = config.set("leases", transform(config.leases))
+    # return persistence_service.save(new_config)
     return succeed(None)
 
 

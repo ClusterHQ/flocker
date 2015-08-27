@@ -31,7 +31,7 @@ from .._persistence import (
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
     AttachedVolume, SERIALIZABLE_CLASSES, NodeState, Configuration,
-    Port, Link,
+    Port, Link, Leases, Lease,
     )
 
 # The UUID values for the Dataset and Node in TEST_DEPLOYMENT match
@@ -42,9 +42,11 @@ from .._model import (
 # commit checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
+NODE_UUID = UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c')
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
 TEST_DEPLOYMENT = Deployment(
-    nodes=[Node(uuid=UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c'),
+    leases=Leases(),
+    nodes=[Node(uuid=NODE_UUID,
                 applications=[
                     Application(
                         name=u'myapp',
@@ -366,6 +368,13 @@ UUIDS = st.sampled_from([uuid4() for i in range(1000)])
 
 DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 
+LEASES = st.builds(
+    Lease, dataset_id=UUIDS, node_id=UUIDS,
+    expiration=st.one_of(
+        st.none(),
+        st.basic(generate=lambda r, _: datetime.fromtimestamp(
+            r.randrange(0, 10000000), tz=UTC))))
+
 # Constrain primary to be True so that we don't get invariant errors from Node
 # due to having two differing manifestations of the same dataset id.
 MANIFESTATIONS = st.builds(
@@ -444,8 +453,11 @@ DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
     # to build examples, causing intermittent timeouts. Making it roughly 3
     # should give us adequate test coverage.
-    Deployment, nodes=st.sets(NODES, average_size=3)
+    Deployment, nodes=st.sets(NODES, average_size=3),
+    leases=st.sets(LEASES, average_size=3).map(
+        lambda ls: dict((l.dataset_id, l) for l in ls)),
 )
+
 
 SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
