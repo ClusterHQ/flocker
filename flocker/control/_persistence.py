@@ -233,15 +233,13 @@ class LeaseService(Service):
     Manage leases.
     In particular, clear out expired leases once a second.
 
-    :ivar _reactor: A ``twisted.internet.reactor`` implementation.
+    :ivar _reactor: A ``IReactorTime`` provider.
     :ivar _persistence_service: The persistence service to act with.
     :ivar _lc: A ``twisted.internet.task.LoopingCall`` run every second
         to update the configured leases by releasing leases that have
         expired.
     """
     def __init__(self, reactor, persistence_service):
-        if reactor is None:
-            reactor = default_reactor
         self._reactor = reactor
         self._persistence_service = persistence_service
 
