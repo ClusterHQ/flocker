@@ -1,8 +1,8 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Flocker is a hypervisor that provides ZFS-based replication and fail-over
-functionality to a Linux-based user-space operating system.
+Flocker is an open-source container data volume manager for your
+Dockerized applications.
 """
 
 
