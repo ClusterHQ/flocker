@@ -296,7 +296,8 @@ def get_device_allocation_unit():
 
 MINIMUM_ALLOCATABLE_SIZES = {
     # This really means Rackspace
-    'openstack': GiB(1),
+    'openstack': GiB(100),
+    'devstack-openstack': GiB(1),
     'redhat-openstack': GiB(1),
     'aws': GiB(1),
 }
