@@ -7,6 +7,7 @@ Deploy applications on nodes.
 
 from itertools import chain
 from warnings import warn
+from uuid import UUID
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -454,6 +455,7 @@ class NotInUseDatasets(object):
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in node_state.applications
                                  if app.volume is not None}
+        self._leases = leases
 
     def __call__(self, objects,
                  get_dataset_id=lambda d: unicode(d.dataset_id)):
@@ -462,15 +464,20 @@ class NotInUseDatasets(object):
 
         :param objects: Objects to filter.
 
-        :param get_dataset_id: Callable to extract a ``dataset_id`` from
-            an object. By default looks up ``dataset_id`` attribute.
+        :param get_dataset_id: Callable to extract a unicode dataset ID
+            from an object. By default looks up ``dataset_id`` attribute.
 
         :return list: Filtered objects.
         """
         result = []
         for obj in objects:
-            if get_dataset_id(obj) not in self._in_use_datasets:
-                result.append(obj)
+            u_dataset_id = get_dataset_id(obj)
+            dataset_id = UUID(u_dataset_id)
+            if u_dataset_id in self._in_use_datasets:
+                continue
+            if dataset_id in self._leases:
+                continue
+            result.append(obj)
         return result
 
 
