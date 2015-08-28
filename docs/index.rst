@@ -23,4 +23,9 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    faq/index
    gettinginvolved/index
 
+.. toctree::
+   :hidden:
+
+   version
+
 .. _Getting Started with Flocker: https://clusterhq.com/flocker/getting-started/
