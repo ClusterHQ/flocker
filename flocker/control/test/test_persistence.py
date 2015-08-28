@@ -158,6 +158,7 @@ class LeasesTests(TestCase):
         d.addCallback(saved)
         return d
 
+
 class ConfigurationPersistenceServiceTests(TestCase):
     """
     Tests for ``ConfigurationPersistenceService``.
