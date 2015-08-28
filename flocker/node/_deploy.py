@@ -441,13 +441,15 @@ class NotInUseDatasets(object):
     Filter out datasets that are in use by applications.
 
     For now we delay things like deletion until we know applications
-    aren't using the dataset. Later on we'll use leases to decouple
-    the application and dataset logic better; see
-    https://clusterhq.atlassian.net/browse/FLOC-1425.
+    aren't using the dataset, and also until there are no leases. Later on
+    we'll switch the container agent to rely solely on leases, at which
+    point we can rip out the logic related to Application objects. See
+    https://clusterhq.atlassian.net/browse/FLOC-2732.
     """
-    def __init__(self, node_state):
+    def __init__(self, node_state, leases):
         """
         :param NodeState node_state: Known local state.
+        :param Leases leases: The current leases on datasets.
         """
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in node_state.applications
@@ -552,7 +554,8 @@ class P2PManifestationDeployer(object):
             return sequentially(changes=[])
         phases = []
 
-        not_in_use_datasets = NotInUseDatasets(local_state)
+        not_in_use_datasets = NotInUseDatasets(
+            local_state, configuration.leases)
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
