@@ -181,11 +181,15 @@ class CinderDevicePathTests(SynchronousTestCase):
         self.path.makedirs()
         ca = RootCredential.initialize(self.path, b"mycluster")
         cert = NodeCredential.initialize(self.path, ca, uuid='client')
-        FilePath('/etc/pki/CA').makedirs()
+        ca_dir = FilePath('/etc/pki/CA')
+        if not ca_dir.exists():
+            ca_dir.makedirs()
         self.path.child(AUTHORITY_CERTIFICATE_FILENAME).copyTo(
             FilePath('/etc/pki/CA/cacert.pem')
         )
-        client_key_dir = FilePath('/etc/pki/libvirt/private').makedirs()
+        client_key_dir = FilePath('/etc/pki/libvirt/private')
+        if not client_key_dir.exists():
+            client_key_dir.makedirs()
         client_key_dir.chmod(0700)
         self.path.child('client.key').copyTo(
             client_key_dir.child('clientkey.pem')
