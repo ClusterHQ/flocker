@@ -10,7 +10,6 @@ import time
 import socket
 from functools import partial
 
-from requests import Response
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 from docker import Client
@@ -36,7 +35,7 @@ from ...testtools import (
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume, AddressInUse,
+    BASE_NAMESPACE, Volume, AddressInUse, make_response,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
@@ -1066,20 +1065,6 @@ nc -ll -p 8080 -e /tmp/script.sh
             return d
         d.addCallback(started)
         return d
-
-
-def make_response(code, message):
-    """
-    Create a ``requests.Response`` with the given response code and message.
-
-    :param int code: The HTTP response code to include in the fake response.
-    :param unicode message: The HTTP response message to include in the fake
-        response.  The message will be encoded using ASCII.
-    """
-    response = Response()
-    response.status_code = code
-    response.reason = message
-    return response
 
 
 class MakeResponseTests(TestCase):

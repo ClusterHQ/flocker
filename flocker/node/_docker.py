@@ -18,6 +18,7 @@ from docker.utils import create_host_config
 from eliot import Message
 
 from pyrsistent import field, PRecord, pset
+from requests import Response
 from characteristic import with_cmp
 
 from twisted.python.components import proxyForInterface
@@ -240,6 +241,20 @@ class IDockerClient(Interface):
 
         :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
         """
+
+
+def make_response(code, message):
+    """
+    Create a ``requests.Response`` with the given response code and message.
+
+    :param int code: The HTTP response code to include in the fake response.
+    :param unicode message: The HTTP response message to include in the fake
+        response.  The message will be encoded using ASCII.
+    """
+    response = Response()
+    response.status_code = code
+    response.reason = message
+    return response
 
 
 @implementer(IDockerClient)
