@@ -14,6 +14,7 @@ See https://github.com/rackerlabs/mimic/issues/218
 """
 
 from uuid import uuid4
+import subprocess
 
 from bitmath import Byte
 
@@ -22,7 +23,9 @@ from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
-from flocker.ca import RootCredential, AUTHORITY_CERTIFICATE_FILENAME
+from flocker.ca import (
+    RootCredential, AUTHORITY_CERTIFICATE_FILENAME, NodeCredential
+)
 
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
@@ -174,6 +177,22 @@ class CinderDevicePathTests(SynchronousTestCase):
         self.cinder = clients['cinder_client']
         self.nova = clients['nova_client']
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
+        self.path = FilePath(self.mktemp())
+        self.path.makedirs()
+        ca = RootCredential.initialize(self.path, b"mycluster")
+        cert = NodeCredential.initialize(self.path, ca, uuid='client')
+        FilePath('/etc/pki/CA').makedirs()
+        self.path.child(AUTHORITY_CERTIFICATE_FILENAME).copyTo(
+            FilePath('/etc/pki/CA/cacert.pem')
+        )
+        client_key_dir = FilePath('/etc/pki/libvirt/private').makedirs()
+        client_key_dir.chmod(0700)
+        self.path.child('client.key').copyTo(
+            client_key_dir.child('clientkey.pem')
+        )
+        self.path.child('client.crt').copyTo(
+            FilePath('/etc/pki/libvirt/clientcert.pem')
+        )
 
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
@@ -189,13 +208,65 @@ class CinderDevicePathTests(SynchronousTestCase):
             self._detach(instance_id, volume)
         self.cinder.volumes.delete(volume.id)
 
-    def test_get_device_path(self):
+    def _attach_disk(self, url, instance_id, host_device, guest_device):
+        subprocess.check_call(["virsh", "-c", url, "attach-disk", instance_id,
+                               host_device, guest_device])
+
+    def _detach_disk(self, url, instance_id, host_device):
+        subprocess.check_call(["virsh", "-c", url, "detach-disk", instance_id,
+                               host_device])
+
+    def test_get_device_path_no_attached_disks(self):
         """
         get_device_path returns the most recently attached device
         """
         instance_id = _compute_instance_id(
             servers=self.nova.servers.list()
         )
+
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=cinder_volume,
+        )
+
+        devices_before = set(FilePath('/dev').children())
+
+        attached_volume = self.nova.volumes.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=attached_volume,
+            expected_status=u'in-use',
+        )
+
+        devices_after = set(FilePath('/dev').children())
+        new_devices = devices_after - devices_before
+        [new_device] = new_devices
+
+        device_path = self.blockdevice_api.get_device_path(volume.id)
+
+        self.assertEqual(device_path, new_device)
+
+    def test_get_device_path_correct_with_attached_disk(self):
+        """
+        get_device_path returns the correct device name even when a non-Cinder
+        volume has been attached. See FLOC-2859.
+        """
+        instance_id = _compute_instance_id(
+            servers=self.nova.servers.list()
+        )
+
+        url = "qemu://10.0.0.1/system?no_verify=1"
+        host_device = "/dev/sdc1"
+        self._attach_disk(url, instance_id, host_device, "vdb")
+        self.addCleanup(self._detach_disk, url, instance_id, host_device)
 
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
