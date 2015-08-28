@@ -8,6 +8,8 @@ from json import dumps
 from os import environ
 from unittest import SkipTest, skipUnless
 from uuid import uuid4
+from socket import socket
+from contextlib import closing
 
 import json
 
@@ -20,7 +22,7 @@ from twisted.internet import reactor
 from eliot import Logger, start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
-from treq import json_content, content
+from treq import json_content, content, get, post
 
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
@@ -746,3 +748,114 @@ def create_dataset(test_case, cluster,
     )
 
     return waiting_for_create
+
+
+def verify_socket(host, port):
+    """
+    Wait until the destionation can be connected to.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Firing when connection is possible.
+    """
+    def can_connect():
+        with closing(socket()) as s:
+            conn = s.connect_ex((host, port))
+            Message.new(
+                message_type="acceptance:verify_socket",
+                host=host,
+                port=port,
+                result=conn,
+            ).write()
+            return conn == 0
+
+    dl = loop_until(can_connect)
+    return dl
+
+
+def post_http_server(test, host, port, data, expected_response=b"ok"):
+    """
+    Make a POST request to an HTTP server on the given host and port
+    and assert that the response body matches the expected response.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes data: The raw request body data.
+    :param bytes expected_response: The HTTP response body expected.
+        Defaults to b"ok"
+    """
+    def make_post(host, port, data):
+        request = post(
+            "http://{host}:{port}".format(host=host, port=port),
+            data=data,
+            persistent=False
+        )
+
+        def failed(failure):
+            Message.new(message_type=u"acceptance:http_query_failed",
+                        reason=unicode(failure)).write()
+            return False
+        request.addCallbacks(content, failed)
+        return request
+    d = verify_socket(host, port)
+    d.addCallback(lambda _: loop_until(lambda: make_post(
+        host, port, data)))
+    d.addCallback(test.assertEqual, expected_response)
+    return d
+
+
+def query_http_server(host, port, path=b""):
+    """
+    Return the response from a HTTP server.
+
+    We try multiple since it may take a little time for the HTTP
+    server to start up.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes path: Optional path and query string.
+
+    :return: ``Deferred`` that fires with the body of the response.
+    """
+    def query():
+        req = get(
+            "http://{host}:{port}{path}".format(
+                host=host, port=port, path=path),
+            persistent=False
+        )
+
+        def failed(failure):
+            Message.new(message_type=u"acceptance:http_query_failed",
+                        reason=unicode(failure)).write()
+            return False
+        req.addCallbacks(content, failed)
+        return req
+
+    d = verify_socket(host, port)
+    d.addCallback(lambda _: loop_until(query))
+    return d
+
+
+def assert_http_server(test, host, port,
+                       path=b"", expected_response=b"hi"):
+
+    """
+    Assert that a HTTP serving a response with body ``b"hi"`` is running
+    at given host and port.
+
+    This can be coupled with code that only conditionally starts up
+    the HTTP server via Flocker in order to check if that particular
+    setup succeeded.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes path: Optional path and query string.
+    :param bytes expected_response: The HTTP response body expected.
+        Defaults to b"hi"
+
+    :return: ``Deferred`` that fires when assertion has run.
+    """
+    d = query_http_server(host, port, path)
+    d.addCallback(test.assertEqual, expected_response)
+    return d
