@@ -232,7 +232,9 @@ def install_commands_yum(package_name, distribution, package_source,
     :return: a sequence of commands to run on the distribution
     """
     commands = [
-        run(command="yum install -y " + get_repository_url(
+        # May have been previously installed by previous install run, so do
+        # update instead of install:
+        run(command="yum update -y " + get_repository_url(
             distribution=distribution,
             flocker_version=get_installable_version(version))),
     ]
@@ -625,10 +627,41 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
         ])
 
 
+def task_install_api_certificates(api_cert, api_key):
+    """
+    Install certificate and private key required by Docker plugin to
+    access the Flocker REST API.
+
+    :param FilePath api_cert: Path to API certificate on local machine.
+    :param FilePath api_key: Path to API private key local machine.
+    """
+    # Be better if permissions were correct from the start.
+    # https://clusterhq.atlassian.net/browse/FLOC-1922
+    return sequence([
+        run('mkdir -p /etc/flocker'),
+        run('chmod u=rwX,g=,o= /etc/flocker'),
+        put(path="/etc/flocker/api.crt",
+            content=api_cert.getContent()),
+        put(path="/etc/flocker/api.key",
+            content=api_key.getContent(),
+            log_content_filter=_remove_private_key),
+        ])
+
+
 def task_enable_docker(distribution):
     """
-    Start docker and configure it to start automatically.
+    Configure docker.
+
+    We don't actually start it (or on Ubuntu, restart it) at this point
+    since the certificates it relies on have yet to be installed.
     """
+    # Use the Flocker node TLS certificate, since it's readily
+    # available.
+    docker_tls_options = (
+        '--tlsverify --tlscacert=/etc/flocker/cluster.crt'
+        ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
+        ' -H=0.0.0.0:2376')
+
     if is_centos(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
@@ -648,12 +681,22 @@ def task_enable_docker(distribution):
                     """
                 ),
             ),
+            put(path="/etc/systemd/system/docker.service.d/02-TLS.conf",
+                content=dedent(
+                    """\
+                    [Service]
+                    ExecStart=
+                    ExecStart=/usr/bin/docker daemon -H fd:// {}
+                    """.format(docker_tls_options))),
             run_from_args(["systemctl", "enable", "docker.service"]),
-            run_from_args(["systemctl", "start", "docker.service"]),
         ])
     elif distribution == 'ubuntu-14.04':
-        # Ubuntu enables docker service during installation
-        return sequence([])
+        return sequence([
+            put(path="/etc/default/docker",
+                content=(
+                    'DOCKER_OPTS="-H unix:///var/run/docker.sock {}"'.format(
+                        docker_tls_options))),
+            ])
     else:
         raise DistributionNotSupported(distribution=distribution)
 
@@ -664,7 +707,7 @@ def open_firewalld(service):
 
     :param str service: Name of service.
     """
-    return sequence([
+    return sequence([run_from_args(['firewall-cmd', '--reload'])] + [
         run_from_args(command + [service])
         for command in [['firewall-cmd', '--permanent', '--add-service'],
                         ['firewall-cmd', '--add-service']]])
@@ -711,20 +754,60 @@ def task_enable_flocker_control(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def task_enable_docker_plugin(distribution):
+    """
+    Enable the Flocker Docker plugin.
+
+    :param bytes distribution: The distribution name.
+    """
+    if is_centos(distribution):
+        return sequence([
+            run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
+            run_from_args(['systemctl', START, 'flocker-docker-plugin']),
+            run_from_args(['systemctl', START, 'docker']),
+        ])
+    elif distribution == 'ubuntu-14.04':
+        return sequence([
+            run_from_args(['service', 'flocker-docker-plugin', 'restart']),
+            run_from_args(['service', 'docker', 'restart']),
+        ])
+    else:
+        raise DistributionNotSupported(distribution=distribution)
+
+
 def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
     if is_centos(distribution):
+        upload = put(path="/usr/lib/firewalld/services/docker.xml",
+                     content=dedent(
+                         """\
+                         <?xml version="1.0" encoding="utf-8"?>
+                         <service>
+                         <short>Docker API Port</short>
+                         <description>The Docker API, over TLS.</description>
+                         <port protocol="tcp" port="2376"/>
+                         </service>
+                         """))
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
+        upload = put(path="/etc/ufw/applications.d/docker",
+                     content=dedent(
+                         """
+                         [docker]
+                         title=Docker API
+                         description=Docker API.
+                         ports=2376/tcp
+                         """))
         open_firewall = open_ufw
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-    return sequence([
+    return sequence([upload] + [
         open_firewall(service)
-        for service in ['flocker-control-api', 'flocker-control-agent']
+        for service in ['flocker-control-api', 'flocker-control-agent',
+                        'docker']
     ])
 
 
@@ -1085,6 +1168,9 @@ def provision(distribution, package_source, variants):
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
+    commands.append(
+        task_package_install(
+            "clusterhq-flocker-docker-plugin", distribution, package_source))
     if is_centos(distribution):
         commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
@@ -1164,6 +1250,10 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.cluster.certificate,
                             certnkey.certificate,
                             certnkey.key),
+                        task_install_api_certificates(
+                            cluster.certificates.user.certificate,
+                            cluster.certificates.user.key),
+                        task_enable_docker(node.distribution),
                         task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
@@ -1171,6 +1261,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                                 dataset_backend_configuration
                             ),
                         ),
+                        task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
                         )]),
