@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+„<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -218,6 +218,26 @@
     hm.src = ('++u-heatmap-it+log-js').replace(/[+]/g,'/').replace(/-/g,'.');
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(hm, s);
     })();
+    </script>
+
+    <!-- Display out-of-date documentation notice -->
+    <script>
+        // Do an AJAX request to check latest version
+        var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+
+        request.done(function( msg ) {
+            // Trim HTML from returned contents
+            currentversion = $(msg).text();
+
+            // Is version equal to this documentation release?
+            if (currentversion !== DOCUMENTATION_OPTIONS.VERSION) {
+                $('.section:first').prepend('<div class="admonition note warning"> \
+                    <p class="last"> \
+                        You are currently viewing a different version of the documentation to the latest release of Flocker. \
+                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '.</p> \
+                    </div>');
+            }
+        });
     </script>
   </body>
 </html>
