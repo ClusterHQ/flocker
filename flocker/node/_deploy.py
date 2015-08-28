@@ -439,7 +439,8 @@ class OpenPorts(PRecord):
 
 class NotInUseDatasets(object):
     """
-    Filter out datasets that are in use by applications.
+    Filter out datasets that are in use by applications on the current
+    node.
 
     For now we delay things like deletion until we know applications
     aren't using the dataset, and also until there are no leases. Later on
@@ -452,6 +453,7 @@ class NotInUseDatasets(object):
         :param NodeState node_state: Known local state.
         :param Leases leases: The current leases on datasets.
         """
+        self._node_id = node_state.uuid
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in node_state.applications
                                  if app.volume is not None}
@@ -476,7 +478,10 @@ class NotInUseDatasets(object):
             if u_dataset_id in self._in_use_datasets:
                 continue
             if dataset_id in self._leases:
-                continue
+                # If there's a lease on this node elsewhere we don't
+                # consider it to be in use on this node:
+                if self._leases[dataset_id].node_id == self._node_id:
+                    continue
             result.append(obj)
         return result
 
