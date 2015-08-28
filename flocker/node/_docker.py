@@ -722,7 +722,11 @@ class DockerClient(object):
                     if e.response.status_code == NOT_FOUND:
                         continue
                     else:
-                        raise
+                        # XXX I suspect we're hitting re-entry issue with
+                        # the Docker plugin, try to verify by not blowing up here:
+                        Message.log(message_type="XXXX", exception=unicode(e))
+                        continue
+                        #raise
 
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
