@@ -197,7 +197,9 @@ class CinderDevicePathTests(SynchronousTestCase):
             servers=self.nova.servers.list()
         )
 
-        cinder_volume = self.cinder.volumes.create(1)
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume(
             volume_manager=self.cinder.volumes,

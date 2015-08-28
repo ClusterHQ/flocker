@@ -11,8 +11,8 @@ from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..cinder import wait_for_volume, _compute_instance_id
 from ..test.blockdevicefactory import (
-    InvalidConfig,
-    ProviderType, get_blockdeviceapi_args,
+    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    get_minimum_allocatable_size,
 )
 from ....testtools import random_name
 
@@ -161,7 +161,9 @@ def volume_for_test(test, instance_id):
     Create a cinder volume and remove it when the test completes.
     Detach it first if necessary.
     """
-    volume = test.cinder.create(size=1)
+    volume = test.cinder.create(
+        size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+    )
     test.addCleanup(_cleanup, test, instance_id, volume)
     listed_volume = wait_for_volume(
         volume_manager=test.cinder,
