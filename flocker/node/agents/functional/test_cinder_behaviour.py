@@ -6,6 +6,8 @@ basic assumptions/understandings of how Cinder works in the real world.
 """
 import time
 
+from bitmath import Byte
+
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
