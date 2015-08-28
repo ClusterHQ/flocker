@@ -23,6 +23,8 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    faq/index
    gettinginvolved/index
 
+.. The version page is used only for a version of the documentation to know what the latest version is.
+
 .. toctree::
    :hidden:
 
