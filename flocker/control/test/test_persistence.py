@@ -416,12 +416,17 @@ UUIDS = st.sampled_from([uuid4() for i in range(1000)])
 
 DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 
+DATETIMES = st.integers(max_value=10000000).map(
+    lambda t: datetime.fromtimestamp(t, tz=UTC)
+)
+
 LEASES = st.builds(
     Lease, dataset_id=UUIDS, node_id=UUIDS,
     expiration=st.one_of(
         st.none(),
-        st.basic(generate=lambda r, _: datetime.fromtimestamp(
-            r.randrange(0, 10000000), tz=UTC))))
+        DATETIMES
+    )
+)
 
 # Constrain primary to be True so that we don't get invariant errors from Node
 # due to having two differing manifestations of the same dataset id.
