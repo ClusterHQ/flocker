@@ -97,16 +97,18 @@ class Registry(PClass):
         return "{host}:{port}".format(host=self.host, port=self.port)
 
 
+UPGRADING_DOCKER = (
+    "FLOC-2902: Some of these tests will fail while we are upgrading "
+    "docker. Skipping because some errors are AlreadyCalledErrors which "
+    "are treated as test errors even when marked as 'todo'.")
+
+
 class GenericDockerClientTests(TestCase):
     """
     Functional tests for ``DockerClient`` and other clients that talk to
     real Docker.
     """
     clientException = APIError
-
-    UPGRADING_DOCKER = (
-        "FLOC-2902: Some of these tests will fail while we are upgrading "
-        "docker.")
 
     @if_docker_configured
     def setUp(self):
@@ -497,7 +499,7 @@ class GenericDockerClientTests(TestCase):
         d = client.add(name, image)
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
-    test_pull_image_if_necessary.todo = UPGRADING_DOCKER
+    test_pull_image_if_necessary.skip = UPGRADING_DOCKER
 
     def push_to_registry(self, image_name, registry):
         """
@@ -661,7 +663,7 @@ class GenericDockerClientTests(TestCase):
         Pulling an image times-out if it takes longer than a provided timeout.
         """
         return self._pull_timeout()
-    test_pull_timeout.todo = UPGRADING_DOCKER
+    test_pull_timeout.skip = UPGRADING_DOCKER
 
     def test_pull_timeout_pull(self):
         """
@@ -698,7 +700,7 @@ class GenericDockerClientTests(TestCase):
 
         d.addCallbacks(unexpected_success, expected_failure)
         return d
-    test_pull_timeout_pull.todo = UPGRADING_DOCKER
+    test_pull_timeout_pull.skip = UPGRADING_DOCKER
 
     def test_namespacing(self):
         """
