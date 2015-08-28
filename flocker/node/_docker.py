@@ -290,7 +290,10 @@ class FakeDockerClient(object):
         for port in ports:
             if port.external_port in self._used_ports:
                 raise AddressInUse(
-                    address=(b"0.0.0.0", port.external_port), apierror=None,
+                    address=(b"0.0.0.0", port.external_port),
+                    apierror=APIError(
+                        'fake api response from server',
+                        response=make_response(500, 'fake response')),
                 )
 
         all_ports = set(range(2 ** 15, 2 ** 16))
