@@ -18,7 +18,7 @@ from pyrsistent import PRecord, field, pvector
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
-from eliot import Logger, writeFailure
+from eliot import Logger, writeFailure, Action
 from eliot.twisted import DeferredContext
 
 from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
@@ -110,6 +110,35 @@ def _logging(original):
     return logger
 
 
+def _remote_logging(original):
+    """
+    Decorate a method which implements an API endpoint to do Eliot-based log
+    tracing; that is, the ability to continue a remote task.
+
+    The remote task's context will be extracted from a C{X-Eliot} HTTP header.
+
+    :param original: Function to wrap.
+
+    :return: Wrapped function.
+    """
+    @wraps(original)
+    def logger(self, request, **routeArguments):
+        serialized_remote_task = request.requestHeaders.getRawHeaders(
+            "X-Eliot", [None])[0]
+        if serialized_remote_task is None:
+            return original(self, request, **routeArguments)
+
+        try:
+            action = Action.continue_task(task_id=serialized_remote_task)
+        except ValueError:
+            return original(self, request, **routeArguments)
+        with action.context():
+            d = DeferredContext(original(self, request, **routeArguments))
+            d.addActionFinish()
+            return d.result
+    return logger
+
+
 def _serialize(outputValidator):
     """
     Decorate a function so that its return value is automatically JSON encoded
@@ -176,6 +205,7 @@ def structured(inputSchema, outputSchema, schema_store=None,
 
     def deco(original):
         @wraps(original)
+        @_remote_logging
         @_logging
         @_serialize(outputValidator)
         def loadAndDispatch(self, request, **routeArguments):
