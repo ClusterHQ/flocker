@@ -6,7 +6,10 @@ Tests for ``flocker.restapi._infrastructure``.
 from jsonschema.exceptions import ValidationError
 from klein import Klein
 
-from eliot.testing import assertHasAction
+from eliot import ActionType
+from eliot.testing import (
+    assertHasAction, capture_logging, LoggedAction, validateLogging,
+)
 
 from pyrsistent import pvector
 
@@ -24,9 +27,6 @@ from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
 from .._error import DECODING_ERROR_DESCRIPTION, BadRequest
-
-
-from eliot.testing import validateLogging, LoggedAction
 
 from ..testtools import (EventChannel, dumps, loads,
                          CloseEnoughJSONResponse, dummyRequest, render,
@@ -653,3 +653,51 @@ class NotFoundTests(SynchronousTestCase):
         request = dummyRequest(b"GET", b"/quux", Headers(), b"")
         render(app.app.resource(), request)
         self.assertEqual(NOT_FOUND, request._code)
+
+
+class TracingTests(SynchronousTestCase):
+    """
+    Tests for cross-process tracing with Eliot.
+    """
+    class Application(object):
+        app = Klein()
+        called = False
+
+        @app.route(b"/foo/bar")
+        @structured({}, {})
+        def called(self):
+            self.called = True
+            return b"OK"
+
+    @capture_logging(None)
+    def test_serialized_task(self, logger):
+        """
+        If the ``X-Eliot`` header containers a serialized task level, it is
+        used as a parent of the logged actions from the handler.
+        """
+        parent = ActionType("parent", [], [])
+        with parent() as context:
+            task_id = context.serialize_task_id()
+
+        app = self.Application()
+        app.logger = logger
+        request = dummyRequest(
+            b"GET", b"/foo/bar", Headers({b"X-Eliot": [task_id]}), b"")
+        render(app.app.resource(), request)
+
+        logged_parent = LoggedAction.ofType(logger.messages, parent)[0]
+        child = _assertRequestLogged(b"/foo/bar")(self, logger)
+        self.assertIn(child, logged_parent.descendants())
+
+    @capture_logging(_assertRequestLogged(b"/foo/bar", b"GET"))
+    def test_malformed_task(self, logger):
+        """
+        If the contents of the ``X-Eliot`` header are malformed, processing
+        continues as normal and logging just starts a new task.
+        """
+        app = self.Application()
+        app.logger = logger
+        request = dummyRequest(b"GET", b"/foo/bar",
+                               Headers({b"X-Eliot": [b"garbage!"]}), b"")
+        render(app.app.resource(), request)
+        self.assertTrue(app.called)
