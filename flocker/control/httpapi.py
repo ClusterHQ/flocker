@@ -3,8 +3,12 @@
 A HTTP REST API for controlling the Dataset Manager.
 """
 
-import yaml
 from uuid import uuid4, UUID
+from datetime import datetime
+
+from pytz import UTC
+
+import yaml
 
 from pyrsistent import pmap, thaw
 
@@ -18,6 +22,7 @@ from twisted.web.http import (
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
+from twisted.internet import reactor
 
 from klein import Klein
 
@@ -95,16 +100,21 @@ class ConfigurationAPIUserV1(object):
     """
     app = Klein()
 
-    def __init__(self, persistence_service, cluster_state_service):
+    def __init__(self, persistence_service, cluster_state_service,
+                 clock=reactor):
         """
         :param ConfigurationPersistenceService persistence_service: Service
             for retrieving and setting desired configuration.
 
         :param ClusterStateService cluster_state_service: Service that
             knows about the current state of the cluster.
+
+        :param IReactorTime clock: The clock to use for time. By default
+            global reactor.
         """
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
+        self.clock = clock
 
     @app.route("/version", methods=['GET'])
     @user_documentation(
@@ -852,6 +862,33 @@ class ConfigurationAPIUserV1(object):
                 deployment_configuration=deployment))
         except ConfigurationError as e:
             raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
+
+    @app.route("/configuration/leases", methods=['GET'])
+    # This can stop being private as part of FLOC-2741:
+    @private_api
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/list_leases'
+        },
+        schema_store=SCHEMAS
+    )
+    def list_leases(self):
+        """
+        List the current leases in the configuration.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        result = []
+        for lease in self.persistence_service.get().leases.values():
+            if lease.expiration is None:
+                expires = None
+            else:
+                expires = (lease.expiration - now).total_seconds()
+            result.append({u"dataset_id": unicode(lease.dataset_id),
+                           u"node_uuid": unicode(lease.node_id),
+                           u"expires": expires})
+        return result
 
 
 def _find_manifestation_and_node(deployment, dataset_id):
