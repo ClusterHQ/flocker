@@ -249,10 +249,12 @@ class FlockerClient(object):
                 d.addCallback(error, result.code)
                 return d
 
-        headers = None
+        # Serialize the current task ID so we can trace logging across
+        # processes:
+        headers = {b"X-Eliot": action.serialize_task_id()}
         data = None
         if body is not None:
-            headers = {b"content-type": b"application/json"}
+            headers["content-type"] = b"application/json"
             data = dumps(body)
 
         with action.context():

@@ -12,7 +12,8 @@ from zope.interface.verify import verifyObject
 
 from pyrsistent import pmap
 
-from eliot.testing import capture_logging, assertHasAction
+from eliot import ActionType
+from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -31,6 +32,8 @@ from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
 from ...control import NodeState, NonManifestDatasets, Dataset as ModelDataset
+from ...restapi._logging import JSON_REQUEST
+from ...restapi import _infrastructure as rest_api
 
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -342,6 +345,23 @@ class FlockerClientTests(make_clientv1_tests()):
                                     metadata={},
                                     deleted=False,
                                     dataset_id=unicode(dataset_id)))))
+        return d
+
+    @capture_logging(None)
+    def test_cross_process_logging(self, logger):
+        """
+        Eliot tasks can be traced from the HTTP client to the API server.
+        """
+        self.patch(rest_api, "_logger", logger)
+        my_action = ActionType("my_action", [], [])
+        with my_action():
+            d = self.client.create_dataset(primary=self.node_1)
+
+        def got_response(_):
+            parent = LoggedAction.ofType(logger.messages, my_action)[0]
+            child = LoggedAction.ofType(logger.messages, JSON_REQUEST)[0]
+            self.assertIn(child, list(parent.descendants()))
+        d.addCallback(got_response)
         return d
 
     @capture_logging(lambda self, logger: assertHasAction(
