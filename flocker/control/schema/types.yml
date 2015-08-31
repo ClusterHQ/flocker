@@ -301,6 +301,7 @@ definitions:
 
   lease:
     type: object
+    description: "A specific lease."
     properties:
       dataset_id:
         '$ref': '#/definitions/lease_dataset_id'
