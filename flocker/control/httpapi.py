@@ -887,6 +887,8 @@ class ConfigurationAPIUserV1(object):
         return result
 
     @app.route("/configuration/leases/<dataset_id>", methods=['DELETE'])
+    # This can stop being private as part of FLOC-2741:
+    @private_api
     @user_documentation(
         u"""
         This will release a lease on a dataset, allowing it to be moved
