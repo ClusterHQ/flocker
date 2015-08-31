@@ -637,3 +637,22 @@
         "host": "10.0.0.4",
       },
     ]
+
+-
+  id:
+    "remove a lease"
+
+  doc: |
+    Release a lease on a dataset.
+
+  request: |
+    DELETE /v1/configuration/leases/886ed03a-5606-453a-94a9-a1cbaf35164c
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {
+        "node_uuid": "%(NODE_0)s"
+        "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c"
+        "expires": null
+    }
