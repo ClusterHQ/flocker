@@ -3359,43 +3359,93 @@ class LeasesTestsMixin(APITestsMixin):
     """
     Tests for the leases endpoints at ``/configuration/leases``.
     """
+    dataset1 = uuid4()
+    dataset2 = uuid4()
+    node1 = uuid4()
+    node2 = uuid4()
+    # Current "time":
+    now = 2132154
+    # Seconds until first lease will expire:
+    expires = 15
+    # Time that passed since the leases were created:
+    time_passed = 3
+
+    # JSON representation of lease 1:
+    expected_lease1 = {u"dataset_id": unicode(dataset1),
+                       u"node_uuid": unicode(node1),
+                       u"expires": expires - time_passed}
+    # JSON representation of lease 2:
+    expected_lease2 = {u"dataset_id": unicode(dataset2),
+                       u"node_uuid": unicode(node2),
+                       u"expires": None}
+
+    def save_leases(self):
+        """
+        Store some leases in the persistence service.
+
+        :return: ``Deferred`` that fires when done.
+        """
+        self.clock.advance(self.now)
+
+        leases = Leases().acquire(
+            datetime.fromtimestamp(self.now, tz=UTC), self.dataset1,
+            self.node1, self.expires)
+        leases = leases.acquire(
+            datetime.fromtimestamp(self.now, tz=UTC), self.dataset2,
+            self.node2, None)
+        # Time has passed since leases were stored:
+        self.time_passed = 3
+        self.clock.advance(self.time_passed)
+
+        return self.persistence_service.save(Deployment(leases=leases))
+
     def test_get(self):
         """
         GET ``/configuration/leases`` returns all leases.
         """
-        dataset1 = uuid4()
-        dataset2 = uuid4()
-        node1 = uuid4()
-        node2 = uuid4()
-        now = 2132154
-        self.clock.advance(now)
-        expires = 15
-
-        leases = Leases().acquire(
-            datetime.fromtimestamp(now, tz=UTC), dataset1, node1, expires)
-        leases = leases.acquire(
-            datetime.fromtimestamp(now, tz=UTC), dataset2, node2, None)
-        # Time has passed since leases were stored:
-        time_passed = 3
-        self.clock.advance(time_passed)
-
-        d = self.persistence_service.save(Deployment(leases=leases))
-
+        d = self.save_leases()
         d.addCallback(lambda _: self.assertResultItems(
             method=b"GET",
             path=b"/configuration/leases",
             request_body=None,
             expected_code=OK,
-            expected_result=[
-                {u"dataset_id": unicode(dataset1),
-                 u"node_uuid": unicode(node1),
-                 u"expires": expires - time_passed},
-                {u"dataset_id": unicode(dataset2),
-                 u"node_uuid": unicode(node2),
-                 u"expires": None},
-            ]))
+            expected_result=[self.expected_lease1, self.expected_lease2],
+        ))
         return d
 
+    def test_delete_existing(self):
+        """
+        DELETE ``/configuration/leases/<dataset_id>`` releases that lease.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE", b"/configuration/leases/" + bytes(self.dataset1),
+            request_body=None, expected_code=OK,
+            expected_result=self.expected_lease1))
+
+        def deleted(_):
+            # Dataset 1 was removed:
+            self.assertEqual(self.persistence_service.get().leases.keys(),
+                             [self.dataset2])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_non_existent(self):
+        """
+        DELETE ``/configuration/leases/<dataset_id>`` releases that lease.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE", b"/configuration/leases/" + bytes(uuid4()),
+            request_body=None, expected_code=NOT_FOUND,
+            expected_result={u"description": u"Lease not found."}))
+
+        def not_deleted(_):
+            # No datasets were removed.
+            self.assertItemsEqual(self.persistence_service.get().leases.keys(),
+                                  [self.dataset1, self.dataset2])
+        d.addCallback(not_deleted)
+        return d
 
 RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
     LeasesTestsMixin, "Leases", _build_app)
