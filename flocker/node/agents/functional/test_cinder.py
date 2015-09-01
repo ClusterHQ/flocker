@@ -18,6 +18,7 @@ from unittest import skipIf
 from uuid import uuid4
 
 from bitmath import Byte
+import netifaces
 
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
@@ -225,6 +226,11 @@ class CinderAttachmentTests(SynchronousTestCase):
         subprocess.check_call(["virsh", "-c", url, "detach-disk", instance_id,
                                host_device])
 
+    @staticmethod
+    def _get_default_gateway(self):
+        gws = netifaces.gateways()
+        return gws['default'][netifaces.AF_INET][0]
+
     def test_get_device_path_no_attached_disks(self):
         """
         get_device_path returns the most recently attached device
@@ -271,8 +277,10 @@ class CinderAttachmentTests(SynchronousTestCase):
             servers=self.nova.servers.list()
         )
 
-        url = "qemu://10.0.0.1/system?no_verify=1"
-        host_device = "/dev/sdc1"
+        url = "qemu://{}/system?no_verify=1".format(
+            self._get_default_gateway()
+        )
+        host_device = "/dev/null"
         self._attach_disk(url, instance_id, host_device, "vdc")
         self.addCleanup(self._detach_disk, url, instance_id, host_device)
 
@@ -314,8 +322,10 @@ class CinderAttachmentTests(SynchronousTestCase):
             servers=self.nova.servers.list()
         )
 
-        url = "qemu://10.0.0.1/system?no_verify=1"
-        host_device = "/dev/sdc1"
+        url = "qemu://{}/system?no_verify=1".format(
+            self._get_default_gateway()
+        )
+        host_device = "/dev/null"
         self._attach_disk(url, instance_id, host_device, "vdb")
         self.addCleanup(self._detach_disk, url, instance_id, host_device)
 
