@@ -3448,12 +3448,12 @@ class LeasesTestsMixin(APITestsMixin):
         d.addCallback(not_deleted)
         return d
 
-    def acquire_lease(self, expires):
+    def acquire_lease(self, expires, response_code=CREATED):
         """
         Acquire a lease for ``dataset3`` and ``node3`` with given expiration.
 
         :param expires: ``None`` or seconds to expire.
-        :param node: The UUID of the node to acquire on.
+        :param response_code: Expected response code.
         :return: ``Deferred`` that fires once lease is acquired.
         """
         lease_json = {u"dataset_id": unicode(self.dataset3),
@@ -3462,7 +3462,7 @@ class LeasesTestsMixin(APITestsMixin):
 
         return self.assertResult(
             b"POST", b"/configuration/leases",
-            request_body=lease_json, expected_code=CREATED,
+            request_body=lease_json, expected_code=response_code,
             expected_result=lease_json)
 
     def test_acquire_no_expiration(self):
@@ -3520,6 +3520,29 @@ class LeasesTestsMixin(APITestsMixin):
                 self.persistence_service.get().leases[self.dataset3].node_id,
                 self.node3)
         d.addCallback(no_update)
+        return d
+
+    def test_renew(self):
+        """
+        Acquiring a lease on node A if a lease already exits for that dataset
+        on node A will override the timeout.
+        """
+        self.clock.advance(self.now)
+        expires = 40
+        expected_expiration = datetime.fromtimestamp(
+            self.clock.seconds() + expires, UTC)
+
+        # Acquire with no expiration:
+        d = self.acquire_lease(None)
+        # Re-acquire with expiration:
+        d.addCallback(lambda _: self.acquire_lease(expires, OK))
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=expected_expiration))
+        d.addCallback(acquired)
         return d
 
 

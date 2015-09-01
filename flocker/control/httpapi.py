@@ -962,6 +962,7 @@ class ConfigurationAPIUserV1(object):
             u"acquire a lease without expiration",
             u"acquire a lease with expiration",
             u"acquire a lease that is already held",
+            u"renew a lease",
         ],
         section=u"dataset",
     )
@@ -990,17 +991,20 @@ class ConfigurationAPIUserV1(object):
 
         # Check if conflicting lease exists:
         lease = self.persistence_service.get().leases.get(dataset_id)
-        if lease is not None and lease.node_id != node_uuid:
-            raise LEASE_HELD
+        if lease is not None:
+            if lease.node_id != node_uuid:
+                raise LEASE_HELD
+            else:
+                response_code = OK
         else:
-            pass  # XXX FLOC-2738 will do this code path
+            response_code = CREATED
 
         d = update_leases(
             lambda leases: leases.acquire(now, dataset_id, node_uuid, expires),
             self.persistence_service)
         d.addCallback(
             lambda leases: EndpointResponse(
-                CREATED, lease_response(leases[dataset_id], now)))
+                response_code, lease_response(leases[dataset_id], now)))
         return d
 
 
