@@ -42,7 +42,7 @@ from ..test.blockdevicefactory import (
     get_minimum_allocatable_size,
 )
 
-from ..cinder import wait_for_volume, _compute_instance_id
+from ..cinder import wait_for_volume
 
 require_virsh = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
@@ -289,9 +289,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         """
         get_device_path returns the most recently attached device
         """
-        instance_id = _compute_instance_id(
-            servers=self.nova.servers.list()
-        )
+        instance_id = self.blockdevice_api.compute_instance_id()
 
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
@@ -327,9 +325,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         get_device_path returns the correct device name even when a non-Cinder
         volume has been attached. See FLOC-2859.
         """
-        instance_id = _compute_instance_id(
-            servers=self.nova.servers.list()
-        )
+        instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
         virtio = VirtIOClient.from_instance_id(instance_id)
@@ -370,9 +366,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         create_server_volume will raise an exception when Cinder attempts to
         attach a device to a path that is in use by a non-Cinder volume.
         """
-        instance_id = _compute_instance_id(
-            servers=self.nova.servers.list()
-        )
+        instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
         virtio = VirtIOClient.from_instance_id(instance_id)

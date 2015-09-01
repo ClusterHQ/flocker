@@ -50,35 +50,6 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
 
-def _compute_instance_id(servers):
-    local_ips = get_all_ips()
-    api_ip_map = {}
-    matching_instances = []
-    for server in servers:
-        # Servers which are not active will not have any IP addresses
-        if server.status != u'ACTIVE':
-            continue
-        api_addresses = _extract_nova_server_addresses(server.addresses)
-        # Only do subset comparison if there were *some* IP addresses;
-        # non-ACTIVE servers will have an empty list of IP addresses and
-        # lead to incorrect matches.
-        if api_addresses and api_addresses.issubset(local_ips):
-            matching_instances.append(server.id)
-        else:
-            for ip in api_addresses:
-                api_ip_map[ip] = server.id
-
-    # If we've got this correct there should only be one matching instance.
-    # But we don't currently test this directly. See FLOC-2281.
-    if len(matching_instances) == 1:
-        return matching_instances[0]
-    # If there was no match, or if multiple matches were found, log an
-    # error containing all the local and remote IPs.
-    COMPUTE_INSTANCE_ID_NOT_FOUND(
-        local_ips=local_ips, api_ips=api_ip_map
-    ).write()
-
-
 def _openstack_logged_method(method_name, original_name):
     """
     Run a method and log additional information about any exceptions that are
@@ -360,7 +331,32 @@ class CinderBlockDeviceAPI(object):
         Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
         addresses on this node.
         """
-        return _compute_instance_id(servers=self.nova_server_manager.list())
+        local_ips = get_all_ips()
+        api_ip_map = {}
+        matching_instances = []
+        for server in self.nova_server_manager.list():
+            # Servers which are not active will not have any IP addresses
+            if server.status != u'ACTIVE':
+                continue
+            api_addresses = _extract_nova_server_addresses(server.addresses)
+            # Only do subset comparison if there were *some* IP addresses;
+            # non-ACTIVE servers will have an empty list of IP addresses and
+            # lead to incorrect matches.
+            if api_addresses and api_addresses.issubset(local_ips):
+                matching_instances.append(server.id)
+            else:
+                for ip in api_addresses:
+                    api_ip_map[ip] = server.id
+
+        # If we've got this correct there should only be one matching instance.
+        # But we don't currently test this directly. See FLOC-2281.
+        if len(matching_instances) == 1:
+            return matching_instances[0]
+        # If there was no match, or if multiple matches were found, log an
+        # error containing all the local and remote IPs.
+        COMPUTE_INSTANCE_ID_NOT_FOUND(
+            local_ips=local_ips, api_ips=api_ip_map
+        ).write()
 
     def create_volume(self, dataset_id, size):
         """
