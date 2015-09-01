@@ -26,7 +26,7 @@ from ..packaging import (
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun,
-    PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
+    PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE, PACKAGE_DOCKER_PLUGIN,
     make_dependencies, available_distributions,
     LintPackage,
 )
@@ -852,6 +852,7 @@ class OmnibusPackageBuilderTests(TestCase):
         fake_dependencies = {
             'python': [Dependency(package='python-dep')],
             'node': [Dependency(package='node-dep')],
+            'docker-plugin': [Dependency(package='docker-plugin-dep')],
             'cli': [Dependency(package='cli-dep')],
         }
 
@@ -866,6 +867,7 @@ class OmnibusPackageBuilderTests(TestCase):
         target_path = FilePath(self.mktemp())
         flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
+        flocker_docker_plugin_path = target_path.child('flocker-docker-plugin')
         empty_path = target_path.child('empty')
 
         expected_virtualenv_path = FilePath('/opt/flocker')
@@ -1022,6 +1024,46 @@ class OmnibusPackageBuilderTests(TestCase):
                     package='clusterhq-flocker-node',
                     architecture="all",
                 ),
+                CreateLinks(
+                    links=[
+                        (FilePath('/opt/flocker/bin/flocker-docker-plugin'),
+                         flocker_docker_plugin_path),
+                    ]
+                ),
+                BuildPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    source_paths={
+                        flocker_docker_plugin_path: FilePath("/usr/sbin"),
+                        # SystemD configuration
+                        package_files.child('docker-plugin').child('systemd'):
+                            FilePath('/usr/lib/systemd/system'),
+                        # Upstart configuration
+                        package_files.child('docker-plugin').child('upstart'):
+                            FilePath('/etc/init'),
+                    },
+                    name='clusterhq-flocker-docker-plugin',
+                    prefix=FilePath('/'),
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    license=PACKAGE.LICENSE.value,
+                    url=PACKAGE.URL.value,
+                    vendor=PACKAGE.VENDOR.value,
+                    maintainer=PACKAGE.MAINTAINER.value,
+                    architecture="all",
+                    description=PACKAGE_DOCKER_PLUGIN.DESCRIPTION.value,
+                    category=expected_category,
+                    dependencies=[Dependency(package='docker-plugin-dep')],
+                ),
+                LintPackage(
+                    package_type=distribution.package_type(),
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-flocker-docker-plugin',
+                    architecture="all",
+                ),
+
             )
         )
         assert_equal_steps(

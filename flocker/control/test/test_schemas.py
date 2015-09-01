@@ -785,3 +785,64 @@ NodesTests = build_schema_test(
          {'host': '192.168.1.11', 'uuid': unicode(uuid4())}],
     ],
 )
+
+
+LEASE_WITH_EXPIRATION = {'dataset_id': unicode(uuid4()),
+                         'node_uuid': unicode(uuid4()),
+                         'expires': 15}
+# Can happen sometimes, means time went backwards or a bug but at least we
+# should report things accurately.
+LEASE_WITH_NEGATIVE_EXPIRATION = {'dataset_id': unicode(uuid4()),
+                                  'node_uuid': unicode(uuid4()),
+                                  'expires': -0.1}
+LEASE_NO_EXPIRES = {'dataset_id': unicode(uuid4()),
+                    'node_uuid': unicode(uuid4()),
+                    'expires': None}
+BAD_LEASES = [
+    # Wrong types:
+    None, [], 1,
+    # Missing dataset_id:
+    {'node_uuid': unicode(uuid4()), 'expires': None},
+    # Missing node_uuid:
+    {'dataset_id': unicode(uuid4()), 'expires': None},
+    # Missing expires:
+    {'node_uuid': unicode(uuid4()), 'dataset_id': unicode(uuid4())},
+    # Wrong type for dataset_id:
+    {'node_uuid': unicode(uuid4()), 'dataset_id': 123,
+     'expires': None},
+    # Wrong type for node_uuid:
+    {'dataset_id': unicode(uuid4()), 'node_uuid': 123,
+     'expires': None},
+    # Wrong type for expires:
+    {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
+     'expires': []},
+    # Extra key:
+    {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
+     'expires': None, 'extra': 'key'},
+]
+
+ListLeasesTests = build_schema_test(
+    name="ListLeasesTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/list_leases'},
+    schema_store=SCHEMAS,
+    failing_instances=[None, {}, 1] + list(
+        [bad] for bad in BAD_LEASES),
+    passing_instances=[
+        [],
+        [LEASE_NO_EXPIRES],
+        [LEASE_WITH_EXPIRATION, LEASE_WITH_NEGATIVE_EXPIRATION],
+    ],
+)
+
+# Endpoints that return a single lease: delete, create
+LeaseResultTests = build_schema_test(
+    name="LeaseResultTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+    schema_store=SCHEMAS,
+    failing_instances=BAD_LEASES,
+    passing_instances=[
+        LEASE_NO_EXPIRES,
+        LEASE_WITH_EXPIRATION,
+        LEASE_WITH_NEGATIVE_EXPIRATION,
+    ],
+)

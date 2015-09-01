@@ -280,3 +280,37 @@ definitions:
       primary:
         '$ref': '#/definitions/primary'
     additionalProperties: false
+
+  lease_expiration:
+    title: "Lease Expiration"
+    description: |
+      The number of seconds until a lease expires, or null to indicate no expiration.
+    type:
+      - "number"
+      - "null"
+
+  lease_dataset_id:
+    title: "Dataset"
+    description: |
+      An opaque identifier, unique across the cluster, identifying a
+      particular dataset.
+    type: string
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
+
+  lease:
+    type: object
+    description: "A lease on a dataset indicating it is in use on a particular node."
+    properties:
+      dataset_id:
+        '$ref': '#/definitions/lease_dataset_id'
+      node_uuid:
+        '$ref': '#/definitions/node_uuid'
+      expires:
+        '$ref': '#/definitions/lease_expiration'
+    required:
+      - 'dataset_id'
+      - 'node_uuid'
+      - 'expires'
+    additionalProperties: false

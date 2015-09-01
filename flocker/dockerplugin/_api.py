@@ -32,8 +32,11 @@ SCHEMAS = {
     }
 
 
-# The default size of a created volume:
-DEFAULT_SIZE = int(GiB(100).to_Byte().value)
+# The default size of a created volume. Pick a number that isn't the same
+# as devicemapper loopback size (100GiB) so we don't trigger
+# https://clusterhq.atlassian.net/browse/FLOC-2889 and that is large
+# enough to hit Rackspace minimums. This is, obviously, not ideal.
+DEFAULT_SIZE = int(GiB(75).to_Byte().value)
 
 
 def _endpoint(name, ignore_body=False):
@@ -166,34 +169,29 @@ class VolumePlugin(object):
         creating.addCallback(lambda _: {u"Err": None})
         return creating
 
-    def _path_response(self, name):
+    def _get_path(self, name):
         """
-        Wait until a dataset has been mounted and then return its path.
+        Return a volume's path if available.
 
         :param unicode name: The name of the volume.
 
-        :return: Result that includes the mountpoint.
+        :return: ``Deferred`` that fires with the mountpoint ``FilePath``,
+            or ``None`` if it is currently unknown.
         """
         # If we ever get rid of dataset_id hashing hack we'll need to
         # lookup the dataset by its metadata, not its id.
-        def get_state():
-            dataset_id = UUID(dataset_id_from_name(name))
-            d = self._flocker_client.list_datasets_state()
+        dataset_id = UUID(dataset_id_from_name(name))
+        d = self._flocker_client.list_datasets_state()
 
-            def got_state(datasets):
-                datasets = [dataset for dataset in datasets
-                            if dataset.dataset_id == dataset_id]
-                if datasets and datasets[0].primary == self._node_id:
-                    return datasets[0].path
-                return deferLater(
-                    self._reactor, self._POLL_INTERVAL, get_state)
-            d.addCallback(got_state)
-            return d
-
-        result = get_state()
-        result.addCallback(lambda path: {u"Err": None,
-                                         u"Mountpoint": path.path})
-        return result
+        def got_state(datasets):
+            datasets = [dataset for dataset in datasets
+                        if dataset.dataset_id == dataset_id]
+            if datasets and datasets[0].primary == self._node_id:
+                return datasets[0].path
+            else:
+                return None
+        d.addCallback(got_state)
+        return d
 
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")
@@ -210,17 +208,44 @@ class VolumePlugin(object):
         """
         dataset_id = UUID(dataset_id_from_name(Name))
         d = self._flocker_client.move_dataset(self._node_id, dataset_id)
-        d.addCallback(lambda _: self._path_response(Name))
+
+        def get_state(_=None):
+            getting_path = self._get_path(Name)
+
+            def got_path(path):
+                if path is None:
+                    return deferLater(
+                        self._reactor, self._POLL_INTERVAL, get_state)
+                else:
+                    return {u"Err": None,
+                            u"Mountpoint": path.path}
+            getting_path.addCallback(got_path)
+            return getting_path
+        d.addCallback(get_state)
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])
     @_endpoint(u"Path")
     def volumedriver_path(self, Name):
         """
-        Wait until the dataset is mounted locally, then return its path.
+        Return the path of a locally mounted volume if possible.
+
+        Docker will call this in situations where it's not clear to us
+        whether the dataset should be local or not, so we can't wait for a
+        result.
 
         :param unicode Name: The name of the volume.
 
         :return: Result indicating success.
         """
-        return self._path_response(Name)
+        d = self._get_path(Name)
+
+        def got_path(path):
+            if path is None:
+                return {u"Err": u"Volume not available.",
+                        u"Mountpoint": u""}
+            else:
+                return {u"Err": None,
+                        u"Mountpoint": path.path}
+        d.addCallback(got_path)
+        return d

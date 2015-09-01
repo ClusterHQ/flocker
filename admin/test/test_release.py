@@ -847,7 +847,6 @@ class UpdateRepoTests(SynchronousTestCase):
     Tests for :func:``update_repo``.
     """
     def setUp(self):
-        pass
         self.target_bucket = 'test-target-bucket'
         self.target_key = 'test/target/key'
         self.package_directory = FilePath(self.mktemp())
@@ -2056,7 +2055,6 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
-
 
 class GetExpectedRedirectsTests(SynchronousTestCase):
     """

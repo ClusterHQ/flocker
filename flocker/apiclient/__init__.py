@@ -8,8 +8,8 @@ This may eventually be a standalone package.
 
 from ._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetState,
-    DatasetAlreadyExists,
+    DatasetAlreadyExists, FlockerClient,
 )
 
 __all__ = ["IFlockerAPIV1Client", "FakeFlockerClient", "Dataset",
-           "DatasetState", "DatasetAlreadyExists"]
+           "DatasetState", "DatasetAlreadyExists", "FlockerClient"]

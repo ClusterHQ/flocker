@@ -41,12 +41,13 @@ Talk to Us
 
 Have questions or need help?
 
-* If you have problems running Flocker, please read our :ref:`debugging documentation<debugging-flocker>`.
+* If you have problems running Flocker, please read our `debugging documentation`_.
 * If you want to follow our development plans, our main issue tracker is `JIRA`_.
-* You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports and :ref:`security issues should be reported directly to our security team<reporting-security-issues>`.
+* You can open an account there to file issues, but we're also happy to accept a `GitHub issue`_ with feature requests or bug reports. `Security issues`_  should be reported directly to our security team.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
-.. _GitHub issues: https://github.com/ClusterHQ/flocker/issues
+.. _debugging documentation: https://docs.clusterhq.com/en/latest/using/administering/debugging.html
+.. _Security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
 
@@ -129,10 +130,12 @@ You can view the result by opening ``docs/_build/html/index.html`` in your brows
 Contributing to Flocker
 =======================
 
+If you have any feature requests or suggestions, we would love to hear about them.
+
 At a minimum you can simply submit a GitHub Pull Request with your changes.
 In order to maximize your chances of getting your code accepted, and to keep you from wasting time:
 
-* Discuss your ideas with us in advance in a `JIRA`_ or GitHub issue.
+* Discuss your ideas with us in advance by using our `UserVoice`_ forum, or by filing a `GitHub issue`_.
 * Explain the purpose of your PR, and why these changes are necessary.
 * Limit your PR to fixing a single problem or adding a single feature.
 * See the merge requirements below for details about our testing and documentation requirements.
@@ -143,6 +146,7 @@ Once your pull request is merged, as a small thank you for contributing to Flock
 Just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
 We'll get something in the mail to you.
 
+.. _UserVoice: https://feedback.clusterhq.com/
 
 Merge Requirements
 ^^^^^^^^^^^^^^^^^^
@@ -217,10 +221,12 @@ Reporting Security Issues
 
 Please report security issues by emailing security@clusterhq.com.
 
-Flocker bugs should normally be :ref:`reported publicly<talk-to-us>`, but due to the sensitive nature of security issues, we ask that they not be publicly reported in this fashion.
+Flocker bugs should normally be `reported publicly`_, but due to the sensitive nature of security issues, we ask that they not be publicly reported in this fashion.
 
 Instead, if you believe you have found something in Flocker (or any other ClusterHQ software) which has security implications, please send a description of the issue via email to security@clusterhq.com.
 Your message will be forwarded to the ClusterHQ security team (a small group of trusted developers) for triage and it will not be publicly readable.
 Once you have submitted an issue via email, you should receive an acknowledgment from a member of the security team within 48 hours, and depending on the action to be taken, you may receive further follow up emails.
 
 .. _JIRA: https://clusterhq.atlassian.net/secure/Dashboard.jspa
+.. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
+.. _reported publicly: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
