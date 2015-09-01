@@ -259,7 +259,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         device_path = self.blockdevice_api.get_device_path(volume.id)
 
-        self.assertEqual(device_path, new_device)
+        self.assertEqual(device_path.realpath(), new_device)
 
     @require_virsh
     def test_get_device_path_correct_with_attached_disk(self):
@@ -302,7 +302,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         device_path = self.blockdevice_api.get_device_path(volume.id)
 
-        self.assertEqual(device_path, new_device)
+        self.assertEqual(device_path.realpath(), new_device)
 
     @require_virsh
     def test_disk_attachment_fails_with_conflicting_disk(self):
