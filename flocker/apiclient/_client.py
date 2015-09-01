@@ -6,6 +6,9 @@ Client for the Flocker REST API.
 
 from uuid import UUID, uuid4
 from json import dumps
+from datetime import datetime
+
+from pytz import UTC
 
 from zope.interface import Interface, implementer
 
@@ -21,6 +24,7 @@ from twisted.web.http import CREATED, OK, CONFLICT
 from treq import json_content, content
 
 from ..ca import treq_with_authentication
+from ..control import Leases as LeasesModel, LeaseError
 
 
 _LOG_HTTP_REQUEST = ActionType(
@@ -70,9 +74,29 @@ class DatasetState(PClass):
     path = field(type=(FilePath, NoneType), mandatory=True)
 
 
+class Lease(PClass):
+    """
+    A lease on a dataset.
+
+    :attr UUID dataset_id: The dataset for which the lease applies.
+    :attr UUID node_id: The node for which the lease applies.
+    :attr None|float|int expires: Time in seconds until lease expires, or
+        ``None`` if it will not expire.
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+    node_id = field(type=UUID, mandatory=True)
+    expires = field(type=(float, int, NoneType), mandatory=True)
+
+
 class DatasetAlreadyExists(Exception):
     """
     The suggested dataset ID already exists.
+    """
+
+
+class LeaseAlreadyHeld(Exception):
+    """
+    A lease exists for the specified dataset ID on a different node.
     """
 
 
@@ -133,14 +157,51 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with iterable of ``DatasetState``.
         """
 
+    def acquire_lease(dataset_id, node_id, expires):
+        """
+        Acquire a lease on a dataset on a given node.
+
+        If the lease already exists for the given dataset and node then
+        this will renew the lease.
+
+        :param UUID dataset_id: The dataset for which the lease applies.
+        :param UUID node_id: The node for which the lease applies.
+        :param None|float expires: Time in seconds until lease expires, or
+            ``None`` if it will not expire.
+
+        :return: ``Deferred`` firing with a ``Lease`` or failing with
+            ``LeaseAlreadyHeld`` if the lease for this dataset is held for a
+            different node.
+        """
+
+    def release_lease(dataset_id):
+        """
+        Release a lease.
+
+        :param UUID dataset_id: The dataset for which the lease applies.
+
+        :return: ``Deferred`` firing with the released ``Lease`` on success.
+        """
+
+    def list_leases():
+        """
+        Return current leases.
+
+        :return: ``Deferred`` firing with a list of ``Lease`` instance.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
     """
     Fake in-memory implementation of ``IFlockerAPIV1Client``.
     """
+    # Placeholder time, we don't model the progress of time at all:
+    _NOW = datetime.fromtimestamp(0, UTC)
+
     def __init__(self):
         self._configured_datasets = pmap()
+        self._leases = LeasesModel()
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
@@ -185,6 +246,34 @@ class FakeFlockerClient(object):
                 maximum_size=dataset.maximum_size,
                 path=FilePath(b"/flocker").child(bytes(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
+
+    def acquire_lease(self, dataset_id, node_id, expires):
+        try:
+            self._leases = self._leases.acquire(
+                self._NOW, dataset_id, node_id, expires)
+        except LeaseError:
+            return fail(LeaseAlreadyHeld())
+        return succeed(
+            Lease(dataset_id=dataset_id, node_id=node_id, expires=expires))
+
+    def release_lease(self, dataset_id):
+        # We don't handle the case where lease doesn't exist yet, since
+        # it's not clear that's necessary yet. If it is we'll need to
+        # expand this logic.
+        lease = self._leases[dataset_id]
+        self._leases = self._leases.release(dataset_id, lease.node_id)
+        return succeed(
+            Lease(dataset_id=dataset_id, node_id=lease.node_id,
+                  # Just lie about expiration time, it doesn't really
+                  # matter when releasing:
+                  expires=None))
+
+    def list_leases(self):
+        return succeed([
+            Lease(dataset_id=l.dataset_id, node_id=l.node_id,
+                  expires=((l.expiration - self._NOW).total_seconds()
+                           if l.expiration is not None else None))
+            for l in self._leases.values()])
 
 
 class ResponseError(Exception):
