@@ -79,12 +79,12 @@ class Lease(PClass):
     A lease on a dataset.
 
     :attr UUID dataset_id: The dataset for which the lease applies.
-    :attr UUID node_id: The node for which the lease applies.
+    :attr UUID node_uuid: The node for which the lease applies.
     :attr None|float|int expires: Time in seconds until lease expires, or
         ``None`` if it will not expire.
     """
     dataset_id = field(type=UUID, mandatory=True)
-    node_id = field(type=UUID, mandatory=True)
+    node_uuid = field(type=UUID, mandatory=True)
     expires = field(type=(float, int, NoneType), mandatory=True)
 
 
@@ -157,7 +157,7 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with iterable of ``DatasetState``.
         """
 
-    def acquire_lease(dataset_id, node_id, expires):
+    def acquire_lease(dataset_id, node_uuid, expires):
         """
         Acquire a lease on a dataset on a given node.
 
@@ -165,7 +165,7 @@ class IFlockerAPIV1Client(Interface):
         this will renew the lease.
 
         :param UUID dataset_id: The dataset for which the lease applies.
-        :param UUID node_id: The node for which the lease applies.
+        :param UUID node_uuid: The node for which the lease applies.
         :param None|float expires: Time in seconds until lease expires, or
             ``None`` if it will not expire.
 
@@ -247,14 +247,14 @@ class FakeFlockerClient(object):
                 path=FilePath(b"/flocker").child(bytes(dataset.dataset_id)))
             for dataset in self._configured_datasets.values()]
 
-    def acquire_lease(self, dataset_id, node_id, expires):
+    def acquire_lease(self, dataset_id, node_uuid, expires):
         try:
             self._leases = self._leases.acquire(
-                self._NOW, dataset_id, node_id, expires)
+                self._NOW, dataset_id, node_uuid, expires)
         except LeaseError:
             return fail(LeaseAlreadyHeld())
         return succeed(
-            Lease(dataset_id=dataset_id, node_id=node_id, expires=expires))
+            Lease(dataset_id=dataset_id, node_uuid=node_uuid, expires=expires))
 
     def release_lease(self, dataset_id):
         # We don't handle the case where lease doesn't exist yet, since
@@ -263,14 +263,14 @@ class FakeFlockerClient(object):
         lease = self._leases[dataset_id]
         self._leases = self._leases.release(dataset_id, lease.node_id)
         return succeed(
-            Lease(dataset_id=dataset_id, node_id=lease.node_id,
+            Lease(dataset_id=dataset_id, node_uuid=lease.node_id,
                   # Just lie about expiration time, it doesn't really
                   # matter when releasing:
                   expires=None))
 
     def list_leases(self):
         return succeed([
-            Lease(dataset_id=l.dataset_id, node_id=l.node_id,
+            Lease(dataset_id=l.dataset_id, node_uuid=l.node_id,
                   expires=((l.expiration - self._NOW).total_seconds()
                            if l.expiration is not None else None))
             for l in self._leases.values()])
@@ -305,7 +305,7 @@ class FlockerClient(object):
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
 
-    def _request(self, method, path, body, success_code, error_codes=None):
+    def _request(self, method, path, body, success_codes, error_codes=None):
         """
         Send a HTTP request to the Flocker API, return decoded JSON body.
 
@@ -313,7 +313,7 @@ class FlockerClient(object):
         :param bytes path: Path to add to base URL.
         :param body: If not ``None``, JSON encode this and send as the
             body of the request.
-        :param int success_code: Expected success response code.
+        :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
             raised if it is present, or ``None`` to send no headers.
 
@@ -331,7 +331,8 @@ class FlockerClient(object):
             raise ResponseError(code, body)
 
         def got_result(result):
-            if result.code == success_code:
+            if result.code in success_codes:
+                action.addSuccessFields(response_code=result.code)
                 return json_content(result)
             else:
                 d = content(result)
@@ -356,10 +357,7 @@ class FlockerClient(object):
         request.addCallback(got_result)
 
         def got_body(json_body):
-            # If we've reached this point we got the expected response
-            # code:
-            action.addSuccessFields(response_body=json_body,
-                                    response_code=success_code)
+            action.addSuccessFields(response_body=json_body)
             return json_body
         request.addCallback(got_body)
         request.addActionFinish()
@@ -380,7 +378,7 @@ class FlockerClient(object):
     def delete_dataset(self, dataset_id):
         request = self._request(
             b"DELETE", b"/configuration/datasets/%s" % (dataset_id,),
-            None, OK)
+            None, {OK})
         request.addCallback(self._parse_configuration_dataset)
         return request
 
@@ -393,7 +391,7 @@ class FlockerClient(object):
         if maximum_size is not None:
             dataset[u"maximum_size"] = maximum_size
         request = self._request(b"POST", b"/configuration/datasets",
-                                dataset, CREATED,
+                                dataset, {CREATED},
                                 {CONFLICT: DatasetAlreadyExists})
         request.addCallback(self._parse_configuration_dataset)
         return request
@@ -401,12 +399,12 @@ class FlockerClient(object):
     def move_dataset(self, primary, dataset_id):
         request = self._request(
             b"POST", b"/configuration/datasets/%s" % (dataset_id,),
-            {u"primary": unicode(primary)}, OK)
+            {u"primary": unicode(primary)}, {OK})
         request.addCallback(self._parse_configuration_dataset)
         return request
 
     def list_datasets_configuration(self):
-        request = self._request(b"GET", b"/configuration/datasets", None, OK)
+        request = self._request(b"GET", b"/configuration/datasets", None, {OK})
         request.addCallback(
             lambda results:
             [
@@ -417,7 +415,7 @@ class FlockerClient(object):
         return request
 
     def list_datasets_state(self):
-        request = self._request(b"GET", b"/state/datasets", None, OK)
+        request = self._request(b"GET", b"/state/datasets", None, {OK})
 
         def parse_dataset_state(dataset_dict):
             primary = dataset_dict.get(u"primary")
@@ -434,4 +432,39 @@ class FlockerClient(object):
 
         request.addCallback(
             lambda results: [parse_dataset_state(d) for d in results])
+        return request
+
+    def _parse_lease(self, dictionary):
+        """
+        Parse a result dictionary into a ``Lease``.
+
+        :param dict dictionary: API JSON result.
+        :return: Corresponding ``Lease``.
+        """
+        return Lease(dataset_id=UUID(dictionary[u"dataset_id"]),
+                     node_uuid=UUID(dictionary[u"node_uuid"]),
+                     expires=dictionary[u"expires"])
+
+    def acquire_lease(self, dataset_id, node_uuid, expires):
+        request = self._request(b"POST", b"/configuration/leases",
+                                {u"dataset_id": unicode(dataset_id),
+                                 u"node_uuid": unicode(node_uuid),
+                                 u"expires": expires},
+                                {OK, CREATED},
+                                {CONFLICT: LeaseAlreadyHeld})
+        request.addCallback(self._parse_lease)
+        return request
+
+    def release_lease(self, dataset_id):
+        request = self._request(
+            b"DELETE", b"/configuration/leases/" + bytes(dataset_id),
+            None, {OK})
+        request.addCallback(self._parse_lease)
+        return request
+
+    def list_leases(self):
+        request = self._request(
+            b"GET", b"/configuration/leases", None, {OK})
+        request.addCallback(
+            lambda results: [self._parse_lease(l) for l in results])
         return request

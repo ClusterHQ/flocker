@@ -17,6 +17,7 @@ from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.http import BAD_REQUEST
@@ -269,7 +270,7 @@ def make_clientv1_tests():
             dataset_id = uuid4()
             d = self.client.acquire_lease(dataset_id, self.node_1, 123)
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
-                                                  node_id=self.node_1,
+                                                  node_uuid=self.node_1,
                                                   expires=123))
             return d
 
@@ -282,7 +283,7 @@ def make_clientv1_tests():
             d = self.client.acquire_lease(dataset_id, self.node_1, None)
             d.addCallback(lambda _: self.client.release_lease(dataset_id))
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
-                                                  node_id=self.node_1,
+                                                  node_uuid=self.node_1,
                                                   expires=None))
             return d
 
@@ -301,8 +302,8 @@ def make_clientv1_tests():
             d.addCallback(lambda _: self.client.list_leases())
             d.addCallback(
                 self.assertItemsEqual,
-                [Lease(dataset_id=d1, node_id=self.node_1, expires=10),
-                 Lease(dataset_id=d3, node_id=self.node_2, expires=10.5)])
+                [Lease(dataset_id=d1, node_uuid=self.node_1, expires=10),
+                 Lease(dataset_id=d3, node_uuid=self.node_2, expires=10.5)])
             return d
 
         def test_renew_lease(self):
@@ -314,7 +315,7 @@ def make_clientv1_tests():
             d.addCallback(lambda _: self.client.acquire_lease(
                 dataset_id, self.node_1, 456))
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
-                                                  node_id=self.node_1,
+                                                  node_uuid=self.node_1,
                                                   expires=456))
             return d
 
@@ -372,7 +373,9 @@ class FlockerClientTests(make_clientv1_tests()):
             TCP4ServerEndpoint(reactor, self.port, interface=b"127.0.0.1"),
             rest_api_context_factory(
                 credential_set.root.credential.certificate,
-                credential_set.control))
+                credential_set.control),
+            # Use consistent fake time for API results:
+            Clock())
         api_service.startService()
         self.addCleanup(api_service.stopService)
 
