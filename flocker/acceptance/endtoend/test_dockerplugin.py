@@ -59,7 +59,7 @@ class DockerPluginTests(TestCase):
         :param Cluster cluster: Description of the cluster we're talking to.
         :param bytes address: The public IP of the node where it will run.
         :param dict docker_arguments: Additional arguments to pass to
-            Docker run call.
+            Docker ``create_container()`` call.
         :param FilePath script: The script to run.
         :param list script_arguments: Additional arguments to pass to the
             script.
@@ -89,7 +89,7 @@ class DockerPluginTests(TestCase):
         """
         Docker can run a container with a volume provisioned by Flocker.
         """
-        data = "hello world"
+        data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
 
@@ -101,6 +101,8 @@ class DockerPluginTests(TestCase):
                 port_bindings={http_port: http_port}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
+            # This tells the script where it should store its data,
+            # and we want it to specifically use the volume:
             [u"/data"])
 
         d = post_http_server(self, node.public_address, http_port,
@@ -133,6 +135,8 @@ class DockerPluginTests(TestCase):
         cid = self.run_python_container(
             cluster, origin_node.public_address, container_args,
             SCRIPTS.child(b"datahttp.py"),
+            # This tells the script where it should store its data,
+            # and we want it to specifically use the volume:
             [u"/data"], cleanup=False)
 
         # Post to container on origin node:
