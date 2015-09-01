@@ -424,7 +424,9 @@ class GenericDockerClientTests(TestCase):
         name = random_name(self)
         d = self.start_container(
             name, ports=[PortMap(internal_port=8080,
-                                 external_port=external_port)])
+                                 external_port=external_port)],
+            retry_on_port_collision=True,
+        )
 
         d.addCallback(
             lambda ignored: self.request_until_response(external_port))
@@ -483,22 +485,49 @@ class GenericDockerClientTests(TestCase):
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        # Use an image that isn't likely to be in use by anything, since
-        # it's old, and isn't used by other tests:
-        image = u"busybox:ubuntu-12.04"
-        # Make sure image is gone:
-        docker = Client()
-        try:
-            docker.remove_image(image, force=True)
-        except APIError as e:
-            if e.response.status_code != 404:
-                raise
+        client = Client()
 
-        name = random_name(self)
-        client = self.make_client()
-        self.addCleanup(client.remove, name)
-        d = client.add(name, image)
-        d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent(
+            b"FROM busybox\n"
+            b"CMD /bin/true\n"
+        )
+        builder = DockerImageBuilder(
+            test=self, source_dir=path,
+            # We're going to manipulate the various tags on the image ourselves
+            # in this test.  We'll do (the slightly more complicated) cleanup
+            # so the builder shouldn't (and will encounter errors if we let
+            # it).
+            cleanup=False,
+        )
+        building = builder.build()
+        registry_listening = self.run_registry()
+
+        def create_container((image_name, registry)):
+            registry_image = self.push_to_registry(image_name, registry)
+
+            # And the image will (hopefully) have been downloaded again from
+            # the private registry in the next step, so cleanup that local
+            # image once the test finishes.
+            self.addCleanup(
+                client.remove_image,
+                image=registry_image.full_name
+            )
+
+            name = random_name(self)
+            docker_client = self.make_client()
+            self.addCleanup(docker_client.remove, name)
+            d = docker_client.add(name, registry_image.full_name)
+            d.addCallback(
+                lambda _: self.assertTrue(
+                    client.inspect_image(registry_image.full_name)
+                )
+            )
+            return d
+
+        d = gatherResults((building, registry_listening))
+        d.addCallback(create_container)
         return d
 
     def push_to_registry(self, image_name, registry):
