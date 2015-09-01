@@ -189,6 +189,12 @@ class APITestsMixin(APIAssertionsMixin):
         """
         ``/VolumeDriver.Path`` returns an error when asked for the mount path
         of a volume that is not mounted locally.
+
+        This can happen as a result of ``docker inspect`` on a container
+        that has been created but is still waiting for its volume to
+        arrive from another node. It seems like Docker may also call this
+        after ``/VolumeDriver.Create``, so again while waiting for a
+        volume to arrive.
         """
         name = u"myvol"
         dataset_id = UUID(dataset_id_from_name(name))
