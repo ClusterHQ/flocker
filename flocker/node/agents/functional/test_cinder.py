@@ -14,6 +14,7 @@ See https://github.com/rackerlabs/mimic/issues/218
 """
 
 import subprocess
+import tempfile
 from unittest import skipIf
 from uuid import uuid4
 
@@ -174,6 +175,60 @@ class CinderHttpsTests(SynchronousTestCase):
         self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
 
 
+class VirtIOClient():
+    def __init__(self, instance_id, url):
+        self.instance_id = instance_id
+        self.url = url
+
+    @classmethod
+    def from_instance_id(cls, instance_id):
+        url = "qemu://{}/system?no_verify=1".format(
+            cls._get_default_gateway()
+        )
+        cls.create_credentials()
+        return cls(instance_id, url)
+
+    @staticmethod
+    def create_credentials():
+        path = FilePath(tempfile.mkdtemp())
+        try:
+            ca = RootCredential.initialize(path, b"mycluster")
+            NodeCredential.initialize(path, ca, uuid='client')
+            ca_dir = FilePath('/etc/pki/CA')
+            if not ca_dir.exists():
+                ca_dir.makedirs()
+            path.child(AUTHORITY_CERTIFICATE_FILENAME).copyTo(
+                FilePath('/etc/pki/CA/cacert.pem')
+            )
+            client_key_dir = FilePath('/etc/pki/libvirt/private')
+            if not client_key_dir.exists():
+                client_key_dir.makedirs()
+            client_key_dir.chmod(0700)
+            path.child('client.key').copyTo(
+                client_key_dir.child('clientkey.pem')
+            )
+            path.child('client.crt').copyTo(
+                FilePath('/etc/pki/libvirt/clientcert.pem')
+            )
+        finally:
+            path.remove()
+
+    @staticmethod
+    def _get_default_gateway():
+        gws = netifaces.gateways()
+        return gws['default'][netifaces.AF_INET][0]
+
+    def attach_disk(self, host_device, guest_device):
+        subprocess.check_call(["virsh", "-c", self.url, "attach-disk",
+                               self.instance_id,
+                               host_device, guest_device])
+
+    def detach_disk(self, host_device):
+        subprocess.check_call(["virsh", "-c", self.url, "detach-disk",
+                               self.instance_id,
+                               host_device])
+
+
 class CinderAttachmentTests(SynchronousTestCase):
     """
     Cinder volumes can be attached and return correct device path.
@@ -183,26 +238,6 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.cinder = clients['cinder_client']
         self.nova = clients['nova_client']
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
-        self.path = FilePath(self.mktemp())
-        self.path.makedirs()
-        ca = RootCredential.initialize(self.path, b"mycluster")
-        NodeCredential.initialize(self.path, ca, uuid='client')
-        ca_dir = FilePath('/etc/pki/CA')
-        if not ca_dir.exists():
-            ca_dir.makedirs()
-        self.path.child(AUTHORITY_CERTIFICATE_FILENAME).copyTo(
-            FilePath('/etc/pki/CA/cacert.pem')
-        )
-        client_key_dir = FilePath('/etc/pki/libvirt/private')
-        if not client_key_dir.exists():
-            client_key_dir.makedirs()
-        client_key_dir.chmod(0700)
-        self.path.child('client.key').copyTo(
-            client_key_dir.child('clientkey.pem')
-        )
-        self.path.child('client.crt').copyTo(
-            FilePath('/etc/pki/libvirt/clientcert.pem')
-        )
 
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
@@ -217,19 +252,6 @@ class CinderAttachmentTests(SynchronousTestCase):
         if volume.attachments:
             self._detach(instance_id, volume)
         self.cinder.volumes.delete(volume.id)
-
-    def _attach_disk(self, url, instance_id, host_device, guest_device):
-        subprocess.check_call(["virsh", "-c", url, "attach-disk", instance_id,
-                               host_device, guest_device])
-
-    def _detach_disk(self, url, instance_id, host_device):
-        subprocess.check_call(["virsh", "-c", url, "detach-disk", instance_id,
-                               host_device])
-
-    @staticmethod
-    def _get_default_gateway():
-        gws = netifaces.gateways()
-        return gws['default'][netifaces.AF_INET][0]
 
     def test_get_device_path_no_attached_disks(self):
         """
@@ -277,12 +299,10 @@ class CinderAttachmentTests(SynchronousTestCase):
             servers=self.nova.servers.list()
         )
 
-        url = "qemu://{}/system?no_verify=1".format(
-            self._get_default_gateway()
-        )
         host_device = "/dev/null"
-        self._attach_disk(url, instance_id, host_device, "vdc")
-        self.addCleanup(self._detach_disk, url, instance_id, host_device)
+        virtio = VirtIOClient.from_instance_id(instance_id)
+        virtio.attach_disk(host_device, "vdc")
+        self.addCleanup(virtio.detach_disk, host_device)
 
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
@@ -322,12 +342,10 @@ class CinderAttachmentTests(SynchronousTestCase):
             servers=self.nova.servers.list()
         )
 
-        url = "qemu://{}/system?no_verify=1".format(
-            self._get_default_gateway()
-        )
         host_device = "/dev/null"
-        self._attach_disk(url, instance_id, host_device, "vdb")
-        self.addCleanup(self._detach_disk, url, instance_id, host_device)
+        virtio = VirtIOClient.from_instance_id(instance_id)
+        virtio.attach_disk(host_device, "vdb")
+        self.addCleanup(virtio.detach_disk, host_device)
 
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
