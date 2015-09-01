@@ -301,7 +301,7 @@ definitions:
 
   lease:
     type: object
-    description: "A specific lease."
+    description: "A lease on a dataset indicating it is in use on a particular node."
     properties:
       dataset_id:
         '$ref': '#/definitions/lease_dataset_id'
