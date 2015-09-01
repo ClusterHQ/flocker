@@ -42,7 +42,8 @@ from ..test.blockdevicefactory import (
 
 from ..cinder import wait_for_volume, _compute_instance_id
 
-require_virsh = skipIf(not which('virsh'), "Tests require the ``virsh`` command.")
+require_virsh = skipIf(
+    not which('virsh'), "Tests require the ``virsh`` command.")
 
 
 def cinderblockdeviceapi_for_test(test_case):
@@ -174,7 +175,7 @@ class CinderHttpsTests(SynchronousTestCase):
 
 class CinderAttachmentTests(SynchronousTestCase):
     """
-    Test attachment of Cinder volumes and correctness of the returned device path.
+    Cinder volumes can be attached and return correct device path.
     """
     def setUp(self):
         clients = openstack_clients()
@@ -184,7 +185,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.path = FilePath(self.mktemp())
         self.path.makedirs()
         ca = RootCredential.initialize(self.path, b"mycluster")
-        cert = NodeCredential.initialize(self.path, ca, uuid='client')
+        NodeCredential.initialize(self.path, ca, uuid='client')
         ca_dir = FilePath('/etc/pki/CA')
         if not ca_dir.exists():
             ca_dir.makedirs()
@@ -236,7 +237,8 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
 
         devices_before = set(FilePath('/dev').children())
 
@@ -278,7 +280,8 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
 
         devices_before = set(FilePath('/dev').children())
 
@@ -320,7 +323,8 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
 
         attached_volume = self.nova.volumes.create_server_volume(
             server_id=instance_id,

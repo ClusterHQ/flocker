@@ -221,6 +221,7 @@ def verify_attachment(test, instance_id):
                 attached_volume,
                 attached_volume.attachments,
                 [d for d in devices_before if d.path.startswith('/dev/vd')],
-                [d for d in FilePath('/dev').children() if d.path.startswith('/dev/vd')],
+                [d for d in FilePath('/dev').children()
+                    if d.path.startswith('/dev/vd')],
             )
         )

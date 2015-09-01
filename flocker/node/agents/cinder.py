@@ -13,8 +13,6 @@ from eliot import Message
 
 from pyrsistent import PRecord, field
 
-import pyudev
-
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
     HttpError as KeystoneHttpError,
@@ -51,6 +49,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
+
 def _compute_instance_id(servers):
     local_ips = get_all_ips()
     api_ip_map = {}
@@ -78,6 +77,7 @@ def _compute_instance_id(servers):
     COMPUTE_INSTANCE_ID_NOT_FOUND(
         local_ips=local_ips, api_ips=api_ip_map
     ).write()
+
 
 def _openstack_logged_method(method_name, original_name):
     """
@@ -481,13 +481,15 @@ class CinderBlockDeviceAPI(object):
         # disks have been attached using a client other than cinder.
         # However, the correct device is named as a udev symlink which includes
         # the first 20 characters of the blockedevice_id.
-        device_path = FilePath("/dev/disk/by-id/virtio-{}".format(blockdevice_id[:20]))
+        device_path = FilePath(
+            "/dev/disk/by-id/virtio-{}".format(blockdevice_id[:20]))
         if not device_path.exists():
-            # If the device path does not exist, either virtio driver is not being used
-            # e.g. Rackspace, or the user has modified their udev rules.
-            # The following code relies on Cinder returning the correct device path
-            # which appears to work for Rackspace and will work for virtio if no disks
-            # have been attached outside Cinder.
+            # If the device path does not exist, either virtio driver is
+            # not being used (e.g. Rackspace), or the user has modified
+            # their udev rules.  The following code relies on Cinder
+            # returning the correct device path, which appears to work
+            # for Rackspace and will work with virtio if no disks have
+            # been attached outside Cinder.
             try:
                 cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
