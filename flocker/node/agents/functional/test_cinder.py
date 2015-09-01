@@ -227,7 +227,7 @@ class CinderAttachmentTests(SynchronousTestCase):
                                host_device])
 
     @staticmethod
-    def _get_default_gateway(self):
+    def _get_default_gateway():
         gws = netifaces.gateways()
         return gws['default'][netifaces.AF_INET][0]
 
