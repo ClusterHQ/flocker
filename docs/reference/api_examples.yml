@@ -712,7 +712,7 @@
   id: "acquire a lease with expiration"
 
   doc: |
-    Acquire a lease that expires in 60 seconds.
+    Acquire a lease that expires in 30 seconds.
 
   request: |
     POST /v1/configuration/leases
