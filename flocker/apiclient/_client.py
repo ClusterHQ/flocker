@@ -251,7 +251,7 @@ class FlockerClient(object):
 
         # Serialize the current task ID so we can trace logging across
         # processes:
-        headers = {b"X-Eliot": action.serialize_task_id()}
+        headers = {b"X-Eliot-Task-Id": action.serialize_task_id()}
         data = None
         if body is not None:
             headers["content-type"] = b"application/json"
