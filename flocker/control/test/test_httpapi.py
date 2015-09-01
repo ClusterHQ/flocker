@@ -35,7 +35,7 @@ from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
     RestartAlways, RestartNever, Link, same_node, DeploymentState,
-    NonManifestDatasets, Leases,
+    NonManifestDatasets, Leases, Lease,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -3445,6 +3445,42 @@ class LeasesTestsMixin(APITestsMixin):
                                   [self.dataset1, self.dataset2])
         d.addCallback(not_deleted)
         return d
+
+    def test_acquire_no_expiration(self):
+        """
+        POST ``/configuration/leases`` can acquire a lease without expiration.
+        """
+        dataset_id = uuid4()
+        node_uuid = uuid4()
+        lease_json = {u"dataset_id": unicode(dataset_id),
+                      u"node_uuid": unicode(node_uuid),
+                      u"expires": None}
+
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/leases",
+            request_body=lease_json, expected_code=CREATED,
+            expected_result=lease_json))
+
+        def acquired(_):
+            self.assertEqual(self.persistence_service.get().leases[dataset_id],
+                             Lease(dataset_id=dataset_id, node_id=node_uuid,
+                                   expiration=None))
+        d.addCallback(acquired)
+        return d
+
+    def test_acquire_with_expiration(self):
+        """
+        POST ``/configuration/leases`` can acquire a lease that expires
+        appropriately.
+        """
+
+    def test_acquire_already_exists_different_node(self):
+        """
+        Acquiring a lease on node A if a lease already exits for that dataset
+        on node B will fail.
+        """
+
 
 RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
     LeasesTestsMixin, "Leases", _build_app)
