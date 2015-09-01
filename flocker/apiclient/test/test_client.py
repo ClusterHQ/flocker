@@ -12,6 +12,9 @@ from zope.interface.verify import verifyObject
 
 from pyrsistent import pmap
 
+from eliot import ActionType
+from eliot.testing import capture_logging, assertHasAction, LoggedAction
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
@@ -20,7 +23,7 @@ from twisted.web.http import BAD_REQUEST
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
-    DatasetState, FlockerClient, ResponseError,
+    DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -29,6 +32,8 @@ from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
 from ...control import NodeState, NonManifestDatasets, Dataset as ModelDataset
+from ...restapi._logging import JSON_REQUEST
+from ...restapi import _infrastructure as rest_api
 
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -279,7 +284,7 @@ class FlockerClientTests(make_clientv1_tests()):
 
         :return: ``FlockerClient`` instance.
         """
-        _, port = find_free_port()
+        _, self.port = find_free_port()
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
@@ -294,7 +299,7 @@ class FlockerClientTests(make_clientv1_tests()):
         api_service = create_api_service(
             self.persistence_service,
             self.cluster_state_service,
-            TCP4ServerEndpoint(reactor, port, interface=b"127.0.0.1"),
+            TCP4ServerEndpoint(reactor, self.port, interface=b"127.0.0.1"),
             rest_api_context_factory(
                 credential_set.root.credential.certificate,
                 credential_set.control))
@@ -302,7 +307,7 @@ class FlockerClientTests(make_clientv1_tests()):
         self.addCleanup(api_service.stopService)
 
         credential_set.copy_to(credentials_path, user=True)
-        return FlockerClient(reactor, b"127.0.0.1", port,
+        return FlockerClient(reactor, b"127.0.0.1", self.port,
                              credentials_path.child(b"cluster.crt"),
                              credentials_path.child(b"user.crt"),
                              credentials_path.child(b"user.key"))
@@ -320,7 +325,55 @@ class FlockerClientTests(make_clientv1_tests()):
                        for node in deployment.nodes]
         self.cluster_state_service.apply_changes(node_states)
 
-    def test_unexpected_error(self):
+    @capture_logging(None)
+    def test_logging(self, logger):
+        """
+        Successful HTTP requests are logged.
+        """
+        dataset_id = uuid4()
+        d = self.client.create_dataset(
+            primary=self.node_1, maximum_size=None, dataset_id=dataset_id)
+        d.addCallback(lambda _: assertHasAction(
+            self, logger, _LOG_HTTP_REQUEST, True, dict(
+                url=b"https://127.0.0.1:{}/v1/configuration/datasets".format(
+                    self.port),
+                method=u"POST",
+                request_body=dict(primary=unicode(self.node_1),
+                                  metadata={},
+                                  dataset_id=unicode(dataset_id))),
+            dict(response_body=dict(primary=unicode(self.node_1),
+                                    metadata={},
+                                    deleted=False,
+                                    dataset_id=unicode(dataset_id)))))
+        return d
+
+    @capture_logging(None)
+    def test_cross_process_logging(self, logger):
+        """
+        Eliot tasks can be traced from the HTTP client to the API server.
+        """
+        self.patch(rest_api, "_logger", logger)
+        my_action = ActionType("my_action", [], [])
+        with my_action():
+            d = self.client.create_dataset(primary=self.node_1)
+
+        def got_response(_):
+            parent = LoggedAction.ofType(logger.messages, my_action)[0]
+            child = LoggedAction.ofType(logger.messages, JSON_REQUEST)[0]
+            self.assertIn(child, list(parent.descendants()))
+        d.addCallback(got_response)
+        return d
+
+    @capture_logging(lambda self, logger: assertHasAction(
+        self, logger, _LOG_HTTP_REQUEST, False, dict(
+            url=b"https://127.0.0.1:{}/v1/configuration/datasets".format(
+                self.port),
+            method=u"POST",
+            request_body=dict(
+                primary=unicode(self.node_1), maximum_size=u"notint",
+                metadata={})),
+        {u'exception': u'flocker.apiclient._client.ResponseError'}))
+    def test_unexpected_error(self, logger):
         """
         If the ``FlockerClient`` receives an unexpected HTTP response code it
         returns a ``ResponseError`` failure.

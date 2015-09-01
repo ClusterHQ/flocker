@@ -11,6 +11,9 @@ from zope.interface import Interface, implementer
 
 from pyrsistent import PClass, field, pmap_field, pmap
 
+from eliot import ActionType, Field
+from eliot.twisted import DeferredContext
+
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.web.http import CREATED, OK, CONFLICT
@@ -18,6 +21,16 @@ from twisted.web.http import CREATED, OK, CONFLICT
 from treq import json_content, content
 
 from ..ca import treq_with_authentication
+
+
+_LOG_HTTP_REQUEST = ActionType(
+    "flocker:apiclient:http_request",
+    [Field.forTypes("url", [bytes, unicode], "Request URL."),
+     Field.forTypes("method", [bytes, unicode], "Request method."),
+     Field("request_body", lambda o: o, "Request JSON body.")],
+    [Field.forTypes("response_code", [int], "Response code."),
+     Field("response_body", lambda o: o, "JSON response body.")],
+    "A HTTP request.")
 
 
 NoneType = type(None)
@@ -217,6 +230,9 @@ class FlockerClient(object):
 
         :return: ``Deferred`` firing with decoded JSON.
         """
+        url = self._base_url + path
+        action = _LOG_HTTP_REQUEST(url=url, method=method, request_body=body)
+
         if error_codes is None:
             error_codes = {}
 
@@ -233,19 +249,32 @@ class FlockerClient(object):
                 d.addCallback(error, result.code)
                 return d
 
-        headers = None
+        # Serialize the current task ID so we can trace logging across
+        # processes:
+        headers = {b"X-Eliot-Task-Id": action.serialize_task_id()}
         data = None
         if body is not None:
-            headers = {b"content-type": b"application/json"}
+            headers["content-type"] = b"application/json"
             data = dumps(body)
-        request = self._treq.request(
-            method, self._base_url + path,
-            data=data, headers=headers,
-            # Keep tests from having dirty reactor problems:
-            persistent=False
-        )
+
+        with action.context():
+            request = DeferredContext(self._treq.request(
+                method, url,
+                data=data, headers=headers,
+                # Keep tests from having dirty reactor problems:
+                persistent=False
+                ))
         request.addCallback(got_result)
-        return request
+
+        def got_body(json_body):
+            # If we've reached this point we got the expected response
+            # code:
+            action.addSuccessFields(response_body=json_body,
+                                    response_code=success_code)
+            return json_body
+        request.addCallback(got_body)
+        request.addActionFinish()
+        return request.result
 
     def _parse_configuration_dataset(self, dataset_dict):
         """
