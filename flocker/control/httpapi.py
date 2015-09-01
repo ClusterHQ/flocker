@@ -42,6 +42,7 @@ from ._config import (
     ConfigurationError
 )
 from ._persistence import update_leases
+from ._model import LeaseError
 
 from .. import __version__
 
@@ -991,17 +992,18 @@ class ConfigurationAPIUserV1(object):
 
         # Check if conflicting lease exists:
         lease = self.persistence_service.get().leases.get(dataset_id)
-        if lease is not None:
-            if lease.node_id != node_uuid:
-                raise LEASE_HELD
-            else:
-                response_code = OK
-        else:
+        if lease is None:
             response_code = CREATED
+        else:
+            response_code = OK
 
-        d = update_leases(
-            lambda leases: leases.acquire(now, dataset_id, node_uuid, expires),
-            self.persistence_service)
+        def acquire(leases):
+            try:
+                return leases.acquire(now, dataset_id, node_uuid, expires)
+            except LeaseError:
+                raise LEASE_HELD
+
+        d = update_leases(acquire, self.persistence_service)
         d.addCallback(
             lambda leases: EndpointResponse(
                 response_code, lease_response(leases[dataset_id], now)))
