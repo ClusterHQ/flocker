@@ -70,18 +70,6 @@ Access
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
-  - Check whether you have an existing access key by running the ``list-access-keys`` command:
-
-   .. prompt:: bash $
-
-      aws iam list-access-keys
-
-  - Create a new access key and secret token if necessary:
-
-   .. prompt:: bash $
-
-      aws iam create-access-key
-
 - SSH access to ClusterHQ's GitHub repositories.
 
 - The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
@@ -176,7 +164,6 @@ Preparing For a Release
    Pushing the branch in the previous step should have started a build on BuildBot.
    If not, you can force a build by logging in to BuildBot, entering the release branch name in to the box at the top right and clicking the ``Force`` button.
 
-   Build failures in the ``Expected failures`` section may be safely ignored.
    Discuss with the team whether the release can continue given any failed tests outside of expected failures.
    Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
 
