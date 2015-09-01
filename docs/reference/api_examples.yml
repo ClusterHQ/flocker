@@ -665,11 +665,11 @@
     List the leases on datasets in the cluster.
     Notice how one lease expires in 30 seconds, and one will never expire.
 
-  response: |
-    HTTP/1.1 200 OK
-
   request: |
     GET /v1/configuration/leases
+
+  response: |
+    HTTP/1.1 200 OK
 
     [
       {
@@ -683,3 +683,74 @@
         "expires": 30,
       },
     ]
+
+-
+  id: "acquire a lease without expiration"
+
+  doc: |
+    Acquire a lease that does not expire.
+
+  request: |
+    POST /v1/configuration/leases
+
+    {
+      "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+      "node_uuid": "%(NODE_0)s",
+      "expires": null,
+    }
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {
+      "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+      "node_uuid": "%(NODE_0)s",
+      "expires": null,
+    }
+
+-
+  id: "acquire a lease with expiration"
+
+  doc: |
+    Acquire a lease that expires in 60 seconds.
+
+  request: |
+    POST /v1/configuration/leases
+
+    {
+      "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "node_uuid": "%(NODE_1)s",
+      "expires": 30
+    }
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {
+      "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "node_uuid": "%(NODE_1)s",
+      "expires": 30
+    }
+
+-
+  id: "acquire a lease that is already held"
+
+  doc: |
+    If a lease on a particular dataset is for one node, you can't acquire a
+    lease on the same dataset on a different node.
+
+  request: |
+    POST /v1/configuration/leases
+
+    {
+      "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "node_uuid": "%(NODE_0)s",
+      "expires": null
+    }
+
+  response: |
+    HTTP/1.1 409 Conflict
+
+    {
+      "description": "Lease already held."
+    }

@@ -88,6 +88,8 @@ DATASET_IN_USE = make_bad_request(
     description=u"The dataset is being used by another container.")
 LEASE_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Lease not found.")
+LEASE_HELD = make_bad_request(
+    code=CONFLICT, description=u"Lease already held.")
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
@@ -945,6 +947,61 @@ class ConfigurationAPIUserV1(object):
         else:
             # Didn't find the lease:
             raise LEASE_NOT_FOUND
+
+    @app.route("/configuration/leases", methods=['POST'])
+    # This can stop being private as part of FLOC-2741:
+    @private_api
+    @user_documentation(
+        u"""
+        Acquire a lease on a particular dataset on a particular
+        node. Until the lease is released or expires the dataset will not
+        be deleted or moved to other nodes.
+        """,
+        header=u"Acquire a lease on a dataset",
+        examples=[
+            u"acquire a lease without expiration",
+            u"acquire a lease with expiration",
+            u"acquire a lease that is already held",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        schema_store=SCHEMAS
+    )
+    def acquire_lease(self, dataset_id, node_uuid, expires):
+        """
+        Acquire a lease on a dataset.
+
+        :param unicode dataset_id: The dataset whose lease is being
+            acquired.
+        :param unicode node_uuid: The dataset whose lease is being
+            acquired.
+        :param expires: ``None`` if no expiration, otherwise number of
+            seconds to expiration.
+
+        :return: A ``Deferred`` firing with an ``EndpointResponse`` or
+            serializable JSON.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        dataset_id = UUID(dataset_id)
+        node_uuid = UUID(node_uuid)
+
+        # Check if conflicting lease exists:
+        lease = self.persistence_service.get().leases.get(dataset_id)
+        if lease is not None and lease.node_id != node_uuid:
+            raise LEASE_HELD
+        else:
+            pass  # XXX FLOC-2738 will do this code path
+
+        d = update_leases(
+            lambda leases: leases.acquire(now, dataset_id, node_uuid, expires),
+            self.persistence_service)
+        d.addCallback(
+            lambda leases: EndpointResponse(
+                CREATED, lease_response(leases[dataset_id], now)))
+        return d
 
 
 def _find_manifestation_and_node(deployment, dataset_id):
