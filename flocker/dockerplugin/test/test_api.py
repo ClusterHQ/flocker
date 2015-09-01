@@ -153,15 +153,15 @@ class APITestsMixin(APIAssertionsMixin):
 
     def test_path(self):
         """
-        ``/VolumeDriver.Path`` returns the mount path of the given volume.
+        ``/VolumeDriver.Path`` returns the mount path of the given volume if
+        it is currently known.
         """
         name = u"myvol"
         dataset_id = UUID(dataset_id_from_name(name))
 
         d = self.create(name)
-        # After a polling interval the dataset arrives as state:
-        reactor.callLater(VolumePlugin._POLL_INTERVAL,
-                          self.flocker_client.synchronize_state)
+        # The dataset arrives as state:
+        d.addCallback(lambda _: self.flocker_client.synchronize_state())
 
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/VolumeDriver.Mount", {u"Name": name}, OK))
@@ -172,6 +172,46 @@ class APITestsMixin(APIAssertionsMixin):
                           {u"Name": name}, OK,
                           {u"Err": None,
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
+        return d
+
+    def test_unknown_path(self):
+        """
+        ``/VolumeDriver.Path`` returns an error when asked for the mount path
+        of a non-existent volume.
+        """
+        name = u"myvol"
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Path",
+            {u"Name": name}, OK,
+            {u"Err": u"Volume not available.", u"Mountpoint": u""})
+
+    def test_non_local_path(self):
+        """
+        ``/VolumeDriver.Path`` returns an error when asked for the mount path
+        of a volume that is not mounted locally.
+
+        This can happen as a result of ``docker inspect`` on a container
+        that has been created but is still waiting for its volume to
+        arrive from another node. It seems like Docker may also call this
+        after ``/VolumeDriver.Create``, so again while waiting for a
+        volume to arrive.
+        """
+        name = u"myvol"
+        dataset_id = UUID(dataset_id_from_name(name))
+
+        # Create dataset on node B:
+        d = self.flocker_client.create_dataset(
+            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
+            dataset_id=dataset_id)
+        d.addCallback(lambda _: self.flocker_client.synchronize_state())
+
+        # Ask for path on node A:
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Path",
+                          {u"Name": name}, OK,
+                          {u"Err": "Volume not available.",
+                           u"Mountpoint": u""}))
         return d
 
 
