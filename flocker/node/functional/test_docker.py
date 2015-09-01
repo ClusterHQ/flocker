@@ -10,7 +10,7 @@ import time
 import socket
 from functools import partial
 
-from requests import Response
+from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 from docker import Client
 # Docker-py uses 1.16 API by default, which isn't supported by docker, so force
@@ -35,13 +35,14 @@ from ...testtools import (
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume, AddressInUse,
+    BASE_NAMESPACE, Volume, AddressInUse, make_response,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
 )
 from ..testtools import (
-    if_docker_configured, wait_for_unit_state, require_docker_version
+    if_docker_configured, wait_for_unit_state, require_docker_version,
+    add_with_port_collision_retry,
 )
 
 
@@ -128,7 +129,8 @@ class GenericDockerClientTests(TestCase):
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
                         restart_policy=RestartNever(),
-                        command_line=None):
+                        command_line=None,
+                        retry_on_port_collision=False):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -148,7 +150,13 @@ class GenericDockerClientTests(TestCase):
             the unit reaches the expected state.
         """
         client = self.make_client()
-        d = client.add(
+
+        if retry_on_port_collision:
+            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+        else:
+            add = client.add
+
+        d = add(
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
@@ -522,7 +530,7 @@ class GenericDockerClientTests(TestCase):
 
     def push_to_registry(self, image_name, registry):
         """
-        Push an image identify by a local tag to the given registry.
+        Push an image identified by a local tag to the given registry.
 
         :param unicode image_name: The local tag which identifies the image to
             push.
@@ -556,10 +564,6 @@ class GenericDockerClientTests(TestCase):
             # Remove the tag created above to make it possible to do the push.
             client.remove_image(image=registry_image.full_name)
 
-        # Remove the original tag of the image as well.  Now only the registry
-        # tag refers to the desired image.
-        client.remove_image(image=image_name)
-
         return registry_image
 
     def run_registry(self):
@@ -571,25 +575,43 @@ class GenericDockerClientTests(TestCase):
 
         :return: A ``Registry`` describing the registry which was started.
         """
-        registry = Registry(
-            name=random_name(self),
-            port=find_free_port()[1],
-        )
+        registry_name = random_name(self)
         registry_starting = self.start_container(
-            unit_name=registry.name,
+            unit_name=registry_name,
             image_name='registry:2',
             ports=[
                 PortMap(
                     internal_port=5000,
-                    external_port=registry.port
+                    # Doesn't matter what port we expose this on.  We'll
+                    # discover what was assigned later.
+                    external_port=0,
                 ),
-            ]
+            ],
+            retry_on_port_collision=True,
         )
-        registry_listening = registry_starting.addCallback(
-            lambda ignored: self.request_until_response(registry.port)
-        )
-        registry_listening.addCallback(lambda ignored: registry)
-        return registry_listening
+
+        def extract_listening_port(client):
+            listing = client.list()
+            listing.addCallback(
+                lambda applications: list(
+                    next(iter(application.ports)).external_port
+                    for application
+                    in applications
+                )[0]
+            )
+            return listing
+        registry_starting.addCallback(extract_listening_port)
+
+        def wait_for_listening(external_port):
+            registry = Registry(
+                name=registry_name, port=external_port,
+            )
+            registry_listening = self.request_until_response(registry.port)
+            registry_listening.addCallback(lambda ignored: registry)
+            return registry_listening
+        registry_starting.addCallback(wait_for_listening)
+
+        return registry_starting
 
     def _pull_timeout(self):
         """
@@ -664,14 +686,14 @@ class GenericDockerClientTests(TestCase):
             app_name = random_name(self)
             d = docker_client.add(app_name, registry_image.full_name)
 
-            # Assert that the timeout triggers requests has a TimeoutError, but
-            # timeout raises a ConnectionError.  Both are subclasses of
-            # IOError, so use that for now
+            # Assert that the timeout triggers.
+            #
+            # requests has a TimeoutError but timeout raises a ConnectionError.
             # https://github.com/kennethreitz/requests/issues/2620
             #
             # XXX DockerClient.add is our API.  We could make it fail with a
             # more coherent exception type if we wanted.
-            self.assertFailure(d, IOError)
+            self.assertFailure(d, ReadTimeout)
             d.addCallback(lambda ignored: (registry_image, registry))
             return d
         running.addCallback(setup_image)
@@ -1070,20 +1092,6 @@ nc -ll -p 8080 -e /tmp/script.sh
             return d
         d.addCallback(started)
         return d
-
-
-def make_response(code, message):
-    """
-    Create a ``requests.Response`` with the given response code and message.
-
-    :param int code: The HTTP response code to include in the fake response.
-    :param unicode message: The HTTP response message to include in the fake
-        response.  The message will be encoded using ASCII.
-    """
-    response = Response()
-    response.status_code = code
-    response.reason = message
-    return response
 
 
 class MakeResponseTests(TestCase):

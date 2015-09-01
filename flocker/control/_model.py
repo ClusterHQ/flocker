@@ -617,6 +617,7 @@ class Deployment(PRecord):
     :ivar Leases leases: A map of ``Lease`` instances by dataset id.
     """
     nodes = pset_field(Node)
+    leases = field(type=Leases, mandatory=True, initial=Leases())
 
     get_node = _get_node(Node)
 
@@ -1080,4 +1081,5 @@ SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
     NodeState, DeploymentState, NonManifestDatasets, Configuration,
+    Lease, Leases,
 ]

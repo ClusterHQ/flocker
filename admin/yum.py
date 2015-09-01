@@ -8,8 +8,9 @@ import requests
 from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
-from subprocess import check_call, check_output
+from subprocess import check_call
 from gzip import GzipFile
+from deb_pkg_tools.repo import scan_packages
 
 from flocker.common.version import make_rpm_version
 
@@ -109,14 +110,9 @@ def perform_create_repository(dispatcher, intent):
             intent.repository_path.path])
         return _list_new_metadata(repository_path=intent.repository_path)
     elif package_type == PackageTypes.DEB:
-        metadata = check_output([
-            b'dpkg-scanpackages',
-            # Include all versions of each package in the metadata
-            b'--multiversion',
-            # Look for files in the current directory.
-            # Note: This path is included in the metadata.
-            b"."],
-            cwd=intent.repository_path.path)
+        packages_file = intent.repository_path.child('Packages')
+        scan_packages(repository=intent.repository_path.path,
+            packages_file=packages_file.path)
 
         intent.repository_path.child('Release').setContent(
             "Origin: ClusterHQ\n")
@@ -124,7 +120,7 @@ def perform_create_repository(dispatcher, intent):
         with intent.repository_path.child(
                 'Packages.gz').open(b"w") as raw_file:
             with GzipFile(b'Packages.gz', fileobj=raw_file) as gzip_file:
-                gzip_file.write(metadata)
+                gzip_file.write(packages_file.getContent())
         return {'Packages.gz', 'Release'}
     else:
         raise NotImplementedError("Unknown package type: %s"

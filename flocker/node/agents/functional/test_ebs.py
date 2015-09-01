@@ -16,7 +16,7 @@ from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging
+from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
@@ -26,6 +26,7 @@ from ..ebs import (
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
+    IN_USE_DEVICES
 )
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
@@ -63,7 +64,7 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     def test_foreign_volume(self):
         """
-        Test that ``list_volumes`` lists only those volumes
+        ``list_volumes`` lists only those volumes
         belonging to the current Flocker cluster.
         """
         try:
@@ -84,7 +85,7 @@ class EBSBlockDeviceAPIInterfaceTests(
 
     def test_foreign_cluster_volume(self):
         """
-        Test that list_volumes() excludes volumes belonging to
+        ``list_volumes`` excludes volumes belonging to
         other Flocker clusters.
         """
         blockdevice_api2 = ebsblockdeviceapi_for_test(
@@ -99,7 +100,7 @@ class EBSBlockDeviceAPIInterfaceTests(
     @capture_logging(lambda self, logger: None)
     def test_boto_ec2response_error(self, logger):
         """
-        1. Test that invalid parameters to Boto's EBS API calls
+        1. Invalid parameters to Boto's EBS API calls
         raise the right exception after logging to Eliot.
         2. Verify Eliot log output for expected message fields
         from logging decorator for boto.exception.EC2Exception
@@ -162,6 +163,24 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+    @capture_logging(
+        assertHasMessage, IN_USE_DEVICES, {
+            'devices': [u'/dev/sda1']
+        },
+    )
+    def test_in_use_devices_log(self, logger):
+        """
+        Attached device shows up as being in use during subsequent
+        ``attach_volume``.
+        """
+        volume1 = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size,
+        )
+        self.api.attach_volume(
+            volume1.blockdevice_id, attach_to=self.this_node,
+        )
 
 
 class VolumeStateTransitionTests(TestCase):
