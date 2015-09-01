@@ -5,8 +5,11 @@ Tests for ``flocker.control.httpapi``.
 
 from uuid import uuid4
 from copy import deepcopy
+from datetime import datetime
 
 from pyrsistent import pmap, thaw
+
+from pytz import UTC
 
 from zope.interface.verify import verifyObject
 
@@ -32,7 +35,7 @@ from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
     RestartAlways, RestartNever, Link, same_node, DeploymentState,
-    NonManifestDatasets,
+    NonManifestDatasets, Leases,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -67,6 +70,7 @@ class APITestsMixin(APIAssertionsMixin):
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(Clock())
         self.cluster_state_service.startService()
+        self.clock = Clock()
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
 
@@ -87,7 +91,8 @@ class VersionTestsMixin(APITestsMixin):
 def _build_app(test):
     test.initialize()
     return ConfigurationAPIUserV1(test.persistence_service,
-                                  test.cluster_state_service).app
+                                  test.cluster_state_service,
+                                  test.clock).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
 
@@ -3347,3 +3352,49 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
 RealTestsConfigurationAPI, MemoryTestsConfigurationAPI = (
     buildIntegrationTests(ConfigurationComposeTestsMixin, "ConfigurationAPI",
                           _build_app))
+
+
+class LeasesTestsMixin(APITestsMixin):
+    """
+    Tests for the leases endpoints at ``/configuration/leases``.
+    """
+    def test_get(self):
+        """
+        GET ``/configuration/leases`` returns all leases.
+        """
+        dataset1 = uuid4()
+        dataset2 = uuid4()
+        node1 = uuid4()
+        node2 = uuid4()
+        now = 2132154
+        self.clock.advance(now)
+        expires = 15
+
+        leases = Leases().acquire(
+            datetime.fromtimestamp(now, tz=UTC), dataset1, node1, expires)
+        leases = leases.acquire(
+            datetime.fromtimestamp(now, tz=UTC), dataset2, node2, None)
+        # Time has passed since leases were stored:
+        time_passed = 3
+        self.clock.advance(time_passed)
+
+        d = self.persistence_service.save(Deployment(leases=leases))
+
+        d.addCallback(lambda _: self.assertResultItems(
+            method=b"GET",
+            path=b"/configuration/leases",
+            request_body=None,
+            expected_code=OK,
+            expected_result=[
+                {u"dataset_id": unicode(dataset1),
+                 u"node_uuid": unicode(node1),
+                 u"expires": expires - time_passed},
+                {u"dataset_id": unicode(dataset2),
+                 u"node_uuid": unicode(node2),
+                 u"expires": None},
+            ]))
+        return d
+
+
+RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
+    LeasesTestsMixin, "Leases", _build_app)

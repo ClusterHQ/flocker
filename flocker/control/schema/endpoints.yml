@@ -200,3 +200,9 @@ definitions:
       - applications
       - deployment
     additionalProperties: false
+
+  list_leases:
+    decription: "An array of dataset leases in the cluster."
+    type: array
+    items:
+      '$ref': 'types.json#/definitions/lease'
