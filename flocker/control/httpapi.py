@@ -990,9 +990,8 @@ class ConfigurationAPIUserV1(object):
         dataset_id = UUID(dataset_id)
         node_uuid = UUID(node_uuid)
 
-        # Check if conflicting lease exists:
-        lease = self.persistence_service.get().leases.get(dataset_id)
-        if lease is None:
+        # Check if already exists or not:
+        if self.persistence_service.get().leases.get(dataset_id) is None:
             response_code = CREATED
         else:
             response_code = OK
