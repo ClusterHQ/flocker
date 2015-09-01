@@ -902,8 +902,10 @@ class ConfigurationAPIUserV1(object):
     @private_api
     @user_documentation(
         u"""
-        This will release a lease on a dataset, allowing it to be moved
-        elsewhere, deleted and otherwise modified.
+        This will release a lease on a dataset, allowing the dataset to be
+        moved elsewhere, deleted and otherwise modified. Releasing the
+        lease does not modify the dataset in any way, it simply allows
+        other operations to do so.
         """,
         header=u"Delete a lease from the configuration",
         examples=[
