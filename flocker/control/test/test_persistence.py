@@ -101,6 +101,25 @@ class LeasesTests(TestCase):
         d.addCallback(updated)
         return d
 
+    def test_update_leases_result(self):
+        """
+        ``update_leases`` returns a ``Deferred`` firing with the updated
+        ``Leases`` instance.
+        """
+        node_id = uuid4()
+        dataset_id = uuid4()
+        original_leases = Leases()
+
+        def update(leases):
+            return leases.acquire(
+                datetime.fromtimestamp(1000, UTC), dataset_id, node_id)
+        d = update_leases(update, self.persistence_service)
+
+        def updated(updated_leases):
+            self.assertEqual(updated_leases, update(original_leases))
+        d.addCallback(updated)
+        return d
+
     def test_expired_lease_removed(self):
         """
         A lease that has expired is removed from the persisted
