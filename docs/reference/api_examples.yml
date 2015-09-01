@@ -712,7 +712,7 @@
   id: "acquire a lease with expiration"
 
   doc: |
-    Acquire a lease that expires in 60 seconds.
+    Acquire a lease that expires in 30 seconds.
 
   request: |
     POST /v1/configuration/leases
@@ -753,4 +753,29 @@
 
     {
       "description": "Lease already held."
+    }
+
+-
+  id: "renew a lease"
+
+  doc: |
+    If a lease on a particular dataset is re-acquired with the same node you can
+    renew the lease and extend its expiration.
+
+  request: |
+    POST /v1/configuration/leases
+
+    {
+      "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "node_uuid": "%(NODE_1)s",
+      "expires": 60
+    }
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {
+      "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "node_uuid": "%(NODE_1)s",
+      "expires": 60
     }
