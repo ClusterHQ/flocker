@@ -632,6 +632,7 @@
       {
         "uuid": "%(NODE_0)s",
         "host": "10.0.0.3",
+      },
       {
         "uuid": "%(NODE_1)s",
         "host": "10.0.0.4",
@@ -656,3 +657,29 @@
         "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c"
         "expires": null
     }
+
+-
+  id: "list leases"
+
+  doc: |
+    List the leases on datasets in the cluster.
+    Notice how one lease expires in 30 seconds, and one will never expire.
+
+  response: |
+    HTTP/1.1 200 OK
+
+  request: |
+    GET /v1/configuration/leases
+
+    [
+      {
+        "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+        "node_uuid": "%(NODE_0)s",
+        "expires": null,
+      },
+      {
+        "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+        "node_uuid": "%(NODE_1)s",
+        "expires": 30,
+      },
+    ]

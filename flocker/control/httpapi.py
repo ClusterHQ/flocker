@@ -868,6 +868,17 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/leases", methods=['GET'])
     # This can stop being private as part of FLOC-2741:
     @private_api
+    @user_documentation(
+        u"""
+        List the currently existing leases on datasets, including which
+        node the lease is for and when if ever the lease will expire.
+        """,
+        header=u"List all leases on datasets",
+        examples=[
+            u"list leases",
+        ],
+        section=u"dataset",
+    )
     @structured(
         inputSchema={},
         outputSchema={

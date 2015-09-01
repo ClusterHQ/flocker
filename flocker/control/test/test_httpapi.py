@@ -35,7 +35,7 @@ from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
     RestartAlways, RestartNever, Link, same_node, DeploymentState,
-    NonManifestDatasets,
+    NonManifestDatasets, Leases,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -45,7 +45,6 @@ from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
 from .._config import (
     FlockerConfiguration, FigConfiguration, model_from_configuration)
-from .._model import Leases
 from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
 

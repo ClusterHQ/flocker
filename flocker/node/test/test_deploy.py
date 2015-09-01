@@ -5,6 +5,9 @@ Tests for ``flocker.node._deploy``.
 """
 
 from uuid import UUID, uuid4
+from datetime import datetime
+
+from pytz import UTC
 
 from eliot.testing import validate_logging
 
@@ -41,7 +44,7 @@ from .._deploy import (
 from ...testtools import CustomException
 from .. import _deploy
 from ...control._model import (
-    AttachedVolume, Dataset, Manifestation,
+    AttachedVolume, Dataset, Manifestation, Leases
 )
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -2101,6 +2104,108 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             RestartOnFailure(maximum_retry_count=2),
             True,
         )
+
+
+class P2PManifestationDeployerLeaseTests(SynchronousTestCase):
+    """
+    Tests for impact of leases on
+    ``P2PManifestationDeployer.calculate_changes``.
+    """
+    NODE_ID = uuid4()
+    NODE_ID2 = uuid4()
+    NODE_HOSTNAMES = {NODE_ID: u"10.1.1.1", NODE_ID2: u"10.1.2.3"}
+    NOW = datetime.now(tz=UTC)
+
+    def changes_when_leased(self, configured, actual,
+                            lease_node=NODE_ID,
+                            configured_node=NODE_ID,
+                            actual_node=NODE_ID):
+        """
+        Given a lease on a dataset and configuration and state, return
+        calculated changes.
+
+        :param Manifestation configured: The configured ``Manifestation``.
+        :param Manifestation actual: The ``Manifestation`` in the node's state.
+        :param UUID lease_node: Node for which we have lease.
+        :param UUID configured_node: Node for which we have configuration.
+        :param UUID actual_node: Node for which we have state.
+
+        :return: Result of ``P2PManifestationDeployer.calculate_changes``.
+        """
+        node = Node(
+            uuid=configured_node,
+            manifestations={configured.dataset_id: configured})
+        desired = Deployment(nodes=[node], leases=Leases().acquire(
+            self.NOW, UUID(configured.dataset_id), lease_node))
+        other_actual_node = (self.NODE_ID if actual_node is self.NODE_ID2
+                             else self.NODE_ID2)
+        current = DeploymentState(nodes=[
+            NodeState(
+                uuid=actual_node,
+                hostname=self.NODE_HOSTNAMES[actual_node],
+                used_ports=[], applications={}, devices={}, paths={},
+                manifestations={actual.dataset_id: actual}),
+            # We have state for other node too, so handoffs aren't
+            # prevented:
+            NodeState(
+                uuid=other_actual_node,
+                hostname=self.NODE_HOSTNAMES[other_actual_node],
+                used_ports=[], applications={}, devices={}, paths={},
+                manifestations={})])
+
+        api = P2PManifestationDeployer(
+            self.NODE_HOSTNAMES[actual_node], create_volume_service(self),
+            node_uuid=actual_node,
+        )
+        return api.calculate_changes(desired, current)
+
+    def test_no_deletion_if_leased(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        deletion does not happens if there is a lease on the dataset.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION.transform(("dataset", "deleted"), True),
+            MANIFESTATION)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_resize_if_leased(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        resize does not happens if there is a lease on the dataset.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION_WITH_SIZE, MANIFESTATION)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_handoff_if_leased_on_different_node(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset handoff
+        does not happens if there is a lease on the dataset and that lease
+        is on a different node than the destination.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION, MANIFESTATION,
+            # lease:       destination:  origin:
+            self.NODE_ID2, self.NODE_ID, self.NODE_ID2)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_handoff_if_leased_on_destination_node(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` results in dataset
+        handoff even if there is a lease on the dataset as long as that
+        lease is for the same node as the destination.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION, MANIFESTATION,
+            # lease:       destination:  origin:
+            self.NODE_ID, self.NODE_ID, self.NODE_ID2)
+        expected = sequentially(changes=[
+            in_parallel(changes=[HandoffDataset(
+                dataset=MANIFESTATION.dataset,
+                hostname=self.NODE_HOSTNAMES[self.NODE_ID])]),
+        ])
+        self.assertEqual(expected, changes)
 
 
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
