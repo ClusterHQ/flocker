@@ -986,7 +986,7 @@ class ConfigurationAPIUserV1(object):
         node_uuid = UUID(node_uuid)
 
         d = update_leases(
-            lambda leases: leases.acquire(now, dataset_id, node_uuid, None),
+            lambda leases: leases.acquire(now, dataset_id, node_uuid, expires),
             self.persistence_service)
         d.addCallback(
             lambda leases: EndpointResponse(
