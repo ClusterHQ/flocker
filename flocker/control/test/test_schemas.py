@@ -504,7 +504,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'node_uuid': a_uuid,
             'image': 'postgres',
             'name': 'postgres',
-            'volumes': [{'dataset_id': "x" * 36,
+            'volumes': [{'dataset_id': unicode(uuid4()),
                          'mountpoint': '/var/db'}],
         },
         {
@@ -596,7 +596,7 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = (
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
         # dataset_id is a string of 36 characters
-        {u"primary": a_uuid, u"dataset_id": u"x" * 36},
+        {u"primary": a_uuid, u"dataset_id": unicode(uuid4())},
 
         # deleted is a boolean
         {u"primary": a_uuid, u"deleted": False},
@@ -611,7 +611,7 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = (
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
          u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": u"x" * 36,
+         u"dataset_id": unicode(uuid4()),
          u"deleted": True},
     ]
 )
@@ -688,20 +688,20 @@ StateDatasetsArraySchemaTests = build_schema_test(
     passing_instances=[
         # missing primary and path
         [{u"maximum_size": 1024 * 1024 * 1024,
-          u"dataset_id": u"x" * 36}],
+          u"dataset_id": unicode(uuid4())}],
 
         # maximum_size is integer
         [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
+          u"dataset_id": unicode(uuid4()),
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
 
         # multiple entries:
         [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
+          u"dataset_id": unicode(uuid4()),
           u"path": u"/123"},
          {u"primary": a_uuid,
-          u"dataset_id": u"y" * 36,
+          u"dataset_id": unicode(uuid4()),
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
     ]
