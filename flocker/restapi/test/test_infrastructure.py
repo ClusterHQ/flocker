@@ -693,7 +693,8 @@ class TracingTests(SynchronousTestCase):
     def test_malformed_task(self, logger):
         """
         If the contents of the ``X-Eliot-Task-Id`` header are malformed,
-        processing continues as normal and logging just starts a new task.
+        processing continues as normal and logging of the request still
+        happens.
         """
         app = self.Application()
         app.logger = logger
