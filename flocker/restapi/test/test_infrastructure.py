@@ -672,8 +672,8 @@ class TracingTests(SynchronousTestCase):
     @capture_logging(None)
     def test_serialized_task(self, logger):
         """
-        If the ``X-Eliot`` header containers a serialized task level, it is
-        used as a parent of the logged actions from the handler.
+        If the ``X-Eliot-Task-Id`` header containers a serialized task level,
+        it is used as a parent of the logged actions from the handler.
         """
         parent = ActionType("parent", [], [])
         with parent() as context:
@@ -682,7 +682,7 @@ class TracingTests(SynchronousTestCase):
         app = self.Application()
         app.logger = logger
         request = dummyRequest(
-            b"GET", b"/foo/bar", Headers({b"X-Eliot": [task_id]}), b"")
+            b"GET", b"/foo/bar", Headers({b"X-Eliot-Task-Id": [task_id]}), b"")
         render(app.app.resource(), request)
 
         logged_parent = LoggedAction.ofType(logger.messages, parent)[0]
@@ -692,12 +692,13 @@ class TracingTests(SynchronousTestCase):
     @capture_logging(_assertRequestLogged(b"/foo/bar", b"GET"))
     def test_malformed_task(self, logger):
         """
-        If the contents of the ``X-Eliot`` header are malformed, processing
-        continues as normal and logging just starts a new task.
+        If the contents of the ``X-Eliot-Task-Id`` header are malformed,
+        processing continues as normal and logging just starts a new task.
         """
         app = self.Application()
         app.logger = logger
-        request = dummyRequest(b"GET", b"/foo/bar",
-                               Headers({b"X-Eliot": [b"garbage!"]}), b"")
+        request = dummyRequest(
+            b"GET", b"/foo/bar",
+            Headers({b"X-Eliot-Task-Id": [b"garbage!"]}), b"")
         render(app.app.resource(), request)
         self.assertTrue(app.called)

@@ -115,7 +115,8 @@ def _remote_logging(original):
     Decorate a method which implements an API endpoint to do Eliot-based log
     tracing; that is, the ability to continue a remote task.
 
-    The remote task's context will be extracted from a C{X-Eliot} HTTP header.
+    The remote task's context will be extracted from a C{X-Eliot-Task-Id}
+    HTTP header.
 
     :param original: Function to wrap.
 
@@ -124,7 +125,7 @@ def _remote_logging(original):
     @wraps(original)
     def logger(self, request, **routeArguments):
         serialized_remote_task = request.requestHeaders.getRawHeaders(
-            "X-Eliot", [None])[0]
+            "X-Eliot-Task-Id", [None])[0]
         if serialized_remote_task is None:
             return original(self, request, **routeArguments)
 
