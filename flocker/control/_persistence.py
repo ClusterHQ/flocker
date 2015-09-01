@@ -6,18 +6,17 @@ Persistence of cluster configuration.
 
 from json import dumps, loads, JSONEncoder
 from uuid import UUID
-
+from calendar import timegm
 from datetime import datetime
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
-from pyrsistent import PRecord, PVector, PMap, PSet, pmap
+from pyrsistent import PRecord, PVector, PMap, PSet, pmap, PClass
 
 from pytz import UTC
 
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service, MultiService
-from twisted.internet import reactor as default_reactor
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
 
@@ -32,7 +31,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 2
+_CONFIG_VERSION = 3
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -128,6 +127,21 @@ class ConfigurationMigration(object):
         }
         return dumps(v2_config)
 
+    @classmethod
+    def upgrade_from_v2(cls, config):
+        """
+        Migrate a v2 JSON configuration to v3.
+
+        :param bytes config: The v3 JSON data.
+        :return bytes: The v3 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 3
+        decoded_config[u"deployment"][u"leases"] = {
+            u"values": [], _CLASS_MARKER: u"PMap",
+        }
+        return dumps(decoded_config)
+
 
 class _ConfigurationEncoder(JSONEncoder):
     """
@@ -137,6 +151,10 @@ class _ConfigurationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, PRecord):
             result = dict(obj)
+            result[_CLASS_MARKER] = obj.__class__.__name__
+            return result
+        elif isinstance(obj, PClass):
+            result = obj.evolver().data
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
@@ -149,6 +167,12 @@ class _ConfigurationEncoder(JSONEncoder):
         elif isinstance(obj, UUID):
             return {_CLASS_MARKER: u"UUID",
                     "hex": unicode(obj)}
+        elif isinstance(obj, datetime):
+            if obj.tzinfo is None:
+                raise ValueError(
+                    "Datetime without a timezone: {}".format(obj))
+            return {_CLASS_MARKER: u"datetime",
+                    "seconds": timegm(obj.utctimetuple())}
         return JSONEncoder.default(self, obj)
 
 
@@ -176,6 +200,8 @@ def wire_decode(data):
             return pmap(dictionary[u"values"])
         elif class_name == u"UUID":
             return UUID(dictionary[u"hex"])
+        elif class_name == u"datetime":
+            return datetime.fromtimestamp(dictionary[u"seconds"], UTC)
         elif class_name in _CONFIG_CLASS_MAP:
             dictionary = dictionary.copy()
             dictionary.pop(_CLASS_MARKER)
@@ -199,6 +225,10 @@ _UPGRADE_TARGET_FIELD = Field.for_types(
 _LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
                           [_DEPLOYMENT_FIELD, _UPGRADE_SOURCE_FIELD,
                            _UPGRADE_TARGET_FIELD, ], [])
+_LOG_EXPIRE = MessageType(
+    u"flocker-control:persistence:lease-expired",
+    [Field(u"dataset_id", unicode), Field(u"node_id", unicode)],
+    "A lease for a dataset has expired.")
 
 
 class LeaseService(Service):
@@ -206,15 +236,13 @@ class LeaseService(Service):
     Manage leases.
     In particular, clear out expired leases once a second.
 
-    :ivar _reactor: A ``twisted.internet.reactor`` implementation.
+    :ivar _reactor: A ``IReactorTime`` provider.
     :ivar _persistence_service: The persistence service to act with.
     :ivar _lc: A ``twisted.internet.task.LoopingCall`` run every second
         to update the configured leases by releasing leases that have
         expired.
     """
     def __init__(self, reactor, persistence_service):
-        if reactor is None:
-            reactor = default_reactor
         self._reactor = reactor
         self._persistence_service = persistence_service
 
@@ -227,9 +255,15 @@ class LeaseService(Service):
         self._lc.stop()
 
     def _expire(self):
-        now = datetime.now(tz=UTC)
-        return update_leases(lambda leases: leases.expire(now),
-                             self._persistence_service)
+        now = datetime.fromtimestamp(self._reactor.seconds(), tz=UTC)
+
+        def expire(leases):
+            updated_leases = leases.expire(now)
+            for dataset_id in set(leases) - set(updated_leases):
+                _LOG_EXPIRE(dataset_id=dataset_id,
+                            node_id=leases[dataset_id].node_id).write()
+            return updated_leases
+        return update_leases(expire, self._persistence_service)
 
 
 def update_leases(transform, persistence_service):
@@ -243,10 +277,9 @@ def update_leases(transform, persistence_service):
 
     :return Deferred: Fires when the persistence service has saved.
     """
-    # XXX we cannot manipulate leases in this branch since the configuration
-    # doesn't know anything about them yet. See FLOC-2735.
-    # So instead we do nothing for now.
-    return succeed(None)
+    config = persistence_service.get()
+    new_config = config.set("leases", transform(config.leases))
+    return persistence_service.save(new_config)
 
 
 class ConfigurationPersistenceService(MultiService):

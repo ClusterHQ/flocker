@@ -27,7 +27,7 @@ from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
-from ..control._model import ip_to_uuid
+from ..control._model import ip_to_uuid, Leases
 from ._docker import DockerClient
 
 
@@ -264,7 +264,8 @@ def to_node(node_state):
 
 def assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
-        additional_node_states, additional_node_config, expected_changes
+        additional_node_states, additional_node_config, expected_changes,
+        leases=Leases(),
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -283,6 +284,7 @@ def assert_calculated_changes_for_deployer(
     :param set additional_node_states: A set of ``NodeState`` for other nodes.
     :param set additional_node_config: A set of ``Node`` for other nodes.
     :param expected_changes: The ``IStateChange`` expected to be returned.
+    :param Leases leases: Currently configured leases. By default none exist.
     """
     cluster_state = DeploymentState(
         nodes={node_state} | additional_node_states,
@@ -293,6 +295,7 @@ def assert_calculated_changes_for_deployer(
     )
     cluster_configuration = Deployment(
         nodes={node_config} | additional_node_config,
+        leases=leases,
     )
     changes = deployer.calculate_changes(
         cluster_configuration, cluster_state,
