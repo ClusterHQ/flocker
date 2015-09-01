@@ -269,7 +269,7 @@ class CinderDevicePathTests(SynchronousTestCase):
 
         url = "qemu://10.0.0.1/system?no_verify=1"
         host_device = "/dev/sdc1"
-        self._attach_disk(url, instance_id, host_device, "vdb")
+        self._attach_disk(url, instance_id, host_device, "vdc")
         self.addCleanup(self._detach_disk, url, instance_id, host_device)
 
         cinder_volume = self.cinder.volumes.create(
