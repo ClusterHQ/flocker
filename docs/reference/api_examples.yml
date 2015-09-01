@@ -653,8 +653,8 @@
     HTTP/1.1 200 OK
 
     {
-        "node_uuid": "%(NODE_0)s"
-        "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c"
+        "node_uuid": "%(NODE_0)s",
+        "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
         "expires": null
     }
 
