@@ -640,17 +640,36 @@
     ]
 
 -
+  id:
+    "remove a lease"
+
+  doc: |
+    Release a lease on a dataset.
+
+  request: |
+    DELETE /v1/configuration/leases/886ed03a-5606-453a-94a9-a1cbaf35164c
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {
+        "node_uuid": "%(NODE_0)s",
+        "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+        "expires": null
+    }
+
+-
   id: "list leases"
 
   doc: |
     List the leases on datasets in the cluster.
     Notice how one lease expires in 30 seconds, and one will never expire.
 
-  request: |
-    GET /v1/configuration/leases
-
   response: |
     HTTP/1.1 200 OK
+
+  request: |
+    GET /v1/configuration/leases
 
     [
       {

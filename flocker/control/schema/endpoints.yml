@@ -206,3 +206,6 @@ definitions:
     type: array
     items:
       '$ref': 'types.json#/definitions/lease'
+
+  lease:
+      '$ref': 'types.json#/definitions/lease'

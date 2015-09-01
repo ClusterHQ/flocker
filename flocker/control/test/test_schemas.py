@@ -833,3 +833,16 @@ ListLeasesTests = build_schema_test(
         [LEASE_WITH_EXPIRATION, LEASE_WITH_NEGATIVE_EXPIRATION],
     ],
 )
+
+# Endpoints that return a single lease: delete, create
+LeaseResultTests = build_schema_test(
+    name="LeaseResultTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+    schema_store=SCHEMAS,
+    failing_instances=BAD_LEASES,
+    passing_instances=[
+        LEASE_NO_EXPIRES,
+        LEASE_WITH_EXPIRATION,
+        LEASE_WITH_NEGATIVE_EXPIRATION,
+    ],
+)

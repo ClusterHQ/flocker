@@ -41,6 +41,7 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
+from ._persistence import update_leases
 
 from .. import __version__
 
@@ -85,7 +86,8 @@ DATASET_ON_DIFFERENT_NODE = make_bad_request(
 DATASET_IN_USE = make_bad_request(
     code=CONFLICT,
     description=u"The dataset is being used by another container.")
-
+LEASE_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Lease not found.")
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
@@ -892,14 +894,57 @@ class ConfigurationAPIUserV1(object):
         now = datetime.fromtimestamp(self.clock.seconds(), UTC)
         result = []
         for lease in self.persistence_service.get().leases.values():
-            if lease.expiration is None:
-                expires = None
-            else:
-                expires = (lease.expiration - now).total_seconds()
-            result.append({u"dataset_id": unicode(lease.dataset_id),
-                           u"node_uuid": unicode(lease.node_id),
-                           u"expires": expires})
+            result.append(lease_response(lease, now))
         return result
+
+    @app.route("/configuration/leases/<dataset_id>", methods=['DELETE'])
+    # This can stop being private as part of FLOC-2741:
+    @private_api
+    @user_documentation(
+        u"""
+        This will release a lease on a dataset, allowing the dataset to be
+        moved elsewhere, deleted and otherwise modified. Releasing the
+        lease does not modify the dataset in any way, it simply allows
+        other operations to do so.
+        """,
+        header=u"Delete a lease from the configuration",
+        examples=[
+            u"delete a lease",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        schema_store=SCHEMAS
+    )
+    def delete_lease(self, dataset_id):
+        """
+        Remove a lease from the cluster configuration.
+
+        :param unicode dataset_id: The dataset whose lease is being
+            removed.
+
+        :return: A ``Deferred`` firing with an ``EndpointResponse`` or
+            serializable JSON.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        leases = self.persistence_service.get().leases
+        dataset_id = UUID(dataset_id)
+
+        lease = leases.get(dataset_id, None)
+        if lease is not None:
+            d = update_leases(
+                # We could choose to design a REST endpoint that requires
+                # taking the node UUID, but it's not clear what particular
+                # safety that adds... so just accept all releases.
+                lambda leases: leases.release(dataset_id, lease.node_id),
+                self.persistence_service)
+            d.addCallback(lambda _: lease_response(lease, now))
+            return d
+        else:
+            # Didn't find the lease:
+            raise LEASE_NOT_FOUND
 
 
 def _find_manifestation_and_node(deployment, dataset_id):
@@ -1127,3 +1172,21 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
             Site(api_root)
         )
     )
+
+
+def lease_response(lease, now):
+    """
+    Convert a ``Lease`` to the corresponding objects for JSON
+    serialization.
+
+    :param Lease lease: The lease to serialize.
+    :param datetime now: The current time.
+    :return: ``dict`` form that matches the lease schema.
+    """
+    if lease.expiration is None:
+        expires = None
+    else:
+        expires = (lease.expiration - now).total_seconds()
+    return {u"dataset_id": unicode(lease.dataset_id),
+            u"node_uuid": unicode(lease.node_id),
+            u"expires": expires}
