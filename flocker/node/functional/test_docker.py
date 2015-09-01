@@ -424,7 +424,9 @@ class GenericDockerClientTests(TestCase):
         name = random_name(self)
         d = self.start_container(
             name, ports=[PortMap(internal_port=8080,
-                                 external_port=external_port)])
+                                 external_port=external_port)],
+            retry_on_port_collision=True,
+        )
 
         d.addCallback(
             lambda ignored: self.request_until_response(external_port))
