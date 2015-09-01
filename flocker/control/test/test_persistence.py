@@ -6,14 +6,19 @@ Tests for ``flocker.control._persistence``.
 import json
 import string
 
+from datetime import datetime, timedelta
 from uuid import uuid4, UUID
 
-from eliot.testing import validate_logging, assertHasMessage, assertHasAction
+from pytz import UTC
+
+from eliot.testing import (
+    validate_logging, assertHasMessage, assertHasAction, capture_logging)
 
 from hypothesis import given
 from hypothesis import strategies as st
 
 from twisted.internet import reactor
+from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
@@ -21,14 +26,14 @@ from pyrsistent import PRecord, pset
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
-    _LOG_SAVE, _LOG_STARTUP, LeaseService, migrate_configuration,
+    _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
-    _LOG_UPGRADE, MissingMigrationError,
+    _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
     AttachedVolume, SERIALIZABLE_CLASSES, NodeState, Configuration,
-    Port, Link,
+    Port, Link, Leases, Lease,
     )
 
 # The UUID values for the Dataset and Node in TEST_DEPLOYMENT match
@@ -39,9 +44,11 @@ from .._model import (
 # commit checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
+NODE_UUID = UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c')
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
 TEST_DEPLOYMENT = Deployment(
-    nodes=[Node(uuid=UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c'),
+    leases=Leases(),
+    nodes=[Node(uuid=NODE_UUID,
                 applications=[
                     Application(
                         name=u'myapp',
@@ -57,53 +64,98 @@ V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
     'configurations').child(b"configuration_v1.json").getContent()
 
 
-class FakePersistenceService(object):
+class LeasesTests(TestCase):
     """
-    A very simple fake persistence service that does nothing.
+    Tests for ``LeaseService`` and ``update_leases``.
     """
-    def __init__(self):
-        self._deployment = Deployment(nodes=frozenset())
+    def setUp(self):
+        self.clock = Clock()
+        self.persistence_service = ConfigurationPersistenceService(
+            self.clock, FilePath(self.mktemp()))
+        self.persistence_service.startService()
+        self.addCleanup(self.persistence_service.stopService)
 
-    def save(self, deployment):
-        self._deployment = deployment
-
-    def get(self):
-        return self._deployment
-
-
-class LeaseServiceTests(TestCase):
-    """
-    Tests for ``LeaseService``.
-    """
-    def service(self):
+    def test_update_leases_saves_changed_leases(self):
         """
-        Start a lease service and schedule it to stop.
-
-        :return: Started ``LeaseService``.
+        ``update_leases`` only changes the leases stored in the configuration.
         """
-        service = LeaseService(reactor, FakePersistenceService())
-        service.startService()
-        self.addCleanup(service.stopService)
-        return service
+        node_id = uuid4()
+        dataset_id = uuid4()
+
+        original_leases = Leases().acquire(
+            datetime.fromtimestamp(0, UTC), uuid4(), node_id)
+
+        def update(leases):
+            return leases.acquire(
+                datetime.fromtimestamp(1000, UTC), dataset_id, node_id)
+
+        d = self.persistence_service.save(
+            TEST_DEPLOYMENT.set(leases=original_leases))
+        d.addCallback(
+            lambda _: update_leases(update, self.persistence_service))
+
+        def updated(_):
+            self.assertEqual(
+                self.persistence_service.get(),
+                TEST_DEPLOYMENT.set(leases=update(original_leases)))
+        d.addCallback(updated)
+        return d
 
     def test_expired_lease_removed(self):
         """
         A lease that has expired is removed from the persisted
         configuration.
-
-        XXX Leases cannot be manipulated in this branch. See FLOC-2375.
-        This is a skeletal test that merely ensures the call to
-        ``update_leases`` takes place when ``_expire`` is called and should
-        be rewritten to test the updated configuration once the configuration
-        is aware of Leases.
         """
-        service = self.service()
-        d = service._expire()
+        timestep = 100
+        node_id = uuid4()
+        ids = uuid4(), uuid4()
+        # First dataset lease expires at timestep:
+        now = self.clock.seconds()
+        leases = Leases().acquire(
+            datetime.fromtimestamp(now, UTC), ids[0], node_id, timestep)
+        # Second dataset lease expires at timestep * 2:
+        leases = leases.acquire(
+            datetime.fromtimestamp(now, UTC), ids[1], node_id, timestep * 2)
+        new_config = Deployment(leases=leases)
+        d = self.persistence_service.save(new_config)
 
-        def check_expired(updated):
-            self.assertIsNone(updated)
+        def saved(_):
+            self.clock.advance(timestep - 1)  # 99
+            before_first_expire = self.persistence_service.get().leases
+            self.clock.advance(2)  # 101
+            after_first_expire = self.persistence_service.get().leases
+            self.clock.advance(timestep - 2)  # 199
+            before_second_expire = self.persistence_service.get().leases
+            self.clock.advance(2)  # 201
+            after_second_expire = self.persistence_service.get().leases
 
-        d.addCallback(check_expired)
+            self.assertTupleEqual(
+                (before_first_expire, after_first_expire,
+                 before_second_expire, after_second_expire),
+                (leases, leases.remove(ids[0]), leases.remove(ids[0]),
+                 leases.remove(ids[0]).remove(ids[1])))
+        d.addCallback(saved)
+        return d
+
+    @capture_logging(None)
+    def test_expire_lease_logging(self, logger):
+        """
+        An expired lease is logged.
+        """
+        node_id = uuid4()
+        dataset_id = uuid4()
+        leases = Leases().acquire(
+            datetime.fromtimestamp(self.clock.seconds(), UTC),
+            dataset_id, node_id, 1)
+
+        d = self.persistence_service.save(Deployment(leases=leases))
+
+        def saved(_):
+            logger.reset()
+            self.clock.advance(1000)
+            assertHasMessage(self, logger, _LOG_EXPIRE, {
+                u"dataset_id": dataset_id, u"node_id": node_id})
+        d.addCallback(saved)
         return d
 
 
@@ -229,6 +281,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         A configuration that was saved can subsequently retrieved.
         """
         service = self.service(FilePath(self.mktemp()), logger)
+        logger.reset()
         d = service.save(TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.get())
         d.addCallback(self.assertEqual, TEST_DEPLOYMENT)
@@ -363,6 +416,18 @@ UUIDS = st.sampled_from([uuid4() for i in range(1000)])
 
 DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
 
+DATETIMES = st.integers(max_value=10000000).map(
+    lambda t: datetime.fromtimestamp(t, tz=UTC)
+)
+
+LEASES = st.builds(
+    Lease, dataset_id=UUIDS, node_id=UUIDS,
+    expiration=st.one_of(
+        st.none(),
+        DATETIMES
+    )
+)
+
 # Constrain primary to be True so that we don't get invariant errors from Node
 # due to having two differing manifestations of the same dataset id.
 MANIFESTATIONS = st.builds(
@@ -441,8 +506,11 @@ DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
     # to build examples, causing intermittent timeouts. Making it roughly 3
     # should give us adequate test coverage.
-    Deployment, nodes=st.sets(NODES, average_size=3)
+    Deployment, nodes=st.sets(NODES, average_size=3),
+    leases=st.sets(LEASES, average_size=3).map(
+        lambda ls: dict((l.dataset_id, l) for l in ls)),
 )
+
 
 SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
@@ -496,6 +564,22 @@ class WireEncodeDecodeTests(SynchronousTestCase):
                                manifestations={}, paths={},
                                devices={uuid4(): FilePath(b"/tmp")})
         self.assertEqual(node_state, wire_decode(wire_encode(node_state)))
+
+    def test_datetime(self):
+        """
+        A datetime with a timezone can be roundtripped (with potential loss of
+        less-than-second resolution).
+        """
+        dt = datetime.now(tz=UTC)
+        self.assertTrue(
+            abs(wire_decode(wire_encode(dt)) - dt) < timedelta(seconds=1))
+
+    def test_naive_datetime(self):
+        """
+        A naive datetime will fail. Don't use those, always use an explicit
+        timezone.
+        """
+        self.assertRaises(ValueError, wire_encode, datetime.now())
 
 
 class ConfigurationMigrationTests(SynchronousTestCase):
