@@ -275,11 +275,14 @@ def update_leases(transform, persistence_service):
     :param persistence_service: The persistence service to which the
         updated configuration will be saved.
 
-    :return Deferred: Fires when the persistence service has saved.
+    :return Deferred: Fires with the new ``Leases`` instance when the
+        persistence service has saved.
     """
     config = persistence_service.get()
     new_config = config.set("leases", transform(config.leases))
-    return persistence_service.save(new_config)
+    d = persistence_service.save(new_config)
+    d.addCallback(lambda _: new_config.leases)
+    return d
 
 
 class ConfigurationPersistenceService(MultiService):
