@@ -894,7 +894,7 @@ class ConfigurationAPIUserV1(object):
         now = datetime.fromtimestamp(self.clock.seconds(), UTC)
         result = []
         for lease in self.persistence_service.get().leases.values():
-            result.append(lease_to_json(lease, now))
+            result.append(lease_response(lease, now))
         return result
 
     @app.route("/configuration/leases/<dataset_id>", methods=['DELETE'])
@@ -938,7 +938,7 @@ class ConfigurationAPIUserV1(object):
                 # safety that adds... so just accept all releases.
                 lambda leases: leases.release(dataset_id, lease.node_id),
                 self.persistence_service)
-            d.addCallback(lambda _: lease_to_json(lease, now))
+            d.addCallback(lambda _: lease_response(lease, now))
             return d
         else:
             # Didn't find the lease:
@@ -1172,7 +1172,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
     )
 
 
-def lease_to_json(lease, now):
+def lease_response(lease, now):
     """
     Convert a ``Lease`` to the corresponding objects for JSON
     serialization.
