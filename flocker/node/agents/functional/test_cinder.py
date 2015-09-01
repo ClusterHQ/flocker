@@ -61,10 +61,9 @@ def cinderblockdeviceapi_for_test(test_case):
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
 
-# XXX Refactor this function to one instance
 def openstack_clients():
     """
-    Get a Nova client for use in tests.
+    Get OpenStack clients for use in tests.
     """
     try:
         cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
@@ -175,13 +174,27 @@ class CinderHttpsTests(SynchronousTestCase):
         self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
 
 
-class VirtIOClient():
+class VirtIOClient:
+    """
+    Provide access to libvirt on the host machine from guest machines
+
+    This class allows the guest to attach and detach disks from the
+    host.
+    """
     def __init__(self, instance_id, url):
         self.instance_id = instance_id
         self.url = url
 
     @classmethod
     def from_instance_id(cls, instance_id):
+        """
+        Create a connection to the host using the default gateway.
+
+        The credentials for this connection only allow unverified
+        connections to the TLS endpoint of libvirtd.
+
+        :param instance_id: The UUID of the guest instance.
+        """
         url = "qemu://{}/system?no_verify=1".format(
             cls._get_default_gateway()
         )
@@ -190,6 +203,13 @@ class VirtIOClient():
 
     @staticmethod
     def create_credentials():
+        """
+        Create PKI credentials for TLS access to libvirtd.
+
+        Credentials are not signed by the host CA. This only allows
+        unverified access but removes the need to transfer files
+        between the host and the guest.
+        """
         path = FilePath(tempfile.mkdtemp())
         try:
             ca = RootCredential.initialize(path, b"mycluster")
@@ -219,11 +239,23 @@ class VirtIOClient():
         return gws['default'][netifaces.AF_INET][0]
 
     def attach_disk(self, host_device, guest_device):
+        """
+        Attach a host disk to a device path on the guest.
+
+        :param host_device: The device path on the host.
+        :param guest_device: The basename of the device path on the
+            guest.
+        """
         subprocess.check_call(["virsh", "-c", self.url, "attach-disk",
                                self.instance_id,
                                host_device, guest_device])
 
     def detach_disk(self, host_device):
+        """
+        Detach a host disk from the guest.
+
+        :param host_device: The device path on the host.
+        """
         subprocess.check_call(["virsh", "-c", self.url, "detach-disk",
                                self.instance_id,
                                host_device])
