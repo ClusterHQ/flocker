@@ -961,6 +961,7 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"acquire a lease without expiration",
             u"acquire a lease with expiration",
+            u"acquire a lease that is already held",
         ],
         section=u"dataset",
     )
