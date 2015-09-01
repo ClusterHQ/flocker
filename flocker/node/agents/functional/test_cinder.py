@@ -168,9 +168,9 @@ class CinderHttpsTests(SynchronousTestCase):
         self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
 
 
-class CinderDevicePathTests(SynchronousTestCase):
+class CinderAttachmentTests(SynchronousTestCase):
     """
-    get_device_path returns the correct device.
+    Test attachment of Cinder volumes and correctness of the returned device path.
     """
     def setUp(self):
         clients = openstack_clients()
@@ -232,10 +232,7 @@ class CinderDevicePathTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes,
-            expected_volume=cinder_volume,
-        )
+        volume = wait_for_volume(volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
 
         devices_before = set(FilePath('/dev').children())
 
@@ -276,10 +273,7 @@ class CinderDevicePathTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes,
-            expected_volume=cinder_volume,
-        )
+        volume = wait_for_volume(volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
 
         devices_before = set(FilePath('/dev').children())
 
@@ -302,3 +296,35 @@ class CinderDevicePathTests(SynchronousTestCase):
 
         self.assertEqual(device_path, new_device)
 
+    def test_disk_attachment_fails_with_conflicting_disk(self):
+        """
+        create_server_volume will raise an exception when Cinder attempts to
+        attach a device to a path that is in use by a non-Cinder volume.
+        """
+        instance_id = _compute_instance_id(
+            servers=self.nova.servers.list()
+        )
+
+        url = "qemu://10.0.0.1/system?no_verify=1"
+        host_device = "/dev/sdc1"
+        self._attach_disk(url, instance_id, host_device, "vdb")
+        self.addCleanup(self._detach_disk, url, instance_id, host_device)
+
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
+        volume = wait_for_volume(volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+
+        attached_volume = self.nova.volumes.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+
+        with self.assertRaises(Exception):
+            wait_for_volume(
+                volume_manager=self.cinder.volumes,
+                expected_volume=attached_volume,
+                expected_status=u'in-use',
+            )
