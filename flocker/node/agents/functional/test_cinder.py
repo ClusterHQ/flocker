@@ -13,14 +13,16 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-from uuid import uuid4
 import subprocess
+from unittest import skipIf
+from uuid import uuid4
 
 from bitmath import Byte
 
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from flocker.ca import (
@@ -39,6 +41,8 @@ from ..test.blockdevicefactory import (
 )
 
 from ..cinder import wait_for_volume, _compute_instance_id
+
+require_virsh = skipIf(not which('virsh'), "Tests require the ``virsh`` command.")
 
 
 def cinderblockdeviceapi_for_test(test_case):
@@ -255,6 +259,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path, new_device)
 
+    @require_virsh
     def test_get_device_path_correct_with_attached_disk(self):
         """
         get_device_path returns the correct device name even when a non-Cinder
@@ -296,6 +301,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path, new_device)
 
+    @require_virsh
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
