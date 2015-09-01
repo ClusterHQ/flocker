@@ -12,6 +12,15 @@ from ..httpapi import SCHEMAS
 
 a_uuid = unicode(uuid4())
 
+# The following two UUIDs are invalid, but are of the correct
+# length and loose format for a UUID. They will be caught out
+# by the regex in the schema types definition.
+# This UUID has a 3 at the start of the 3rd block, which is
+# not valid for UUIDv4 format.
+bad_uuid_1 = u'75a15c23-8dd6-3f29-8164-6d60928bf3cc'
+# This UUID has a 'P' in the 2nd block, which is not valid
+# for UUIDv4 format.
+bad_uuid_2 = u'75a15c23-8dP6-4f29-8164-6d60928bf3cc'
 
 VersionsTests = build_schema_test(
     name="VersionsTests",
@@ -64,9 +73,21 @@ ConfigurationContainersSchemaTests = build_schema_test(
     failing_instances=[
         # node_uuid wrong type
         {'node_uuid': 1, 'image': 'clusterhq/redis', 'name': 'my_container'},
-        # node_uuid not a UUID
+        # node_uuid not UUID format
         {
             'node_uuid': 'idonotexist',
+            'image': 'clusterhq/redis',
+            'name': 'my_container'
+        },
+        # node_uuid not a valid v4 UUID
+        {
+            'node_uuid': bad_uuid_1,
+            'image': 'clusterhq/redis',
+            'name': 'my_container'
+        },
+        # node_uuid not a valid hex UUID
+        {
+            'node_uuid': bad_uuid_2,
             'image': 'clusterhq/redis',
             'name': 'my_container'
         },
