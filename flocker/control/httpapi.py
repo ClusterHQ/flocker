@@ -88,6 +88,8 @@ DATASET_IN_USE = make_bad_request(
     description=u"The dataset is being used by another container.")
 LEASE_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Lease not found.")
+LEASE_HELD = make_bad_request(
+    code=CONFLICT, description=u"Lease already held.")
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
@@ -984,6 +986,13 @@ class ConfigurationAPIUserV1(object):
         now = datetime.fromtimestamp(self.clock.seconds(), UTC)
         dataset_id = UUID(dataset_id)
         node_uuid = UUID(node_uuid)
+
+        # Check if conflicting lease exists:
+        lease = self.persistence_service.get().leases.get(dataset_id)
+        if lease is not None and lease.node_id != node_uuid:
+            raise LEASE_HELD
+        else:
+            pass  # XXX FLOC-2738 will do this code path
 
         d = update_leases(
             lambda leases: leases.acquire(now, dataset_id, node_uuid, expires),

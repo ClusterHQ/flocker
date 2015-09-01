@@ -3448,29 +3448,28 @@ class LeasesTestsMixin(APITestsMixin):
         d.addCallback(not_deleted)
         return d
 
-    def acquire_leases(self, expires):
+    def acquire_lease(self, expires):
         """
         Acquire a lease for ``dataset3`` and ``node3`` with given expiration.
 
         :param expires: ``None`` or seconds to expire.
+        :param node: The UUID of the node to acquire on.
         :return: ``Deferred`` that fires once lease is acquired.
         """
         lease_json = {u"dataset_id": unicode(self.dataset3),
                       u"node_uuid": unicode(self.node3),
                       u"expires": expires}
 
-        d = self.save_leases()
-        d.addCallback(lambda _: self.assertResult(
+        return self.assertResult(
             b"POST", b"/configuration/leases",
             request_body=lease_json, expected_code=CREATED,
-            expected_result=lease_json))
-        return d
+            expected_result=lease_json)
 
     def test_acquire_no_expiration(self):
         """
         POST ``/configuration/leases`` can acquire a lease without expiration.
         """
-        d = self.acquire_leases(None)
+        d = self.acquire_lease(None)
 
         def acquired(_):
             self.assertEqual(
@@ -3485,10 +3484,11 @@ class LeasesTestsMixin(APITestsMixin):
         POST ``/configuration/leases`` can acquire a lease that expires
         appropriately.
         """
+        self.clock.advance(self.now)
         expires = 60
         expected_expiration = datetime.fromtimestamp(
-            self.now + self.time_passed + expires, UTC)
-        d = self.acquire_leases(expires)
+            self.clock.seconds() + expires, UTC)
+        d = self.acquire_lease(expires)
 
         def acquired(_):
             self.assertEqual(
@@ -3503,6 +3503,24 @@ class LeasesTestsMixin(APITestsMixin):
         Acquiring a lease on node A if a lease already exits for that dataset
         on node B will fail.
         """
+        d = self.acquire_lease(None)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/leases",
+            request_body={
+                u"dataset_id": unicode(self.dataset3),
+                # We already have lease on node 3:
+                u"node_uuid": unicode(self.node2),
+                u"expires": None,
+            }, expected_code=CONFLICT,
+            expected_result={u"description": u"Lease already held."}))
+
+        def no_update(_):
+            # Node was not modified:
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3].node_id,
+                self.node3)
+        d.addCallback(no_update)
+        return d
 
 
 RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
