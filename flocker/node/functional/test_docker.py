@@ -10,7 +10,6 @@ import time
 import socket
 from functools import partial
 
-from requests import Response
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 from docker import Client
@@ -36,13 +35,14 @@ from ...testtools import (
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume, AddressInUse,
+    BASE_NAMESPACE, Volume, AddressInUse, make_response,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
 )
 from ..testtools import (
-    if_docker_configured, wait_for_unit_state, require_docker_version
+    if_docker_configured, wait_for_unit_state, require_docker_version,
+    add_with_port_collision_retry,
 )
 
 
@@ -97,12 +97,6 @@ class Registry(PClass):
         return "{host}:{port}".format(host=self.host, port=self.port)
 
 
-UPGRADING_DOCKER = (
-    "FLOC-2902: Some of these tests will fail while we are upgrading "
-    "docker. Skipping because some errors are AlreadyCalledErrors which "
-    "are treated as test errors even when marked as 'todo'.")
-
-
 class GenericDockerClientTests(TestCase):
     """
     Functional tests for ``DockerClient`` and other clients that talk to
@@ -135,7 +129,8 @@ class GenericDockerClientTests(TestCase):
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
                         restart_policy=RestartNever(),
-                        command_line=None):
+                        command_line=None,
+                        retry_on_port_collision=False):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -155,7 +150,13 @@ class GenericDockerClientTests(TestCase):
             the unit reaches the expected state.
         """
         client = self.make_client()
-        d = client.add(
+
+        if retry_on_port_collision:
+            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+        else:
+            add = client.add
+
+        d = add(
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
@@ -499,7 +500,6 @@ class GenericDockerClientTests(TestCase):
         d = client.add(name, image)
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
-    test_pull_image_if_necessary.skip = UPGRADING_DOCKER
 
     def push_to_registry(self, image_name, registry):
         """
@@ -537,10 +537,6 @@ class GenericDockerClientTests(TestCase):
             # Remove the tag created above to make it possible to do the push.
             client.remove_image(image=registry_image.full_name)
 
-        # Remove the original tag of the image as well.  Now only the registry
-        # tag refers to the desired image.
-        client.remove_image(image=image_name)
-
         return registry_image
 
     def run_registry(self):
@@ -552,25 +548,43 @@ class GenericDockerClientTests(TestCase):
 
         :return: A ``Registry`` describing the registry which was started.
         """
-        registry = Registry(
-            name=random_name(self),
-            port=find_free_port()[1],
-        )
+        registry_name = random_name(self)
         registry_starting = self.start_container(
-            unit_name=registry.name,
+            unit_name=registry_name,
             image_name='registry:2',
             ports=[
                 PortMap(
                     internal_port=5000,
-                    external_port=registry.port
+                    # Doesn't matter what port we expose this on.  We'll
+                    # discover what was assigned later.
+                    external_port=0,
                 ),
-            ]
+            ],
+            retry_on_port_collision=True,
         )
-        registry_listening = registry_starting.addCallback(
-            lambda ignored: self.request_until_response(registry.port)
-        )
-        registry_listening.addCallback(lambda ignored: registry)
-        return registry_listening
+
+        def extract_listening_port(client):
+            listing = client.list()
+            listing.addCallback(
+                lambda applications: list(
+                    next(iter(application.ports)).external_port
+                    for application
+                    in applications
+                )[0]
+            )
+            return listing
+        registry_starting.addCallback(extract_listening_port)
+
+        def wait_for_listening(external_port):
+            registry = Registry(
+                name=registry_name, port=external_port,
+            )
+            registry_listening = self.request_until_response(registry.port)
+            registry_listening.addCallback(lambda ignored: registry)
+            return registry_listening
+        registry_starting.addCallback(wait_for_listening)
+
+        return registry_starting
 
     def _pull_timeout(self):
         """
@@ -663,44 +677,35 @@ class GenericDockerClientTests(TestCase):
         Pulling an image times-out if it takes longer than a provided timeout.
         """
         return self._pull_timeout()
-    test_pull_timeout.skip = UPGRADING_DOCKER
 
     def test_pull_timeout_pull(self):
         """
         Image pull timeout does not affect subsequent pulls.
         """
-        # Use an image that isn't likely to be in use by anything, since
-        # it's old, and isn't used by other tests.  Note, this is the
-        # same image as test_pull_image_if_necessary, but they run at
-        # different times.
-        image = u"busybox:ubuntu-12.04"
-        # Make sure image is gone:
-        docker = Client()
-        try:
-            docker.remove_image(image, force=True)
-        except APIError as e:
-            if e.response.status_code != 404:
-                raise
+        # Note, this is the same image as test_pull_image_if_necessary, but
+        # they run at different times.  Probably room for some refactoring to
+        # remove the duplication between them.
 
-        name = random_name(self)
-        client = DockerClient(
-            namespace=self.namespacing_prefix, long_timeout=1)
-        self.addCleanup(client.remove, name)
-        d = client.add(name, image)
+        # Run all of the code from test_pull_timeout
+        timing_out = self._pull_timeout()
 
-        def unexpected_success(_):
-            self.fail('Image unexpectedly pulled within timeout limit')
+        def pull_successfully((registry_image, registry)):
+            client = Client()
+            # Resume the registry
+            client.unpause(self.namespacing_prefix + registry.name)
 
-        def expected_failure(failure):
-            self.assertIsNotNone(failure.check(IOError))
-            # We got our failure, now try to successfully pull
-            client = DockerClient(
-                namespace=self.namespacing_prefix, long_timeout=600)
-            return client.add(name, image)
+            # Create a DockerClient with the default timeout
+            docker_client = DockerClient(namespace=self.namespacing_prefix)
 
-        d.addCallbacks(unexpected_success, expected_failure)
-        return d
-    test_pull_timeout_pull.skip = UPGRADING_DOCKER
+            # Add an application using the Client, using the tag from the local
+            # registry
+            app_name = random_name(self)
+            adding = docker_client.add(app_name, registry_image.full_name)
+
+            # Assert that the application runs
+            return adding
+        timing_out.addCallback(pull_successfully)
+        return timing_out
 
     def test_namespacing(self):
         """
@@ -1060,20 +1065,6 @@ nc -ll -p 8080 -e /tmp/script.sh
             return d
         d.addCallback(started)
         return d
-
-
-def make_response(code, message):
-    """
-    Create a ``requests.Response`` with the given response code and message.
-
-    :param int code: The HTTP response code to include in the fake response.
-    :param unicode message: The HTTP response message to include in the fake
-        response.  The message will be encoded using ASCII.
-    """
-    response = Response()
-    response.status_code = code
-    response.reason = message
-    return response
 
 
 class MakeResponseTests(TestCase):

@@ -4,18 +4,18 @@
 Tests for :module:`flocker.node._docker`.
 """
 
-import psutil
-
 from zope.interface.verify import verifyObject
 
 from pyrsistent import pset, pvector
 
-from eliot import MessageType, fields
+from docker.errors import APIError
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from ...testtools import random_name, make_with_init_tests, find_free_port
+from ...testtools import random_name, make_with_init_tests
+from ..testtools import add_with_port_collision_retry
+
 from .._docker import (
     IDockerClient, FakeDockerClient, AddressInUse, AlreadyExists, PortMap,
     Unit, Environment, Volume,
@@ -30,21 +30,6 @@ from ...control._model import RestartAlways, RestartNever, RestartOnFailure
 # 1.8.1 / Docker hub interaction that results in pulls failing. See
 # https://github.com/docker/docker/issues/15699
 ANY_IMAGE = u"openshift/busybox-http-app:latest"
-
-ADDRESS_IN_USE = MessageType(
-    u"flocker:test:address_in_use",
-    fields(ip=unicode, port=int, name=bytes),
-)
-
-
-def find_process_name(port_number):
-    """
-    Get the name of the process using the given port number.
-    """
-    for connection in psutil.net_connections():
-        if connection.laddr[1] == port_number:
-            return psutil.Process(connection.pid).name()
-    return None
 
 
 def make_idockerclient_tests(fixture):
@@ -203,9 +188,9 @@ def make_idockerclient_tests(fixture):
 
             def failed(exception):
                 self.assertEqual(
-                    AddressInUse(address=(b"0.0.0.0", self.external_port)),
-                    exception,
+                    exception.address, (b"0.0.0.0", self.external_port)
                 )
+                self.assertIsInstance(exception.apierror, APIError)
             d.addCallback(failed)
             return d
 
@@ -217,7 +202,10 @@ def make_idockerclient_tests(fixture):
             name = random_name(self)
             image = ANY_IMAGE
 
-            portmaps = []
+            portmaps = [
+                PortMap(internal_port=80, external_port=0),
+                PortMap(internal_port=5432, external_port=0),
+            ]
             volumes = (
                 Volume(node_path=FilePath(self.mktemp()),
                        container_path=FilePath(b'/var/lib/data')),
@@ -229,57 +217,35 @@ def make_idockerclient_tests(fixture):
             environment = Environment(variables=frozenset(environment))
             self.addCleanup(client.remove, name)
 
-            def add_with_retry():
-                # In case the "free" ports aren't really free, re-generate them
-                # on each attempt.
-                ports = [find_free_port()[1] for i in range(2)]
-                # Store them on portmaps defined in the outer scope so that the
-                # assertion below can use the values that eventually actually
-                # succeed.
-                portmaps[:] = [
-                    PortMap(internal_port=80, external_port=ports[0]),
-                    PortMap(internal_port=5432, external_port=ports[1]),
-                ]
-                d = client.add(
-                    name,
-                    image,
-                    ports=portmaps,
-                    volumes=volumes,
-                    environment=environment,
-                    mem_limit=100000000,
-                    cpu_shares=512,
-                    restart_policy=RestartAlways(),
-                )
-                d.addErrback(retry_on_port_collision)
-                return d
-
-            def retry_on_port_collision(reason):
-                # We select a random, available port number on each attempt.
-                # If it was in use it's because the "available" part of that
-                # port number selection logic is fairly shaky.  It should be
-                # good enough that trying again works fairly well, though.  So
-                # do that.
-                reason.trap(AddressInUse)
-                ip, port = reason.value.address
-                used_by = find_process_name(port)
-                ADDRESS_IN_USE(ip=ip, port=port, name=used_by).write()
-                d = client.remove(name)
-                d.addCallback(lambda ignored: add_with_retry())
-                return d
-
-            d = add_with_retry()
-            d.addCallback(lambda _: client.list())
-
-            expected = Unit(
-                name=name, container_name=name, activation_state=u"active",
-                container_image=image, ports=frozenset(portmaps),
-                environment=environment, volumes=frozenset(volumes),
-                mem_limit=100000000, cpu_shares=512,
+            d = add_with_port_collision_retry(
+                client,
+                name,
+                image_name=image,
+                ports=portmaps,
+                volumes=volumes,
+                environment=environment,
+                mem_limit=100000000,
+                cpu_shares=512,
                 restart_policy=RestartAlways(),
             )
 
-            def got_list(units):
+            def added((app, portmaps)):
+                d = client.list()
+                d.addCallback(lambda units: (units, portmaps))
+                return d
+            d.addCallback(added)
+
+            def got_list((units, portmaps)):
                 result = units.pop()
+
+                expected = Unit(
+                    name=name, container_name=name, activation_state=u"active",
+                    container_image=image, ports=frozenset(portmaps),
+                    environment=environment, volumes=frozenset(volumes),
+                    mem_limit=100000000, cpu_shares=512,
+                    restart_policy=RestartAlways(),
+                )
+
                 # This test is not concerned with a returned ``Unit``'s
                 # ``container_name`` and unlike other properties of the
                 # result, does not expect ``container_name`` to be any
