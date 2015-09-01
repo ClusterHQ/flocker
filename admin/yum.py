@@ -100,12 +100,8 @@ def perform_create_repository(dispatcher, intent):
     package_type = intent.distribution.package_type()
 
     if package_type == PackageTypes.RPM:
-        # The update option means that this is faster when there is existing
-        # metadata but has output starting "Could not find valid repo at:" when
-        # there is not existing valid metadata.
         check_call([
             b'createrepo',
-            b'--update',
             b'--quiet',
             intent.repository_path.path])
         return _list_new_metadata(repository_path=intent.repository_path)
