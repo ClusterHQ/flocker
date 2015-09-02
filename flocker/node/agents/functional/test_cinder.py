@@ -13,7 +13,6 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-import subprocess
 import tempfile
 from unittest import skipIf
 from uuid import uuid4
@@ -250,8 +249,8 @@ class VirtIOClient:
             guest.
         """
         run_process(["virsh", "-c", self.url, "attach-disk",
-                               self.instance_id,
-                               host_device, guest_device])
+                    self.instance_id,
+                    host_device, guest_device])
 
     def detach_disk(self, host_device):
         """
@@ -260,8 +259,8 @@ class VirtIOClient:
         :param host_device: The device path on the host.
         """
         run_process(["virsh", "-c", self.url, "detach-disk",
-                               self.instance_id,
-                               host_device])
+                    self.instance_id,
+                    host_device])
 
 
 class CinderAttachmentTests(SynchronousTestCase):
