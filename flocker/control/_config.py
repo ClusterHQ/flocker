@@ -316,7 +316,7 @@ def dataset_id_from_name(name):
     :return unicode: UUID for the dataset. This will always be the
         same given the same name.
     """
-    return unicode(UUID(bytes=md5(name.encode("utf-8")).digest()))
+    return unicode(UUID(bytes=md5(name.encode("utf-8")).digest(), version=4))
 
 
 @implementer(IApplicationConfiguration)
