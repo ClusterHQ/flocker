@@ -978,8 +978,7 @@ class ConfigurationAPIUserV1(object):
 
         :param unicode dataset_id: The dataset whose lease is being
             acquired.
-        :param unicode node_uuid: The dataset whose lease is being
-            acquired.
+        :param unicode node_uuid: The node on which the lease is being aquired.
         :param expires: ``None`` if no expiration, otherwise number of
             seconds to expiration.
 
