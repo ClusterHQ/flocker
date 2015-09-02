@@ -535,27 +535,6 @@ def task_upgrade_kernel(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
-def task_disable_selinux(distribution):
-    """
-    Disable SELinux for this session and permanently.
-    XXX: Remove this when we work out suitable SELinux settings.
-    See https://clusterhq.atlassian.net/browse/FLOC-619.
-    """
-    if distribution in ('centos-7',):
-        return sequence([
-            run("if selinuxenabled; then setenforce 0; fi"),
-            run("test -e /etc/selinux/config && "
-                "sed --in-place='.preflocker' "
-                "'s/^SELINUX=.*$/SELINUX=disabled/g' "
-                "/etc/selinux/config"),
-        ])
-    elif distribution in ('ubuntu-14.04',):
-        # Ubuntu does not have SELinux enabled
-        return sequence([])
-    else:
-        raise DistributionNotSupported(distribution=distribution)
-
-
 def _remove_private_key(content):
     """
     Remove most of the contents of a private key file for logging.
@@ -1171,8 +1150,6 @@ def provision(distribution, package_source, variants):
     commands.append(
         task_package_install(
             "clusterhq-flocker-docker-plugin", distribution, package_source))
-    if is_centos(distribution):
-        commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
     return sequence(commands)
 

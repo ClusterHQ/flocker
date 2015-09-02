@@ -1008,11 +1008,7 @@ class GenericDockerClientTests(TestCase):
             # TODO: if the `run` script fails for any reason,
             # then this will loop forever.
 
-            # TODO: use the "wait for predicate" helper
-            def wait_for_marker(_):
-                while not marker.exists():
-                    time.sleep(0.01)
-            d.addCallback(wait_for_marker)
+            d.addCallback(lambda ignored: loop_until(marker.exists))
 
         d.addCallback(lambda ignored: count.getContent())
         return d

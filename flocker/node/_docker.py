@@ -540,13 +540,17 @@ class DockerClient(object):
         restart_policy_dict = self._serialize_restart_policy(restart_policy)
 
         def _create():
-            binds = {
-                volume.node_path.path: {
-                    'bind': volume.container_path.path,
-                    'ro': False,
-                }
+            binds = list(
+                # The "Z" mode tells Docker to "relabel file objects" on the
+                # volume.  This makes things work when SELinux is enabled, at
+                # least in the default configuration on CentOS 7.  See
+                # <https://docs.docker.com/reference/commandline/run/>, in the
+                # `--volumes-from` section (or just search for SELinux).
+                u"{}:{}:Z".format(
+                    volume.node_path.path, volume.container_path.path
+                )
                 for volume in volumes
-            }
+            )
             port_bindings = {
                 p.internal_port: p.external_port
                 for p in ports
