@@ -41,6 +41,7 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size,
 )
+from ....testtools import run_process
 
 from ..cinder import wait_for_volume
 
@@ -246,7 +247,7 @@ class VirtIOClient:
         :param guest_device: The basename of the device path on the
             guest.
         """
-        subprocess.check_call(["virsh", "-c", self.url, "attach-disk",
+        run_process(["virsh", "-c", self.url, "attach-disk",
                                self.instance_id,
                                host_device, guest_device])
 
@@ -256,7 +257,7 @@ class VirtIOClient:
 
         :param host_device: The device path on the host.
         """
-        subprocess.check_call(["virsh", "-c", self.url, "detach-disk",
+        run_process(["virsh", "-c", self.url, "detach-disk",
                                self.instance_id,
                                host_device])
 
