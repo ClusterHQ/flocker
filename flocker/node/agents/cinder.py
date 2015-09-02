@@ -474,7 +474,10 @@ class CinderBlockDeviceAPI(object):
 
     def get_device_path(self, blockdevice_id):
         # libvirt does not return the correct device path when additional
-        # disks have been attached using a client other than cinder.
+        # disks have been attached using a client other than cinder. This is
+        # expected behaviour within Cinder and libvirt
+        # See https://bugs.launchpad.net/cinder/+bug/1387945 and
+        # http://libvirt.org/formatdomain.html#elementsDisks (target section)
         # However, the correct device is named as a udev symlink which includes
         # the first 20 characters of the blockedevice_id.
         device_path = FilePath(

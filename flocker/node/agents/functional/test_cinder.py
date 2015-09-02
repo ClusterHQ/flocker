@@ -45,6 +45,8 @@ from ....testtools import run_process
 
 from ..cinder import wait_for_volume
 
+# Tests requiring virsh can currently only be run on a devstack installation
+# that is not within our CI system. This will be addressed with FLOC-2972.
 require_virsh = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
