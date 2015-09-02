@@ -264,8 +264,6 @@ class FakeFlockerClient(object):
         self._leases = self._leases.release(dataset_id, lease.node_id)
         return succeed(
             Lease(dataset_id=dataset_id, node_uuid=lease.node_id,
-                  # Just lie about expiration time, it doesn't really
-                  # matter when releasing:
                   expires=((lease.expiration - self._NOW).total_seconds()
                            if lease.expiration is not None else None)))
 
