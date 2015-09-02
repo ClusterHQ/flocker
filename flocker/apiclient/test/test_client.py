@@ -284,7 +284,7 @@ def make_clientv1_tests():
             d.addCallback(lambda _: self.client.release_lease(dataset_id))
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
                                                   node_uuid=self.node_1,
-                                                  expires=None))
+                                                  expires=123))
             return d
 
         def test_list_leases(self):
