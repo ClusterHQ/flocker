@@ -558,6 +558,8 @@ class Cluster(PRecord):
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
+        # cleanup_leases
+
         return cleanup_containers().addCallback(lambda _: cleanup_datasets())
 
 
