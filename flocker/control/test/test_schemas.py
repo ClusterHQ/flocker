@@ -553,6 +553,9 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     # too long string for dataset_id
     {u"primary": a_uuid, u"dataset_id": u"x" * 37},
 
+    # dataset_id not a valid UUID
+    {u"primary": a_uuid, u"dataset_id": bad_uuid_1},
+
     # wrong type for metadata
     {u"primary": a_uuid, u"metadata": 10},
 
@@ -587,7 +590,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     {u"primary": 10,
      u"metadata": {},
      u"maximum_size": 1024 * 1024 * 1024,
-     u"dataset_id": u"x" * 36},
+     u"dataset_id": a_uuid},
 
     # non-IPv4-address for primary
     {u"primary": u"10.0.0.257",
@@ -597,7 +600,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     {u"primary": u"example.com",
      u"metadata": {},
      u"maximum_size": 1024 * 1024 * 1024,
-     u"dataset_id": u"x" * 36},
+     u"dataset_id": a_uuid},
 
     # wrong type for deleted
     {u"primary": a_uuid,
