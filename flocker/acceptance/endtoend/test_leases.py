@@ -26,36 +26,35 @@ class LeaseAPITests(TestCase):
         """
         A dataset cannot be moved if a lease is held on
         it by a particular node.
-        """
-        # waiting_for_create = create_dataset(
-        #     self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
 
-        # def acquire_lease(dataset):
-        #     # Call the API to acquire a lease with the dataset ID.
-        #     pass
+        Might look like this:
 
-        # Once created, request to move the dataset to node2
-        # def attempt_move_dataset(dataset):
-        #     # XXX this should not work
-        #     dataset_moving = cluster.client.move_dataset(
-        #         UUID(cluster.nodes[1].uuid), dataset.dataset_id)
-        #     # XXX what do we do here? we ideally want a confirmation
-        #     # from the API that this has failed because we have a lease.
-        #     # wait for timeout? no. check the logs? maybe.
+        waiting_for_create = create_dataset(
+            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
 
-        #     return dataset_moving
+        def acquire_lease(dataset):
+            # Call the API to acquire a lease with the dataset ID.
+            pass
 
-        # waiting_for_create.addCallback(acquire_lease)
-        # waiting_for_create.addCallback(attempt_move_dataset)
-        # return waiting_for_create
-        self.fail("not implemented yet")
+        def attempt_move_dataset(dataset):
+            pass
 
-    @require_moving_backend
-    @require_cluster(2)
-    def test_lease_prevents_delete(self, cluster):
-        """
-        A dataset cannot be deleted if a lease is held on
-        it by a particular node.
+        XXX what do we do here? Some options:
+        * Modify the dataset configuration API:
+          to return an error if the dataset has a lease?
+
+        * Wait and timeout?
+          The dataset-agent won't move the dataset because it has a lease so
+          the state will not be updated.
+          But how do we distinguish this from a dataset move which has not
+          yet been performed (delayed for some reason)?
+
+        * Check the dataset-agent logs?
+          except that `calculate_changes` doesn't currently log anything if a
+          dataset is leased to nodeA but configured to be on nodeB.
+
+        * Don't attempt an acceptance test for this situation.
+          It's already tested in the blockdevice API tests...
         """
         self.fail("not implemented yet")
 
@@ -65,6 +64,43 @@ class LeaseAPITests(TestCase):
         """
         A dataset can be moved once a lease held on it by a
         particular node is released.
+
+        ...instead we could write only this test which issues the same API
+        calls that the Docker Plugin is likely to make eg
+
+        Kubernetes schedules Postgres on NodeA with -v PostgresData
+            Docker(NodeA) calls ``VolumePlugin.mount`` PostgresData
+                Flongle responds by:
+                    Create dataset for FooBar
+                    Acquire lease for FooBar on NodeA
+            Docker(NodeA) starts Postgres
+
+        Kubernetes schedules Postgres on NodeB with -v PostgresData
+            Docker(NodaA) stops container
+            Docker(NodeA) calls ``VolumePlugin.umount`` PostgresData
+                Flongle releases lease for FooBar on NodeB
+
+            Docker(NodeB) calls ``VolumePlugin.mount`` PostgresData
+                Flongle
+                    Checks for PostgresData -- exists
+                    Checks for PostgresData leases -- none
+                    Move PostgresData to NodeB
+                    Acquire lease for FooBar on NodeB
+            Docker(NodeB) starts Postgres
+
+        @itamarst, is this what you mean by:
+        > so perhaps try thinking about leases from point of view of users,
+          e.g. docker plugin - how and when will they use it? what would they
+          care about?
+        """
+        self.fail("not implemented yet")
+
+    @require_moving_backend
+    @require_cluster(2)
+    def test_lease_prevents_delete(self, cluster):
+        """
+        A dataset cannot be deleted if a lease is held on
+        it by a particular node.
         """
         self.fail("not implemented yet")
 
