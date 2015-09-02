@@ -280,7 +280,7 @@ def make_clientv1_tests():
             instance.
             """
             dataset_id = uuid4()
-            d = self.client.acquire_lease(dataset_id, self.node_1, None)
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
             d.addCallback(lambda _: self.client.release_lease(dataset_id))
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
                                                   node_uuid=self.node_1,
