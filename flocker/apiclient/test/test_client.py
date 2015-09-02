@@ -17,13 +17,16 @@ from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.http import BAD_REQUEST
+from twisted.internet.defer import gatherResults
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
+    Lease, LeaseAlreadyHeld,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -259,6 +262,74 @@ def make_clientv1_tests():
                               states))
             return d
 
+        def test_acquire_lease_result(self):
+            """
+            ``acquire_lease`` returns a ``Deferred`` firing with ``Lease``
+            instance.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
+                                                  node_uuid=self.node_1,
+                                                  expires=123))
+            return d
+
+        def test_release_lease_result(self):
+            """
+            ``release_lease`` returns a ``Deferred`` firing with ``Lease``
+            instance.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d.addCallback(lambda _: self.client.release_lease(dataset_id))
+            d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
+                                                  node_uuid=self.node_1,
+                                                  expires=123))
+            return d
+
+        def test_list_leases(self):
+            """
+            ``list_leases`` lists acquired leases that have not been released
+            yet.
+            """
+            d1, d2, d3 = uuid4(), uuid4(), uuid4()
+            d = gatherResults([
+                self.client.acquire_lease(d1, self.node_1, 10),
+                self.client.acquire_lease(d2, self.node_1, None),
+                self.client.acquire_lease(d3, self.node_2, 10.5),
+                ])
+            d.addCallback(lambda _: self.client.release_lease(d2))
+            d.addCallback(lambda _: self.client.list_leases())
+            d.addCallback(
+                self.assertItemsEqual,
+                [Lease(dataset_id=d1, node_uuid=self.node_1, expires=10),
+                 Lease(dataset_id=d3, node_uuid=self.node_2, expires=10.5)])
+            return d
+
+        def test_renew_lease(self):
+            """
+            Acquiring a lease twice on the same dataset and node renews it.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d.addCallback(lambda _: self.client.acquire_lease(
+                dataset_id, self.node_1, 456))
+            d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
+                                                  node_uuid=self.node_1,
+                                                  expires=456))
+            return d
+
+        def test_acquire_lease_conflict(self):
+            """
+            A ``LeaseAlreadyHeld`` exception is raised if an attempt is made to
+            acquire a lease that is held by another node.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 10)
+            d.addCallback(lambda _: self.client.acquire_lease(
+                dataset_id, self.node_2, None))
+            return self.assertFailure(d, LeaseAlreadyHeld)
+
     return InterfaceTests
 
 
@@ -302,7 +373,9 @@ class FlockerClientTests(make_clientv1_tests()):
             TCP4ServerEndpoint(reactor, self.port, interface=b"127.0.0.1"),
             rest_api_context_factory(
                 credential_set.root.credential.certificate,
-                credential_set.control))
+                credential_set.control),
+            # Use consistent fake time for API results:
+            Clock())
         api_service.startService()
         self.addCleanup(api_service.stopService)
 
