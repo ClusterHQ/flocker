@@ -473,22 +473,40 @@ class CinderBlockDeviceAPI(object):
             time.sleep(1.0)
 
     def get_device_path(self, blockdevice_id):
-        try:
-            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-        except CinderNotFound:
-            raise UnknownVolume(blockdevice_id)
+        # libvirt does not return the correct device path when additional
+        # disks have been attached using a client other than cinder. This is
+        # expected behaviour within Cinder and libvirt
+        # See https://bugs.launchpad.net/cinder/+bug/1387945 and
+        # http://libvirt.org/formatdomain.html#elementsDisks (target section)
+        # However, the correct device is named as a udev symlink which includes
+        # the first 20 characters of the blockedevice_id.
+        device_path = FilePath(
+            "/dev/disk/by-id/virtio-{}".format(blockdevice_id[:20]))
+        if not device_path.exists():
+            # If the device path does not exist, either virtio driver is
+            # not being used (e.g. Rackspace), or the user has modified
+            # their udev rules.  The following code relies on Cinder
+            # returning the correct device path, which appears to work
+            # for Rackspace and will work with virtio if no disks have
+            # been attached outside Cinder.
+            try:
+                cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+            except CinderNotFound:
+                raise UnknownVolume(blockdevice_id)
 
-        # As far as we know you can not have more than one attachment,
-        # but, perhaps we're wrong and there should be a test for the
-        # multiple attachment case.  FLOC-1854.
-        try:
-            [attachment] = cinder_volume.attachments
-        except ValueError:
-            raise UnattachedVolume(blockdevice_id)
+            # As far as we know you can not have more than one attachment,
+            # but, perhaps we're wrong and there should be a test for the
+            # multiple attachment case.  FLOC-1854.
+            try:
+                [attachment] = cinder_volume.attachments
+            except ValueError:
+                raise UnattachedVolume(blockdevice_id)
 
-        # It could be attached somewher else...
+            device_path = FilePath(attachment['device'])
+
+        # It could be attached somewhere else...
         # https://clusterhq.atlassian.net/browse/FLOC-1830
-        return FilePath(attachment['device'])
+        return device_path
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):

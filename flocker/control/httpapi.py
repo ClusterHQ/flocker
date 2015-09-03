@@ -979,8 +979,7 @@ class ConfigurationAPIUserV1(object):
 
         :param unicode dataset_id: The dataset whose lease is being
             acquired.
-        :param unicode node_uuid: The dataset whose lease is being
-            acquired.
+        :param unicode node_uuid: The node on which the lease is being aquired.
         :param expires: ``None`` if no expiration, otherwise number of
             seconds to expiration.
 
@@ -1206,7 +1205,7 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       context_factory):
+                       context_factory, clock=reactor):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1220,10 +1219,14 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     :param context_factory: TLS context factory.
 
+    :param IReactorTime clock: The clock to use for time. By default
+        global reactor.
+
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
+    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service,
+                                  clock)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
 
