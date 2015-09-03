@@ -44,9 +44,15 @@ class LeaseAPITests(TestCase):
         def acquire_lease(dataset):
             # Call the API to acquire a lease with the dataset ID.
             acquiring_lease = cluster.client.acquire_lease(
-                dataset.dataset_id, UUID(cluster.nodes[0].uuid))
+                dataset.dataset_id, UUID(cluster.nodes[0].uuid), expires=1000)
 
             def get_dataset_path(lease, created_dataset):
+                # import pdb;pdb.set_trace()
+                get_leases = cluster.client.list_leases()
+                def check_leases(leases):
+                    #import pdb;pdb.set_trace()
+                    pass
+                get_leases.addCallback(check_leases)
                 getting_datasets = cluster.client.list_datasets_state()
 
                 def extract_dataset_path(datasets):
@@ -132,10 +138,11 @@ class LeaseAPITests(TestCase):
             def got_leases(leases):
                 import pdb;pdb.set_trace()
             get_leases.addCallback(got_leases)
-            import pdb;pdb.set_trace()
-            releasing = cluster.client.release_lease(dataset_id)
-            releasing.addCallback(lambda _: container_id)
-            return releasing
+            return get_leases
+            # import pdb;pdb.set_trace()
+            #releasing = cluster.client.release_lease(dataset_id)
+            #releasing.addCallback(lambda _: container_id)
+            #return releasing
 
         d.addCallback(stop_container_again, client, dataset_id)
 
