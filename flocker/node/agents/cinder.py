@@ -438,6 +438,7 @@ class CinderBlockDeviceAPI(object):
             volume_manager=self.cinder_volume_manager,
             expected_volume=requested_volume,
             desired_state=u'available',
+            transient_states=(u'creating',),
         )
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=created_volume,

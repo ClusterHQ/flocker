@@ -55,6 +55,7 @@ class VolumesCreateTests(SynchronousTestCase):
             volume_manager=self.cinder_volumes,
             expected_volume=new_volume,
             desired_state=u'available',
+            transient_states=(u'creating',),
         )
 
         expected_items = set(expected_metadata.items())
@@ -89,6 +90,7 @@ class VolumesSetMetadataTests(SynchronousTestCase):
             volume_manager=self.cinder_volumes,
             expected_volume=new_volume,
             desired_state=u'available',
+            transient_states=(u'creating',),
         )
 
         self.cinder_volumes.set_metadata(new_volume, expected_metadata)

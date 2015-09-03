@@ -111,6 +111,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             volume_manager=cinder_client.volumes,
             expected_volume=requested_volume,
             desired_state=u'available',
+            transient_states=(u'creating',),
         )
         self.assertEqual([], self.api.list_volumes())
 
@@ -300,7 +301,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
-            desired_state=u'available')
+            desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
@@ -343,7 +344,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
-            desired_state=u'available')
+            desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
@@ -386,7 +387,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
-            desired_state=u'available')
+            desired_state=u'available', transient_states=(u'creating',))
 
         attached_volume = self.nova.volumes.create_server_volume(
             server_id=instance_id,
