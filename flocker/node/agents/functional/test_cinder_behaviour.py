@@ -7,7 +7,7 @@ basic assumptions/understandings of how Cinder works in the real world.
 
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
-from ..cinder import wait_for_volume
+from ..cinder import wait_for_volume_state
 from ..test.blockdevicefactory import (
     InvalidConfig,
     ProviderType, get_blockdeviceapi_args,
@@ -51,9 +51,10 @@ class VolumesCreateTests(SynchronousTestCase):
             metadata=expected_metadata
         )
         self.addCleanup(self.cinder_volumes.delete, new_volume)
-        listed_volume = wait_for_volume(
+        listed_volume = wait_for_volume_state(
             volume_manager=self.cinder_volumes,
             expected_volume=new_volume,
+            desired_state=u'available',
         )
 
         expected_items = set(expected_metadata.items())
@@ -84,16 +85,18 @@ class VolumesSetMetadataTests(SynchronousTestCase):
         new_volume = self.cinder_volumes.create(size=100)
         self.addCleanup(self.cinder_volumes.delete, new_volume)
 
-        listed_volume = wait_for_volume(
+        listed_volume = wait_for_volume_state(
             volume_manager=self.cinder_volumes,
             expected_volume=new_volume,
+            desired_state=u'available',
         )
 
         self.cinder_volumes.set_metadata(new_volume, expected_metadata)
 
-        listed_volume = wait_for_volume(
+        listed_volume = wait_for_volume_state(
             volume_manager=self.cinder_volumes,
-            expected_volume=new_volume
+            expected_volume=new_volume,
+            desired_state=u'available',
         )
 
         expected_items = set(expected_metadata.items())
