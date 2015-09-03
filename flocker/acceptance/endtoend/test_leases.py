@@ -4,14 +4,16 @@
 Tests for the datasets REST API.
 """
 
-# from uuid import UUID
+from uuid import UUID
 
 from twisted.trial.unittest import TestCase
 
 from ..testtools import (
-    require_cluster, require_moving_backend,  # create_dataset,
-    # REALISTIC_BLOCKDEVICE_SIZE,
+    require_cluster, require_moving_backend, create_dataset,
+    REALISTIC_BLOCKDEVICE_SIZE,
 )
+
+from ..scripts import SCRIPTS
 
 
 class LeaseAPITests(TestCase):
@@ -19,30 +21,36 @@ class LeaseAPITests(TestCase):
     Tests for the leases API.
     """
     @require_moving_backend
-    # require_cluster should probably delete leases as part of
-    # resetting the cluster state between tests
     @require_cluster(2)
     def test_lease_prevents_move(self, cluster):
         """
         A dataset cannot be moved if a lease is held on
         it by a particular node.
-
-        Might look like this:
-
-        waiting_for_create = create_dataset(
+        """
+        d = create_dataset(
             self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
 
         def acquire_lease(dataset):
             # Call the API to acquire a lease with the dataset ID.
             # Give the lease an expiry of 60 seconds.
-            pass
+            return cluster.client.acquire_lease(
+                dataset.dataset_id, UUID(cluster.nodes[1].uuid), 120)
 
-        def start_http_container(dataset):
+        d.addCallback(acquire_lease)
+
+        def start_http_container(lease):
             # In the 60 seconds before the lease expires, we can launch
             # the acceptance tests' data HTTP container and make POST requests
             # to it in a looping call every second.
             # return looping call deferred
+            # script_path = SCRIPTS.child(b"datahttp.py")
+            # import pdb;pdb.set_trace()
+            pass
 
+        d.addCallback(start_http_container)
+        return d
+
+        """
         def request_move_dataset(self):
             # We can then request to move the dataset attached to the container.
             return deferred
@@ -97,15 +105,6 @@ class LeaseAPITests(TestCase):
         """
         A dataset can be deleted once a lease held on it by a
         particular node is released.
-        """
-        self.fail("not implemented yet")
-
-    @require_moving_backend
-    @require_cluster(2)
-    def test_move_dataset_after_lease_expiry(self, cluster):
-        """
-        A dataset can be moved once a lease held on it by a
-        particular node has expired.
         """
         self.fail("not implemented yet")
 

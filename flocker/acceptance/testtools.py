@@ -544,23 +544,34 @@ class Cluster(PRecord):
             )
             return get_items
 
-        def cleanup_containers():
+        def cleanup_containers(_):
             return api_clean_state(
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
 
-        def cleanup_datasets():
+        def cleanup_datasets(_):
             return api_clean_state(
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
-        # cleanup_leases
+        def cleanup_leases():
+            get_items = self.client.list_leases()
 
-        return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+            def release_all(leases):
+                for lease in leases:
+                    self.client.release_lease(lease.dataset_id)
+
+            get_items.addCallback(release_all)
+            return get_items
+
+        d = cleanup_leases()
+        d.addCallback(cleanup_containers)
+        d.addCallback(cleanup_datasets)
+        return d
 
 
 def _get_test_cluster(reactor, node_count):
