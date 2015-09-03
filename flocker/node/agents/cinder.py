@@ -240,7 +240,7 @@ class TimeoutException(Exception):
         return (
             'Timed out while waiting for volume. '
             'Expected Volume: {!r}, '
-            'Expected Status: {!r}, '
+            'Expected State: {!r}, '
             'Elapsed Time: {!r}, '.format(
                 self.expected_volume, self.desired_state, self.elapsed_time)
             )
@@ -259,8 +259,8 @@ class UnexpectedStateException(Exception):
         return (
             'Unexpected state while waiting for volume. '
             'Expected Volume: {!r}, '
-            'Expected Status: {!r}, '
-            'Elapsed Time: {!r}, '.format(
+            'Expected State: {!r}, '
+            'Reached State: {!r}, '.format(
                 self.expected_volume, self.desired_state,
                 self.unexpected_state)
             )
@@ -321,7 +321,7 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
     waiter = VolumeStateMonitor(
-        volume_manager, expected_volume, transient_states, desired_state,
+        volume_manager, expected_volume, desired_state, transient_states,
         time_limit)
     return poll_until(waiter.reached_desired_state, 1)
 
