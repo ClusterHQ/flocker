@@ -273,6 +273,7 @@ class VolumeStateMonitor:
     :ivar Volume expected_volume: The ``Volume`` to wait for.
     :ivar unicode desired_state: The ``Volume.status`` to wait for.
     :ivar transient_states: A sequence of valid intermediate states.
+        The states must be listed in the order that are expected to occur.
     :ivar int time_limit: The maximum time, in seconds, to wait for the
         ``expected_volume`` to have ``desired_state``.
     :raises: UnexpectedStateException: If ``expected_volume`` enters an
@@ -305,7 +306,13 @@ class VolumeStateMonitor:
                 current_state = listed_volume.status
                 if current_state == self.desired_state:
                     return listed_volume
-                elif current_state not in self.transient_states:
+                elif current_state in self.transient_states:
+                    # Once an intermediate state is reached, the prior
+                    # states become invalid.
+                    idx = self.transient_states.index(current_state)
+                    if idx > 0:
+                        self.transient_states = self.transient_states[idx:]
+                else:
                     raise UnexpectedStateException(
                         self.expected_volume, self.desired_state,
                         current_state)
