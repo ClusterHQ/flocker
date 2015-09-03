@@ -281,6 +281,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_manager=self.nova.volumes,
             expected_volume=volume,
             desired_state=u'available',
+            transient_states=(u'detaching',),
         )
 
     def _cleanup(self, instance_id, volume):
@@ -402,4 +403,4 @@ class CinderAttachmentTests(SynchronousTestCase):
                 desired_state=u'in-use',
                 transient_states=(u'attaching',),
             )
-        self.assertEqual(e.unexpected_state, u'available')
+        self.assertEqual(e.exception.unexpected_state, u'available')

@@ -516,6 +516,7 @@ class CinderBlockDeviceAPI(object):
             volume_manager=self.cinder_volume_manager,
             expected_volume=cinder_volume,
             desired_state=u'available',
+            transient_states=(u'detaching',)
         )
 
     def destroy_volume(self, blockdevice_id):
