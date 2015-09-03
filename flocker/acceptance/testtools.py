@@ -12,6 +12,10 @@ from socket import socket
 from contextlib import closing
 
 import json
+import ssl
+
+from docker import Client
+from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -48,7 +52,7 @@ __all__ = [
     'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
-    'create_attached_volume'
+    'create_attached_volume', 'get_docker_client'
     ]
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
@@ -66,6 +70,33 @@ require_mongo = skipUnless(
 # https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
+
+DOCKER_PORT = 2376
+
+
+def get_docker_client(cluster, address):
+    """
+    Open a Docker client to the given address.
+
+    :param Cluster cluster: Description of the cluster we're talking to.
+    :param bytes address: The public IP of the node to connect to.
+
+    :return: Docker ``Client`` instance.
+    """
+    def get_path(name):
+        return cluster.certificates_path.child(name).path
+
+    tls = TLSConfig(
+        client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
+        # Blows up if not set
+        # (https://github.com/shazow/urllib3/issues/695):
+        ssl_version=ssl.PROTOCOL_TLSv1,
+        # Don't validate hostname, we don't generate it correctly, but
+        # do verify certificate authority signed the server certificate:
+        assert_hostname=False,
+        verify=get_path(b"cluster.crt"))
+    return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
+                  tls=tls, timeout=100)
 
 
 def get_mongo_application():

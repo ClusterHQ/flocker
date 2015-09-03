@@ -4,50 +4,22 @@
 Tests for the Flocker Docker plugin.
 """
 
-import ssl
 from twisted.trial.unittest import TestCase
 
-from docker import Client
-from docker.tls import TLSConfig
 from docker.utils import create_host_config
 
 from ...testtools import random_name
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
+    get_docker_client,
 )
 from ..scripts import SCRIPTS
-
-DOCKER_PORT = 2376
 
 
 class DockerPluginTests(TestCase):
     """
     Tests for the Docker plugin.
     """
-    def client(self, cluster, address):
-        """
-        Open a Docker client to the given address.
-
-        :param Cluster cluster: Description of the cluster we're talking to.
-        :param bytes address: The public IP of the node to connect to.
-
-        :return: Docker ``Client`` instance.
-        """
-        def get_path(name):
-            return cluster.certificates_path.child(name).path
-
-        tls = TLSConfig(
-            client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
-            # Blows up if not set
-            # (https://github.com/shazow/urllib3/issues/695):
-            ssl_version=ssl.PROTOCOL_TLSv1,
-            # Don't validate hostname, we don't generate it correctly, but
-            # do verify certificate authority signed the server certificate:
-            assert_hostname=False,
-            verify=get_path(b"cluster.crt"))
-        return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
-                      tls=tls, timeout=100)
-
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments, cleanup=True):
         """
@@ -67,7 +39,7 @@ class DockerPluginTests(TestCase):
 
         :return: Container id, once the Docker container has started.
         """
-        client = self.client(cluster, address)
+        client = get_docker_client(cluster, address)
 
         # Remove all existing containers on the node, in case they're left
         # over from previous test:
@@ -145,8 +117,8 @@ class DockerPluginTests(TestCase):
 
         def posted(_):
             # Shutdown original container:
-            self.client(cluster, origin_node.public_address).remove_container(
-                cid, force=True)
+            client = get_docker_client(cluster, origin_node.public_address)
+            client.remove_container(cid, force=True)
             # Start container on destination node with same volume:
             self.run_python_container(
                 cluster, destination_node.public_address, container_args,
