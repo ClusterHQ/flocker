@@ -241,7 +241,7 @@ class TimeoutException(Exception):
             'Timed out while waiting for volume. '
             'Expected Volume: {!r}, '
             'Expected State: {!r}, '
-            'Elapsed Time: {!r}, '.format(
+            'Elapsed Time: {!r}'.format(
                 self.expected_volume, self.desired_state, self.elapsed_time)
             )
 
@@ -260,14 +260,27 @@ class UnexpectedStateException(Exception):
             'Unexpected state while waiting for volume. '
             'Expected Volume: {!r}, '
             'Expected State: {!r}, '
-            'Reached State: {!r}, '.format(
+            'Reached State: {!r}'.format(
                 self.expected_volume, self.desired_state,
                 self.unexpected_state)
             )
 
 
 class VolumeStateMonitor:
-
+    """
+    Monitor a volume until it reaches a nominated state.
+    :ivar ICinderVolumeManager volume_manager: An API for listing volumes.
+    :ivar Volume expected_volume: The ``Volume`` to wait for.
+    :ivar unicode desired_state: The ``Volume.status`` to wait for.
+    :ivar transient_states: A sequence of valid intermediate states.
+    :ivar int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``desired_state``.
+    :raises: UnexpectedStateException: If ``expected_volume`` enters an
+        invalid state.
+    :raises TimeoutException: If ``expected_volume`` with
+        ``desired_state`` is not listed within ``time_limit``.
+    :returns: The listed ``Volume`` that matches ``expected_volume``.
+    """
     def __init__(self, volume_manager, expected_volume,
                  desired_state, transient_states=(), time_limit=60):
         self.volume_manager = volume_manager
@@ -278,6 +291,13 @@ class VolumeStateMonitor:
         self.start_time = time.time()
 
     def reached_desired_state(self):
+        """
+        Test whether the desired state has been reached.
+
+        Raise an exception if a non-valid state is reached or if the
+        desired state is not reached within the supplied time limit.
+        """
+        # Could be more efficient.  FLOC-1831
         for listed_volume in self.volume_manager.list():
             if listed_volume.id == self.expected_volume.id:
                 # Could miss the expected status because race conditions.
@@ -296,6 +316,17 @@ class VolumeStateMonitor:
 
 
 def poll_until(predicate, interval):
+    """
+    Perform steps until a non-false result is returned.
+
+    This differs from ``loop_until`` in that it does not require a
+    Twisted reactor and it allows the interval to be set.
+
+    :param predicate: a function to be called until it returns a
+        non-false result.
+    :param interval: time in seconds between calls to the function.
+    :returns: the non-false result from the final call.
+    """
     result = predicate()
     while not result:
         time.sleep(interval)
@@ -311,7 +342,7 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
     :param ICinderVolumeManager volume_manager: An API for listing volumes.
     :param Volume expected_volume: The ``Volume`` to wait for.
     :param unicode desired_state: The ``Volume.status`` to wait for.
-    :param transient_state: A sequence of valid intermediate states.
+    :param transient_states: A sequence of valid intermediate states.
     :param int time_limit: The maximum time, in seconds, to wait for the
         ``expected_volume`` to have ``desired_state``.
     :raises: UnexpectedStateException: If ``expected_volume`` enters an
