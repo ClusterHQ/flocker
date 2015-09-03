@@ -278,17 +278,21 @@ class VolumeStateMonitor:
         self.start_time = time.time()
 
     def reached_desired_state(self):
-        for listed_volume in self.volume_manager.list():
-            if listed_volume.id == self.expected_volume.id:
-                # Could miss the expected status because race conditions.
-                # FLOC-1832
-                current_state = listed_volume.status
-                if current_state == self.desired_state:
-                    return listed_volume
-                elif current_state not in self.transient_states:
-                    raise UnexpectedStateException(
-                        self.expected_volume, self.desired_state,
-                        current_state)
+        import traceback
+        try:
+            listed_volume = self.volume_manager.show(self.expected_volume.id)
+        except:
+            traceback.print_exc()
+            raise
+        # Could miss the expected status because race conditions.
+        # FLOC-1832
+        current_state = listed_volume.status
+        if current_state == self.desired_state:
+            return listed_volume
+        elif current_state not in self.transient_states:
+            raise UnexpectedStateException(
+                self.expected_volume, self.desired_state,
+                current_state)
         elapsed_time = time.time() - self.start_time
         if elapsed_time > self.time_limit:
             raise TimeoutException(
