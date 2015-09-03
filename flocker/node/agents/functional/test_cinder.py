@@ -398,7 +398,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             wait_for_volume_state(
                 volume_manager=self.cinder.volumes,
                 expected_volume=attached_volume,
-                expected_status=u'in-use',
+                desired_state=u'in-use',
                 transient_states=(u'attaching',),
             )
         self.assertEqual(e.unexpected_state, u'available')

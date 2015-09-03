@@ -242,7 +242,7 @@ class TimeoutException(Exception):
             'Expected Volume: {!r}, '
             'Expected Status: {!r}, '
             'Elapsed Time: {!r}, '.format(
-                self.expected_volume, self.expected_status, self.elapsed_time)
+                self.expected_volume, self.desired_state, self.elapsed_time)
             )
 
 
@@ -261,7 +261,7 @@ class UnexpectedStateException(Exception):
             'Expected Volume: {!r}, '
             'Expected Status: {!r}, '
             'Elapsed Time: {!r}, '.format(
-                self.expected_volume, self.expected_status,
+                self.expected_volume, self.desired_state,
                 self.unexpected_state)
             )
 
@@ -307,14 +307,17 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
                           transient_states=(), time_limit=60):
     """
     Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
-    listed and to have a ``status`` value of ``expected_status``.
+    listed and to have a ``status`` value of ``desired_state``.
     :param ICinderVolumeManager volume_manager: An API for listing volumes.
     :param Volume expected_volume: The ``Volume`` to wait for.
-    :param unicode expected_status: The ``Volume.status`` to wait for.
+    :param unicode desired_state: The ``Volume.status`` to wait for.
+    :param transient_state: A sequence of valid intermediate states.
     :param int time_limit: The maximum time, in seconds, to wait for the
-        ``expected_volume`` to have ``expected_status``.
-    :raises Exception: If ``expected_volume`` with ``expected_status`` is not
-        listed within ``time_limit``.
+        ``expected_volume`` to have ``desired_state``.
+    :raises: UnexpectedStateException: If ``expected_volume`` enters an
+        invalid state.
+    :raises TimeoutException: If ``expected_volume`` with
+        ``desired_state`` is not listed within ``time_limit``.
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
     waiter = VolumeStateMonitor(
@@ -508,10 +511,10 @@ class CinderBlockDeviceAPI(object):
             raise UnattachedVolume(blockdevice_id)
 
         # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
-        wait_for_volume(
+        wait_for_volume_state(
             volume_manager=self.cinder_volume_manager,
             expected_volume=cinder_volume,
-            expected_status=u'available',
+            desired_state=u'available',
         )
 
     def destroy_volume(self, blockdevice_id):
