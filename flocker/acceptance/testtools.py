@@ -771,7 +771,8 @@ def create_python_container(test_case, cluster, parameters, script,
 
 
 def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                   dataset_id=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -779,12 +780,17 @@ def create_dataset(test_case, cluster,
     :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
+    :param UUID dataset_id: The v4 UUID of the dataset.
+        Generated if not specified.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
+    if dataset_id is None:
+        dataset_id = uuid4()
     configuring_dataset = cluster.client.create_dataset(
-        cluster.nodes[0].uuid, maximum_size=maximum_size, dataset_id=uuid4(),
-        metadata={u"name": u"my_volume"})
+        cluster.nodes[0].uuid, maximum_size=maximum_size,
+        dataset_id=dataset_id, metadata={u"name": u"my_volume"}
+    )
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(

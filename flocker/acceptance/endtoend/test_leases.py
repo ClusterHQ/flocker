@@ -4,10 +4,11 @@
 Tests for the datasets REST API.
 """
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from twisted.internet.task import LoopingCall
+from twisted.internet.task import deferLater
 from twisted.trial.unittest import TestCase
+from twisted.internet import reactor
 
 from docker.utils import create_host_config
 
@@ -32,33 +33,45 @@ class LeaseAPITests(TestCase):
         A dataset cannot be moved if a lease is held on
         it by a particular node.
         """
+        http_port = 8080
+        dataset_id = uuid4()
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
         d = create_dataset(
-            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
+            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id
+        )
 
         def acquire_lease(dataset):
             # Call the API to acquire a lease with the dataset ID.
-            import pdb;pdb.set_trace()
-            return cluster.client.acquire_lease(
+            acquiring_lease = cluster.client.acquire_lease(
                 dataset.dataset_id, UUID(cluster.nodes[0].uuid))
+
+            def get_dataset_path(lease, created_dataset):
+                getting_datasets = cluster.client.list_datasets_state()
+
+                def extract_dataset_path(datasets):
+                    return datasets[0].path
+
+                getting_datasets.addCallback(extract_dataset_path)
+                return getting_datasets
+
+            acquiring_lease.addCallback(get_dataset_path, dataset)
+            return acquiring_lease
 
         d.addCallback(acquire_lease)
 
-        def start_http_container(lease, client):
+        def start_http_container(dataset_path, client):
             # Launch data HTTP container and make POST requests
             # to it in a looping call every second.
             # return looping call deferred
-            # script_path = SCRIPTS.child(b"datahttp.py")
-            http_port = 8080
-            volume_name = random_name(self)
             script = SCRIPTS.child("datahttp.py")
             script_arguments = [u"/data"]
-            # XXX how do I attach a dataset here?
             docker_arguments = {
                 "host_config": create_host_config(
-                    binds=["{}:/data".format(volume_name)],
+                    binds=["{}:/data".format(dataset_path.path)],
                     port_bindings={http_port: http_port}),
-                "ports": [http_port]}
+                "ports": [http_port],
+                "volumes": [u"/data"]}
             container = client.create_container(
                 "python:2.7-slim",
                 ["python", "-c", script.getContent()] + list(script_arguments),
@@ -66,27 +79,75 @@ class LeaseAPITests(TestCase):
             cid = container["Id"]
             client.start(container=cid)
             self.addCleanup(client.remove_container, cid, force=True)
-
-            def loop_write_data():
-                data = random_name(self).encode("utf-8")
-                d = post_http_server(
-                    self, cluster.nodes[0].public_address, http_port,
-                    {"data": data}
-                )
-                d.addCallback(
-                    lambda _: assert_http_server(
-                        self, cluster.nodes[0].public_address,
-                        http_port, expected_response=data
-                    )
-                )
-                return d
-
-            self.loop = LoopingCall(loop_write_data)
-            self.loop.start(1)
-            import pdb;pdb.set_trace()
             return cid
 
         d.addCallback(start_http_container, client)
+
+        def write_data(container_id):
+            data = random_name(self).encode("utf-8")
+            writing = post_http_server(
+                self, cluster.nodes[0].public_address, http_port,
+                {"data": data}
+            )
+            writing.addCallback(
+                lambda _: assert_http_server(
+                    self, cluster.nodes[0].public_address,
+                    http_port, expected_response=data
+                )
+            )
+            writing.addCallback(lambda _: container_id)
+            return writing
+
+        d.addCallback(write_data)
+
+        def stop_container(container_id, client, dataset_id):
+            # This ensures Docker hasn't got a lock on the volume that
+            # might prevent it being moved separate to the lock held by
+            # the lease.
+            primary = cluster.nodes[1].uuid
+            client.stop(container_id)
+            move_dataset_request = cluster.client.move_dataset(
+                primary, dataset_id)
+            move_dataset_request.addCallback(lambda _: container_id)
+            return move_dataset_request
+
+        d.addCallback(stop_container, client, dataset_id)
+
+        def wait_five_seconds(container_id):
+            return deferLater(reactor, 5, lambda: container_id)
+
+        d.addCallback(wait_five_seconds)
+
+        def restart_container(container_id, client):
+            client.start(container=container_id)
+            return container_id
+
+        d.addCallback(restart_container, client)
+
+        d.addCallback(write_data)
+
+        def stop_container_again(container_id, client, dataset_id):
+            client.stop(container_id)
+            get_leases = cluster.client.list_leases()
+            def got_leases(leases):
+                import pdb;pdb.set_trace()
+            get_leases.addCallback(got_leases)
+            import pdb;pdb.set_trace()
+            releasing = cluster.client.release_lease(dataset_id)
+            releasing.addCallback(lambda _: container_id)
+            return releasing
+
+        d.addCallback(stop_container_again, client, dataset_id)
+
+        d.addCallback(wait_five_seconds)
+
+        d.addCallback(restart_container)
+
+        def container_no_start(_):
+            import pdb;pdb.set_trace()
+
+        d.addBoth(container_no_start)
+
         return d
 
         """
