@@ -14,7 +14,6 @@ v1.3
 ====
 
 * Fixed a bug where OpenStack Cinder volumes could be mapped to the wrong device and therefore mounted in the wrong location.
-* Flocker now has smaller log footprint from ``EBS`` storage driver on success path.
 
 v1.2
 ====
