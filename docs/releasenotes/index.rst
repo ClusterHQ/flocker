@@ -13,8 +13,6 @@ You can learn more about where we might be going with future releases by:
 v1.3
 ====
 
-* Flocker API has new endpoints to create, list, renew, and delete lease on a dataset.
-* Flocker now works on servers where ``SELinux`` is enabled.
 * Flocker is more accurate in figuring out attached block device path on ``Cinder`` backend.
 * Flocker now has smaller log footprint from ``EBS`` storage driver on success path.
 
