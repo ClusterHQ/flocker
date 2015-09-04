@@ -189,12 +189,19 @@ class VirtIOClient:
         self.url = url
 
     @classmethod
-    def from_instance_id(cls, instance_id, tempdir):
+    def using_insecure_tls(cls, instance_id, tempdir):
         """
-        Create a connection to the host using the default gateway.
+        Create an insecure connection to the VM host.
 
         The credentials for this connection only allow unverified
-        connections to the TLS endpoint of libvirtd.
+        connections to the TLS endpoint of libvirtd.  The libvirtd
+        server must be configured to not verify the client credentials,
+        with server configuration ``tls_no_verify_certificate=1`` and
+        ``tls_no_verify_address=1``.
+
+        This would be vulnerable to MITM attacks, but is used for
+        communication to the routing gateway (in particular from VM
+        guest to VM host), where a MITM attack is unlikely.
 
         :param instance_id: The UUID of the guest instance.
         :param FilePath tempdir: A temporary directory that will exist
@@ -324,7 +331,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         host_device = "/dev/null"
         tmpdir = FilePath(self.mktemp())
         tmpdir.makedirs()
-        virtio = VirtIOClient.from_instance_id(instance_id, tmpdir)
+        virtio = VirtIOClient.using_insecure_tls(instance_id, tmpdir)
         virtio.attach_disk(host_device, "vdc")
         self.addCleanup(virtio.detach_disk, host_device)
 
@@ -369,7 +376,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         host_device = "/dev/null"
         tmpdir = FilePath(self.mktemp())
         tmpdir.makedirs()
-        virtio = VirtIOClient.from_instance_id(instance_id, tmpdir)
+        virtio = VirtIOClient.using_insecure_tls(instance_id, tmpdir)
         virtio.attach_disk(host_device, "vdb")
         self.addCleanup(virtio.detach_disk, host_device)
 
