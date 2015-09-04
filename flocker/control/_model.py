@@ -642,7 +642,7 @@ class Deployment(PRecord):
 
         :return Deployment: Updated with new ``Node``.
         """
-        return Deployment(nodes=frozenset(
+        return Deployment(leases=self.leases, nodes=frozenset(
             list(n for n in self.nodes if not same_node(n, node)) +
             [node]))
 
