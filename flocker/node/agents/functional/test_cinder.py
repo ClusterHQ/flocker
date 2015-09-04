@@ -13,7 +13,6 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-import tempfile
 from unittest import skipIf
 from uuid import uuid4
 
@@ -190,7 +189,7 @@ class VirtIOClient:
         self.url = url
 
     @classmethod
-    def from_instance_id(cls, instance_id):
+    def from_instance_id(cls, instance_id, tempdir):
         """
         Create a connection to the host using the default gateway.
 
@@ -198,15 +197,17 @@ class VirtIOClient:
         connections to the TLS endpoint of libvirtd.
 
         :param instance_id: The UUID of the guest instance.
+        :param FilePath tempdir: A temporary directory that will exist
+            until the VirtIOClient is done.
         """
-        url = "qemu://{}/system?no_verify=1".format(
-            cls._get_default_gateway()
+        url = "qemu://{}/system?no_verify=1&pkipath={}".format(
+            cls._get_default_gateway(), tempdir.path
         )
-        cls.create_credentials()
+        cls.create_credentials(tempdir)
         return cls(instance_id, url)
 
     @staticmethod
-    def create_credentials():
+    def create_credentials(path):
         """
         Create PKI credentials for TLS access to libvirtd.
 
@@ -214,28 +215,14 @@ class VirtIOClient:
         unverified access but removes the need to transfer files
         between the host and the guest.
         """
-        path = FilePath(tempfile.mkdtemp())
-        try:
-            ca = RootCredential.initialize(path, b"mycluster")
-            NodeCredential.initialize(path, ca, uuid='client')
-            ca_dir = FilePath('/etc/pki/CA')
-            if not ca_dir.exists():
-                ca_dir.makedirs()
-            path.child(AUTHORITY_CERTIFICATE_FILENAME).copyTo(
-                FilePath('/etc/pki/CA/cacert.pem')
-            )
-            client_key_dir = FilePath('/etc/pki/libvirt/private')
-            if not client_key_dir.exists():
-                client_key_dir.makedirs()
-            client_key_dir.chmod(0700)
-            path.child('client.key').copyTo(
-                client_key_dir.child('clientkey.pem')
-            )
-            path.child('client.crt').copyTo(
-                FilePath('/etc/pki/libvirt/clientcert.pem')
-            )
-        finally:
-            path.remove()
+        # Create CA and client key pairs
+        ca = RootCredential.initialize(path, b"CA")
+        ca_file = path.child(AUTHORITY_CERTIFICATE_FILENAME)
+        NodeCredential.initialize(path, ca, uuid='client')
+        # Files must have specific names in the pkipath directory
+        ca_file.moveTo(path.child('cacert.pem'))
+        path.child('client.key').moveTo(path.child('clientkey.pem'))
+        path.child('client.crt').moveTo(path.child('clientcert.pem'))
 
     @staticmethod
     def _get_default_gateway():
@@ -335,7 +322,9 @@ class CinderAttachmentTests(SynchronousTestCase):
         instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
-        virtio = VirtIOClient.from_instance_id(instance_id)
+        tmpdir = FilePath(self.mktemp())
+        tmpdir.makedirs()
+        virtio = VirtIOClient.from_instance_id(instance_id, tmpdir)
         virtio.attach_disk(host_device, "vdc")
         self.addCleanup(virtio.detach_disk, host_device)
 
@@ -378,7 +367,9 @@ class CinderAttachmentTests(SynchronousTestCase):
         instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
-        virtio = VirtIOClient.from_instance_id(instance_id)
+        tmpdir = FilePath(self.mktemp())
+        tmpdir.makedirs()
+        virtio = VirtIOClient.from_instance_id(instance_id, tmpdir)
         virtio.attach_disk(host_device, "vdb")
         self.addCleanup(virtio.detach_disk, host_device)
 
