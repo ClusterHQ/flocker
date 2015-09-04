@@ -203,6 +203,19 @@ class VirtIOClient:
         communication to the routing gateway (in particular from VM
         guest to VM host), where a MITM attack is unlikely.
 
+        The tests require that disks are attached using libvirt, but not
+        using Cinder, as the problem they test is libvirt disks that are
+        not known by Cinder.  Note, this rules out solutions using
+        ``mknod`` directly on the guest.
+
+        Creating a TLS connection is one of the simplest ways to set-up
+        libvirtd to listen on a network socket.  Disabling the actual
+        certificate verification on both ends of the connection allows
+        connection of the TLS endpoint without sharing any files (e.g.
+        CA cert and key, or a CSR).  This means the tests are contained
+        on one guest, with only a network connection required to attach
+        and delete nodes from the host.
+
         :param instance_id: The UUID of the guest instance.
         :param FilePath tempdir: A temporary directory that will exist
             until the VirtIOClient is done.
