@@ -227,46 +227,141 @@ class INovaServerManager(Interface):
         """
 
 
-def wait_for_volume(volume_manager, expected_volume,
-                    expected_status=u'available',
-                    time_limit=60):
+class TimeoutException(Exception):
     """
-    Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
-    listed and to have a ``status`` value of ``expected_status``.
+    A timeout on waiting for volume to reach destination end state.
+    """
+    def __init__(self, expected_volume, desired_state, elapsed_time):
+        self.expected_volume = expected_volume
+        self.desired_state = desired_state
+        self.elapsed_time = elapsed_time
 
-    :param ICinderVolumeManager volume_manager: An API for listing volumes.
-    :param Volume expected_volume: The ``Volume`` to wait for.
-    :param unicode expected_status: The ``Volume.status`` to wait for.
-    :param int time_limit: The maximum time, in seconds, to wait for the
-        ``expected_volume`` to have ``expected_status``.
-    :raises Exception: If ``expected_volume`` with ``expected_status`` is not
-        listed within ``time_limit``.
+    def __str__(self):
+        return (
+            'Timed out while waiting for volume. '
+            'Expected Volume: {!r}, '
+            'Expected State: {!r}, '
+            'Elapsed Time: {!r}'.format(
+                self.expected_volume, self.desired_state, self.elapsed_time)
+            )
+
+
+class UnexpectedStateException(Exception):
+    """
+    An unexpected state was encountered by a volume as a result of operation.
+    """
+    def __init__(self, expected_volume, desired_state, unexpected_state):
+        self.expected_volume = expected_volume
+        self.desired_state = desired_state
+        self.unexpected_state = unexpected_state
+
+    def __str__(self):
+        return (
+            'Unexpected state while waiting for volume. '
+            'Expected Volume: {!r}, '
+            'Expected State: {!r}, '
+            'Reached State: {!r}'.format(
+                self.expected_volume, self.desired_state,
+                self.unexpected_state)
+            )
+
+
+class VolumeStateMonitor:
+    """
+    Monitor a volume until it reaches a nominated state.
+    :ivar ICinderVolumeManager volume_manager: An API for listing volumes.
+    :ivar Volume expected_volume: The ``Volume`` to wait for.
+    :ivar unicode desired_state: The ``Volume.status`` to wait for.
+    :ivar transient_states: A sequence of valid intermediate states.
+        The states must be listed in the order that are expected to occur.
+    :ivar int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``desired_state``.
+    :raises: UnexpectedStateException: If ``expected_volume`` enters an
+        invalid state.
+    :raises TimeoutException: If ``expected_volume`` with
+        ``desired_state`` is not listed within ``time_limit``.
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
-    start_time = time.time()
-    # Log stuff happening in this loop.  FLOC-1833.
-    while True:
+    def __init__(self, volume_manager, expected_volume,
+                 desired_state, transient_states=(), time_limit=60):
+        self.volume_manager = volume_manager
+        self.expected_volume = expected_volume
+        self.desired_state = desired_state
+        self.transient_states = transient_states
+        self.time_limit = time_limit
+        self.start_time = time.time()
+
+    def reached_desired_state(self):
+        """
+        Test whether the desired state has been reached.
+
+        Raise an exception if a non-valid state is reached or if the
+        desired state is not reached within the supplied time limit.
+        """
         # Could be more efficient.  FLOC-1831
-        for listed_volume in volume_manager.list():
-            if listed_volume.id == expected_volume.id:
+        for listed_volume in self.volume_manager.list():
+            if listed_volume.id == self.expected_volume.id:
                 # Could miss the expected status because race conditions.
                 # FLOC-1832
-                if listed_volume.status == expected_status:
+                current_state = listed_volume.status
+                if current_state == self.desired_state:
                     return listed_volume
+                elif current_state in self.transient_states:
+                    # Once an intermediate state is reached, the prior
+                    # states become invalid.
+                    idx = self.transient_states.index(current_state)
+                    if idx > 0:
+                        self.transient_states = self.transient_states[idx:]
+                else:
+                    raise UnexpectedStateException(
+                        self.expected_volume, self.desired_state,
+                        current_state)
+        elapsed_time = time.time() - self.start_time
+        if elapsed_time > self.time_limit:
+            raise TimeoutException(
+                self.expected_volume, self.desired_state, elapsed_time)
 
-        elapsed_time = time.time() - start_time
-        if elapsed_time < time_limit:
-            time.sleep(1.0)
-        else:
-            raise Exception(
-                'Timed out while waiting for volume. '
-                'Expected Volume: {!r}, '
-                'Expected Status: {!r}, '
-                'Elapsed Time: {!r}, '
-                'Time Limit: {!r}.'.format(
-                    expected_volume, expected_status, elapsed_time, time_limit
-                )
-            )
+
+def poll_until(predicate, interval):
+    """
+    Perform steps until a non-false result is returned.
+
+    This differs from ``loop_until`` in that it does not require a
+    Twisted reactor and it allows the interval to be set.
+
+    :param predicate: a function to be called until it returns a
+        non-false result.
+    :param interval: time in seconds between calls to the function.
+    :returns: the non-false result from the final call.
+    """
+    result = predicate()
+    while not result:
+        time.sleep(interval)
+        result = predicate()
+    return result
+
+
+def wait_for_volume_state(volume_manager, expected_volume, desired_state,
+                          transient_states=(), time_limit=60):
+    """
+    Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
+    listed and to have a ``status`` value of ``desired_state``.
+    :param ICinderVolumeManager volume_manager: An API for listing volumes.
+    :param Volume expected_volume: The ``Volume`` to wait for.
+    :param unicode desired_state: The ``Volume.status`` to wait for.
+    :param transient_states: A sequence of valid intermediate states.
+    :param int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``desired_state``.
+    :raises: UnexpectedStateException: If ``expected_volume`` enters an
+        invalid state.
+    :raises TimeoutException: If ``expected_volume`` with
+        ``desired_state`` is not listed within ``time_limit``.
+    :returns: The listed ``Volume`` that matches ``expected_volume``.
+    """
+    waiter = VolumeStateMonitor(
+        volume_manager, expected_volume, desired_state, transient_states,
+        time_limit)
+    return poll_until(waiter.reached_desired_state, 1)
 
 
 def _extract_nova_server_addresses(addresses):
@@ -377,9 +472,11 @@ class CinderBlockDeviceAPI(object):
         )
         Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
-        created_volume = wait_for_volume(
+        created_volume = wait_for_volume_state(
             volume_manager=self.cinder_volume_manager,
             expected_volume=requested_volume,
+            desired_state=u'available',
+            transient_states=(u'creating',),
         )
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=created_volume,
@@ -426,10 +523,11 @@ class CinderBlockDeviceAPI(object):
             # Have Nova assign a device file for us.
             device=None,
         )
-        attached_volume = wait_for_volume(
+        attached_volume = wait_for_volume_state(
             volume_manager=self.cinder_volume_manager,
             expected_volume=nova_volume,
-            expected_status=u'in-use',
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
         )
 
         attached_volume = unattached_volume.set('attached_to', attach_to)
@@ -452,10 +550,11 @@ class CinderBlockDeviceAPI(object):
             raise UnattachedVolume(blockdevice_id)
 
         # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
-        wait_for_volume(
+        wait_for_volume_state(
             volume_manager=self.cinder_volume_manager,
             expected_volume=cinder_volume,
-            expected_status=u'available',
+            desired_state=u'available',
+            transient_states=(u'in-use', u'detaching')
         )
 
     def destroy_volume(self, blockdevice_id):
