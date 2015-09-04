@@ -16,7 +16,7 @@ from ...testtools import random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     REALISTIC_BLOCKDEVICE_SIZE, get_docker_client,
-    post_http_server, query_http_server, assert_http_server,
+    post_http_server, assert_http_server,
 )
 
 from ..scripts import SCRIPTS
@@ -117,10 +117,10 @@ class LeaseAPITests(TestCase):
 
         d.addCallback(stop_container, client, dataset_id)
 
-        def wait_five_seconds(container_id):
+        def wait_seconds(container_id):
             return deferLater(reactor, 10, lambda: container_id)
 
-        d.addCallback(wait_five_seconds)
+        d.addCallback(wait_seconds)
 
         def restart_container(container_id, client, cluster):
             client.start(container=container_id)
@@ -131,42 +131,71 @@ class LeaseAPITests(TestCase):
         d.addCallback(write_data)
 
         def stop_container_again(container_id, client, dataset_id):
-            client.stop(container_id)
-            releasing = cluster.client.release_lease(dataset_id)
-            releasing.addCallback(lambda _: container_id)
-            return releasing
+            # At this point, we expect the configured dataset to reflect
+            # the move from node0 to node1, but the state to retain the
+            # dataset on node0.
+            check_datasets_config = (
+                cluster.client.list_datasets_configuration()
+            )
 
-        d.addCallback(stop_container_again, client, dataset_id)
-
-        d.addCallback(wait_five_seconds)
-
-        # d.addCallback(restart_container, client, cluster)
-
-        d.addCallback(lambda _: start_http_container(dataset_path[0], client))
-
-        def container_did_start(container_id):
-            check_datasets_config = cluster.client.list_datasets_configuration()
             def got_datasets_config(datasets):
-                #ncluster = cluster
-                #import pdb;pdb.set_trace()
                 get_ds_state = cluster.client.list_datasets_state()
+
                 def got_ds_state(state_datasets):
                     config_datasets = datasets
-                    ncluster = cluster
-                    # import pdb;pdb.set_trace()
+                    expected_state_node = unicode(cluster.nodes[0].uuid)
+                    expected_config_node = unicode(cluster.nodes[1].uuid)
+                    self.assertEqual(
+                        (
+                            unicode(state_datasets[0].primary),
+                            unicode(config_datasets[0].primary)
+                        ),
+                        (expected_state_node, expected_config_node))
                 get_ds_state.addCallback(got_ds_state)
                 return get_ds_state
             check_datasets_config.addCallback(got_datasets_config)
-            #import pdb;pdb.set_trace()
-            #self.fail("The container didn't fail to start :'(")
+
+            def stop_and_release(_):
+                client.stop(container_id)
+                releasing = cluster.client.release_lease(dataset_id)
+                releasing.addCallback(lambda _: container_id)
+                # Now we've released the lease and stopped the running
+                # container, our earlier move request should be enacted
+                # after a short delay.
+                return releasing
+
+            check_datasets_config.addCallback(stop_and_release)
+
             return check_datasets_config
 
-        def container_no_start(some_failure):
-            # import pdb;pdb.set_trace()
-            pass
+        d.addCallback(stop_container_again, client, dataset_id)
 
-        d.addCallback(container_did_start)
-        d.addErrback(container_no_start)
+        d.addCallback(wait_seconds)
+
+        def dataset_moved(_):
+            # So at this point, we want to confirm the dataset has now moved.
+            check_datasets_config = (
+                cluster.client.list_datasets_configuration()
+            )
+
+            def got_datasets_config(datasets):
+                get_ds_state = cluster.client.list_datasets_state()
+
+                def got_ds_state(state_datasets):
+                    config_datasets = datasets
+                    expected_node = unicode(cluster.nodes[1].uuid)
+                    self.assertEqual(
+                        (
+                            unicode(state_datasets[0].primary),
+                            unicode(config_datasets[0].primary)
+                        ),
+                        (expected_node, expected_node))
+                get_ds_state.addCallback(got_ds_state)
+                return get_ds_state
+            check_datasets_config.addCallback(got_datasets_config)
+            return check_datasets_config
+
+        d.addCallback(dataset_moved)
 
         return d
 
