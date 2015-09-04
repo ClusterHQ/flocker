@@ -1,7 +1,7 @@
 Flocker 1.3.0 (2015-09-04)
 =====================================
 
-- Stricter check to determine attached blockdevice path on Cinder backend. (FLOC-2859)
+- Fixed a bug where OpenStack Cinder volumes could be mapped to the wrong device and therefore mounted in the wrong location. (FLOC-2859)
 - Reduce logs generated from EBS storage driver on success path. (FLOC-2929)
 
 Flocker 1.2.0 (2015-08-25)

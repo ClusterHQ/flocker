@@ -13,7 +13,7 @@ You can learn more about where we might be going with future releases by:
 v1.3
 ====
 
-* Flocker is more accurate in figuring out attached block device path on ``Cinder`` backend.
+* Fixed a bug where OpenStack Cinder volumes could be mapped to the wrong device and therefore mounted in the wrong location.
 * Flocker now has smaller log footprint from ``EBS`` storage driver on success path.
 
 v1.2
