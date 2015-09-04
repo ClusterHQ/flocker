@@ -35,6 +35,7 @@ class LeaseAPITests(TestCase):
         """
         http_port = 8080
         dataset_id = uuid4()
+        dataset_path = []
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
         d = create_dataset(
             self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
@@ -47,15 +48,10 @@ class LeaseAPITests(TestCase):
                 dataset.dataset_id, UUID(cluster.nodes[0].uuid), expires=1000)
 
             def get_dataset_path(lease, created_dataset):
-                # import pdb;pdb.set_trace()
-                get_leases = cluster.client.list_leases()
-                def check_leases(leases):
-                    #import pdb;pdb.set_trace()
-                    pass
-                get_leases.addCallback(check_leases)
                 getting_datasets = cluster.client.list_datasets_state()
 
                 def extract_dataset_path(datasets):
+                    dataset_path.insert(0, datasets[0].path)
                     return datasets[0].path
 
                 getting_datasets.addCallback(extract_dataset_path)
@@ -70,6 +66,7 @@ class LeaseAPITests(TestCase):
             # Launch data HTTP container and make POST requests
             # to it in a looping call every second.
             # return looping call deferred
+            # import pdb;pdb.set_trace()
             script = SCRIPTS.child("datahttp.py")
             script_arguments = [u"/data"]
             docker_arguments = {
@@ -102,111 +99,76 @@ class LeaseAPITests(TestCase):
                 )
             )
 
-            def check_leases_again(_):
-                get_leases = cluster.client.list_leases()
-                def check_leases(leases):
-                    import pdb;pdb.set_trace()
-                    pass
-                get_leases.addCallback(check_leases)
-                return get_leases
-
-            writing.addCallback(check_leases_again)
             writing.addCallback(lambda _: container_id)
             return writing
 
         d.addCallback(write_data)
 
         def stop_container(container_id, client, dataset_id):
+            primary = cluster.nodes[1].uuid
             # This ensures Docker hasn't got a lock on the volume that
             # might prevent it being moved separate to the lock held by
             # the lease.
-            primary = cluster.nodes[1].uuid
             client.stop(container_id)
-            #move_dataset_request = cluster.client.move_dataset(
-            #    primary, dataset_id)
-            #move_dataset_request.addCallback(lambda _: container_id)
-            #return move_dataset_request
-            return container_id
+            move_dataset_request = cluster.client.move_dataset(
+                primary, dataset_id)
+            move_dataset_request.addCallback(lambda _: container_id)
+            return move_dataset_request
 
         d.addCallback(stop_container, client, dataset_id)
 
         def wait_five_seconds(container_id):
-            return deferLater(reactor, 5, lambda: container_id)
+            return deferLater(reactor, 10, lambda: container_id)
 
         d.addCallback(wait_five_seconds)
 
-        def restart_container(container_id, client):
+        def restart_container(container_id, client, cluster):
             client.start(container=container_id)
             return container_id
 
-        d.addCallback(restart_container, client)
+        d.addCallback(restart_container, client, cluster)
 
         d.addCallback(write_data)
 
         def stop_container_again(container_id, client, dataset_id):
             client.stop(container_id)
-            get_leases = cluster.client.list_leases()
-            def got_leases(leases):
-                import pdb;pdb.set_trace()
-            get_leases.addCallback(got_leases)
-            return get_leases
-            # import pdb;pdb.set_trace()
-            #releasing = cluster.client.release_lease(dataset_id)
-            #releasing.addCallback(lambda _: container_id)
-            #return releasing
+            releasing = cluster.client.release_lease(dataset_id)
+            releasing.addCallback(lambda _: container_id)
+            return releasing
 
         d.addCallback(stop_container_again, client, dataset_id)
 
         d.addCallback(wait_five_seconds)
 
-        d.addCallback(restart_container, client)
+        # d.addCallback(restart_container, client, cluster)
 
-        def container_no_start(_):
-            import pdb;pdb.set_trace()
+        d.addCallback(lambda _: start_http_container(dataset_path[0], client))
 
-        d.addBoth(container_no_start)
+        def container_did_start(container_id):
+            check_datasets_config = cluster.client.list_datasets_configuration()
+            def got_datasets_config(datasets):
+                #ncluster = cluster
+                #import pdb;pdb.set_trace()
+                get_ds_state = cluster.client.list_datasets_state()
+                def got_ds_state(state_datasets):
+                    config_datasets = datasets
+                    ncluster = cluster
+                    # import pdb;pdb.set_trace()
+                get_ds_state.addCallback(got_ds_state)
+                return get_ds_state
+            check_datasets_config.addCallback(got_datasets_config)
+            #import pdb;pdb.set_trace()
+            #self.fail("The container didn't fail to start :'(")
+            return check_datasets_config
+
+        def container_no_start(some_failure):
+            # import pdb;pdb.set_trace()
+            pass
+
+        d.addCallback(container_did_start)
+        d.addErrback(container_no_start)
 
         return d
-
-        """
-        def request_move_dataset(self):
-            # We can then request to move the dataset attached to the container.
-            return deferred
-
-        def wait_some_amount_of_time(self):
-            # Because the dataset is leased, we should be able to continue
-            # writing data via HTTP requests to the running container.
-            # We should be able to do this for some number of seconds.
-            # The looping call running in parallel to this is continuing to
-            # write data.
-
-            # wait some time and return a deferred
-
-        def stop_container(self):
-            # We stop the container, so that there is no constraint outside
-            # of leases to prevent the volume from being unmounted.
-
-            def confirmed_stopped(self):
-                # When the container is confirmed as stopped,
-                # restart the container again, to prove the dataset
-                # hasn't moved.
-                # If the dataset had moved, the host path on the volume would
-                # have been unmounted. # XXX is this actually true, does
-                # Flocker remove mountpoint directories?
-
-        def stop_container_again(self):
-            # Stop the container again.
-
-            def stopped_again(self):
-                # Ask for the lease to be released, causing the dataset to move.
-                # Wait a couple of seconds.
-
-        def try_to_start_again(self):
-            # After a couple of seconds, we can try to recreate the container
-            # and that should fail, because the host mount path for the volume
-            # should no longer exist.
-        """
-        self.fail("not implemented yet")
 
     @require_moving_backend
     @require_cluster(2)
