@@ -101,6 +101,16 @@ class LeaseAPITests(TestCase):
                     http_port, expected_response=data
                 )
             )
+
+            def check_leases_again(_):
+                get_leases = cluster.client.list_leases()
+                def check_leases(leases):
+                    import pdb;pdb.set_trace()
+                    pass
+                get_leases.addCallback(check_leases)
+                return get_leases
+
+            writing.addCallback(check_leases_again)
             writing.addCallback(lambda _: container_id)
             return writing
 
@@ -112,10 +122,11 @@ class LeaseAPITests(TestCase):
             # the lease.
             primary = cluster.nodes[1].uuid
             client.stop(container_id)
-            move_dataset_request = cluster.client.move_dataset(
-                primary, dataset_id)
-            move_dataset_request.addCallback(lambda _: container_id)
-            return move_dataset_request
+            #move_dataset_request = cluster.client.move_dataset(
+            #    primary, dataset_id)
+            #move_dataset_request.addCallback(lambda _: container_id)
+            #return move_dataset_request
+            return container_id
 
         d.addCallback(stop_container, client, dataset_id)
 
@@ -148,7 +159,7 @@ class LeaseAPITests(TestCase):
 
         d.addCallback(wait_five_seconds)
 
-        d.addCallback(restart_container)
+        d.addCallback(restart_container, client)
 
         def container_no_start(_):
             import pdb;pdb.set_trace()
