@@ -42,7 +42,7 @@ from ..test.blockdevicefactory import (
 )
 from ....testtools import run_process
 
-from ..cinder import wait_for_volume
+from ..cinder import wait_for_volume_state, UnexpectedStateException
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -107,9 +107,11 @@ class CinderBlockDeviceAPIInterfaceTests(
             cinder_client.volumes.delete,
             requested_volume.id,
         )
-        wait_for_volume(
+        wait_for_volume_state(
             volume_manager=cinder_client.volumes,
-            expected_volume=requested_volume
+            expected_volume=requested_volume,
+            desired_state=u'available',
+            transient_states=(u'creating',),
         )
         self.assertEqual([], self.api.list_volumes())
 
@@ -275,10 +277,11 @@ class CinderAttachmentTests(SynchronousTestCase):
 
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
-        return wait_for_volume(
+        return wait_for_volume_state(
             volume_manager=self.nova.volumes,
             expected_volume=volume,
-            expected_status=u'available',
+            desired_state=u'available',
+            transient_states=(u'in-use', u'detaching'),
         )
 
     def _cleanup(self, instance_id, volume):
@@ -297,8 +300,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
@@ -307,10 +311,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_id=volume.id,
             device=None,
         )
-        volume = wait_for_volume(
+        volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
-            expected_status=u'in-use',
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
         )
 
         devices_after = set(FilePath('/dev').children())
@@ -338,8 +343,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
@@ -348,10 +354,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_id=volume.id,
             device=None,
         )
-        volume = wait_for_volume(
+        volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
-            expected_status=u'in-use',
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
         )
 
         devices_after = set(FilePath('/dev').children())
@@ -379,8 +386,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
 
         attached_volume = self.nova.volumes.create_server_volume(
             server_id=instance_id,
@@ -388,9 +396,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             device=None,
         )
 
-        with self.assertRaises(Exception):
-            wait_for_volume(
+        with self.assertRaises(UnexpectedStateException) as e:
+            wait_for_volume_state(
                 volume_manager=self.cinder.volumes,
                 expected_volume=attached_volume,
-                expected_status=u'in-use',
+                desired_state=u'in-use',
+                transient_states=(u'attaching',),
             )
+        self.assertEqual(e.exception.unexpected_state, u'available')
