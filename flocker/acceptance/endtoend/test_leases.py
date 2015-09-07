@@ -10,13 +10,13 @@ from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...testtools import random_name
+from ...testtools import random_name, loop_until
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     REALISTIC_BLOCKDEVICE_SIZE, get_docker_client,
     post_http_server, assert_http_server,
 )
-
+from ...apiclient import LeaseAlreadyHeld
 from ..scripts import SCRIPTS
 
 
@@ -34,6 +34,7 @@ class LeaseAPITests(TestCase):
         http_port = 8080
         dataset_id = uuid4()
         datasets = []
+        leases = []
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
         d = create_dataset(
             self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
@@ -49,6 +50,7 @@ class LeaseAPITests(TestCase):
             )
 
             def get_dataset_path(lease, created_dataset):
+                leases.insert(0, lease)
                 getting_datasets = cluster.client.list_datasets_state()
 
                 def extract_dataset_path(datasets):
@@ -129,7 +131,32 @@ class LeaseAPITests(TestCase):
             client.stop(container_id)
             if lease_expiry:
                 # wait for lease to expire
-                pass
+                acquiring_lease = cluster.client.acquire_lease(
+                    dataset_id,
+                    UUID(cluster.nodes[0].uuid),
+                    expires=lease_expiry
+                )
+                # At this point the lease must still be valid and our request
+                # should raise an exception.
+                acquiring_lease.addCallback(
+                    lambda _: self.fail('Lease expired too soon.')
+                )
+                # Trap the expected failure and move on down the callback chain
+                acquiring_lease.addErrback(
+                    lambda failure: failure.trap(LeaseAlreadyHeld)
+                )
+
+                [expected_lease] = leases
+
+                # loop until lease expires
+                def lease_removed():
+                    d = cluster.client.list_leases()
+
+                    def got_leases(leases):
+                        return expected_lease not in leases
+                    d.addCallback(got_leases)
+                    return d
+                return loop_until(lease_removed)
             else:
                 releasing = cluster.client.release_lease(dataset_id)
                 releasing.addCallback(lambda _: container_id)
