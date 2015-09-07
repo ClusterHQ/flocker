@@ -25,7 +25,12 @@ class LeaseAPITests(TestCase):
     Tests for the leases API.
     """
     def _assert_lease_behavior(self, cluster, operation,
-                               additional_kwargs, state_method):
+                               additional_kwargs, state_method,
+                               expire_lease=False):
+        if expire_lease:
+            lease_expiry = 60
+        else:
+            lease_expiry = None
         http_port = 8080
         dataset_id = uuid4()
         datasets = []
@@ -39,7 +44,9 @@ class LeaseAPITests(TestCase):
             # Call the API to acquire a lease with the dataset ID.
             datasets.insert(0, dataset)
             acquiring_lease = cluster.client.acquire_lease(
-                dataset.dataset_id, UUID(cluster.nodes[0].uuid), expires=1000)
+                dataset.dataset_id, UUID(cluster.nodes[0].uuid),
+                expires=lease_expiry
+            )
 
             def get_dataset_path(lease, created_dataset):
                 getting_datasets = cluster.client.list_datasets_state()
@@ -120,12 +127,16 @@ class LeaseAPITests(TestCase):
 
         def stop_container_again(container_id, client, dataset_id):
             client.stop(container_id)
-            releasing = cluster.client.release_lease(dataset_id)
-            releasing.addCallback(lambda _: container_id)
-            # Now we've released the lease and stopped the running
-            # container, our earlier move request should be enacted
-            # after a short delay.
-            return releasing
+            if lease_expiry:
+                # wait for lease to expire
+                pass
+            else:
+                releasing = cluster.client.release_lease(dataset_id)
+                releasing.addCallback(lambda _: container_id)
+                # Now we've released the lease and stopped the running
+                # container, our earlier move request should be enacted
+                # after a short delay.
+                return releasing
 
         d.addCallback(stop_container_again, client, dataset_id)
 
@@ -166,7 +177,10 @@ class LeaseAPITests(TestCase):
         A dataset can be deleted once a lease held on it by a
         particular node has expired.
         """
-        self.fail("not implemented yet")
+        return self._assert_lease_behavior(
+            cluster, cluster.client.move_dataset,
+            {'primary': cluster.nodes[1].uuid}, cluster.wait_for_dataset,
+            )
 
     @require_moving_backend
     @require_cluster(2)
