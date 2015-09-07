@@ -9,8 +9,16 @@ from flocker.testtools import run_process
 
 
 class VersionExtensionsTest(SynchronousTestCase):
+    """
+    Tests for Sphinx version extensions.
+    """
 
     def test_version_prompt(self):
+        """
+        The ``version-prompt`` directive replaces the placemarker
+        ``|latest-installable|`` in a source file with the current
+        installable version in the output file.
+        """
         temp_dir = FilePath(self.mktemp())
         temp_dir.makedirs()
         source_file = temp_dir.child('contents.rst')
