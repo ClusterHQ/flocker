@@ -27,7 +27,6 @@ class VersionExtensionsTest(SynchronousTestCase):
 
                $ PRE-|latest-installable|-POST
             '''))
-        target = temp_dir.child('contents.html')
         run_process([
             'sphinx-build', '-b', 'html',
             '-C',   # don't look for config file, use -D flags instead
@@ -35,6 +34,6 @@ class VersionExtensionsTest(SynchronousTestCase):
             temp_dir.path,      # directory containing source/config files
             temp_dir.path,      # directory containing build files
             source_file.path])  # source file to process
-        content = target.getContent()
         expected = 'PRE-{}-POST'.format(get_installable_version(version))
+        content = temp_dir.child('contents.html').getContent()
         self.assertIn(expected, content)
