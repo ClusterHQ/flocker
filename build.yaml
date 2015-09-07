@@ -1,4 +1,4 @@
-# vim ft=yaml:fdm=indent
+# vim: ai ts=4 sts=4 et sw=4 ft=yaml fdm=indent et foldlevel=0
 # To modify an existing job, update the dictionary 'jobs_type'
 # commit, push
 # Then click 'deploy' on the jenkins job related to this repository
@@ -282,7 +282,7 @@ common_cli:
 job_type:
   run_trial:
   # http://build.clusterhq.com/builders/flocker-centos-7
-    run_trial_on_AWS_CentOS_7_with_SELinux:
+    run_trial_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
       with_modules:
         - flocker.acceptance
@@ -357,7 +357,7 @@ job_type:
       coverage_report: true
 
   run_trial_for_storage_driver:
-    run_trial_for_ebs_storage_driver_on_CentOS_7_with_SELinux:
+    run_trial_for_ebs_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
       with_modules:
         - flocker/node/agents/ebs.py
@@ -390,7 +390,7 @@ job_type:
       clean_repo: true
 
 
-    run_trial_for_cinder_storage_driver_on_CentOS_7_with_SELinux:
+    run_trial_for_cinder_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'rackspace-jenkins-slave-centos7-selinux-standard-4-dfw'
       with_modules:
         - flocker/node/agents/cinder.py
@@ -438,7 +438,7 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
-    run_acceptance_on_AWS_CentOS_7_with_SElinux_for:
+    run_acceptance_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_modules:
         - flocker.acceptance.endtoend.test_dataset
@@ -485,7 +485,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
-    run_acceptance_on_Rackspace_CentOS_7_with_SELinuxfor:
+    run_acceptance_on_Rackspace_CentOS_7:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
