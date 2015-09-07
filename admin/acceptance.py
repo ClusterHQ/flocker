@@ -875,6 +875,7 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-control',
             b'-u', b'flocker-dataset-agent',
             b'-u', b'flocker-container-agent',
+            b'-u', b'flocker-docker-plugin',
         ],
         handle_stdout=lambda line: output_file.write(line + b'\n')
     )

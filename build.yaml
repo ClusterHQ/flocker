@@ -167,6 +167,7 @@ common_cli:
     # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
+    #
     sudo rm -rf \$venv
     sudo rm -f results.xml
     sudo rm -f trial.log

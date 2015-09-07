@@ -392,7 +392,7 @@ def build_convergence_loop_fsm(reactor, deployer):
 
 @implementer(IConvergenceAgent)
 @attributes(["reactor", "deployer", "host", "port"])
-class AgentLoopService(object, MultiService):
+class AgentLoopService(MultiService, object):
     """
     Service in charge of running the convergence loop.
 

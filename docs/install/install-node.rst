@@ -141,17 +141,7 @@ Installing on CentOS 7
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-First disable SELinux.
-
-.. task:: disable_selinux centos-7
-   :prompt: [root@centos]#
-
-.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
-          This prevents Docker containers from accessing those filesystems as volumes.
-          A future version of Flocker may provide a different integration strategy.
-          See :issue:`619`.
-
-Now install the ``flocker-node`` package.
+First, install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
 Paste them into a root console on the target node:
