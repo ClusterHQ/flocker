@@ -156,8 +156,12 @@ class LeaseAPITests(TestCase):
         it by a particular node.
         """
         return self._assert_lease_behavior(
-            cluster, cluster.client.move_dataset,
-            {'primary': cluster.nodes[1].uuid}, cluster.wait_for_dataset)
+            cluster,
+            cluster.client.move_dataset,
+            {'primary': cluster.nodes[1].uuid},
+            cluster.wait_for_dataset,
+            expire_lease=False,
+        )
 
     @require_moving_backend
     @require_cluster(2)
@@ -167,8 +171,12 @@ class LeaseAPITests(TestCase):
         it by a particular node.
         """
         return self._assert_lease_behavior(
-            cluster, cluster.client.delete_dataset,
-            dict(), cluster.wait_for_deleted_dataset)
+            cluster,
+            cluster.client.delete_dataset,
+            {},
+            cluster.wait_for_deleted_dataset,
+            expire_lease=False,
+        )
 
     @require_moving_backend
     @require_cluster(2)
@@ -178,9 +186,12 @@ class LeaseAPITests(TestCase):
         particular node has expired.
         """
         return self._assert_lease_behavior(
-            cluster, cluster.client.move_dataset,
-            {'primary': cluster.nodes[1].uuid}, cluster.wait_for_dataset,
-            )
+            cluster,
+            cluster.client.move_dataset,
+            {'primary': cluster.nodes[1].uuid},
+            cluster.wait_for_dataset,
+            expire_lease=True
+        )
 
     @require_moving_backend
     @require_cluster(2)
@@ -189,4 +200,10 @@ class LeaseAPITests(TestCase):
         A dataset can be deleted once a lease held on it by a
         particular node has expired.
         """
-        self.fail("not implemented yet")
+        return self._assert_lease_behavior(
+            cluster,
+            cluster.client.delete_dataset,
+            {},
+            cluster.wait_for_deleted_dataset,
+            expire_lease=True
+        )
