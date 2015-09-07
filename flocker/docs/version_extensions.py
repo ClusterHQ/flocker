@@ -8,7 +8,7 @@ latest installable version of Flocker.
 import importlib
 import os
 
-from sphinx.directives.code import CodeBlock, LiteralInclude
+from sphinx.directives.code import LiteralInclude
 from sphinx.roles import XRefRole
 
 from flocker import __version__ as version
@@ -94,28 +94,6 @@ class VersionLiteralInclude(LiteralInclude):
         return LiteralInclude.run(self)
 
 
-# Currently, there is a mix of code-block and sphinx-prompt sections in
-# the docs.  This should be cleaned up (FLOC-1388) and then one of the
-# following directives can be removed.
-
-class VersionCodeBlock(CodeBlock):
-    """
-    Similar to CodeBlock but replaces a placeholder with the latest installable
-    version of Flocker.
-
-    Usage example:
-
-    .. version-code-block:: console
-
-       $ brew install flocker-|latest-installable|
-    """
-    def run(self):
-        latest = get_installable_version(version)
-        self.content = [item.replace(PLACEHOLDER, latest) for
-                        item in self.content]
-        return CodeBlock.run(self)
-
-
 # Due to the dash in the name, the sphinx-prompt module is unloadable
 # using a normal import - use the importlib machinery instead.
 sphinx_prompt = importlib.import_module('sphinx-prompt')
@@ -140,7 +118,6 @@ class VersionPrompt(sphinx_prompt.PromptDirective):
 
 
 def setup(app):
-    app.add_directive('version-code-block', VersionCodeBlock)
     app.add_directive('version-prompt', VersionPrompt)
     app.add_directive('version-literalinclude', VersionLiteralInclude)
     app.add_role('version-download', VersionDownload())
