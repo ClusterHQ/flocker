@@ -33,7 +33,6 @@ class LeaseAPITests(TestCase):
         """
         http_port = 8080
         dataset_id = uuid4()
-        dataset_path = []
         datasets = []
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
         d = create_dataset(
@@ -51,7 +50,6 @@ class LeaseAPITests(TestCase):
                 getting_datasets = cluster.client.list_datasets_state()
 
                 def extract_dataset_path(datasets):
-                    dataset_path.insert(0, datasets[0].path)
                     return datasets[0].path
 
                 getting_datasets.addCallback(extract_dataset_path)
@@ -66,7 +64,6 @@ class LeaseAPITests(TestCase):
             # Launch data HTTP container and make POST requests
             # to it in a looping call every second.
             # return looping call deferred
-            # import pdb;pdb.set_trace()
             script = SCRIPTS.child("datahttp.py")
             script_arguments = [u"/data"]
             docker_arguments = {
@@ -186,10 +183,10 @@ class LeaseAPITests(TestCase):
 
     @require_moving_backend
     @require_cluster(2)
-    def test_delete_dataset_after_lease_release(self, cluster):
+    def test_move_dataset_after_lease_expiry(self, cluster):
         """
         A dataset can be deleted once a lease held on it by a
-        particular node is released.
+        particular node has expired.
         """
         self.fail("not implemented yet")
 
