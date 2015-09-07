@@ -14,14 +14,19 @@ they match that configuration.
 from ._config import (
     FlockerConfiguration, ConfigurationError, FigConfiguration,
     model_from_configuration,
-    )
+)
 from ._model import (
     IClusterStateChange,
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
     RestartAlways, DeploymentState, NonManifestDatasets, same_node,
-    IClusterStateWipe,
-    )
+    IClusterStateWipe, Leases, Lease, LeaseError, pmap_field
+)
+from ._protocol import (
+    IConvergenceAgent,
+    NodeStateCommand,
+    AgentAMP,
+)
 
 __all__ = [
     'same_node',
@@ -46,4 +51,12 @@ __all__ = [
     'RestartOnFailure',
     'RestartAlways',
     'NonManifestDatasets',
+
+    'IConvergenceAgent',
+    'NodeStateCommand',
+    'AgentAMP',
+    'pmap_field',
+    'Lease',
+    'Leases',
+    'LeaseError',
 ]

@@ -23,7 +23,7 @@ from characteristic import attributes
 from machinist import (
     trivialInput, TransitionTable, constructFiniteStateMachine,
     MethodSuffixOutputer,
-    )
+)
 
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
@@ -32,9 +32,9 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change
 
-from ..control._protocol import (
+from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
-    )
+)
 
 
 class ClusterStatusInputs(Names):
@@ -392,7 +392,7 @@ def build_convergence_loop_fsm(reactor, deployer):
 
 @implementer(IConvergenceAgent)
 @attributes(["reactor", "deployer", "host", "port"])
-class AgentLoopService(object, MultiService):
+class AgentLoopService(MultiService, object):
     """
     Service in charge of running the convergence loop.
 
@@ -418,7 +418,8 @@ class AgentLoopService(object, MultiService):
         self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.reconnecting_factory = ReconnectingClientFactory.forProtocol(
-            lambda: AgentAMP(self))
+            lambda: AgentAMP(self.reactor, self)
+        )
         self.factory = TLSMemoryBIOFactory(context_factory, True,
                                            self.reconnecting_factory)
 

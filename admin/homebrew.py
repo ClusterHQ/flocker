@@ -1,3 +1,4 @@
+# -*- test-case-name: admin.test.test_homebrew -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -8,33 +9,25 @@ Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 
 import logging
 import sys
-from json import load
-from urllib2 import urlopen
 from hashlib import sha1
 
 from twisted.python.usage import Options, UsageError
-from tl.eggdeps.graph import Graph
+from pkg_resources import parse_requirements
 
 import requests
 from requests_file import FileAdapter
 
 
-def get_dependency_graph(application):
+def get_requirements(requirements_path):
     """
-    Get the dependencies of an application.
+    Get the dependencies of an application from a :file:`requirements.txt`.
 
-    :param unicode application: The name of an application to get the
-        dependencies of.
+    :param FilePath requirements_path: The path to the requirements file.
 
-    :return tl.eggdeps.graph.Graph: Graph of Python dependencies, not
-        including ``application``.
+    :return: List of requirements.
+    :rtype: ``list`` of ``Requirement``s
     """
-    dependency_graph = Graph()
-    dependency_graph.from_specifications([application])
-    # We don't want flocker to require flocker, so we pop "application" out
-    # of the graph
-    dependency_graph.pop(application)
-    return dependency_graph
+    return list(parse_requirements(requirements_path.getContent()))
 
 
 def get_checksum(url):
@@ -58,7 +51,7 @@ def get_checksum(url):
 def get_class_name(version):
     """
     The ruby class name depends on the Flocker version. For example for version
-    0.3.0dev1 the class name should be Flocker0.3.0dev1.
+    0.3.0.dev1 the class name should be Flocker0.3.0.dev1.
 
     :param str version: The version of Flocker this recipe is for.
 
@@ -79,26 +72,25 @@ def get_class_name(version):
     return u''.join(characters)
 
 
-def get_resources(dependency_graph):
+def get_resources(requirements):
     """
     Get the URLs and checksums of Python dependencies.
 
-    :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
-        dependencies.
+    :param requirements: List of flocker dependencies.
+    :type requirements: ``list`` of ``Requirement``s.
 
     :return list: Dictionaries mapping project names to URLs and checksums.
     """
     resources = []
-    for name, node in sorted(dependency_graph.iteritems()):
-        requirement = node.dist.as_requirement()
+    for requirement in sorted(requirements, key=lambda r: r.project_name):
         operator, version = requirement.specs[0]
         project_name = requirement.project_name
-        url = b"http://pypi.python.org/pypi/{name}/{version}/json".format(
+        url = b"https://pypi.python.org/pypi/{name}/{version}/json".format(
               name=project_name,
               version=version)
-        f = urlopen(url)
-        pypi_information = load(f)
-        f.close()
+        r = requests.get(url)
+        r.raise_for_status()
+        pypi_information = r.json()
         for release in pypi_information['urls']:
             if release['packagetype'] == 'sdist':
                 sdist_url = release['url']
@@ -109,7 +101,7 @@ def get_resources(dependency_graph):
                 })
                 break
         else:
-            raise Exception("sdist package not found for " + name)
+            raise Exception("sdist package not found for " + project_name)
     return resources
 
 
@@ -136,21 +128,22 @@ def format_resource_stanzas(resources):
     return u''.join(stanzas)
 
 
-def make_recipe(version, sdist_url):
+def make_recipe(version, sdist_url, requirements_path):
     """
     Create a Homebrew recipe. This uses the network.
 
     :param version: The version of Flocker to create a recipe for.
     :param sdist_url: The URL of the source distribution of Flocker.
+    :param FilePath: The path to the requirements file.
 
     :return unicode: A Homebrew recipe.
     """
-    dependency_graph = get_dependency_graph(u"flocker")
+    requirements = get_requirements(requirements_path)
     return get_recipe(
         sdist_url=sdist_url,
         sha1=get_checksum(url=sdist_url),
         class_name=get_class_name(version=version),
-        resources=get_resources(dependency_graph=dependency_graph),
+        resources=get_resources(requirements=requirements),
     )
 
 
@@ -243,7 +236,12 @@ def main(args, base_path, top_level):
     logging.basicConfig(level=logging.INFO)
     version = options["flocker-version"]
     logging.info('Creating Homebrew recipe for version {}'.format(version))
-    recipe = make_recipe(version=version, sdist_url=options["sdist"])
+    requirements_path = top_level.child('requirements.txt')
+    recipe = make_recipe(
+        version=version,
+        sdist_url=options["sdist"],
+        requirements_path=requirements_path,
+    )
 
     with open(options["output-file"], 'wt') as f:
         f.write(recipe)

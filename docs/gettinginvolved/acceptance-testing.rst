@@ -127,7 +127,7 @@ Ensure that they all pass, with no skips:
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider vagrant
+  admin/run-acceptance-tests --distribution centos-7 --provider vagrant
 
 
 .. _acceptance-testing-rackspace-config:
@@ -160,7 +160,7 @@ Rackspace can use these dataset backends:
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider rackspace --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider rackspace --config-file config.yml
 
 
 .. _acceptance-testing-aws-config:
@@ -178,6 +178,7 @@ To run the acceptance tests on AWS, you need:
 
    aws:
      region: <aws region, e.g. "us-west-2">
+     zone: <aws zone, e.g. "us-west-2a">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
@@ -191,9 +192,11 @@ AWS can use these dataset backends:
   * :ref:`ZFS<zfs-dataset-backend>`.
   * :ref:`Loopback<loopback-dataset-backend>`.
 
+If you're using the AWS dataset backend make sure the regions and zones are the same both here and there!
+
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file config.yml
 
 .. _acceptance-testing-managed-config:
 
@@ -219,73 +222,6 @@ The nodes should be configured to allow key based SSH connections as user ``root
 .. prompt:: bash $
 
    admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
-
-
-.. _client-acceptance-tests:
-
-Client Testing
-==============
-
-Flocker includes client installation tests and a tool for running them.
-It is called like this:
-
-.. prompt:: bash $
-
-   admin/run-cluster-tests <options> [<test-cases>]
-
-
-The :program:`admin/run-client-tests` script has several options:
-
-.. program:: admin/run-client-tests
-
-.. option:: --distribution <distribution>
-
-   Specifies what distribution to use on the created nodes.
-
-.. option:: --provider <provider>
-
-   Specifies what provider to use to create the nodes.
-
-.. option:: --flocker-version <version>
-
-   Specifies the version of flocker to install.
-   If this isn't specified, the most recent version will be installed.
-   If a branch is also specified, the most recent version from that branch will be installed.
-   If a branch is not specified, the most recent release will be installed.
-
-   .. note::
-
-      The build server merges forward before building packages, except on release branches.
-      If you want to run the acceptance tests against a branch in development,
-      you probably only want to specify the branch.
-
-.. option:: --branch <branch>
-
-   Specifies the branch from which packages are installed.
-   If this isn't specified, packages will be installed from the release repository.
-
-.. option:: --build-server <buildserver>
-
-   Specifies the base URL of the build server to install from.
-   This is probably only useful when testing changes to the build server.
-
-.. option:: --config-file <config-file>
-
-   Specifies a YAML configuration file that contains provider specific configuration.
-   See the acceptance testing section above for the required configuration options.
-   If the configuration contains a ``metadata`` key,
-   the contents will be added as metadata of the created nodes,
-   if the provider supports it.
-
-.. option:: --keep
-
-   Keep VMs around, if the tests fail.
-
-To see the supported values for each option, run:
-
-.. prompt:: bash $
-
-   admin/run-client-tests --help
 
 
 Functional Testing

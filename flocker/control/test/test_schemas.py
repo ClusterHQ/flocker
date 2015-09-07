@@ -12,6 +12,15 @@ from ..httpapi import SCHEMAS
 
 a_uuid = unicode(uuid4())
 
+# The following two UUIDs are invalid, but are of the correct
+# length and loose format for a UUID. They will be caught out
+# by the regex in the schema types definition.
+# This UUID has a 3 at the start of the 3rd block, which is
+# not valid for UUIDv4 format.
+bad_uuid_1 = u'75a15c23-8dd6-3f29-8164-6d60928bf3cc'
+# This UUID has a 'P' in the 2nd block, which is not valid
+# for UUIDv4 format.
+bad_uuid_2 = u'75a15c23-8dP6-4f29-8164-6d60928bf3cc'
 
 VersionsTests = build_schema_test(
     name="VersionsTests",
@@ -64,9 +73,21 @@ ConfigurationContainersSchemaTests = build_schema_test(
     failing_instances=[
         # node_uuid wrong type
         {'node_uuid': 1, 'image': 'clusterhq/redis', 'name': 'my_container'},
-        # node_uuid not a UUID
+        # node_uuid not UUID format
         {
             'node_uuid': 'idonotexist',
+            'image': 'clusterhq/redis',
+            'name': 'my_container'
+        },
+        # node_uuid not a valid v4 UUID
+        {
+            'node_uuid': bad_uuid_1,
+            'image': 'clusterhq/redis',
+            'name': 'my_container'
+        },
+        # node_uuid not a valid hex UUID
+        {
+            'node_uuid': bad_uuid_2,
             'image': 'clusterhq/redis',
             'name': 'my_container'
         },
@@ -504,7 +525,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'node_uuid': a_uuid,
             'image': 'postgres',
             'name': 'postgres',
-            'volumes': [{'dataset_id': "x" * 36,
+            'volumes': [{'dataset_id': unicode(uuid4()),
                          'mountpoint': '/var/db'}],
         },
         {
@@ -531,6 +552,9 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
 
     # too long string for dataset_id
     {u"primary": a_uuid, u"dataset_id": u"x" * 37},
+
+    # dataset_id not a valid UUID
+    {u"primary": a_uuid, u"dataset_id": bad_uuid_1},
 
     # wrong type for metadata
     {u"primary": a_uuid, u"metadata": 10},
@@ -566,7 +590,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     {u"primary": 10,
      u"metadata": {},
      u"maximum_size": 1024 * 1024 * 1024,
-     u"dataset_id": u"x" * 36},
+     u"dataset_id": a_uuid},
 
     # non-IPv4-address for primary
     {u"primary": u"10.0.0.257",
@@ -576,7 +600,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     {u"primary": u"example.com",
      u"metadata": {},
      u"maximum_size": 1024 * 1024 * 1024,
-     u"dataset_id": u"x" * 36},
+     u"dataset_id": a_uuid},
 
     # wrong type for deleted
     {u"primary": a_uuid,
@@ -596,7 +620,7 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = (
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
         # dataset_id is a string of 36 characters
-        {u"primary": a_uuid, u"dataset_id": u"x" * 36},
+        {u"primary": a_uuid, u"dataset_id": unicode(uuid4())},
 
         # deleted is a boolean
         {u"primary": a_uuid, u"deleted": False},
@@ -611,7 +635,7 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = (
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
          u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": u"x" * 36,
+         u"dataset_id": unicode(uuid4()),
          u"deleted": True},
     ]
 )
@@ -660,10 +684,20 @@ StateDatasetsArraySchemaTests = build_schema_test(
         # not an array
         {}, u"lalala", 123,
 
-        # missing primary
-        [{u"path": u"/123",
+        # null primary
+        [{u"primary": None,
           u"maximum_size": 1024 * 1024 * 1024,
           u"dataset_id": u"x" * 36}],
+
+        # null path
+        [{u"path": None,
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # XXX Ideally there'd be a couple more tests here:
+        # * primary without path
+        # * path without primary
+        # See FLOC-2170
 
         # missing dataset_id
         [{u"primary": a_uuid,
@@ -673,30 +707,25 @@ StateDatasetsArraySchemaTests = build_schema_test(
         [{u"primary": a_uuid,
           u"dataset_id": u"x" * 36,
           u"path": 123}],
-
-        # missing path
-        [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36}],
     ],
 
     passing_instances=[
-        # only maximum_size is optional
-        [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
-          u"path": u"/123"}],
+        # missing primary and path
+        [{u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": unicode(uuid4())}],
 
         # maximum_size is integer
         [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
+          u"dataset_id": unicode(uuid4()),
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
 
         # multiple entries:
         [{u"primary": a_uuid,
-          u"dataset_id": u"x" * 36,
+          u"dataset_id": unicode(uuid4()),
           u"path": u"/123"},
          {u"primary": a_uuid,
-          u"dataset_id": u"y" * 36,
+          u"dataset_id": unicode(uuid4()),
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
     ]
@@ -733,22 +762,20 @@ StateContainersArrayTests = build_schema_test(
         # Wrong item type
         ["string"],
         # Failing dataset type (missing running)
-        [{u"host": u"10.0.0.1", u"node_uuid": a_uuid, u"name": u"lalala",
+        [{u"node_uuid": a_uuid, u"name": u"lalala",
           u"image": u"busybox:latest"}]
     ],
     passing_instances=[
         [],
-        [{u"host": u"10.0.0.1", u"name": u"lalala",
+        [{u"name": u"lalala",
           u"node_uuid": a_uuid,
           u"image": u"busybox:latest", u'running': True}],
         [{
-            u'host': u"10.0.0.1",
             u"node_uuid": a_uuid,
             u'image': u'nginx:latest',
             u'name': u'webserver2',
             u'running': True},
          {
-             u'host': u"10.0.0.2",
              u"node_uuid": unicode(uuid4()),
              u'image': u'nginx:latest',
              u'name': u'webserver',
@@ -780,5 +807,66 @@ NodesTests = build_schema_test(
         [{'host': '192.168.1.10', 'uuid': unicode(uuid4())}],
         [{'host': '192.168.1.10', 'uuid': unicode(uuid4())},
          {'host': '192.168.1.11', 'uuid': unicode(uuid4())}],
+    ],
+)
+
+
+LEASE_WITH_EXPIRATION = {'dataset_id': unicode(uuid4()),
+                         'node_uuid': unicode(uuid4()),
+                         'expires': 15}
+# Can happen sometimes, means time went backwards or a bug but at least we
+# should report things accurately.
+LEASE_WITH_NEGATIVE_EXPIRATION = {'dataset_id': unicode(uuid4()),
+                                  'node_uuid': unicode(uuid4()),
+                                  'expires': -0.1}
+LEASE_NO_EXPIRES = {'dataset_id': unicode(uuid4()),
+                    'node_uuid': unicode(uuid4()),
+                    'expires': None}
+BAD_LEASES = [
+    # Wrong types:
+    None, [], 1,
+    # Missing dataset_id:
+    {'node_uuid': unicode(uuid4()), 'expires': None},
+    # Missing node_uuid:
+    {'dataset_id': unicode(uuid4()), 'expires': None},
+    # Missing expires:
+    {'node_uuid': unicode(uuid4()), 'dataset_id': unicode(uuid4())},
+    # Wrong type for dataset_id:
+    {'node_uuid': unicode(uuid4()), 'dataset_id': 123,
+     'expires': None},
+    # Wrong type for node_uuid:
+    {'dataset_id': unicode(uuid4()), 'node_uuid': 123,
+     'expires': None},
+    # Wrong type for expires:
+    {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
+     'expires': []},
+    # Extra key:
+    {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
+     'expires': None, 'extra': 'key'},
+]
+
+ListLeasesTests = build_schema_test(
+    name="ListLeasesTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/list_leases'},
+    schema_store=SCHEMAS,
+    failing_instances=[None, {}, 1] + list(
+        [bad] for bad in BAD_LEASES),
+    passing_instances=[
+        [],
+        [LEASE_NO_EXPIRES],
+        [LEASE_WITH_EXPIRATION, LEASE_WITH_NEGATIVE_EXPIRATION],
+    ],
+)
+
+# Endpoints that return a single lease: delete, create
+LeaseResultTests = build_schema_test(
+    name="LeaseResultTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+    schema_store=SCHEMAS,
+    failing_instances=BAD_LEASES,
+    passing_instances=[
+        LEASE_NO_EXPIRES,
+        LEASE_WITH_EXPIRATION,
+        LEASE_WITH_NEGATIVE_EXPIRATION,
     ],
 )

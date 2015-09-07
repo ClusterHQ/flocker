@@ -8,7 +8,7 @@ devices.
 """
 
 from uuid import UUID, uuid4
-from subprocess import check_output
+from subprocess import CalledProcessError, check_output, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 
@@ -27,6 +27,7 @@ import psutil
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
+from twisted.python.components import proxyForInterface
 
 from .. import (
     IDeployer, IStateChange, sequentially, in_parallel, run_state_change
@@ -44,7 +45,7 @@ _logger = Logger()
 
 # The size which will be assigned to datasets with an unspecified
 # maximum_size.
-# XXX: Make this configurable. FLOC-2044
+# XXX: Make this configurable. FLOC-2679
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
 
@@ -102,6 +103,16 @@ class DatasetExists(Exception):
     def __init__(self, blockdevice):
         Exception.__init__(self, blockdevice)
         self.blockdevice = blockdevice
+
+
+class FilesystemExists(Exception):
+    """
+    A failed attempt to create a filesystem on a block device that already has
+    one.
+    """
+    def __init__(self, device):
+        Exception.__init__(self, device)
+        self.device = device
 
 
 DATASET = Field(
@@ -392,10 +403,51 @@ class CreateFilesystem(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
-        check_output([
-            b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
-        ])
+        try:
+            _ensure_no_filesystem(device)
+            check_output([
+                b"mkfs", b"-t", self.filesystem.encode("ascii"),
+                # This is ext4 specific, and ensures mke2fs doesn't ask
+                # user interactively about whether they really meant to
+                # format whole device rather than partition. It will be
+                # removed once upstream bug is fixed. See FLOC-2085.
+                b"-F",
+                device.path
+            ])
+        except:
+            return fail()
         return succeed(None)
+
+
+def _ensure_no_filesystem(device):
+    """
+    Raises an error if there's already a filesystem on ``device``.
+
+    :raises: ``FilesystemExists`` if there is already a filesystem on
+        ``device``.
+    :return: ``None``
+    """
+    try:
+        check_output(
+            [b"blkid", b"-p", b"-u", b"filesystem", device.path],
+            stderr=STDOUT,
+        )
+    except CalledProcessError as e:
+        # According to the man page:
+        #   the specified token was not found, or no (specified) devices
+        #   could be identified
+        #
+        # Experimentation shows that there is no output in the case of the
+        # former, and an error printed to stderr in the case of the
+        # latter.
+        #
+        # FLOC-2388: We're assuming an interface. We should test this
+        # assumption.
+        if e.returncode == 2 and not e.output:
+            # There is no filesystem on this device.
+            return
+        raise
+    raise FilesystemExists(device)
 
 
 def _valid_size(size):
@@ -455,21 +507,24 @@ class MountBlockDevice(PRecord):
         # This should be asynchronous.  FLOC-1797
         check_output([b"mount", device.path, self.mountpoint.path])
 
-        # Mounted filesystem is world writeable/readable/executable since
-        # we can't predict what user a container will run as.  Make sure
-        # we change mounted filesystem's root directory permissions, so we
-        # only do this after the filesystem is mounted.
-        self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
-        self.mountpoint.restat()
-
         # Remove lost+found to ensure filesystems always start out empty.
-        # If other files exist we don't bother, since at that point user
-        # has modified the volume and we don't want to delete their data
-        # by mistake. A better way is described in
+        # Mounted filesystem is also made world
+        # writeable/readable/executable since we can't predict what user a
+        # container will run as.  We make sure we change mounted
+        # filesystem's root directory permissions, so we only do this
+        # after the filesystem is mounted.  If other files exist we don't
+        # bother with either change, since at that point user has modified
+        # the volume and we don't want to undo their changes by mistake
+        # (e.g. postgres doesn't like world-writeable directories once
+        # it's initialized).
+
+        # A better way is described in
         # https://clusterhq.atlassian.net/browse/FLOC-2074
         lostfound = self.mountpoint.child(b"lost+found")
         if self.mountpoint.children() == [lostfound]:
             lostfound.remove()
+            self.mountpoint.chmod(S_IRWXU | S_IRWXG | S_IRWXO)
+            self.mountpoint.restat()
 
         return succeed(None)
 
@@ -712,12 +767,12 @@ class CreateBlockDeviceDataset(PRecord):
         )
         device = api.get_device_path(volume.blockdevice_id)
 
-        # This duplicates CreateFilesystem now.
-        check_output(["mkfs", "-t", "ext4", device.path])
+        create = CreateFilesystem(volume=volume, filesystem=u"ext4")
+        d = run_state_change(create, deployer)
 
         mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
                                  mountpoint=self.mountpoint)
-        d = mount.run(deployer)
+        d.addCallback(lambda _: run_state_change(mount, deployer))
 
         def passthrough(result):
             BLOCK_DEVICE_DATASET_CREATED(
@@ -1536,7 +1591,7 @@ class BlockDeviceDeployer(PRecord):
         if local_state.applications is None:
             return in_parallel(changes=[])
 
-        not_in_use = NotInUseDatasets(local_state)
+        not_in_use = NotInUseDatasets(local_state, configuration.leases)
 
         configured_manifestations = this_node_config.manifestations
 
@@ -1552,7 +1607,7 @@ class BlockDeviceDeployer(PRecord):
         manifestations_to_create = set()
         all_dataset_ids = list(
             dataset.dataset_id
-            for dataset
+            for dataset, node
             in cluster_state.all_datasets()
         )
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
@@ -1560,7 +1615,7 @@ class BlockDeviceDeployer(PRecord):
                 continue
             else:
                 manifestation = configured_manifestations[dataset_id]
-                # XXX: Make this configurable. FLOC-2044
+                # XXX: Make this configurable. FLOC-2679
                 if manifestation.dataset.maximum_size is None:
                     manifestation = manifestation.transform(
                         ['dataset', 'maximum_size'],
@@ -1594,7 +1649,8 @@ class BlockDeviceDeployer(PRecord):
         detaches = list(self._calculate_detaches(
             local_state.devices, local_state.paths, configured_manifestations,
         ))
-        deletes = self._calculate_deletes(configured_manifestations)
+        deletes = self._calculate_deletes(
+            local_state, configured_manifestations)
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
@@ -1695,8 +1751,11 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id=UUID(manifestation.dataset_id),
                 )
 
-    def _calculate_deletes(self, configured_manifestations):
+    def _calculate_deletes(self, local_state, configured_manifestations):
         """
+        :param NodeState: The local state discovered immediately prior to
+            calculation.
+
         :param dict configured_manifestations: The manifestations configured
             for this node (like ``Node.manifestations``).
 
@@ -1714,9 +1773,52 @@ class BlockDeviceDeployer(PRecord):
             for manifestation in configured_manifestations.values()
             if manifestation.dataset.deleted
         )
-
         return [
             DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
             for dataset_id
             in delete_dataset_ids
+            if dataset_id in local_state.manifestations
         ]
+
+
+class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
+    """
+    A transparent caching layer around an ``IBlockDeviceAPI`` instance,
+    intended to exist for the lifetime of the process.
+
+    :ivar _api: Wrapped ``IBlockDeviceAPI`` provider.
+    :ivar _instance_id: Cached result of ``compute_instance_id``.
+    :ivar _device_paths: Mapping from blockdevice ids to cached device path.
+    """
+    def __init__(self, api):
+        self._api = api
+        self._instance_id = None
+        self._device_paths = {}
+
+    def compute_instance_id(self):
+        """
+        Always return initial result since this shouldn't change until a
+        reboot.
+        """
+        if self._instance_id is None:
+            self._instance_id = self._api.compute_instance_id()
+        return self._instance_id
+
+    def get_device_path(self, blockdevice_id):
+        """
+        Load the device path from a cache if possible.
+        """
+        if blockdevice_id not in self._device_paths:
+            self._device_paths[blockdevice_id] = self._api.get_device_path(
+                blockdevice_id)
+        return self._device_paths[blockdevice_id]
+
+    def detach_volume(self, blockdevice_id):
+        """
+        Clear the cached device path, if it was cached.
+        """
+        try:
+            del self._device_paths[blockdevice_id]
+        except KeyError:
+            pass
+        return self._api.detach_volume(blockdevice_id)

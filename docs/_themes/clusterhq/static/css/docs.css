@@ -3,7 +3,7 @@
 /* Nav Style from website */
 
 nav {
-    padding-top: 15px;
+    font-size: 17px;
 }
 
 nav ul {
@@ -12,30 +12,29 @@ nav ul {
     font-family: lato;
     min-height: 40px;
     padding-top: 0px;
-    font-size: 1.125em;
 }
 
 nav li {
     display: block;
     width: 100%;
-    padding-right:33px;
     height: 40px;
-}
-
-nav li:last-child {
-    padding-right: 0px;
+    padding: 0 16px 0 0;
+    font-size: 0.85em;
 }
 
 nav a {
     color: #fff;
-    font-size: 1.125em;
     padding-bottom: 4px;
 }
 
-nav a:hover, nav a:focus {
+nav a:hover, nav a:focus, nav a.active {
     border-bottom: 1px solid white;
     text-decoration: none;
     color: #fff;
+}
+
+ul.menu li:last-of-type {
+    padding: 0;
 }
 
 nav li.current-menu-item a {
@@ -84,6 +83,7 @@ li.button.menu a:hover {
 h1, h2, h3, h4, h5 {
     font-family:'Soho Gothic W01 Medium';
     padding-bottom: 25px;
+    padding-top: 25px;
 }
 
 a.headerlink {
@@ -310,7 +310,7 @@ a.download:before {
     font-family: lato;
 }
 
-.section {
+.page>.section {
     font-size: 1.05em;
 }
 
@@ -332,7 +332,7 @@ a.download:before {
     }
     
     .menubar {
-        height: 140px;
+        height: 150px;
     }
     
     .contents-menu>ul{
@@ -357,12 +357,11 @@ a.download:before {
     
     nav li {
         display: inline;
-        padding-right:33px;
         height: auto;
     }
     
     nav ul {
-        padding-top: 20px;
+        padding-top: 40px;
     }
     
     .highlight {
@@ -373,6 +372,27 @@ a.download:before {
         word-wrap: normal;
         display: inline;
         padding-left: 0;
+    }
+
+    ul.menu li:last-of-type a {
+        background-color: #3d7c77;
+        border: 1px solid #fff;
+        padding: 8px 15px;
+        display: inline-block;
+        margin-top: -8px;
+        border-radius: 6px;
+        float: right;
+        text-transform: uppercase;
+        font-size: 12px;
+
+        position: absolute;
+        top: -30px;
+        right: 15px;
+    }
+
+    ul.menu li:last-of-type a:hover {
+        color: #fff;
+        background-color: #f15c30;
     }
 }
 @media all and (min-width: 992px) {
@@ -390,11 +410,45 @@ a.download:before {
         padding-left:30px;
     }
 
+    .menu ul.menu {
+        padding-left: 5%;
+    }
+
+    ul.menu li:last-of-type a {
+        position: relative;
+        top: 4px;
+        right: 0;
+    }
+
 }
 @media all and (min-width: 1200px) {
     /* lg */
     body {
         background: linear-gradient(to right, #646570, #646570 25%, white 25%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
         background-size: 1170px, 100%;
+    }
+
+    .menu ul.menu li {
+        padding-left: 8px;
+    }
+
+    .menu ul.menu {
+        padding-left: 15%;
+    }
+}
+
+@media (max-width: 992px) and (min-width: 768px){
+    .menu ul.menu {
+         text-align: center;
+         border-top: 1px solid #fff;
+         border-bottom: 1px solid #fff;
+         margin-top: 16px;
+         padding-top: 8px;
+         padding-bottom: 11px;
+         padding-left: 0;
+    }
+
+    ul.menu li {
+        padding: 0 20px;
     }
 }

@@ -15,7 +15,7 @@ yum install -y https://s3.amazonaws.com/clusterhq-archive/centos/clusterhq-relea
 yum install -y \
 	@buildsys-build git \
 	dkms kernel-headers kernel-devel rpmdevtools \
-	zlib-devel libuuid-devel libselinux-devel \
+	zlib-devel libuuid-devel \
 	automake autoconf libtool \
 	rpm-devel rpmlint mock createrepo \
 	docker \

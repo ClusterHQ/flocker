@@ -6,6 +6,7 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
+import json
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -18,6 +19,7 @@ from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.conch.ssh.keys import Key
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -28,7 +30,9 @@ from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._ssh import (
-    run_remotely)
+    run_remotely,
+    ensure_agent_has_ssh_key,
+)
 from flocker.provision._install import (
     ManagedNode,
     task_pull_docker_images,
@@ -41,8 +45,11 @@ from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
 from flocker.acceptance.testtools import DatasetBackend
+from flocker.testtools.cluster_utils import (
+    make_cluster_id, Providers, TestTypes
+)
 
-from .runner import run
+from flocker.common.runner import run, run_ssh
 
 
 def extend_environ(**kwargs):
@@ -79,11 +86,15 @@ def get_trial_environment(cluster):
     """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
-        'FLOCKER_ACCEPTANCE_AGENT_NODES':
-            ':'.join(node.address for node in cluster.agent_nodes),
+        'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': str(len(cluster.agent_nodes)),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
         'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
             cluster.certificates_path.path,
+        'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': json.dumps({
+            node.private_address: node.address
+            for node in cluster.agent_nodes
+            if node.private_address is not None
+        }),
     }
 
 
@@ -139,6 +150,16 @@ class IClusterRunner(Interface):
         :param reactor: Reactor to use.
         :return Deferred: Deferred which fires when the cluster has been
             stopped.
+        """
+
+    def ensure_keys(reactor):
+        """
+        Ensure that the running ssh-agent has the ssh-keys needed to connect to
+        created nodes.
+
+        :param reactor: Reactor to use.
+        :return Deferred: That fires with a succesful result if the key is
+            found.  Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
         """
 
 
@@ -218,6 +239,13 @@ class ManagedRunner(object):
         installing = uninstalling.addCallback(install)
         return installing
 
+    def ensure_keys(self, reactor):
+        """
+        Assume we have keys, since there's no way of asking the nodes what keys
+        they'll accept.
+        """
+        return succeed(None)
+
     def start_cluster(self, reactor):
         """
         Don't start any nodes.  Give back the addresses of the configured,
@@ -233,7 +261,12 @@ class ManagedRunner(object):
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
-                generate_certificates(self._nodes),
+                generate_certificates(
+                    make_cluster_id(
+                        TestTypes.ACCEPTANCE,
+                        _provider_for_cluster_id(self.dataset_backend),
+                    ),
+                    self._nodes),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
@@ -248,9 +281,25 @@ class ManagedRunner(object):
         return succeed(None)
 
 
-def generate_certificates(nodes):
+def _provider_for_cluster_id(dataset_backend):
+    """
+    Get the ``Providers`` value that probably corresponds to a value from
+    ``DatasetBackend``.
+    """
+    if dataset_backend is DatasetBackend.aws:
+        return Providers.AWS
+    if dataset_backend is DatasetBackend.openstack:
+        return Providers.OPENSTACK
+    return Providers.UNSPECIFIED
+
+
+def generate_certificates(cluster_id, nodes):
     """
     Generate a new set of certificates for the given nodes.
+
+    :param UUID cluster_id: The unique identifier of the cluster for which to
+        generate the certificates.
+    :param list nodes: The ``INode`` providers that make up the cluster.
 
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
@@ -260,7 +309,8 @@ def generate_certificates(nodes):
     certificates = Certificates.generate(
         certificates_path,
         nodes[0].address,
-        len(nodes)
+        len(nodes),
+        cluster_id=cluster_id,
     )
     return certificates
 
@@ -273,7 +323,8 @@ def configured_cluster_for_nodes(
     Get a ``Cluster`` with Flocker services running on the right nodes.
 
     :param reactor: The reactor.
-    :param Certificates certificates: The certificates to install on the cluster.
+    :param Certificates certificates: The certificates to install on the
+        cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
     :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
         representing the dataset backend that the nodes will be configured to
@@ -327,6 +378,11 @@ class VagrantRunner(object):
         if self.variants:
             raise UsageError("Variants unsupported on vagrant.")
 
+    def ensure_keys(self, reactor):
+        key = Key.fromFile(os.path.expanduser(
+            "~/.vagrant.d/insecure_private_key"))
+        return ensure_agent_has_ssh_key(reactor, key)
+
     @inlineCallbacks
     def start_cluster(self, reactor):
         # Destroy the box to begin, so that we are guaranteed
@@ -357,12 +413,13 @@ class VagrantRunner(object):
             for address in self.NODE_ADDRESSES
         )
 
-        cluster = yield configured_cluster_for_nodes(
-            reactor,
-            Certificates(self.certificates_path),
-            nodes,
-            self.dataset_backend,
-            self.dataset_backend_configuration,
+        certificates = Certificates(self.certificates_path)
+        cluster = Cluster(
+            all_nodes=pvector(nodes),
+            control_node=nodes[0],
+            agent_nodes=nodes,
+            dataset_backend=self.dataset_backend,
+            certificates=certificates
         )
 
         returnValue(cluster)
@@ -449,7 +506,12 @@ class LibcloudRunner(object):
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
-            generate_certificates(self.nodes),
+            generate_certificates(
+                make_cluster_id(
+                    TestTypes.ACCEPTANCE,
+                    _provider_for_cluster_id(self.dataset_backend),
+                ),
+                self.nodes),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
@@ -468,8 +530,15 @@ class LibcloudRunner(object):
             except Exception as e:
                 print "Failed to destroy %s: %s" % (node.name, e)
 
+    def ensure_keys(self, reactor):
+        key = self.provisioner.get_ssh_key()
+        if key is not None:
+            return ensure_agent_has_ssh_key(reactor, key)
+        else:
+            return succeed(None)
 
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
+
+DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
 
 
 class RunOptions(Options):
@@ -733,6 +802,7 @@ class RunOptions(Options):
 
                aws:
                  region: <aws region, e.g. "us-west-2">
+                 zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
                  keyname: <ssh-key-name>
@@ -749,11 +819,13 @@ MESSAGE_FORMATS = {
         "[%(username)s@%(address)s]: Running %(command)s\n",
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
-    "admin.runner:run:output":
+    "flocker.common.runner:run:stdout":
         "%(line)s\n",
+    "flocker.common.runner:run:stderr":
+        "stderr:%(line)s\n",
 }
 ACTION_START_FORMATS = {
-    "admin.runner:run":
+    "flocker.common.runner:run":
         "Running %(command)s\n",
 }
 
@@ -768,7 +840,10 @@ def eliot_output(message):
 
     format = ''
     if message_type is not None:
-        format = MESSAGE_FORMATS.get(message_type, '')
+        if message_type == 'twisted:log' and message.get('error'):
+            format = '%(message)s'
+        else:
+            format = MESSAGE_FORMATS.get(message_type, '')
     elif action_type is not None:
         if action_status == 'started':
             format = ACTION_START_FORMATS.get('action_type', '')
@@ -787,23 +862,11 @@ def capture_journal(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
-    ran = run(reactor, [
-        b"ssh",
-        b"-C",  # compress traffic
-        b"-q",  # suppress warnings
-        b"-l", 'root',
-        # We're ok with unknown hosts.
-        b"-o", b"StrictHostKeyChecking=no",
-        # The tests hang if ControlMaster is set, since OpenSSH won't
-        # ever close the connection to the test server.
-        b"-o", b"ControlMaster=no",
-        # Some systems (notably Ubuntu) enable GSSAPI authentication which
-        # involves a slow DNS operation before failing and moving on to a
-        # working mechanism.  The expectation is that key-based auth will
-        # be in use so just jump straight to that.
-        b"-o", b"PreferredAuthentications=publickey",
-        host,
-        ' '.join(map(shell_quote, [
+    ran = run_ssh(
+        reactor=reactor,
+        host=host,
+        username='root',
+        command=[
             b'journalctl',
             b'--lines', b'0',
             b'--follow',
@@ -812,8 +875,10 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-control',
             b'-u', b'flocker-dataset-agent',
             b'-u', b'flocker-container-agent',
-        ])),
-    ], handle_line=lambda line: output_file.write(line + b'\n'))
+            b'-u', b'flocker-docker-plugin',
+        ],
+        handle_stdout=lambda line: output_file.write(line + b'\n')
+    )
     ran.addErrback(write_failure, logger=None)
 
 
@@ -848,9 +913,10 @@ def main(reactor, args, base_path, top_level):
 
     cluster = None
     try:
+        yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
 
-        if options['distribution'] in ('fedora-20', 'centos-7'):
+        if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)
@@ -892,7 +958,8 @@ def main(reactor, args, base_path, top_level):
                 for environment_variable in environment_variables:
                     print "export {name}={value};".format(
                         name=environment_variable,
-                        value=environment_variables[environment_variable],
+                        value=shell_quote(
+                            environment_variables[environment_variable]),
                     )
 
     raise SystemExit(result)

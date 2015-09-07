@@ -4,7 +4,7 @@
 Rackspace provisioner.
 """
 
-from ._libcloud import monkeypatch, LibcloudProvisioner
+from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision,
     task_open_control_firewall,
@@ -55,9 +55,9 @@ def provision_rackspace(node, package_source, distribution, variants):
 
 
 IMAGE_NAMES = {
-    'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
     'centos-7': u'CentOS 7 (PVHVM)',
-    'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)'
+    'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)',
+    'ubuntu-15.04': u'Ubuntu 15.04 (Vivid Vervet) (PVHVM)',
 }
 
 
@@ -75,7 +75,7 @@ def rackspace_provisioner(username, key, region, keyname):
     # Import these here, so that this can be imported without
     # installng libcloud.
     from libcloud.compute.providers import get_driver, Provider
-    monkeypatch()
+
     driver = get_driver(Provider.RACKSPACE)(
         key=username,
         secret=key,

@@ -18,3 +18,10 @@ class FlockerContainerAgentTests(
     """
     Tests for ``flocker-container-agent``.
     """
+
+
+class FlockerDiagnosticsTests(
+        make_script_tests(b"flocker-diagnostics")):
+    """
+    Tests for ``flocker-diagnostics``.
+    """

@@ -10,8 +10,12 @@ from os import getuid
 import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from stat import S_IRWXU
+from datetime import datetime
 
 from bitmath import Byte, MB, MiB, GB, GiB
+
+from pytz import UTC
 
 import psutil
 
@@ -19,7 +23,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PRecord, field, discard, pmap,
+    PRecord, field, discard, pmap, pvector,
 )
 
 from twisted.python.runtime import platform
@@ -55,10 +59,14 @@ from ..blockdevice import (
     check_allocatable_size,
     get_blockdevice_volume,
     _backing_file_name,
+    ProcessLifetimeCache,
+    FilesystemExists,
 )
 
 from ... import run_state_change, in_parallel
-from ...testtools import ideployer_tests_factory, to_node
+from ...testtools import (
+    ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
+)
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
 )
@@ -66,6 +74,8 @@ from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets, Application, AttachedVolume, DockerImage
 )
+from ....control._model import Leases
+
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
@@ -613,32 +623,14 @@ class UnusableAPI(object):
 
 def assert_calculated_changes(
     case, node_state, node_config, nonmanifest_datasets, expected_changes,
-    additional_node_states=frozenset(),
+    additional_node_states=frozenset(), leases=Leases(),
 ):
     """
-    Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
-    changes when it is invoked with the given state and configuration.
+    Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
+    circumstance.
 
-    :param TestCase case: The ``TestCase`` to use to make assertions (typically
-        the one being run at the moment).
-    :param NodeState node_state: The ``BlockDeviceDeployer`` will be asked to
-        calculate changes for a node that has this state.
-    :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
-        calculate changes for a node with this desired configuration.
-    :param set nonmanifest_datasets: Datasets which will be presented as part
-        of the cluster state without manifestations on any node.
-    :param expected_changes: The ``IStateChange`` expected to be returned.
-    :param set additional_node_states: A set of ``NodeState`` for other nodes.
+    :see: ``assert_calculated_changes_for_deployer``.
     """
-    cluster_state = DeploymentState(
-        nodes={node_state} | additional_node_states,
-        nonmanifest_datasets={
-            dataset.dataset_id: dataset
-            for dataset in nonmanifest_datasets
-        },
-    )
-    cluster_configuration = Deployment(nodes={node_config})
-
     api = UnusableAPI()
 
     deployer = BlockDeviceDeployer(
@@ -647,11 +639,11 @@ def assert_calculated_changes(
         block_device_api=api,
     )
 
-    changes = deployer.calculate_changes(
-        cluster_configuration, cluster_state,
+    return assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config,
+        nonmanifest_datasets, additional_node_states, set(),
+        expected_changes, leases=leases,
     )
-
-    case.assertEqual(expected_changes, changes)
 
 
 class ScenarioMixin(object):
@@ -891,6 +883,72 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             in_parallel(changes=[]),
         )
 
+    def test_no_delete_if_leased(self):
+        """
+        If a dataset has been marked as deleted *and* it is leased, no changes
+        are made.
+        """
+        # We have a dataset with a lease:
+        local_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  self.ONE_DATASET_STATE.uuid)
+
+        # Dataset is deleted:
+        local_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True)
+        local_config = add_application_with_volume(local_config)
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(),
+            in_parallel(changes=[]), leases=leases,
+        )
+
+    def test_deleted_dataset_volume_unmounted(self):
+        """
+        ``DestroyBlockDeviceDataset`` is a compound state change that first
+        attempts to unmount the block device.
+        Therefore do not calculate deletion for blockdevices that are not
+        manifest.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        # Remove the manifestation and its mount path.
+        local_state = local_state.transform(
+            ['manifestations', unicode(self.DATASET_ID)],
+            discard
+        )
+        local_state = local_state.transform(
+            ['paths', unicode(self.DATASET_ID)],
+            discard
+        )
+        # Local state shows that there is a device for the (now) non-manifest
+        # dataset. i.e it is attached.
+        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
+        assert_calculated_changes(
+            case=self,
+            node_state=local_state,
+            node_config=local_config,
+            # The unmounted dataset has been added back to the non-manifest
+            # datasets by discover_state.
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset
+            ],
+            expected_changes=in_parallel(
+                changes=[
+                    MountBlockDevice(
+                        mountpoint=FilePath('/flocker/').child(
+                            unicode(self.DATASET_ID)
+                        ),
+                        dataset_id=self.DATASET_ID
+                    )
+                ]
+            ),
+        )
+
 
 class BlockDeviceDeployerAttachCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
@@ -1029,6 +1087,53 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, node_config, set(),
             in_parallel(changes=[]),
+        )
+
+    def test_no_unmount_if_leased(self):
+        """
+        If a dataset should be unmounted *and* it is leased on this node, no
+        changes are made.
+        """
+        # State has a dataset which is leased
+        local_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  self.ONE_DATASET_STATE.uuid)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, set(),
+            in_parallel(changes=[]), leases=leases,
+        )
+
+    def test_unmount_manifestation_when_leased_elsewhere(self):
+        """
+        If the filesystem for a dataset is mounted on the node and the
+        configuration says the dataset is not meant to be manifest on that
+        node, ``BlockDeviceDeployer.calculate_changes`` returns a state
+        change to unmount the filesystem even if there is a lease, as long
+        as the lease is for another node.
+        """
+        # Give it a state that says it has a manifestation of the dataset.
+        node_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  uuid4())
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, node_state, node_config, set(),
+            in_parallel(changes=[
+                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+            ]), leases=leases,
         )
 
 
@@ -1196,7 +1301,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         When supplied with a configuration containing a dataset with a null
         size, ``BlockDeviceDeployer.calculate_changes`` returns a
         ``CreateBlockDeviceDataset`` for a 100GiB dataset.
-        XXX: Make the default size configurable. FLOC-2044
+        XXX: Make the default size configurable. FLOC-2679
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
@@ -1249,6 +1354,26 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     )
                 ]),
             changes
+        )
+
+    def test_dataset_default_maximum_size_stable(self):
+        """
+        When supplied with a configuration containing a dataset with a null
+        size and operating against state where a volume of the default size
+        exists for that dataset, ``BlockDeviceDeployer.calculate_changes``
+        returns no changes.
+        """
+        # The state has a manifestation with a concrete size (as it must have).
+        local_state = self.ONE_DATASET_STATE
+        # The configuration is the same except it lacks a size.
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset",
+             "maximum_size"],
+            None,
+        )
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(), in_parallel(changes=[]),
         )
 
     def test_dataset_exists_on_other_node(self):
@@ -2598,7 +2723,8 @@ class MountBlockDeviceTests(
     )
 ):
     """
-    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation.
+    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation, as
+    well as ``CreateFilesystem`` testing.
     """
     def _run_test(self, mountpoint):
         """
@@ -2629,6 +2755,17 @@ class MountBlockDeviceTests(
         self.assertIn(expected, mounted)
         return scenario
 
+    def _make_mounted_filesystem(self, path_segment=b"mount-test"):
+        mountpoint = mountroot_for_test(self).child(path_segment)
+        scenario = self._run_success_test(mountpoint)
+        return scenario, mountpoint
+
+    def _mount(self, scenario, mountpoint):
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+
     def test_run(self):
         """
         ``CreateFilesystem.run`` initializes a block device with a filesystem
@@ -2637,6 +2774,44 @@ class MountBlockDeviceTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(b"mount-test")
         self._run_success_test(mountpoint)
+
+    def test_create_fails_on_mounted_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a filesystem mounted with
+        ``MountBlockDevice`` fails in a non-destructive manner.
+        """
+        scenario, mountpoint = self._make_mounted_filesystem()
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Try recreating mounted filesystem; this should fail.
+        self.failureResultOf(scenario.create(), FilesystemExists)
+        # Unmounting and remounting, but our data still exists:
+        umount(mountpoint)
+        self._mount(scenario, mountpoint)
+        self.assertEqual(afile.getContent(), b"data")
+
+    def test_create_fails_on_existing_filesystem(self):
+        """
+        Running ``CreateFilesystem`` on a block device that already has a file
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=mountpoint),
+            scenario.deployer))
+        system fails with an exception and preserves the data.
+
+        This is because mkfs is a destructive operation that will destroy any
+        existing filesystem on that block device.
+        """
+        scenario, mountpoint = self._make_mounted_filesystem()
+        afile = mountpoint.child(b"file")
+        afile.setContent(b"data")
+        # Unmount the filesystem
+        umount(mountpoint)
+        # Try recreating filesystem; this should fail.
+        self.failureResultOf(scenario.create(), FilesystemExists)
+        # Remounting should succeed.
+        self._mount(scenario, mountpoint)
+        self.assertEqual(afile.getContent(), b"data")
 
     def test_mountpoint_exists(self):
         """
@@ -2730,6 +2905,24 @@ class MountBlockDeviceTests(
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
+
+    def test_world_permissions_not_reset_if_other_files_exist(self):
+        """
+        If files exist in the filesystem, permissions are not reset when the
+        filesystem is remounted.
+        """
+        mountpoint = mountroot_for_test(self).child(b"mount-test")
+        scenario = self._run_success_test(mountpoint)
+        mountpoint.child(b"file").setContent(b"stuff")
+        check_call([b"umount", mountpoint.path])
+        mountpoint.chmod(S_IRWXU)
+        mountpoint.restat()
+        self.successResultOf(run_state_change(
+            MountBlockDevice(dataset_id=scenario.dataset_id,
+                             mountpoint=scenario.mountpoint),
+            scenario.deployer))
+        self.assertEqual(mountpoint.getPermissions().shorthand(),
+                         'rwx------')
 
 
 class UnmountBlockDeviceInitTests(
@@ -3248,3 +3441,129 @@ def _make_allocated_size_testcases():
             globals()[test_case.__name__] = test_case
 _make_allocated_size_testcases()
 del _make_allocated_size_testcases
+
+
+class ProcessLifetimeCacheIBlockDeviceAPITests(
+        make_iblockdeviceapi_tests(
+            blockdevice_api_factory=lambda test_case: ProcessLifetimeCache(
+                loopbackblockdeviceapi_for_test(
+                    test_case, allocation_unit=LOOPBACK_ALLOCATION_UNIT
+                )),
+            minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            device_allocation_unit=None,
+            unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
+        )
+):
+    """
+    Interface adherence Tests for ``ProcessLifetimeCache``.
+    """
+
+
+class CountingProxy(object):
+    """
+    Transparent proxy that counts the number of calls to methods of the
+    wrapped object.
+
+    :ivar _wrapped: Wrapped object.
+    :ivar call_count: Mapping of (method name, args, kwargs) to number of
+        calls.
+    """
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
+        self.call_count = pmap()
+
+    def num_calls(self, name, *args, **kwargs):
+        """
+        Return the number of times the given method was called with given
+        arguments.
+
+        :param name: Method name.
+        :param args: Positional arguments it was called with.
+        :param kwargs: Keyword arguments it was called with.
+
+        :return: Number of calls.
+        """
+        return self.call_count.get(
+            pvector([name, pvector(args), pmap(kwargs)]), 0)
+
+    def __getattr__(self, name):
+        method = getattr(self._wrapped, name)
+
+        def counting_proxy(*args, **kwargs):
+            key = pvector([name, pvector(args), pmap(kwargs)])
+            current_count = self.call_count.get(key, 0)
+            self.call_count = self.call_count.set(key, current_count + 1)
+            return method(*args, **kwargs)
+        return counting_proxy
+
+
+class ProcessLifetimeCacheTests(SynchronousTestCase):
+    """
+    Tests for the caching logic in ``ProcessLifetimeCache``.
+    """
+    def setUp(self):
+        self.api = loopbackblockdeviceapi_for_test(self)
+        self.counting_proxy = CountingProxy(self.api)
+        self.cache = ProcessLifetimeCache(self.counting_proxy)
+
+    def test_compute_instance_id(self):
+        """
+        The result of ``compute_instance_id`` is cached indefinitely.
+        """
+        initial = self.cache.compute_instance_id()
+        later = [self.cache.compute_instance_id() for i in range(10)]
+        self.assertEqual(
+            (later, self.counting_proxy.num_calls("compute_instance_id")),
+            ([initial] * 10, 1))
+
+    def attached_volumes(self):
+        """
+        :return: A sequence of two attached volumes' ``blockdevice_id``.
+        """
+        dataset1 = uuid4()
+        dataset2 = uuid4()
+        this_node = self.cache.compute_instance_id()
+        attached_volume1 = self.cache.attach_volume(
+            self.cache.create_volume(
+                dataset_id=dataset1,
+                size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ).blockdevice_id,
+            attach_to=this_node)
+        attached_volume2 = self.cache.attach_volume(
+            self.cache.create_volume(
+                dataset_id=dataset2,
+                size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            ).blockdevice_id,
+            attach_to=this_node)
+        return attached_volume1.blockdevice_id, attached_volume2.blockdevice_id
+
+    def test_get_device_path_cached_after_attach(self):
+        """
+        The result of ``get_device_path`` is cached after an ``attach_device``.
+        """
+        attached_id1, attached_id2 = self.attached_volumes()
+        path1 = self.cache.get_device_path(attached_id1)
+        path2 = self.cache.get_device_path(attached_id2)
+        path1again = self.cache.get_device_path(attached_id1)
+        path2again = self.cache.get_device_path(attached_id2)
+
+        self.assertEqual(
+            (path1again, path2again,
+             path1 == path2,
+             self.counting_proxy.num_calls("get_device_path", attached_id1),
+             self.counting_proxy.num_calls("get_device_path", attached_id2)),
+            (path1, path2, False, 1, 1))
+
+    def test_get_device_path_until_detach(self):
+        """
+        The result of ``get_device_path`` is no longer cached after an
+        ``detach_device`` call.
+        """
+        attached_id1, attached_id2 = self.attached_volumes()
+        # Warm up cache:
+        self.cache.get_device_path(attached_id1)
+        # Invalidate cache:
+        self.cache.detach_volume(attached_id1)
+
+        self.assertRaises(UnattachedVolume,
+                          self.cache.get_device_path, attached_id1)
