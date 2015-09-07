@@ -359,6 +359,31 @@ class Cluster(PRecord):
         )
 
     @log_method
+    def wait_for_deleted_dataset(self, deleted_dataset):
+        """
+        Poll the dataset state API until the supplied dataset does
+        not exist.
+
+        :param Dataset deleted_dataset: The configured dataset that
+            we're waiting for to be removed from state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when the dataset is no longer found in state.
+        """
+        def deleted():
+            request = self.client.list_datasets_state()
+
+            def got_results(datasets):
+                return deleted_dataset.dataset_id not in (
+                    d.dataset_id for d in datasets)
+            request.addCallback(got_results)
+            return request
+
+        waiting = loop_until(deleted)
+        waiting.addCallback(lambda _: deleted_dataset)
+        return waiting
+
+    @log_method
     def wait_for_dataset(self, expected_dataset):
         """
         Poll the dataset state API until the supplied dataset exists.

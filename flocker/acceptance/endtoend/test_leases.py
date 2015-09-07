@@ -155,9 +155,9 @@ class LeaseAPITests(TestCase):
         A dataset cannot be deleted if a lease is held on
         it by a particular node.
         """
-        # self._assert_lease_behavior(
-        #     cluster, cluster.client.delete_dataset,
-        #     dict(), cluster.wait_for_deleted_dataset)
+        return self._assert_lease_behavior(
+            cluster, cluster.client.delete_dataset,
+            dict(), cluster.wait_for_deleted_dataset)
 
     @require_moving_backend
     @require_cluster(2)
