@@ -6,9 +6,7 @@ Tests for the datasets REST API.
 
 from uuid import UUID, uuid4
 
-from twisted.internet.task import deferLater
 from twisted.trial.unittest import TestCase
-from twisted.internet import reactor
 
 from docker.utils import create_host_config
 
@@ -36,6 +34,7 @@ class LeaseAPITests(TestCase):
         http_port = 8080
         dataset_id = uuid4()
         dataset_path = []
+        datasets = []
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
         d = create_dataset(
             self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
@@ -44,6 +43,7 @@ class LeaseAPITests(TestCase):
 
         def acquire_lease(dataset):
             # Call the API to acquire a lease with the dataset ID.
+            datasets.insert(0, dataset)
             acquiring_lease = cluster.client.acquire_lease(
                 dataset.dataset_id, UUID(cluster.nodes[0].uuid), expires=1000)
 
@@ -112,15 +112,12 @@ class LeaseAPITests(TestCase):
             client.stop(container_id)
             move_dataset_request = cluster.client.move_dataset(
                 primary, dataset_id)
+            move_dataset_request.addCallback(
+                lambda new_dataset: datasets.insert(0, new_dataset))
             move_dataset_request.addCallback(lambda _: container_id)
             return move_dataset_request
 
         d.addCallback(stop_container, client, dataset_id)
-
-        def wait_seconds(container_id):
-            return deferLater(reactor, 10, lambda: container_id)
-
-        d.addCallback(wait_seconds)
 
         def restart_container(container_id, client, cluster):
             client.start(container=container_id)
@@ -170,30 +167,9 @@ class LeaseAPITests(TestCase):
 
         d.addCallback(stop_container_again, client, dataset_id)
 
-        d.addCallback(wait_seconds)
-
         def dataset_moved(_):
-            # So at this point, we want to confirm the dataset has now moved.
-            check_datasets_config = (
-                cluster.client.list_datasets_configuration()
-            )
-
-            def got_datasets_config(datasets):
-                get_ds_state = cluster.client.list_datasets_state()
-
-                def got_ds_state(state_datasets):
-                    config_datasets = datasets
-                    expected_node = unicode(cluster.nodes[1].uuid)
-                    self.assertEqual(
-                        (
-                            unicode(state_datasets[0].primary),
-                            unicode(config_datasets[0].primary)
-                        ),
-                        (expected_node, expected_node))
-                get_ds_state.addCallback(got_ds_state)
-                return get_ds_state
-            check_datasets_config.addCallback(got_datasets_config)
-            return check_datasets_config
+            waiting = cluster.wait_for_dataset(datasets[0])
+            return waiting
 
         d.addCallback(dataset_moved)
 
