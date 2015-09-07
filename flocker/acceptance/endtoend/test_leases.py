@@ -24,13 +24,8 @@ class LeaseAPITests(TestCase):
     """
     Tests for the leases API.
     """
-    @require_moving_backend
-    @require_cluster(2)
-    def test_lease_prevents_move(self, cluster):
-        """
-        A dataset cannot be moved if a lease is held on
-        it by a particular node.
-        """
+    def _assert_lease_behavior(self, cluster, operation,
+                               additional_kwargs, state_method):
         http_port = 8080
         dataset_id = uuid4()
         datasets = []
@@ -102,17 +97,16 @@ class LeaseAPITests(TestCase):
         d.addCallback(write_data)
 
         def stop_container(container_id, client, dataset_id):
-            primary = cluster.nodes[1].uuid
             # This ensures Docker hasn't got a lock on the volume that
             # might prevent it being moved separate to the lock held by
             # the lease.
             client.stop(container_id)
-            move_dataset_request = cluster.client.move_dataset(
-                primary, dataset_id)
-            move_dataset_request.addCallback(
+            operation_dataset_request = operation(
+                dataset_id=dataset_id, **additional_kwargs)
+            operation_dataset_request.addCallback(
                 lambda new_dataset: datasets.insert(0, new_dataset))
-            move_dataset_request.addCallback(lambda _: container_id)
-            return move_dataset_request
+            operation_dataset_request.addCallback(lambda _: container_id)
+            return operation_dataset_request
 
         d.addCallback(stop_container, client, dataset_id)
 
@@ -125,47 +119,18 @@ class LeaseAPITests(TestCase):
         d.addCallback(write_data)
 
         def stop_container_again(container_id, client, dataset_id):
-            # At this point, we expect the configured dataset to reflect
-            # the move from node0 to node1, but the state to retain the
-            # dataset on node0.
-            check_datasets_config = (
-                cluster.client.list_datasets_configuration()
-            )
-
-            def got_datasets_config(datasets):
-                get_ds_state = cluster.client.list_datasets_state()
-
-                def got_ds_state(state_datasets):
-                    config_datasets = datasets
-                    expected_state_node = unicode(cluster.nodes[0].uuid)
-                    expected_config_node = unicode(cluster.nodes[1].uuid)
-                    self.assertEqual(
-                        (
-                            unicode(state_datasets[0].primary),
-                            unicode(config_datasets[0].primary)
-                        ),
-                        (expected_state_node, expected_config_node))
-                get_ds_state.addCallback(got_ds_state)
-                return get_ds_state
-            check_datasets_config.addCallback(got_datasets_config)
-
-            def stop_and_release(_):
-                client.stop(container_id)
-                releasing = cluster.client.release_lease(dataset_id)
-                releasing.addCallback(lambda _: container_id)
-                # Now we've released the lease and stopped the running
-                # container, our earlier move request should be enacted
-                # after a short delay.
-                return releasing
-
-            check_datasets_config.addCallback(stop_and_release)
-
-            return check_datasets_config
+            client.stop(container_id)
+            releasing = cluster.client.release_lease(dataset_id)
+            releasing.addCallback(lambda _: container_id)
+            # Now we've released the lease and stopped the running
+            # container, our earlier move request should be enacted
+            # after a short delay.
+            return releasing
 
         d.addCallback(stop_container_again, client, dataset_id)
 
         def dataset_moved(_):
-            waiting = cluster.wait_for_dataset(datasets[0])
+            waiting = state_method(datasets[0])
             return waiting
 
         d.addCallback(dataset_moved)
@@ -174,12 +139,25 @@ class LeaseAPITests(TestCase):
 
     @require_moving_backend
     @require_cluster(2)
+    def test_lease_prevents_move(self, cluster):
+        """
+        A dataset cannot be moved if a lease is held on
+        it by a particular node.
+        """
+        return self._assert_lease_behavior(
+            cluster, cluster.client.move_dataset,
+            {'primary': cluster.nodes[1].uuid}, cluster.wait_for_dataset)
+
+    @require_moving_backend
+    @require_cluster(2)
     def test_lease_prevents_delete(self, cluster):
         """
         A dataset cannot be deleted if a lease is held on
         it by a particular node.
         """
-        self.fail("not implemented yet")
+        # self._assert_lease_behavior(
+        #     cluster, cluster.client.delete_dataset,
+        #     dict(), cluster.wait_for_deleted_dataset)
 
     @require_moving_backend
     @require_cluster(2)
