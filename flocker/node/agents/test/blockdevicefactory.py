@@ -75,8 +75,9 @@ def _provider_for_provider_type(provider_type):
 
 def get_blockdevice_config(provider_type):
     """
-    Get initializer arguments suitable for use in the instantiation of an
-    ``IBlockDeviceAPI`` implementation compatible with the given provider.
+    Get configuration dictionary suitable for use in the instantiation
+    of an ``IBlockDeviceAPI`` implementation compatible with the given
+    provider type.
 
     :param provider_type: A provider type the ``IBlockDeviceAPI`` is to
         be compatible with.  A value from ``ProviderType``.
@@ -146,13 +147,12 @@ def get_blockdevice_config(provider_type):
 
 
 def get_openstack_region_for_test():
-    # The execution context should have set up this environment variable,
-    # probably by inspecting some cloud-y state to discover where this code is
-    # running.  Since the execution context is probably a stupid shell script,
-    # fix the casing of the region name here (keystone is very sensitive to
-    # case) instead of forcing me to figure out how to upper case things in
-    # bash (I already learned a piece of shell syntax today, once is all I can
-    # take).
+    """
+    Return a default Openstack region for testing.
+
+    The default region comes from an environment variable.  Keystone
+    uses case-sensitive regions, so ensure region is uppercase.
+    """
     region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
     if region is not None:
         region = region.upper()
@@ -161,13 +161,11 @@ def get_openstack_region_for_test():
 
 def _openstack(cluster_id, config):
     """
-    Create Cinder and Nova volume managers suitable for use in the creation of
-    a ``CinderBlockDeviceAPI``.  They will be configured to use the region
-    where the server that is running this code is running.
+    Create an IBlockDeviceAPI provider configured to use the Openstack
+    region where the server that is running this code is running.
 
     :param config: Any additional configuration (possibly provider-specific)
-        necessary to authenticate a session for use with the CinderClient and
-        NovaClient.
+        necessary to authenticate a keystone session.
     :return: A CinderBlockDeviceAPI instance.
     """
     region = get_openstack_region_for_test()
@@ -175,6 +173,10 @@ def _openstack(cluster_id, config):
 
 
 def get_ec2_client_for_test(config):
+    """
+    Get a simple EC2 client, configured for the test region.
+    """
+
     # We just get the credentials from the config file.
     # We ignore the region specified in acceptance test configuration,
     # and instead get the region from the zone of the host.
@@ -191,11 +193,11 @@ def get_ec2_client_for_test(config):
 
 def _aws(cluster_id, config):
     """
-    Create an EC2 client suitable for use in the creation of an
-    ``EBSBlockDeviceAPI``.
+    Create an IBlockDeviceAPI provider configured to use the AWS EC2
+    region where the server that is running this code is running.
 
-    :param bytes access_key: "access_key" credential for EC2.
-    :param bytes secret_access_key: "secret_access_token" EC2 credential.
+    :param config: Any additional configuration (possibly provider-specific)
+        necessary to authenticate an EC2 session.
     :return: An EBSBlockDeviceAPI instance.
     """
     return EBSBlockDeviceAPI(

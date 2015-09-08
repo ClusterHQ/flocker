@@ -764,12 +764,12 @@ def get_nova_client(session, region):
 
 def cinder_from_configuration(region, cluster_id, **config):
     """
-    Build a ``CinderBlockDeviceAPI`` using configuration and credentials in
-    ``config``.
+    Build a ``CinderBlockDeviceAPI`` using configuration and credentials
+    in ``config``.
 
-    :param str region: The region "slug" for which to configure the object.
-    :param cluster_id: The unique cluster identifier for which to configure the
-        object.
+    :param str region: The Openstack region to access.
+    :param cluster_id: The unique identifier for the cluster to access.
+    :param config: A dictionary of configuration options for Openstack.
     """
     session = get_keystone_session(**config)
     cinder_client = get_cinder_client(session, region)
