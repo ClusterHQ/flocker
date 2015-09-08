@@ -53,16 +53,16 @@ Installing the Installer
 ========================
 
 First we install the installer on your workstation.
-We do this by running a tiny script which puts some wrapper scripts in ``/usr/local/bin``.
-
 This will work on Linux or OS X machines with Docker installed.
-If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/mac/started/>`_).
 
-Then install the installer:
+* If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/mac/started/>`_).
+* Then install the installer:
 
-.. prompt:: bash $
+  .. prompt:: bash $
 
-    curl -sSL https://get.flocker.io/ | sudo sh
+      curl -sSL https://get.flocker.io/ | sudo sh
+
+  This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
 
 .. _labs-installer-certs-directory:
 
