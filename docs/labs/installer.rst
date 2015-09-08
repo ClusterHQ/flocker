@@ -55,7 +55,7 @@ Installing the Installer
 First we install the installer on your workstation.
 This will work on Linux or OS X machines with Docker installed.
 
-* If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/mac/started/>`_).
+* If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/linux/started/>`_).
 * Then install the installer:
 
   .. prompt:: bash $
