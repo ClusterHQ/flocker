@@ -6,17 +6,18 @@ Tests for the datasets REST API.
 
 from uuid import UUID, uuid4
 
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...testtools import random_name, loop_until
+from ...testtools import random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     REALISTIC_BLOCKDEVICE_SIZE, get_docker_client,
     post_http_server, assert_http_server,
 )
-from ...apiclient import LeaseAlreadyHeld
 from ..scripts import SCRIPTS
 
 
@@ -25,54 +26,74 @@ class LeaseAPITests(TestCase):
     Tests for the leases API.
     """
     def _assert_lease_behavior(self, cluster, operation,
-                               additional_kwargs, state_method,
-                               expire_lease=False):
-        if expire_lease:
-            lease_expiry = 60
-        else:
-            lease_expiry = None
+                               additional_kwargs, state_method):
+        """
+        * Create a dataset on node1
+        * Acquire a lease for dataset on node1
+        * Start a container (directly using docker-py) bind mounted to dataset
+          mount point on node1 and verify that data can be written.
+        * Stop the container
+        * Request a move or delete operation
+        * Wait for a short time.
+        """
         http_port = 8080
         dataset_id = uuid4()
         datasets = []
         leases = []
+        containers = []
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
-        d = create_dataset(
+
+        creating_dataset = create_dataset(
             self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
             dataset_id=dataset_id
         )
 
-        def acquire_lease(dataset):
-            # Call the API to acquire a lease with the dataset ID.
-            datasets.insert(0, dataset)
-            acquiring_lease = cluster.client.acquire_lease(
-                dataset.dataset_id, UUID(cluster.nodes[0].uuid),
-                expires=lease_expiry
+        def get_dataset_state(configured_dataset):
+            """
+            XXX: This shouldn't really be needed because ``create_dataset``
+            returns ``wait_for_dataset`` which returns the dataset state, but
+            unfortunately ``wait_for_dataset`` wipes out the dataset path for
+            comparison purposes.
+            """
+            d = cluster.client.list_datasets_state()
+            d.addCallback(
+                lambda dataset_states: [
+                    dataset_state
+                    for dataset_state in dataset_states
+                    if dataset_state.dataset_id == dataset_id
+                ][0]
             )
+            d.addCallback(
+                lambda dataset: datasets.insert(0, dataset)
+            )
+            return d
+        getting_dataset_state = creating_dataset.addCallback(
+            get_dataset_state
+        )
 
-            def get_dataset_path(lease, created_dataset):
-                leases.insert(0, lease)
-                getting_datasets = cluster.client.list_datasets_state()
+        def acquire_lease(ignored):
+            # Call the API to acquire a lease with the dataset ID.
+            d = cluster.client.acquire_lease(
+                dataset_id, UUID(cluster.nodes[0].uuid),
+                # Lease will never expire
+                expires=None
+            )
+            d.addCallback(lambda lease: leases.insert(0, lease))
+            return d
+        acquiring_lease = getting_dataset_state.addCallback(acquire_lease)
 
-                def extract_dataset_path(datasets):
-                    return datasets[0].path
-
-                getting_datasets.addCallback(extract_dataset_path)
-                return getting_datasets
-
-            acquiring_lease.addCallback(get_dataset_path, dataset)
-            return acquiring_lease
-
-        d.addCallback(acquire_lease)
-
-        def start_http_container(dataset_path, client):
-            # Launch data HTTP container and make POST requests
-            # to it in a looping call every second.
-            # return looping call deferred
+        def start_http_container(ignored):
+            """
+            Launch data HTTP container and make POST requests
+            to it in a looping call every second.
+            return looping call deferred
+            """
+            [dataset] = datasets
             script = SCRIPTS.child("datahttp.py")
             script_arguments = [u"/data"]
             docker_arguments = {
                 "host_config": create_host_config(
-                    binds=["{}:/data".format(dataset_path.path)],
+                    binds=["{}:/data".format(dataset.path.path)],
                     port_bindings={http_port: http_port}),
                 "ports": [http_port],
                 "volumes": [u"/data"]}
@@ -80,100 +101,82 @@ class LeaseAPITests(TestCase):
                 "python:2.7-slim",
                 ["python", "-c", script.getContent()] + list(script_arguments),
                 **docker_arguments)
-            cid = container["Id"]
-            client.start(container=cid)
-            self.addCleanup(client.remove_container, cid, force=True)
-            return cid
+            container_id = container["Id"]
+            containers.insert(0, container_id)
+            client.start(container=container_id)
+            self.addCleanup(client.remove_container, container_id, force=True)
+        starting_http_container = acquiring_lease.addCallback(
+            start_http_container
+        )
 
-        d.addCallback(start_http_container, client)
-
-        def write_data(container_id):
+        def write_data(ignored):
             data = random_name(self).encode("utf-8")
-            writing = post_http_server(
+            d = post_http_server(
                 self, cluster.nodes[0].public_address, http_port,
                 {"data": data}
             )
-            writing.addCallback(
+            d.addCallback(
                 lambda _: assert_http_server(
                     self, cluster.nodes[0].public_address,
                     http_port, expected_response=data
                 )
             )
+            return d
+        writing_data = starting_http_container.addCallback(write_data)
 
-            writing.addCallback(lambda _: container_id)
-            return writing
-
-        d.addCallback(write_data)
-
-        def stop_container(container_id, client, dataset_id):
-            # This ensures Docker hasn't got a lock on the volume that
-            # might prevent it being moved separate to the lock held by
-            # the lease.
+        def stop_container(ignored):
+            """
+            This ensures Docker hasn't got a lock on the volume that might
+            prevent it being moved separate to the lock held by the lease.
+            """
+            [container_id] = containers
             client.stop(container_id)
-            operation_dataset_request = operation(
-                dataset_id=dataset_id, **additional_kwargs)
-            operation_dataset_request.addCallback(
-                lambda new_dataset: datasets.insert(0, new_dataset))
-            operation_dataset_request.addCallback(lambda _: container_id)
-            return operation_dataset_request
+        stopping_container = writing_data.addCallback(stop_container)
 
-        d.addCallback(stop_container, client, dataset_id)
+        def perform_operation(ignored):
+            return operation(
+                dataset_id=dataset_id, **additional_kwargs
+            )
+        stopping_container = writing_data.addCallback(stop_container)
 
-        def restart_container(container_id, client, cluster):
+        def wait_for_unexpected_umount(ignored):
+            """
+            If the dataset agent is broken and not respecting leases then we
+            expect that 10 seconds is long enough for it to begin performing
+            the requested operation.
+            And the first step will always be to unmount the filesystem which
+            should happen quickly since there are no open files and no Docker
+            bind mounts to the filesystem.
+            """
+            return deferLater(reactor, 10, lambda: None)
+        waiting = stopping_container.addCallback(wait_for_unexpected_umount)
+
+        def restart_container(ignored):
+            [container_id] = containers
             client.start(container=container_id)
-            return container_id
+        restarting_container = waiting.addCallback(
+            restart_container
+        )
 
-        d.addCallback(restart_container, client, cluster)
+        writing_data = restarting_container.addCallback(write_data)
 
-        d.addCallback(write_data)
+        stopping_container = writing_data.addCallback(stop_container)
 
-        def stop_container_again(container_id, client, dataset_id):
-            client.stop(container_id)
-            if lease_expiry:
-                # wait for lease to expire
-                acquiring_lease = cluster.client.acquire_lease(
-                    dataset_id,
-                    UUID(cluster.nodes[0].uuid),
-                    expires=lease_expiry
-                )
-                # At this point the lease must still be valid and our request
-                # should raise an exception.
-                acquiring_lease.addCallback(
-                    lambda _: self.fail('Lease expired too soon.')
-                )
-                # Trap the expected failure and move on down the callback chain
-                acquiring_lease.addErrback(
-                    lambda failure: failure.trap(LeaseAlreadyHeld)
-                )
+        def release_lease(ignored):
+            return cluster.client.release_lease(dataset_id)
+        releasing_lease = stopping_container.addCallback(release_lease)
 
-                [expected_lease] = leases
+        def wait_for_operation(ignored):
+            """
+            Now we've released the lease and stopped the running container, our
+            earlier move / delete request should be enacted.
+            """
+            import pdb; pdb.set_trace()
+            [dataset] = datasets
+            return state_method(dataset)
+        waiting_for_operation = releasing_lease.addCallback(wait_for_operation)
 
-                # loop until lease expires
-                def lease_removed():
-                    d = cluster.client.list_leases()
-
-                    def got_leases(leases):
-                        return expected_lease not in leases
-                    d.addCallback(got_leases)
-                    return d
-                return loop_until(lease_removed)
-            else:
-                releasing = cluster.client.release_lease(dataset_id)
-                releasing.addCallback(lambda _: container_id)
-                # Now we've released the lease and stopped the running
-                # container, our earlier move request should be enacted
-                # after a short delay.
-                return releasing
-
-        d.addCallback(stop_container_again, client, dataset_id)
-
-        def dataset_moved(_):
-            waiting = state_method(datasets[0])
-            return waiting
-
-        d.addCallback(dataset_moved)
-
-        return d
+        return waiting_for_operation
 
     @require_moving_backend
     @require_cluster(2)
@@ -187,7 +190,6 @@ class LeaseAPITests(TestCase):
             cluster.client.move_dataset,
             {'primary': cluster.nodes[1].uuid},
             cluster.wait_for_dataset,
-            expire_lease=False,
         )
 
     @require_moving_backend
@@ -202,5 +204,4 @@ class LeaseAPITests(TestCase):
             cluster.client.delete_dataset,
             {},
             cluster.wait_for_deleted_dataset,
-            expire_lease=False,
         )
