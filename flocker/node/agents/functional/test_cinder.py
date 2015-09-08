@@ -37,7 +37,7 @@ from ..test.test_blockdevice import (
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_openstack_region,
+    get_minimum_allocatable_size, get_openstack_region_for_test,
 )
 from ....testtools import run_process
 
@@ -91,7 +91,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         except InvalidConfig as e:
             raise SkipTest(str(e))
         session = get_keystone_session(**config)
-        region = get_openstack_region()
+        region = get_openstack_region_for_test()
         cinder_client = get_cinder_client(session, region)
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
@@ -152,7 +152,7 @@ class CinderHttpsTests(SynchronousTestCase):
             raise SkipTest(str(e))
         config['peer_verify'] = False
         session = get_keystone_session(**config)
-        region = get_openstack_region()
+        region = get_openstack_region_for_test()
         cinder_client = get_cinder_client(session, region)
         self.assertTrue(self._authenticates_ok(cinder_client))
 
@@ -175,7 +175,7 @@ class CinderHttpsTests(SynchronousTestCase):
         config['peer_ca_path'] = path.child(
             AUTHORITY_CERTIFICATE_FILENAME).path
         session = get_keystone_session(**config)
-        region = get_openstack_region()
+        region = get_openstack_region_for_test()
         cinder_client = get_cinder_client(session, region)
         self.assertFalse(self._authenticates_ok(cinder_client))
 
@@ -284,7 +284,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        region = get_openstack_region()
+        region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
         self.cinder = get_cinder_client(session, region)
         self.nova = get_nova_client(session, region)
