@@ -23,6 +23,8 @@ from twisted.internet.defer import succeed, gatherResults
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web.client import ResponseNeverReceived
 
+from eliot import Message
+
 from treq import request, content
 
 from pyrsistent import PClass, pvector, field
@@ -44,6 +46,9 @@ from ..testtools import (
     if_docker_configured, wait_for_unit_state, require_docker_version,
     add_with_port_collision_retry,
 )
+
+
+MAX_INSPECT_ATTEMPTS = 200
 
 
 def namespace_for_test(test_case):
@@ -519,10 +524,30 @@ class GenericDockerClientTests(TestCase):
             docker_client = self.make_client()
             self.addCleanup(docker_client.remove, name)
             d = docker_client.add(name, registry_image.full_name)
+
+            def check_image_exists(self, name):
+                """
+                """
+                attempt = 0
+                while attempt < MAX_INSPECT_ATTEMPTS:
+                    try:
+                        result = client.inspect_image(name)
+                        Message.new(u"test_pull_image_success",
+                                    attempt=attempt,
+                                    inspect_image_result=result).write()
+                    except APIError:
+                        Message.new(u"test_pull_image_failure",
+                                    attempt=attempt,
+                                    inspect_image_result=result).write()
+                        time.sleep(1.0)
+                    attempt = attempt + 1
+                return True
+
             d.addCallback(
-                lambda _: self.assertTrue(
-                    client.inspect_image(registry_image.full_name)
-                )
+                check_image_exists, registry_image.full_name
+                # lambda _: self.assertTrue(
+                #   client.inspect_image(registry_image.full_name)
+                # )
             )
             return d
 
