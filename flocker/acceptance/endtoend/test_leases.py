@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Tests for the datasets REST API.
+Tests for the leases API.
 """
 
 from uuid import UUID, uuid4
@@ -25,16 +25,37 @@ class LeaseAPITests(TestCase):
     """
     Tests for the leases API.
     """
+    timeout = 600
+
     def _assert_lease_behavior(self, cluster, operation,
                                additional_kwargs, state_method):
         """
-        * Create a dataset on node1
-        * Acquire a lease for dataset on node1
+        Assert that leases prevent datasets from being moved or deleted.
+
+        * Create a dataset on node1.
+        * Acquire a lease for dataset on node1.
         * Start a container (directly using docker-py) bind mounted to dataset
           mount point on node1 and verify that data can be written.
-        * Stop the container
-        * Request a move or delete operation
-        * Wait for a short time.
+        * Stop the container.
+        * Request a move or delete operation.
+        * Wait for a short time; enough time for an unexpected unmount to take
+          place.
+        * Restart the container and write data to it, to demonstrate that the
+          dataset is still mounted and writable.
+        * Stop the container again.
+        * Release the lease, allowing the previously requested operation to
+          proceed.
+        * Wait for the previously requested operation to complete.
+
+        :param Cluster cluster: The cluster on which to operate.
+        :param operation: The ``FlockerClient`` method to call before releasing
+            the lease.
+        :param dict additional_kwargs: Any additional arguments to pass to
+            ``operation``.
+        :param state_method: A callable which returns a ``Deferred`` that fires
+            when the requested operation has been performed.
+        :returns: A ``Deferred`` that fires when the all the steps have
+            completed.
         """
         http_port = 8080
         dataset_id = uuid4()
@@ -137,7 +158,9 @@ class LeaseAPITests(TestCase):
             return operation(
                 dataset_id=dataset_id, **additional_kwargs
             )
-        stopping_container = writing_data.addCallback(stop_container)
+        performing_operation = stopping_container.addCallback(
+            perform_operation
+        )
 
         def wait_for_unexpected_umount(ignored):
             """
@@ -149,7 +172,7 @@ class LeaseAPITests(TestCase):
             bind mounts to the filesystem.
             """
             return deferLater(reactor, 10, lambda: None)
-        waiting = stopping_container.addCallback(wait_for_unexpected_umount)
+        waiting = performing_operation.addCallback(wait_for_unexpected_umount)
 
         def restart_container(ignored):
             [container_id] = containers
@@ -171,7 +194,6 @@ class LeaseAPITests(TestCase):
             Now we've released the lease and stopped the running container, our
             earlier move / delete request should be enacted.
             """
-            import pdb; pdb.set_trace()
             [dataset] = datasets
             return state_method(dataset)
         waiting_for_operation = releasing_lease.addCallback(wait_for_operation)
@@ -182,26 +204,26 @@ class LeaseAPITests(TestCase):
     @require_cluster(2)
     def test_lease_prevents_move(self, cluster):
         """
-        A dataset cannot be moved if a lease is held on
-        it by a particular node.
+        A dataset cannot be moved if a lease is held on it by a particular
+        node.
         """
         return self._assert_lease_behavior(
-            cluster,
-            cluster.client.move_dataset,
-            {'primary': cluster.nodes[1].uuid},
-            cluster.wait_for_dataset,
+            cluster=cluster,
+            operation=cluster.client.move_dataset,
+            additional_kwargs={'primary': cluster.nodes[1].uuid},
+            state_method=cluster.wait_for_dataset,
         )
 
     @require_moving_backend
     @require_cluster(2)
     def test_lease_prevents_delete(self, cluster):
         """
-        A dataset cannot be deleted if a lease is held on
-        it by a particular node.
+        A dataset cannot be deleted if a lease is held on it by a particular
+        node.
         """
         return self._assert_lease_behavior(
-            cluster,
-            cluster.client.delete_dataset,
-            {},
-            cluster.wait_for_deleted_dataset,
+            cluster=cluster,
+            operation=cluster.client.delete_dataset,
+            additional_kwargs={},
+            state_method=cluster.wait_for_deleted_dataset,
         )
