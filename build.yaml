@@ -582,7 +582,7 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
-    run_acceptance_on_AWS_CentOS_7:
+    run_acceptance_on_AWS_CentOS_7_for:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_modules:
         - flocker.acceptance.endtoend.test_dataset
