@@ -519,7 +519,6 @@ class GenericDockerClientTests(TestCase):
             docker_client = self.make_client()
             self.addCleanup(docker_client.remove, name)
             d = docker_client.add(name, registry_image.full_name)
-
             d.addCallback(
                 lambda _: self.assertTrue(
                     Client().inspect_image(registry_image.full_name)
