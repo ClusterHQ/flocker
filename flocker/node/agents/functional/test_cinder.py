@@ -42,7 +42,7 @@ from ..test.blockdevicefactory import (
 from ....testtools import run_process
 
 from ..cinder import (
-    get_keystone_session, get_cinder_v1_client, get_nova_client,
+    get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
     wait_for_volume_state, UnexpectedStateException
 )
 
@@ -287,7 +287,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
         self.cinder = get_cinder_v1_client(session, region)
-        self.nova = get_nova_client(session, region)
+        self.nova = get_nova_v2_client(session, region)
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
 
     def _detach(self, instance_id, volume):
