@@ -4,6 +4,7 @@
 Tests for the Flocker Docker plugin.
 """
 
+import platform
 import ssl
 from twisted.trial.unittest import TestCase
 
@@ -11,7 +12,7 @@ from docker import Client
 from docker.tls import TLSConfig
 from docker.utils import create_host_config
 
-from ...testtools import random_name
+from ...testtools import random_name, run_ssh_command, SSHError
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
 )
@@ -47,6 +48,23 @@ class DockerPluginTests(TestCase):
             verify=get_path(b"cluster.crt"))
         return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
                       tls=tls, timeout=100)
+
+    def restart_docker(self, address):
+        """
+        Restart the Docker daemon on the specified address.
+
+        :param bytes address: The public IP of the node on which Docker will
+            be restarted.
+        """
+        distro = platform.linux_distribution()[0].lower()
+        if 'ubuntu' in distro:
+            command = ["service", "docker", "restart"]
+        else:
+            command = ["systemctl", "restart", "docker"]
+        try:
+            run_ssh_command(b"root", address, command)
+        except SSHError as e:
+            self.fail("Restart docker failed: " + e)
 
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments, cleanup=True):

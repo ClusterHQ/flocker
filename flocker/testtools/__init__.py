@@ -1074,6 +1074,30 @@ def run_process(command, *args, **kwargs):
     return result
 
 
+def SSHError(_CalledProcessError):
+    """
+    An error raised by ``run_ssh_command`` in the event of a failure.
+    """
+
+
+def run_ssh_command(user, host, command):
+    """
+    Run a command via SSH on a remote host and return the output.
+
+    :param bytes user: The username to log in with.
+    :param bytes host: The host on which the command will be executed.
+    :param list command: A list containing the command to execute and
+        any arguments.
+    :return A ``_ProcessResult`` instance describing the result of the child
+         command.
+    """
+    try:
+        return run_process(
+            [b'ssh', b'{}@{}'.format(user, host)] + command)
+    except _CalledProcessError as e:
+        raise SSHError(e)
+
+
 def skip_except(supported_tests):
     """
     Mark all the ``test_`` methods in ``TestCase`` as ``skip`` unless the test
