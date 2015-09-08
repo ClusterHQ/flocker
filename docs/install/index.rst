@@ -13,7 +13,9 @@ Try the :ref:`Installer <labs-installer>`.
 * It makes it easy to set up and manage a Flocker cluster.
 * It runs inside a Docker container on your local machine.
 
-If you'd rather install Flocker manually, read on...
+:ref:`Click here to proceed with the automatic installer <labs-installer>`.
+
+If you'd rather install Flocker manually, read on.
 
 Manual Installation
 ===================
