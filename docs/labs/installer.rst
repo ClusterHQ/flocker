@@ -84,24 +84,31 @@ Get some nodes
 
 So now let's use the tools we've just installed to deploy and configure a Flocker cluster quickly!
 
-Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace), or bare metal if you want to try out the experimental ZFS backend.
-Use Ubuntu 14.04, CentOS 7, or CoreOS.
+Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace or a private cloud), or bare metal if you want to try out the experimental ZFS backend.
+Use Ubuntu 14.04 or CoreOS.
+
+If using CoreOS, you can use `this CloudFormation template <https://raw.githubusercontent.com/ClusterHQ/flocker-coreos/master/coreos-stable-hvm.template>`_ to deploy an appropriate CoreOS cluster.
+
+* This is a modified version of the CoreOS CloudFormation template which puts all the nodes in the same AZ (necessary so that they can access the same storage).
+* It also gives the nodes 50GB root disks, useful for storing Docker images.
+* It also opens up port 4523 for the Flocker API and port 80 and 443 for web traffic for the demo.
 
 .. warning::
     CoreOS support is experimental, and should not be used for production workloads.
     ZFS support is similarly experimental.
 
-We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
-
 Make sure you create the servers a reasonable amount of disk space, since Docker images will be stored on the VM root disk itself.
 
-* Use Amazon EC2 if you want to use our EBS backend.
+* Use Amazon EC2 if you want to use the EBS backend.
   **VMs must be deployed in the same AZ.**
-* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend.
+* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try the OpenStack backend.
   **VMs must be deployed in the same region.**
 
 You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider).
 Using a DNS name is optional, you can also just use its IP address.
+
+.. warning::
+    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524, plus any ports you want to access (the demo later uses port 80).
 
 cluster.yml
 ===========
@@ -128,6 +135,10 @@ For example:
 
     mv cluster.yml.ebs.sample cluster.yml
     vim cluster.yml # customize for your cluster
+
+If using AWS, you need to copy the following information into your ``cluster.yml``:
+
+.. image:: coreos-aws.png
 
 .. note::
 
@@ -156,8 +167,6 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 
 This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
 
-.. warning::
-    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524, plus any ports you want to access (the demo later uses port 80).
 
 Install Flocker Docker plugin
 =============================
