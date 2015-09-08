@@ -98,18 +98,16 @@ Choose one of the :ref:`supported configurations <labs-supported-configurations>
 
 .. note::
     If using CoreOS on AWS, you can use `this CloudFormation template <https://raw.githubusercontent.com/ClusterHQ/flocker-coreos/master/coreos-stable-hvm.template>`_ to deploy an appropriate CoreOS cluster.
+    Right click and save the link, then upload it to `CloudFormation <https://console.aws.amazon.com/cloudformation/home#/stacks?filter=active>`_.
 
-    * This is a modified version of the CoreOS CloudFormation template which puts all the nodes in the same AZ (necessary so that they can access the same storage).
-    * It also gives the nodes 50GB root disks, useful for storing Docker images.
-    * It also opens up port 4523 for the Flocker API and port 80 and 443 for web traffic for the demo.
-
-Make sure you create the servers a reasonable amount of disk space, since Docker images will be stored on the VM root disk itself.
+Make sure you create the servers a reasonable amount of disk space (50GB+), since Docker images will be stored on the VM root disk itself.
 
 Choose a node to be the control node.
 It's OK for the control node to also be an agent node.
 
 .. note::
     On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524, plus any ports you want to access (the demo later uses port 80).
+    If you're using the CoreOS CloudFormation template, this is already done for you.
 
 Create a cluster.yml
 ====================
