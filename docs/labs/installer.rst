@@ -32,6 +32,8 @@ This diagram shows you what you are about to set up.
 Supported Configurations
 ========================
 
+.. _labs-supported-configurations:
+
 The Installer can be used in the following configurations.
 
 * **Supported configurations**
@@ -92,7 +94,7 @@ Get some nodes
 
 So now let's use the tools we've just installed to deploy and configure a Flocker cluster.
 
-Choose one of the supported configurations above and deploy some nodes
+Choose one of the :ref:`supported configurations <labs-supported-configurations>` above and provision some nodes.
 
 .. note::
     If using CoreOS on AWS, you can use `this CloudFormation template <https://raw.githubusercontent.com/ClusterHQ/flocker-coreos/master/coreos-stable-hvm.template>`_ to deploy an appropriate CoreOS cluster.
