@@ -29,10 +29,10 @@ This diagram shows you what you are about to set up.
 * Installer creates certificates for you, saves them in your cluster directory, installs Flocker and certificates on servers, and starts Flocker.
 * You can now interact with your Flocker cluster using the Flocker CLI (included in same container as installer).
 
+.. _labs-supported-configurations:
+
 Supported Configurations
 ========================
-
-.. _labs-supported-configurations:
 
 The Installer can be used in the following configurations.
 
