@@ -108,7 +108,7 @@ Make sure you create the servers a reasonable amount of disk space, since Docker
 Choose a node to be the control node.
 It's OK for the control node to also be an agent node.
 
-.. warning::
+.. note::
     On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524, plus any ports you want to access (the demo later uses port 80).
 
 Create a cluster.yml
@@ -138,13 +138,14 @@ For example:
     mv cluster.yml.ebs.sample cluster.yml
     vim cluster.yml # customize for your cluster
 
-If using AWS, you need to copy the following information into your ``cluster.yml``:
-
-.. image:: coreos-aws.png
-
 .. note::
 
     You need a private key which can log into the machines - you must configure the absolute location of this key in the ``private_key_path`` of ``cluster.yml``.
+
+If using AWS, you need to copy the highlighted information below into your ``cluster.yml``:
+
+.. image:: coreos-aws.png
+
 
 Install Flocker
 ===============
