@@ -1,5 +1,15 @@
 .. _installing-flocker-cli:
 
+.. note::
+
+    Want to get started with Flocker quickly?
+
+    Try the :ref:`Installer <labs-installer>`.
+    It makes it easy to set up and manage a Flocker cluster.
+    It runs inside a Docker container on your local machine.
+
+    If you use the Installer then you don't need to follow the instructions on this page.
+
 =============================
 Installing the Flocker Client
 =============================

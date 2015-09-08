@@ -1,10 +1,55 @@
 .. _labs-installer:
 
-======================
-Experimental installer
-======================
+=========
+Installer
+=========
 
-The experimental installer makes installing Flocker as easy as copying and editing a single YAML file with your node configuration and then running two or three commands to create the certificates and install the software on your nodes.
+Key points
+==========
+
+* Flocker is a clustered container data volume manager.
+  This means it runs on a cluster (a group) of machines, and connects containers to data volumes so that containers which store data, such as databases, keep their data as the move around the cluster.
+* You install it on some servers, which you must provision, for example on cloud infrastructure.
+* It works with other container tools, such as Swarm, Compose and Mesos/Marathon.
+
+Architecture
+============
+
+This diagram shows you what you are about to set up.
+
+.. image:: install-architecture.png
+
+.. Source file is at "Engineering/Labs/flocker architecture" https://drive.google.com/open?id=0B3gop2KayxkVbmNBR2Jrbk0zYmM
+
+* Installer runs in a Docker container on your local machine.
+* You provision the cloud servers yourself, and write a ``cluster.yml`` file containing their addresses.
+* You run the installer on the ``cluster.yml``.
+* Installer creates certificates for you and installs Flocker and certificates on servers, starts Flocker.
+* You can now interact with your Flocker cluster using the Flocker CLI (included in same container as installer).
+
+Supported Configurations
+========================
+
+The Installer supports the following configurations:
+
+* **Supported**
+
+  * Ubuntu or CentOS on AWS with EBS backend
+  * Ubuntu or CentOS on Rackspace with OpenStack backend
+  * Ubuntu or CentOS on private OpenStack cloud with OpenStack backend
+
+* **Experimental**
+
+  * CoreOS on AWS with EBS backend
+  * Ubuntu or CentOS on any infrastructure with experimental ZFS backend
+
+Prerequisites
+=============
+
+* You must set up some 
+
+
+This installer makes installing Flocker as easy as copying and editing a single YAML file with your node configuration and then running two or three commands to create the certificates and install the software on your nodes.
 
 It also supports deploying the :ref:`Flocker Docker plugin <labs-docker-plugin>` onto the same set of nodes.
 
