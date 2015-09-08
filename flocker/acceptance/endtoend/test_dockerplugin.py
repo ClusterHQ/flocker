@@ -56,12 +56,14 @@ class DockerPluginTests(TestCase):
         :param bytes address: The public IP of the node on which Docker will
             be restarted.
         """
-        distro = platform.linux_distribution()[0].lower()
-        if 'ubuntu' in distro:
-            command = ["service", "docker", "restart"]
-        else:
-            command = ["systemctl", "restart", "docker"]
         try:
+            distro = run_ssh_command(
+                b"root", address, ["python", "-m", "platform"])
+            distro = distro.output.lower()
+            if 'ubuntu' in distro:
+                command = ["service", "docker", "restart"]
+            else:
+                command = ["systemctl", "restart", "docker"]
             run_ssh_command(b"root", address, command)
         except SSHError as e:
             self.fail("Restart docker failed: " + e)
@@ -115,7 +117,7 @@ class DockerPluginTests(TestCase):
         # restart the Docker daemon
         # attempt to read the data back again; the container should've
         # restarted automatically.
-
+        import pdb;pdb.set_trace()
         self.fail("not implemented yet")
 
     @require_cluster(1)
