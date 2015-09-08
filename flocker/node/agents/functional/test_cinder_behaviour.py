@@ -8,7 +8,7 @@ basic assumptions/understandings of how Cinder works in the real world.
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..cinder import (
-    get_keystone_session, get_cinder_client, wait_for_volume_state
+    get_keystone_session, get_cinder_v1_client, wait_for_volume_state
 )
 from ..test.blockdevicefactory import (
     InvalidConfig,
@@ -31,7 +31,7 @@ def cinder_volume_manager():
         raise SkipTest(str(e))
     region = get_openstack_region_for_test()
     session = get_keystone_session(**config)
-    return get_cinder_client(session, region).volumes
+    return get_cinder_v1_client(session, region).volumes
 
 
 # All of the following tests could be part of the suite returned by

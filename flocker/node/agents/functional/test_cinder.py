@@ -42,7 +42,7 @@ from ..test.blockdevicefactory import (
 from ....testtools import run_process
 
 from ..cinder import (
-    get_keystone_session, get_cinder_client, get_nova_client,
+    get_keystone_session, get_cinder_v1_client, get_nova_client,
     wait_for_volume_state, UnexpectedStateException
 )
 
@@ -92,7 +92,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(session, region)
+        cinder_client = get_cinder_v1_client(session, region)
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
@@ -153,7 +153,7 @@ class CinderHttpsTests(SynchronousTestCase):
         config['peer_verify'] = False
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(session, region)
+        cinder_client = get_cinder_v1_client(session, region)
         self.assertTrue(self._authenticates_ok(cinder_client))
 
     def test_verify_ca_path_no_match_fails(self):
@@ -176,7 +176,7 @@ class CinderHttpsTests(SynchronousTestCase):
             AUTHORITY_CERTIFICATE_FILENAME).path
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(session, region)
+        cinder_client = get_cinder_v1_client(session, region)
         self.assertFalse(self._authenticates_ok(cinder_client))
 
 
@@ -286,7 +286,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             raise SkipTest(str(e))
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
-        self.cinder = get_cinder_client(session, region)
+        self.cinder = get_cinder_v1_client(session, region)
         self.nova = get_nova_client(session, region)
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
 
