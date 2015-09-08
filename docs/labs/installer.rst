@@ -64,7 +64,7 @@ This will work on Linux or OS X machines with Docker installed.
 
   This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
 
-* Now test one of the installed tools.
+* Now test one of the installed tools:
 
   .. prompt:: bash $
 
