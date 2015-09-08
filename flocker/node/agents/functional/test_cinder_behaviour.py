@@ -7,10 +7,14 @@ basic assumptions/understandings of how Cinder works in the real world.
 
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
-from ..cinder import wait_for_volume_state
+from ..cinder import (
+    get_keystone_session, get_cinder_client, wait_for_volume_state
+)
 from ..test.blockdevicefactory import (
     InvalidConfig,
-    ProviderType, get_blockdeviceapi_args,
+    ProviderType,
+    get_openstack_region,
+    get_blockdevice_config,
 )
 from ....testtools import random_name
 
@@ -22,10 +26,12 @@ def cinder_volume_manager():
     XXX: It will not automatically clean up after itself. See FLOC-1824.
     """
     try:
-        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+        config = get_blockdevice_config(ProviderType.openstack)
     except InvalidConfig as e:
         raise SkipTest(str(e))
-    return kwargs["cinder_client"].volumes
+    region = get_openstack_region()
+    session = get_keystone_session(**config)
+    return get_cinder_client(session, region).volumes
 
 
 # All of the following tests could be part of the suite returned by

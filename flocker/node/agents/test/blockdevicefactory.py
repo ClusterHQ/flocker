@@ -19,26 +19,17 @@ See `acceptance testing <acceptance-testing>`_ for details.
 """
 
 from os import environ
-from functools import partial
 
-from yaml import safe_load
+import yaml
 from bitmath import GiB
 
 from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
 
-from keystoneclient.session import Session
-
-from cinderclient.client import Client as CinderClient
-from novaclient.client import Client as NovaClient
-
-from ..cinder import (
-    _openstack_auth_from_config, _openstack_verify_from_config, cinder_api)
-from ..ebs import EBSBlockDeviceAPI, ec2_client
+from ..cinder import cinder_from_configuration
+from ..ebs import EBSBlockDeviceAPI, make_ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
-from ....testtools.cluster_utils import (
-    make_cluster_id, TestTypes, Providers
-)
+from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 
 
 class InvalidConfig(Exception):
@@ -59,14 +50,16 @@ class ProviderType(Names):
     rackspace = NamedConstant()
 
 
-def get_blockdeviceapi(provider):
+def get_blockdeviceapi(provider_type):
     """
     Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
     """
-    cls, args = get_blockdeviceapi_args(provider)
-    return cls(**args)
+    config = get_blockdevice_config(provider_type)
+    provider = _provider_for_provider_type(provider_type)
+    factory = _BLOCKDEVICE_TYPES[provider]
+    return factory(make_cluster_id(TestTypes.FUNCTIONAL, provider), config)
 
 
 def _provider_for_provider_type(provider_type):
@@ -80,15 +73,13 @@ def _provider_for_provider_type(provider_type):
     return Providers.UNSPECIFIED
 
 
-def get_blockdeviceapi_args(provider, **override):
+def get_blockdevice_config(provider_type):
     """
     Get initializer arguments suitable for use in the instantiation of an
     ``IBlockDeviceAPI`` implementation compatible with the given provider.
 
-    :param provider: A provider type the ``IBlockDeviceAPI`` is to be
-        compatible with.  A value from ``ProviderType``.
-
-    :param override: Block Device parameters to override.
+    :param provider_type: A provider type the ``IBlockDeviceAPI`` is to
+        be compatible with.  A value from ``ProviderType``.
 
     :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
@@ -117,7 +108,7 @@ def get_blockdeviceapi_args(provider, **override):
         )
 
     with open(config_file_path) as config_file:
-        config = safe_load(config_file.read())
+        config = yaml.safe_load(config_file.read())
 
     section = config.get(platform_name)
     if section is None:
@@ -127,7 +118,6 @@ def get_blockdeviceapi_args(provider, **override):
             "Platform: %s, "
             "Configuration File: %s" % (platform_name, config_file_path)
         )
-    section.update(override)
 
     provider_name = section.get('provider', platform_name)
     try:
@@ -142,32 +132,20 @@ def get_blockdeviceapi_args(provider, **override):
             )
         )
 
-    if provider_environment != provider:
+    if provider_environment != provider_type:
         raise InvalidConfig(
             "The requested cloud provider (%s) is not the provider running "
-            "the tests (%s)." % (provider.name, provider_environment.name)
+            "the tests (%s)." % (provider_type.name, provider_environment.name)
         )
 
-    cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-    kwargs = dict(cluster_id=make_cluster_id(
-        TestTypes.FUNCTIONAL, _provider_for_provider_type(provider),
-    ))
-    kwargs.update(get_kwargs(**section))
-    return cls, kwargs
+    # XXX - make this an exception, and always configure externally?
+    if provider_environment == ProviderType.rackspace:
+        config['auth_plugin'] = 'rackspace'
+
+    return config
 
 
-def _openstack(**config):
-    """
-    Create Cinder and Nova volume managers suitable for use in the creation of
-    a ``CinderBlockDeviceAPI``.  They will be configured to use the region
-    where the server that is running this code is running.
-
-    :param config: Any additional configuration (possibly provider-specific)
-        necessary to authenticate a session for use with the CinderClient and
-        NovaClient.
-
-    :return: A ``dict`` of keyword arguments for ``cinder_api``.
-    """
+def get_openstack_region():
     # The execution context should have set up this environment variable,
     # probably by inspecting some cloud-y state to discover where this code is
     # running.  Since the execution context is probably a stupid shell script,
@@ -178,51 +156,57 @@ def _openstack(**config):
     region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
     if region is not None:
         region = region.upper()
-    auth = _openstack_auth_from_config(**config)
-    verify = _openstack_verify_from_config(**config)
-    session = Session(auth=auth, verify=verify)
-    cinder_client = CinderClient(
-        session=session, region_name=region, version=1
-    )
-    nova_client = NovaClient(
-        session=session, region_name=region, version=2
-    )
-    return dict(
-        cinder_client=cinder_client,
-        nova_client=nova_client
-    )
+    return region
 
 
-def _aws(**config):
+def _openstack(cluster_id, config):
     """
-    Create an EC2 client suitable for use in the creation of an
-    ``EBSBlockDeviceAPI``.
+    Create Cinder and Nova volume managers suitable for use in the creation of
+    a ``CinderBlockDeviceAPI``.  They will be configured to use the region
+    where the server that is running this code is running.
 
-    :param bytes access_key: "access_key" credential for EC2.
-    :param bytes secret_access_key: "secret_access_token" EC2 credential.
+    :param config: Any additional configuration (possibly provider-specific)
+        necessary to authenticate a session for use with the CinderClient and
+        NovaClient.
+    :return: A CinderBlockDeviceAPI instance.
     """
+    region = get_openstack_region()
+    return cinder_from_configuration(region, cluster_id, **config)
+
+
+def get_ec2_client(config):
     # We just get the credentials from the config file.
     # We ignore the region specified in acceptance test configuration,
     # and instead get the region from the zone of the host.
     zone = environ['FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE']
     # The region is the zone, without the trailing [abc].
     region = zone[:-1]
-    return {
-        'ec2_client': ec2_client(
-            region=region,
-            zone=zone,
-            access_key_id=config['access_key'],
-            secret_access_key=config['secret_access_token'],
-        ),
-    }
+    return make_ec2_client(
+        region=region,
+        zone=zone,
+        access_key_id=config['access_key'],
+        secret_access_key=config['secret_access_token']
+    )
 
-# Map provider labels to IBlockDeviceAPI factory and a corresponding argument
-# factory.
+
+def _aws(cluster_id, config):
+    """
+    Create an EC2 client suitable for use in the creation of an
+    ``EBSBlockDeviceAPI``.
+
+    :param bytes access_key: "access_key" credential for EC2.
+    :param bytes secret_access_key: "secret_access_token" EC2 credential.
+    :return: An EBSBlockDeviceAPI instance.
+    """
+    return EBSBlockDeviceAPI(
+        cluster_id=cluster_id,
+        ec2_client=get_ec2_client(config),
+    )
+
+# Map provider labels to IBlockDeviceAPI factory.
 _BLOCKDEVICE_TYPES = {
-    ProviderType.openstack: (cinder_api, _openstack),
-    ProviderType.rackspace:
-        (cinder_api, partial(_openstack, auth_plugin="rackspace")),
-    ProviderType.aws: (EBSBlockDeviceAPI, _aws),
+    Providers.OPENSTACK: _openstack,
+    Providers.AWS: _aws,
 }
 
 # ^^^^^^^^^^^^^^^^^^^^ generally useful implementation code, put it somewhere
