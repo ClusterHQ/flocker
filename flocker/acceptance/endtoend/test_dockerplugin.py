@@ -4,7 +4,6 @@
 Tests for the Flocker Docker plugin.
 """
 
-import platform
 import ssl
 from twisted.trial.unittest import TestCase
 
@@ -117,7 +116,6 @@ class DockerPluginTests(TestCase):
         # restart the Docker daemon
         # attempt to read the data back again; the container should've
         # restarted automatically.
-        import pdb;pdb.set_trace()
         self.fail("not implemented yet")
 
     @require_cluster(1)
