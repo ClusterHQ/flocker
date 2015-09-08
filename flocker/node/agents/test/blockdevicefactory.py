@@ -140,9 +140,9 @@ def get_blockdevice_config(provider_type):
 
     # XXX - make this an exception, and always configure externally?
     if provider_environment == ProviderType.rackspace:
-        config['auth_plugin'] = 'rackspace'
+        section['auth_plugin'] = 'rackspace'
 
-    return config
+    return section
 
 
 def get_openstack_region_for_test():
