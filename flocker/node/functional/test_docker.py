@@ -48,7 +48,7 @@ from ..testtools import (
 )
 
 
-MAX_INSPECT_ATTEMPTS = 200
+MAX_INSPECT_ATTEMPTS = 1
 
 
 def namespace_for_test(test_case):
@@ -525,29 +525,10 @@ class GenericDockerClientTests(TestCase):
             self.addCleanup(docker_client.remove, name)
             d = docker_client.add(name, registry_image.full_name)
 
-            def check_image_exists(self, name):
-                """
-                """
-                attempt = 0
-                while attempt < MAX_INSPECT_ATTEMPTS:
-                    try:
-                        result = client.inspect_image(name)
-                        Message.new(u"test_pull_image_success",
-                                    attempt=attempt,
-                                    inspect_image_result=result).write()
-                    except APIError:
-                        Message.new(u"test_pull_image_failure",
-                                    attempt=attempt,
-                                    inspect_image_result=result).write()
-                        time.sleep(1.0)
-                    attempt = attempt + 1
-                return True
-
             d.addCallback(
-                check_image_exists, registry_image.full_name
-                # lambda _: self.assertTrue(
-                #   client.inspect_image(registry_image.full_name)
-                # )
+                lambda _: self.assertTrue(
+                    Client().inspect_image(registry_image.full_name)
+                )
             )
             return d
 
