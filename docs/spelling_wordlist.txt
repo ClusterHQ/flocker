@@ -55,6 +55,7 @@ lifecycle
 loopback
 Mesos
 metadata
+Moby
 MiB
 microservice
 microservices
