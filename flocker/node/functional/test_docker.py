@@ -23,8 +23,6 @@ from twisted.internet.defer import succeed, gatherResults
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web.client import ResponseNeverReceived
 
-from eliot import Message
-
 from treq import request, content
 
 from pyrsistent import PClass, pvector, field
@@ -46,9 +44,6 @@ from ..testtools import (
     if_docker_configured, wait_for_unit_state, require_docker_version,
     add_with_port_collision_retry,
 )
-
-
-MAX_INSPECT_ATTEMPTS = 1
 
 
 def namespace_for_test(test_case):
