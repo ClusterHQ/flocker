@@ -36,14 +36,14 @@ The Installer can be used in the following configurations.
 
 * **Supported configurations**
 
-  * Ubuntu or CentOS on AWS with EBS backend
-  * Ubuntu or CentOS on Rackspace with OpenStack backend
-  * Ubuntu or CentOS on private OpenStack cloud with OpenStack backend
+  * Ubuntu 14.04 on AWS with EBS backend
+  * Ubuntu 14.04 on Rackspace with OpenStack backend
+  * Ubuntu 14.04 on private OpenStack cloud with OpenStack backend
 
 * **Experimental configurations**
 
   * CoreOS on AWS with EBS backend
-  * Ubuntu or CentOS on any infrastructure with experimental ZFS backend
+  * Ubuntu 14.04 on any infrastructure with ZFS backend
 
 Other configurations may work, but have not been tested.
 
@@ -140,11 +140,10 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 
 .. prompt:: bash $
 
-    flocker-install cluster.yml
+    uft-flocker-install cluster.yml
 
 This will install the OS packages on your nodes required to run Flocker.
 Flocker is not ready to run yet, we still need to do some certificate management.
-
 
 Configure Certificates
 ======================
@@ -153,29 +152,73 @@ From the directory where your ``cluster.yml`` file is now, run the following com
 
 .. prompt:: bash $
 
-    flocker-config cluster.yml
+    uft-flocker-config cluster.yml
 
 This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
 
 .. warning::
-    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524.
+    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524, plus any ports you want to access (the demo later uses port 80).
 
 Install Flocker Docker plugin
 =============================
 
-If you want to install the :ref:`Flocker Docker plugin <labs-docker-plugin>` then follow these steps.
-Currently this has only been tested on Ubuntu 14.04 and CoreOS.
-
-Please keep in mind :ref:`this note on architecture <labs-architecture-note>`.
+The Flocker Docker plugin allows you to use Flocker directly from the Docker CLI.
 
 From the directory where your ``cluster.yml`` file is now, run the following command:
 
 .. prompt:: bash $
 
-    flocker-plugin-install cluster.yml
+    uft-flocker-plugin-install cluster.yml
 
-This will configure API certificates for the Flocker Docker plugin and push them to your nodes - it will name them ``/etc/flocker/plugin.{crt,key}`` on the nodes.
+Check that Flocker cluster is active
+====================================
 
-It will also download and install a Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
+Try the Flocker CLI to check that all your nodes came up:
 
-Once you've installed the Flocker Docker plugin, check out the experimental :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`, and the :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>` integrations.
+.. prompt:: bash $
+
+    uft-flocker-volumes list-nodes
+    uft-flocker-volumes list
+
+You can see that there are no volumes yet.
+
+Deploy and migrate a stateful app
+=================================
+
+Now you will deploy a highly sophisticated stateful app to test out Flocker.
+In this example, ``demo`` is the name of the Flocker volume being created, which will map onto the Flocker volume being created.
+
+.. prompt:: bash $
+
+    $ NODE1="<node 1 public IP>"
+    $ NODE2="<node 2 public IP>"
+    $ KEY="<path on your machine to your .pem file>"
+    $ ssh -i $KEY root@$NODE1 /root/bin/docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
+    $ ssh -i $KEY root@$NODE1 /root/bin/docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
+    $ uft-flocker-volumes list
+
+This may take up to a minute since Flocker is provisioning and attaching an volume from the storage backend for the Flocker ``demo`` volume.
+At the end you should see the volume created and attached to the first node.
+
+Now visit http://``<node 1 public IP>``/ and click around to add some Moby Docks to the screen.
+Now let's stop the containers, then start the stateful app on another node in the cluster.
+
+.. prompt:: bash $
+
+    $ ssh -i $KEY root@$NODE1 /root/bin/docker rm -f app
+    $ ssh -i $KEY root@$NODE1 /root/bin/docker rm -f redis
+    $ ssh -i $KEY root@$NODE2 /root/bin/docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
+    $ ssh -i $KEY root@$NODE2 /root/bin/docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
+    $ uft-flocker-volumes list
+
+At the end you should see the volume has moved to the second node.
+
+This may take up to a minute since Flocker is ensuring the volume is on the second host before starting the container.
+
+Now visit http://``<node 2 public IP>``/ and you’ll see that the location of the Moby Docks has been preserved.
+Nice.
+
+Further reading
+===============
+
+Now that you've installed your own Flocker cluster, you may want to check out the experimental :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`, and the :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>` integrations.
