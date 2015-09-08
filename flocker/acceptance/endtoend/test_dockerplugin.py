@@ -103,6 +103,22 @@ class DockerPluginTests(TestCase):
         return cid
 
     @require_cluster(1)
+    def test_volume_persists_restart(self, cluster):
+        """
+        If a container with a volume is created with a restart policy of
+        "always", the container will restart with the same volume attached
+        after the Docker daemon is restarted.
+        """
+        # create a simple data HTTP python container, with the restart policy
+        # write some data to it via POST
+        # assert the data has been written
+        # restart the Docker daemon
+        # attempt to read the data back again; the container should've
+        # restarted automatically.
+
+        self.fail("not implemented yet")
+
+    @require_cluster(1)
     def test_run_container_with_volume(self, cluster):
         """
         Docker can run a container with a volume provisioned by Flocker.
