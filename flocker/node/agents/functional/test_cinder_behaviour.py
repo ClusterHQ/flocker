@@ -13,7 +13,7 @@ from ..cinder import (
 from ..test.blockdevicefactory import (
     InvalidConfig,
     ProviderType,
-    get_openstack_region,
+    get_openstack_region_for_test,
     get_blockdevice_config,
 )
 from ....testtools import random_name
@@ -29,7 +29,7 @@ def cinder_volume_manager():
         config = get_blockdevice_config(ProviderType.openstack)
     except InvalidConfig as e:
         raise SkipTest(str(e))
-    region = get_openstack_region()
+    region = get_openstack_region_for_test()
     session = get_keystone_session(**config)
     return get_cinder_client(session, region).volumes
 

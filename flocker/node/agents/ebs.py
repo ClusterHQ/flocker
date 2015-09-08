@@ -881,15 +881,6 @@ class EBSBlockDeviceAPI(object):
         return _expected_device(ebs_volume.attach_data.device)
 
 
-def make_ec2_client(region, zone, access_key_id, secret_access_key):
-    return ec2_client(
-        region=region,
-        zone=zone,
-        access_key_id=access_key_id,
-        secret_access_key=secret_access_key,
-    )
-
-
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
                            cluster_id):
     """
@@ -910,7 +901,7 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     :return: A ``EBSBlockDeviceAPI`` instance using the given parameters.
     """
     return EBSBlockDeviceAPI(
-        ec2_client=make_ec2_client(
+        ec2_client=ec2_client(
             region=region,
             zone=zone,
             access_key_id=access_key_id,

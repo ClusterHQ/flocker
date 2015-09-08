@@ -27,7 +27,7 @@ from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration
-from ..ebs import EBSBlockDeviceAPI, make_ec2_client
+from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 
@@ -145,7 +145,7 @@ def get_blockdevice_config(provider_type):
     return config
 
 
-def get_openstack_region():
+def get_openstack_region_for_test():
     # The execution context should have set up this environment variable,
     # probably by inspecting some cloud-y state to discover where this code is
     # running.  Since the execution context is probably a stupid shell script,
@@ -170,18 +170,18 @@ def _openstack(cluster_id, config):
         NovaClient.
     :return: A CinderBlockDeviceAPI instance.
     """
-    region = get_openstack_region()
+    region = get_openstack_region_for_test()
     return cinder_from_configuration(region, cluster_id, **config)
 
 
-def get_ec2_client(config):
+def get_ec2_client_for_test(config):
     # We just get the credentials from the config file.
     # We ignore the region specified in acceptance test configuration,
     # and instead get the region from the zone of the host.
     zone = environ['FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE']
     # The region is the zone, without the trailing [abc].
     region = zone[:-1]
-    return make_ec2_client(
+    return ec2_client(
         region=region,
         zone=zone,
         access_key_id=config['access_key'],
@@ -200,7 +200,7 @@ def _aws(cluster_id, config):
     """
     return EBSBlockDeviceAPI(
         cluster_id=cluster_id,
-        ec2_client=get_ec2_client(config),
+        ec2_client=get_ec2_client_for_test(config),
     )
 
 # Map provider labels to IBlockDeviceAPI factory.
