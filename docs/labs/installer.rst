@@ -64,6 +64,14 @@ This will work on Linux or OS X machines with Docker installed.
 
   This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
 
+* Now test one of the installed tools.
+
+  .. prompt:: bash $
+
+      uft-flocker-ca --version
+
+  This should return something like ``1.2.0``, showing you which version of the Flocker Client is installed.
+
 .. _labs-installer-certs-directory:
 
 Make a local directory for your cluster files
