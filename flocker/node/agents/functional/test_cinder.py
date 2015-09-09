@@ -460,6 +460,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         e = self.assertRaises(
             TimeoutException,
             self.blockdevice_api.get_device_path,
+            volume.id,
         )
         self.assertEqual(
             (volume, 5),
