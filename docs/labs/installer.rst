@@ -236,4 +236,4 @@ Now that you've installed your own Flocker cluster, you may want to learn more a
 Or try some of our more experimental projects and integrations, including:
 
 * :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`
-* :ref:`Swarm <labs-swarm>`, :ref:`Compose <labs-compose>` and :ref:`Mesos/Marathon <mesosphere>` integrations
+* :ref:`Swarm <labs-swarm>`, :ref:`Compose <labs-compose>` and :ref:`Mesos/Marathon <labs-mesosphere>` integrations
