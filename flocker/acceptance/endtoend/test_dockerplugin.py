@@ -63,9 +63,7 @@ class DockerPluginTests(TestCase):
                 command = ["service", "docker", "restart"]
             else:
                 command = ["systemctl", "restart", "docker"]
-            #import pdb;pdb.set_trace()
-            zx=run_ssh_command(b"root", address, command)
-            #import pdb;pdb.set_trace()
+            run_ssh_command(b"root", address, command)
         except SSHError as e:
             self.fail("Restart docker failed: " + e)
 
@@ -124,20 +122,19 @@ class DockerPluginTests(TestCase):
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={"8080/tcp": [{"HostPort": "8080"}]}),
-                #port_bindings={http_port: http_port}),
+                port_bindings={http_port: http_port}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
-            [u"/data"], "always")
+            [u"/data"], restart_policy="always")
 
         # write some data to it via POST
         d = post_http_server(self, node.public_address, http_port,
                              {"data": data})
         # assert the data has been written
-        #d.addCallback(lambda _: assert_http_server(
-        #    self, node.public_address, http_port, expected_response=data))
+        d.addCallback(lambda _: assert_http_server(
+            self, node.public_address, http_port, expected_response=data))
         # restart the Docker daemon
         d.addCallback(lambda _: self.restart_docker(node.public_address))
         # attempt to read the data back again; the container should've
@@ -158,10 +155,9 @@ class DockerPluginTests(TestCase):
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
-            {"host_config":
-                {'Binds': ['{}:/data'.format(volume_name)],
-                 'PortBindings': {
-                     '8080/tcp': [{'HostPort': '8080', 'HostIp': ''}]}},
+            {"host_config": create_host_config(
+                binds=["{}:/data".format(volume_name)],
+                port_bindings={http_port: http_port}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
