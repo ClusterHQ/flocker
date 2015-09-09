@@ -12,7 +12,7 @@ from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...testtools import random_name
+from ...testtools import random_name, find_free_port
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     REALISTIC_BLOCKDEVICE_SIZE, get_docker_client,
@@ -54,10 +54,11 @@ class LeaseAPITests(TestCase):
             ``operation``.
         :param state_method: A callable which returns a ``Deferred`` that fires
             when the requested operation has been performed.
-        :returns: A ``Deferred`` that fires when the all the steps have
+        :returns: A ``Deferred`` that fires when all the steps have
             completed.
         """
-        http_port = 8080
+        container_http_port = 8080
+        host_http_port = find_free_port()[1]
         dataset_id = uuid4()
         datasets = []
         leases = []
@@ -105,9 +106,8 @@ class LeaseAPITests(TestCase):
 
         def start_http_container(ignored):
             """
-            Launch data HTTP container and make POST requests
-            to it in a looping call every second.
-            return looping call deferred
+            Create and start a data HTTP container and clean it up when
+            the test finishes.
             """
             [dataset] = datasets
             script = SCRIPTS.child("datahttp.py")
@@ -115,8 +115,8 @@ class LeaseAPITests(TestCase):
             docker_arguments = {
                 "host_config": create_host_config(
                     binds=["{}:/data".format(dataset.path.path)],
-                    port_bindings={http_port: http_port}),
-                "ports": [http_port],
+                    port_bindings={container_http_port: host_http_port}),
+                "ports": [container_http_port],
                 "volumes": [u"/data"]}
             container = client.create_container(
                 "python:2.7-slim",
@@ -131,15 +131,19 @@ class LeaseAPITests(TestCase):
         )
 
         def write_data(ignored):
+            """
+            Make a POST request to the container, writing some data to the
+            volume.
+            """
             data = random_name(self).encode("utf-8")
             d = post_http_server(
-                self, cluster.nodes[0].public_address, http_port,
+                self, cluster.nodes[0].public_address, host_http_port,
                 {"data": data}
             )
             d.addCallback(
                 lambda _: assert_http_server(
                     self, cluster.nodes[0].public_address,
-                    http_port, expected_response=data
+                    host_http_port, expected_response=data
                 )
             )
             return d
@@ -164,12 +168,17 @@ class LeaseAPITests(TestCase):
 
         def wait_for_unexpected_umount(ignored):
             """
-            If the dataset agent is broken and not respecting leases then we
-            expect that 10 seconds is long enough for it to begin performing
-            the requested operation.
-            And the first step will always be to unmount the filesystem which
-            should happen quickly since there are no open files and no Docker
-            bind mounts to the filesystem.
+            If a bug or error in the dataset agent is causing it to not
+            respect leases, then we expect that 10 seconds is long enough
+            for it to begin performing the requested (move or delete a
+            dataset) operation.
+            The first step of such an operation will always be to unmount
+            the filesystem, which should happen quickly since there are no
+            open files and no Docker bind mounts to the filesystem.
+            Therefore if after 10 seconds, we can restart the container and
+            successfully write some data to it, we can conclude that the
+            dataset agent has respected the lease and not attempted to
+            unmount.
             """
             return deferLater(reactor, 10, lambda: None)
         waiting = performing_operation.addCallback(wait_for_unexpected_umount)

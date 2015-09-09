@@ -22,6 +22,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
+from twisted.internet.defer import DeferredList
 
 from eliot import Logger, start_action, Message, write_failure
 from eliot.twisted import DeferredContext
@@ -618,8 +619,11 @@ class Cluster(PRecord):
             get_items = self.client.list_leases()
 
             def release_all(leases):
+                release_list = DeferredList([])
                 for lease in leases:
-                    self.client.release_lease(lease.dataset_id)
+                    release_list.append(
+                        self.client.release_lease(lease.dataset_id))
+                return release_list
 
             get_items.addCallback(release_all)
             return get_items
