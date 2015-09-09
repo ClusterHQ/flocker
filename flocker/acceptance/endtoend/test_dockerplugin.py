@@ -11,7 +11,9 @@ from docker import Client
 from docker.tls import TLSConfig
 from docker.utils import create_host_config
 
-from ...testtools import random_name, run_ssh_command, SSHError
+from ...testtools import (
+    random_name, run_ssh_command, SSHError, find_free_port
+)
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
 )
@@ -68,8 +70,7 @@ class DockerPluginTests(TestCase):
             self.fail("Restart docker failed: " + e)
 
     def run_python_container(self, cluster, address, docker_arguments, script,
-                             script_arguments, restart_policy="never",
-                             cleanup=True):
+                             script_arguments, cleanup=True):
         """
         Run a Python script as a Docker container with the Flocker volume
         driver.
@@ -99,8 +100,7 @@ class DockerPluginTests(TestCase):
             ["python", "-c", script.getContent()] + list(script_arguments),
             volume_driver="flocker", **docker_arguments)
         cid = container["Id"]
-        restart_policy = {"Name": restart_policy}
-        client.start(container=cid, restart_policy=restart_policy)
+        client.start(container=cid)
         if cleanup:
             self.addCleanup(client.remove_container, cid, force=True)
         return cid
@@ -116,31 +116,33 @@ class DockerPluginTests(TestCase):
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
+        host_port = find_free_port()[1]
 
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: http_port}),
+                port_bindings={http_port: host_port},
+                restart_policy={"Name": "always"}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
-            [u"/data"], restart_policy="always")
+            [u"/data"])
 
         # write some data to it via POST
-        d = post_http_server(self, node.public_address, http_port,
+        d = post_http_server(self, node.public_address, host_port,
                              {"data": data})
         # assert the data has been written
         d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, http_port, expected_response=data))
+            self, node.public_address, host_port, expected_response=data))
         # restart the Docker daemon
         d.addCallback(lambda _: self.restart_docker(node.public_address))
         # attempt to read the data back again; the container should've
         # restarted automatically.
         d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, http_port, expected_response=data))
+            self, node.public_address, host_port, expected_response=data))
         return d
 
     @require_cluster(1)
@@ -151,23 +153,25 @@ class DockerPluginTests(TestCase):
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
+        host_port = find_free_port()[1]
 
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: http_port}),
+                port_bindings={http_port: host_port},
+                restart_policy={"Name": "always"}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
             [u"/data"])
 
-        d = post_http_server(self, node.public_address, http_port,
+        d = post_http_server(self, node.public_address, host_port,
                              {"data": data})
         d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, http_port, expected_response=data))
+            self, node.public_address, host_port, expected_response=data))
         return d
 
     def _test_move(self, cluster, origin_node, destination_node):
@@ -184,11 +188,12 @@ class DockerPluginTests(TestCase):
         """
         data = "hello world"
         http_port = 8080
+        host_port = find_free_port()[1]
         volume_name = random_name(self)
         container_args = {
             "host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: http_port}),
+                port_bindings={http_port: host_port}),
             "ports": [http_port]}
 
         cid = self.run_python_container(
@@ -199,7 +204,7 @@ class DockerPluginTests(TestCase):
             [u"/data"], cleanup=False)
 
         # Post to container on origin node:
-        d = post_http_server(self, origin_node.public_address, http_port,
+        d = post_http_server(self, origin_node.public_address, host_port,
                              {"data": data})
 
         def posted(_):
@@ -212,7 +217,7 @@ class DockerPluginTests(TestCase):
                 SCRIPTS.child(b"datahttp.py"), [u"/data"])
         d.addCallback(posted)
         d.addCallback(lambda _: assert_http_server(
-            self, destination_node.public_address, http_port,
+            self, destination_node.public_address, host_port,
             expected_response=data))
         return d
 
