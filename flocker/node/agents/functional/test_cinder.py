@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from bitmath import Byte
 import netifaces
+import psutil
 
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
@@ -41,7 +42,9 @@ from ..test.blockdevicefactory import (
 )
 from ....testtools import run_process
 
-from ..cinder import wait_for_volume_state, UnexpectedStateException
+from ..cinder import (
+    wait_for_volume_state, UnexpectedStateException, TimeoutException
+)
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -415,3 +418,50 @@ class CinderAttachmentTests(SynchronousTestCase):
                 transient_states=(u'attaching',),
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
+
+    @require_virsh
+    def test_getdevicepath_error_without_udev(self):
+        """
+        ``getdevicepath`` on systems using the virtioblk driver raises
+        ``TimeoutException`` if ``/dev/disks/by-id/xxx`` does not appear within
+        5 seconds.
+        """
+        instance_id = self.blockdevice_api.compute_instance_id()
+        # Create volume
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
+
+        # Suspend udevd before attaching the disk
+        [udev_process] = [
+            p for p in psutil.process_iter()
+            if p.name().endswith('-udevd')
+        ]
+        udev_process.suspend()
+        self.addCleanup(udev_process.resume)
+
+        # Attach volume
+        attached_volume = self.nova.volumes.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes,
+            expected_volume=attached_volume,
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
+        )
+
+        e = self.assertRaises(
+            TimeoutException,
+            self.blockdevice_api.get_device_path,
+        )
+        self.assertEqual(
+            (volume, 5),
+            (e.expected_volume, e.elapsed_time)
+        )
