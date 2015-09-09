@@ -139,7 +139,10 @@ def get_blockdevice_config(provider_type):
             "the tests (%s)." % (provider_type.name, provider_environment.name)
         )
 
-    # XXX - make this an exception, and always configure externally?
+    # XXX - If provider type is Rackspace, we add the auth_plugin config
+    # here.  The CI system should be configured to provide this
+    # parameter as part of the config, to match the documented way of
+    # configuring Rackspace.
     if provider_environment == ProviderType.rackspace:
         section['auth_plugin'] = 'rackspace'
 
