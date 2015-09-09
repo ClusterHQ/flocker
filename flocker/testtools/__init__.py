@@ -1074,7 +1074,7 @@ def run_process(command, *args, **kwargs):
     return result
 
 
-def SSHError(_CalledProcessError):
+class SSHError(_CalledProcessError):
     """
     An error raised by ``run_ssh_command`` in the event of a failure.
     """
