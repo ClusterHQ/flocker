@@ -583,7 +583,7 @@ class CinderBlockDeviceAPI(object):
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
         if expected_path.exists():
-            return expected_path
+            return expected_path.realpath()
         else:
             raise UnattachedVolume(volume.id)
 

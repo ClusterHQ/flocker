@@ -528,8 +528,8 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
         udev_process.resume()
         sleep(5)
         self.assertEqual(
-            '/dev/disk/by-id/virtio-{}'.format(volume.id[:20]),
+            FilePath('/dev/disk/by-id/virtio-{}'.format(volume.id[:20])).realpath(),
             self.blockdevice_api.get_device_path(
                 volume.id
-            ).path
+            )
         )
