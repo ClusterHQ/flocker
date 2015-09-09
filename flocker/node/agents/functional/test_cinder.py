@@ -12,7 +12,7 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 
 See https://github.com/rackerlabs/mimic/issues/218
 """
-
+from time import sleep
 from unittest import skipIf
 from uuid import uuid4
 
@@ -419,6 +419,31 @@ class CinderAttachmentTests(SynchronousTestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
+class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
+    """
+    Cinder volumes can be attached and return correct device path.
+    """
+    def setUp(self):
+        clients = openstack_clients()
+        self.cinder = clients['cinder_client']
+        self.nova = clients['nova_client']
+        self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
+
+    def _detach(self, instance_id, volume):
+        self.nova.volumes.delete_server_volume(instance_id, volume.id)
+        return wait_for_volume_state(
+            volume_manager=self.nova.volumes,
+            expected_volume=volume,
+            desired_state=u'available',
+            transient_states=(u'in-use', u'detaching'),
+        )
+
+    def _cleanup(self, instance_id, volume):
+        volume.get()
+        if volume.attachments:
+            self._detach(instance_id, volume)
+        self.cinder.volumes.delete(volume.id)
+
     @require_virsh
     def test_getdevicepath_error_without_udev(self):
         """
@@ -465,4 +490,52 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.assertEqual(
             (volume, 5),
             (e.expected_volume, e.elapsed_time)
+        )
+
+    @require_virsh
+    def test_getdevicepath_serial_number_matches_volume_id(self):
+        """
+        ``getdevicepath`` on systems using the virtioblk driver returns
+        a path matching ``/dev/disks/by-id/virtio-<volume.id>``.
+        """
+        instance_id = self.blockdevice_api.compute_instance_id()
+        # Create volume
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
+
+        # Suspend udevd before attaching the disk
+        [udev_process] = [
+            p for p in psutil.process_iter()
+            if p.name().endswith('-udevd')
+        ]
+        udev_process.suspend()
+        self.addCleanup(udev_process.resume)
+
+        # Attach volume
+        attached_volume = self.nova.volumes.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes,
+            expected_volume=attached_volume,
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
+        )
+        print "INCORRECT PATH", self.blockdevice_api.get_device_path(
+                volume.id
+        )
+        udev_process.resume()
+        sleep(5)
+        self.assertEqual(
+            '/dev/disk/by-id/virtio-{}'.format(volume.id[:20]),
+            self.blockdevice_api.get_device_path(
+                volume.id
+            ).path
         )
