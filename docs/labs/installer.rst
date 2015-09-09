@@ -125,9 +125,6 @@ This will create some sample configuration files that correspond to the backend 
 * OpenStack (including Rackspace): ``cluster.yml.openstack.sample``
 * ZFS (local storage): ``cluster.yml.zfs.sample``
 
-.. warning::
-    Note that ZFS support is experimental, and should not be used for production workloads.
-
 Choose the one that's appropriate for you, and then customize it with your choice of text editor.
 For example:
 
@@ -136,11 +133,9 @@ For example:
     mv cluster.yml.ebs.sample cluster.yml
     vim cluster.yml # customize for your cluster
 
-.. note::
+You need a private key which can log into the machines - you must configure the absolute location of this key in the ``private_key_path`` of ``cluster.yml``.
 
-    You need a private key which can log into the machines - you must configure the absolute location of this key in the ``private_key_path`` of ``cluster.yml``.
-
-If using AWS, you need to copy the highlighted information below into your ``cluster.yml``:
+If using AWS, the following screenshot should help clarify which information you need to copy into your ``cluster.yml``:
 
 .. image:: coreos-aws.png
 
