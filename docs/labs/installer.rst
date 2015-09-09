@@ -210,7 +210,7 @@ In this example, ``demo`` is the name of the Flocker volume being created, which
 This may take up to a minute since Flocker is provisioning and attaching an volume from the storage backend for the Flocker ``demo`` volume.
 At the end you should see the volume created and attached to the first node.
 
-Now visit http://``<node 1 public IP>``/ and click around to add some Moby Docks to the screen.
+Now visit ``http://<node 1 public IP>/`` and click around to add some Moby Docks to the screen.
 Now let's stop the containers, then start the stateful app on another node in the cluster.
 
 .. prompt:: bash $
@@ -225,7 +225,7 @@ At the end you should see the volume has moved to the second node.
 
 This may take up to a minute since Flocker is ensuring the volume is on the second host before starting the container.
 
-Now visit http://``<node 2 public IP>``/ and you’ll see that the location of the Moby Docks has been preserved.
+Now visit ``http://<node 2 public IP>/`` and you’ll see that the location of the Moby Docks has been preserved.
 Nice.
 
 Further reading
