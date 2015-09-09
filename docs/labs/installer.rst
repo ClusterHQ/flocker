@@ -226,4 +226,14 @@ Nice.
 Further reading
 ===============
 
-Now that you've installed your own Flocker cluster, you may want to check out the experimental :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`, and the :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>` integrations.
+Now that you've installed your own Flocker cluster, you may want to learn more about Flocker:
+
+* :ref:`Using Flocker <using>` (note that the ``flocker-deploy`` tool is installed on your system as ``uft-flocker-deploy``)
+* :ref:`Flocker concepts <concepts>`
+* :ref:`API reference <api>`
+* :ref:`Flocker Docker plugin in detail <labs-docker-plugin>`
+
+Or try some of our more experimental projects and integrations, including:
+
+* :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`
+* :ref:`Swarm <labs-swarm>`, :ref:`Compose <labs-compose>` and :ref:`Mesos/Marathon <mesosphere>` integrations
