@@ -43,8 +43,9 @@ from ..test.blockdevicefactory import (
 from ....testtools import run_process
 
 from ..cinder import (
-    wait_for_volume_state, UnexpectedStateException, TimeoutException
+    wait_for_volume_state, UnexpectedStateException
 )
+from ..blockdevice import UnattachedVolume
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -483,13 +484,9 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
         )
 
         e = self.assertRaises(
-            TimeoutException,
+            UnattachedVolume,
             self.blockdevice_api.get_device_path,
             volume.id,
-        )
-        self.assertEqual(
-            (volume, 5),
-            (e.expected_volume, e.elapsed_time)
         )
 
     @require_virsh
@@ -527,9 +524,6 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
             expected_volume=attached_volume,
             desired_state=u'in-use',
             transient_states=(u'attaching',),
-        )
-        print "INCORRECT PATH", self.blockdevice_api.get_device_path(
-                volume.id
         )
         udev_process.resume()
         sleep(5)
