@@ -96,7 +96,9 @@ def get_trial_environment(cluster):
             for node in cluster.agent_nodes
             if node.private_address is not None
         }),
-        'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': bytes(cluster.default_volume_size),
+        'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': bytes(
+            cluster.default_volume_size
+        ),
     }
 
 

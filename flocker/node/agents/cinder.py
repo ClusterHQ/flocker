@@ -573,16 +573,17 @@ class CinderBlockDeviceAPI(object):
 
     def _get_device_path_virtio_blk(self, volume):
         """
-        The virtio_blk driver allows a serial number to be assigned to virtual blockdevices.
+        The virtio_blk driver allows a serial number to be assigned to virtual
+        blockdevices.
         OpenStack will set a serial number containing the first 20
         characters of the Cinder block device ID.
         The udev daemon will read the serial number and create a
         symlink to the canonical virtio_blk device path.
 
-        We do this because libvirt does not return the correct device path when additional
-        disks have been attached using a client other than cinder. This is
-        expected behaviour within Cinder and libvirt
-        See https://bugs.launchpad.net/cinder/+bug/1387945 and
+        We do this because libvirt does not return the correct device path when
+        additional disks have been attached using a client other than
+        cinder. This is expected behaviour within Cinder and libvirt See
+        https://bugs.launchpad.net/cinder/+bug/1387945 and
         http://libvirt.org/formatdomain.html#elementsDisks (target section)
 
         :param volume: The Cinder ``Volume`` which is attached.
@@ -615,7 +616,8 @@ class CinderBlockDeviceAPI(object):
                 # Log a message if this ever happens.
                 Message.new(
                     message_type=(
-                        u'flocker:node:agents:blockdevice:openstack:get_device_path:'
+                        u'flocker:node:agents:blockdevice:openstack:'
+                        u'get_device_path:'
                         u'unexpected_multiple_attachments'
                     ),
                     volume_id=unicode(volume.id),

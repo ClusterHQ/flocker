@@ -34,7 +34,7 @@ from ..common import gather_deferreds
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
-from ..testtools import loop_until, random_name, REALISTIC_BLOCKDEVICE_SIZE
+from ..testtools import loop_until, random_name
 from ..apiclient import FlockerClient, DatasetState
 
 try:
