@@ -410,7 +410,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
-            desired_state=u'available')
+            expected_status=u'available')
 
         # Suspend udevd before attaching the disk
         # List unpacking here ensures that the test will blow up if
@@ -431,7 +431,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         volume = wait_for_volume(
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
-            desired_state=u'in-use',
+            expected_status=u'in-use',
         )
 
         self.assertRaises(
@@ -456,7 +456,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         volume = wait_for_volume(
             volume_manager=self.cinder.volumes,
             expected_volume=cinder_volume,
-            desired_state=u'available'
+            expected_status=u'available'
         )
 
         # Attach volume
@@ -468,7 +468,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         volume = wait_for_volume(
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
-            desired_state=u'in-use',
+            expected_status=u'in-use',
         )
         self.assertEqual(
             FilePath(

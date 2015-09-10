@@ -538,7 +538,7 @@ class CinderBlockDeviceAPI(object):
             raise UnknownVolume(blockdevice_id)
 
         if _is_virtio_blk():
-            device_path = self._get_device_path_virtioblk(cinder_volume)
+            device_path = self._get_device_path_virtio_blk(cinder_volume)
         else:
             device_path = self._get_device_path_other(cinder_volume)
 
