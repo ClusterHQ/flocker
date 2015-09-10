@@ -420,37 +420,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
-class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
-    """
-    Cinder volumes can be attached and return correct device path.
-    """
-    def setUp(self):
-        clients = openstack_clients()
-        self.cinder = clients['cinder_client']
-        self.nova = clients['nova_client']
-        self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
-
-    def _detach(self, instance_id, volume):
-        self.nova.volumes.delete_server_volume(instance_id, volume.id)
-        return wait_for_volume_state(
-            volume_manager=self.nova.volumes,
-            expected_volume=volume,
-            desired_state=u'available',
-            transient_states=(u'in-use', u'detaching'),
-        )
-
-    def _cleanup(self, instance_id, volume):
-        volume.get()
-        if volume.attachments:
-            self._detach(instance_id, volume)
-        self.cinder.volumes.delete(volume.id)
-
     @require_virsh
-    def test_getdevicepath_error_without_udev(self):
+    def test_get_device_path_virtio_blk_error_without_udev(self):
         """
-        ``getdevicepath`` on systems using the virtioblk driver raises
-        ``TimeoutException`` if ``/dev/disks/by-id/xxx`` does not appear within
-        5 seconds.
+        ``get_device_path`` on systems using the virtio_blk driver raises
+        ``UnattachedVolume`` if ``/dev/disks/by-id/xxx`` is not present.
         """
         instance_id = self.blockdevice_api.compute_instance_id()
         # Create volume
@@ -463,10 +437,12 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
             desired_state=u'available', transient_states=(u'creating',))
 
         # Suspend udevd before attaching the disk
-        [udev_process] = [
+        # List unpacking here ensures that the test will blow up if
+        # multiple matching processes are ever found.
+        [udev_process] = list(
             p for p in psutil.process_iter()
             if p.name().endswith('-udevd')
-        ]
+        )
         udev_process.suspend()
         self.addCleanup(udev_process.resume)
 
@@ -490,10 +466,11 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
         )
 
     @require_virsh
-    def test_getdevicepath_serial_number_matches_volume_id(self):
+    def test_get_device_path_virtio_blk_symlink(self):
         """
-        ``getdevicepath`` on systems using the virtioblk driver returns
-        a path matching ``/dev/disks/by-id/virtio-<volume.id>``.
+        ``get_device_path`` on systems using the virtio_blk driver
+        returns the target of a symlink matching
+        ``/dev/disks/by-id/virtio-<volume.id>``.
         """
         instance_id = self.blockdevice_api.compute_instance_id()
         # Create volume
@@ -504,14 +481,6 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
             desired_state=u'available', transient_states=(u'creating',))
-
-        # Suspend udevd before attaching the disk
-        [udev_process] = [
-            p for p in psutil.process_iter()
-            if p.name().endswith('-udevd')
-        ]
-        udev_process.suspend()
-        self.addCleanup(udev_process.resume)
 
         # Attach volume
         attached_volume = self.nova.volumes.create_server_volume(
@@ -525,8 +494,6 @@ class CinderAttachmentFLOC2991Tests(SynchronousTestCase):
             desired_state=u'in-use',
             transient_states=(u'attaching',),
         )
-        udev_process.resume()
-        sleep(5)
         self.assertEqual(
             FilePath('/dev/disk/by-id/virtio-{}'.format(volume.id[:20])).realpath(),
             self.blockdevice_api.get_device_path(
