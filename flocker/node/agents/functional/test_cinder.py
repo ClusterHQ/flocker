@@ -35,13 +35,16 @@ from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size,
+    get_minimum_allocatable_size, get_openstack_region_for_test,
 )
 from ....testtools import run_process
 
-from ..cinder import wait_for_volume_state, UnexpectedStateException
+from ..cinder import (
+    get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
+    wait_for_volume_state, UnexpectedStateException
+)
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -60,17 +63,6 @@ def cinderblockdeviceapi_for_test(test_case):
         features).
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
-
-
-def openstack_clients():
-    """
-    Get OpenStack clients for use in tests.
-    """
-    try:
-        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-    except InvalidConfig as e:
-        raise SkipTest(str(e))
-    return kwargs
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
@@ -95,10 +87,12 @@ class CinderBlockDeviceAPIInterfaceTests(
         Non-Flocker Volumes are not listed.
         """
         try:
-            cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        cinder_client = kwargs["cinder_client"]
+        session = get_keystone_session(**config)
+        region = get_openstack_region_for_test()
+        cinder_client = get_cinder_v1_client(session, region)
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
@@ -153,11 +147,14 @@ class CinderHttpsTests(SynchronousTestCase):
         OpenStack servers always succeeds.
         """
         try:
-            cls, kwargs = get_blockdeviceapi_args(
-                ProviderType.openstack, peer_verify=False)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        self.assertTrue(self._authenticates_ok(kwargs['cinder_client']))
+        config['peer_verify'] = False
+        session = get_keystone_session(**config)
+        region = get_openstack_region_for_test()
+        cinder_client = get_cinder_v1_client(session, region)
+        self.assertTrue(self._authenticates_ok(cinder_client))
 
     def test_verify_ca_path_no_match_fails(self):
         """
@@ -168,13 +165,19 @@ class CinderHttpsTests(SynchronousTestCase):
         path.makedirs()
         RootCredential.initialize(path, b"mycluster")
         try:
-            cls, kwargs = get_blockdeviceapi_args(
-                ProviderType.openstack, backend='openstack',
-                auth_plugin='password', password='password', peer_verify=True,
-                peer_ca_path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
+        config['backend'] = 'openstack'
+        config['auth_plugin'] = 'password'
+        config['password'] = 'password'
+        config['peer_verify'] = True
+        config['peer_ca_path'] = path.child(
+            AUTHORITY_CERTIFICATE_FILENAME).path
+        session = get_keystone_session(**config)
+        region = get_openstack_region_for_test()
+        cinder_client = get_cinder_v1_client(session, region)
+        self.assertFalse(self._authenticates_ok(cinder_client))
 
 
 class VirtIOClient:
@@ -277,9 +280,14 @@ class CinderAttachmentTests(SynchronousTestCase):
     Cinder volumes can be attached and return correct device path.
     """
     def setUp(self):
-        clients = openstack_clients()
-        self.cinder = clients['cinder_client']
-        self.nova = clients['nova_client']
+        try:
+            config = get_blockdevice_config(ProviderType.openstack)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+        region = get_openstack_region_for_test()
+        session = get_keystone_session(**config)
+        self.cinder = get_cinder_v1_client(session, region)
+        self.nova = get_nova_v2_client(session, region)
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
 
     def _detach(self, instance_id, volume):
