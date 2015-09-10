@@ -119,6 +119,10 @@ class DockerRunner:
         self.docker = docker.Client(version='1.18')
         self.image = image
 
+    @classmethod
+    def from_distribution(cls, distribution):
+        return cls(DOCKER_IMAGES[distribution].image)
+
     def start(self):
         """
         Start the Docker container.
@@ -235,14 +239,46 @@ class RunOptions(Options):
             build_server=self['build-server'],
         )
 
-        if self['pip']:
-            supported = PIP_DISTRIBUTIONS
-        else:
-            supported = PACKAGED_CLIENT_DISTRIBUTIONS
-        if self['distribution'] not in supported:
-            raise UsageError(
-                "Distribution %r not supported. Available distributions: %s"
-                % (self['distribution'], ', '.join(supported)))
+
+def get_steps_pip(distribution, package_source=PackageSource()):
+    if distribution not in PIP_DISTRIBUTIONS:
+        raise UsageError(
+            "Distribution %r not supported. Available distributions: %s"
+            % (distribution, ', '.join(PIP_DISTRIBUTIONS)))
+    package_manager = DOCKER_IMAGES[distribution].package_manager
+    virtualenv = 'flocker-client'
+    steps = [
+        ensure_minimal_setup(package_manager),
+        task_cli_pip_prereqs(package_manager),
+        task_cli_pip_install(virtualenv, package_source),
+        task_cli_pip_test(virtualenv),
+    ]
+    return steps
+
+
+def get_steps_pkg(distribution, package_source=PackageSource()):
+    if distribution not in PACKAGED_CLIENT_DISTRIBUTIONS:
+        raise UsageError(
+            "Distribution %r not supported. Available distributions: %s"
+            % (distribution, ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS)))
+    package_manager = DOCKER_IMAGES[distribution].package_manager
+    steps = [
+        ensure_minimal_setup(package_manager),
+        task_cli_pkg_install(distribution, package_source),
+        task_cli_pkg_test(),
+    ]
+    return steps
+
+
+def run_steps(runner, steps):
+    runner.start()
+    try:
+        for commands in steps:
+            status = runner.execute(commands)
+            if status != 0:
+                return status
+    finally:
+        runner.stop()
 
 
 def main(args, base_path, top_level):
@@ -259,28 +295,12 @@ def main(args, base_path, top_level):
         sys.exit("%s: %s\n" % (base_path.basename(), e))
 
     distribution = options['distribution']
-    package_manager = DOCKER_IMAGES[distribution].package_manager
     package_source = options['package_source']
     if options['pip']:
-        virtualenv = 'flocker-client'
-        steps = [
-            ensure_minimal_setup(package_manager),
-            task_cli_pip_prereqs(package_manager),
-            task_cli_pip_install(virtualenv, package_source),
-            task_cli_pip_test(virtualenv),
-        ]
+        get_steps = get_steps_pip
     else:
-        steps = [
-            ensure_minimal_setup(package_manager),
-            task_cli_pkg_install(distribution, package_source),
-            task_cli_pkg_test(),
-        ]
-    runner = DockerRunner(DOCKER_IMAGES[distribution].image)
-    runner.start()
-    try:
-        for commands in steps:
-            status = runner.execute(commands)
-            if status != 0:
-                sys.exit(status)
-    finally:
-        runner.stop()
+        get_steps = get_steps_pkg
+    steps = get_steps(distribution, package_source)
+    runner = DockerRunner.from_distribution(distribution)
+    status = run_steps(runner, steps)
+    sys.exit(status)
