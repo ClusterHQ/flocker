@@ -661,35 +661,6 @@ class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
 
 
-def cinder_api(cinder_client, nova_client, cluster_id):
-    """
-    :param cinderclient.v1.client.Client cinder_client: The Cinder API client
-        whose ``volumes`` attribute will be supplied as the
-        ``cinder_volume_manager`` parameter of ``CinderBlockDeviceAPI``.
-    :param novaclient.v2.client.Client nova_client: The Nova API client whose
-        ``volumes`` attribute will be supplied as the ``nova_volume_manager``
-        parameter of ``CinderBlockDeviceAPI``.
-    :param UUID cluster_id: A Flocker cluster ID.
-
-    :returns: A ``CinderBlockDeviceAPI``.
-    """
-    logging_cinder = _LoggingCinderVolumeManager(
-        _cinder_volumes=cinder_client.volumes
-    )
-    logging_nova_volume_manager = _LoggingNovaVolumeManager(
-        _nova_volumes=nova_client.volumes
-    )
-    logging_nova_server_manager = _LoggingNovaServerManager(
-        _nova_servers=nova_client.servers
-    )
-    return CinderBlockDeviceAPI(
-        cinder_volume_manager=logging_cinder,
-        nova_volume_manager=logging_nova_volume_manager,
-        nova_server_manager=logging_nova_server_manager,
-        cluster_id=cluster_id,
-    )
-
-
 def _openstack_auth_from_config(auth_plugin='password', **config):
     """
     Create an OpenStack authentication plugin from the given configuration.
@@ -761,28 +732,72 @@ def _openstack_verify_from_config(
     return verify
 
 
-def cinder_from_configuration(region, cluster_id, **config):
+def get_keystone_session(**config):
     """
-    Build a ``CinderBlockDeviceAPI`` using configuration and credentials in
-    ``config``.
+    Create a Keystone session from a configuration stanza.
 
-    :param str region: The region "slug" for which to configure the object.
-    :param cluster_id: The unique cluster identifier for which to configure the
-        object.
+    :param dict config: Configuration necessary to authenticate a
+        session for use with the CinderClient and NovaClient.
+
+    :return: keystoneclient.Session
     """
-    session = Session(
+    return Session(
         auth=_openstack_auth_from_config(**config),
         verify=_openstack_verify_from_config(**config)
         )
-    cinder_client = CinderClient(
+
+
+def get_cinder_v1_client(session, region):
+    """
+    Create a Cinder (volume) client from a Keystone session.
+
+    :param keystoneclient.Session session: Authenticated Keystone session.
+    :param str region: Openstack region.
+    :return: A cinderclient.Client
+    """
+    return CinderClient(
         session=session, region_name=region, version=1
     )
-    nova_client = NovaClient(
+
+
+def get_nova_v2_client(session, region):
+    """
+    Create a Nova (compute) client from a Keystone session.
+
+    :param keystoneclient.Session session: Authenticated Keystone session.
+    :param str region: Openstack region.
+    :return: A novaclient.Client
+    """
+    return NovaClient(
         session=session, region_name=region, version=2
     )
 
-    return cinder_api(
-        cinder_client=cinder_client,
-        nova_client=nova_client,
+
+def cinder_from_configuration(region, cluster_id, **config):
+    """
+    Build a ``CinderBlockDeviceAPI`` using configuration and credentials
+    in ``config``.
+
+    :param str region: The Openstack region to access.
+    :param cluster_id: The unique identifier for the cluster to access.
+    :param config: A dictionary of configuration options for Openstack.
+    """
+    session = get_keystone_session(**config)
+    cinder_client = get_cinder_v1_client(session, region)
+    nova_client = get_nova_v2_client(session, region)
+
+    logging_cinder = _LoggingCinderVolumeManager(
+        _cinder_volumes=cinder_client.volumes
+    )
+    logging_nova_volume_manager = _LoggingNovaVolumeManager(
+        _nova_volumes=nova_client.volumes
+    )
+    logging_nova_server_manager = _LoggingNovaServerManager(
+        _nova_servers=nova_client.servers
+    )
+    return CinderBlockDeviceAPI(
+        cinder_volume_manager=logging_cinder,
+        nova_volume_manager=logging_nova_volume_manager,
+        nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
