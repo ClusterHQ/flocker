@@ -39,7 +39,7 @@ class DockerPluginTests(TestCase):
                 command = ["systemctl", "restart", "docker"]
             run_ssh_command(b"root", address, command)
         except SSHError as e:
-            self.fail("Restart docker failed: " + e)
+            self.fail("Restart docker failed: " + str(e))
 
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments, cleanup=True):

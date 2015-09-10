@@ -1095,7 +1095,7 @@ def run_ssh_command(user, host, command):
         return run_process(
             [b'ssh', b'{}@{}'.format(user, host)] + command)
     except _CalledProcessError as e:
-        raise SSHError(e)
+        raise SSHError(e.returncode, e.cmd, e.output)
 
 
 def skip_except(supported_tests):
