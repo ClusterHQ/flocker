@@ -1,8 +1,8 @@
 .. _dataset-backend-plugins:
 
-=======================
-Dataset Backend Plugins
-=======================
+========================================
+Contribute a new Flocker storage backend
+========================================
 
 Flocker supports pluggable storage backends; this document will teach you how to implement block device backends.
 If you have any questions not addressed by this document please get in touch with us, e.g. Stopping by the ``#clusterhq`` channel on ``irc.freenode.net`` or filing an issue at https://github.com/ClusterHQ/flocker.
@@ -16,6 +16,11 @@ If you wish to support a block device that is not supported by Flocker or an exi
 
 In order to do so you must write a Python 2.7 library providing a class implementing the `flocker.node.agents.blockdevice.IBlockDeviceAPI <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ interface.
 Flocker itself provides a `loopback <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ implementation (for testing, lacking data movement), `OpenStack Cinder <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/cinder.py>`_ and `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_; these can serve as examples of implementation.
+
+Test Plan
+=========
+
+Step 1: Minimal functional tests
 
 To test that your implementation is correct you can instantiate a generic test suite that makes sure your class correctly implements the interface:
 
@@ -42,12 +47,29 @@ To test that your implementation is correct you can instantiate a generic test s
         Tests for your storage.
         """
 
+If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI`` (for example, `EBS API with cleanup<https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L225>`_) inside ``api_factory``.
+
 You can run these tests with ``trial`` test runner provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
 
 .. prompt:: bash $
 
     trial yourstorage.test_yourstorage
 
+Step 2: Additional functional tests
+
+You are encouraged to write additional functional tests to cover logic specific to your driver implementation. For example, here are some `EBS driver-specific tests<https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ .
+
+Step 3: Run acceptance tests
+
+After all functional tests pass, please run acceptance tests according to `documentation <https://docs.clusterhq.com/en/1.3.0/gettinginvolved/acceptance-testing.html>`_ .
+
+Step 4: Setup Continuous Integration environment for tests
+
+After acceptance tests run clean, please set up CI environment for functional and acceptance tests for your driver. Fro example: `EBS functional tests:<http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_ , and `EBS acceptance tests:<http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_ .
+
+Step 5: Production ready certification
+
+Once CI test runs pass for a week, please assert driver as ready for production usage with Flocker.
 
 Implementing storage plugins
 ============================
