@@ -34,7 +34,7 @@ from ..common import gather_deferreds
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
-from ..testtools import loop_until, random_name, REALISTIC_BLOCKDEVICE_SIZE
+from ..testtools import loop_until, random_name
 from ..apiclient import FlockerClient, DatasetState
 
 try:
@@ -176,6 +176,19 @@ def skip_backend(unsupported, reason):
 require_moving_backend = skip_backend(
     unsupported={DatasetBackend.loopback},
     reason="doesn't support moving")
+
+
+def get_default_volume_size():
+    """
+    :returns int: the default volume size (in bytes) supported by the
+        backend the acceptance tests are using.
+    """
+    default_volume_size = environ.get("FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE")
+    if default_volume_size is None:
+        raise SkipTest(
+            "Set acceptance testing default volume size using the " +
+            "FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE environment variable.")
+    return int(default_volume_size)
 
 
 def get_mongo_client(host, port=27017):
@@ -727,7 +740,7 @@ def create_python_container(test_case, cluster, parameters, script,
 
 
 def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+                   maximum_size=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -738,6 +751,9 @@ def create_dataset(test_case, cluster,
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
+    if maximum_size is None:
+        maximum_size = get_default_volume_size()
+
     configuring_dataset = cluster.client.create_dataset(
         cluster.nodes[0].uuid, maximum_size=maximum_size, dataset_id=uuid4(),
         metadata={u"name": u"my_volume"})
