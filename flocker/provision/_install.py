@@ -1048,13 +1048,12 @@ def task_install_docker(distribution):
         update = b""
 
     return sequence([
-            run_from_args([
-                b"curl", b"-o", b"/tmp/install-docker.sh",
-                b"https://get.docker.com/"]),
-            run_from_args([
-                'sed', '-i', 's/check_forked$//',
-                b"/tmp/install-docker.sh"]),
-            run(command=b"sh -x /tmp/install-docker.sh"),
+        run_from_args([
+            b"curl", b"-o", b"/tmp/install-docker.sh",
+            b"https://get.docker.com/"]),
+        run_from_args([
+            b'sed', b'-i', b's/check_forked$//', b"/tmp/install-docker.sh"]),
+        run(command=b"sh -x /tmp/install-docker.sh"),
     ])
 
 
