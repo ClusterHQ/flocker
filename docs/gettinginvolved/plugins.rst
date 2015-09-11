@@ -68,7 +68,7 @@ You can run these tests with ``trial`` test runner provided by `Twisted <https:/
 
 Step 2: Additional functional tests
 
-You are encouraged to write additional functional tests to cover logic specific to your driver implementation. For example, here are some `EBS driver-specific tests<https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ .
+You are encouraged to write additional functional tests to cover logic specific to your driver implementation. For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ .
 
 Step 3: Run acceptance tests
 
@@ -76,7 +76,7 @@ After all functional tests pass, please run acceptance tests according to `docum
 
 Step 4: Setup Continuous Integration environment for tests
 
-After acceptance tests run clean, please set up CI environment for functional and acceptance tests for your driver. Fro example: `EBS functional tests:<http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_ , and `EBS acceptance tests:<http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_ .
+After acceptance tests run clean, please set up CI environment for functional and acceptance tests for your driver. Fro example: `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_ , and `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_ .
 
 Step 5: Production ready certification
 
@@ -85,13 +85,13 @@ Once CI test runs pass for a week, please assert driver as ready for production 
 Demo
 ====
 
-After driver development clears acceptance tests, you can do an end-to-end demo using `MongoDB<https://docs.clusterhq.com/en/1.3.0/using/tutorial/index.html>`_ .
+After driver development clears acceptance tests, you can do an end-to-end demo using `MongoDB <https://docs.clusterhq.com/en/1.3.0/using/tutorial/index.html>`_ .
 
 
 Publish Driver
 ==============
 
-Completed driver can be published as ``Public`` repo on ``GitHub``. Please include ``LICENSE`` information in your driver repo. Example: `Flocker License<https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
+Completed driver can be published as ``Public`` repo on ``GitHub``. Please include ``LICENSE`` information in your driver repo. Example: `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
 
 Using storage plugins
 =====================
@@ -158,12 +158,12 @@ No. The only state cached is in Flocker control agent.
 
 After running functional tests, i see a lot of volumes leftover from test run. Is there a script to clean them up?
 
-After each test case, `detach_destroy_volumes<https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py#L209>`_ is run automatically to cleanup volumes created by the test case. This cleanup call is added as part of `get_blockdeviceapi_with_cleanup<https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L265>`_ .
+After each test case, `detach_destroy_volumes <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py#L209>`_ is run automatically to cleanup volumes created by the test case. This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L265>`_ .
 Please use ``get_blockdeviceapi_with_cleanup`` in your test wrapper.
 
 Do you have an easy way to view the logs?  i get a lot of output in journactl and it’s very difficult to track what all is happening.
 
-Eliot-tree is the preferred way, but does not work at the moment due to `a bug<https://github.com/jonathanj/eliottree/issues/28>`_ . 
+Eliot-tree is the preferred way, but does not work at the moment due to `a bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
 
 
 Troubleshooting FAQ
@@ -171,7 +171,7 @@ Troubleshooting FAQ
 
 My functional test failed. How do i go about debugging?
 
-Start with Flocker node agent log (`/var/log/flocker/flocker-dataset-agent.log`). You can use `eliot-tree<https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format. 
+Start with Flocker node agent log (`/var/log/flocker/flocker-dataset-agent.log`). You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format. 
 
 If the Flocker log looks ok, move on to storage driver log, then storage backend logs.
 
@@ -188,7 +188,7 @@ i see the following error while running acceptance tests:
 
 .. image:: Flocker_Hedvig_Snapshot.png
 
-Please check that you have configured Flocker CA certs as documented `here<https://docs.clusterhq.com/en/1.3.0/config/configuring-authentication.html>`_ .
+Please check that you have configured Flocker CA certs as documented `here <https://docs.clusterhq.com/en/1.3.0/config/configuring-authentication.html>`_ .
 
 My test environment is messed up, and i’d like to reset Flocker control service state. How do i do that?
 
