@@ -14,7 +14,7 @@ After you have implemented the driver, you will need to test your implementation
 
  FAQ
    
-Read on or review our :ref:`faq`of common issues encountered during driver development and testing.
+Read on or review our :ref:`faq` of common issues encountered during driver development and testing.
 
 -------------------
 Testing your driver
@@ -77,7 +77,7 @@ Completed driver should be published as a ``Public`` repo on ``GitHub``. Please 
 -------------
 Certification
 -------------
-To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repo.  Examples of status images include `Travis CI< http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.  You should also clearly indicate which version of Flocker your driver has been certified against.
+To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repo.  Examples of status images include `Travis CI <http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.  You should also clearly indicate which version of Flocker your driver has been certified against.
 
 -----------------------------------------------------
 Enabling Flocker users to install your storage driver
