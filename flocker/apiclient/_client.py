@@ -444,7 +444,7 @@ class FlockerClient(object):
                      node_uuid=UUID(dictionary[u"node_uuid"]),
                      expires=dictionary[u"expires"])
 
-    def acquire_lease(self, dataset_id, node_uuid, expires):
+    def acquire_lease(self, dataset_id, node_uuid, expires=None):
         request = self._request(b"POST", b"/configuration/leases",
                                 {u"dataset_id": unicode(dataset_id),
                                  u"node_uuid": unicode(node_uuid),
