@@ -1047,12 +1047,10 @@ def task_install_docker(distribution):
     else:
         update = b""
 
-    return run(command=(
-        b"[[ -e /usr/bin/docker ]] || { " + update +
-        b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
-        b"sh /tmp/install-docker.sh"
-        b"; }"
-    ))
+    return sequence([
+            run(command=b"curl https://get.docker.com/ > /tmp/install-docker.sh"),
+            run(command=b"sh /tmp/install-docker.sh"),
+    ])
 
 
 def task_install_flocker(
