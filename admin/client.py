@@ -15,8 +15,7 @@ from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 
-import flocker
-from flocker.common.version import make_rpm_version, get_installable_version
+from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
@@ -190,8 +189,7 @@ class RunOptions(Options):
             ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
             ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, get_installable_version(flocker.__version__),
-         'Version of flocker to install'],
+        ['flocker-version', None, None, 'Expected Flocker version'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         # XXX - remove the remaining flags once Buildbot is updated (FLOC-2813)
