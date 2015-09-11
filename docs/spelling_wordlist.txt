@@ -5,6 +5,7 @@ authorised
 backend
 backends
 behaviour
+blockdevice
 blog
 Btrfs
 bugfix
@@ -20,7 +21,10 @@ Copr
 dataset
 datasets
 Debian
+debuggability
+dedup
 Deis
+dev
 devel
 DigitalOcean
 dropdown
@@ -48,7 +52,9 @@ internet
 invalidations
 IPv4
 IPv
+journactl
 journald
+json
 Kubernetes
 libswarm
 lifecycle
@@ -63,6 +69,7 @@ multi
 mv
 namespace
 NAT'd
+ok
 online
 OpenStack
 pathnames
@@ -80,13 +87,16 @@ Quickstart
 Rackspace
 Redis
 redis
+repo
 resize
 routable
 roadmap
+sdb
 snapshotting
 stateful
 sysadmin
 syslog
+systemctl
 terabytes
 timestamp
 unauthorised
