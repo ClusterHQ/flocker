@@ -1048,8 +1048,8 @@ def task_install_docker(distribution):
         update = b""
 
     return sequence([
-            run(command=b"curl https://get.docker.com/ > /tmp/install-docker.sh"),
-            run(command=b"sh /tmp/install-docker.sh"),
+            run(command=b"curl -o /tmp/install-docker.sh https://get.docker.com/ > /tmp/install-docker.sh"),
+            run(command=b"sh -x /tmp/install-docker.sh"),
     ])
 
 
