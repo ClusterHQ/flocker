@@ -311,21 +311,38 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # During a release, the ClusterHQ repo may contain packages with
         # a higher version number than the Buildbot repo for a branch.
         # Use a pin file to ensure that any Buildbot repo has higher
-        # priority than the ClusterHQ repo.
+        # priority than the ClusterHQ repo.  We only add the Buildbot
+        # repo when a branch is specified, so it wil not interfere with
+        # attempts to install a release (when no branch is specified).
         buildbot_host = urlparse(package_source.build_server).hostname
         commands.append(put(dedent('''\
-            Package:  *
+            Package: *
             Pin: origin {}
-            Pin-Priority: 900
+            Pin-Priority: 700
         '''.format(buildbot_host)), '/tmp/apt-pref'))
         commands.append(run_from_args([
-            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
     commands.append(run_from_args(["apt-get", "update"]))
 
     if package_source.os_version:
+        # Set the version of the top-level package
         package_name += '=%s' % (package_source.os_version,)
+
+        # If a specific version is required, ensure that the version for
+        # all ClusterHQ packages is consistent.  This prevents conflicts
+        # between the top-level package, which may depend on a lower
+        # version of a dependency, and apt, which wants to install the
+        # most recent version.  Note that this trumps the Buildbot
+        # pinning above.
+        commands.append(put(dedent('''\
+            Package: clusterhq-*
+            Pin: version {}
+            Pin-Priority: 900
+        '''.format(package_source.os_version)), '/tmp/apt-pref'))
+        commands.append(run_from_args([
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
 
     # Install package and all dependencies
     commands.append(run_from_args([
