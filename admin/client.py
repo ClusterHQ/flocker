@@ -277,6 +277,7 @@ def run_steps(runner, steps):
                 return status
     finally:
         runner.stop()
+    return 0
 
 
 def main(args, base_path, top_level):

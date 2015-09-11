@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Check that published artifacts work.
+"""
+
+import unittest
+
+from admin.client import DockerRunner, get_steps_pkg, get_steps_pip, run_steps
+
+
+class TestPackages(unittest.TestCase):
+
+    def test_ubuntu_14_04_deb(self):
+        distribution = 'ubuntu-14.04'
+        steps = get_steps_pkg(distribution)
+        runner = DockerRunner.from_distribution(distribution)
+        self.assertEqual(run_steps(runner, steps), 0)
+
+    def test_ubuntu_15_04_deb(self):
+        distribution = 'ubuntu-15.04'
+        steps = get_steps_pkg(distribution)
+        runner = DockerRunner.from_distribution(distribution)
+        self.assertEqual(run_steps(runner, steps), 0)
+
+    def test_pip_install(self):
+        distribution = 'ubuntu-15.04'
+        steps = get_steps_pip(distribution)
+        runner = DockerRunner.from_distribution(distribution)
+        self.assertEqual(run_steps(runner, steps), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()
