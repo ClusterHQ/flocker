@@ -12,7 +12,7 @@ After you have implemented the driver, you will need to test your implementation
 
 .. spelling::
 
- faq
+ FAQ
    
 Read on or review our :ref:`faq`of common issues encountered during driver development and testing.
 
