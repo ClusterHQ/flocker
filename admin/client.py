@@ -43,7 +43,7 @@ DOCKER_IMAGES = {
 }
 
 PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
-PACKAGED_CLIENT_DISTRIBUTIONS = ('ubuntu-14.04', 'ubuntu-15.04')
+PACKAGED_CLIENT_DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
 
 
 class ScriptBuilder(TypeDispatcher):
