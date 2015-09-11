@@ -51,3 +51,6 @@ The following pages describe how to configure the backends currently supported b
    emc-configuration
    zfs-configuration
    loopback-configuration
+   
+Flocker supports pluggable storage backends. 
+That means that any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.  If you don't see the storage backend you are looking for, consider :ref:`contributing it <build-flocker-driver>`.
