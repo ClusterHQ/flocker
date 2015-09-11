@@ -80,6 +80,7 @@ plugin
 plugins
 pluggable
 pre
+preceeding
 programmatically
 proxied
 proxying
