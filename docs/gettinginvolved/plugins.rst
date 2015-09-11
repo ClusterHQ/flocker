@@ -178,7 +178,8 @@ If the Flocker log looks ok, move on to storage driver log, then storage backend
 i see the following error in Flocker dataset agent log. How do i triage further?
 
 
-.. code-block::
+.. code-block:: bash
+
 Command '['mount', '/dev/sdb', '/flocker/c39e7d1c-7c9e-6029-4c30-42ab8b44a991']' returned non-zero exit status 32
 
 
@@ -197,6 +198,7 @@ You can edit/remove the file to reduce/cleanup control service state:
 
 
 .. code-block:: bash
+
 systemctl stop flocker-control
 rm /var/lib/flocker/current_configuration.v1.json
 systemctl start flocker-control/
