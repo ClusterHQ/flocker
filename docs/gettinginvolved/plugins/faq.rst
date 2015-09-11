@@ -64,6 +64,7 @@ I see the following error while running acceptance tests:
 
 .. image:: Flocker_Hedvig_Snapshot.png
 
+
 Please check that you have configured Flocker CA certs as documented `here <https://docs.clusterhq.com/en/1.3.0/config/configuring-authentication.html>`_ .
 
 My test environment is messed up, and i’d like to reset Flocker control service state. How do i do that?
@@ -77,4 +78,4 @@ You can edit/remove the file to reduce/cleanup control service state:
 
 	systemctl stop flocker-control
 	rm /var/lib/flocker/current_configuration.v1.json
-	systemctl start flocker-control/
+	systemctl start flocker-control

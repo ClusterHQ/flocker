@@ -14,7 +14,7 @@ After you have implemented the driver, you will need to test your implementation
 
  faq
    
-Read on or review our :file:`FAQ <faq>`of common issues encountered during driver development and testing.
+Read on or review our :ref:`faq`of common issues encountered during driver development and testing.
 
 -------------------
 Testing your driver
