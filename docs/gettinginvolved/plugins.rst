@@ -58,7 +58,7 @@ To test that your implementation is correct you can instantiate a generic test s
         Tests for your storage.
         """
 
-If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI`` (for example, `EBS API with cleanup<https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L225>`_) inside ``api_factory``.
+If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI`` (for example, `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L225>`_) inside ``api_factory``.
 
 You can run these tests with ``trial`` test runner provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
 
@@ -177,8 +177,10 @@ If the Flocker log looks ok, move on to storage driver log, then storage backend
 
 i see the following error in Flocker dataset agent log. How do i triage further?
 
-.. code-block:: text
+
+.. code-block::
 Command '['mount', '/dev/sdb', '/flocker/c39e7d1c-7c9e-6029-4c30-42ab8b44a991']' returned non-zero exit status 32
+
 
 Please run the failed command from command line prompt - the cause of failure is most likely environment related, and not caused by bug in Flocker or Flocker Storage driver.
 
@@ -193,10 +195,9 @@ My test environment is messed up, and i’d like to reset Flocker control servic
 Flocker control state is stored in `/var/lib/flocker/current_configuration.v1.json` on control compute node.
 You can edit/remove the file to reduce/cleanup control service state:
 
+
 .. code-block:: bash
 systemctl stop flocker-control
 rm /var/lib/flocker/current_configuration.v1.json
 systemctl start flocker-control/
-
-
 
