@@ -14,16 +14,13 @@ After you have implemented the driver, you will need to test your implementation
 
  faq
    
-Read on or review our :ref:`FAQ <faq>`of common issues encountered during driver development and testing.
+Read on or review our :file:`FAQ <faq>`of common issues encountered during driver development and testing.
 
 -------------------
 Testing your driver
 -------------------
-Step 1: Testing with the loopback interface
--------------------------------------------
-Flocker itself provides a `loopback <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ implementation for testing without actually moving any data.   We recommend that you first test your driver against this loopback interface.
 
-Step 2: Minimal functional tests
+Step 1: Minimal functional tests
 --------------------------------
 To test that your implementation is correct you should instantiate a generic test suite that makes sure your class correctly implements the interface:
 
@@ -58,15 +55,15 @@ You can run these tests with ``trial`` test runner provided by `Twisted <https:/
 
     trial yourstorage.test_yourstorage
 
-Step 3: Additional functional tests
+Step 2: Additional functional tests
 -----------------------------------
 You are encouraged to write additional functional tests to cover logic specific to your driver implementation. For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ that we wrote.
 
-Step 4: Run acceptance tests
+Step 3: Run acceptance tests
 ----------------------------
 After all functional tests pass, please run acceptance tests according to `documentation <https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html>`_ .
 
-Step 5: Setup Continuous Integration environment for tests
+Step 4: Setup Continuous Integration environment for tests
 ----------------------------------------------------------
 After your acceptance tests run clean, please set up a CI environment for functional and acceptance tests for your driver. For example: `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_ , and `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_ .
 

@@ -57,6 +57,8 @@ I see the following error in Flocker dataset agent log. How do i triage further?
 
 	Command '['mount', '/dev/sdb', '/flocker/c39e7d1c-7c9e-6029-4c30-42ab8b44a991']' returned non-zero exit status 32
 
+Please run the failed command from command line prompt - the cause of failure is most likely environment related (incomplete attach/detach operation preceeding the command), and not caused by bug in Flocker or Flocker Storage driver.
+
 I see the following error while running acceptance tests:
 ---------------------------------------------------------
 
