@@ -11,6 +11,14 @@ from admin.client import DockerRunner, get_steps_pkg, get_steps_pip, run_steps
 
 class TestPackages(unittest.TestCase):
 
+    def test_centos_7_rpm(self):
+        # Although CentOS 7 is not a supported client, we generate the
+        # packages for it, so we install it here to test RPM packaging.
+        distribution = 'centos-7'
+        steps = get_steps_pkg(distribution)
+        runner = DockerRunner.from_distribution(distribution)
+        self.assertEqual(run_steps(runner, steps), 0)
+
     def test_ubuntu_14_04_deb(self):
         distribution = 'ubuntu-14.04'
         steps = get_steps_pkg(distribution)
