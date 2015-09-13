@@ -1048,8 +1048,8 @@ def task_install_docker(distribution):
         update = b""
 
     return sequence([
-        run_from_args(['dpkg', '-S', '/bin/sh'),
-        run_from_args(['dpkg', '-p', 'dash'),
+        run_from_args(['dpkg', '-S', '/bin/sh']),
+        run_from_args(['dpkg', '-p', 'dash']),
         run_from_args([
             b"curl", b"-o", b"/tmp/install-docker.sh",
             b"https://get.docker.com/"]),
