@@ -104,7 +104,7 @@ check_call(['mkdir', '-p', '/var/opt/flocker'])
 check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
 # ZFS 0.6.5 stopped loading the module stack. This additional environment
 # variable makes it follow the old behaviour.  However, support for this
-# will be removed in a future release.  See FLOC-3016
+# will be removed in a future release.  See FLOC-3018
 environ = os.environ.copy()
 environ['ZFS_MODULE_LOADING'] = 'yes'
 check_call(
