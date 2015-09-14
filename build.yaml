@@ -108,7 +108,7 @@ common_cli:
     # choose to configured.
     # The list of ASCII codes it uses can be found here.
     # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
-    parse_logs() {
+    function parse_logs {
       # ubuntu defaults to mawk, which causes some things to break
       # it seems to be related to buffering, -W interactive seems to fix it.
       case "\$(os)"
@@ -235,10 +235,10 @@ common_cli:
         # using the caching-layer, install junix for our coverage report
         parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
       "OSX")
-        parse_logs pip install --upgrade pip
-        parse_logs pip install .
-        parse_logs pip install  "Flocker[dev]"
-        parse_logs pip install python-subunit junitxml
+        pip install --upgrade pip
+        pip install .
+        pip install  "Flocker[dev]"
+        pip install python-subunit junitxml
         ;;
     esac
 
@@ -362,7 +362,7 @@ common_cli:
     SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
     RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
     \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
-    parse_logs \$venv/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    \$venv/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   install_homebrew_package: &install_homebrew_package
     # install the new freshly baked package
