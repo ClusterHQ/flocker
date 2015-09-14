@@ -205,11 +205,14 @@ def ensure_minimal_setup(package_manager):
         raise UnsupportedDistribution()
 
 
-def task_cli_pkg_test():
+def cli_pkg_test(package_source=PackageSource()):
     """
     Check that the CLI is working.
     """
-    return run_from_args(['flocker-deploy', '--version'])
+    expected = package_source.version
+    if expected is None:
+        expected = get_installable_version(version)
+    return run("test `flocker-deploy --version` = '{}'".format(expected))
 
 
 def install_commands_yum(package_name, distribution, package_source,
@@ -459,17 +462,20 @@ def task_cli_pip_install(
         ])
 
 
-def task_cli_pip_test(venv_name='flocker-client'):
+def cli_pip_test(
+        venv_name='flocker-client', package_source=PackageSource()):
     """
     Test the Flocker client installed in a virtualenv.
 
     :param bytes venv_name: Name for the virtualenv.
     :return: an Effect to test the client.
     """
+    expected = package_source.version
+    if expected is None:
+        expected = get_installable_version(version)
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run_from_args(
-            ['flocker-deploy', '--version']),
+        run("test `flocker-deploy --version` = '{}'".format(expected)),
         ])
 
 
