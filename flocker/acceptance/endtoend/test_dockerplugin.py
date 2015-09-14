@@ -4,16 +4,19 @@
 Tests for the Flocker Docker plugin.
 """
 
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
+from ...common.runner import run_ssh
+
 from ...testtools import (
-    random_name, run_ssh_command, SSHError, find_free_port
+    random_name, find_free_port
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client,
+    get_docker_client, verify_socket,
 )
 from ..scripts import SCRIPTS
 
@@ -29,17 +32,28 @@ class DockerPluginTests(TestCase):
         :param bytes address: The public IP of the node on which Docker will
             be restarted.
         """
-        try:
-            distro = run_ssh_command(
-                b"root", address, ["python", "-m", "platform"])
-            distro = distro.output.lower()
-            if 'ubuntu' in distro:
+        distro = []
+        get_distro = run_ssh(
+            reactor, b"root", address, ["python", "-m", "platform"],
+            handle_stdout=distro.append)
+        get_distro.addCallback(lambda _: distro[0])
+
+        def restart_docker(distribution):
+            if 'ubuntu' in distribution:
                 command = ["service", "docker", "restart"]
             else:
                 command = ["systemctl", "restart", "docker"]
-            run_ssh_command(b"root", address, command)
-        except SSHError as e:
-            self.fail("Restart docker failed: " + str(e))
+            d = run_ssh(reactor, b"root", address, command)
+
+            def handle_error(_):
+                self.fail(
+                    "Restarting Docker failed. See logs for process output.")
+
+            d.addErrback(handle_error)
+            return d
+
+        restarting = get_distro.addCallback(restart_docker)
+        return restarting
 
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments, cleanup=True):
@@ -112,9 +126,17 @@ class DockerPluginTests(TestCase):
         # restart the Docker daemon
         d.addCallback(lambda _: self.restart_docker(node.public_address))
         # attempt to read the data back again; the container should've
-        # restarted automatically.
-        d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, host_port, expected_response=data))
+        # restarted automatically, though it may take a few seconds
+        # after the Docker daemon has restarted.
+
+        def poll_http_server(_):
+            ds = verify_socket(node.public_address, host_port)
+            ds.addCallback(lambda _: assert_http_server(
+                self, node.public_address, host_port, expected_response=data)
+            )
+            return ds
+
+        d.addCallback(poll_http_server)
         return d
 
     @require_cluster(1)
