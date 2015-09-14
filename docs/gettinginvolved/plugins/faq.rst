@@ -41,7 +41,7 @@ Please use ``get_blockdeviceapi_with_cleanup`` in your test wrapper.
 I get a lot of output in ``journactl`` and it’s very difficult to track what all is happening, is there an easy way to view the logs?
 ---------------------------------------------------------------------------------------------------------------------------------------
 
-Eliot-tree is the preferred way, but it curerntly does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
+Eliot-tree is the preferred way, but it currently does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
 
 Troubleshooting
 ===============
