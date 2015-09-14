@@ -21,10 +21,10 @@ from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
     ensure_minimal_setup,
     task_cli_pkg_install,
-    task_cli_pkg_test,
+    cli_pkg_test,
     task_cli_pip_prereqs,
     task_cli_pip_install,
-    task_cli_pip_test,
+    cli_pip_test,
 )
 from flocker.provision._ssh import (
     Run, Sudo, Put, Comment, perform_sudo, perform_put)
@@ -249,7 +249,7 @@ def get_steps_pip(distribution, package_source=PackageSource()):
         ensure_minimal_setup(package_manager),
         task_cli_pip_prereqs(package_manager),
         task_cli_pip_install(virtualenv, package_source),
-        task_cli_pip_test(virtualenv),
+        cli_pip_test(virtualenv, package_source),
     ]
     return steps
 
@@ -263,7 +263,7 @@ def get_steps_pkg(distribution, package_source=PackageSource()):
     steps = [
         ensure_minimal_setup(package_manager),
         task_cli_pkg_install(distribution, package_source),
-        task_cli_pkg_test(),
+        cli_pkg_test(package_source),
     ]
     return steps
 
