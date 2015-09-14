@@ -499,10 +499,9 @@ class CinderBlockDeviceAPI(object):
         else:
             raise UnattachedVolume(volume.id)
 
-    def _get_device_path_other(self, volume):
+    def _get_device_path_api(self, volume):
         """
-        On other OpenStack hypervisors (Rackspace / Xen) the Cinder
-        API reports the correct device path.
+        Return the device path reported by the Cinder API.
 
         :param volume: The Cinder ``Volume`` which is attached.
         :returns: ``FilePath`` of the device created by the virtio_blk
@@ -532,29 +531,37 @@ class CinderBlockDeviceAPI(object):
         return FilePath(attachment['device'])
 
     def get_device_path(self, blockdevice_id):
+        """
+        On Xen hypervisors (e.g. Rackspace) the Cinder API reports the correct
+        device path. On Qemu / virtio_blk the actual device path may be
+        different. So when we detect ``virtio_blk`` style device paths, we
+        check the virtual disk serial number, which should match the first
+        20 characters of the Cinder Volume UUID on platforms that we support.
+        """
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
 
-        if _is_virtio_blk():
+        device_path = self._get_device_path_api(cinder_volume)
+        if _is_virtio_blk(device_path):
             device_path = self._get_device_path_virtio_blk(cinder_volume)
-        else:
-            device_path = self._get_device_path_other(cinder_volume)
 
         return device_path
 
 
-def _is_virtio_blk():
+def _is_virtio_blk(device_path):
     """
-    Check whether the virtio_blk driver is in use.
+    Check whether the supplied device path is a virtio_blk device.
 
-    XXX: It may not be safe to assume that this sys path only
-    exists if the virtio_blk driver is in use.
+    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    Xen devices begin with `xvd`.
+    See https://www.kernel.org/doc/Documentation/devices.txt
 
-    :returns: ``True`` if virtio_blk is in use, else ``False``.
+    :param FilePath device_path: The device path returned by the Cinder API.
+    :returns: ``True`` if it's a ``virtio_blk`` device, else ``False``.
     """
-    return FilePath('/sys/bus/virtio/drivers/virtio_blk').isdir()
+    return device_path.path.basename().startswith('vd')
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):
