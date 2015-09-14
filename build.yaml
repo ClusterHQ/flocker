@@ -164,8 +164,9 @@ common_cli:
     # permissions/owners.
     # This is to be tackled as part of:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
-    sudo chmod 777 /var/run/docker.sock
-
+      if [ 'OSX' != "\$(os)" ]; then
+        sudo chmod 777 /var/run/docker.sock
+      fi
 
   cleanup: &cleanup |
     export PATH=/usr/local/bin:\$PATH
