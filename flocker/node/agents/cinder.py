@@ -480,7 +480,7 @@ class CinderBlockDeviceAPI(object):
         characters of the Cinder block device ID.
 
         This was introduced in
-        * https://github.com/openstack/nova/commit/3a47c02c58cefed0e230190b4bcef14527c82709 # noqa
+        * https://github.com/openstack/nova/commit/3a47c02c58cefed0e230190b4bcef14527c82709  # noqa
         * https://bugs.launchpad.net/nova/+bug/1004328
 
         The udev daemon will read the serial number and create a
