@@ -327,7 +327,7 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+    {{ wrappers(job_values, repo_dir) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}

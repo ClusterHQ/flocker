@@ -879,7 +879,9 @@ def task_create_flocker_pool_file():
     return sequence([
         run('mkdir -p /var/opt/flocker'),
         run('truncate --size 10G /var/opt/flocker/pool-vdev'),
-        run('zpool create flocker /var/opt/flocker/pool-vdev'),
+        # XXX - See FLOC-3018
+        run('ZFS_MODULE_LOADING=yes '
+            'zpool create flocker /var/opt/flocker/pool-vdev'),
     ])
 
 
