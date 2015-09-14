@@ -43,8 +43,7 @@ The following is the procedure for fixing them.
       git push origin --set-upstream release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1235
 
 #. Create a pull-request against the release branch.
-
-   https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1
+ https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1
 
    Note in the pull request that the branch shouldn't be deleted until every affected release and master have received the fix.
    Otherwise, commits are liable to be lost between branches.
