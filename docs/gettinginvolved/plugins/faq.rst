@@ -4,77 +4,89 @@
 FAQ
 ===
 
+Please read through the following frequently asked questions encountered when building and troubleshooting your driver.
+
 .. contents::
     :local:
     :backlinks: none
 
-Please read through the following frequently asked questions encountered when building and troubleshooting your driver.
+Driver Development
+==================
 
-Driver Development FAQ
-======================
-
-Is dataset_id unique for each volume created?
+Is ``dataset_id`` unique for each volume created?
 ---------------------------------------------
 
 Yes.
 
-Is there some way to get the dataset_id from flocker given the blockdevice_id  specific to our driver?
-------------------------------------------------------------------------------------------------------
+Is there some way to get the ``dataset_id`` from flocker given the ``blockdevice_id`` specific to our driver?
+-------------------------------------------------------------------------------------------------------------------------
+
 No.
 
-Does Flocker node agent cache any state?
-----------------------------------------
+Does the Flocker node agent cache any state?
+--------------------------------------------
 
-No. The only state cached is in Flocker control agent.
+No.
+The only state cached is in the Flocker control agent.
 
-After running functional tests, I see a lot of volumes leftover from test run. Is there a script to clean them up?
-------------------------------------------------------------------------------------------------------------------
+Is there a script to clean up volumes leftover from running functional tests?
+-----------------------------------------------------------------------------
 
-After each test case, `detach_destroy_volumes <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py#L209>`_ is run automatically to cleanup volumes created by the test case. This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L265>`_ .
+Yes.
+After each test case, `detach_destroy_volumes <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py#L209>`_ is run automatically to cleanup volumes created by the test case.
+This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L265>`_ .
 
 Please use ``get_blockdeviceapi_with_cleanup`` in your test wrapper.
 
-Do you have an easy way to view the logs?  I get a lot of output in journactl and it’s very difficult to track what all is happening.
--------------------------------------------------------------------------------------------------------------------------------------
+I get a lot of output in ``journactl`` and it’s very difficult to track what all is happening, is there an easy way to view the logs?
+---------------------------------------------------------------------------------------------------------------------------------------
 
-Eliot-tree is the preferred way, but does not work at the moment due to `a bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
+Eliot-tree is the preferred way, but it curerntly does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
 
-Troubleshooting FAQ
-===================
+Troubleshooting
+===============
 
-My functional test failed. How do i go about debugging?
--------------------------------------------------------
+How do I go about debugging after a functional test has failed?
+---------------------------------------------------------------
 
-Start with Flocker node agent log (`/var/log/flocker/flocker-dataset-agent.log`). You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format. 
+Start with Flocker node agent log (:file:`/var/log/flocker/flocker-dataset-agent.log`).
+You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format. 
 
 If the Flocker log looks ok, move on to storage driver log, then storage backend logs.
 
-I see the following error in Flocker dataset agent log. How do i triage further?
---------------------------------------------------------------------------------
-
+How do I triage further if I see the following error in Flocker dataset agent log?
+-----------------------------------------------------------------------------------
 
 .. code-block:: bash
 
-	Command '['mount', '/dev/sdb', '/flocker/c39e7d1c-7c9e-6029-4c30-42ab8b44a991']' returned non-zero exit status 32
+   Command '['mount', '/dev/sdb', '/flocker/c39e7d1c-7c9e-6029-4c30-42ab8b44a991']' returned non-zero exit status 32
 
-Please run the failed command from command line prompt - the cause of failure is most likely environment related (incomplete attach/detach operation preceeding the command), and not caused by bug in Flocker or Flocker Storage driver.
+Please run the failed command from the command line prompt - the cause of failure is most likely environment related (incomplete attach/detach operation preceeding the command), and not caused by bug in Flocker or Flocker Storage driver.
 
-I see the following error while running acceptance tests:
----------------------------------------------------------
+What do I do if I see the following error while running acceptance tests?
+-------------------------------------------------------------------------
 
-.. image:: Flocker_Hedvig_Snapshot.png
+.. code-block:: bash 
 
+   /root//flocker/flocker-tutorial/bin//python  /root/f/flocker/admin/run-acceptance-tests -—provider=managed  —-distribution=centos-7 -—config-file=/etc/flocker/acceptancetests.yml
+   Generating certificates in: /tmp/tmp24HnaK
+   Created control-172.22.21.75.crt and control-172.22.21.75.key
+   Copy these files to the directory /etc/flocker on your control service machine.
+   Rename the files to control-service.crt and control-service.key and set the correct permissions by running chmod 0600 on both files.
+   Created allison.crt. You can now give it to your API enduser so they can access the control service API.
+   Created 40d78681-5755-48c6-8e28-c36bf5a485c5.crt. Copy it over to /etc/flocker/node.crt on your node machine and sure to chmod 0600 it.
+   Created 03e53f5a-894f-44e4-8296-0c319a689179.crt. Copy it over to /etc/flocker/node.crt on your node machine and sure to chmod 0600 it.
 
-Please check that you have configured Flocker CA certs as documented `here <https://docs.clusterhq.com/en/1.3.0/config/configuring-authentication.html>`_ .
+Please check that you have configured Flocker CA certs as documented :ref:`here <authentication>`.
 
-My test environment is messed up, and i’d like to reset Flocker control service state. How do i do that?
---------------------------------------------------------------------------------------------------------
+How do I reset the Flocker control service state if my test environment is messed up? 
+-----------------------------------------------------------------------------------------
 
-Flocker control state is stored in `/var/lib/flocker/current_configuration.v1.json` on control compute node.
+Flocker control state is stored in :file:`/var/lib/flocker/current_configuration.v1.json` on the control compute node.
 You can edit/remove the file to reduce/cleanup control service state:
 
 
-.. code-block:: bash
+.. prompt:: bash
 
 	systemctl stop flocker-control
 	rm /var/lib/flocker/current_configuration.v1.json
