@@ -233,6 +233,7 @@ common_cli:
         parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
         # using the caching-layer, install junix for our coverage report
         parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
+      ;;
       "OSX")
         pip install --upgrade pip
         pip install .
