@@ -478,6 +478,11 @@ class CinderBlockDeviceAPI(object):
         blockdevices.
         OpenStack will set a serial number containing the first 20
         characters of the Cinder block device ID.
+
+        This was introduced in
+        * https://github.com/openstack/nova/commit/3a47c02c58cefed0e230190b4bcef14527c82709 # noqa
+        * https://bugs.launchpad.net/nova/+bug/1004328
+
         The udev daemon will read the serial number and create a
         symlink to the canonical virtio_blk device path.
 
