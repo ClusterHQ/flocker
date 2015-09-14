@@ -162,6 +162,42 @@ Rackspace can use these dataset backends:
 
   admin/run-acceptance-tests --distribution centos-7 --provider rackspace --config-file config.yml
 
+.. _acceptance-testing-openstack-config:
+
+OpenStack
+~~~~~~~~~
+
+To run the acceptance tests on Rackspace, you need:
+
+- An OpenStack account and the associated password or API key.
+- The URL of the OpenStack keystone service.
+- an ssh-key registered with the OpenStack account.
+
+To use the OpenStack provider, the configuration file should include an item like:
+
+.. code-block:: yaml
+
+   openstack:
+     auth_plugin: "`password` or `apikey`"
+     auth_url: "https://192.168.1.101:5000/v2.0/tokens/"
+     region: <openstack region, e.g. "RegionOne">
+     username: <username>
+     password: <password>
+     keyname: <ssh-key-name>
+
+.. note:: If you use ``auth_plugin: apikey`` you will need to include a ``key: <api_key>`` entry instead of a password.
+
+You will need a ssh agent running with access to the corresponding private key.
+
+Openstack can use these dataset backends:
+
+  * :ref:`OpenStack<openstack-dataset-backend>`.
+  * :ref:`ZFS<zfs-dataset-backend>`.
+  * :ref:`Loopback<loopback-dataset-backend>`.
+
+.. prompt:: bash $
+
+  admin/run-acceptance-tests --distribution centos-7 --provider openstack --config-file config.yml
 
 .. _acceptance-testing-aws-config:
 
