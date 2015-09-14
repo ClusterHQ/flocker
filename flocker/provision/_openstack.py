@@ -13,16 +13,22 @@ from ._ssh import run_remotely
 
 from ._effect import sequence
 
+# XXX: Copied from _aws. Needs refactoring
+_usernames = {
+    'centos-7': 'centos',
+    'ubuntu-14.04': 'ubuntu',
+    'ubuntu-15.04': 'ubuntu',
+}
+
 
 def get_default_username(distribution):
     """
     Return the username available by default on a system.
 
     :param str distribution: Name of the operating system distribution
-    :return str: The username made available by Rackspace for this
-        distribution.
+    :return str: The username made available by AWS for this distribution.
     """
-    return 'root'
+    return _usernames[distribution]
 
 
 def provision_openstack(node, package_source, distribution, variants):
@@ -52,13 +58,6 @@ def provision_openstack(node, package_source, distribution, variants):
     ))
 
     return sequence(commands)
-
-
-IMAGE_NAMES = {
-    'centos-7': u'CentOS 7 (PVHVM)',
-    'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)',
-    'ubuntu-15.04': u'Ubuntu 15.04 (Vivid Vervet) (PVHVM)',
-}
 
 
 def openstack_provisioner(auth_url, auth_plugin, username, secret, region,
