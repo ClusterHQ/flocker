@@ -115,7 +115,6 @@ common_cli:
       in
         "ubuntu") alias awk='mawk -W interactive'
         ;;
-        "OSX") alias awk='gawk -W interactive'
       esac
 
       # The 'awk' parse_logs function consumes the standard output from a piped
