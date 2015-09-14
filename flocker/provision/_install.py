@@ -621,9 +621,9 @@ def task_install_api_certificates(api_cert, api_key):
     return sequence([
         run('mkdir -p /etc/flocker'),
         run('chmod u=rwX,g=,o= /etc/flocker'),
-        put(path="/etc/flocker/api.crt",
+        put(path="/etc/flocker/plugin.crt",
             content=api_cert.getContent()),
-        put(path="/etc/flocker/api.key",
+        put(path="/etc/flocker/plugin.key",
             content=api_key.getContent(),
             log_content_filter=_remove_private_key),
         ])
@@ -879,7 +879,9 @@ def task_create_flocker_pool_file():
     return sequence([
         run('mkdir -p /var/opt/flocker'),
         run('truncate --size 10G /var/opt/flocker/pool-vdev'),
-        run('zpool create flocker /var/opt/flocker/pool-vdev'),
+        # XXX - See FLOC-3018
+        run('ZFS_MODULE_LOADING=yes '
+            'zpool create flocker /var/opt/flocker/pool-vdev'),
     ])
 
 
