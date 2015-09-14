@@ -331,7 +331,7 @@ common_cli:
     # and build a homebrew
     SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
     RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
-    ${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} --sdist \${SDIST_URL} --output-file ${RECIPE_FILE}
+    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
     parse_logs \$venv/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   install_homebrew_package: &install_homebrew_package
