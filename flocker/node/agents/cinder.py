@@ -566,7 +566,7 @@ def _is_virtio_blk(device_path):
     :param FilePath device_path: The device path returned by the Cinder API.
     :returns: ``True`` if it's a ``virtio_blk`` device, else ``False``.
     """
-    return device_path.path.basename().startswith('vd')
+    return device_path.basename().startswith('vd')
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):
