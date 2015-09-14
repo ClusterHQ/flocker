@@ -268,11 +268,11 @@ def get_steps_pkg(distribution, package_source=PackageSource()):
     return steps
 
 
-def run_steps(runner, steps):
+def run_steps(runner, steps, out=sys.stdout):
     runner.start()
     try:
         for commands in steps:
-            status = runner.execute(commands)
+            status = runner.execute(commands, out)
             if status != 0:
                 return status
     finally:
