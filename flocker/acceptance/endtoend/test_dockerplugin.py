@@ -36,7 +36,7 @@ class DockerPluginTests(TestCase):
         get_distro = run_ssh(
             reactor, b"root", address, ["python", "-m", "platform"],
             handle_stdout=distro.append)
-        get_distro.addCallback(lambda _: distro[0])
+        get_distro.addCallback(lambda _: distro[0].lower())
 
         def restart_docker(distribution):
             if 'ubuntu' in distribution:
