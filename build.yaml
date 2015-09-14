@@ -215,13 +215,26 @@ common_cli:
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
-    parse_logs pip install --upgrade pip
-    # using the caching-layer, install all the dependencies
-    parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
-    # using the caching-layer, install flocker
-    parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
-    # using the caching-layer, install junix for our coverage report
-    parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
+    case "\$(os)"
+    in
+      "ubuntu" | "centos")
+        parse_logs pip install --upgrade pip
+        # using the caching-layer, install all the dependencies
+        parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
+        # using the caching-layer, install flocker
+        parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
+        # using the caching-layer, install junix for our coverage report
+        parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
+      ;;
+      "OSX")
+        parse_logs pip install --upgrade pip
+        parse_logs pip install .
+        parse_logs pip install  "Flocker[dev]"
+        parse_logs pip install python-subunit junitxml
+        ;;
+    esac
+
+
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
