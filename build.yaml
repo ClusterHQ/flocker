@@ -100,6 +100,7 @@ common_cli:
         # Determine OS platform
         source /etc/os-release
         echo \$ID
+      fi
     }
     # add a function that we can consume to colorise output
     # This could be better, for now it is a simple parser based on keywords
