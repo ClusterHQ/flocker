@@ -115,7 +115,7 @@ common_cli:
       in
         "ubuntu") alias awk='mawk -W interactive'
         ;;
-        "OSX") alias awk='gawk'
+        "OSX") alias awk='gawk -W interactive'
       esac
 
       # The 'awk' parse_logs function consumes the standard output from a piped
@@ -217,7 +217,7 @@ common_cli:
     #
     case "\$(os)"
     in
-      "ubuntu" | "centos")
+      "ubuntu")
         parse_logs pip install --upgrade pip
         # using the caching-layer, install all the dependencies
         parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
@@ -226,6 +226,14 @@ common_cli:
         # using the caching-layer, install junix for our coverage report
         parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
       ;;
+      "centos")
+        parse_logs pip install --upgrade pip
+        # using the caching-layer, install all the dependencies
+        parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
+        # using the caching-layer, install flocker
+        parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
+        # using the caching-layer, install junix for our coverage report
+        parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
       "OSX")
         parse_logs pip install --upgrade pip
         parse_logs pip install .
