@@ -53,4 +53,5 @@ The following pages describe how to configure the backends currently supported b
    loopback-configuration
    
 Flocker supports pluggable storage backends. 
-That means that any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.  If you don't see the storage backend you are looking for, consider :ref:`contributing it <build-flocker-driver>`.
+That means that any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.
+If the storage backend you are looking for is not currently supported by Flocker, you can consider :ref:`contributing it <build-flocker-driver>`.
