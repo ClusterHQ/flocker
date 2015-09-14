@@ -91,9 +91,15 @@ common_cli:
     export venv=/tmp/v
 
     os() {
-      # Determine OS platform
-      source /etc/os-release
-      echo \$ID
+      # Let's figure out if this is OSX or Linux
+      # and return the OS type (or the distribution for a Linux OS)
+      _nix_flavour=\$( uname )
+      if [ 'Darwin' == \$_nix_flavour ]; then
+        echo "OSX"
+      else
+        # Determine OS platform
+        source /etc/os-release
+        echo \$ID
     }
     # add a function that we can consume to colorise output
     # This could be better, for now it is a simple parser based on keywords
@@ -107,6 +113,8 @@ common_cli:
       case "\$(os)"
       in
         "ubuntu") alias awk='mawk -W interactive'
+        ;;
+        "OSX") alias awk='gawk'
       esac
 
       # The 'awk' parse_logs function consumes the standard output from a piped
@@ -172,6 +180,8 @@ common_cli:
     sudo rm -f results.xml
     sudo rm -f trial.log
     sudo rm -rf _trial_temp/
+    rm -f "Flocker*.rb"
+    rm -f "dist/Flocker-*.tar.gz"
 
   setup_venv: &setup_venv |
     # setup the new venv
@@ -316,6 +326,25 @@ common_cli:
   build_package: &build_package  |
     # and build a rpm/deb package using docker
     parse_logs \$venv/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+
+  build_homebrew_package: &build_homebrew_package  |
+    # and build a homebrew
+    SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
+    ${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} --sdist \${SDIST_URL} --output-file ${RECIPE_FILE}
+    parse_logs \$venv/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+
+  install_homebrew_package: &install_homebrew_package
+    # install the new freshly baked package
+    brew update
+    brew tap ClusterHQ/tap
+    brew install \${RECIPE_FILE}
+    brew test \${RECIPE_FILE}
+
+  uninstall_old_homebrew_flocker_packages: &uninstall_old_homebrew_flocker_packages
+    # remove old homebrew packages for flocker
+    brew cleanup flocker
+    brew remove --force flocker
 
   build_repo_metadata: &build_repo_metadata |
     # the acceptance tests look for a package in a yum repository,
@@ -710,6 +739,19 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+    run_client_installation_on_OSX:
+      on_nodes_with_labels: 'OSX'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=OSX',
+                   *check_version,
+                   *build_sdist, *build_homebrew_package,
+                   *uninstall_old_homebrew_flocker_packages,
+                   *install_homebrew_package ]
+          }
+      clean_repo: false
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
