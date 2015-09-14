@@ -1,87 +1,104 @@
 .. _build-flocker-driver:
 
-====================
-Building your driver
-====================
+================================
+Building and Testing your Driver
+================================
 
-This document will show you how to implement a Flocker storage driver.  Your driver will be a Python 2.7 library providing a class implementing the `flocker.node.agents.blockdevice.IBlockDeviceAPI <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ interface.
+This document will show you how to implement a Flocker storage driver.
+Your driver will be a Python 2.7 library providing a class implementing the `flocker.node.agents.blockdevice.IBlockDeviceAPI <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ interface.
 
-The best way to build your driver is to model it on the canonical implementations provided by the ClusterHQ team. These drivers include `OpenStack Cinder <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/cinder.py>`_ and `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_.
+The best way to build your driver is to model it on the canonical implementations provided by the ClusterHQ team.
+These drivers include:
 
-After you have implemented the driver, you will need to test your implementation.  We provide a number of test suites to help you do this.  Passing all tests ultimately results in certification of your driver to work with Flocker.
+* `OpenStack Cinder <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/cinder.py>`_
+* `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_
 
-.. spelling::
-
- FAQ
+After you have implemented the driver, you will need to test your implementation, and ClusterHQ provide a number of test suites to help you do this.
+Passing all tests ultimately results in certification of your driver to work with Flocker.
    
-Read on or review our :doc:`FAQ <faq>` of common issues encountered during driver development and testing.
+Before beginning the testing steps below, you can review our :ref:`build-flocker-driver-faq` for common issues encountered during driver development and testing.
 
--------------------
-Testing your driver
--------------------
+Testing your Driver
+===================
 
-Step 1: Minimal functional tests
---------------------------------
-To test that your implementation is correct you should instantiate a generic test suite that makes sure your class correctly implements the interface:
+#. Implement minimal functional tests.
 
-.. code-block:: python
+   To test that your implementation is correct you should instantiate a generic test suite that makes sure your class correctly implements the interface:
 
-    from uuid import uuid4
-    from flocker.node.agents.test.test_blockdevice import make_istatechange_tests
+   .. code-block:: python
 
-    def api_factory(test):
-        # Return an instance of your IBlockDeviceAPI implementation class, given
-        # a twisted.trial.unittest.TestCase instance.
+      from uuid import uuid4
+      from flocker.node.agents.test.test_blockdevice import make_istatechange_tests
 
-    # Smallest volume to create in tests, e.g. 1GiB:
-    MIN_ALLOCATION_SIZE = 1024 * 1024 * 1024
+      def api_factory(test):
+          # Return an instance of your IBlockDeviceAPI implementation class, given
+          # a twisted.trial.unittest.TestCase instance.
 
-    # Minimal unit of volume allocation, e.g. 1MiB:
-    MIN_ALLOCATION_UNIT = 1024 * 1024
+      # Smallest volume to create in tests, e.g. 1GiB:
+      MIN_ALLOCATION_SIZE = 1024 * 1024 * 1024
 
-    class YourStorageTests(make_istatechange_tests(
-        api_factory, MIN_ALLOCATION_SIZE, MIN_ALLOCATION_UNIT,
-        # Factory for valid but unknown volume id specific to your backend:
-        lambda test: unicode(uuid4()))):
-        """
-        Tests for your storage.
-        """
+      # Minimal unit of volume allocation, e.g. 1MiB:
+      MIN_ALLOCATION_UNIT = 1024 * 1024
 
-If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.  For an example clean up script, see `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L225>`_ inside ``api_factory``.
+      class YourStorageTests(make_istatechange_tests(
+          api_factory, MIN_ALLOCATION_SIZE, MIN_ALLOCATION_UNIT,
+          # Factory for valid but unknown volume id specific to your backend:
+          lambda test: unicode(uuid4()))):
+          """
+          Tests for your storage.
+          """
 
-You can run these tests with ``trial`` test runner provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
+   If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.
+   For an example of a clean up script, see the `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L225>`_ inside ``api_factory``.
 
-.. prompt:: bash $
+   You can run these tests with the ``trial`` test runner, provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
 
-    trial yourstorage.test_yourstorage
+   .. prompt:: bash $
 
-Step 2: Additional functional tests
------------------------------------
-You are encouraged to write additional functional tests to cover logic specific to your driver implementation. For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ that we wrote.
+      trial yourstorage.test_yourstorage
 
-Step 3: Run acceptance tests
-----------------------------
-After all functional tests pass, please run acceptance tests according to `documentation <https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html>`_ .
+#. Additional functional tests.
 
-Step 4: Setup Continuous Integration environment for tests
-----------------------------------------------------------
-After your acceptance tests run clean, please set up a CI environment for functional and acceptance tests for your driver. For example: `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_ , and `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_ .
+   You are encouraged to write additional functional tests to cover logic specific to your driver implementation.
+   For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ written by ClusterHQ.
 
----------------------
-How to publish driver
----------------------
+#. Run acceptance tests.
+
+   After all functional tests pass, please run acceptance tests according to our :ref:`acceptance-testing` documentation.
+
+#. Setup Continuous Integration environment for tests.
+
+   After your acceptance tests run clean, please set up a CI environment for functional and acceptance tests for your driver.
+   For example:
+   
+   * `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_
+   * `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_
+
+
+Publishing your driver
+======================
+
 Once CI test runs pass for a week, you are ready to publish your driver and assert that is certified to work with Flocker.  
 
-Completed driver should be published as a ``Public`` repo on ``GitHub``. Please include the Apache 2.0 ``License`` as part of the repo. Example: `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
+Completed drivers should be published as a ``Public`` repository on GitHub.
 
--------------
-Certification
--------------
-To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repo.  Examples of status images include `Travis CI <http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.  You should also clearly indicate which version of Flocker your driver has been certified against.
+Please include the Apache 2.0 License as part of the repository.
+For example, see the `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
 
------------------------------------------------------
+
+Certifying your driver
+======================
+
+To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repository.
+
+Examples of status images include `Travis CI <http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.
+
+You should also clearly indicate which version of Flocker your driver has been certified against.
+
+
 Enabling Flocker users to install your storage driver
------------------------------------------------------
+=====================================================
+
 Once you've implemented your storage backend you'll want to allow Flocker users to use your package.
 The basic implementation strategy is that your user installs a Python package with your backend implementation on all Flocker nodes:
 
@@ -91,8 +108,10 @@ The basic implementation strategy is that your user installs a Python package wi
 
 You can also provide RPMs or DEBs that have same effect of installing a new Python package.
 
-Once your users have installed the package, they will write a file ```/etc/flocker/agent.yml``` whose ``backend`` key in the ``dataset`` section is the importable name of the Python package you've installed.
-All other sub-keys of the ``dataset`` section will be passed to a function you must implement (see below) and can be used to configure the resulting ``IBlockDeviceAPI`` instance.
+Once your users have installed the package, they will write an :file:`agent.yml` file (:file:`/etc/flocker/agent.yml`), whose ``backend`` key in the ``dataset`` section is the importable name of the Python package you've installed.
+
+All other sub-keys of the ``dataset`` section will be passed to a function you must implement (see below), and can be used to configure the resulting ``IBlockDeviceAPI`` instance.
+
 Typical parameters are authentication information or server addresses; whatever is necessary to configure your class.
 
 For example, if you installed a Python package importable ``mystorage_flocker_plugin``, and you require a username and password in order to log in to your storage system, you might tell your users to write a :file:`agent.yml` that looks like this:
@@ -108,8 +127,11 @@ For example, if you installed a Python package importable ``mystorage_flocker_pl
        password: "abc123"
 
 Your :file:`mystorage_flocker_plugin/__init__.py` module needs to have a ``FLOCKER_BACKEND`` attribute with a ``flocker.node.BackendDescription`` instance, which will include a reference to factory function that constructs a ``IBlockDeviceAPI`` instance.
-The factory function will be called with whatever parameters the ``dataset`` section in :file:`agent.yml` is configured with. In the above example that would be ``username`` and ``password``.
-Here's what the module might look like:
+
+The factory function will be called with whatever parameters the ``dataset`` section in :file:`agent.yml` is configured with.
+In the above example, that would be ``username`` and ``password``.
+
+Here's what the module could look like:
 
 .. code-block:: python
 
@@ -125,10 +147,15 @@ Here's what the module might look like:
         needs_reactor=False, needs_cluster_id=True,
         api_factory=api_factory, deployer_type=DeployerType.block)
 
-The ``cluster_id`` parameter is a Python ``uuid.UUID`` instance uniquely identifying the cluster.  This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
+The ``cluster_id`` parameter is a Python ``uuid.UUID`` instance uniquely identifying the cluster.
+This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
 
--------------------------------------------
-Recommended demo to show off your hard work
--------------------------------------------
 
-After driver development clears all tests and you've published great getting-started instructions for your users, we recommend `running through an end-to-end demo using MongoDB <https://docs.clusterhq.com/en/1.3.0/using/tutorial/index.html>`_ .  This demo makes a great video which you can use to share with others how they can build a Dockerized application using your storage backend.
+What next
+=========
+
+We recommend a demo to show off your hard work!
+
+After driver development clears all tests and you've published great getting-started instructions for your users, we recommend `running through an end-to-end demo using MongoDB <https://docs.clusterhq.com/en/1.3.0/using/tutorial/index.html>`_ .
+
+This demo makes a great video which you can use to share with others how they can build a Dockerized application using your storage backend.
