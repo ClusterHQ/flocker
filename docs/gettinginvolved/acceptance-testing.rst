@@ -171,21 +171,26 @@ To run the acceptance tests on Rackspace, you need:
 
 - An OpenStack account and the associated password or API key.
 - The URL of the OpenStack keystone service.
-- an ssh-key registered with the OpenStack account.
+- An ssh-key registered with the OpenStack account.
+- The OpenStack image_id for supported Flocker node operating systems.
+- The OpenStack flavour (size) to use for acceptance test nodes.
 
 To use the OpenStack provider, the configuration file should include an item like:
 
 .. code-block:: yaml
 
    openstack:
-     auth_plugin: "`password` or `apikey`"
-     auth_url: "https://192.168.1.101:5000/v2.0/tokens/"
-     region: <openstack region, e.g. "RegionOne">
+     auth_plugin: <auth_plugin, one of "password" or "apikey">
+     auth_url: <keystone_url, e.g. "https://192.168.1.101:5000/v2.0/tokens/">
+     region: <region, e.g. "RegionOne">
+     tenant: <tenant, e.g. "demo">
      username: <username>
-     password: <password>
+     secret: <password or apikey>
      keyname: <ssh-key-name>
-
-.. note:: If you use ``auth_plugin: apikey`` you will need to include a ``key: <api_key>`` entry instead of a password.
+     images:
+       ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
+       centos-7: image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+     flavour: <flavour, e.g. "m1.large">
 
 You will need a ssh agent running with access to the corresponding private key.
 

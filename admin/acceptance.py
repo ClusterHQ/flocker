@@ -791,6 +791,34 @@ class RunOptions(Options):
             package_source, dataset_backend, "rackspace", provider_config
         )
 
+    def _runner_OPENSTACK(self, package_source, dataset_backend,
+                          provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``openstack`` section of the acceptance
+            testing configuration file.  The section of the configuration
+            file should look something like:
+
+               openstack:
+                 auth_plugin: <auth_plugin, one of "password" or "apikey">
+                 auth_url: <keystone_url, e.g. "https://192.168.1.101:5000/v2.0/tokens/">
+                 region: <region, e.g. "RegionOne">
+                 tenant: <tenant_name e.g. "demo">
+                 username: <username>
+                 secret: <password or apikey>
+                 keyname: <ssh-key-name>
+                 images:
+                   ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
+                   centos-7: image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+                 flavour: <flavour, e.g. "m1.large">
+
+        :see: :ref:`acceptance-testing-openstack-config`
+        """
+        return self._libcloud_runner(
+            package_source, dataset_backend, "openstack", provider_config
+        )
+
     def _runner_AWS(self, package_source, dataset_backend,
                     provider_config):
         """

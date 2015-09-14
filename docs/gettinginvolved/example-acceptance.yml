@@ -23,7 +23,12 @@ openstack:
   password: "33333333333333333333333333333333"
   # OR key: "<api_key> if using `auth_plugin: apikey`"
   region: "RegionOne"
+  tenant: <tenant_name e.g. "demo">
   keyname: "your.ssh.key.identifier"
+  images:
+    ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
+    centos-7: image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+  flavour: <flavour, e.g. "m1.large">
 
 managed:
   addresses:
