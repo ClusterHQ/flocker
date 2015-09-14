@@ -90,7 +90,7 @@ common_cli:
     #
     export venv=/tmp/v
 
-    os() {
+    function os {
       # Let's figure out if this is OSX or Linux
       # and return the OS type (or the distribution for a Linux OS)
       _nix_flavour=\$( uname )
