@@ -740,7 +740,7 @@ job_type:
           }
       clean_repo: true
     run_client_installation_on_OSX:
-      on_nodes_with_labels: 'OSX'
+      on_nodes_with_labels: 'osx'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,
