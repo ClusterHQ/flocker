@@ -184,7 +184,7 @@ common_cli:
     # This is to be tackled as part of:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     # we only run this on centos, ubuntu as OSX slaves don't have docker
-      if [ "\$(is_ubuntu)" == "true" ] || [ "$\(is_centos)" == "true" ]; then
+      if [ "\$(is_ubuntu)" == "true" ] || [ "\$(is_centos)" == "true" ]; then
         sudo chmod 777 /var/run/docker.sock
       fi
 
