@@ -109,7 +109,7 @@ def make_script_file(dir, effects):
     return os.path.basename(filename)
 
 
-class DockerRunner:
+class DockerContainer:
     """
     Run commands in a Docker container.
     """
@@ -120,6 +120,9 @@ class DockerRunner:
 
     @classmethod
     def from_distribution(cls, distribution):
+        """
+        Create a DockerContainer with a given distribution name.
+        """
         return cls(DOCKER_IMAGES[distribution].image)
 
     def start(self):
@@ -149,6 +152,7 @@ class DockerRunner:
         Stop the Docker container.
         """
         self.docker.stop(self.container_id)
+        self.docker.remove_container(self.container_id)
         shutil.rmtree(self.tmpdir)
 
     def execute(self, commands, out=sys.stdout):
@@ -189,12 +193,9 @@ class RunOptions(Options):
             ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
             ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, None, 'Expected Flocker version'],
+        ['flocker-version', None, None, 'Flocker version to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
-        # XXX - remove the remaining flags once Buildbot is updated (FLOC-2813)
-        ['provider', None, None, 'No longer used.'],
-        ['config-file', None, None, 'No longer used.'],
     ]
 
     optFlags = [
@@ -239,6 +240,9 @@ class RunOptions(Options):
 
 
 def get_steps_pip(distribution, package_source=PackageSource()):
+    """
+    Get commands to run for testing client pip installation.
+    """
     if distribution not in PIP_DISTRIBUTIONS:
         raise UsageError(
             "Distribution %r not supported. Available distributions: %s"
@@ -255,6 +259,9 @@ def get_steps_pip(distribution, package_source=PackageSource()):
 
 
 def get_steps_pkg(distribution, package_source=PackageSource()):
+    """
+    Get commands to run for testing client package installation.
+    """
     if distribution not in PACKAGED_CLIENT_DISTRIBUTIONS:
         raise UsageError(
             "Distribution %r not supported. Available distributions: %s"
@@ -268,15 +275,18 @@ def get_steps_pkg(distribution, package_source=PackageSource()):
     return steps
 
 
-def run_steps(runner, steps, out=sys.stdout):
-    runner.start()
+def run_steps(container, steps, out=sys.stdout):
+    """
+    Run a sequence of commands in a container.
+    """
+    container.start()
     try:
         for commands in steps:
-            status = runner.execute(commands, out)
+            status = container.execute(commands, out)
             if status != 0:
                 return status
     finally:
-        runner.stop()
+        container.stop()
     return 0
 
 
@@ -300,6 +310,6 @@ def main(args, base_path, top_level):
     else:
         get_steps = get_steps_pkg
     steps = get_steps(distribution, package_source)
-    runner = DockerRunner.from_distribution(distribution)
-    status = run_steps(runner, steps)
+    container = DockerContainer.from_distribution(distribution)
+    status = run_steps(container, steps)
     sys.exit(status)
