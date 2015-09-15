@@ -111,11 +111,9 @@ common_cli:
     function parse_logs {
       # ubuntu defaults to mawk, which causes some things to break
       # it seems to be related to buffering, -W interactive seems to fix it.
-      case "\$(os)"
-      in
-        "ubuntu") alias awk='mawk -W interactive'
-        ;;
-      esac
+      if [ "ubuntu" == "\$(os)" ]; then
+        alias awk='mawk -W interactive'
+      fi
 
       # The 'awk' parse_logs function consumes the standard output from a piped
       # command, and returns PIPESTATUS of that command (return code).
