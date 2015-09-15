@@ -13,9 +13,6 @@ from admin.client import (
 
 class TestPackages(unittest.TestCase):
 
-    def setUp(self):
-        self.longMessage = True
-
     def install(self, distribution, get_steps):
         steps = get_steps(distribution)
         container = DockerContainer.from_distribution(distribution)
