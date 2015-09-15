@@ -22,14 +22,13 @@ Currently Flocker supports both volume-centric operation via the dataset API and
 
 The goals of ClusterHQ Labs are to make it possible to:
 
-* Integrate Flocker with tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, via the :ref:`Flocker Docker plugin <labs-docker-plugin>`.
 * See what's happening in your Flocker cluster with a :ref:`CLI <labs-volumes-cli>` and a :ref:`GUI <labs-volumes-gui>`.
 * Make it easier to spin up a Flocker cluster in the first place with an :ref:`installer <labs-installer>`.
 * Integrate Flocker with other popular tools, like :ref:`Weave <labs-weave>`, :ref:`Mesosphere <labs-mesosphere>` and eventually :ref:`Kubernetes <labs-kubernetes>`.
 
 **We believe that Flocker will be more successful if, as well as focusing on making it useful for managing data volumes, we work on integrating it with other components in the emerging Docker and container ecosystem.**
 
-Our biggest step towards this goal so far is the :ref:`Flocker Docker plugin <labs-docker-plugin>`, which makes Flocker pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
+Our biggest step towards this goal so far is the :ref:`Flocker Docker plugin <labs-docker-plugin>`, which enables you to integrate Flocker with tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, and pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
 
 Mega demo
 =========
@@ -44,10 +43,7 @@ Getting in touch with ClusterHQ Labs
 
 Come and talk to us on our IRC channel which is on Freenode ``#clusterhq``.
 
-Or, file an issue on GitHub for the respective project:
-
-* `Flocker Docker plugin <https://github.com/clusterhq/flocker-docker-plugin>`_ for integration-related issues.
-* `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ for CLI, GUI, or installer issues.
+Or, file an issue on GitHub for the `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ for CLI, GUI, or installer issues.
 
 List of Labs projects
 =====================
