@@ -116,7 +116,8 @@ class DockerRunner:
     """
 
     def __init__(self, image):
-        self.docker = docker.Client(version='1.18')
+        params = docker.utils.kwargs_from_env()
+        self.docker = docker.Client(version='1.18', **params)
         self.image = image
 
     def start(self):
