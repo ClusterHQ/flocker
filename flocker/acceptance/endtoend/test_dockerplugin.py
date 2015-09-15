@@ -28,6 +28,12 @@ class DockerPluginTests(TestCase):
     def restart_docker(self, address):
         """
         Restart the Docker daemon on the specified address.
+        Restarts by stopping, verifying the service has stopped, then
+        starting and finally verifying the service has started.
+        Verification is performed via the success of running "docker ps"
+        on the target node; an exit code of 0 indicates the daemon is
+        running, an exit code of 1 is expected if we try to run this
+        command when the daemon is stopped.
 
         :param bytes address: The public IP of the node on which Docker will
             be restarted.
@@ -39,18 +45,42 @@ class DockerPluginTests(TestCase):
         get_distro.addCallback(lambda _: distro[0].lower())
 
         def restart_docker(distribution):
+            actions = ['stop', 'start']
+            verify_command = ['docker', 'ps']
             if 'ubuntu' in distribution:
-                command = ["service", "docker", "restart"]
+                commands = [
+                    ['service', 'docker', action] for action in actions
+                ]
             else:
-                command = ["systemctl", "restart", "docker"]
-            d = run_ssh(reactor, b"root", address, command)
+                commands = [
+                    ['systemctl', action, 'docker'] for action in actions
+                ]
 
-            def handle_error(_):
+            def handle_error(_, action):
                 self.fail(
-                    "Restarting Docker failed. See logs for process output.")
+                    "{} Docker failed. See logs for process output.".format(
+                        action)
+                )
 
-            d.addErrback(handle_error)
-            return d
+            def verify_docker_stopped(f):
+                if f.value.exitCode != 1:
+                    self.fail(
+                        "Couldn't verify Docker daemon had stopped. "
+                        "See logs for process output."
+                    )
+
+            d = run_ssh(reactor, b"root", address, commands[0])
+            d.addErrback(handle_error, "Stopping")
+            stopped = d.addCallback(
+                lambda _: run_ssh(reactor, b"root", address, verify_command))
+            stopped.addErrback(verify_docker_stopped)
+            starting = stopped.addCallback(
+                lambda _: run_ssh(reactor, b"root", address, commands[1]))
+            starting.addErrback(handle_error, "Starting")
+            started = starting.addCallback(
+                lambda _: run_ssh(reactor, b"root", address, verify_command))
+            started.addErrback(handle_error, "Verifying")
+            return started
 
         restarting = get_distro.addCallback(restart_docker)
         return restarting
