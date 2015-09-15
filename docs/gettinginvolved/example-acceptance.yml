@@ -15,20 +15,17 @@ rackspace:
   keyname: "your.rackspace.ssh.key.identifier"
 
 openstack:
-  # See ex_force_auth_version in https://libcloud.readthedocs.org/en/latest/compute/drivers/openstack.html
-  auth_plugin: "`password` or `apikey`"
-  # See ex_force_auth_url in https://libcloud.readthedocs.org/en/latest/compute/drivers/openstack.html
-  auth_url: "https://192.168.1.101:5000/v2.0/tokens/"
-  username: "your.openstack.username"
-  password: "33333333333333333333333333333333"
-  # OR key: "<api_key> if using `auth_plugin: apikey`"
-  region: "RegionOne"
-  tenant: <tenant_name e.g. "demo">
-  keyname: "your.ssh.key.identifier"
+  auth_plugin: <auth_plugin, one of "password" or "apikey">
+  auth_url: <keystone_url, e.g. "https://192.168.1.101:5000/v2.0/tokens/">
+  region: <region, e.g. "RegionOne">
+  tenant: <tenant, e.g. "demo">
+  username: <username>
+  secret: <password or apikey>
+  keyname: <ssh-key-name>
   images:
     ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
-    centos-7: image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
-  flavour: <flavour, e.g. "m1.large">
+    centos-7: <image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+  flavor: <flavor, e.g. "m1.medium">
 
 managed:
   addresses:

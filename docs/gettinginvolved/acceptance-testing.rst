@@ -167,13 +167,13 @@ Rackspace can use these dataset backends:
 OpenStack
 ~~~~~~~~~
 
-To run the acceptance tests on Rackspace, you need:
+To run the acceptance tests on OpenStack, you need:
 
 - An OpenStack account and the associated password or API key.
 - The URL of the OpenStack keystone service.
 - An ssh-key registered with the OpenStack account.
-- The OpenStack image_id for supported Flocker node operating systems.
-- The OpenStack flavour (size) to use for acceptance test nodes.
+- The OpenStack image name or image ID for images containing supported Flocker node operating systems.
+- The OpenStack flavor to use for acceptance test nodes.
 
 To use the OpenStack provider, the configuration file should include an item like:
 
@@ -189,8 +189,8 @@ To use the OpenStack provider, the configuration file should include an item lik
      keyname: <ssh-key-name>
      images:
        ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
-       centos-7: image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
-     flavour: <flavour, e.g. "m1.large">
+       centos-7: <image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+     flavor: <flavour, e.g. "m1.medium">
 
 You will need a ssh agent running with access to the corresponding private key.
 

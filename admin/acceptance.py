@@ -810,8 +810,8 @@ class RunOptions(Options):
                  keyname: <ssh-key-name>
                  images:
                    ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
-                   centos-7: image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
-                 flavour: <flavour, e.g. "m1.large">
+                   centos-7: <image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+                 flavour: <flavour, e.g. "m1.medium">
 
         :see: :ref:`acceptance-testing-openstack-config`
         """
