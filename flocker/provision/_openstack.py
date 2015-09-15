@@ -4,6 +4,7 @@
 OpenStack provisioner.
 """
 
+from textwrap import dedent
 from time import time
 
 from effect.retry import retry
@@ -86,7 +87,7 @@ def provision_openstack(node, package_source, distribution, variants):
             ),
             # https://clusterhq.atlassian.net/browse/FLOC-1550
             # This should be part of ._install.configure_cluster
-            task_open_control_firewall(node.distribution),
+            # task_open_control_firewall(node.distribution),
         ]),
     ))
 
@@ -94,7 +95,7 @@ def provision_openstack(node, package_source, distribution, variants):
 
 
 def openstack_provisioner(auth_url, auth_plugin, username, secret, region,
-                          keyname, images, flavour, tenant):
+                          keyname, images, flavor, tenant):
     """
     Create a LibCloudProvisioner for provisioning nodes on openstack.
 
@@ -109,7 +110,7 @@ def openstack_provisioner(auth_url, auth_plugin, username, secret, region,
        available from an agent.
     :param dict images: A mapping of supported operating systems to a
         corresponding OpenStack image name or image ID.
-    :param bytes flavour: A flavour name or flavour ID available in the target
+    :param bytes flavor: A flavor name or flavor ID available in the target
         OpenStack installation.
     :param bytes tenant: The name of an OpenStack tenant or project.
     """
@@ -140,9 +141,13 @@ def openstack_provisioner(auth_url, auth_plugin, username, secret, region,
         image_names=images,
         create_node_arguments=lambda **kwargs: {
             "ex_config_drive": "true",
+            "ex_userdata": dedent("""\
+                #!/bin/sh
+                sed -i '/Defaults *requiretty/d' /etc/sudoers
+                """),
         },
         provision=provision_openstack,
-        default_size=flavour,
+        default_size=flavor,
         get_default_user=get_default_username,
     )
 
