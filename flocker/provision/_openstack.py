@@ -76,7 +76,7 @@ def provision_openstack(node, package_source, distribution, variants):
     ))
 
     commands.append(run_remotely(
-        username=get_default_username(distribution),
+        username='root',
         address=node.address,
         commands=sequence([
             provision(
