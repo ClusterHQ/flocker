@@ -102,6 +102,28 @@ common_cli:
         echo \$ID
       fi
     }
+    function is_ubuntu {
+      if [ 'ubuntu' == \$(os) ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    function is_centos {
+      if [ 'centos' == \$(os) ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    function is_osx {
+      if [ 'OSX' == \$(os) ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+
     # add a function that we can consume to colorise output
     # This could be better, for now it is a simple parser based on keywords
     # which will highlight 'errors, warnings' or other type of messages we
@@ -111,7 +133,7 @@ common_cli:
     function parse_logs {
       # ubuntu defaults to mawk, which causes some things to break
       # it seems to be related to buffering, -W interactive seems to fix it.
-      if [ "ubuntu" == "\$(os)" ]; then
+      if (( is_osx == 0 )); then
         alias awk='mawk -W interactive'
       fi
 
@@ -162,7 +184,7 @@ common_cli:
     # This is to be tackled as part of:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     # we only run this on centos, ubuntu as OSX slaves don't have docker
-      if [ 'ubuntu' == "\$(os)" ] || [ 'centos' == "\$(os)" ]; then
+      if (( is_ubuntu  == 0 )) || (( is_centos == 0 )); then
         sudo chmod 777 /var/run/docker.sock
       fi
 
@@ -176,7 +198,7 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if [ 'OSX' == "\$(os)" ]; then
+    if (( is_osx == 0 )); then
       # OSX doesn't allow us to sudo (no tty)
       rm -f results.xml
       rm -f trial.log
@@ -185,7 +207,7 @@ common_cli:
       rm -f "Flocker*.rb"
       rm -f "dist/Flocker-*.tar.gz"
     fi
-    if [ 'ubuntu' == "\$(os)" ] || [ 'centos' == "\$(os)" ]; then
+    if (( is_centos == 0 )) || (( is_ubuntu == 0 )); then
       # some of our tests (which run as root), leave some files behind when
       # they abort or fail to complete.
       # We use 'sudo' so that we can remove those files before a next job run.
@@ -218,25 +240,26 @@ common_cli:
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
-    if [ "\$(os)" == "ubuntu" ] || [ "\$(os)" == "centos" ]; then
-        parse_logs pip install --upgrade pip
-        # using the caching-layer, install all the dependencies
-        parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
-        # using the caching-layer, install flocker
-        parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
-        # using the caching-layer, install junix for our coverage report
-        parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
+    if (( is_ubuntu == 0 )) || (( is_centos  == 0 )); then
+        PIP_ADDITIONAL_OPTIONS=" -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST"
+        PARSE_LOGS="parse_logs "
     fi
-    if [ "\$(os)" == "OSX" ]; then
+    if (( is_osx == 0 )); then
       # we can't use our pip caching layer on our OSX cloudbees boxes
       # as we're unable run the slave_setup plugin that injects the environment
       # variables to the slave.
       # So we just go upstream for the python modules.
-      pip install --upgrade pip
-      pip install .
-      pip install  "Flocker[dev]"
-      pip install python-subunit junitxml
+      PIP_ADDITIONAL_OPTIONS=""
+      PARSE_LOGS=""
     fi
+
+    # using the caching-layer, install all the dependencies
+    \$PARSE_LOGS pip install --upgrade pip \$PIP_ADDITIONAL_OPTIONS
+    \$PARSE_LOGS pip install . \$PIP_ADDITIONAL_OPTIONS
+    # install Flocker
+    \$PARSE_LOGS pip install  "Flocker[dev]" \$PIP_ADDITIONAL_OPTIONS
+    # install junix for our coverage report
+    \$PARSE_LOGS pip install python-subunit junitxml \$PIP_ADDITIONAL_OPTIONS
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
@@ -379,15 +402,12 @@ common_cli:
     sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
     cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
     # create a repo on either centos or ubuntu
-    case "\$(os)"
-    in
-      "ubuntu")
-        sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-        ;;
-      "centos")
-        sudo createrepo .
-        ;;
-    esac
+    if (( is_ubuntu == 0 )); then
+      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+    fi
+    if (( is_centos == 0 )); then
+      sudo createrepo .
+    fi
     cd -
 
   clean_packages: &clean_packages |
