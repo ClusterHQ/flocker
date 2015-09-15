@@ -177,18 +177,18 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if [ 'OSX' != "\$(os)" ]; then
-      sudo rm -rf \$venv
-      sudo rm -f results.xml
-      sudo rm -f trial.log
-      sudo rm -rf _trial_temp/
-    else
+    if [ 'OSX' == "\$(os)" ]; then
       rm -f results.xml
       rm -f trial.log
       rm -rf _trial_temp/
       rm -rf \$venv
       rm -f "Flocker*.rb"
       rm -f "dist/Flocker-*.tar.gz"
+    else
+      sudo rm -rf \$venv
+      sudo rm -f results.xml
+      sudo rm -f trial.log
+      sudo rm -rf _trial_temp/
     fi
 
   setup_venv: &setup_venv |
