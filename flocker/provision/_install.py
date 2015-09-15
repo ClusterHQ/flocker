@@ -980,14 +980,31 @@ def _uninstall_flocker_centos7():
     Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
     machine.
     """
-    return sequence([
-        run_from_args([
-            b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
-        ]),
-        run_from_args([
-            b"yum", b"erase", b"-y", b"clusterhq-release",
-        ]),
-    ])
+    def maybe_disable(unit):
+        return run(
+            u"{{ "
+            u"systemctl is-enabled {unit} && "
+            u"systemctl stop {unit} && "
+            u"systemctl disable {unit} "
+            u"; }} || /bin/true".format(unit=unit).encode("ascii")
+        )
+
+    return sequence(
+        list(
+            # XXX There should be uninstall hooks for stopping services.
+            maybe_disable(unit) for unit in [
+                u"flocker-control", u"flocker-dataset-agent",
+                u"flocker-container-agent", u"flocker-docker-plugin",
+            ]
+        ) + [
+            run_from_args([
+                b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
+            ]),
+            run_from_args([
+                b"yum", b"erase", b"-y", b"clusterhq-release",
+            ]),
+        ]
+    )
 
 
 _flocker_uninstallers = {
