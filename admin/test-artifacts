@@ -49,8 +49,8 @@ class TestPackages(unittest.TestCase):
                 'See file {!r}'.format(filename))
         os.remove(filename)
 
-    def test_pip_install(self):
-        distribution = 'ubuntu-15.04'
+    def test_pip_install_apt(self):
+        distribution = 'debian-8'
         steps = get_steps_pip(distribution)
         runner = DockerRunner.from_distribution(distribution)
         filename = '{}.out'.format(self.id())
@@ -60,6 +60,27 @@ class TestPackages(unittest.TestCase):
                 'See file {!r}'.format(filename))
         os.remove(filename)
 
+    def test_pip_install_yum(self):
+        distribution = 'centos-7'
+        steps = get_steps_pip(distribution)
+        runner = DockerRunner.from_distribution(distribution)
+        filename = '{}.out'.format(self.id())
+        with open(filename, 'w') as out:
+            self.assertEqual(
+                run_steps(runner, steps, out), 0,
+                'See file {!r}'.format(filename))
+        os.remove(filename)
+
+    def test_pip_install_dnf(self):
+        distribution = 'fedora-22'
+        steps = get_steps_pip(distribution)
+        runner = DockerRunner.from_distribution(distribution)
+        filename = '{}.out'.format(self.id())
+        with open(filename, 'w') as out:
+            self.assertEqual(
+                run_steps(runner, steps, out), 0,
+                'See file {!r}'.format(filename))
+        os.remove(filename)
 
 if __name__ == '__main__':
     unittest.main()
