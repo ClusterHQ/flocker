@@ -161,7 +161,8 @@ common_cli:
     # permissions/owners.
     # This is to be tackled as part of:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
-      if [ 'OSX' != "\$(os)" ]; then
+    # we only run this on centos, ubuntu as OSX slaves don't have docker
+      if [ 'ubuntu' == "\$(os)" ] || [ 'centos' == "\$(os)" ]; then
         sudo chmod 777 /var/run/docker.sock
       fi
 
