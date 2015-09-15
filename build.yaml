@@ -104,23 +104,23 @@ common_cli:
     }
     function is_ubuntu {
       if [ 'ubuntu' == \$(os) ]; then
-        return 0
+        echo "true"
       else
-        return 1
+        echo "false"
       fi
     }
     function is_centos {
       if [ 'centos' == \$(os) ]; then
-        return 0
+        echo "true"
       else
-        return 1
+        echo "false"
       fi
     }
     function is_osx {
       if [ 'OSX' == \$(os) ]; then
-        return 0
+        echo "true"
       else
-        return 1
+        echo "false"
       fi
     }
 
@@ -133,7 +133,7 @@ common_cli:
     function parse_logs {
       # ubuntu defaults to mawk, which causes some things to break
       # it seems to be related to buffering, -W interactive seems to fix it.
-      if (( is_osx == 0 )); then
+      if [ "\$(is_osx)" == "true" ]; then
         alias awk='mawk -W interactive'
       fi
 
@@ -184,7 +184,7 @@ common_cli:
     # This is to be tackled as part of:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     # we only run this on centos, ubuntu as OSX slaves don't have docker
-      if (( is_ubuntu  == 0 )) || (( is_centos == 0 )); then
+      if [ "\$(is_ubuntu)" == "true" )) || [ "$\(is_centos)" == "true" ]; then
         sudo chmod 777 /var/run/docker.sock
       fi
 
@@ -198,7 +198,7 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if (( is_osx == 0 )); then
+    if [ "\$(is_osx)" == "true" ]; then
       # OSX doesn't allow us to sudo (no tty)
       rm -f results.xml
       rm -f trial.log
@@ -207,7 +207,7 @@ common_cli:
       rm -f "Flocker*.rb"
       rm -f "dist/Flocker-*.tar.gz"
     fi
-    if (( is_centos == 0 )) || (( is_ubuntu == 0 )); then
+    if [ "\$(is_centos)" == "true" ] || [ "\$(is_ubuntu)" == "true" ]; then
       # some of our tests (which run as root), leave some files behind when
       # they abort or fail to complete.
       # We use 'sudo' so that we can remove those files before a next job run.
@@ -240,11 +240,11 @@ common_cli:
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
-    if (( is_ubuntu == 0 )) || (( is_centos  == 0 )); then
+    if [ "\$(is_ubuntu)" == "true" ] || [ "\$(is_centos)"  == "true" ]; then
         PIP_ADDITIONAL_OPTIONS=" -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST"
         PARSE_LOGS="parse_logs "
     fi
-    if (( is_osx == 0 )); then
+    if [ "\$(is_osx)" == "true" ]; then
       # we can't use our pip caching layer on our OSX cloudbees boxes
       # as we're unable run the slave_setup plugin that injects the environment
       # variables to the slave.
@@ -402,10 +402,10 @@ common_cli:
     sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
     cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
     # create a repo on either centos or ubuntu
-    if (( is_ubuntu == 0 )); then
+    if [ "\$(is_ubuntu)" == "true" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if (( is_centos == 0 )); then
+    if ["\$(is_centos)" == "true" ]; then
       sudo createrepo .
     fi
     cd -
