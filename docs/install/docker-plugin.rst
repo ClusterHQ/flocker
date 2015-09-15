@@ -3,75 +3,72 @@
 Installing the Flocker Docker Plugin
 ====================================
 
+Before installing the Flocker Docker plugin, you will need to have installed Flocker on some nodes, using the instructions in the previous topics.
+
+On the same machine where you ran ``flocker-ca`` while installing Flocker, you will need to generate a new API user certificate and key for a user named ``plugin``, as described in the :ref:`generate-api` instructions.
+
+Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the nodes where you want to run the Flocker Docker plugin.
+
+You will also need to have Docker (at least version 1.8 or later) installed. The following command will install the latest version available:
+
+.. prompt:: bash $
+
+   wget -qO- https://get.docker.com/ | sudo sh
+
+Now you can use the following instructions to install the Flocker Docker plugin on each of the nodes in your cluster.
+
+On CentOS 7
+===========
+
+On each of your container agent servers, install the Flocker plugin:
+
+.. prompt:: bash $
+
+   yum install -y clusterhq-flocker-docker-plugin
+
+The service can be started, stopped, or restarted using ``systemctl``.
+For example:
+
+.. prompt:: bash $
+
+   systemctl restart flocker-docker-plugin
+ 
+
 On Ubuntu 14.04
 ===============
 
-First install Flocker on some hosts.
-These instructions assume you have followed the :ref:`official Flocker install instructions <installing-flocker>`.
+On Ubuntu, it's best to ensure that Docker is using the ``AUFS`` storage driver.
 
-On the same machine where you ran ``flocker-ca`` while installing Flocker, :ref:`generate a new API user certificate and key <generate-api>` for a user named ``plugin``.
-Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the hosts where you want to run the Flocker Docker plugin.
-
-Then perform the following instructions on each of the hosts where you want to install the Flocker Docker plugin.
-
-#. Install Docker 1.8 or later.
-
-   The following command will install the latest version available:
-
-   .. prompt:: bash $
-
-      wget -qO- https://get.docker.com/ | sudo sh
-
-   On Ubuntu, it's best to ensure that Docker is using the ``AUFS`` storage driver.
-   The easiest way to do this is to add a ``-s aufs`` option to the :file:`/etc/default/docker` file.
-   For example::
+The easiest way to do this is to add a ``-s aufs`` option to the :file:`/etc/default/docker` file.
+For example::
    
-      DOCKER_OPTS="-s aufs"
+   DOCKER_OPTS="-s aufs"
 
-#. Install the Flocker Docker plugin.
+On each of your container agent servers, install the Flocker plugin:
 
-   On each of your container agent servers, install the Flocker plugin:
+.. prompt:: bash $
 
-   .. prompt:: bash $
+   apt-get install clusterhq-flocker-docker-plugin
 
-      sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev
-      sudo pip install git+https://github.com/clusterhq/flocker-docker-plugin.git
+The service can be started, stopped, or restarted using ``{[service flocker-docker-plugin restart}}``
 
-#. Set up init scripts to run plugin on boot.
+Testing Your Installation
+=========================
 
-   You need to define some configuration which will make it into the environment of the plugin:
+Once installed, two simple Docker tests can be run to verify that the plugin is working correctly with the Flocker agents:
 
-   .. prompt:: bash $
+.. prompt:: bash $
 
-      FLOCKER_CONTROL_SERVICE_BASE_URL=https://your-control-service:4523/v1
-      MY_NETWORK_IDENTITY=1.2.3.4
+   docker run -v apples:/data --volume-driver flocker busybox sh -c "echo hello > /data/file.txt"
+   docker run -v apples:/data --volume-driver flocker busybox sh -c "cat /data/file.txt"
 
-   Replace ``your-control-service`` with the hostname of the control service you specified when you created your cluster.
-   Replace ``1.2.3.4`` with the IP address of the host you are installing on (if your public and private IPs differ, it is generally best to use the *private* IP address of your hosts).
-
-   Write out up an upstart script to automatically start the Flocker plugin on boot, including the configuration we just wrote out::
-
-    $ sudo su -
-    # cat <<EOF > /etc/init/flocker-docker-plugin.conf
-    # flocker-docker-plugin - flocker-docker-plugin job file
-    description "Flocker Plugin service"
-    author "ClusterHQ <support@clusterhq.com>"
-    respawn
-    env FLOCKER_CONTROL_SERVICE_BASE_URL=${FLOCKER_CONTROL_SERVICE_BASE_URL}
-    env MY_NETWORK_IDENTITY=${MY_NETWORK_IDENTITY}
-    exec flocker-docker-plugin
-    EOF
-    # service flocker-docker-plugin restart
-
-#. Now you should have the Flocker plugin running on this node, try running:
-
-   .. prompt:: bash $
-
-      docker run -ti -v test:/data --volume-driver=flocker busybox sh
-
-If all is well, the plugin is able to communicate with the Flocker control service, and the agents running on the hosts are able to interact with the underlying storage, then you should see the dataset ``test`` show up in the Flocker :ref:`CLI <labs-volumes-cli>` or the :ref:`GUI <labs-volumes-gui>`.
+The 2nd command should print ``hello`` on the screen if everything has worked; the same data written to the Flocker volume in the 1st command.
 
 Known limitations
 =================
 
-If the volume exists on a different host and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
+* If the volume exists on a different node and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
+* If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
+  This occurs as Docker defines volume drivers for the entire run command, not per-volume.
+  If you do not want to create anonymous volumes, we recommend only using named volumes. 
+
