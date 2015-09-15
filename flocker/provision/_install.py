@@ -232,12 +232,14 @@ def install_commands_yum(package_name, distribution, package_source,
     :return: a sequence of commands to run on the distribution
     """
     commands = [
-        # May have been previously installed by previous install run, so do
-        # update instead of install:
-        run(command="yum update -y " + get_repository_url(
-            distribution=distribution,
-            flocker_version=get_installable_version(version))),
-    ]
+        # If package has previously been installed, 'yum install' fails,
+        # so check if it is installed first.
+        run(
+            command="yum list installed clusterhq-release || yum install -y {0}".format(  # noqa
+                get_repository_url(
+                    distribution=distribution,
+                    flocker_version=get_installable_version(version)))),
+        ]
 
     if base_url is not None:
         repo = dedent(b"""\
