@@ -66,7 +66,6 @@ List of Labs projects
 .. toctree::
    :maxdepth: 1
 
-   docker-plugin
    installer
    volumes-cli
    volumes-gui
