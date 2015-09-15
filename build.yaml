@@ -225,6 +225,10 @@ common_cli:
         parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
     fi
     if [ "\$(os)" == "OSX" ]; then
+      # we can't use our pip caching layer on our OSX cloudbees boxes
+      # as we're unable run the slave_setup plugin that injects the environment
+      # variables to the slave.
+      # So we just go upstream for the python modules.
       pip install --upgrade pip
       pip install .
       pip install  "Flocker[dev]"
