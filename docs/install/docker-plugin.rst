@@ -62,7 +62,7 @@ Once installed, two simple Docker tests can be run to verify that the plugin is 
    docker run -v apples:/data --volume-driver flocker busybox sh -c "echo hello > /data/file.txt"
    docker run -v apples:/data --volume-driver flocker busybox sh -c "cat /data/file.txt"
 
-The 2nd command should print ``hello`` on the screen if everything has worked; the same data written to the Flocker volume in the 1st command.
+The second command should print ``hello`` on the screen if everything has worked; the same data written to the Flocker volume in the first command.
 
 Known limitations
 =================
