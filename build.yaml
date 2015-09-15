@@ -177,6 +177,7 @@ common_cli:
     # So we will place the virtualenv in /tmp/v instead
     #
     if [ 'OSX' == "\$(os)" ]; then
+      # OSX doesn't allow us to sudo (no tty)
       rm -f results.xml
       rm -f trial.log
       rm -rf _trial_temp/
