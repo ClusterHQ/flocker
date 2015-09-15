@@ -1,3 +1,4 @@
+# -*- test-case-name: flocker.node.test.test_loop -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -288,6 +289,10 @@ class ConvergenceLoop(object):
         ``None``.
 
     :ivar fsm: The finite state machine this is part of.
+
+    :ivar last_sent_local_state: Last reported local state to
+        control agent.
+    :type last_sent_local_state: tuple of IClusterStateChange
     """
     def __init__(self, reactor, deployer):
         """
@@ -300,9 +305,44 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
 
+        # Save last known local state
+        self.last_sent_local_state = None
+
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
+
+    def _maybe_send_state_to_control_service(self, state_changes):
+        """
+        If current state_changes differ from last sent local state,
+        transmit the new state to control agent.
+
+        :param state_changes: State to send to the control service.
+        :type state_changes: tuple of IClusterStateChange
+        """
+        if self.last_sent_local_state != state_changes:
+            context = LOG_SEND_TO_CONTROL_SERVICE(
+                self.fsm.logger, connection=self.client,
+                local_changes=list(state_changes),
+            )
+            with context.context():
+                d = DeferredContext(self.client.callRemote(
+                    NodeStateCommand,
+                    state_changes=state_changes,
+                    eliot_context=context)
+                )
+
+                def set_sent_state(_):
+                    self.last_sent_local_state = state_changes
+
+                def clear_sent_state(f):
+                    self.last_sent_local_state = None
+                    return f
+                d.addCallbacks(set_sent_state, clear_sent_state)
+                d.addErrback(
+                    writeFailure, self.fsm.logger,
+                    u"Failed to send local state to control node.")
+                d.addActionFinish()
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
@@ -320,12 +360,9 @@ class ConvergenceLoop(object):
                 self.cluster_state = state.update_cluster_state(
                     self.cluster_state
                 )
-            with LOG_SEND_TO_CONTROL_SERVICE(
-                    self.fsm.logger, connection=self.client,
-                    local_changes=list(state_changes)) as context:
-                self.client.callRemote(NodeStateCommand,
-                                       state_changes=state_changes,
-                                       eliot_context=context)
+
+            self._maybe_send_state_to_control_service(state_changes)
+
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
