@@ -94,7 +94,7 @@ common_cli:
       # Let's figure out if this is OSX or Linux
       # and return the OS type (or the distribution for a Linux OS)
       _nix_flavour=\$( uname )
-      if [ 'Darwin' == \$_nix_flavour ]; then
+      if [ 'Darwin' == "\$_nix_flavour" ]; then
         echo "OSX"
       else
         # Determine OS platform
@@ -103,21 +103,21 @@ common_cli:
       fi
     }
     function is_ubuntu {
-      if [ 'ubuntu' == \$(os) ]; then
+      if [ 'ubuntu' == "\$(os)" ]; then
         echo "true"
       else
         echo "false"
       fi
     }
     function is_centos {
-      if [ 'centos' == \$(os) ]; then
+      if [ 'centos' == "\$(os)" ]; then
         echo "true"
       else
         echo "false"
       fi
     }
     function is_osx {
-      if [ 'OSX' == \$(os) ]; then
+      if [ 'OSX' == "\$(os)" ]; then
         echo "true"
       else
         echo "false"
@@ -184,7 +184,7 @@ common_cli:
     # This is to be tackled as part of:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     # we only run this on centos, ubuntu as OSX slaves don't have docker
-      if [ "\$(is_ubuntu)" == "true" )) || [ "$\(is_centos)" == "true" ]; then
+      if [ "\$(is_ubuntu)" == "true" ] || [ "$\(is_centos)" == "true" ]; then
         sudo chmod 777 /var/run/docker.sock
       fi
 
