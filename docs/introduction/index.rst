@@ -93,7 +93,7 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
 .. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
 
 How it works
-============
+------------
 
 The Flocker Docker plugin means you can run containers with named volumes without worrying which server your data is on.
 
@@ -110,7 +110,7 @@ There are three main cases which the plugin handles:
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
 Demo
-====
+----
 
 This demo shows both the Flocker Docker plugin in conjunction with the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
 

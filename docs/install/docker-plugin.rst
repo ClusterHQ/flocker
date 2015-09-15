@@ -69,7 +69,7 @@ Then perform the following instructions on each of the hosts where you want to i
 
       docker run -ti -v test:/data --volume-driver=flocker busybox sh
 
-   If all is well, the plugin is able to communicate with the Flocker control service, and the agents running on the hosts are able to interact with the underlying storage, then you should see the dataset ``test`` show up in the Flocker :ref:`CLI <labs-volumes-cli>` or the :ref:`GUI <labs-volumes-gui>`.
+If all is well, the plugin is able to communicate with the Flocker control service, and the agents running on the hosts are able to interact with the underlying storage, then you should see the dataset ``test`` show up in the Flocker :ref:`CLI <labs-volumes-cli>` or the :ref:`GUI <labs-volumes-gui>`.
 
 Known limitations
 =================
