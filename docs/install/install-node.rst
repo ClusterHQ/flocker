@@ -20,7 +20,6 @@ It is also possible to install Flocker on any CentOS 7 or Ubuntu 14.04 machine.
 - :ref:`Installing on CentOS 7 <centos-7-install>`
 - :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
 
-
 .. _vagrant-install:
 
 Vagrant
@@ -142,17 +141,7 @@ Installing on CentOS 7
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-First disable SELinux.
-
-.. task:: disable_selinux centos-7
-   :prompt: [root@centos]#
-
-.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
-          This prevents Docker containers from accessing those filesystems as volumes.
-          A future version of Flocker may provide a different integration strategy.
-          See :issue:`619`.
-
-Now install the ``flocker-node`` package.
+First, install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
 Paste them into a root console on the target node:
@@ -161,7 +150,7 @@ Paste them into a root console on the target node:
    :prompt: [root@centos]#
 
 Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/docker/installation/>` and running.
+Make sure `Docker (at least 1.8) is installed`_ and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
@@ -180,7 +169,7 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
    :prompt: [root@ubuntu]#
 
 Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed <https://docs.docker.com/docker/installation/>` and running.
+Make sure `Docker (at least 1.8) is installed`_  and running.
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
@@ -190,3 +179,5 @@ Next Step
 =========
 
 In the next step :ref:`the node control and agent services will be configured and started.<post-installation-configuration>`.
+
+.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/

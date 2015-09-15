@@ -8,8 +8,14 @@ from json import dumps
 from os import environ
 from unittest import SkipTest, skipUnless
 from uuid import uuid4
+from socket import socket
+from contextlib import closing
 
 import json
+import ssl
+
+from docker import Client
+from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -20,7 +26,7 @@ from twisted.internet import reactor
 from eliot import Logger, start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
-from treq import json_content, content
+from treq import json_content, content, get, post
 
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
@@ -33,7 +39,7 @@ from ..common import gather_deferreds
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
 from ..testtools import loop_until, random_name, REALISTIC_BLOCKDEVICE_SIZE
-
+from ..apiclient import FlockerClient, DatasetState
 
 try:
     from pymongo import MongoClient
@@ -46,7 +52,7 @@ __all__ = [
     'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
-    'create_attached_volume'
+    'create_attached_volume', 'get_docker_client'
     ]
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
@@ -64,6 +70,33 @@ require_mongo = skipUnless(
 # https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
+
+DOCKER_PORT = 2376
+
+
+def get_docker_client(cluster, address):
+    """
+    Open a Docker client to the given address.
+
+    :param Cluster cluster: Description of the cluster we're talking to.
+    :param bytes address: The public IP of the node to connect to.
+
+    :return: Docker ``Client`` instance.
+    """
+    def get_path(name):
+        return cluster.certificates_path.child(name).path
+
+    tls = TLSConfig(
+        client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
+        # Blows up if not set
+        # (https://github.com/shazow/urllib3/issues/695):
+        ssl_version=ssl.PROTOCOL_TLSv1,
+        # Don't validate hostname, we don't generate it correctly, but
+        # do verify certificate authority signed the server certificate:
+        assert_hostname=False,
+        verify=get_path(b"cluster.crt"))
+    return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
+                  tls=tls, timeout=100)
 
 
 def get_mongo_application():
@@ -304,11 +337,15 @@ class Cluster(PRecord):
     :ivar Node control_node: The node running the ``flocker-control``
         service.
     :ivar list nodes: The ``Node`` s in this cluster.
-    :ivar treq: A ``treq`` client.
+
+    :ivar treq: A ``treq`` client, eventually to be completely replaced by
+        ``FlockerClient`` usage.
+    :ivar client: A ``FlockerClient``.
     """
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
 
     @property
@@ -322,131 +359,65 @@ class Cluster(PRecord):
         )
 
     @log_method
-    def configured_datasets(self):
+    def wait_for_deleted_dataset(self, deleted_dataset):
         """
-        Return the configured dataset state of the cluster.
+        Poll the dataset state API until the supplied dataset does
+        not exist.
 
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the configuration of the cluster.
+        :param Dataset deleted_dataset: The configured dataset that
+            we're waiting for to be removed from state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when the dataset is no longer found in state.
         """
-        request = self.treq.get(
-            self.base_url + b"/configuration/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
+        def deleted():
+            request = self.client.list_datasets_state()
+
+            def got_results(datasets):
+                return deleted_dataset.dataset_id not in (
+                    d.dataset_id for d in datasets)
+            request.addCallback(got_results)
+            return request
+
+        waiting = loop_until(deleted)
+        waiting.addCallback(lambda _: deleted_dataset)
+        return waiting
 
     @log_method
-    def datasets_state(self):
-        """
-        Return the actual dataset state of the cluster.
-
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the state of the cluster.
-        """
-        request = self.treq.get(
-            self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def wait_for_dataset(self, dataset_properties):
+    def wait_for_dataset(self, expected_dataset):
         """
         Poll the dataset state API until the supplied dataset exists.
 
-        :param dict dataset_properties: The attributes of the dataset that
-            we're waiting for.
-        :returns: A ``Deferred`` which fires with an API response when a
-            dataset with the supplied properties appears in the cluster.
+        :param Dataset expected_dataset: The configured dataset that
+            we're waiting for in state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when the cluster state matches the configuration for the given
+            dataset.
         """
+        expected_dataset_state = DatasetState(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_dataset.primary,
+            maximum_size=expected_dataset.maximum_size,
+            path=None)
+
         def created():
             """
             Check the dataset state list for the expected dataset.
             """
-            request = self.datasets_state()
+            request = self.client.list_datasets_state()
 
-            def got_body(body):
-                # State listing doesn't have metadata or deleted, but does
-                # have unpredictable path.
-                expected_dataset = dataset_properties.copy()
-                del expected_dataset[u"metadata"]
-                del expected_dataset[u"deleted"]
-                for dataset in body:
-                    try:
-                        dataset.pop("path")
-                    except KeyError:
-                        # Non-manifest datasets don't have a path
-                        pass
-                return expected_dataset in body
-            request.addCallback(got_body)
+            def got_results(results):
+                # State has unpredictable path, so we don't bother
+                # checking for its contents:
+                actual_dataset_states = [d.set(path=None) for d in results]
+                return expected_dataset_state in actual_dataset_states
+            request.addCallback(got_results)
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: dataset_properties)
+        waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
-
-    @log_method
-    def create_dataset(self, dataset_properties):
-        """
-        Create a dataset with the supplied ``dataset_properties``.
-
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with an API response when a
-            dataset with the supplied properties has been persisted to the
-            cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/datasets",
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, CREATED)
-        return request
-
-    @log_method
-    def update_dataset(self, dataset_id, dataset_properties):
-        """
-        Update a dataset with the supplied ``dataset_properties``.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with an API response when the
-            dataset update has been persisted to the cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def delete_dataset(self, dataset_id):
-        """
-        Delete a dataset.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-
-        :returns: A ``Deferred`` which fires with an API response when the
-            dataset deletion has been persisted to the cluster configuration.
-        """
-        request = self.treq.delete(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
 
     @log_method
     def create_container(self, properties):
@@ -629,28 +600,37 @@ class Cluster(PRecord):
             )
             return get_items
 
-        def cleanup_containers():
+        def cleanup_containers(_):
             return api_clean_state(
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
 
-        def cleanup_datasets():
+        def cleanup_datasets(_):
             return api_clean_state(
-                lambda: self.configured_datasets().addCallback(
-                    lambda datasets: list(
-                        dataset
-                        for dataset
-                        in datasets
-                        if not dataset.get(u"deleted", False)
-                    )
-                ),
-                self.datasets_state,
-                lambda item: self.delete_dataset(item[u"dataset_id"]),
+                self.client.list_datasets_configuration,
+                self.client.list_datasets_state,
+                lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
-        return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+        def cleanup_leases():
+            get_items = self.client.list_leases()
+
+            def release_all(leases):
+                release_list = []
+                for lease in leases:
+                    release_list.append(
+                        self.client.release_lease(lease.dataset_id))
+                return gather_deferreds(release_list)
+
+            get_items.addCallback(release_all)
+            return get_items
+
+        d = cleanup_leases()
+        d.addCallback(cleanup_containers)
+        d.addCallback(cleanup_datasets)
+        return d
 
 
 def _get_test_cluster(reactor, node_count):
@@ -692,6 +672,8 @@ def _get_test_cluster(reactor, node_count):
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
+        client=FlockerClient(reactor, control_node, REST_API_PORT,
+                             cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
     )
 
@@ -817,7 +799,8 @@ def create_python_container(test_case, cluster, parameters, script,
 
 
 def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                   dataset_id=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -825,18 +808,17 @@ def create_dataset(test_case, cluster,
     :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
-    :return: ``Deferred`` firing with a dataset state dictionary once the
+    :param UUID dataset_id: The v4 UUID of the dataset.
+        Generated if not specified.
+    :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
-    # Configure a dataset on node1
-    requested_dataset = {
-        u"primary": cluster.nodes[0].uuid,
-        u"dataset_id": unicode(uuid4()),
-        u"maximum_size": maximum_size,
-        u"metadata": {u"name": u"my_volume"},
-    }
-
-    configuring_dataset = cluster.create_dataset(requested_dataset)
+    if dataset_id is None:
+        dataset_id = uuid4()
+    configuring_dataset = cluster.client.create_dataset(
+        cluster.nodes[0].uuid, maximum_size=maximum_size,
+        dataset_id=dataset_id, metadata={u"name": u"my_volume"}
+    )
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
@@ -844,3 +826,114 @@ def create_dataset(test_case, cluster,
     )
 
     return waiting_for_create
+
+
+def verify_socket(host, port):
+    """
+    Wait until the destionation can be connected to.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Firing when connection is possible.
+    """
+    def can_connect():
+        with closing(socket()) as s:
+            conn = s.connect_ex((host, port))
+            Message.new(
+                message_type="acceptance:verify_socket",
+                host=host,
+                port=port,
+                result=conn,
+            ).write()
+            return conn == 0
+
+    dl = loop_until(can_connect)
+    return dl
+
+
+def post_http_server(test, host, port, data, expected_response=b"ok"):
+    """
+    Make a POST request to an HTTP server on the given host and port
+    and assert that the response body matches the expected response.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes data: The raw request body data.
+    :param bytes expected_response: The HTTP response body expected.
+        Defaults to b"ok"
+    """
+    def make_post(host, port, data):
+        request = post(
+            "http://{host}:{port}".format(host=host, port=port),
+            data=data,
+            persistent=False
+        )
+
+        def failed(failure):
+            Message.new(message_type=u"acceptance:http_query_failed",
+                        reason=unicode(failure)).write()
+            return False
+        request.addCallbacks(content, failed)
+        return request
+    d = verify_socket(host, port)
+    d.addCallback(lambda _: loop_until(lambda: make_post(
+        host, port, data)))
+    d.addCallback(test.assertEqual, expected_response)
+    return d
+
+
+def query_http_server(host, port, path=b""):
+    """
+    Return the response from a HTTP server.
+
+    We try multiple since it may take a little time for the HTTP
+    server to start up.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes path: Optional path and query string.
+
+    :return: ``Deferred`` that fires with the body of the response.
+    """
+    def query():
+        req = get(
+            "http://{host}:{port}{path}".format(
+                host=host, port=port, path=path),
+            persistent=False
+        )
+
+        def failed(failure):
+            Message.new(message_type=u"acceptance:http_query_failed",
+                        reason=unicode(failure)).write()
+            return False
+        req.addCallbacks(content, failed)
+        return req
+
+    d = verify_socket(host, port)
+    d.addCallback(lambda _: loop_until(query))
+    return d
+
+
+def assert_http_server(test, host, port,
+                       path=b"", expected_response=b"hi"):
+
+    """
+    Assert that a HTTP serving a response with body ``b"hi"`` is running
+    at given host and port.
+
+    This can be coupled with code that only conditionally starts up
+    the HTTP server via Flocker in order to check if that particular
+    setup succeeded.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes path: Optional path and query string.
+    :param bytes expected_response: The HTTP response body expected.
+        Defaults to b"hi"
+
+    :return: ``Deferred`` that fires when assertion has run.
+    """
+    d = query_http_server(host, port, path)
+    d.addCallback(test.assertEqual, expected_response)
+    return d

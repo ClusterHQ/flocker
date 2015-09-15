@@ -12,15 +12,21 @@ from zope.interface.verify import verifyObject
 
 from pyrsistent import pmap
 
+from eliot import ActionType
+from eliot.testing import capture_logging, assertHasAction, LoggedAction
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.http import BAD_REQUEST
+from twisted.internet.defer import gatherResults
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
-    DatasetState, FlockerClient, ResponseError,
+    DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
+    Lease, LeaseAlreadyHeld,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -29,6 +35,8 @@ from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
 from ...control import NodeState, NonManifestDatasets, Dataset as ModelDataset
+from ...restapi._logging import JSON_REQUEST
+from ...restapi import _infrastructure as rest_api
 
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
@@ -254,6 +262,74 @@ def make_clientv1_tests():
                               states))
             return d
 
+        def test_acquire_lease_result(self):
+            """
+            ``acquire_lease`` returns a ``Deferred`` firing with ``Lease``
+            instance.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
+                                                  node_uuid=self.node_1,
+                                                  expires=123))
+            return d
+
+        def test_release_lease_result(self):
+            """
+            ``release_lease`` returns a ``Deferred`` firing with ``Lease``
+            instance.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d.addCallback(lambda _: self.client.release_lease(dataset_id))
+            d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
+                                                  node_uuid=self.node_1,
+                                                  expires=123))
+            return d
+
+        def test_list_leases(self):
+            """
+            ``list_leases`` lists acquired leases that have not been released
+            yet.
+            """
+            d1, d2, d3 = uuid4(), uuid4(), uuid4()
+            d = gatherResults([
+                self.client.acquire_lease(d1, self.node_1, 10),
+                self.client.acquire_lease(d2, self.node_1, None),
+                self.client.acquire_lease(d3, self.node_2, 10.5),
+                ])
+            d.addCallback(lambda _: self.client.release_lease(d2))
+            d.addCallback(lambda _: self.client.list_leases())
+            d.addCallback(
+                self.assertItemsEqual,
+                [Lease(dataset_id=d1, node_uuid=self.node_1, expires=10),
+                 Lease(dataset_id=d3, node_uuid=self.node_2, expires=10.5)])
+            return d
+
+        def test_renew_lease(self):
+            """
+            Acquiring a lease twice on the same dataset and node renews it.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d.addCallback(lambda _: self.client.acquire_lease(
+                dataset_id, self.node_1, 456))
+            d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
+                                                  node_uuid=self.node_1,
+                                                  expires=456))
+            return d
+
+        def test_acquire_lease_conflict(self):
+            """
+            A ``LeaseAlreadyHeld`` exception is raised if an attempt is made to
+            acquire a lease that is held by another node.
+            """
+            dataset_id = uuid4()
+            d = self.client.acquire_lease(dataset_id, self.node_1, 10)
+            d.addCallback(lambda _: self.client.acquire_lease(
+                dataset_id, self.node_2, None))
+            return self.assertFailure(d, LeaseAlreadyHeld)
+
     return InterfaceTests
 
 
@@ -279,7 +355,7 @@ class FlockerClientTests(make_clientv1_tests()):
 
         :return: ``FlockerClient`` instance.
         """
-        _, port = find_free_port()
+        _, self.port = find_free_port()
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
@@ -294,15 +370,17 @@ class FlockerClientTests(make_clientv1_tests()):
         api_service = create_api_service(
             self.persistence_service,
             self.cluster_state_service,
-            TCP4ServerEndpoint(reactor, port, interface=b"127.0.0.1"),
+            TCP4ServerEndpoint(reactor, self.port, interface=b"127.0.0.1"),
             rest_api_context_factory(
                 credential_set.root.credential.certificate,
-                credential_set.control))
+                credential_set.control),
+            # Use consistent fake time for API results:
+            Clock())
         api_service.startService()
         self.addCleanup(api_service.stopService)
 
         credential_set.copy_to(credentials_path, user=True)
-        return FlockerClient(reactor, b"127.0.0.1", port,
+        return FlockerClient(reactor, b"127.0.0.1", self.port,
                              credentials_path.child(b"cluster.crt"),
                              credentials_path.child(b"user.crt"),
                              credentials_path.child(b"user.key"))
@@ -320,7 +398,55 @@ class FlockerClientTests(make_clientv1_tests()):
                        for node in deployment.nodes]
         self.cluster_state_service.apply_changes(node_states)
 
-    def test_unexpected_error(self):
+    @capture_logging(None)
+    def test_logging(self, logger):
+        """
+        Successful HTTP requests are logged.
+        """
+        dataset_id = uuid4()
+        d = self.client.create_dataset(
+            primary=self.node_1, maximum_size=None, dataset_id=dataset_id)
+        d.addCallback(lambda _: assertHasAction(
+            self, logger, _LOG_HTTP_REQUEST, True, dict(
+                url=b"https://127.0.0.1:{}/v1/configuration/datasets".format(
+                    self.port),
+                method=u"POST",
+                request_body=dict(primary=unicode(self.node_1),
+                                  metadata={},
+                                  dataset_id=unicode(dataset_id))),
+            dict(response_body=dict(primary=unicode(self.node_1),
+                                    metadata={},
+                                    deleted=False,
+                                    dataset_id=unicode(dataset_id)))))
+        return d
+
+    @capture_logging(None)
+    def test_cross_process_logging(self, logger):
+        """
+        Eliot tasks can be traced from the HTTP client to the API server.
+        """
+        self.patch(rest_api, "_logger", logger)
+        my_action = ActionType("my_action", [], [])
+        with my_action():
+            d = self.client.create_dataset(primary=self.node_1)
+
+        def got_response(_):
+            parent = LoggedAction.ofType(logger.messages, my_action)[0]
+            child = LoggedAction.ofType(logger.messages, JSON_REQUEST)[0]
+            self.assertIn(child, list(parent.descendants()))
+        d.addCallback(got_response)
+        return d
+
+    @capture_logging(lambda self, logger: assertHasAction(
+        self, logger, _LOG_HTTP_REQUEST, False, dict(
+            url=b"https://127.0.0.1:{}/v1/configuration/datasets".format(
+                self.port),
+            method=u"POST",
+            request_body=dict(
+                primary=unicode(self.node_1), maximum_size=u"notint",
+                metadata={})),
+        {u'exception': u'flocker.apiclient._client.ResponseError'}))
+    def test_unexpected_error(self, logger):
         """
         If the ``FlockerClient`` receives an unexpected HTTP response code it
         returns a ``ResponseError`` failure.

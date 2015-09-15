@@ -10,6 +10,7 @@ import time
 import socket
 from functools import partial
 
+from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 from docker import Client
 # Docker-py uses 1.16 API by default, which isn't supported by docker, so force
@@ -24,22 +25,24 @@ from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
-from pyrsistent import pvector
+from pyrsistent import PClass, pvector, field
+
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
     random_name)
 
-from ..test.test_docker import make_idockerclient_tests
+from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume, AddressInUse,
+    BASE_NAMESPACE, Volume, AddressInUse, make_response,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
 )
 from ..testtools import (
-    if_docker_configured, wait_for_unit_state, require_docker_version
+    if_docker_configured, wait_for_unit_state, require_docker_version,
+    add_with_port_collision_retry,
 )
 
 
@@ -73,6 +76,27 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
         pass
 
 
+class Registry(PClass):
+    """
+    Describe a Docker image registry.
+
+    :ivar host: The IP address on which the registry is listening.
+    :ivar port: The port number on which the registry is listening.
+    :ivar name: The name of the container in which the registry is running.
+    """
+    host = field(mandatory=True, type=bytes, initial=b"127.0.0.1")
+    port = field(mandatory=True, type=int)
+    name = field(mandatory=True, type=unicode)
+
+    @property
+    def repository(self):
+        """
+        The string to use as an image name prefix to direct Docker to find that
+        image in this registry instead of the default.
+        """
+        return "{host}:{port}".format(host=self.host, port=self.port)
+
+
 class GenericDockerClientTests(TestCase):
     """
     Functional tests for ``DockerClient`` and other clients that talk to
@@ -100,12 +124,13 @@ class GenericDockerClientTests(TestCase):
             name=container_name, image=image)
 
     def start_container(self, unit_name,
-                        image_name=u"openshift/busybox-http-app",
+                        image_name=u"openshift/busybox-http-app:latest",
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
                         restart_policy=RestartNever(),
-                        command_line=None):
+                        command_line=None,
+                        retry_on_port_collision=False):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -125,7 +150,13 @@ class GenericDockerClientTests(TestCase):
             the unit reaches the expected state.
         """
         client = self.make_client()
-        d = client.add(
+
+        if retry_on_port_collision:
+            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+        else:
+            add = client.add
+
+        d = add(
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
@@ -163,14 +194,17 @@ class GenericDockerClientTests(TestCase):
         """
         ``DockerClient.add`` creates a container with the specified image.
         """
+        image_name = u"openshift/busybox-http-app:latest"
         name = random_name(self)
-        d = self.start_container(name)
+        d = self.start_container(name, image_name=image_name)
 
         def started(_):
             docker = Client()
             data = docker.inspect_container(self.namespacing_prefix + name)
-            self.assertEqual(data[u"Config"][u"Image"],
-                             u"openshift/busybox-http-app")
+            self.assertEqual(
+                image_name,
+                data[u"Config"][u"Image"],
+            )
         d.addCallback(started)
         return d
 
@@ -195,73 +229,38 @@ class GenericDockerClientTests(TestCase):
         Docker can pull from a private registry without any TLS configuration
         as long as it's running on the local host.
         """
-        registry_name = random_name(self)
-        registry_port = find_free_port()[1]
-        repository = '127.0.0.1:{}'.format(registry_port)
-        name = random_name(self).lower()
-        private_image = DockerImage(
-            # XXX: See FLOC-246 for followup improvements to
-            # ``flocker.control.DockerImage`` to allow parsing of alternative
-            # registry hostnames and ports.
-            repository=repository + '/' + name,
-            tag='latest'
-        )
+        registry_listening = self.run_registry()
 
-        registry_starting = self.start_container(
-            unit_name=registry_name,
-            image_name='registry:2',
-            ports=[
-                PortMap(
-                    internal_port=5000,
-                    external_port=registry_port
-                ),
-            ]
-        )
-
-        registry_listening = registry_starting.addCallback(
-            lambda ignored: self.request_until_response(registry_port)
-        )
-
-        def tag_and_push_image(ignored):
+        def tag_and_push_image(registry):
             client = Client()
+            image_name = ANY_IMAGE
             # The image will normally have been pre-pulled on build slaves, but
             # may not already be available when running tests locally.
-            client.pull('openshift/busybox-http-app')
-            # Tag an image with a repository name matching the locally running
-            # registry container.
-            client.tag(
-                image='openshift/busybox-http-app',
-                repository=private_image.repository,
-                tag=private_image.tag,
-            )
-            # Push to the local registry.
-            client.push(
-                repository=private_image.repository,
-                tag=private_image.tag,
-            )
-            # Remove the local tag of the random image
-            client.remove_image(
-                image=private_image.full_name,
-            )
+            client.pull(image_name)
+
+            registry_image = self.push_to_registry(image_name, registry)
+
             # And the image will (hopefully) have been downloaded again from
             # the private registry in the next step, so cleanup that local
             # image once the test finishes.
             self.addCleanup(
                 client.remove_image,
-                image=private_image.full_name
+                image=registry_image.full_name
             )
+
+            return registry_image
 
         pushing_image = registry_listening.addCallback(tag_and_push_image)
 
-        def start_private_image(ignored):
+        def start_registry_image(registry_image):
             return self.start_container(
                 unit_name=random_name(self),
-                image_name=private_image.full_name,
+                image_name=registry_image.full_name,
             )
-        starting_private_image = pushing_image.addCallback(
-            start_private_image
+        starting_registry_image = pushing_image.addCallback(
+            start_registry_image
         )
-        return starting_private_image
+        return starting_registry_image
 
     def test_add_error(self):
         """
@@ -425,7 +424,9 @@ class GenericDockerClientTests(TestCase):
         name = random_name(self)
         d = self.start_container(
             name, ports=[PortMap(internal_port=8080,
-                                 external_port=external_port)])
+                                 external_port=external_port)],
+            retry_on_port_collision=True,
+        )
 
         d.addCallback(
             lambda ignored: self.request_until_response(external_port))
@@ -484,85 +485,256 @@ class GenericDockerClientTests(TestCase):
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        # Use an image that isn't likely to be in use by anything, since
-        # it's old, and isn't used by other tests:
-        image = u"busybox:ubuntu-12.04"
-        # Make sure image is gone:
-        docker = Client()
-        try:
-            docker.remove_image(image, force=True)
-        except APIError as e:
-            if e.response.status_code != 404:
-                raise
+        client = Client()
 
-        name = random_name(self)
-        client = self.make_client()
-        self.addCleanup(client.remove, name)
-        d = client.add(name, image)
-        d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent(
+            b"FROM busybox\n"
+            b"CMD /bin/true\n"
+        )
+        builder = DockerImageBuilder(
+            test=self, source_dir=path,
+            # We're going to manipulate the various tags on the image ourselves
+            # in this test.  We'll do (the slightly more complicated) cleanup
+            # so the builder shouldn't (and will encounter errors if we let
+            # it).
+            cleanup=False,
+        )
+        building = builder.build()
+        registry_listening = self.run_registry()
+
+        def create_container((image_name, registry)):
+            registry_image = self.push_to_registry(image_name, registry)
+
+            # And the image will (hopefully) have been downloaded again from
+            # the private registry in the next step, so cleanup that local
+            # image once the test finishes.
+            self.addCleanup(
+                client.remove_image,
+                image=registry_image.full_name
+            )
+
+            name = random_name(self)
+            docker_client = self.make_client()
+            self.addCleanup(docker_client.remove, name)
+            d = docker_client.add(name, registry_image.full_name)
+            d.addCallback(
+                lambda _: self.assertTrue(
+                    client.inspect_image(registry_image.full_name)
+                )
+            )
+            return d
+
+        d = gatherResults((building, registry_listening))
+        d.addCallback(create_container)
         return d
+
+    def push_to_registry(self, image_name, registry):
+        """
+        Push an image identified by a local tag to the given registry.
+
+        :param unicode image_name: The local tag which identifies the image to
+            push.
+        :param Registry registry: The registry to which to push the image.
+
+        :return: A ``DockerImage`` describing the image in the registry.  Note
+            in particular the tag of the image in the registry will differ from
+            the local tag of the image.
+        """
+        registry_name = random_name(self).lower()
+        registry_image = DockerImage(
+            # XXX: See FLOC-246 for followup improvements to
+            # ``flocker.control.DockerImage`` to allow parsing of alternative
+            # registry hostnames and ports.
+            repository=registry.repository + '/' + registry_name,
+            tag='latest',
+        )
+        client = Client()
+
+        # Tag an image with a repository name matching the given registry.
+        client.tag(
+            image=image_name, repository=registry_image.repository,
+            tag=registry_image.tag,
+        )
+        try:
+            client.push(
+                repository=registry_image.repository,
+                tag=registry_image.tag,
+            )
+        finally:
+            # Remove the tag created above to make it possible to do the push.
+            client.remove_image(image=registry_image.full_name)
+
+        return registry_image
+
+    def run_registry(self):
+        """
+        Start a registry in a container.
+
+        The registry will be stopped and destroyed when the currently running
+        test finishes.
+
+        :return: A ``Registry`` describing the registry which was started.
+        """
+        registry_name = random_name(self)
+        registry_starting = self.start_container(
+            unit_name=registry_name,
+            image_name='registry:2',
+            ports=[
+                PortMap(
+                    internal_port=5000,
+                    # Doesn't matter what port we expose this on.  We'll
+                    # discover what was assigned later.
+                    external_port=0,
+                ),
+            ],
+            retry_on_port_collision=True,
+        )
+
+        def extract_listening_port(client):
+            listing = client.list()
+            listing.addCallback(
+                lambda applications: list(
+                    next(iter(application.ports)).external_port
+                    for application
+                    in applications
+                )[0]
+            )
+            return listing
+        registry_starting.addCallback(extract_listening_port)
+
+        def wait_for_listening(external_port):
+            registry = Registry(
+                name=registry_name, port=external_port,
+            )
+            registry_listening = self.request_until_response(registry.port)
+            registry_listening.addCallback(lambda ignored: registry)
+            return registry_listening
+        registry_starting.addCallback(wait_for_listening)
+
+        return registry_starting
+
+    def _pull_timeout(self):
+        """
+        Attempt to start an application using an image which must be pulled
+        from a registry but don't give the pull operation enough time to
+        complete.  Assert that the result is a timeout error of some kind.
+
+        :return: A ``Deferred`` firing with a two-tuple of a ``DockerImage``
+            and a ``Registry``.  The former represents the image we attempted
+            to use, the latter represents the registry we should have tried to
+            pull it from.
+        """
+        client = Client()
+
+        # Run a local registry
+        running = self.run_registry()
+
+        # Build a stub image
+        def build_dummy_image(registry):
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            path.child(b"Dockerfile.in").setContent(
+                b"FROM busybox\n"
+                b"CMD /bin/true\n"
+            )
+            builder = DockerImageBuilder(
+                test=self, source_dir=path,
+                # We're going to manipulate the various tags on the image
+                # ourselves in this test.  We'll do (the slightly more
+                # complicated) cleanup so the builder shouldn't (and will
+                # encounter errors if we let it).
+                cleanup=False,
+            )
+            building = builder.build()
+            building.addCallback(lambda image_name: (image_name, registry))
+            return building
+        running.addCallback(build_dummy_image)
+
+        def cleanup_image(image_name):
+            for image in client.images():
+                if image_name in image["RepoTags"]:
+                    client.remove_image(image_name, force=True)
+                    return
+
+        def cleanup_registry(registry):
+            try:
+                client.unpause(self.namespacing_prefix + registry.name)
+            except APIError:
+                # Already unpaused
+                pass
+
+        def setup_image((image_name, registry)):
+            registry_image = self.push_to_registry(image_name, registry)
+
+            # The image shouldn't be downloaded during the run of this test.
+            # In case something goes wrong and it is downloaded, though, clean
+            # it up.
+            self.addCleanup(cleanup_image, image_name)
+
+            # Pause the registry
+            client.pause(self.namespacing_prefix + registry.name)
+
+            # Cannot stop paused containers to make sure it gets unpaused.
+            self.addCleanup(cleanup_registry, registry)
+
+            # Create a DockerClient with a very short timeout
+            docker_client = DockerClient(
+                namespace=self.namespacing_prefix, long_timeout=1,
+            )
+            # Add an application using the DockerClient, using the tag from the
+            # local registry
+            app_name = random_name(self)
+            d = docker_client.add(app_name, registry_image.full_name)
+
+            # Assert that the timeout triggers.
+            #
+            # requests has a TimeoutError but timeout raises a ConnectionError.
+            # https://github.com/kennethreitz/requests/issues/2620
+            #
+            # XXX DockerClient.add is our API.  We could make it fail with a
+            # more coherent exception type if we wanted.
+            self.assertFailure(d, ReadTimeout)
+            d.addCallback(lambda ignored: (registry_image, registry))
+            return d
+        running.addCallback(setup_image)
+        return running
 
     def test_pull_timeout(self):
         """
         Pulling an image times-out if it takes longer than a provided timeout.
         """
-        # Use an image that isn't likely to be in use by anything, since
-        # it's old, and isn't used by other tests:
-        image = u"ubuntu:12.04"
-        # Make sure image is gone:
-        docker = Client()
-        try:
-            docker.remove_image(image, force=True)
-        except APIError as e:
-            if e.response.status_code != 404:
-                raise
-
-        name = random_name(self)
-        client = DockerClient(
-            namespace=self.namespacing_prefix, long_timeout=1)
-        self.addCleanup(client.remove, name)
-        d = client.add(name, image)
-        # requests has a TimeoutError, but timeout raises a ConnectionError.
-        # Both are subclasses of IOError, so use that for now
-        # https://github.com/kennethreitz/requests/issues/2620
-        self.assertFailure(d, IOError)
-        return d
+        return self._pull_timeout()
 
     def test_pull_timeout_pull(self):
         """
         Image pull timeout does not affect subsequent pulls.
         """
-        # Use an image that isn't likely to be in use by anything, since
-        # it's old, and isn't used by other tests.  Note, this is the
-        # same image as test_pull_image_if_necessary, but they run at
-        # different times.
-        image = u"busybox:ubuntu-12.04"
-        # Make sure image is gone:
-        docker = Client()
-        try:
-            docker.remove_image(image, force=True)
-        except APIError as e:
-            if e.response.status_code != 404:
-                raise
+        # Note, this is the same image as test_pull_image_if_necessary, but
+        # they run at different times.  Probably room for some refactoring to
+        # remove the duplication between them.
 
-        name = random_name(self)
-        client = DockerClient(
-            namespace=self.namespacing_prefix, long_timeout=1)
-        self.addCleanup(client.remove, name)
-        d = client.add(name, image)
+        # Run all of the code from test_pull_timeout
+        timing_out = self._pull_timeout()
 
-        def unexpected_success(_):
-            self.fail('Image unexpectedly pulled within timeout limit')
+        def pull_successfully((registry_image, registry)):
+            client = Client()
+            # Resume the registry
+            client.unpause(self.namespacing_prefix + registry.name)
 
-        def expected_failure(failure):
-            self.assertIsNotNone(failure.check(IOError))
-            # We got our failure, now try to successfully pull
-            client = DockerClient(
-                namespace=self.namespacing_prefix, long_timeout=600)
-            return client.add(name, image)
+            # Create a DockerClient with the default timeout
+            docker_client = DockerClient(namespace=self.namespacing_prefix)
 
-        d.addCallbacks(unexpected_success, expected_failure)
-        return d
+            # Add an application using the Client, using the tag from the local
+            # registry
+            app_name = random_name(self)
+            adding = docker_client.add(app_name, registry_image.full_name)
+
+            # Assert that the application runs
+            return adding
+        timing_out.addCallback(pull_successfully)
+        return timing_out
 
     def test_namespacing(self):
         """
@@ -836,11 +1008,7 @@ class GenericDockerClientTests(TestCase):
             # TODO: if the `run` script fails for any reason,
             # then this will loop forever.
 
-            # TODO: use the "wait for predicate" helper
-            def wait_for_marker(_):
-                while not marker.exists():
-                    time.sleep(0.01)
-            d.addCallback(wait_for_marker)
+            d.addCallback(lambda ignored: loop_until(marker.exists))
 
         d.addCallback(lambda ignored: count.getContent())
         return d
@@ -924,6 +1092,30 @@ nc -ll -p 8080 -e /tmp/script.sh
         return d
 
 
+class MakeResponseTests(TestCase):
+    """
+    Tests for ``make_response``.
+    """
+    def test_str(self):
+        """
+        ``str(make_response(...))`` returns a string giving the response code.
+        """
+        self.assertEqual(
+            str(make_response(123, "Something")),
+            "<Response [123]>",
+        )
+
+    def test_apierror_str(self):
+        """
+        A string representation can be constructed of an ``APIError``
+        constructed with the response returned by ``make_response``.
+        """
+        self.assertEqual(
+            str(APIError("", make_response(500, "Simulated server error"))),
+            "500 Server Error: Simulated server error",
+        )
+
+
 class DockerClientTests(TestCase):
     """
     Tests for ``DockerClient`` specifically.
@@ -954,13 +1146,11 @@ class DockerClientTests(TestCase):
         flocker_docker_client = DockerClient(namespace=namespace)
 
         name1 = random_name(self)
-        adding_unit1 = flocker_docker_client.add(
-            name1, u'openshift/busybox-http-app')
+        adding_unit1 = flocker_docker_client.add(name1, ANY_IMAGE)
         self.addCleanup(flocker_docker_client.remove, name1)
 
         name2 = random_name(self)
-        adding_unit2 = flocker_docker_client.add(
-            name2, u'openshift/busybox-http-app')
+        adding_unit2 = flocker_docker_client.add(name2, ANY_IMAGE)
         self.addCleanup(flocker_docker_client.remove, name2)
 
         docker_client = flocker_docker_client._client
@@ -1013,12 +1203,10 @@ class DockerClientTests(TestCase):
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox:latest")
 
-        class Response(object):
-            status_code = 500
-            content = ""
+        response = make_response(500, "Simulated error")
 
         def error(name):
-            raise APIError("", Response())
+            raise APIError("", response)
 
         def added(_):
             # Monekypatch cause triggering non-404 errors from

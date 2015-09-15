@@ -5,8 +5,11 @@ Tests for ``flocker.control.httpapi``.
 
 from uuid import uuid4
 from copy import deepcopy
+from datetime import datetime
 
 from pyrsistent import pmap, thaw
+
+from pytz import UTC
 
 from zope.interface.verify import verifyObject
 
@@ -32,7 +35,7 @@ from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
     RestartAlways, RestartNever, Link, same_node, DeploymentState,
-    NonManifestDatasets,
+    NonManifestDatasets, Leases, Lease,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -67,6 +70,7 @@ class APITestsMixin(APIAssertionsMixin):
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(Clock())
         self.cluster_state_service.startService()
+        self.clock = Clock()
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
 
@@ -87,7 +91,8 @@ class VersionTestsMixin(APITestsMixin):
 def _build_app(test):
     test.initialize()
     return ConfigurationAPIUserV1(test.persistence_service,
-                                  test.cluster_state_service).app
+                                  test.cluster_state_service,
+                                  test.clock).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
 
@@ -3347,3 +3352,199 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
 RealTestsConfigurationAPI, MemoryTestsConfigurationAPI = (
     buildIntegrationTests(ConfigurationComposeTestsMixin, "ConfigurationAPI",
                           _build_app))
+
+
+class LeasesTestsMixin(APITestsMixin):
+    """
+    Tests for the leases endpoints at ``/configuration/leases``.
+    """
+    dataset1 = uuid4()
+    dataset2 = uuid4()
+    dataset3 = uuid4()
+    node1 = uuid4()
+    node2 = uuid4()
+    node3 = uuid4()
+    # Current "time":
+    now = 2132154
+    # Seconds until first lease will expire:
+    expires = 15
+    # Time that passed since the leases were created:
+    time_passed = 3
+
+    # JSON representation of lease 1:
+    expected_lease1 = {u"dataset_id": unicode(dataset1),
+                       u"node_uuid": unicode(node1),
+                       u"expires": expires - time_passed}
+    # JSON representation of lease 2:
+    expected_lease2 = {u"dataset_id": unicode(dataset2),
+                       u"node_uuid": unicode(node2),
+                       u"expires": None}
+
+    def save_leases(self):
+        """
+        Store some leases in the persistence service.
+
+        :return: ``Deferred`` that fires when done.
+        """
+        self.clock.advance(self.now)
+
+        leases = Leases().acquire(
+            datetime.fromtimestamp(self.now, tz=UTC), self.dataset1,
+            self.node1, self.expires)
+        leases = leases.acquire(
+            datetime.fromtimestamp(self.now, tz=UTC), self.dataset2,
+            self.node2, None)
+        # Time has passed since leases were stored:
+        self.time_passed = 3
+        self.clock.advance(self.time_passed)
+
+        return self.persistence_service.save(Deployment(leases=leases))
+
+    def test_get(self):
+        """
+        GET ``/configuration/leases`` returns all leases.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResultItems(
+            method=b"GET",
+            path=b"/configuration/leases",
+            request_body=None,
+            expected_code=OK,
+            expected_result=[self.expected_lease1, self.expected_lease2],
+        ))
+        return d
+
+    def test_delete_existing(self):
+        """
+        DELETE ``/configuration/leases/<dataset_id>`` releases that lease.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE", b"/configuration/leases/" + bytes(self.dataset1),
+            request_body=None, expected_code=OK,
+            expected_result=self.expected_lease1))
+
+        def deleted(_):
+            # Dataset 1 was removed:
+            self.assertEqual(self.persistence_service.get().leases.keys(),
+                             [self.dataset2])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_non_existent(self):
+        """
+        DELETE ``/configuration/leases/<dataset_id>`` releases that lease.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE", b"/configuration/leases/" + bytes(uuid4()),
+            request_body=None, expected_code=NOT_FOUND,
+            expected_result={u"description": u"Lease not found."}))
+
+        def not_deleted(_):
+            # No datasets were removed.
+            self.assertItemsEqual(self.persistence_service.get().leases.keys(),
+                                  [self.dataset1, self.dataset2])
+        d.addCallback(not_deleted)
+        return d
+
+    def acquire_lease(self, expires, response_code=CREATED):
+        """
+        Acquire a lease for ``dataset3`` and ``node3`` with given expiration.
+
+        :param expires: ``None`` or seconds to expire.
+        :param response_code: Expected response code.
+        :return: ``Deferred`` that fires once lease is acquired.
+        """
+        lease_json = {u"dataset_id": unicode(self.dataset3),
+                      u"node_uuid": unicode(self.node3),
+                      u"expires": expires}
+
+        return self.assertResult(
+            b"POST", b"/configuration/leases",
+            request_body=lease_json, expected_code=response_code,
+            expected_result=lease_json)
+
+    def test_acquire_no_expiration(self):
+        """
+        POST ``/configuration/leases`` can acquire a lease without expiration.
+        """
+        d = self.acquire_lease(None)
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=None))
+        d.addCallback(acquired)
+        return d
+
+    def test_acquire_with_expiration(self):
+        """
+        POST ``/configuration/leases`` can acquire a lease that expires
+        appropriately.
+        """
+        self.clock.advance(self.now)
+        expires = 60
+        expected_expiration = datetime.fromtimestamp(
+            self.clock.seconds() + expires, UTC)
+        d = self.acquire_lease(expires)
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=expected_expiration))
+        d.addCallback(acquired)
+        return d
+
+    def test_acquire_already_exists_different_node(self):
+        """
+        Acquiring a lease on node A if a lease already exits for that dataset
+        on node B will fail.
+        """
+        d = self.acquire_lease(None)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/leases",
+            request_body={
+                u"dataset_id": unicode(self.dataset3),
+                # We already have lease on node 3:
+                u"node_uuid": unicode(self.node2),
+                u"expires": None,
+            }, expected_code=CONFLICT,
+            expected_result={u"description": u"Lease already held."}))
+
+        def no_update(_):
+            # Node was not modified:
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3].node_id,
+                self.node3)
+        d.addCallback(no_update)
+        return d
+
+    def test_renew(self):
+        """
+        Acquiring a lease on node A if a lease already exits for that dataset
+        on node A will override the timeout.
+        """
+        self.clock.advance(self.now)
+        expires = 40
+        expected_expiration = datetime.fromtimestamp(
+            self.clock.seconds() + expires, UTC)
+
+        # Acquire with no expiration:
+        d = self.acquire_lease(None)
+        # Re-acquire with expiration:
+        d.addCallback(lambda _: self.acquire_lease(expires, OK))
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=expected_expiration))
+        d.addCallback(acquired)
+        return d
+
+
+RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
+    LeasesTestsMixin, "Leases", _build_app)

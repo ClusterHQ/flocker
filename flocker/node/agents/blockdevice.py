@@ -1591,7 +1591,7 @@ class BlockDeviceDeployer(PRecord):
         if local_state.applications is None:
             return in_parallel(changes=[])
 
-        not_in_use = NotInUseDatasets(local_state)
+        not_in_use = NotInUseDatasets(local_state, configuration.leases)
 
         configured_manifestations = this_node_config.manifestations
 

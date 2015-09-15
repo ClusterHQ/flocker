@@ -617,6 +617,7 @@ class Deployment(PRecord):
     :ivar Leases leases: A map of ``Lease`` instances by dataset id.
     """
     nodes = pset_field(Node)
+    leases = field(type=Leases, mandatory=True, initial=Leases())
 
     get_node = _get_node(Node)
 
@@ -641,7 +642,7 @@ class Deployment(PRecord):
 
         :return Deployment: Updated with new ``Node``.
         """
-        return Deployment(nodes=frozenset(
+        return Deployment(leases=self.leases, nodes=frozenset(
             list(n for n in self.nodes if not same_node(n, node)) +
             [node]))
 
@@ -689,6 +690,15 @@ class Deployment(PRecord):
                         deployment = deployment.update_node(node)
                         deployment = deployment.update_node(target_node)
         return deployment
+
+
+class Configuration(PRecord):
+    """
+    A ``Configuration`` represents the persisted configured state of a
+    cluster.
+    """
+    version = field(mandatory=True, type=int)
+    deployment = field(mandatory=True, type=Deployment)
 
 
 @attributes(["dataset", "hostname"])
@@ -1070,5 +1080,6 @@ class _NonManifestDatasetsWipe(object):
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState, NonManifestDatasets,
+    NodeState, DeploymentState, NonManifestDatasets, Configuration,
+    Lease, Leases,
 ]

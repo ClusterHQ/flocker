@@ -410,7 +410,12 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
     # Sometimes this raises an index error, and it seems to be a race
     # condition. There should probably be a loop until push succeeds or
     # whatever condition is necessary for it to succeed is met. FLOC-2043.
-    push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    push_info = homebrew_repo.remotes.origin.push(
+        homebrew_repo.head,
+        # Ignore any hooks which might prevent pushing (to master in this
+        # case). Without this, the release process can hang.
+        no_verify=True,
+        )[0]
 
     if (push_info.flags & push_info.ERROR) != 0:
         raise PushFailed()

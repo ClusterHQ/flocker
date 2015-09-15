@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Testing utilities for ``flocker.node``.
@@ -12,6 +12,8 @@ from uuid import uuid4
 
 from distutils.version import LooseVersion
 
+import psutil
+
 from zope.interface import implementer
 
 from characteristic import attributes
@@ -21,14 +23,14 @@ from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
 
-from eliot import Logger, ActionType
+from eliot import Logger, ActionType, MessageType, fields
 
 from . import IDeployer, IStateChange, sequentially
-from ..testtools import loop_until
+from ..testtools import loop_until, find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
-from ..control._model import ip_to_uuid
-from ._docker import DockerClient
+from ..control._model import ip_to_uuid, Leases
+from ._docker import AddressInUse, DockerClient
 
 
 def docker_accessible():
@@ -264,7 +266,8 @@ def to_node(node_state):
 
 def assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
-        additional_node_states, additional_node_config, expected_changes
+        additional_node_states, additional_node_config, expected_changes,
+        leases=Leases(),
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -283,6 +286,7 @@ def assert_calculated_changes_for_deployer(
     :param set additional_node_states: A set of ``NodeState`` for other nodes.
     :param set additional_node_config: A set of ``Node`` for other nodes.
     :param expected_changes: The ``IStateChange`` expected to be returned.
+    :param Leases leases: Currently configured leases. By default none exist.
     """
     cluster_state = DeploymentState(
         nodes={node_state} | additional_node_states,
@@ -293,8 +297,100 @@ def assert_calculated_changes_for_deployer(
     )
     cluster_configuration = Deployment(
         nodes={node_config} | additional_node_config,
+        leases=leases,
     )
     changes = deployer.calculate_changes(
         cluster_configuration, cluster_state,
     )
     case.assertEqual(expected_changes, changes)
+
+
+ADDRESS_IN_USE = MessageType(
+    u"flocker:test:address_in_use",
+    fields(ip=unicode, port=int, name=bytes),
+)
+
+
+def _find_process_name(port_number):
+    """
+    Get the name of the process using the given port number.
+    """
+    for connection in psutil.net_connections():
+        if connection.laddr[1] == port_number:
+            return psutil.Process(connection.pid).name()
+    return None
+
+
+def _retry_on_port_collision(reason, add, cleanup):
+    """
+    Cleanup and re-add a container if it failed to start because of a port
+    collision.
+
+    :param reason: The exception describing the container startup failure.
+    :param add: A no-argument callable that can be used to try adding and
+        starting the container again.
+    :param cleanup: A no-argument callable that can be used to remove the
+        container.
+    """
+    # We select a random, available port number on each attempt.  If it was in
+    # use it's because the "available" part of that port number selection logic
+    # is fairly shaky.  It should be good enough that trying again works fairly
+    # well, though.  So do that.
+    reason.trap(AddressInUse)
+    ip, port = reason.value.address
+    used_by = _find_process_name(port)
+    ADDRESS_IN_USE(ip=ip, port=port, name=used_by).write()
+    d = cleanup()
+    d.addCallback(lambda ignored: add())
+    return d
+
+
+def add_with_port_collision_retry(client, unit_name, **kw):
+    """
+    Add a container.  Try adding it repeatedly if it has ports defined and
+    container startup fails with ``AddressInUse``.
+
+    If ports in the container are defined with an external port number of ``0``
+    a locally free port number will be assigned.  On each re-try attempt, these
+    will be re-assigned to try to avoid the port collision.
+
+    :param DockerClient client: The ``IDockerClient`` to use to try to add the
+        container.
+    :param unicode unit_name: The name of the container to add.  See the
+        ``unit_name`` parameter of ``IDockerClient.add``.
+    :param kw: Additional keyword arguments to pass on to
+        ``IDockerClient.add``.
+
+    :return: A ``Deferred`` which fires with a two-tuple.  The first element
+        represents the container which has been added and started.  The second
+        element is a ``list`` of ``PortMap`` instances describing the ports
+        which were ultimately requested.
+    """
+    ultimate_ports = []
+
+    def add():
+        # Generate a replacement for any auto-assigned ports
+        ultimate_ports[:] = tentative_ports = list(
+            port.set(
+                external_port=find_free_port()[1]
+            )
+            if port.external_port == 0
+            else port
+            for port in kw["ports"]
+        )
+        tentative_kw = kw.copy()
+        tentative_kw["ports"] = tentative_ports
+        return client.add(unit_name, **tentative_kw)
+
+    def cleanup():
+        return client.remove(unit_name)
+
+    if "ports" in kw:
+        trying = add()
+        trying.addErrback(_retry_on_port_collision, add, cleanup)
+        result = trying
+    else:
+        result = client.add(unit_name, **kw)
+
+    result.addCallback(lambda app: (app, ultimate_ports))
+    return result

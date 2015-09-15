@@ -213,7 +213,7 @@ def build_control_amp_service(test, reactor=None):
     cluster_state.startService()
     test.addCleanup(cluster_state.stopService)
     persistence_service = ConfigurationPersistenceService(
-        None, FilePath(test.mktemp()))
+        reactor, FilePath(test.mktemp()))
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
     return ControlAMPService(reactor, cluster_state, persistence_service,

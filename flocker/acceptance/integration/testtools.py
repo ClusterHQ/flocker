@@ -40,7 +40,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
             Start a container with a volume.
 
             :param unicode name: The container name.
-            :param unicode dataset_id: The dataset ID.
+            :param UUID dataset_id: The dataset ID.
             :param cluster: The ``Cluster``.
             :param int external_port: External port to expose on the container.
             :param bool cleanup: If true, delete container when test is over.
@@ -55,7 +55,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
                 u"ports": [{u"internal": internal_port,
                             u"external": external_port}],
                 u'restart_policy': {u'name': u'never'},
-                u"volumes": [{u"dataset_id": dataset_id,
+                u"volumes": [{u"dataset_id": unicode(dataset_id),
                               u"mountpoint": volume_path.path}],
             }
             created = cluster.create_container(app)
@@ -80,7 +80,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
             creating_dataset = create_dataset(self, cluster)
             creating_dataset.addCallback(
                 lambda dataset: self._start_container(random_name(self),
-                                                      dataset[u"dataset_id"],
+                                                      dataset.dataset_id,
                                                       port, cluster))
             creating_dataset.addCallback(
                 lambda _: insert_data(self, host, port))
@@ -103,7 +103,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
 
             def created(dataset):
                 started = self._start_container(first_container,
-                                                dataset[u"dataset_id"],
+                                                dataset.dataset_id,
                                                 port, cluster, cleanup=False)
                 started.addCallback(
                     lambda _: insert_data(self, host, port))
@@ -112,7 +112,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
                     lambda _: cluster.remove_container(first_container))
                 restarting.addCallback(
                     lambda _: self._start_container(random_name(self),
-                                                    dataset[u"dataset_id"],
+                                                    dataset.dataset_id,
                                                     another_port, cluster))
                 return restarting
             creating_dataset.addCallback(created)

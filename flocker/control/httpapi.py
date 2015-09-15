@@ -3,8 +3,12 @@
 A HTTP REST API for controlling the Dataset Manager.
 """
 
-import yaml
 from uuid import uuid4, UUID
+from datetime import datetime
+
+from pytz import UTC
+
+import yaml
 
 from pyrsistent import pmap, thaw
 
@@ -18,6 +22,7 @@ from twisted.web.http import (
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
+from twisted.internet import reactor
 
 from klein import Klein
 
@@ -36,6 +41,8 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
+from ._persistence import update_leases
+from ._model import LeaseError
 
 from .. import __version__
 
@@ -80,7 +87,10 @@ DATASET_ON_DIFFERENT_NODE = make_bad_request(
 DATASET_IN_USE = make_bad_request(
     code=CONFLICT,
     description=u"The dataset is being used by another container.")
-
+LEASE_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Lease not found.")
+LEASE_HELD = make_bad_request(
+    code=CONFLICT, description=u"Lease already held.")
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
@@ -95,16 +105,21 @@ class ConfigurationAPIUserV1(object):
     """
     app = Klein()
 
-    def __init__(self, persistence_service, cluster_state_service):
+    def __init__(self, persistence_service, cluster_state_service,
+                 clock=reactor):
         """
         :param ConfigurationPersistenceService persistence_service: Service
             for retrieving and setting desired configuration.
 
         :param ClusterStateService cluster_state_service: Service that
             knows about the current state of the cluster.
+
+        :param IReactorTime clock: The clock to use for time. By default
+            global reactor.
         """
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
+        self.clock = clock
 
     @app.route("/version", methods=['GET'])
     @user_documentation(
@@ -853,6 +868,146 @@ class ConfigurationAPIUserV1(object):
         except ConfigurationError as e:
             raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
 
+    @app.route("/configuration/leases", methods=['GET'])
+    # This can stop being private as part of FLOC-2741:
+    @private_api
+    @user_documentation(
+        u"""
+        List the currently existing leases on datasets, including which
+        node the lease is for and when if ever the lease will expire.
+        """,
+        header=u"List all leases on datasets",
+        examples=[
+            u"list leases",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/list_leases'
+        },
+        schema_store=SCHEMAS
+    )
+    def list_leases(self):
+        """
+        List the current leases in the configuration.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        result = []
+        for lease in self.persistence_service.get().leases.values():
+            result.append(lease_response(lease, now))
+        return result
+
+    @app.route("/configuration/leases/<dataset_id>", methods=['DELETE'])
+    # This can stop being private as part of FLOC-2741:
+    @private_api
+    @user_documentation(
+        u"""
+        This will release a lease on a dataset, allowing the dataset to be
+        moved elsewhere, deleted and otherwise modified. Releasing the
+        lease does not modify the dataset in any way, it simply allows
+        other operations to do so.
+        """,
+        header=u"Delete a lease from the configuration",
+        examples=[
+            u"delete a lease",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        schema_store=SCHEMAS
+    )
+    def delete_lease(self, dataset_id):
+        """
+        Remove a lease from the cluster configuration.
+
+        :param unicode dataset_id: The dataset whose lease is being
+            removed.
+
+        :return: A ``Deferred`` firing with an ``EndpointResponse`` or
+            serializable JSON.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        leases = self.persistence_service.get().leases
+        dataset_id = UUID(dataset_id)
+
+        lease = leases.get(dataset_id, None)
+        if lease is not None:
+            d = update_leases(
+                # We could choose to design a REST endpoint that requires
+                # taking the node UUID, but it's not clear what particular
+                # safety that adds... so just accept all releases.
+                lambda leases: leases.release(dataset_id, lease.node_id),
+                self.persistence_service)
+            d.addCallback(lambda _: lease_response(lease, now))
+            return d
+        else:
+            # Didn't find the lease:
+            raise LEASE_NOT_FOUND
+
+    @app.route("/configuration/leases", methods=['POST'])
+    # This can stop being private as part of FLOC-2741:
+    # We'll remove this once the end-to-end tests are proven.
+    @private_api
+    @user_documentation(
+        u"""
+        Acquire a lease on a particular dataset on a particular
+        node. Until the lease is released or expires the dataset will not
+        be deleted or moved to other nodes.
+        """,
+        header=u"Acquire a lease on a dataset",
+        examples=[
+            u"acquire a lease without expiration",
+            u"acquire a lease with expiration",
+            u"acquire a lease that is already held",
+            u"renew a lease",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        schema_store=SCHEMAS
+    )
+    def acquire_lease(self, dataset_id, node_uuid, expires):
+        """
+        Acquire a lease on a dataset.
+
+        :param unicode dataset_id: The dataset whose lease is being
+            acquired.
+        :param unicode node_uuid: The node on which the lease is being aquired.
+        :param expires: ``None`` if no expiration, otherwise number of
+            seconds to expiration.
+
+        :return: A ``Deferred`` firing with an ``EndpointResponse`` or
+            serializable JSON.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        dataset_id = UUID(dataset_id)
+        node_uuid = UUID(node_uuid)
+
+        # Check if already exists or not:
+        if self.persistence_service.get().leases.get(dataset_id) is None:
+            response_code = CREATED
+        else:
+            response_code = OK
+
+        def acquire(leases):
+            try:
+                return leases.acquire(now, dataset_id, node_uuid, expires)
+            except LeaseError:
+                raise LEASE_HELD
+
+        d = update_leases(acquire, self.persistence_service)
+        d.addCallback(
+            lambda leases: EndpointResponse(
+                response_code, lease_response(leases[dataset_id], now)))
+        return d
+
 
 def _find_manifestation_and_node(deployment, dataset_id):
     """
@@ -1050,7 +1205,7 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       context_factory):
+                       context_factory, clock=reactor):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1064,10 +1219,14 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     :param context_factory: TLS context factory.
 
+    :param IReactorTime clock: The clock to use for time. By default
+        global reactor.
+
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
+    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service,
+                                  clock)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
 
@@ -1079,3 +1238,21 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
             Site(api_root)
         )
     )
+
+
+def lease_response(lease, now):
+    """
+    Convert a ``Lease`` to the corresponding objects for JSON
+    serialization.
+
+    :param Lease lease: The lease to serialize.
+    :param datetime now: The current time.
+    :return: ``dict`` form that matches the lease schema.
+    """
+    if lease.expiration is None:
+        expires = None
+    else:
+        expires = (lease.expiration - now).total_seconds()
+    return {u"dataset_id": unicode(lease.dataset_id),
+            u"node_uuid": unicode(lease.node_id),
+            u"expires": expires}
