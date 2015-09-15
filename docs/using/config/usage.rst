@@ -18,7 +18,7 @@ Command Line Arguments
 2. The path to a deployment configuration file.
 3. The path to an application configuration file.
 
-.. code-block:: console
+.. prompt:: bash $ auto
 
     $ flocker-deploy controlservice.example.com clusterhq_deployment.yml clusterhq_app.yml
 
@@ -48,7 +48,7 @@ By default, ``flocker-deploy`` will look for these certificate files in the curr
 
 You can override these defaults with the ``--cacert`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
 
-.. code-block:: console
+.. prompt:: bash $ auto
 
    $ flocker-deploy --cacert=/home/alice/credentials/mycluster.crt --cert=/home/alice/credentials/alice.crt --key=/home/alice/credentials/alice.key 172.16.255.250 clusterhq_deployment.yml clusterhq_app.yml
 
