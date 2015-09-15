@@ -184,7 +184,8 @@ common_cli:
       rm -rf \$venv
       rm -f "Flocker*.rb"
       rm -f "dist/Flocker-*.tar.gz"
-    else
+    fi
+    if [ 'ubuntu' == "\$(os)" ] || [ 'centos' == "\$(os)" ]; then
       sudo rm -rf \$venv
       sudo rm -f results.xml
       sudo rm -f trial.log
