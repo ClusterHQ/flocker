@@ -186,6 +186,9 @@ common_cli:
       rm -f "dist/Flocker-*.tar.gz"
     fi
     if [ 'ubuntu' == "\$(os)" ] || [ 'centos' == "\$(os)" ]; then
+      # some of our tests (which run as root), leave some files behind when
+      # they abort or fail to complete.
+      # We use 'sudo' so that we can remove those files before a next job run.
       sudo rm -rf \$venv
       sudo rm -f results.xml
       sudo rm -f trial.log
