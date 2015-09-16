@@ -327,6 +327,7 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
+{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
     {{ wrappers(job_values, repo_dir) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
