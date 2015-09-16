@@ -356,6 +356,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             hostname=u'192.0.2.123', used_ports=s(80), applications=s())
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
+        state2 = DeploymentState(nodes=[local_state2])
         action = ControllableAction(result=succeed(None))
         # Because the second action result is unfired Deferred, the second
         # iteration will never finish; applying its changes waits for this
@@ -379,8 +380,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             (
                 # Check that the loop has run twice
                 [(local_state, configuration, state),
-                 (local_state, configuration, state)],
-                # But that state was only sent once.
+                 (local_state2, configuration, state2)],
+                # And the state was sent twice
                 [(NodeStateCommand, dict(state_changes=(local_state,))),
                  (NodeStateCommand, dict(state_changes=(local_state2,)))],
             )
@@ -593,42 +594,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             ([(local_state, configuration, expected_cluster_state)],
              [(NodeStateCommand, dict(state_changes=(local_state,)))])
         )
-
-    def test_convergence_done_start_new_iteration(self):
-        """
-        After a short delay, an FSM completing the changes from one convergence
-        iteration starts another iteration.
-        """
-        # FIXME this test is a duplicate of the ones above.
-        local_state = NodeState(hostname=u'192.0.2.123')
-        local_state2 = NodeState(hostname=u'192.0.2.123')
-        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
-        state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=succeed(None))
-        # Because the second action result is unfired Deferred, the second
-        # iteration will never finish; applying its changes waits for this
-        # Deferred to fire.
-        action2 = ControllableAction(result=Deferred())
-        deployer = ControllableDeployer(
-            local_state.hostname,
-            [succeed(local_state), succeed(local_state2)],
-            [action, action2])
-        client = self.make_amp_client([local_state, local_state2])
-        reactor = Clock()
-        loop = build_convergence_loop_fsm(reactor, deployer)
-        loop.receive(_ClientStatusUpdate(
-            client=client, configuration=configuration, state=state))
-        reactor.advance(1.0)
-        # Calculating actions happened, result was run... and then we did
-        # whole thing again:
-        self.assertTupleEqual(
-            (deployer.calculate_inputs, client.calls),
-            ([(local_state, configuration, state),
-              (local_state2, configuration, state)],
-             [(NodeStateCommand, dict(state_changes=(local_state,))),
-              (NodeStateCommand, dict(state_changes=(local_state2,)))])
-        )
-    test_convergence_done_start_new_iteration.skip = "FIXME"
 
     @validate_logging(lambda test_case, logger: test_case.assertEqual(
         len(logger.flush_tracebacks(RuntimeError)), 1))
