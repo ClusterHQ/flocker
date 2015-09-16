@@ -39,7 +39,7 @@ from twisted.internet.interfaces import (
 from twisted.python.filepath import FilePath, Permissions
 from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred, Deferred, succeed
+from twisted.internet.defer import maybeDeferred, Deferred, succeed, fail
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -860,9 +860,16 @@ class FakeAMPClient(object):
         been sent using ``callRemote``.
     """
 
-    def __init__(self):
+    def __init__(self, health_status):
+        """
+        Initial a Fake AMP client with input health status.
+
+        :param Bool health_status: True, if client simulates successful
+            execution of remote commands.
+        """
         self._responses = {}
         self.calls = []
+        self.health_status = True
 
     def _makeKey(self, command, kwargs):
         """
@@ -910,7 +917,10 @@ class FakeAMPClient(object):
         # response register
         if 'eliot_context' in kwargs:
             kwargs.pop('eliot_context')
-        return succeed(self._responses[self._makeKey(command, kwargs)])
+        if self.health_status:
+            return succeed(self._responses[self._makeKey(command, kwargs)])
+        else:
+            return fail(self._responses[self._makeKey(command, kwargs)])
 
 
 class CustomException(Exception):
