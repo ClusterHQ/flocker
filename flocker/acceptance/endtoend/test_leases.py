@@ -12,9 +12,7 @@ from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...testtools import (
-    random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE
-)
+from ...testtools import random_name, find_free_port
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     get_docker_client, post_http_server, assert_http_server,
@@ -66,10 +64,7 @@ class LeaseAPITests(TestCase):
         containers = []
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
 
-        creating_dataset = create_dataset(
-            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
-            dataset_id=dataset_id
-        )
+        creating_dataset = create_dataset(self, cluster, dataset_id=dataset_id)
 
         def get_dataset_state(configured_dataset):
             """
