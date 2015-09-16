@@ -126,7 +126,7 @@ class MetadataTests(SynchronousTestCase):
                 }]
             }]})
 
-    def test_version_escaped(self):
+    def test_url_escaped(self):
         """
         When a URL includes special characters, they are escaped so that
         Vagrant can download the box from Amazon S3 without getting 403 errors.

@@ -1876,9 +1876,10 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
 
     def test_url_escaped(self):
         """
-        When a version includes special characters, they are quoted in the URL
-        so that Vagrant can download the box from Amazon S3 without getting
-        403 errors.
+        When a URL includes special characters, they are escaped so that
+        Vagrant can download the box from Amazon S3 without getting 403 errors.
+
+        "/" and ":" are not escaped (these only appear in the protocol).
         """
         aws = FakeAWS(
             routing_rules={},
