@@ -53,10 +53,10 @@ Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud 
 
 .. _labs-docker-plugin:
 
-The Flocker Docker plugin
-=========================
+The Flocker Plugin for Docker
+=============================
 
-The Flocker Docker plugin is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
+The Flocker plugin for Docker is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
 
 This diagram explains how the architecture of a Flocker cluster with the Docker plugin would look if the user is also using :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`:
 
@@ -78,12 +78,10 @@ See the `Docker documentation on volume plugins`_.
 
 This depends on Docker 1.8 or later.
 
-See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
-
 .. _labs-architecture-note:
 
 .. note::
-    Note that you should either use the Flocker Docker plugin to associate containers with volumes (the integration architecture described above), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
+    Note that you should either use the Flocker plugin for Docker to associate containers with volumes (the integration architecture described above), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
 
     They are distinct architectures.
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
