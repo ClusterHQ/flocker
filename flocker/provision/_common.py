@@ -61,6 +61,7 @@ class Cluster(PRecord):
     control_node = field(mandatory=True)
     agent_nodes = field(mandatory=True)
     dataset_backend = field(mandatory=True)
+    default_volume_size = field(type=int, mandatory=True)
     certificates = field(type=Certificates, mandatory=True)
 
     @property
