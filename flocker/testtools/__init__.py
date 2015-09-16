@@ -862,9 +862,9 @@ class FakeAMPClient(object):
 
     def __init__(self, flaky=False):
         """
-        Initial a Fake AMP client with input health status.
+        Initial a Fake AMP client with desired flaky setting.
 
-        :param Bool health_status: True, if client simulates successful
+        :param Bool flaky: True, if client simulates unsuccessful
             execution of remote commands.
         """
         self._responses = {}

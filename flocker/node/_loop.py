@@ -14,6 +14,8 @@ The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
 """
 
+import threading
+
 from zope.interface import implementer
 
 from eliot import ActionType, Field, writeFailure, MessageType
@@ -305,8 +307,12 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
 
-        # Save last known local state
+        # Save last known local state, and AMP client we sent it to.
+        # Since only one control service can exist at the moment, there can
+        # no more than one AMP client at any given point in time.
+        self.lock = threading.Lock()
         self.last_sent_local_state = None
+        self.last_sent_client = None
 
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
@@ -320,7 +326,8 @@ class ConvergenceLoop(object):
         :param state_changes: State to send to the control service.
         :type state_changes: tuple of IClusterStateChange
         """
-        if self.last_sent_local_state != state_changes:
+        if (self.last_sent_local_state != state_changes or
+           self.last_sent_client != self.client):
             context = LOG_SEND_TO_CONTROL_SERVICE(
                 self.fsm.logger, connection=self.client,
                 local_changes=list(state_changes),
@@ -333,10 +340,14 @@ class ConvergenceLoop(object):
                 )
 
                 def set_sent_state(_):
-                    self.last_sent_local_state = state_changes
+                    with self.lock:
+                        self.last_sent_local_state = state_changes
+                        self.last_sent_client = self.client
 
                 def clear_sent_state(f):
-                    self.last_sent_local_state = None
+                    with self.lock:
+                        self.last_sent_local_state = None
+                        self.last_sent_client = None
                     return f
                 d.addCallbacks(set_sent_state, clear_sent_state)
                 d.addErrback(
