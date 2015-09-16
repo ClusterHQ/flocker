@@ -917,7 +917,6 @@ class FakeAMPClient(object):
         # response register
         if 'eliot_context' in kwargs:
             kwargs.pop('eliot_context')
-        import pdb; pdb.set_trace()
         if self.flaky:
             return fail(self._responses[self._makeKey(command, kwargs)])
         else:
