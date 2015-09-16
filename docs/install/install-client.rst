@@ -90,11 +90,10 @@ You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:
 
-.. version-code-block:: console
+.. version-prompt:: bash alice@mercury:~$ auto
 
    alice@mercury:~$ flocker-deploy --version
    |latest-installable|
-   alice@mercury:~$
 
 Next Step
 =========
