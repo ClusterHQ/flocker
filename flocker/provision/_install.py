@@ -8,7 +8,7 @@ Install flocker on a remote node.
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect
+from effect import Func, Effect, parallel
 import yaml
 
 from zope.interface import implementer
@@ -1169,7 +1169,7 @@ def _run_on_all_nodes(nodes, task):
 
     :return: An ``Effect`` that runs the commands on a group of nodes.
     """
-    return sequence(list(
+    return parallel(list(
         run_remotely(
             username='root',
             address=node.address,
