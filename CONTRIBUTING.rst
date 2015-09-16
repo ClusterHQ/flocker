@@ -61,7 +61,7 @@ The recommended way to get an environment with these installed is to use Vagrant
 
 First, clone the Flocker repository on your local machine:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    git clone https://github.com/ClusterHQ/flocker.git
    cd flocker
@@ -69,7 +69,7 @@ First, clone the Flocker repository on your local machine:
 Vagrant 1.6.2 or later is required.
 Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    vagrant up
    vagrant ssh
@@ -77,7 +77,7 @@ Once you have Vagrant installed (see the `Vagrant documentation <https://docs.va
 The ``flocker`` directory created above will be shared in the virtual machine at ``/vagrant``.
 Install Flocker's development dependencies in a ``virtualenv`` by running the following commands:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    cd /vagrant
    mkvirtualenv flocker
@@ -92,20 +92,20 @@ Running Tests
 
 You can run all unit tests by doing:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    tox
 
 You can also run specific tests in a specific environment:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    tox -e py27 flocker.control.test.test_httpapi
 
 Functional tests require ``ZFS`` and ``Docker`` to be installed and, in the case of Docker, running.
 In addition, ``tox`` needs to be run as root:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    sudo tox
 
@@ -118,7 +118,7 @@ Documentation
 Documentation is generated using `Sphinx`_ and stored in the ``docs/`` directory.
 You can build it individually by running:
 
-.. prompt:: bash
+.. prompt:: bash $
 
    tox -e sphinx
 
