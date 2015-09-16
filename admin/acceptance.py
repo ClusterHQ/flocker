@@ -432,7 +432,7 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner',
+    'provisioner', 'num_nodes',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -472,7 +472,7 @@ class LibcloudRunner(object):
         }
         metadata.update(self.metadata)
 
-        for index in range(2):
+        for index in range(self.num_nodes):
             name = "acceptance-test-%s-%d" % (self.creator, index)
             try:
                 print "Creating node %d: %s" % (index, name)
@@ -749,10 +749,14 @@ class RunOptions(Options):
         """
         Run some nodes using ``libcloud``.
 
+        By default, two nodes are run.  This can be overridden by setting
+        ``FLOCKER_ACCEPTANCE_NUM_NODES`` in the environment.
+
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider: The name of the cloud provider of nodes for the tests.
         :param provider_config: The ``managed`` section of the acceptance
+
         :returns: ``LibcloudRunner``.
         """
         if provider_config is None:
@@ -768,6 +772,7 @@ class RunOptions(Options):
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
+            num_nodes=int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", "2")),
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
