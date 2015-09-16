@@ -825,7 +825,7 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
         dataset is present in actual cluster state.
     """
     if maximum_size is None:
-        maximum_size = cluster.default_volume_size
+        maximum_size = get_default_volume_size()
     if dataset_id is None:
         dataset_id = uuid4()
 
