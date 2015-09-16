@@ -307,9 +307,7 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
 
-        # Save last known local state, and AMP client we sent it to.
-        # Since only one control service can exist at the moment, there can
-        # no more than one AMP client at any given point in time.
+        # Save last known local state
         self.last_sent_local_state = None
 
     def output_STORE_INFO(self, context):
