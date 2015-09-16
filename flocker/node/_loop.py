@@ -14,8 +14,6 @@ The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
 """
 
-import threading
-
 from zope.interface import implementer
 
 from eliot import ActionType, Field, writeFailure, MessageType
@@ -310,7 +308,6 @@ class ConvergenceLoop(object):
         # Save last known local state, and AMP client we sent it to.
         # Since only one control service can exist at the moment, there can
         # no more than one AMP client at any given point in time.
-        self.lock = threading.Lock()
         self.last_sent_local_state = None
         self.last_sent_client = None
 
@@ -340,14 +337,12 @@ class ConvergenceLoop(object):
                 )
 
                 def set_sent_state(_):
-                    with self.lock:
-                        self.last_sent_local_state = state_changes
-                        self.last_sent_client = self.client
+                    self.last_sent_local_state = state_changes
+                    self.last_sent_client = self.client
 
                 def clear_sent_state(f):
-                    with self.lock:
-                        self.last_sent_local_state = None
-                        self.last_sent_client = None
+                    self.last_sent_local_state = None
+                    self.last_sent_client = None
                     return f
                 d.addCallbacks(set_sent_state, clear_sent_state)
                 d.addErrback(
