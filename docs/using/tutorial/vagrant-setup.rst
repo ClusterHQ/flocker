@@ -225,9 +225,9 @@ If you already have a tutorial environment from a previous release, you'll need 
 First check the current Flocker version on the nodes.
 You can do this by logging into each node and running the ``flocker-dataset-agent`` command with a ``--version`` argument.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-dataset-agent --version
+   ssh root@172.16.255.250 flocker-dataset-agent --version
 
 Only proceed if you find that you are running an older version of Flocker than |version|.
 
@@ -255,10 +255,10 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
 Next delete the cached SSH host keys for the virtual machines as they will change when new VMs are created.
 Failing to do so will cause SSH to think there is a security problem when you connect to the recreated VMs.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
-   alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
+   ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
+   ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
 Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` along with the cluster and user certificate and key files below and run ``vagrant up``.
 
