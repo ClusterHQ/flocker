@@ -19,6 +19,7 @@ from uuid import uuid4
 
 from bitmath import Byte
 import netifaces
+import psutil
 
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
@@ -42,7 +43,7 @@ from ..test.blockdevicefactory import (
 )
 from ....testtools import run_process
 
-from ..cinder import wait_for_volume
+from ..cinder import wait_for_volume, UnattachedVolume
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -394,3 +395,86 @@ class CinderAttachmentTests(SynchronousTestCase):
                 expected_volume=attached_volume,
                 expected_status=u'in-use',
             )
+
+    @require_virsh
+    def test_get_device_path_virtio_blk_error_without_udev(self):
+        """
+        ``get_device_path`` on systems using the virtio_blk driver raises
+        ``UnattachedVolume`` if ``/dev/disks/by-id/xxx`` is not present.
+        """
+        instance_id = self.blockdevice_api.compute_instance_id()
+        # Create volume
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            expected_status=u'available')
+
+        # Suspend udevd before attaching the disk
+        # List unpacking here ensures that the test will blow up if
+        # multiple matching processes are ever found.
+        [udev_process] = list(
+            p for p in psutil.process_iter()
+            if p.name().endswith('-udevd')
+        )
+        udev_process.suspend()
+        self.addCleanup(udev_process.resume)
+
+        # Attach volume
+        attached_volume = self.nova.volumes.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=attached_volume,
+            expected_status=u'in-use',
+        )
+
+        self.assertRaises(
+            UnattachedVolume,
+            self.blockdevice_api.get_device_path,
+            volume.id,
+        )
+
+    @require_virsh
+    def test_get_device_path_virtio_blk_symlink(self):
+        """
+        ``get_device_path`` on systems using the virtio_blk driver
+        returns the target of a symlink matching
+        ``/dev/disks/by-id/virtio-<volume.id>``.
+        """
+        instance_id = self.blockdevice_api.compute_instance_id()
+        # Create volume
+        cinder_volume = self.cinder.volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+        )
+        self.addCleanup(self._cleanup, instance_id, cinder_volume)
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=cinder_volume,
+            expected_status=u'available'
+        )
+
+        # Attach volume
+        attached_volume = self.nova.volumes.create_server_volume(
+            server_id=instance_id,
+            volume_id=volume.id,
+            device=None,
+        )
+        volume = wait_for_volume(
+            volume_manager=self.cinder.volumes,
+            expected_volume=attached_volume,
+            expected_status=u'in-use',
+        )
+        self.assertEqual(
+            FilePath(
+                '/dev/disk/by-id/virtio-{}'.format(volume.id[:20])
+            ).realpath(),
+            self.blockdevice_api.get_device_path(
+                volume.id
+            )
+        )

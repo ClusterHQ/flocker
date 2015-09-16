@@ -14,6 +14,7 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import add_destination, write_failure
 from pyrsistent import pvector
+from bitmath import GiB
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
@@ -95,6 +96,9 @@ def get_trial_environment(cluster):
             for node in cluster.agent_nodes
             if node.private_address is not None
         }),
+        'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': bytes(
+            cluster.default_volume_size
+        ),
     }
 
 
@@ -335,11 +339,16 @@ def configured_cluster_for_nodes(
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
     """
+    default_volume_size = GiB(1)
+    if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
+        default_volume_size = GiB(100)
+
     cluster = Cluster(
         all_nodes=pvector(nodes),
         control_node=nodes[0],
         agent_nodes=nodes,
         dataset_backend=dataset_backend,
+        default_volume_size=int(default_volume_size.to_Byte().value),
         certificates=certificates
     )
 
