@@ -125,3 +125,21 @@ class MetadataTests(SynchronousTestCase):
                     "url": "/some/path",
                 }]
             }]})
+
+    def test_version_quoted(self):
+        """
+        When a URL includes special characters, they are quoted so that
+        Vagrant can download the box from Amazon S3 without getting 403 errors.
+        """
+        metadata = box_metadata("box-name", "0.1.2.3-gxx-dirty",
+                                FilePath('/some/path/with/+'))
+        self.assertEqual(metadata, {
+            "name": "clusterhq/box-name",
+            "description": "Test clusterhq/box-name box.",
+            "versions": [{
+                "version": "0.1.2.3.gxx.dirty",
+                "providers": [{
+                    "name": "virtualbox",
+                    "url": "/some/path/with/%2B",
+                }]
+            }]})
