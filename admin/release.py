@@ -15,6 +15,7 @@ import tempfile
 
 from datetime import datetime
 from subprocess import check_call
+from urllib import quote
 
 from effect import (
     Effect, sync_perform, ComposedDispatcher)
@@ -465,7 +466,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         "version": vagrant_version(version),
         "providers": [
             {
-                "url": box_url,
+                "url": quote(box_url, safe=":/"),
                 "name": "virtualbox",
             },
         ],
