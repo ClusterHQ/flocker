@@ -860,7 +860,7 @@ class FakeAMPClient(object):
         been sent using ``callRemote``.
     """
 
-    def __init__(self, health_status):
+    def __init__(self, flaky=False):
         """
         Initial a Fake AMP client with input health status.
 
@@ -869,7 +869,7 @@ class FakeAMPClient(object):
         """
         self._responses = {}
         self.calls = []
-        self.health_status = True
+        self.flaky = flaky
 
     def _makeKey(self, command, kwargs):
         """
@@ -917,10 +917,11 @@ class FakeAMPClient(object):
         # response register
         if 'eliot_context' in kwargs:
             kwargs.pop('eliot_context')
-        if self.health_status:
-            return succeed(self._responses[self._makeKey(command, kwargs)])
-        else:
+        import pdb; pdb.set_trace()
+        if self.flaky:
             return fail(self._responses[self._makeKey(command, kwargs)])
+        else:
+            return succeed(self._responses[self._makeKey(command, kwargs)])
 
 
 class CustomException(Exception):

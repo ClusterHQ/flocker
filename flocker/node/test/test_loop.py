@@ -260,7 +260,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                                          state=DeploymentState()))
         self.assertEqual(len(deployer.local_states), 0)  # Discovery started
 
-    def make_amp_client(self, local_states, health_status=True):
+    def make_amp_client(self, local_states, flaky=False):
         """
         Create AMP client that can respond successfully to a
         ``NodeStateCommand``.
@@ -271,7 +271,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         :return FakeAMPClient: Fake AMP client appropriately setup.
         """
-        client = FakeAMPClient(health_status)
+        client = FakeAMPClient(flaky)
         for local_state in local_states:
             client.register_response(
                 NodeStateCommand, dict(state_changes=(local_state,)),
@@ -404,7 +404,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             local_state.hostname,
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
-        client = self.make_amp_client([local_state, local_state2])
+        client = self.make_amp_client([local_state, local_state2], True)
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
@@ -419,7 +419,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 # Check that the loop has run twice
                 [(local_state, configuration, state),
                  (local_state, configuration, state)],
-                # But that state was only sent once.
+                # And that state was resent even though it remained unchanged
                 [(NodeStateCommand, dict(state_changes=(local_state,))),
                  (NodeStateCommand, dict(state_changes=(local_state2,)))],
             )
