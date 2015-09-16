@@ -12,6 +12,10 @@ from socket import socket
 from contextlib import closing
 
 import json
+import ssl
+
+from docker import Client
+from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -48,7 +52,7 @@ __all__ = [
     'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
-    'create_attached_volume'
+    'create_attached_volume', 'get_docker_client'
     ]
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
@@ -66,6 +70,33 @@ require_mongo = skipUnless(
 # https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
+
+DOCKER_PORT = 2376
+
+
+def get_docker_client(cluster, address):
+    """
+    Open a Docker client to the given address.
+
+    :param Cluster cluster: Description of the cluster we're talking to.
+    :param bytes address: The public IP of the node to connect to.
+
+    :return: Docker ``Client`` instance.
+    """
+    def get_path(name):
+        return cluster.certificates_path.child(name).path
+
+    tls = TLSConfig(
+        client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
+        # Blows up if not set
+        # (https://github.com/shazow/urllib3/issues/695):
+        ssl_version=ssl.PROTOCOL_TLSv1,
+        # Don't validate hostname, we don't generate it correctly, but
+        # do verify certificate authority signed the server certificate:
+        assert_hostname=False,
+        verify=get_path(b"cluster.crt"))
+    return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
+                  tls=tls, timeout=100)
 
 
 def get_mongo_application():
@@ -328,6 +359,31 @@ class Cluster(PRecord):
         )
 
     @log_method
+    def wait_for_deleted_dataset(self, deleted_dataset):
+        """
+        Poll the dataset state API until the supplied dataset does
+        not exist.
+
+        :param Dataset deleted_dataset: The configured dataset that
+            we're waiting for to be removed from state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when the dataset is no longer found in state.
+        """
+        def deleted():
+            request = self.client.list_datasets_state()
+
+            def got_results(datasets):
+                return deleted_dataset.dataset_id not in (
+                    d.dataset_id for d in datasets)
+            request.addCallback(got_results)
+            return request
+
+        waiting = loop_until(deleted)
+        waiting.addCallback(lambda _: deleted_dataset)
+        return waiting
+
+    @log_method
     def wait_for_dataset(self, expected_dataset):
         """
         Poll the dataset state API until the supplied dataset exists.
@@ -544,21 +600,37 @@ class Cluster(PRecord):
             )
             return get_items
 
-        def cleanup_containers():
+        def cleanup_containers(_):
             return api_clean_state(
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
 
-        def cleanup_datasets():
+        def cleanup_datasets(_):
             return api_clean_state(
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
-        return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+        def cleanup_leases():
+            get_items = self.client.list_leases()
+
+            def release_all(leases):
+                release_list = []
+                for lease in leases:
+                    release_list.append(
+                        self.client.release_lease(lease.dataset_id))
+                return gather_deferreds(release_list)
+
+            get_items.addCallback(release_all)
+            return get_items
+
+        d = cleanup_leases()
+        d.addCallback(cleanup_containers)
+        d.addCallback(cleanup_datasets)
+        return d
 
 
 def _get_test_cluster(reactor, node_count):
@@ -727,7 +799,8 @@ def create_python_container(test_case, cluster, parameters, script,
 
 
 def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                   dataset_id=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -735,12 +808,17 @@ def create_dataset(test_case, cluster,
     :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
+    :param UUID dataset_id: The v4 UUID of the dataset.
+        Generated if not specified.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
+    if dataset_id is None:
+        dataset_id = uuid4()
     configuring_dataset = cluster.client.create_dataset(
-        cluster.nodes[0].uuid, maximum_size=maximum_size, dataset_id=uuid4(),
-        metadata={u"name": u"my_volume"})
+        cluster.nodes[0].uuid, maximum_size=maximum_size,
+        dataset_id=dataset_id, metadata={u"name": u"my_volume"}
+    )
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(

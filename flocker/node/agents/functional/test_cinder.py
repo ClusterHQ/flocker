@@ -13,7 +13,6 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-import tempfile
 from unittest import skipIf
 from uuid import uuid4
 
@@ -36,13 +35,16 @@ from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size,
+    get_minimum_allocatable_size, get_openstack_region_for_test,
 )
 from ....testtools import run_process
 
-from ..cinder import wait_for_volume
+from ..cinder import (
+    get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
+    wait_for_volume_state, UnexpectedStateException
+)
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -61,17 +63,6 @@ def cinderblockdeviceapi_for_test(test_case):
         features).
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
-
-
-def openstack_clients():
-    """
-    Get OpenStack clients for use in tests.
-    """
-    try:
-        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-    except InvalidConfig as e:
-        raise SkipTest(str(e))
-    return kwargs
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
@@ -96,10 +87,12 @@ class CinderBlockDeviceAPIInterfaceTests(
         Non-Flocker Volumes are not listed.
         """
         try:
-            cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        cinder_client = kwargs["cinder_client"]
+        session = get_keystone_session(**config)
+        region = get_openstack_region_for_test()
+        cinder_client = get_cinder_v1_client(session, region)
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
@@ -107,9 +100,11 @@ class CinderBlockDeviceAPIInterfaceTests(
             cinder_client.volumes.delete,
             requested_volume.id,
         )
-        wait_for_volume(
+        wait_for_volume_state(
             volume_manager=cinder_client.volumes,
-            expected_volume=requested_volume
+            expected_volume=requested_volume,
+            desired_state=u'available',
+            transient_states=(u'creating',),
         )
         self.assertEqual([], self.api.list_volumes())
 
@@ -152,11 +147,14 @@ class CinderHttpsTests(SynchronousTestCase):
         OpenStack servers always succeeds.
         """
         try:
-            cls, kwargs = get_blockdeviceapi_args(
-                ProviderType.openstack, peer_verify=False)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        self.assertTrue(self._authenticates_ok(kwargs['cinder_client']))
+        config['peer_verify'] = False
+        session = get_keystone_session(**config)
+        region = get_openstack_region_for_test()
+        cinder_client = get_cinder_v1_client(session, region)
+        self.assertTrue(self._authenticates_ok(cinder_client))
 
     def test_verify_ca_path_no_match_fails(self):
         """
@@ -167,13 +165,19 @@ class CinderHttpsTests(SynchronousTestCase):
         path.makedirs()
         RootCredential.initialize(path, b"mycluster")
         try:
-            cls, kwargs = get_blockdeviceapi_args(
-                ProviderType.openstack, backend='openstack',
-                auth_plugin='password', password='password', peer_verify=True,
-                peer_ca_path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        self.assertFalse(self._authenticates_ok(kwargs['cinder_client']))
+        config['backend'] = 'openstack'
+        config['auth_plugin'] = 'password'
+        config['password'] = 'password'
+        config['peer_verify'] = True
+        config['peer_ca_path'] = path.child(
+            AUTHORITY_CERTIFICATE_FILENAME).path
+        session = get_keystone_session(**config)
+        region = get_openstack_region_for_test()
+        cinder_client = get_cinder_v1_client(session, region)
+        self.assertFalse(self._authenticates_ok(cinder_client))
 
 
 class VirtIOClient:
@@ -188,23 +192,45 @@ class VirtIOClient:
         self.url = url
 
     @classmethod
-    def from_instance_id(cls, instance_id):
+    def using_insecure_tls(cls, instance_id, tempdir):
         """
-        Create a connection to the host using the default gateway.
+        Create an insecure connection to the VM host.
 
         The credentials for this connection only allow unverified
-        connections to the TLS endpoint of libvirtd.
+        connections to the TLS endpoint of libvirtd.  The libvirtd
+        server must be configured to not verify the client credentials,
+        with server configuration ``tls_no_verify_certificate=1`` and
+        ``tls_no_verify_address=1``.
+
+        This would be vulnerable to MITM attacks, but is used for
+        communication to the routing gateway (in particular from VM
+        guest to VM host), where a MITM attack is unlikely.
+
+        The tests require that disks are attached using libvirt, but not
+        using Cinder, as the problem they test is libvirt disks that are
+        not known by Cinder.  Note, this rules out solutions using
+        ``mknod`` directly on the guest.
+
+        Creating a TLS connection is one of the simplest ways to set-up
+        libvirtd to listen on a network socket.  Disabling the actual
+        certificate verification on both ends of the connection allows
+        connection of the TLS endpoint without sharing any files (e.g.
+        CA cert and key, or a CSR).  This means the tests are contained
+        on one guest, with only a network connection required to attach
+        and delete nodes from the host.
 
         :param instance_id: The UUID of the guest instance.
+        :param FilePath tempdir: A temporary directory that will exist
+            until the VirtIOClient is done.
         """
-        url = "qemu://{}/system?no_verify=1".format(
-            cls._get_default_gateway()
+        url = "qemu://{}/system?no_verify=1&pkipath={}".format(
+            cls._get_default_gateway(), tempdir.path
         )
-        cls.create_credentials()
+        cls.create_credentials(tempdir)
         return cls(instance_id, url)
 
     @staticmethod
-    def create_credentials():
+    def create_credentials(path):
         """
         Create PKI credentials for TLS access to libvirtd.
 
@@ -212,28 +238,14 @@ class VirtIOClient:
         unverified access but removes the need to transfer files
         between the host and the guest.
         """
-        path = FilePath(tempfile.mkdtemp())
-        try:
-            ca = RootCredential.initialize(path, b"mycluster")
-            NodeCredential.initialize(path, ca, uuid='client')
-            ca_dir = FilePath('/etc/pki/CA')
-            if not ca_dir.exists():
-                ca_dir.makedirs()
-            path.child(AUTHORITY_CERTIFICATE_FILENAME).copyTo(
-                FilePath('/etc/pki/CA/cacert.pem')
-            )
-            client_key_dir = FilePath('/etc/pki/libvirt/private')
-            if not client_key_dir.exists():
-                client_key_dir.makedirs()
-            client_key_dir.chmod(0700)
-            path.child('client.key').copyTo(
-                client_key_dir.child('clientkey.pem')
-            )
-            path.child('client.crt').copyTo(
-                FilePath('/etc/pki/libvirt/clientcert.pem')
-            )
-        finally:
-            path.remove()
+        # Create CA and client key pairs
+        ca = RootCredential.initialize(path, b"CA")
+        ca_file = path.child(AUTHORITY_CERTIFICATE_FILENAME)
+        NodeCredential.initialize(path, ca, uuid='client')
+        # Files must have specific names in the pkipath directory
+        ca_file.moveTo(path.child('cacert.pem'))
+        path.child('client.key').moveTo(path.child('clientkey.pem'))
+        path.child('client.crt').moveTo(path.child('clientcert.pem'))
 
     @staticmethod
     def _get_default_gateway():
@@ -268,17 +280,23 @@ class CinderAttachmentTests(SynchronousTestCase):
     Cinder volumes can be attached and return correct device path.
     """
     def setUp(self):
-        clients = openstack_clients()
-        self.cinder = clients['cinder_client']
-        self.nova = clients['nova_client']
+        try:
+            config = get_blockdevice_config(ProviderType.openstack)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+        region = get_openstack_region_for_test()
+        session = get_keystone_session(**config)
+        self.cinder = get_cinder_v1_client(session, region)
+        self.nova = get_nova_v2_client(session, region)
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
 
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
-        return wait_for_volume(
+        return wait_for_volume_state(
             volume_manager=self.nova.volumes,
             expected_volume=volume,
-            expected_status=u'available',
+            desired_state=u'available',
+            transient_states=(u'in-use', u'detaching'),
         )
 
     def _cleanup(self, instance_id, volume):
@@ -297,8 +315,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
@@ -307,10 +326,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_id=volume.id,
             device=None,
         )
-        volume = wait_for_volume(
+        volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
-            expected_status=u'in-use',
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
         )
 
         devices_after = set(FilePath('/dev').children())
@@ -330,7 +350,9 @@ class CinderAttachmentTests(SynchronousTestCase):
         instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
-        virtio = VirtIOClient.from_instance_id(instance_id)
+        tmpdir = FilePath(self.mktemp())
+        tmpdir.makedirs()
+        virtio = VirtIOClient.using_insecure_tls(instance_id, tmpdir)
         virtio.attach_disk(host_device, "vdc")
         self.addCleanup(virtio.detach_disk, host_device)
 
@@ -338,8 +360,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
@@ -348,10 +371,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_id=volume.id,
             device=None,
         )
-        volume = wait_for_volume(
+        volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
-            expected_status=u'in-use',
+            desired_state=u'in-use',
+            transient_states=(u'attaching',),
         )
 
         devices_after = set(FilePath('/dev').children())
@@ -371,7 +395,9 @@ class CinderAttachmentTests(SynchronousTestCase):
         instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
-        virtio = VirtIOClient.from_instance_id(instance_id)
+        tmpdir = FilePath(self.mktemp())
+        tmpdir.makedirs()
+        virtio = VirtIOClient.using_insecure_tls(instance_id, tmpdir)
         virtio.attach_disk(host_device, "vdb")
         self.addCleanup(virtio.detach_disk, host_device)
 
@@ -379,8 +405,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
-        volume = wait_for_volume(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume)
+        volume = wait_for_volume_state(
+            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            desired_state=u'available', transient_states=(u'creating',))
 
         attached_volume = self.nova.volumes.create_server_volume(
             server_id=instance_id,
@@ -388,9 +415,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             device=None,
         )
 
-        with self.assertRaises(Exception):
-            wait_for_volume(
+        with self.assertRaises(UnexpectedStateException) as e:
+            wait_for_volume_state(
                 volume_manager=self.cinder.volumes,
                 expected_volume=attached_volume,
-                expected_status=u'in-use',
+                desired_state=u'in-use',
+                transient_states=(u'attaching',),
             )
+        self.assertEqual(e.exception.unexpected_state, u'available')

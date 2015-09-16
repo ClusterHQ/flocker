@@ -544,6 +544,31 @@ class DeploymentTests(SynchronousTestCase):
                          sorted(list(node.applications) +
                                 list(another_node.applications)))
 
+    def test_update_node_retains_leases(self):
+        """
+        ``update_node()`` retains the existing ``Deployment``'s leases
+        and does not transform them.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))}))
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
+        )
+        dataset_id = uuid4()
+        leases = Leases()
+        leases = leases.acquire(
+            datetime.datetime.now(), dataset_id, node.uuid, 60
+        )
+        original = Deployment(nodes=frozenset([node]), leases=leases)
+        updated = original.update_node(another_node)
+        self.assertEqual(original.leases, updated.leases)
+
     def test_update_node_new(self):
         """
         When doing ``update_node()``, if the given ``Node`` has hostname not

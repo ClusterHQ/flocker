@@ -31,9 +31,9 @@ from .._logging import (
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size,
+    get_minimum_allocatable_size, get_ec2_client_for_test,
 )
 
 TIMEOUT = 5
@@ -68,10 +68,10 @@ class EBSBlockDeviceAPIInterfaceTests(
         belonging to the current Flocker cluster.
         """
         try:
-            cls, kwargs = get_blockdeviceapi_args(ProviderType.aws)
+            config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        ec2_client = kwargs["ec2_client"]
+        ec2_client = get_ec2_client_for_test(config)
         requested_volume = ec2_client.connection.create_volume(
             int(Byte(self.minimum_allocatable_size).to_GiB().value),
             ec2_client.zone)
