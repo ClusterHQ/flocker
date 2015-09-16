@@ -20,9 +20,9 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 #. Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
 
-   .. prompt:: bash $ auto
+   .. prompt:: bash $
 
-      $ flocker-ca initialize mycluster
+      flocker-ca initialize mycluster
 
    .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
              Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
@@ -42,25 +42,25 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
    - It should be a valid DNS name that HTTPS clients can resolve since they will use it as part of TLS validation.
    - Using an IP address is not recommended as it may break some HTTPS clients.
 
-     .. prompt:: bash $ auto
+     .. prompt:: bash $
 
-        $ flocker-ca create-control-certificate example.org
+        flocker-ca create-control-certificate example.org
 
 #. At this point you will need to create a :file:`/etc/flocker` directory on each node:
 
-   .. prompt:: bash root@centos-7:~/$ auto
+   .. prompt:: bash root@centos-7:~/$
 
-      root@centos-7:~/$ mkdir /etc/flocker
+      mkdir /etc/flocker
 
 #. You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
    You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
 
 #. On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
-   .. prompt:: bash root@centos-7:~/$ auto
+   .. prompt:: bash root@centos-7:~/$
 
-      root@centos-7:~/$ chmod 0700 /etc/flocker
-      root@centos-7:~/$ chmod 0600 /etc/flocker/control-service.key
+      chmod 0700 /etc/flocker
+      chmod 0600 /etc/flocker/control-service.key
 
    You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
 
@@ -72,9 +72,9 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
    This step should be followed for all nodes on the cluster, as well as the machine running the control service.
    Run the command in the same directory containing the certificate authority files you generated in the first step.
 
-   .. prompt:: bash $ auto
+   .. prompt:: bash $
 
-      $ flocker-ca create-node-certificate
+      flocker-ca create-node-certificate
 
    This creates :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`. Copy it over to :file:`/etc/flocker/node.crt` on your node machine, and make sure to chmod 0600 it.
 
@@ -168,9 +168,9 @@ Import the client certificate into the ``Keychain`` and then refer to it by its 
 Linux
 -----
 
-.. prompt:: bash $ auto
+.. prompt:: bash $
 
-    $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
+    curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
          https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
