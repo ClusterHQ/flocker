@@ -1,13 +1,13 @@
 
-====================================
-Installing the Flocker Docker Plugin
-====================================
+========================================
+Installing the Flocker Plugin for Docker
+========================================
 
-Before installing the Flocker Docker plugin, you will need to have installed Flocker on some nodes, using the instructions in the previous topics.
+Before installing the Flocker plugin for Docker, you will need to have installed Flocker on some nodes, using the instructions in the previous topics.
 
 On the same machine where you ran ``flocker-ca`` while installing Flocker, you will need to generate a new API user certificate and key for a user named ``plugin``, as described in the :ref:`generate-api` instructions.
 
-Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the nodes where you want to run the Flocker Docker plugin.
+Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the nodes where you want to run the Flocker plugin for Docker.
 
 You will also need to have Docker (at least version 1.8 or later) installed. The following command will install the latest version available:
 
@@ -15,7 +15,7 @@ You will also need to have Docker (at least version 1.8 or later) installed. The
 
    wget -qO- https://get.docker.com/ | sudo sh
 
-Now you can use the following instructions to install the Flocker Docker plugin on each of the nodes in your cluster.
+Now you can use the following instructions to install the Flocker plugin for Docker on each of the nodes in your cluster.
 
 On CentOS 7
 ===========
