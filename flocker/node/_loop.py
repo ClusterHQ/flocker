@@ -120,6 +120,8 @@ class ClusterStatus(object):
 
     def output_STORE_CLIENT(self, context):
         self.client = context.client
+        # Clear convergence loop's last sent local status cache
+        self.convergence_loop_fsm.last_sent_local_status = None
 
     def output_UPDATE_STATUS(self, context):
         self.convergence_loop_fsm.receive(
@@ -309,7 +311,6 @@ class ConvergenceLoop(object):
         # Since only one control service can exist at the moment, there can
         # no more than one AMP client at any given point in time.
         self.last_sent_local_state = None
-        self.last_sent_client = None
 
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
@@ -323,8 +324,7 @@ class ConvergenceLoop(object):
         :param state_changes: State to send to the control service.
         :type state_changes: tuple of IClusterStateChange
         """
-        if (self.last_sent_local_state != state_changes or
-           self.last_sent_client != self.client):
+        if self.last_sent_local_state != state_changes:
             context = LOG_SEND_TO_CONTROL_SERVICE(
                 self.fsm.logger, connection=self.client,
                 local_changes=list(state_changes),
@@ -338,11 +338,9 @@ class ConvergenceLoop(object):
 
                 def set_sent_state(_):
                     self.last_sent_local_state = state_changes
-                    self.last_sent_client = self.client
 
                 def clear_sent_state(f):
                     self.last_sent_local_state = None
-                    self.last_sent_client = None
                     return f
                 d.addCallbacks(set_sent_state, clear_sent_state)
                 d.addErrback(

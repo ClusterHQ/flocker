@@ -9,7 +9,7 @@ from uuid import uuid4
 from eliot.testing import validate_logging, assertHasAction, assertHasMessage
 from machinist import LOG_FSM_TRANSITION
 
-from pyrsistent import s
+from pyrsistent import pset
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
@@ -310,7 +310,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     def test_convergence_done_unchanged_notify(self):
         """
         A FSM doing convergence that gets a discovery result that is unchanged
-        from the last time it sent data does not send the discoverd state to
+        from the last time it sent data does not send the discovered state to
         the control service.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
@@ -353,7 +353,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         local_state2 = NodeState(
-            hostname=u'192.0.2.123', used_ports=s(80), applications=s())
+            hostname=u'192.0.2.123', used_ports=pset([80]),
+            applications=pset())
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
         state2 = DeploymentState(nodes=[local_state2])
@@ -423,48 +424,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 # And that state was resent even though it remained unchanged
                 [(NodeStateCommand, dict(state_changes=(local_state,))),
                  (NodeStateCommand, dict(state_changes=(local_state2,)))],
-            )
-        )
-
-    def test_send_state_on_connection(self):
-        """
-        If we get a new connection to the control node, we always
-        send our state, even if we already sent that state on a different
-        connection.
-        """
-        local_state = NodeState(hostname=u'192.0.2.123')
-        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
-        state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=succeed(None))
-        # Because the second action result is unfired Deferred, the second
-        # iteration will never finish; applying its changes waits for this
-        # Deferred to fire.
-        action2 = ControllableAction(result=Deferred())
-        deployer = ControllableDeployer(
-            local_state.hostname,
-            [succeed(local_state), succeed(local_state)],
-            [action, action2])
-        client = self.make_amp_client([local_state])
-        reactor = Clock()
-        loop = build_convergence_loop_fsm(reactor, deployer)
-        loop.receive(_ClientStatusUpdate(
-            client=client, configuration=configuration, state=state))
-        client2 = self.make_amp_client([local_state])
-        loop.receive(_ClientStatusUpdate(
-            client=client2, configuration=configuration, state=state))
-        reactor.advance(1.0)
-
-        # Calculating actions happened, result was run... and then we did
-        # whole thing again:
-        self.assertEqual(
-            (deployer.calculate_inputs, client.calls, client2.calls),
-            (
-                # Check that the loop has run twice
-                [(local_state, configuration, state),
-                 (local_state, configuration, state)],
-                # And the state was sent twice even thought it did not change
-                [(NodeStateCommand, dict(state_changes=(local_state,)))],
-                [(NodeStateCommand, dict(state_changes=(local_state,)))],
             )
         )
 
@@ -721,7 +680,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     def test_convergence_stop_then_status_update(self):
         """
         A FSM doing convergence that receives a stop input and then a status
-        update continues on to to next convergence iteration (i.e. stop
+        update continues on to next convergence iteration (i.e. stop
         ends up being ignored).
         """
         local_state = NodeState(hostname=u'192.0.2.123')
