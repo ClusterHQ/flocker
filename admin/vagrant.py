@@ -6,9 +6,10 @@ Tools for interacting with vagrant.
 
 import sys
 import os
+import urllib
+
 from pipes import quote
 from subprocess import check_call, CalledProcessError
-from urllib import quote
 
 import json
 
@@ -99,7 +100,7 @@ def box_metadata(name, version, path):
             "version": dotted_version,
             "providers": [{
                 "name": "virtualbox",
-                "url": quote(path.path)
+                "url": urllib.quote(path.path, safe=":/")
             }]
         }]
     }
