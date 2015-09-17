@@ -12,11 +12,12 @@ from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...testtools import random_name, find_free_port
+from ...testtools import (
+    random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE
+)
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
-    REALISTIC_BLOCKDEVICE_SIZE, get_docker_client,
-    post_http_server, assert_http_server,
+    get_docker_client, post_http_server, assert_http_server,
 )
 from ..scripts import SCRIPTS
 
