@@ -93,15 +93,15 @@ def flocker_control_main():
     pr.enable()
 
     def output_profile(signal, frame):
-        pr.disable()
-        s = StringIO.StringIO()
-        sortby = 'cumulative'
-        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
+        """
+        Dump profiling statistics to a file.
+
+        :param int signal: See ``signal.signal``.
+        :param frame: None or frame object. See ``signal.signal``.
+        """
         current_time = time.strftime("%Y%m%d%H%M%S")
-        profile_filename = "profile-{}.txt".format(current_time)
-        with open(profile_filename, "w") as profile_output:
-            profile_output.write(s.getvalue())
+        profile_filename = "profile-{}".format(current_time)
+        pr.dump_stats(profile_filename)
 
     signal.signal(signal.SIGUSR1, output_profile)
 
