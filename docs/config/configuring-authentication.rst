@@ -48,7 +48,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 #. At this point you will need to create a :file:`/etc/flocker` directory on each node:
 
-   .. prompt:: bash root@centos-7:~/$
+   .. prompt:: bash root@linuxbox:~/#
 
       mkdir /etc/flocker
 
@@ -57,7 +57,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 #. On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
-   .. prompt:: bash root@centos-7:~/$
+   .. prompt:: bash root@linuxbox:~/#
 
       chmod 0700 /etc/flocker
       chmod 0600 /etc/flocker/control-service.key
@@ -151,7 +151,7 @@ If you're not sure what the username is, you can find the common name like this:
 .. prompt:: bash $ auto
 
     $ openssl x509 -in user.crt -noout -subject
-    subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
+    subject=/OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
 
 In this example, ``user-allison`` is the common name.
 Import the client certificate into the ``Keychain`` and then refer to it by its common name:
