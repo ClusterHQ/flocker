@@ -12,11 +12,11 @@ from docker.utils import create_host_config
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    random_name, find_free_port
+    random_name, find_free_port, loop_until
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket,
+    get_docker_client, verify_socket, check_http_server,
 )
 from ..scripts import SCRIPTS
 
@@ -138,8 +138,12 @@ class DockerPluginTests(TestCase):
         # ensure the container HTTP service has stopped
 
         def poll_http_server_stopped(_):
-            ds = verify_socket(node.public_address, host_port, closed=True)
-            return ds
+            def http_closed():
+                ds = check_http_server(node.public_address, host_port)
+                ds.addCallback(lambda succeeded: not succeeded)
+                return ds
+            looping = loop_until(http_closed)
+            return looping
 
         d.addCallback(poll_http_server_stopped)
         # start Docker daemon

@@ -842,14 +842,12 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
     return waiting_for_create
 
 
-def verify_socket(host, port, closed=False):
+def verify_socket(host, port):
     """
-    Wait until the destination socket is either open or closed.
+    Wait until the destination socket can be reached.
 
     :param bytes host: Host to connect to.
     :param int port: Port to connect to.
-    :param bool closed: Wait until the destination is not
-        reachable.
 
     :return Deferred: Firing when connection is possible.
     """
@@ -862,10 +860,7 @@ def verify_socket(host, port, closed=False):
                 port=port,
                 result=conn,
             ).write()
-            if closed:
-                return conn != 0
-            else:
-                return conn == 0
+            return conn == 0
 
     dl = loop_until(can_connect)
     return dl
@@ -900,6 +895,34 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         host, port, data)))
     d.addCallback(test.assertEqual, expected_response)
     return d
+
+
+def check_http_server(host, port):
+    """
+    Check if an HTTP server is running.
+
+    Attempts a request to an HTTP server and indicate the success
+    or failure of the request.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Fires with True if the request received a response,
+            False if the request failed.
+    """
+    req = get(
+        "http://{host}:{port}".format(host=host, port=port),
+        persistent=False
+    )
+
+    def failed(failure):
+        return False
+
+    def succeeded(result):
+        return True
+
+    req.addCallbacks(succeeded, failed)
+    return req
 
 
 def query_http_server(host, port, path=b""):
