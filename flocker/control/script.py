@@ -9,6 +9,7 @@ import cProfile
 import pstats
 import signal
 import StringIO
+import time
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
@@ -97,8 +98,9 @@ def flocker_control_main():
         sortby = 'cumulative'
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
-        # TODO Don't hardcode the output file.
-        with open("profile.txt", "w") as profile_output:
+        current_time = time.strftime("%Y%m%d%H%M%S")
+        profile_filename = "profile-{}.txt".format(current_time)
+        with open(profile_filename, "w") as profile_output:
             profile_output.write(s.getvalue())
 
     signal.signal(signal.SIGUSR1, output_profile)
