@@ -5,6 +5,11 @@
 Script for starting control service server.
 """
 
+import cProfile
+import pstats
+import signal
+import StringIO
+
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
 from twisted.python.filepath import FilePath
@@ -77,6 +82,19 @@ class ControlScript(object):
 
 
 def flocker_control_main():
+    pr = cProfile.Profile()
+    pr.enable()
+
+    def print_profile_stats(signal, frame):
+        pr.disable()
+        s = StringIO.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print s.getvalue()
+
+    signal.signal(signal.SIGTERM, print_profile_stats)
+
     return FlockerScriptRunner(
         script=ControlScript(),
         options=ControlOptions()
