@@ -82,15 +82,23 @@ class ControlScript(object):
 
 
 def flocker_control_main():
+    # TODO Move this to FlockerScriptRunner
+    # TODO Change this so that it is only profiling when a particular
+    # environment variable is set
+    # TODO Ensure cProfile is providing information about CPU time
+    # TODO Can we provide live updates about the performance rather than
+    # sending a signal?
     pr = cProfile.Profile()
     pr.enable()
 
+    # TODO Rename this and document how to use
     def print_profile_stats(signal, frame):
         pr.disable()
         s = StringIO.StringIO()
         sortby = 'cumulative'
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
+        # TODO Don't hardcode the output file.
         with open("profile.txt", "w") as profile_output:
             profile_output.write(s.getvalue())
 
