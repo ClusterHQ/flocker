@@ -28,6 +28,12 @@ class DockerPluginTests(TestCase):
     def docker_service(self, address, action):
         """
         Restart the Docker daemon on the specified address.
+        Restarts by stopping, verifying the service has stopped, then
+        starting and finally verifying the service has started.
+        Verification is performed via the success of running "docker ps"
+        on the target node; an exit code of 0 indicates the daemon is
+        running, an exit code of 1 is expected if we try to run this
+        command when the daemon is stopped.
 
         :param bytes address: The public IP of the node on which Docker will
             be restarted.
@@ -46,7 +52,7 @@ class DockerPluginTests(TestCase):
                 command = ["systemctl", action, "docker"]
             d = run_ssh(reactor, b"root", address, command)
 
-            def handle_error(_):
+            def handle_error(_, action):
                 self.fail(
                     "Docker {} failed. See logs for process output.".format(
                         action))
