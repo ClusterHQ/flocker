@@ -25,12 +25,13 @@ class DockerPluginTests(TestCase):
     """
     Tests for the Docker plugin.
     """
-    def restart_docker(self, address):
+    def docker_service(self, address, action):
         """
         Restart the Docker daemon on the specified address.
 
         :param bytes address: The public IP of the node on which Docker will
             be restarted.
+        :param bytes action: The action to perform on the service.
         """
         distro = []
         get_distro = run_ssh(
@@ -38,22 +39,23 @@ class DockerPluginTests(TestCase):
             handle_stdout=distro.append)
         get_distro.addCallback(lambda _: distro[0].lower())
 
-        def restart_docker(distribution):
+        def action_docker(distribution):
             if 'ubuntu' in distribution:
-                command = ["service", "docker", "restart"]
+                command = ["service", "docker", action]
             else:
-                command = ["systemctl", "restart", "docker"]
+                command = ["systemctl", action, "docker"]
             d = run_ssh(reactor, b"root", address, command)
 
             def handle_error(_):
                 self.fail(
-                    "Restarting Docker failed. See logs for process output.")
+                    "Docker {} failed. See logs for process output.".format(
+                        action))
 
             d.addErrback(handle_error)
             return d
 
-        restarting = get_distro.addCallback(restart_docker)
-        return restarting
+        acting = get_distro.addCallback(action_docker)
+        return acting
 
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments, cleanup=True):
@@ -123,8 +125,20 @@ class DockerPluginTests(TestCase):
         # assert the data has been written
         d.addCallback(lambda _: assert_http_server(
             self, node.public_address, host_port, expected_response=data))
-        # restart the Docker daemon
-        d.addCallback(lambda _: self.restart_docker(node.public_address))
+        # stop the Docker daemon
+        d.addCallback(lambda _: self.docker_service(
+            node.public_address, b"stop"))
+
+        # ensure the container HTTP service has stopped
+
+        def poll_http_server_stopped(_):
+            ds = verify_socket(node.public_address, host_port, closed=True)
+            return ds
+
+        d.addCallback(poll_http_server_stopped)
+        # start Docker daemon
+        d.addCallback(lambda _: self.docker_service(
+            node.public_address, b"start"))
         # attempt to read the data back again; the container should've
         # restarted automatically, though it may take a few seconds
         # after the Docker daemon has restarted.

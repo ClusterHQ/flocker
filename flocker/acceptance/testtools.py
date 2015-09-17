@@ -828,12 +828,14 @@ def create_dataset(test_case, cluster,
     return waiting_for_create
 
 
-def verify_socket(host, port):
+def verify_socket(host, port, closed=False):
     """
-    Wait until the destionation can be connected to.
+    Wait until the destination socket is either open or closed.
 
     :param bytes host: Host to connect to.
     :param int port: Port to connect to.
+    :param bool closed: Wait until the destination is not
+        reachable.
 
     :return Deferred: Firing when connection is possible.
     """
@@ -846,7 +848,10 @@ def verify_socket(host, port):
                 port=port,
                 result=conn,
             ).write()
-            return conn == 0
+            if closed:
+                return conn != 0
+            else:
+                return conn == 0
 
     dl = loop_until(can_connect)
     return dl
