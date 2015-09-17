@@ -91,9 +91,10 @@ def flocker_control_main():
         sortby = 'cumulative'
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
-        print s.getvalue()
+        with open("profile.txt", "w") as profile_output:
+            profile_output.write(s.getvalue())
 
-    signal.signal(signal.SIGTERM, print_profile_stats)
+    signal.signal(signal.SIGUSR1, print_profile_stats)
 
     return FlockerScriptRunner(
         script=ControlScript(),
