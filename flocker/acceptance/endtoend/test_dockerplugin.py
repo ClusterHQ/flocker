@@ -57,7 +57,7 @@ class DockerPluginTests(TestCase):
                     "Docker {} failed. See logs for process output.".format(
                         action))
 
-            d.addErrback(handle_error)
+            d.addErrback(handle_error, action)
             return d
 
         acting = get_distro.addCallback(action_docker)
