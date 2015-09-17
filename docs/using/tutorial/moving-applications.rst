@@ -70,10 +70,9 @@ Note that nothing in the application configuration file needs to change.
 
 Use ``flocker-deploy`` again to enact the change:
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 minimal-deployment-moved.yml minimal-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 minimal-deployment-moved.yml minimal-application.yml
 
 ``docker ps`` shows that no containers are running on ``172.16.255.250``:
 
