@@ -58,10 +58,9 @@ Download and save the following configuration files to the ``flocker-tutorial`` 
    
 Now run ``flocker-deploy`` to deploy the MySQL application to the target Virtual Machine.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 mysql-deployment.yml mysql-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 mysql-deployment.yml mysql-application.yml
 
 Connect to MySQL & Insert Sample Data
 =====================================
@@ -104,10 +103,9 @@ Download and save the following configuration file to your ``flocker-tutorial`` 
    
 Then run ``flocker-deploy`` to move the MySQL application along with its data to the new destination host:
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 mysql-deployment-moved.yml mysql-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 mysql-deployment-moved.yml mysql-application.yml
 
 Verify Data Has Moved
 =====================
