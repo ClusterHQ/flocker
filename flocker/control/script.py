@@ -6,9 +6,7 @@ Script for starting control service server.
 """
 
 import cProfile
-import pstats
 import signal
-import StringIO
 import time
 
 from twisted.python.usage import Options
@@ -83,27 +81,33 @@ class ControlScript(object):
 
 
 def flocker_control_main():
-    # TODO Move this to FlockerScriptRunner
-    # TODO Change this so that it is only profiling when a particular
-    # environment variable is set
-    # TODO Ensure cProfile is providing information about CPU time
-    # TODO Can we provide live updates about the performance rather than
-    # sending a signal?
     pr = cProfile.Profile()
-    pr.enable()
 
+    def enable_profiling(signal, frame):
+        """
+        Enable profiling of the control service.
+
+        :param int signal: See ``signal.signal``.
+        :param frame: None or frame object. See ``signal.signal``.
+        """
+        pr.enable()
+ 
     def output_profile(signal, frame):
         """
         Dump profiling statistics to a file.
+        This disables profiling.
 
         :param int signal: See ``signal.signal``.
         :param frame: None or frame object. See ``signal.signal``.
         """
         current_time = time.strftime("%Y%m%d%H%M%S")
         profile_filename = "profile-{}".format(current_time)
+        # This dumps the current profiling statistics and disables the
+        # collection of profiling data.
         pr.dump_stats(profile_filename)
-
-    signal.signal(signal.SIGUSR1, output_profile)
+    
+    signal.signal(signal.SIGUSR1, enable_profiling)
+    signal.signal(signal.SIGUSR2, output_profile)
 
     return FlockerScriptRunner(
         script=ControlScript(),
