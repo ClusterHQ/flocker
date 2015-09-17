@@ -12,7 +12,6 @@ from ...testtools import loop_until
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
-    REALISTIC_BLOCKDEVICE_SIZE,
 )
 
 
@@ -35,8 +34,7 @@ class DatasetAPITests(TestCase):
 
         All attributes, including the maximum size, are preserved.
         """
-        waiting_for_create = create_dataset(
-            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
+        waiting_for_create = create_dataset(self, cluster)
 
         # Once created, request to move the dataset to node2
         def move_dataset(dataset):
