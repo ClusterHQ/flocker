@@ -91,8 +91,7 @@ def flocker_control_main():
     pr = cProfile.Profile()
     pr.enable()
 
-    # TODO Rename this and document how to use
-    def print_profile_stats(signal, frame):
+    def output_profile(signal, frame):
         pr.disable()
         s = StringIO.StringIO()
         sortby = 'cumulative'
@@ -102,7 +101,7 @@ def flocker_control_main():
         with open("profile.txt", "w") as profile_output:
             profile_output.write(s.getvalue())
 
-    signal.signal(signal.SIGUSR1, print_profile_stats)
+    signal.signal(signal.SIGUSR1, output_profile)
 
     return FlockerScriptRunner(
         script=ControlScript(),
