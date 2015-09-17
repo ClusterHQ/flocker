@@ -74,10 +74,9 @@ Download and save the following configuration files to your ``flocker-tutorial``
 
 Run ``flocker-deploy`` to start the three applications:
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
 
 Connect to ``Kibana``
 =====================
@@ -121,10 +120,9 @@ Download and save the following configuration files to the ``flocker-tutorial`` 
 
 Then run ``flocker-deploy`` to move the ``Elasticsearch`` application along with its data to the new destination host:
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
    
 Now verify that the ``ElasticSearch`` application has moved to the other VM:
 
