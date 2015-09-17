@@ -30,7 +30,7 @@ from .._client import (
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port
+from ...testtools import find_free_port, loop_until
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
@@ -326,15 +326,24 @@ def make_clientv1_tests():
             """
             dataset_id = uuid4()
             d = self.client.acquire_lease(dataset_id, self.node_1, 60)
-            d.addCallback(lambda _: self.client.list_leases())
 
-            def check_lease(leases):
+            def check_lease(_):
                 expected_lease = Lease(
                     dataset_id=dataset_id,
                     node_uuid=self.node_1,
                     expires=60.0
                 )
-                self.assertIn(expected_lease, leases)
+
+                def acquired_lease():
+                    get_leases = self.client.list_leases()
+
+                    def got_leases(leases):
+                        return expected_lease in leases
+                    get_leases.addCallback(got_leases)
+                    return get_leases
+
+                looping = loop_until(acquired_lease)
+                return looping
 
             d.addCallback(check_lease)
             d.addCallback(lambda _: self.client.acquire_lease(
