@@ -1,5 +1,5 @@
-# -*- test-case-name: flocker.node.test.test_loop -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.node.test.test_loop -*-
 
 """
 Convergence loop for a node-specific dataset agent.
