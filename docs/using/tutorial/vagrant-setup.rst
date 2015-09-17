@@ -35,33 +35,26 @@ If you do not already have the client on your machine, you can install it by run
 Ubuntu
 ^^^^^^
 
-.. prompt:: bash alice@mercury:~$ auto
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo apt-get install mongodb-clients
-   ...
-   alice@mercury:~$
+   sudo apt-get install mongodb-clients
 
 Red Hat / Fedora
 ^^^^^^^^^^^^^^^^
 
-.. prompt:: bash alice@mercury:~$ auto
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo yum install mongodb
-   ...
-   alice@mercury:~$
+   sudo yum install mongodb
 
 OS X
 ^^^^
 
 Install `Homebrew`_
 
-.. prompt:: bash alice@mercury:~$ auto
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ brew update
-   ...
-   alice@mercury:~$ brew install mongodb
-   ...
-   alice@mercury:~$
+   brew update
+   brew install mongodb
 
 Other Systems
 ^^^^^^^^^^^^^
@@ -109,8 +102,8 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
    .. prompt:: bash alice@mercury:~/$
 
-      alice@mercury:~/$ mkdir flocker-tutorial
-      alice@mercury:~/$ cd flocker-tutorial
+      mkdir flocker-tutorial
+      cd flocker-tutorial
 
 #. Download the Vagrant configuration file by right clicking on the link below.
    Save it in the *flocker-tutorial* directory and preserve its filename.
@@ -141,7 +134,6 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
       alice@mercury:~/flocker-tutorial$ ls
       cluster.crt user.crt user.key Vagrantfile
-      alice@mercury:~/flocker-tutorial$
 
 #. Use ``vagrant up`` to start and provision the VMs:
 
@@ -186,14 +178,12 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
       alice@mercury:~/flocker-tutorial$ ssh-add
       Could not open a connection to your authentication agent.
-      alice@mercury:~/flocker-tutorial$
 
    If you do, you'll see no output:
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-      alice@mercury:~/flocker-tutorial$ ssh-add
-      alice@mercury:~/flocker-tutorial$
+      ssh-add
 
    If you don't have an SSH agent running, start one:
 
@@ -201,14 +191,12 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
       alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
       Agent pid 27233
-      alice@mercury:~/flocker-tutorial$
 
 #. Finally, add the Vagrant key to your agent:
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-      alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
-      alice@mercury:~/flocker-tutorial$
+      ssh-add ~/.vagrant.d/insecure_private_key
 
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
