@@ -325,7 +325,18 @@ def make_clientv1_tests():
             acquire a lease that is held by another node.
             """
             dataset_id = uuid4()
-            d = self.client.acquire_lease(dataset_id, self.node_1, 10)
+            d = self.client.acquire_lease(dataset_id, self.node_1, 60)
+            d.addCallback(lambda _: self.client.list_leases())
+
+            def check_lease(leases):
+                expected_lease = Lease(
+                    dataset_id=dataset_id,
+                    node_uuid=self.node_1,
+                    expires=60.0
+                )
+                self.assertIn(expected_lease, leases)
+
+            d.addCallback(check_lease)
             d.addCallback(lambda _: self.client.acquire_lease(
                 dataset_id, self.node_2, None))
             return self.assertFailure(d, LeaseAlreadyHeld)
