@@ -29,7 +29,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    UnattachedVolume, StorageProfiles
 )
 from ...control import pmap_field
 
@@ -713,6 +713,19 @@ class EBSBlockDeviceAPI(object):
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
         return volumes
+
+    def attach_profile(self, blockdevice_id, profile):
+        """
+        Attach a profile to the given volume.
+        TODO: Throw an exception in case of failure to apply desired profile.
+
+        :param unicode blockdevice_id: UUID of the volume to work on.
+        :param StorageProfiles profile: Storage Profile to apply to volume.
+
+        :raises UnknownVolume: If there does not exist a BlockDeviceVolume
+            corresponding to the input blockdevice_id.
+        """
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
