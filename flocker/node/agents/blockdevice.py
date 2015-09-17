@@ -7,6 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
+import string
 from uuid import UUID, uuid4
 from subprocess import CalledProcessError, check_output, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
@@ -24,6 +25,7 @@ from characteristic import attributes
 
 import psutil
 
+from twisted.python.constants import Values, ValueConstant
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
@@ -47,6 +49,17 @@ _logger = Logger()
 # maximum_size.
 # XXX: Make this configurable. FLOC-2679
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
+
+
+# TODO: Discover profiles exposed by storage backends instead of defining them.
+class StorageProfiles(Values):
+    """
+    Supported Storage Profiles on block device volumes.
+    """
+    EMPTY = ValueConstant('')          # unspecified
+    GOLD = ValueConstant(u'gold')      # high performance, high cost
+    SILVER = ValueConstant(u'silver')  # medium performance, mid cost
+    BRONZE = ValueConstant(u'bronze')  # low performance, low cost
 
 
 @attributes(["dataset_id"])
@@ -752,12 +765,30 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
+        # Expect profile from dataset's metadata (PMap).
+        # metadata=pmap({u'name': u'vname@profile'})
+        # TODO: Let docker flocker plugin do the splitting for us:
+        # (metadata=pmap({u'name': u'vname', u'profile': u'profile'}))
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
             size=allocated_size(
                 allocation_unit=api.allocation_unit(),
                 requested_size=self.dataset.maximum_size,
             ),
+        )
+
+        try:
+            name_value = self.dataset.metadata(u'name')
+            _, profile = string.split(name_value, '@')
+            profile = StorageProfiles.lookupByValue(profile)
+        except ValueError:
+            profile = StorageProfiles.EMPTY
+
+        # Attach a profile with the created volume.
+        # TODO: define exceptions around failure to attach profile.
+        api.attach_profile(
+            volume.blockdevice_id,
+            profile=profile
         )
 
         # This duplicates AttachVolume now.
