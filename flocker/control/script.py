@@ -91,7 +91,7 @@ def flocker_control_main():
         :param frame: None or frame object. See ``signal.signal``.
         """
         pr.enable()
- 
+
     def output_profile(signal, frame):
         """
         Dump profiling statistics to a file.
@@ -101,10 +101,10 @@ def flocker_control_main():
         :param frame: None or frame object. See ``signal.signal``.
         """
         current_time = time.strftime("%Y%m%d%H%M%S")
-        profile_filename = "profile-{}".format(current_time)
+        path = FilePath('/etc/flocker/profile-{}'.format(current_time))
         # This dumps the current profiling statistics and disables the
         # collection of profiling data.
-        pr.dump_stats(profile_filename)
+        pr.dump_stats(path.path)
     
     signal.signal(signal.SIGUSR1, enable_profiling)
     signal.signal(signal.SIGUSR2, output_profile)
