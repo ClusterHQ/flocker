@@ -8,7 +8,7 @@ Install flocker on a remote node.
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect
+from effect import Func, Effect, parallel
 import yaml
 
 from zope.interface import implementer
@@ -234,15 +234,20 @@ def install_commands_yum(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    repo_package_name = 'clusterhq-release'
     flocker_version = package_source.version
     if flocker_version is None:
         flocker_version = get_installable_version(version)
     commands = [
-        # May have been previously installed by previous install run, so do
-        # update instead of install:
-        run(command="yum update -y " + get_repository_url(
-            distribution=distribution,
-            flocker_version=flocker_version)),
+        # If package has previously been installed, 'yum install' fails,
+        # so check if it is installed first.
+        run(
+            command="yum list installed {} || yum install -y {}".format(
+                repo_package_name,
+                get_repository_url(
+                    distribution=distribution,
+                    flocker_version=flocker_version))
+        ),
     ]
 
     if base_url is not None:
@@ -631,9 +636,9 @@ def task_install_api_certificates(api_cert, api_key):
     return sequence([
         run('mkdir -p /etc/flocker'),
         run('chmod u=rwX,g=,o= /etc/flocker'),
-        put(path="/etc/flocker/api.crt",
+        put(path="/etc/flocker/plugin.crt",
             content=api_cert.getContent()),
-        put(path="/etc/flocker/api.key",
+        put(path="/etc/flocker/plugin.key",
             content=api_key.getContent(),
             log_content_filter=_remove_private_key),
         ])
@@ -889,7 +894,9 @@ def task_create_flocker_pool_file():
     return sequence([
         run('mkdir -p /var/opt/flocker'),
         run('truncate --size 10G /var/opt/flocker/pool-vdev'),
-        run('zpool create flocker /var/opt/flocker/pool-vdev'),
+        # XXX - See FLOC-3018
+        run('ZFS_MODULE_LOADING=yes '
+            'zpool create flocker /var/opt/flocker/pool-vdev'),
     ])
 
 
@@ -1177,7 +1184,7 @@ def _run_on_all_nodes(nodes, task):
 
     :return: An ``Effect`` that runs the commands on a group of nodes.
     """
-    return sequence(list(
+    return parallel(list(
         run_remotely(
             username='root',
             address=node.address,

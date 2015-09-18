@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# This script builds the base flocker-dev box.
+# This script builds the base flocker-tutorial box.
 
 import sys
 import os
@@ -102,7 +102,14 @@ check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 # convenient for a demo in a VM.
 check_call(['mkdir', '-p', '/var/opt/flocker'])
 check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
-check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])
+# ZFS 0.6.5 stopped loading the module stack. This additional environment
+# variable makes it follow the old behaviour.  However, support for this
+# will be removed in a future release.  See FLOC-3018
+environ = os.environ.copy()
+environ['ZFS_MODULE_LOADING'] = 'yes'
+check_call(
+    ['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'],
+    env=environ)
 
 # Move SSH private key into place so ZFS agent can use it until we remove
 # SSH completely in FLOC-1665. The Vagrantfile copied it over, and it's
