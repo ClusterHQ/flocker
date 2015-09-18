@@ -35,33 +35,26 @@ If you do not already have the client on your machine, you can install it by run
 Ubuntu
 ^^^^^^
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo apt-get install mongodb-clients
-   ...
-   alice@mercury:~$
+   sudo apt-get install mongodb-clients
 
 Red Hat / Fedora
 ^^^^^^^^^^^^^^^^
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo yum install mongodb
-   ...
-   alice@mercury:~$
+   sudo yum install mongodb
 
 OS X
 ^^^^
 
 Install `Homebrew`_
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ brew update
-   ...
-   alice@mercury:~$ brew install mongodb
-   ...
-   alice@mercury:~$
+   brew update
+   brew install mongodb
 
 Other Systems
 ^^^^^^^^^^^^^
@@ -107,11 +100,10 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
 #. Create a tutorial directory:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/$
 
-      alice@mercury:~/$ mkdir flocker-tutorial
-      alice@mercury:~/$ cd flocker-tutorial
-      alice@mercury:~/flocker-tutorial$
+      mkdir flocker-tutorial
+      cd flocker-tutorial
 
 #. Download the Vagrant configuration file by right clicking on the link below.
    Save it in the *flocker-tutorial* directory and preserve its filename.
@@ -138,15 +130,14 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    
    :download:`user.key`
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
       alice@mercury:~/flocker-tutorial$ ls
       cluster.crt user.crt user.key Vagrantfile
-      alice@mercury:~/flocker-tutorial$
 
 #. Use ``vagrant up`` to start and provision the VMs:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
       alice@mercury:~/flocker-tutorial$ vagrant up
       Bringing machine 'node1' up with 'virtualbox' provider...
@@ -161,7 +152,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
 #. After ``vagrant up`` completes you may want to verify that the two VMs are really running and accepting SSH connections:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
       alice@mercury:~/flocker-tutorial$ vagrant status
       Current machine states:
@@ -183,33 +174,29 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
    If you don't, you'll see an error:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
       alice@mercury:~/flocker-tutorial$ ssh-add
       Could not open a connection to your authentication agent.
-      alice@mercury:~/flocker-tutorial$
 
    If you do, you'll see no output:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-      alice@mercury:~/flocker-tutorial$ ssh-add
-      alice@mercury:~/flocker-tutorial$
+      ssh-add
 
    If you don't have an SSH agent running, start one:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
       alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
       Agent pid 27233
-      alice@mercury:~/flocker-tutorial$
 
 #. Finally, add the Vagrant key to your agent:
 
-   .. code-block:: console
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-      alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
-      alice@mercury:~/flocker-tutorial$
+      ssh-add ~/.vagrant.d/insecure_private_key
 
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
@@ -226,9 +213,9 @@ If you already have a tutorial environment from a previous release, you'll need 
 First check the current Flocker version on the nodes.
 You can do this by logging into each node and running the ``flocker-dataset-agent`` command with a ``--version`` argument.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-dataset-agent --version
+   ssh root@172.16.255.250 flocker-dataset-agent --version
 
 Only proceed if you find that you are running an older version of Flocker than |version|.
 
@@ -240,7 +227,7 @@ This will ensure that you have the latest Flocker version and that you are using
 
 If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ vagrant destroy
        node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
@@ -256,20 +243,20 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
 Next delete the cached SSH host keys for the virtual machines as they will change when new VMs are created.
 Failing to do so will cause SSH to think there is a security problem when you connect to the recreated VMs.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
-   alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
+   ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
+   ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
 Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` along with the cluster and user certificate and key files below and run ``vagrant up``.
 
-   :download:`cluster.crt`
+:download:`cluster.crt`
    
-   :download:`user.crt`
-   
-   :download:`user.key`
+:download:`user.crt`
+  
+:download:`user.key`
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...

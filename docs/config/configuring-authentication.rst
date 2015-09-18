@@ -20,7 +20,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 #. Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
 
-   .. prompt:: bash 
+   .. prompt:: bash $
 
       flocker-ca initialize mycluster
 
@@ -42,25 +42,25 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
    - It should be a valid DNS name that HTTPS clients can resolve since they will use it as part of TLS validation.
    - Using an IP address is not recommended as it may break some HTTPS clients.
 
-     .. code-block:: console
+     .. prompt:: bash $
 
-        $ flocker-ca create-control-certificate example.org
+        flocker-ca create-control-certificate example.org
 
 #. At this point you will need to create a :file:`/etc/flocker` directory on each node:
 
-   .. code-block:: console
+   .. prompt:: bash root@linuxbox:~/#
 
-      root@centos-7:~/$ mkdir /etc/flocker
+      mkdir /etc/flocker
 
 #. You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
    You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
 
 #. On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
 
-   .. code-block:: console
+   .. prompt:: bash root@linuxbox:~/#
 
-      root@centos-7:~/$ chmod 0700 /etc/flocker
-      root@centos-7:~/$ chmod 0600 /etc/flocker/control-service.key
+      chmod 0700 /etc/flocker
+      chmod 0600 /etc/flocker/control-service.key
 
    You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
 
@@ -72,9 +72,9 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
    This step should be followed for all nodes on the cluster, as well as the machine running the control service.
    Run the command in the same directory containing the certificate authority files you generated in the first step.
 
-   .. code-block:: console
+   .. prompt:: bash $
 
-      $ flocker-ca create-node-certificate
+      flocker-ca create-node-certificate
 
    This creates :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`. Copy it over to :file:`/etc/flocker/node.crt` on your node machine, and make sure to chmod 0600 it.
 
@@ -112,7 +112,7 @@ For API user certificates, run the ``flocker-ca create-api-certificate`` command
 
 Run ``flocker-ca create-api-certificate <username>`` where ``<username>`` is a unique username for an API user:
 
-.. code-block:: console
+.. prompt:: bash $ auto
 
    $ flocker-ca create-api-certificate allison
    Created allison.crt and allison.key. You can now give these to your API end user so they can access the control service API.
@@ -148,15 +148,15 @@ Make sure you know the common name of the client certificate you will use.
 If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
 If you're not sure what the username is, you can find the common name like this:
 
-.. code-block:: console
+.. prompt:: bash $ auto
 
     $ openssl x509 -in user.crt -noout -subject
-    subject= /OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
+    subject=/OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
 
 In this example, ``user-allison`` is the common name.
 Import the client certificate into the ``Keychain`` and then refer to it by its common name:
 
-.. code-block:: console
+.. prompt:: bash $ auto
 
     $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
 	Enter Export Password:
@@ -168,9 +168,9 @@ Import the client certificate into the ``Keychain`` and then refer to it by its 
 Linux
 -----
 
-.. code-block:: console
+.. prompt:: bash $
 
-    $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
+    curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
          https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.

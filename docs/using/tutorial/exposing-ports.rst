@@ -23,7 +23,7 @@ Let's start a MongoDB container that exposes the database to the external world.
 
 We will once again run these configuration files with ``flocker-deploy``:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 port-deployment.yml port-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -40,7 +40,7 @@ You should try to follow along and do these database inserts as well.
 
 If you get a connection refused error try again after a few seconds; the application might take some time to fully start up.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ $ mongo 172.16.255.250
    MongoDB shell version: 2.4.9
@@ -53,7 +53,7 @@ If you get a connection refused error try again after a few seconds; the applica
 
 We can also connect to the other node where it isn't running and the traffic will get routed to the correct node:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
    MongoDB shell version: 2.4.9

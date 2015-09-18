@@ -61,27 +61,27 @@ The recommended way to get an environment with these installed is to use Vagrant
 
 First, clone the Flocker repository on your local machine:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ git clone https://github.com/ClusterHQ/flocker.git
-   $ cd flocker
+   git clone https://github.com/ClusterHQ/flocker.git
+   cd flocker
 
 Vagrant 1.6.2 or later is required.
 Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ vagrant up
-   $ vagrant ssh
+   vagrant up
+   vagrant ssh
 
 The ``flocker`` directory created above will be shared in the virtual machine at ``/vagrant``.
 Install Flocker's development dependencies in a ``virtualenv`` by running the following commands:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ cd /vagrant
-   $ mkvirtualenv flocker
-   $ pip install --editable .[dev]
+   cd /vagrant
+   mkvirtualenv flocker
+   pip install --editable .[dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
@@ -92,22 +92,22 @@ Running Tests
 
 You can run all unit tests by doing:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ tox
+   tox
 
 You can also run specific tests in a specific environment:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ tox -e py27 flocker.control.test.test_httpapi
+   tox -e py27 flocker.control.test.test_httpapi
 
 Functional tests require ``ZFS`` and ``Docker`` to be installed and, in the case of Docker, running.
 In addition, ``tox`` needs to be run as root:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ sudo tox
+   sudo tox
 
 Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in the development Vagrant image.
 
@@ -118,9 +118,9 @@ Documentation
 Documentation is generated using `Sphinx`_ and stored in the ``docs/`` directory.
 You can build it individually by running:
 
-.. code-block:: console
+.. prompt:: bash $
 
-   $ tox -e sphinx
+   tox -e sphinx
 
 You can view the result by opening ``docs/_build/html/index.html`` in your browser.
 
