@@ -347,6 +347,13 @@ class ConvergenceLoop(object):
         :type state_changes: tuple of IClusterStateChange
         """
         if self._last_acknowledged_state != state_changes:
+            # XXX If a prior attempt to send the state is still in progress,
+            # it's not a great idea to initiate a new attempt.  The control
+            # service should respond to requests in order, though, so it may
+            # not be catastrophic.  At the very least, the comparison above
+            # doesn't account for this case.  The last acknowledged state may
+            # be stale while state in the process of being sent could be fully
+            # up-to-date.
             self._send_state_to_control_service(state_changes)
 
     def output_CONVERGE(self, context):
