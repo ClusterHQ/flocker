@@ -49,7 +49,7 @@ _logger = Logger()
 # XXX: Make this configurable. FLOC-2679
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
-DEFAUL_STORAGE_PROFILE_NAME = u'default'
+DEFAULT_PROFILE_NAME = u'default'
 
 
 class StorageProfile(PRecord):
@@ -774,13 +774,20 @@ class CreateBlockDeviceDataset(PRecord):
 
         # Expect profile from dataset's metadata (PMap).
         # metadata=pmap({u'name': u'vname@profile'})
-        # TODO: Let docker flocker plugin do the splitting for us:
-        # (metadata=pmap({u'name': u'vname', u'profile': u'profile'}))
+        # TODO: Have docker flocker plugin do the splitting for us:
+        # (metadata=pmap({u'name': u'volume_name',
+        #                 u'profile': u'profile_name'}))
+        # Once docker flocker plugin has this change, we should add
+        # ``UpdateBlockDeviceDataset`` along the lines of
+        # ``CreateBlockDeviceDataset`` that notices change of ``profile``
+        # for a volume identified by ``name``, and calls ``apply_profile``
+        # on ``IBlockDeviceAPI``.
+        profile = DEFAULT_PROFILE_NAME
         try:
             name_value = self.dataset.metadata(u'name')
             _, profile = string.split(name_value, '@')
         except ValueError:
-            profile = DEFAUL_STORAGE_PROFILE_NAME
+            pass
 
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
@@ -914,7 +921,7 @@ class IBlockDeviceAPI(Interface):
             identifier which identifies the node where the method is run.
         """
 
-    def create_volume(dataset_id, size):
+    def create_volume(dataset_id, size, profile=DEFAULT_PROFILE_NAME):
         """
         Create a new volume.
 
@@ -925,7 +932,22 @@ class IBlockDeviceAPI(Interface):
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
         :param int size: The size of the new volume in bytes.
+        :param unicode profile: The name of storage profile for the volume.
         :returns: A ``BlockDeviceVolume``.
+        """
+
+    def apply_profile(blockdevice_id, profile=DEFAULT_PROFILE_NAME):
+        """
+        Apply (best effort) storage profile to an existing volume.
+
+        :param unicode blockdevice_id: The unique identifier for the volume to
+          update.
+        :param unicode profile: Name of storage profile to apply to volume.
+
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+          exist.
+        :return: ``None``
+
         """
 
     def destroy_volume(blockdevice_id):

@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap, thaw
+from pyrsistent import PRecord, field, pset, pmap, thaw, pset_field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -29,7 +29,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, StorageProfiles
+    UnattachedVolume, StorageProfile
 )
 from ...control import pmap_field
 
@@ -595,6 +595,35 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
+        # Set a default profile, and discover any additional profiles
+        self.profiles = pset_field(StorageProfile)
+        self._discover_profiles()
+
+    def _discover_profiles(self):
+        """
+        Discover storage profiles available to the backend.
+        """
+        self.profiles = pset()
+
+        # TODO: Instead of hardcoding profile attributes, generate them
+        # on the fly so that constraints can be honored.
+        # Constraint example:
+        # Maximum ratio of 30:1 is permitted between IOPS and volume size
+        default_attributes = pmap({u'snapshot': u'None',
+                                   u'volume_type': u'None',
+                                   u'iops': u'None',
+                                   u'encrypted': u'False'})
+        default_profile = StorageProfile(name=u'default',
+                                         attribute_map=default_attributes)
+        self.profiles = self.profiles.add(default_profile)
+
+        gold_attributes = pmap({u'snapshot': u'None',
+                                u'volume_type': u'io1',
+                                u'iops': u'300',   # TODO: honor 30:1 iops:size
+                                u'encrypted': u'False'})
+        gold_profile = StorageProfile(name=u'gold',
+                                      attribute_map=gold_attributes)
+        self.profiles = self.profiles.add(gold_profile)
 
     def allocation_unit(self):
         """
@@ -720,12 +749,12 @@ class EBSBlockDeviceAPI(object):
         TODO: Throw an exception in case of failure to apply desired profile.
 
         :param unicode blockdevice_id: UUID of the volume to work on.
-        :param StorageProfiles profile: Storage Profile to apply to volume.
+        :param unicode profile: Name of storage profile to apply to volume.
 
         :raises UnknownVolume: If there does not exist a BlockDeviceVolume
             corresponding to the input blockdevice_id.
         """
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        pass
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
