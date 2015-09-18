@@ -114,7 +114,7 @@ All other sub-keys of the ``dataset`` section will be passed to a function you m
 
 Typical parameters are authentication information or server addresses; whatever is necessary to configure your class.
 
-For example, if you installed a Python package importable ``mystorage_flocker_plugin``, and you require a username and password in order to log in to your storage system, you might tell your users to write a :file:`agent.yml` that looks like this:
+For example, if you installed a Python package which is importable as ``mystorage_flocker_plugin``, and you require a username and password in order to log in to your storage system, you could tell your users to write a :file:`agent.yml` that looks like this:
 
 .. code-block:: yaml
 
@@ -147,7 +147,7 @@ Here's what the module could look like:
         needs_reactor=False, needs_cluster_id=True,
         api_factory=api_factory, deployer_type=DeployerType.block)
 
-The ``cluster_id`` parameter is a Python ``uuid.UUID`` instance uniquely identifying the cluster.
+The ``cluster_id`` parameter is a Python :py:obj:`uuid.UUID` instance uniquely identifying the cluster.
 This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
 
 
