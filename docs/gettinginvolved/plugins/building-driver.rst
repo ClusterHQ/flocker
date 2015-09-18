@@ -49,7 +49,6 @@ Testing Your Driver
           """
 
    If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.
-   For an example of a cleanup script, see the `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L225>`_ inside ``api_factory``.
 
    You can run these tests with the ``trial`` test runner, provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
 
