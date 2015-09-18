@@ -89,7 +89,7 @@ For example, see the `Flocker License <https://github.com/ClusterHQ/flocker/blob
 Certifying Your Driver
 ======================
 
-To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repository.
+To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``README`` on your driver's GitHub repository.
 
 Examples of status images include `Travis CI <http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.
 
