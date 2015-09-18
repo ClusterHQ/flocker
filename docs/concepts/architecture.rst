@@ -13,6 +13,7 @@ The Flocker cluster is composed of two sets of services:
 2. **Convergence agents** in charge of modifying the cluster state to match the desired configuration.
    For example, if you're using Flocker's ZFS storage backend you will have ZFS-specific agents running on each node in the cluster.
 
+.. _control-service:
 
 Control service
 ===============
