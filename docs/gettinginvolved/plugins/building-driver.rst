@@ -156,6 +156,6 @@ What's Next?
 
 We recommend a demo to show off your hard work!
 
-After driver development clears all tests and you've published great getting-started instructions for your users, we recommend `running through an end-to-end demo using MongoDB <https://docs.clusterhq.com/en/1.3.0/using/tutorial/index.html>`_ .
+After driver development clears all tests and you've published great getting-started instructions for your users, we recommend :ref:`running through an end-to-end demo using MongoDB <tutmongo>`.
 
 This demo makes a great video which you can use to share with others how they can build a Dockerized application using your storage backend.
