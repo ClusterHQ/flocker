@@ -844,7 +844,7 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
 
 def verify_socket(host, port):
     """
-    Wait until the destionation can be connected to.
+    Wait until the destination socket can be reached.
 
     :param bytes host: Host to connect to.
     :param int port: Port to connect to.
@@ -895,6 +895,34 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         host, port, data)))
     d.addCallback(test.assertEqual, expected_response)
     return d
+
+
+def check_http_server(host, port):
+    """
+    Check if an HTTP server is running.
+
+    Attempts a request to an HTTP server and indicate the success
+    or failure of the request.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Fires with True if the request received a response,
+            False if the request failed.
+    """
+    req = get(
+        "http://{host}:{port}".format(host=host, port=port),
+        persistent=False
+    )
+
+    def failed(failure):
+        return False
+
+    def succeeded(result):
+        return True
+
+    req.addCallbacks(succeeded, failed)
+    return req
 
 
 def query_http_server(host, port, path=b""):
