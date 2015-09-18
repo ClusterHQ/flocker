@@ -101,7 +101,7 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
 .. prompt:: bash $
 
     cd ~/clusters/test
-    mkdir -p terraform
+    mkdir terraform
     vim terraform/terraform.tfvars
 
 Now paste the following variables into your terraform.tfvars file::
