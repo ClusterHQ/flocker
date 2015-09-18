@@ -106,7 +106,7 @@ def flocker_control_main():
         # collection of profiling data. When the profiler is next enabled
         # the new statistics are added to existing data.
         pr.dump_stats(path.path)
-    
+
     signal.signal(signal.SIGUSR1, enable_profiling)
     signal.signal(signal.SIGUSR2, output_profile)
 
