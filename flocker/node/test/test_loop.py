@@ -318,22 +318,19 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_done_unchanged_notify(self):
         """
-        A FSM doing convergence that gets a discovery result that is unchanged
-        from the last time it sent data does not send the discovered state to
-        the control service.
+        An FSM doing convergence that discovers state unchanged from the last
+        state acknowledged by the control service does not re-send that state.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=succeed(None))
-        # Because the second action result is unfired Deferred, the second
-        # iteration will never finish; applying its changes waits for this
-        # Deferred to fire.
-        action2 = ControllableAction(result=Deferred())
+        def no_action():
+            return ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
             local_state.hostname,
-            [succeed(local_state), succeed(local_state)],
-            [action, action2])
+            [succeed(local_state), succeed(local_state.copy())],
+            [no_action(), no_action()]
+        )
         client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
