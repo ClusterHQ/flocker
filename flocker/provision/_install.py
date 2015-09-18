@@ -234,6 +234,9 @@ def install_commands_yum(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    flocker_version = package_source.version
+    if flocker_version is None:
+        flocker_version = get_installable_version(version)
     commands = [
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
@@ -241,7 +244,7 @@ def install_commands_yum(package_name, distribution, package_source,
             command="yum list installed clusterhq-release || yum install -y {0}".format(  # noqa
                 get_repository_url(
                     distribution=distribution,
-                    flocker_version=get_installable_version(version)))),
+                    flocker_version=flocker_version))),
         ]
 
     if base_url is not None:
@@ -291,6 +294,9 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    flocker_version = package_source.version
+    if flocker_version is None:
+        flocker_version = get_installable_version(version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -306,7 +312,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
-                flocker_version=get_installable_version(version))))
+                flocker_version=flocker_version)))
         ]
 
     if base_url is not None:
