@@ -951,6 +951,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/leases", methods=['POST'])
     # This can stop being private as part of FLOC-2741:
+    # We'll remove this once the end-to-end tests are proven.
     @private_api
     @user_documentation(
         u"""

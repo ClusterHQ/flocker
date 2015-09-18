@@ -1874,6 +1874,33 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             'application/json'
         )
 
+    def test_url_escaped(self):
+        """
+        When a URL includes special characters, they are escaped so that
+        Vagrant can download the box from Amazon S3 without getting 403 errors.
+
+        "/" and ":" are not escaped (these only appear in the protocol).
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0+1')
+
+        expected_version = self.metadata_version(
+            version="0.3.0.1",
+            box_filename="flocker-tutorial-0.3.0%2B1.box",
+            provider="virtualbox",
+        )
+
+        metadata_versions = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+
+        self.assertEqual(metadata_versions, [expected_version])
+
     def test_version_added(self):
         """
         A version is added to an existing metadata file.

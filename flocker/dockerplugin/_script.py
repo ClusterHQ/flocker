@@ -75,8 +75,8 @@ class DockerPluginScript(object):
         control_port = options["rest-api-port"]
         flocker_client = FlockerClient(reactor, control_host, control_port,
                                        certificates_path.child(b"cluster.crt"),
-                                       certificates_path.child(b"api.crt"),
-                                       certificates_path.child(b"api.key"))
+                                       certificates_path.child(b"plugin.crt"),
+                                       certificates_path.child(b"plugin.key"))
 
         self._create_listening_directory(PLUGIN_PATH.parent())
         endpoint = serverFromString(
