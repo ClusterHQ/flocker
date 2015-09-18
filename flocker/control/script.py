@@ -103,7 +103,8 @@ def flocker_control_main():
         current_time = time.strftime("%Y%m%d%H%M%S")
         path = FilePath('/etc/flocker/profile-{}'.format(current_time))
         # This dumps the current profiling statistics and disables the
-        # collection of profiling data.
+        # collection of profiling data. When the profiler is next enabled
+        # the new statistics are added to existing data.
         pr.dump_stats(path.path)
     
     signal.signal(signal.SIGUSR1, enable_profiling)
