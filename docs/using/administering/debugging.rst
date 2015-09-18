@@ -124,7 +124,7 @@ Profiling
 
 .. warning::
 
-   It is not recommended to use profiling while relying on Flocker within a production environment.
+   It is not recommended to use profiling while relying on Flocker within a production environment as there is a performance overhead.
 
 Control Service
 ^^^^^^^^^^^^^^^
