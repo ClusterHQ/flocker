@@ -9,7 +9,7 @@ On the same machine where you ran ``flocker-ca`` while installing Flocker, you w
 
 Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the nodes where you want to run the Flocker plugin for Docker.
 
-You will also need to have Docker (at least version 1.8 or later) installed. For more information, see `the Docker installation instructions<https://docs.docker.com/>`_.
+You will also need to have Docker (at least version 1.8 or later) installed. For more information, see `the Docker installation instructions <https://docs.docker.com/>`_.
 
 Now you can use the following instructions to install the Flocker plugin for Docker on each of the nodes in your cluster.
 
@@ -60,7 +60,7 @@ Once installed, two simple Docker tests can be run to verify that the plugin is 
 
 In this example, the first command uses the Flocker plugin for Docker as the volume driver to create a named volume called ``apples``.
 
-In the second command we are reattaching the same volume from the first container and verifying that the data (``hello``) has been preserved.
+In the second command we are reattaching the same volume from the first container, and verifying that the data (``hello``) has been preserved.
 
 Known limitations
 =================
