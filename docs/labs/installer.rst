@@ -238,6 +238,10 @@ Run the following to clean up your AWS instances and your cluster directory:
     cd ~/clusters
     rm -rf test
 
+.. note::
+
+    If you wish to clean up your cluster manually, be sure to delete the instances that were created in your AWS console and the ``flocker_rules`` security group.
+
 Further reading
 ===============
 
