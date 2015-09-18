@@ -20,7 +20,6 @@ Copr
 dataset
 datasets
 Debian
-debuggability
 Deis
 dev
 devel
