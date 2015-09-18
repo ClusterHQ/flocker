@@ -290,10 +290,10 @@ class ConvergenceLoop(object):
 
     :ivar fsm: The finite state machine this is part of.
 
-    :ivar last_acknowledged_state: The last state that was sent to and
+    :ivar _last_acknowledged_state: The last state that was sent to and
         acknowledged by the control service over the most recent connection
         to the control service.
-    :type last_acknowledged_state: tuple of IClusterStateChange
+    :type _last_acknowledged_state: tuple of IClusterStateChange
     """
     def __init__(self, reactor, deployer):
         """
@@ -306,7 +306,7 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
         self.client = None
-        self.last_acknowledged_state = None
+        self._last_acknowledged_state = None
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -315,7 +315,7 @@ class ConvergenceLoop(object):
         if old_client is not self.client:
             # State updates are now being sent somewhere else.  At least send
             # one update using the new client.
-            self.last_acknowledged_state = None
+            self._last_acknowledged_state = None
 
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
@@ -330,7 +330,7 @@ class ConvergenceLoop(object):
             )
 
             def record_acknowledged_state(ignored):
-                self.last_acknowledged_state = state_changes
+                self._last_acknowledged_state = state_changes
 
             d.addCallback(record_acknowledged_state)
             d.addErrback(
@@ -346,7 +346,7 @@ class ConvergenceLoop(object):
         :param state_changes: State to send to the control service.
         :type state_changes: tuple of IClusterStateChange
         """
-        if self.last_acknowledged_state != state_changes:
+        if self._last_acknowledged_state != state_changes:
             self._send_state_to_control_service(state_changes)
 
     def output_CONVERGE(self, context):
