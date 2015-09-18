@@ -183,6 +183,16 @@ Deploy and migrate a stateful app
 =================================
 
 Now you will deploy a highly sophisticated stateful app to test out Flocker.
+
+We need to find out the IP addresses of our first two nodes.
+Do this by running:
+
+.. prompt:: bash $
+
+   cat cluster.yml
+
+Copy and paste the public IP addresses of the first two ``agent_nodes``.
+
 In this example, ``demo`` is the name of the Flocker volume being created, which will map onto the Flocker volume being created.
 
 .. prompt:: bash $
@@ -190,6 +200,7 @@ In this example, ``demo`` is the name of the Flocker volume being created, which
     NODE1="<node 1 public IP>"
     NODE2="<node 2 public IP>"
     KEY="<path on your machine to your .pem file>"
+    chmod 0600 $KEY
     ssh -i $KEY root@$NODE1 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
     ssh -i $KEY root@$NODE1 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
     uft-flocker-volumes list
