@@ -106,10 +106,10 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
 
 .. warning::
 
-    Do not use a key (.pem file) which is protected by a passphrase.
+    In the following step, do not use a key (.pem file) which is protected by a passphrase.
     If necessary, generate and download a new keypair in the EC2 console.
 
-Now paste the following variables into your terraform.tfvars file::
+Now paste the following variables into your ``terraform.tfvars`` file::
 
     aws_access_key = "your AWS access key"
     aws_secret_key = "your AWS secret key"
@@ -122,6 +122,7 @@ Now run the following command to automatically provision some nodes.
 
 .. prompt:: bash $
 
+    uft-flocker-sample-files
     uft-flocker-get-nodes --ubuntu-aws
 
 You should see green output like this::
@@ -132,6 +133,8 @@ Now you have some nodes, it's time to install Flocker on them!
 
 Install Flocker
 ===============
+
+The previous step created a ``cluster.yml`` file in the current directory.
 
 From the directory where your ``cluster.yml`` file is, run the following command:
 
