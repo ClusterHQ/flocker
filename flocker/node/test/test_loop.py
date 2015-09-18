@@ -424,7 +424,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 # Check that the loop has run twice
                 [(local_state, configuration, state),
                  (local_state, configuration, state)],
-                # And that state was resent even though it remained unchanged
+                # And that state was re-sent even though it remained unchanged
                 [(NodeStateCommand, dict(state_changes=(local_state,))),
                  (NodeStateCommand, dict(state_changes=(local_state,)))],
             )
