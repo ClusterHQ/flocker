@@ -120,8 +120,6 @@ class ClusterStatus(object):
 
     def output_STORE_CLIENT(self, context):
         self.client = context.client
-        # Clear convergence loop's last sent local status cache
-        self.convergence_loop_fsm.last_sent_local_status = None
 
     def output_UPDATE_STATUS(self, context):
         self.convergence_loop_fsm.receive(
@@ -306,13 +304,19 @@ class ConvergenceLoop(object):
         self.reactor = reactor
         self.deployer = deployer
         self.cluster_state = None
+        self.client = None
 
         # Save last known local state
         self.last_sent_local_state = None
 
     def output_STORE_INFO(self, context):
+        old_client = self.client
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
+        if old_client is not self.client:
+            # State updates are now being sent somewhere else.  At least send
+            # one update using the new client.
+            self.last_sent_local_state = None
 
     def _maybe_send_state_to_control_service(self, state_changes):
         """
