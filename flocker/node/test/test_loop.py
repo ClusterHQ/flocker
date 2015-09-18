@@ -314,7 +314,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         the control service.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
-        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
+        configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
         action = ControllableAction(result=succeed(None))
         # Because the second action result is unfired Deferred, the second
@@ -355,7 +355,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state2 = NodeState(
             hostname=u'192.0.2.123', used_ports=pset([80]),
             applications=pset())
-        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
+        configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
         state2 = DeploymentState(nodes=[local_state2])
         action = ControllableAction(result=succeed(None))
@@ -395,7 +395,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         local_state2 = NodeState(hostname=u'192.0.2.123')
-        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
+        configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
         action = ControllableAction(result=succeed(None))
         # Because the second action result is unfired Deferred, the second
