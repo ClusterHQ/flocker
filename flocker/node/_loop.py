@@ -368,11 +368,17 @@ class ConvergenceLoop(object):
         def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
+            #
+            # XXX This somewhat side-steps the whole explicit-state-machine
+            # thing we're aiming for here.  It would be better for these state
+            # changes to arrive as an input to the state machine.
             for state in state_changes:
                 self.cluster_state = state.update_cluster_state(
                     self.cluster_state
                 )
 
+            # XXX And for this update to be the side-effect of an output
+            # resulting.
             self._maybe_send_state_to_control_service(state_changes)
 
             action = self.deployer.calculate_changes(
