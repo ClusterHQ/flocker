@@ -1,7 +1,7 @@
 .. _build-flocker-driver:
 
 ================================
-Building and Testing your Driver
+Building and Testing Your Driver
 ================================
 
 This document will show you how to implement a Flocker storage driver.
@@ -18,7 +18,7 @@ Passing all tests ultimately results in certification of your driver to work wit
    
 Before beginning the testing steps below, you can review our :ref:`build-flocker-driver-faq` for common issues encountered during driver development and testing.
 
-Testing your Driver
+Testing Your Driver
 ===================
 
 #. Implement minimal functional tests.
@@ -75,7 +75,7 @@ Testing your Driver
    * `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_
 
 
-Publishing your driver
+Publishing Your driver
 ======================
 
 Once CI test runs pass for a week, you are ready to publish your driver and assert that is certified to work with Flocker.  
@@ -86,7 +86,7 @@ Please include the Apache 2.0 License as part of the repository.
 For example, see the `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
 
 
-Certifying your driver
+Certifying Your driver
 ======================
 
 To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repository.
@@ -96,7 +96,7 @@ Examples of status images include `Travis CI <http://docs.travis-ci.com/user/sta
 You should also clearly indicate which version of Flocker your driver has been certified against.
 
 
-Enabling Flocker users to install your storage driver
+Enabling Flocker Users to Install Your Storage Driver
 =====================================================
 
 Once you've implemented your storage backend you'll want to allow Flocker users to use your package.
@@ -151,8 +151,8 @@ The ``cluster_id`` parameter is a Python ``uuid.UUID`` instance uniquely identif
 This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
 
 
-What next
-=========
+What's Next?
+============
 
 We recommend a demo to show off your hard work!
 
