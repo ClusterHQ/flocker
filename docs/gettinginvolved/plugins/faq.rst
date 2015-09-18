@@ -19,7 +19,7 @@ Is ``dataset_id`` unique for each volume created?
 Yes.
 
 Is there some way to get the ``dataset_id`` from flocker given the ``blockdevice_id`` specific to our driver?
-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
 
 No.
 
@@ -39,7 +39,7 @@ This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://
 Please use ``get_blockdeviceapi_with_cleanup`` in your test wrapper.
 
 I get a lot of output in ``journactl`` and it’s very difficult to track what all is happening, is there an easy way to view the logs?
-------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------
 
 Eliot-tree is the preferred way, but it currently does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
 
@@ -55,7 +55,7 @@ You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the
 If the Flocker log looks ok, move on to storage driver log, then storage backend logs.
 
 How do I triage further if I see the following error in Flocker dataset agent log?
----------------------------------------------------------------------------------
+----------------------------------------------------------------------------------
 
 .. prompt:: bash $
 
@@ -80,13 +80,13 @@ What do I do if I see the following error while running acceptance tests?
 Please check that you have configured Flocker CA certs as documented :ref:`here <authentication>`.
 
 How do I reset the Flocker control service state if my test environment is messed up? 
-------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------
 
 Flocker control state is stored in :file:`/var/lib/flocker/current_configuration.v1.json` on the control compute node.
 You can edit/remove the file to reduce/cleanup control service state:
 
 
-.. prompt:: bash
+.. prompt:: bash $
 
 	systemctl stop flocker-control
 	rm /var/lib/flocker/current_configuration.v1.json
