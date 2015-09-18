@@ -52,7 +52,6 @@ internet
 invalidations
 IPv4
 IPv
-journactl
 journald
 json
 Kubernetes
