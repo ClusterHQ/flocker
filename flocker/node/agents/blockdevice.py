@@ -20,12 +20,11 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, pmap_field
 from characteristic import attributes
 
 import psutil
 
-from twisted.python.constants import Values, ValueConstant
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
@@ -50,16 +49,24 @@ _logger = Logger()
 # XXX: Make this configurable. FLOC-2679
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
+DEFAUL_STORAGE_PROFILE_NAME = u'default'
 
-# TODO: Discover profiles exposed by storage backends instead of defining them.
-class StorageProfiles(Values):
+
+class StorageProfile(PRecord):
     """
-    Supported Storage Profiles on block device volumes.
+    Storage Profile of a block device volume.
+
+    Includes ``name`` of the profile, and ``pmap`` of
+    key-value pairs of profile attributes.
+    Example:
+    name=u'gold'
+    attribute_map=pmap({u'iops': u'20000',
+                        u'compression': u'true',
+                        u'replication_factor': u'6',
+                        u'thin_provision': u'true'})
     """
-    EMPTY = ValueConstant('')          # unspecified
-    GOLD = ValueConstant(u'gold')      # high performance, high cost
-    SILVER = ValueConstant(u'silver')  # medium performance, mid cost
-    BRONZE = ValueConstant(u'bronze')  # low performance, low cost
+    name = field(type=unicode, mandatory=True)
+    attribute_map = pmap_field(unicode, unicode)
 
 
 @attributes(["dataset_id"])
@@ -769,25 +776,18 @@ class CreateBlockDeviceDataset(PRecord):
         # metadata=pmap({u'name': u'vname@profile'})
         # TODO: Let docker flocker plugin do the splitting for us:
         # (metadata=pmap({u'name': u'vname', u'profile': u'profile'}))
+        try:
+            name_value = self.dataset.metadata(u'name')
+            _, profile = string.split(name_value, '@')
+        except ValueError:
+            profile = DEFAUL_STORAGE_PROFILE_NAME
+
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
             size=allocated_size(
                 allocation_unit=api.allocation_unit(),
                 requested_size=self.dataset.maximum_size,
             ),
-        )
-
-        try:
-            name_value = self.dataset.metadata(u'name')
-            _, profile = string.split(name_value, '@')
-            profile = StorageProfiles.lookupByValue(profile)
-        except ValueError:
-            profile = StorageProfiles.EMPTY
-
-        # Attach a profile with the created volume.
-        # TODO: define exceptions around failure to attach profile.
-        api.attach_profile(
-            volume.blockdevice_id,
             profile=profile
         )
 
