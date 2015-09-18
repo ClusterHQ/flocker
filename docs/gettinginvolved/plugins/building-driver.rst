@@ -49,8 +49,9 @@ Testing Your Driver
           """
 
    If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.
+   For an example of a clean up script, see the `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py>`_ inside ``api_factory``.
 
-   You can run these tests with the ``trial`` test runner, provided by `Twisted <http://twistedmatrix.com/trac/wiki/TwistedTrial)>`_, one of Flocker's dependencies:
+   You can run these tests with the ``trial`` test runner, provided by `Twisted <(http://twistedmatrix.com/trac/wiki/TwistedTrial)>`_, one of Flocker's dependencies:
 
    .. prompt:: bash $
 
@@ -59,7 +60,7 @@ Testing Your Driver
 #. Additional functional tests:
 
    You are encouraged to write additional functional tests to cover logic specific to your driver implementation.
-   For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ written by ClusterHQ.
+   For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py>`_ written by ClusterHQ.
 
 #. Run acceptance tests:
 
