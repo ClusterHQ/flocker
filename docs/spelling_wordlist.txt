@@ -20,6 +20,7 @@ Copr
 dataset
 datasets
 Debian
+deduplication
 Deis
 devel
 DigitalOcean
