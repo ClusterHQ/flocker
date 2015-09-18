@@ -394,7 +394,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         send state even if the state hasn't changed.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
-        local_state2 = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
         action = ControllableAction(result=succeed(None))
@@ -404,9 +403,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             local_state.hostname,
-            [succeed(local_state), succeed(local_state2)],
+            [succeed(local_state), succeed(local_state.copy())],
             [action, action2])
-        client = self.make_amp_client([local_state, local_state2], True)
+        client = self.make_amp_client([local_state, local_state.copy()], True)
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
@@ -423,7 +422,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                  (local_state, configuration, state)],
                 # And that state was resent even though it remained unchanged
                 [(NodeStateCommand, dict(state_changes=(local_state,))),
-                 (NodeStateCommand, dict(state_changes=(local_state2,)))],
+                 (NodeStateCommand, dict(state_changes=(local_state,)))],
             )
         )
 
