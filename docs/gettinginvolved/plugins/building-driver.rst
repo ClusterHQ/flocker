@@ -50,7 +50,7 @@ Testing Your Driver
 
    If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.
 
-   You can run these tests with the ``trial`` test runner, provided by `Twisted <https://twistedmatrix.com/trac/>`_, one of Flocker's dependencies:
+   You can run these tests with the ``trial`` test runner, provided by `Twisted <http://twistedmatrix.com/trac/wiki/TwistedTrial)>`_, one of Flocker's dependencies:
 
    .. prompt:: bash $
 
@@ -74,7 +74,7 @@ Testing Your Driver
    * `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_
 
 
-Publishing Your driver
+Publishing Your Driver
 ======================
 
 Once CI test runs pass for a week, you are ready to publish your driver and assert that is certified to work with Flocker.  
@@ -85,7 +85,7 @@ Please include the Apache 2.0 License as part of the repository.
 For example, see the `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
 
 
-Certifying Your driver
+Certifying Your Driver
 ======================
 
 To demonstrate that your driver passes all tests, you should include a Build Status badge at the top of the ``Readme`` on your driver's GitHub repository.
