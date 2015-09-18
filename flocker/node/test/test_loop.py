@@ -395,10 +395,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             )
         )
 
-    def test_converence_sent_state_fail_resends(self):
+    def test_convergence_sent_state_fail_resends(self):
         """
-        If sending state toe the control node fails, the next iteration will
-        send state even if the state hasn't changed.
+        If sending state to the control node fails the next iteration will send
+        state even if the state hasn't changed.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=[to_node(local_state)])
