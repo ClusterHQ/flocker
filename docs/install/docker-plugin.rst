@@ -67,7 +67,8 @@ The second command should print ``hello`` on the screen if everything has worked
 Known limitations
 =================
 
-* If the volume exists on a different node and is currently being used by a container, the Flocker plugin does not stop it being migrated out from underneath the running container.
+* If the volume exists on a different node and is currently being used by a container, the Flocker plugin would not stop it being migrated out from underneath the running container.
+  It is possible that Docker, or your orchestration tool would prevent this from happening, but Flocker itself does not.
 * If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
   This occurs as Docker defines volume drivers for the entire run command, not per-volume.
   If you do not want to create anonymous volumes, we recommend only using named volumes. 
