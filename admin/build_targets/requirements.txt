@@ -1,4 +1,4 @@
-Twisted==15.1.0
+Twisted==15.2.1
 characteristic==14.1.0
 pyOpenSSL==0.14
 pycrypto==2.6.1
