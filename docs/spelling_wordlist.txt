@@ -49,6 +49,7 @@ invalidations
 IPv4
 IPv
 journald
+keypair
 Kubernetes
 libswarm
 lifecycle
@@ -70,6 +71,7 @@ pathnames
 pem
 petabyte
 petabytes
+passphrase
 plugin
 plugins
 pluggable
@@ -91,6 +93,8 @@ sysadmin
 syslog
 terabytes
 timestamp
+terraform
+tfvars
 unauthorised
 Ubuntu
 username
