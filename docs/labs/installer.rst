@@ -104,6 +104,11 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
     mkdir terraform
     vim terraform/terraform.tfvars
 
+.. warning::
+
+    Do not use a key (.pem file) which is protected by a passphrase.
+    If necessary, generate and download a new keypair in the EC2 console.
+
 Now paste the following variables into your terraform.tfvars file::
 
     aws_access_key = "your AWS access key"
@@ -112,11 +117,6 @@ Now paste the following variables into your terraform.tfvars file::
     aws_availability_zone = "zone you want nodes deployed in e.g. us-east-1a"
     aws_key_name = "name of EC2 keypair"
     private_key_path = "absolute path to EC2 key (.pem file) on your local machine"
-
-.. warning::
-
-    Do not use a key (.pem file) which is protected by a passphrase.
-    If necessary, generate and download a new keypair in the EC2 console.
 
 Now run the following command to automatically provision some nodes.
 
