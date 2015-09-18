@@ -33,13 +33,13 @@ Is there a script to cleanup volumes leftover from running functional tests?
 -----------------------------------------------------------------------------
 
 Yes.
-After each test case, `detach_destroy_volumes <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py#L209>`_ is run automatically to cleanup volumes created by the test case.
-This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py#L265>`_ .
+After each test case, `detach_destroy_volumes <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py>`_ is run automatically to cleanup volumes created by the test case.
+This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py>`_ .
 
 Please use ``get_blockdeviceapi_with_cleanup`` in your test wrapper.
 
 I get a lot of output in ``journactl`` and it’s very difficult to track what all is happening, is there an easy way to view the logs?
----------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------
 
 Eliot-tree is the preferred way, but it currently does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
 
@@ -55,9 +55,9 @@ You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the
 If the Flocker log looks ok, move on to storage driver log, then storage backend logs.
 
 How do I triage further if I see the following error in Flocker dataset agent log?
------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 
-.. code-block:: bash
+.. prompt:: bash $
 
    Command '['mount', '/dev/sdb', '/flocker/c39e7d1c-7c9e-6029-4c30-42ab8b44a991']' returned non-zero exit status 32
 
@@ -66,9 +66,9 @@ Please run the failed command from the command line prompt - the cause of failur
 What do I do if I see the following error while running acceptance tests?
 -------------------------------------------------------------------------
 
-.. code-block:: bash 
+.. prompt:: bash $ auto
 
-   /root//flocker/flocker-tutorial/bin//python  /root/f/flocker/admin/run-acceptance-tests -—provider=managed  —-distribution=centos-7 -—config-file=/etc/flocker/acceptancetests.yml
+   $ /root//flocker/flocker-tutorial/bin//python  /root/f/flocker/admin/run-acceptance-tests -—provider=managed  —-distribution=centos-7 -—config-file=/etc/flocker/acceptancetests.yml
    Generating certificates in: /tmp/tmp24HnaK
    Created control-172.22.21.75.crt and control-172.22.21.75.key
    Copy these files to the directory /etc/flocker on your control service machine.
@@ -80,7 +80,7 @@ What do I do if I see the following error while running acceptance tests?
 Please check that you have configured Flocker CA certs as documented :ref:`here <authentication>`.
 
 How do I reset the Flocker control service state if my test environment is messed up? 
------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 
 Flocker control state is stored in :file:`/var/lib/flocker/current_configuration.v1.json` on the control compute node.
 You can edit/remove the file to reduce/cleanup control service state:
