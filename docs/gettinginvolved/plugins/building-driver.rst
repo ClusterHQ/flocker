@@ -21,7 +21,7 @@ Before beginning the testing steps below, you can review our :ref:`build-flocker
 Testing Your Driver
 ===================
 
-#. Implement minimal functional tests.
+#. Implement minimal functional tests:
 
    To test that your implementation is correct you should instantiate a generic test suite that makes sure your class correctly implements the interface:
 
@@ -57,12 +57,12 @@ Testing Your Driver
 
       trial yourstorage.test_yourstorage
 
-#. Additional functional tests.
+#. Additional functional tests:
 
    You are encouraged to write additional functional tests to cover logic specific to your driver implementation.
    For example, here are some `EBS driver-specific tests <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/functional/test_ebs.py#L155>`_ written by ClusterHQ.
 
-#. Run acceptance tests.
+#. Run acceptance tests:
 
    After all functional tests pass, please run acceptance tests according to our :ref:`acceptance-testing` documentation.
 
