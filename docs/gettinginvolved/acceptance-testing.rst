@@ -154,9 +154,9 @@ You will need a ssh agent running with access to the corresponding private key.
 
 Rackspace can use these dataset backends:
 
-  * :ref:`OpenStack<openstack-dataset-backend>`.
-  * :ref:`ZFS<zfs-dataset-backend>`.
-  * :ref:`Loopback<loopback-dataset-backend>`.
+* :ref:`OpenStack<openstack-dataset-backend>`.
+* :ref:`ZFS<zfs-dataset-backend>`.
+* :ref:`Loopback<loopback-dataset-backend>`.
 
 .. prompt:: bash $
 
@@ -188,9 +188,9 @@ You will need a ssh agent running with access to the corresponding private key.
 
 AWS can use these dataset backends:
 
-  * :ref:`AWS<aws-dataset-backend>`.
-  * :ref:`ZFS<zfs-dataset-backend>`.
-  * :ref:`Loopback<loopback-dataset-backend>`.
+* :ref:`AWS<aws-dataset-backend>`.
+* :ref:`ZFS<zfs-dataset-backend>`.
+* :ref:`Loopback<loopback-dataset-backend>`.
 
 If you're using the AWS dataset backend make sure the regions and zones are the same both here and there!
 
