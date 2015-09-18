@@ -374,6 +374,7 @@ FLOCKER_PACKAGES = [
     b'clusterhq-python-flocker',
     b'clusterhq-flocker-cli',
     b'clusterhq-flocker-node',
+    b'clusterhq-flocker-docker-plugin',
 ]
 
 
