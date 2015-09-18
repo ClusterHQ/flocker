@@ -146,6 +146,8 @@ To dump the current profile run the following command as root on the control nod
    pkill -SIGUSR2 flocker-control
 
 This will output the profiling data to a file named :file:`/etc/flocker/profile-<TIMESTAMP>`.
+This will also disable profiling.
+When profiling is re-enabled, new profiling data will be added to the existing profiling data until the profile is dumped again.
 
 See :py:mod:`pstats` for details on how to extract information from this file.
 For example:
