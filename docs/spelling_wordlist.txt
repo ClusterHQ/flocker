@@ -21,7 +21,6 @@ dataset
 datasets
 Debian
 Deis
-dev
 devel
 DigitalOcean
 dropdown
@@ -50,7 +49,6 @@ invalidations
 IPv4
 IPv
 journald
-json
 Kubernetes
 libswarm
 lifecycle
@@ -87,7 +85,6 @@ redis
 resize
 routable
 roadmap
-sdb
 snapshotting
 stateful
 sysadmin
