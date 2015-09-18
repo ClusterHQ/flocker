@@ -3,7 +3,7 @@
 Installing the Flocker Plugin for Docker
 ========================================
 
-Before installing the Flocker plugin for Docker, you will need to have installed Flocker on some nodes, using the instructions in the previous topics.
+Before installing the Flocker plugin for Docker, you will need to have :ref:`installed Flocker on some nodes <installing-flocker-node>`, using the instructions in the previous topics.
 
 On the same machine where you ran ``flocker-ca`` while installing Flocker, you will need to generate a new API user certificate and key for a user named ``plugin``, as described in the :ref:`generate-api` instructions.
 
