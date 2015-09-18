@@ -21,6 +21,7 @@ machinist==0.2.0
 msgpack-python==0.4.6
 netaddr==0.7.14
 netifaces==0.10.4
+objgraph==2.0.1
 oslo.config==1.12.1
 oslo.i18n==1.7.0
 oslo.serialization==1.6.0

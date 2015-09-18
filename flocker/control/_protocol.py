@@ -35,6 +35,8 @@ from eliot.twisted import DeferredContext
 
 from characteristic import with_cmp
 
+import objgraph
+
 from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
@@ -343,6 +345,7 @@ class ControlAMPService(Service):
             providers representing the state change which has taken place.
         """
         self.cluster_state.apply_changes_from_source(source, state_changes)
+        objgraph.show_growth()
         self._send_state_to_connections(self.connections)
 
 
