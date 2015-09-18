@@ -133,7 +133,7 @@ class DockerPluginTests(TestCase):
             self, node.public_address, host_port, expected_response=data))
         # stop the Docker daemon
         d.addCallback(lambda _: self.docker_service(
-            node.public_address, b"restart"))
+            node.public_address, b"stop"))
 
         # ensure the container HTTP service has stopped
 
@@ -145,10 +145,10 @@ class DockerPluginTests(TestCase):
             looping = loop_until(http_closed)
             return looping
 
-        # d.addCallback(poll_http_server_stopped)
+        d.addCallback(poll_http_server_stopped)
         # start Docker daemon
-        # d.addCallback(lambda _: self.docker_service(
-        #     node.public_address, b"start"))
+        d.addCallback(lambda _: self.docker_service(
+            node.public_address, b"start"))
         # attempt to read the data back again; the container should've
         # restarted automatically, though it may take a few seconds
         # after the Docker daemon has restarted.
