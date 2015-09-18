@@ -226,6 +226,18 @@ This may take up to a minute since Flocker is ensuring the volume is on the seco
 Now visit ``http://<node 2 public IP>/`` and you’ll see that the location of the Moby Docks has been preserved.
 Nice.
 
+Cleaning up your cluster
+========================
+
+When you're done, if you want to clear up.
+Run the following to clean up your AWS instances and your cluster directory:
+
+.. prompt:: bash $
+
+    uft-flocker-destroy-nodes
+    cd ~/clusters
+    rm -rf test
+
 Further reading
 ===============
 
