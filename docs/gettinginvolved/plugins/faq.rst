@@ -29,7 +29,7 @@ Does the Flocker node agent cache any state?
 No.
 The only state cached is in the Flocker control agent.
 
-Is there a script to clean up volumes leftover from running functional tests?
+Is there a script to cleanup volumes leftover from running functional tests?
 -----------------------------------------------------------------------------
 
 Yes.
