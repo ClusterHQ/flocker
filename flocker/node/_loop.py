@@ -290,9 +290,10 @@ class ConvergenceLoop(object):
 
     :ivar fsm: The finite state machine this is part of.
 
-    :ivar last_sent_local_state: Last reported local state to
-        control agent.
-    :type last_sent_local_state: tuple of IClusterStateChange
+    :ivar last_acknowledged_state: The last state that was sent to and
+        acknowledged by the control service over the most recent connection
+        to the control service.
+    :type last_acknowledged_state: tuple of IClusterStateChange
     """
     def __init__(self, reactor, deployer):
         """
@@ -305,9 +306,7 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
         self.client = None
-
-        # Save last known local state
-        self.last_sent_local_state = None
+        self.last_acknowledged_state = None
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -316,7 +315,7 @@ class ConvergenceLoop(object):
         if old_client is not self.client:
             # State updates are now being sent somewhere else.  At least send
             # one update using the new client.
-            self.last_sent_local_state = None
+            self.last_acknowledged_state = None
 
     def _maybe_send_state_to_control_service(self, state_changes):
         """
@@ -326,7 +325,7 @@ class ConvergenceLoop(object):
         :param state_changes: State to send to the control service.
         :type state_changes: tuple of IClusterStateChange
         """
-        if self.last_sent_local_state != state_changes:
+        if self.last_acknowledged_state != state_changes:
             context = LOG_SEND_TO_CONTROL_SERVICE(
                 self.fsm.logger, connection=self.client,
                 local_changes=list(state_changes),
@@ -338,13 +337,10 @@ class ConvergenceLoop(object):
                     eliot_context=context)
                 )
 
-                def set_sent_state(_):
-                    self.last_sent_local_state = state_changes
+                def record_acknowledged_state(ignored):
+                    self.last_acknowledged_state = state_changes
 
-                def clear_sent_state(f):
-                    self.last_sent_local_state = None
-                    return f
-                d.addCallbacks(set_sent_state, clear_sent_state)
+                d.addCallback(record_acknowledged_state)
                 d.addErrback(
                     writeFailure, self.fsm.logger,
                     u"Failed to send local state to control node.")
