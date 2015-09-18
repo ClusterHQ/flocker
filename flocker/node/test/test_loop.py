@@ -403,16 +403,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=succeed(None))
-        # Because the second action result is unfired Deferred, the second
-        # iteration will never finish; applying its changes waits for this
-        # Deferred to fire.
-        action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             local_state.hostname,
             [succeed(local_state), succeed(local_state.copy())],
-            [action, action2])
-        client = self.make_amp_client([local_state, local_state.copy()], succeed=False)
+            [no_action(), no_action()])
+        client = self.make_amp_client(
+            [local_state, local_state.copy()], succeed=False
+        )
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
