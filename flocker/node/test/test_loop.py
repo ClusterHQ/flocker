@@ -260,22 +260,31 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                                          state=DeploymentState()))
         self.assertEqual(len(deployer.local_states), 0)  # Discovery started
 
-    def make_amp_client(self, local_states, flaky=False):
+    def make_amp_client(self, local_states, succeed=True):
         """
         Create AMP client that can respond successfully to a
         ``NodeStateCommand``.
 
         :param local_states: The node states we expect to be able to send.
-        :param Bool health_status: Flag to indicate whether the client should
-            succeed or fail.
+        :param bool succeed: ``True`` to make a client which responds to
+            requests with results, ``False`` to make a client which response
+            with failures.  succeed or fail.
 
         :return FakeAMPClient: Fake AMP client appropriately setup.
         """
-        client = FakeAMPClient(flaky)
+        client = FakeAMPClient()
+        command = NodeStateCommand
         for local_state in local_states:
-            client.register_response(
-                NodeStateCommand, dict(state_changes=(local_state,)),
-                {"result": None})
+            kwargs = dict(state_changes=(local_state,))
+            if succeed:
+                client.register_response(
+                    command=command, kwargs=kwargs, response={"result": None},
+                )
+            else:
+                client.register_response(
+                    command=command, kwargs=kwargs,
+                    response=Exception("Simulated request problem"),
+                )
         return client
 
     @validate_logging(assertHasAction, LOG_SEND_TO_CONTROL_SERVICE, True)
@@ -405,7 +414,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             local_state.hostname,
             [succeed(local_state), succeed(local_state.copy())],
             [action, action2])
-        client = self.make_amp_client([local_state, local_state.copy()], True)
+        client = self.make_amp_client([local_state, local_state.copy()], succeed=False)
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
@@ -414,7 +423,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
-        self.assertEqual(
+        self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             (
                 # Check that the loop has run twice

@@ -36,10 +36,11 @@ from zope.interface.verify import verifyClass, verifyObject
 from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath, Permissions
 from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred, Deferred, succeed, fail
+from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -860,16 +861,12 @@ class FakeAMPClient(object):
         been sent using ``callRemote``.
     """
 
-    def __init__(self, flaky=False):
+    def __init__(self):
         """
-        Initial a Fake AMP client with desired flaky setting.
-
-        :param Bool flaky: True, if client simulates unsuccessful
-            execution of remote commands.
+        Initialize a fake AMP client.
         """
         self._responses = {}
         self.calls = []
-        self.flaky = flaky
 
     def _makeKey(self, command, kwargs):
         """
@@ -893,10 +890,13 @@ class FakeAMPClient(object):
 
         @param response: The response to the command.
         """
-        try:
-            command.makeResponse(response, AMP())
-        except KeyError:
-            raise InvalidSignature("Bad registered response")
+        if isinstance(response, Exception):
+            response = Failure(response)
+        else:
+            try:
+                command.makeResponse(response, AMP())
+            except KeyError:
+                raise InvalidSignature("Bad registered response")
         self._responses[self._makeKey(command, kwargs)] = response
 
     def callRemote(self, command, **kwargs):
@@ -917,10 +917,7 @@ class FakeAMPClient(object):
         # response register
         if 'eliot_context' in kwargs:
             kwargs.pop('eliot_context')
-        if self.flaky:
-            return fail(self._responses[self._makeKey(command, kwargs)])
-        else:
-            return succeed(self._responses[self._makeKey(command, kwargs)])
+        return succeed(self._responses[self._makeKey(command, kwargs)])
 
 
 class CustomException(Exception):
