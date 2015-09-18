@@ -234,12 +234,15 @@ def install_commands_yum(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    flocker_version = package_source.version
+    if flocker_version is None:
+        flocker_version = get_installable_version(version)
     commands = [
         # May have been previously installed by previous install run, so do
         # update instead of install:
         run(command="yum update -y " + get_repository_url(
             distribution=distribution,
-            flocker_version=get_installable_version(version))),
+            flocker_version=flocker_version)),
     ]
 
     if base_url is not None:
@@ -289,6 +292,9 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    flocker_version = package_source.version
+    if flocker_version is None:
+        flocker_version = get_installable_version(version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -304,7 +310,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
-                flocker_version=get_installable_version(version))))
+                flocker_version=flocker_version)))
         ]
 
     if base_url is not None:
