@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap, thaw, pset_field
+from pyrsistent import PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -29,7 +29,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, StorageProfile
+    UnattachedVolume, StorageProfileAttributes
 )
 from ...control import pmap_field
 
@@ -45,6 +45,16 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
+
+
+class ProfileAttributeNames(Values):
+    """
+    Storage profile attribute names.
+    """
+    SNAPSHOT = ValueConstant(u'snapshot')
+    VOLUME_TYPE = ValueConstant(u'volume_type')
+    IOPS = ValueConstant(u'iops')
+    ENCRYPTED = ValueConstant(u'encrypted')
 
 
 class VolumeOperations(Names):
@@ -596,34 +606,56 @@ class EBSBlockDeviceAPI(object):
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
         # Set a default profile, and discover any additional profiles
-        self.profiles = pset_field(StorageProfile)
+        self.profiles = pmap_field(unicode, StorageProfileAttributes)
         self._discover_profiles()
 
     def _discover_profiles(self):
         """
         Discover storage profiles available to the backend.
         """
-        self.profiles = pset()
+        self.profiles = pmap()
 
         # TODO: Instead of hardcoding profile attributes, generate them
         # on the fly so that constraints can be honored.
         # Constraint example:
         # Maximum ratio of 30:1 is permitted between IOPS and volume size
-        default_attributes = pmap({u'snapshot': u'None',
-                                   u'volume_type': u'None',
-                                   u'iops': u'None',
-                                   u'encrypted': u'False'})
-        default_profile = StorageProfile(name=u'default',
-                                         attribute_map=default_attributes)
-        self.profiles = self.profiles.add(default_profile)
 
-        gold_attributes = pmap({u'snapshot': u'None',
-                                u'volume_type': u'io1',
-                                u'iops': u'300',   # TODO: honor 30:1 iops:size
-                                u'encrypted': u'False'})
-        gold_profile = StorageProfile(name=u'gold',
-                                      attribute_map=gold_attributes)
-        self.profiles = self.profiles.add(gold_profile)
+        # Profile 1: default profile
+        P = ProfileAttributeNames
+        default_attributes = pmap({P.SNAPSHOT: u'None',
+                                   P.VOLUME_TYPE: u'None',
+                                   P.IOPS: u'None',
+                                   P.ENCRYPTED: u'False'})
+
+        # Profile 2: gold profile: high performance SLA.
+        # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_piops
+        gold_attributes = pmap({P.SNAPSHOT: u'None',
+                                P.VOLUME_TYPE: u'io1',
+                                P.IOPS: u'300',   # TODO: honor 30:1 iops:size
+                                P.ENCRYPTED: u'False'})
+
+        self.profiles = pmap({u'default': default_attributes,
+                              u'gold': gold_attributes})
+
+    def _create_volume_with_profile(self, size, profile_name):
+        """
+        Given a profile name, calculate volume attribute value for an
+        EBS volume of given size.
+
+        :param int size: The size (GiB) of volume to be created.
+        :param unicode name: Name of the storage profile.
+        """
+        # TODO: error conditions
+        profile = self.profiles.get(profile_name)
+        P = ProfileAttributeNames
+        requested_volume = self.connection.create_volume(
+            size=size,
+            zone=self.zone,
+            snapshot=profile.get(P.SNAPSHOT),
+            volume_type=profile.get(P.VOLUME_TYPE),
+            iops=profile.get(P.IOPS),
+            encrypted=profile.get(P.ENCRYPTED))
+        return requested_volume
 
     def allocation_unit(self):
         """
@@ -705,15 +737,15 @@ class EBSBlockDeviceAPI(object):
         NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
         return None
 
-    def create_volume(self, dataset_id, size):
+    def create_volume(self, dataset_id, size, profile=u'default'):
         """
         Create a volume on EBS. Store Flocker-specific
         {metadata version, cluster id, dataset id} for the volume
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GiB().value), zone=self.zone)
+        requested_volume = self._create_volume_with_profile(
+            int(Byte(size).to_GiB().value, profile))
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {

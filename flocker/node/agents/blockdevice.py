@@ -52,20 +52,17 @@ DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 DEFAULT_PROFILE_NAME = u'default'
 
 
-class StorageProfile(PRecord):
+class StorageProfileAttributes(PRecord):
     """
     Storage Profile of a block device volume.
 
-    Includes ``name`` of the profile, and ``pmap`` of
-    key-value pairs of profile attributes.
+    Includes a ``pmap`` of key-value pairs of profile attributes.
     Example:
-    name=u'gold'
     attribute_map=pmap({u'iops': u'20000',
                         u'compression': u'true',
                         u'replication_factor': u'6',
                         u'thin_provision': u'true'})
     """
-    name = field(type=unicode, mandatory=True)
     attribute_map = pmap_field(unicode, unicode)
 
 
