@@ -317,34 +317,37 @@ class ConvergenceLoop(object):
             # one update using the new client.
             self.last_acknowledged_state = None
 
+    def _send_state_to_control_service(self, state_changes):
+        context = LOG_SEND_TO_CONTROL_SERVICE(
+            self.fsm.logger, connection=self.client,
+            local_changes=list(state_changes),
+        )
+        with context.context():
+            d = DeferredContext(self.client.callRemote(
+                NodeStateCommand,
+                state_changes=state_changes,
+                eliot_context=context)
+            )
+
+            def record_acknowledged_state(ignored):
+                self.last_acknowledged_state = state_changes
+
+            d.addCallback(record_acknowledged_state)
+            d.addErrback(
+                writeFailure, self.fsm.logger,
+                u"Failed to send local state to control node.")
+            d.addActionFinish()
+
     def _maybe_send_state_to_control_service(self, state_changes):
         """
-        If current state_changes differ from last sent local state,
-        transmit the new state to control agent.
+        If the given ``state_changes`` differ from those last acknowledged by
+        the control service, send them to the control service.
 
         :param state_changes: State to send to the control service.
         :type state_changes: tuple of IClusterStateChange
         """
         if self.last_acknowledged_state != state_changes:
-            context = LOG_SEND_TO_CONTROL_SERVICE(
-                self.fsm.logger, connection=self.client,
-                local_changes=list(state_changes),
-            )
-            with context.context():
-                d = DeferredContext(self.client.callRemote(
-                    NodeStateCommand,
-                    state_changes=state_changes,
-                    eliot_context=context)
-                )
-
-                def record_acknowledged_state(ignored):
-                    self.last_acknowledged_state = state_changes
-
-                d.addCallback(record_acknowledged_state)
-                d.addErrback(
-                    writeFailure, self.fsm.logger,
-                    u"Failed to send local state to control node.")
-                d.addActionFinish()
+            self._send_state_to_control_service(state_changes)
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
