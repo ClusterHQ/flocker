@@ -255,6 +255,20 @@ def install_commands_yum(package_name, distribution, package_source,
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
+
+        # There might be a clusterhq-build repo already and its metadata will
+        # be cached.  Wipe out the cache so that metadata gets loaded from the
+        # latest build URL.
+        # XXX: Would it be better to do this during uninstallation?
+        commands.append(
+            run_from_args([
+                b"yum",
+                b"--disablerepo='*'",
+                b"--enablerepo=clusterhq-build",
+                b"clean",
+                b"all"
+            ])
+        ),
     else:
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
