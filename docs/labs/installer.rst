@@ -190,9 +190,8 @@ In this example, ``demo`` is the name of the Flocker volume being created, which
     NODE1="<node 1 public IP>"
     NODE2="<node 2 public IP>"
     KEY="<path on your machine to your .pem file>"
-    DOCKER="docker"
-    ssh -i $KEY root@$NODE1 $DOCKER run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
-    ssh -i $KEY root@$NODE1 $DOCKER run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
+    ssh -i $KEY root@$NODE1 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
+    ssh -i $KEY root@$NODE1 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
     uft-flocker-volumes list
 
 This may take up to a minute since Flocker is provisioning and attaching an volume from the storage backend for the Flocker ``demo`` volume.
@@ -203,10 +202,10 @@ Now let's stop the containers, then start the stateful app on another node in th
 
 .. prompt:: bash $
 
-    ssh -i $KEY root@$NODE1 $DOCKER rm -f app
-    ssh -i $KEY root@$NODE1 $DOCKER rm -f redis
-    ssh -i $KEY root@$NODE2 $DOCKER run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
-    ssh -i $KEY root@$NODE2 $DOCKER run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
+    ssh -i $KEY root@$NODE1 docker rm -f app
+    ssh -i $KEY root@$NODE1 docker rm -f redis
+    ssh -i $KEY root@$NODE2 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
+    ssh -i $KEY root@$NODE2 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
     uft-flocker-volumes list
 
 At the end you should see the volume has moved to the second node.
