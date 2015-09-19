@@ -745,7 +745,7 @@ class EBSBlockDeviceAPI(object):
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
         requested_volume = self._create_volume_with_profile(
-            int(Byte(size).to_GiB().value, profile))
+            int(Byte(size).to_GiB().value), profile)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
