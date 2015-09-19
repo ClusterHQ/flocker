@@ -622,17 +622,19 @@ class EBSBlockDeviceAPI(object):
 
         # Profile 1: default profile
         P = ProfileAttributeNames
-        default_attributes = pmap({P.SNAPSHOT: u'None',
+        default_attributes = pmap({P.SNAPSHOT: None,
                                    P.VOLUME_TYPE: u'None',
                                    P.IOPS: u'None',
                                    P.ENCRYPTED: u'False'})
 
         # Profile 2: gold profile: high performance SLA.
         # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_piops
-        gold_attributes = pmap({P.SNAPSHOT: u'None',
+        # Gold profile's IOPS will be determined at volume creation
+        # time to honor 30:1 iops:size ratio.
+        gold_attributes = pmap({P.SNAPSHOT: None,
                                 P.VOLUME_TYPE: u'io1',
-                                P.IOPS: u'300',   # TODO: honor 30:1 iops:size
-                                P.ENCRYPTED: u'False'})
+                                P.IOPS: None,
+                                P.ENCRYPTED: u'True'})
 
         self.profiles = pmap({u'default': default_attributes,
                               u'gold': gold_attributes})
@@ -648,13 +650,23 @@ class EBSBlockDeviceAPI(object):
         # TODO: error conditions
         profile = self.profiles.get(profile_name)
         P = ProfileAttributeNames
+
+        # Adjust ``gold`` profile's IOPS to honor 30:1 iops:size
+        # TODO: modularize this out as ``fix_constraints`` once
+        # constriant framework is in place.
+        if profile_name == u'gold':
+            # Minimum IOPS for ``io1`` is 100.
+            iops = max(size*30, 100)
+        else:
+            iops = profile.get(P.IOPS)
+
         requested_volume = self.connection.create_volume(
             size=size,
             zone=self.zone,
-            snapshot=profile.get(P.SNAPSHOT.value),
-            volume_type=profile.get(P.VOLUME_TYPE.value),
-            iops=profile.get(P.IOPS.value),
-            encrypted=profile.get(P.ENCRYPTED.value))
+            snapshot=profile.get(P.SNAPSHOT),
+            volume_type=profile.get(P.VOLUME_TYPE),
+            iops=iops,
+            encrypted=profile.get(P.ENCRYPTED))
         return requested_volume
 
     def allocation_unit(self):

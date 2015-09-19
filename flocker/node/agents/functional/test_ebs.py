@@ -21,7 +21,8 @@ from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException, _should_finish, UnexpectedStateException
+    TimeoutException, _should_finish, UnexpectedStateException,
+    ProfileAttributeNames
 )
 
 from .._logging import (
@@ -181,6 +182,30 @@ class EBSBlockDeviceAPIInterfaceTests(
         self.api.attach_volume(
             volume1.blockdevice_id, attach_to=self.this_node,
         )
+
+    def test_create_volume_gold_profile(self):
+        """
+        Volume created with ``gold`` profile has the attributes
+        expected from the profile.
+        """
+        gold = u'gold'
+        size_GiB = 4
+        volume1 = self.api.create_volume(
+            dataset_id=uuid4(),
+            # Minimum size for ``io4GiB
+            size=self.minimum_allocatable_size * size_GiB,
+            profile=gold
+        )
+        ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
+
+        profile = self.api.profiles.get(gold)
+        P = ProfileAttributeNames
+        self.assertEqual([ebs_volume.type,
+                          unicode(ebs_volume.encrypted),
+                          ebs_volume.iops],
+                         [profile.get(P.VOLUME_TYPE),
+                          profile.get(P.ENCRYPTED),
+                          max(size_GiB * 30, 100)])
 
 
 class VolumeStateTransitionTests(TestCase):
