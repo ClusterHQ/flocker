@@ -933,7 +933,7 @@ class IBlockDeviceAPI(Interface):
         :returns: A ``BlockDeviceVolume``.
         """
 
-    def apply_profile(blockdevice_id, profile=DEFAULT_PROFILE_NAME):
+    def apply_profile(blockdevice_id, profile):
         """
         Apply (best effort) storage profile to an existing volume.
 

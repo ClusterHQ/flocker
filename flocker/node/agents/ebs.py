@@ -651,10 +651,10 @@ class EBSBlockDeviceAPI(object):
         requested_volume = self.connection.create_volume(
             size=size,
             zone=self.zone,
-            snapshot=profile.get(P.SNAPSHOT),
-            volume_type=profile.get(P.VOLUME_TYPE),
-            iops=profile.get(P.IOPS),
-            encrypted=profile.get(P.ENCRYPTED))
+            snapshot=profile.get(P.SNAPSHOT.value),
+            volume_type=profile.get(P.VOLUME_TYPE.value),
+            iops=profile.get(P.IOPS.value),
+            encrypted=profile.get(P.ENCRYPTED.value))
         return requested_volume
 
     def allocation_unit(self):
@@ -775,9 +775,9 @@ class EBSBlockDeviceAPI(object):
                 )
         return volumes
 
-    def attach_profile(self, blockdevice_id, profile):
+    def apply_profile(self, blockdevice_id, profile):
         """
-        Attach a profile to the given volume.
+        Apply a profile to the given volume.
         TODO: Throw an exception in case of failure to apply desired profile.
 
         :param unicode blockdevice_id: UUID of the volume to work on.
