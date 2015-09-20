@@ -224,6 +224,15 @@ common_cli:
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
 
   setup_coverage: &setup_coverage |
+    # we install the python coverage module so generate coverage.xml files
+    # which Jenkins will process through the Jenkins Cobertura plugin.
+    # https://wiki.jenkins-ci.org/display/JENKINS/Cobertura+Plugin
+    # This plugin allows for producing coverage reports over time for a
+    # particular job, or aggregated reports across a set of related jobs.
+    # This is achieved by downloading the coverage.xml artifacts from the
+    # downstream child jobs to the parent job and processing those files
+    # one last time through the cobertura plugin.
+    # The resulting report wil contain stats from every single job.
     parse_logs pip install coverage  \
       -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST
 
