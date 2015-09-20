@@ -125,47 +125,28 @@ Now run the following command to automatically provision some nodes.
     uft-flocker-sample-files
     uft-flocker-get-nodes --ubuntu-aws
 
-You should see green output like this::
+You should see output like this::
 
     Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
 
-Now you have some nodes, it's time to install Flocker on them!
+This should have created a pre-configured ``cluster.yml`` file in the current directory.
 
-Install Flocker
-===============
+Now you have some nodes, it's time to install and configure Flocker on them!
 
-The previous step created a ``cluster.yml`` file in the current directory.
-
-From the directory where your ``cluster.yml`` file is, run the following command:
-
-.. prompt:: bash $
-
-    uft-flocker-install cluster.yml
-
-This will install the OS packages on your nodes required to run Flocker.
-Flocker is not ready to run yet, we still need to do some certificate management.
-
-Configure Certificates
-======================
-
-From the directory where your ``cluster.yml`` file is, run the following command:
-
-.. prompt:: bash $
-
-    uft-flocker-config cluster.yml
-
-This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
-
-Install Flocker Docker plugin
+Install and Configure Flocker
 =============================
 
-The Flocker Docker plugin allows you to use Flocker directly from the Docker CLI.
-
-From the directory where your ``cluster.yml`` file is, run the following command:
+Run the following command:
 
 .. prompt:: bash $
 
-    uft-flocker-plugin-install cluster.yml
+    uft-flocker-install cluster.yml && uft-flocker-config cluster.yml && uft-flocker-plugin-install cluster.yml
+
+This step will take about 15 minutes, and will:
+
+* install the OS packages on your nodes required to run Flocker
+* configure certificates, push them to your nodes, set up firewall rules for the control service
+* install the Flocker Docker plugin, so that you can control Flocker directly from the Docker CLI
 
 Check that Flocker cluster is active
 ====================================
