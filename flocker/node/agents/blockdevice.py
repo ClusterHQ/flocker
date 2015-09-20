@@ -781,7 +781,7 @@ class CreateBlockDeviceDataset(PRecord):
         # on ``IBlockDeviceAPI``.
         profile = DEFAULT_PROFILE_NAME
         try:
-            name_value = self.dataset.metadata(u'name')
+            name_value = self.dataset.metadata.get(u'name')
             _, profile = string.split(name_value, '@')
         except ValueError:
             pass
