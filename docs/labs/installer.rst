@@ -216,6 +216,14 @@ Run the following to clean up your AWS instances and your cluster directory:
 
 .. prompt:: bash $
 
+    ssh -i $KEY root@$NODE2 docker rm -f app
+    ssh -i $KEY root@$NODE2 docker rm -f redis
+    uft-flocker-volumes list
+    # Note the dataset id of the volume, then destroy it
+    uft-flocker-volumes destroy --dataset=$DATASET_ID
+    # Wait for the dataset to disappear from the list
+    uft-flocker-volumes list
+    # Once it's gone, go ahead and delete the nodes
     uft-flocker-destroy-nodes
     cd ~/clusters
     rm -rf test
