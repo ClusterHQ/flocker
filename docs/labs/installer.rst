@@ -104,7 +104,7 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
     mkdir terraform
     vim terraform/terraform.tfvars
 
-.. warning::
+.. note::
 
     In the following step, do not use a key (.pem file) which is protected by a passphrase.
     If necessary, generate and download a new keypair in the EC2 console.
