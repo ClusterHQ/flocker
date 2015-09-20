@@ -668,12 +668,7 @@ job_type:
       with_modules:
         - flocker.volume
       with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
-                   *run_trial_with_coverage, *run_coverage,
-                   *convert_results_to_junit ]
-          }
+        - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
       clean_repo: true
@@ -804,12 +799,7 @@ job_type:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_modules:
-        - flocker.acceptance.endtoend.test_dataset
-        - flocker.acceptance.integration.test_mongodb
-        - flocker.acceptance.integration.test_postgres
-        - flocker.acceptance.obsolete.test_cli
-        - flocker.acceptance.obsolete.test_containers
+      with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
@@ -829,12 +819,7 @@ job_type:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules:
-        - flocker.acceptance.endtoend.test_dataset
-        - flocker.acceptance.integration.test_mongodb
-        - flocker.acceptance.integration.test_postgres
-        - flocker.acceptance.obsolete.test_cli
-        - flocker.acceptance.obsolete.test_containers
+      with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,
