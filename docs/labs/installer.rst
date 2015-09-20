@@ -211,8 +211,7 @@ Nice.
 Cleaning up your cluster
 ========================
 
-When you're done, if you want to clean up, run the following steps.
-Run the following to clean up your AWS instances and your cluster directory:
+When you're done, if you want to clean up, run the following steps to clean up your volumes, your instances and your local files:
 
 .. prompt:: bash $
 
