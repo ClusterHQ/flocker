@@ -851,7 +851,8 @@ class UpdateRepoTests(SynchronousTestCase):
         self.target_key = 'test/target/key'
         self.package_directory = FilePath(self.mktemp())
 
-        self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
+        self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node',
+                         'clusterhq-flocker-docker-plugin']
 
     def update_repo(self, aws, yum,
                     package_directory, target_bucket, target_key, source_repo,
@@ -914,6 +915,8 @@ class UpdateRepoTests(SynchronousTestCase):
         repo_contents = {
             'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
+            'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm':
+            'docker-plugin-package',
             unspecified_package: 'unspecified-package-content',
         }
 
@@ -935,6 +938,7 @@ class UpdateRepoTests(SynchronousTestCase):
             'existing_package.rpm',
             'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+            'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm',
         }
 
         expected_keys.update({
@@ -942,13 +946,15 @@ class UpdateRepoTests(SynchronousTestCase):
                 'cli-package',
             'test/target/key/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm':
                 'node-package',
+            'test/target/key/clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm':  # noqa
+                'docker-plugin-package',
             })
         expected_keys.update({
             os.path.join(self.target_key, 'repodata', 'repomod.xml'):
                 '<newhash>-metadata.xml',
             os.path.join(self.target_key, 'repodata',
                          '<newhash>-metadata.xml'):
-                'metadata content for: ' + ','.join(expected_packages),
+                'metadata content for: ' + ','.join(sorted(expected_packages)),
         })
 
         self.assertEqual(
@@ -985,6 +991,8 @@ class UpdateRepoTests(SynchronousTestCase):
         repo_contents = {
             'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': 'cli-package',
             'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': 'node-package',
+            'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':
+            'docker-plugin-package',
             unspecified_package: 'unspecified-package-content',
         }
 
@@ -1006,6 +1014,7 @@ class UpdateRepoTests(SynchronousTestCase):
             'existing_package.deb',
             'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
             'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
+            'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb',
         }
 
         expected_keys.update({
@@ -1014,8 +1023,10 @@ class UpdateRepoTests(SynchronousTestCase):
                 'cli-package',
             'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
                 'node-package',
+            'test/target/key/clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':  # noqa
+                'docker-plugin-package',
             'test/target/key/Packages.gz':
-                'Packages.gz for: ' + ','.join(expected_packages),
+                'Packages.gz for: ' + ','.join(sorted(expected_packages)),
             })
 
         self.assertEqual(
@@ -1091,6 +1102,7 @@ class UpdateRepoTests(SynchronousTestCase):
             for file in [
                 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
                 'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+                'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm',
                 'repodata/repomd.xml',
             ]
         }
@@ -1173,6 +1185,7 @@ class UpdateRepoTests(SynchronousTestCase):
             for file in [
                 'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
                 'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
+                'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb',
                 'Packages.gz',
                 'Release',
             ]
@@ -1241,12 +1254,15 @@ class UploadPackagesTests(SynchronousTestCase):
         repo_contents = {
             'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3.dev1/centos-7/clusterhq-flocker-docker-plugin-0.3.3-0.dev.1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3.dev1/centos-7/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-15.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
         }
 
@@ -1263,16 +1279,19 @@ class UploadPackagesTests(SynchronousTestCase):
         expected_files = {
             'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.1.noarch.rpm',  # noqa
             'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-docker-plugin-0.3.3-0.dev.1.noarch.rpm',  # noqa
             'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.1.x86_64.rpm',  # noqa
             'centos-testing/7/x86_64/repodata/repomod.xml',  # noqa
             'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',  # noqa
             'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
             'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb',  # noqa
             'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
             'ubuntu-testing/14.04/amd64/Packages.gz',
             'ubuntu-testing/14.04/amd64/Release',
             'ubuntu-testing/15.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
             'ubuntu-testing/15.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/15.04/amd64/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb',  # noqa
             'ubuntu-testing/15.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
             'ubuntu-testing/15.04/amd64/Packages.gz',
             'ubuntu-testing/15.04/amd64/Release',
@@ -1290,12 +1309,15 @@ class UploadPackagesTests(SynchronousTestCase):
         repo_contents = {
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-docker-plugin-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-docker-plugin_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-flocker-docker-plugin_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-15.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
         }
 
@@ -1311,6 +1333,7 @@ class UploadPackagesTests(SynchronousTestCase):
 
         files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
+
 
 def create_fake_repository(test_case, files):
     """
@@ -1873,6 +1896,33 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             aws.s3_buckets[self.target_bucket][self.metadata_key].content_type,
             'application/json'
         )
+
+    def test_url_escaped(self):
+        """
+        When a URL includes special characters, they are escaped so that
+        Vagrant can download the box from Amazon S3 without getting 403 errors.
+
+        "/" and ":" are not escaped (these only appear in the protocol).
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0+1')
+
+        expected_version = self.metadata_version(
+            version="0.3.0.1",
+            box_filename="flocker-tutorial-0.3.0%2B1.box",
+            provider="virtualbox",
+        )
+
+        metadata_versions = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+
+        self.assertEqual(metadata_versions, [expected_version])
 
     def test_version_added(self):
         """

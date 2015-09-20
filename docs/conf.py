@@ -327,6 +327,8 @@ linkcheck_ignore = [
     r'https://docs.google.com/a/clusterhq.com/\S+',
     # Example Flocker GUI local URL
     r'http://localhost/client/#/nodes/list',
+    # UserVoice forbids (403) Buildbot, but works for browsers and local runs
+    r'https://feedback.clusterhq.com/',
 
     # The following link checks fail because of a TLS handshake error.
     # The link checking should be fixed and these ignores should be removed.
@@ -335,6 +337,7 @@ linkcheck_ignore = [
     r'https://docs.staging.clusterhq.com/',
     r'https://docs.docker.com/\S+',
 ]
+
 
 def setup(app):
     # This allows us to ignore spelling in any particular file

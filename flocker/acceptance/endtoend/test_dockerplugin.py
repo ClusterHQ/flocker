@@ -4,14 +4,19 @@
 Tests for the Flocker Docker plugin.
 """
 
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...testtools import random_name
+from ...common.runner import run_ssh
+
+from ...testtools import (
+    random_name, find_free_port, loop_until
+)
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client,
+    get_docker_client, verify_socket, check_http_server,
 )
 from ..scripts import SCRIPTS
 
@@ -20,6 +25,44 @@ class DockerPluginTests(TestCase):
     """
     Tests for the Docker plugin.
     """
+    def docker_service(self, address, action):
+        """
+        Restart the Docker daemon on the specified address.
+        Restarts by stopping, verifying the service has stopped, then
+        starting and finally verifying the service has started.
+        Verification is performed via the success of running "docker ps"
+        on the target node; an exit code of 0 indicates the daemon is
+        running, an exit code of 1 is expected if we try to run this
+        command when the daemon is stopped.
+
+        :param bytes address: The public IP of the node on which Docker will
+            be restarted.
+        :param bytes action: The action to perform on the service.
+        """
+        distro = []
+        get_distro = run_ssh(
+            reactor, b"root", address, ["python", "-m", "platform"],
+            handle_stdout=distro.append)
+        get_distro.addCallback(lambda _: distro[0].lower())
+
+        def action_docker(distribution):
+            if 'ubuntu' in distribution:
+                command = ["service", "docker", action]
+            else:
+                command = ["systemctl", action, "docker"]
+            d = run_ssh(reactor, b"root", address, command)
+
+            def handle_error(_, action):
+                self.fail(
+                    "Docker {} failed. See logs for process output.".format(
+                        action))
+
+            d.addErrback(handle_error, action)
+            return d
+
+        acting = get_distro.addCallback(action_docker)
+        return acting
+
     def run_python_container(self, cluster, address, docker_arguments, script,
                              script_arguments, cleanup=True):
         """
@@ -57,6 +100,70 @@ class DockerPluginTests(TestCase):
         return cid
 
     @require_cluster(1)
+    def test_volume_persists_restart(self, cluster):
+        """
+        If a container with a volume is created with a restart policy of
+        "always", the container will restart with the same volume attached
+        after the Docker daemon is restarted.
+        """
+        # create a simple data HTTP python container, with the restart policy
+        data = random_name(self).encode("utf-8")
+        node = cluster.nodes[0]
+        http_port = 8080
+        host_port = find_free_port()[1]
+
+        volume_name = random_name(self)
+        self.run_python_container(
+            cluster, node.public_address,
+            {"host_config": create_host_config(
+                binds=["{}:/data".format(volume_name)],
+                port_bindings={http_port: host_port},
+                restart_policy={"Name": "always"}),
+             "ports": [http_port]},
+            SCRIPTS.child(b"datahttp.py"),
+            # This tells the script where it should store its data,
+            # and we want it to specifically use the volume:
+            [u"/data"])
+
+        # write some data to it via POST
+        d = post_http_server(self, node.public_address, host_port,
+                             {"data": data})
+        # assert the data has been written
+        d.addCallback(lambda _: assert_http_server(
+            self, node.public_address, host_port, expected_response=data))
+        # stop the Docker daemon
+        d.addCallback(lambda _: self.docker_service(
+            node.public_address, b"stop"))
+
+        # ensure the container HTTP service has stopped
+
+        def poll_http_server_stopped(_):
+            def http_closed():
+                ds = check_http_server(node.public_address, host_port)
+                ds.addCallback(lambda succeeded: not succeeded)
+                return ds
+            looping = loop_until(http_closed)
+            return looping
+
+        d.addCallback(poll_http_server_stopped)
+        # start Docker daemon
+        d.addCallback(lambda _: self.docker_service(
+            node.public_address, b"start"))
+        # attempt to read the data back again; the container should've
+        # restarted automatically, though it may take a few seconds
+        # after the Docker daemon has restarted.
+
+        def poll_http_server(_):
+            ds = verify_socket(node.public_address, host_port)
+            ds.addCallback(lambda _: assert_http_server(
+                self, node.public_address, host_port, expected_response=data)
+            )
+            return ds
+
+        d.addCallback(poll_http_server)
+        return d
+
+    @require_cluster(1)
     def test_run_container_with_volume(self, cluster):
         """
         Docker can run a container with a volume provisioned by Flocker.
@@ -64,23 +171,25 @@ class DockerPluginTests(TestCase):
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
+        host_port = find_free_port()[1]
 
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: http_port}),
+                port_bindings={http_port: host_port},
+                restart_policy={"Name": "always"}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
             [u"/data"])
 
-        d = post_http_server(self, node.public_address, http_port,
+        d = post_http_server(self, node.public_address, host_port,
                              {"data": data})
         d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, http_port, expected_response=data))
+            self, node.public_address, host_port, expected_response=data))
         return d
 
     def _test_move(self, cluster, origin_node, destination_node):
@@ -97,11 +206,12 @@ class DockerPluginTests(TestCase):
         """
         data = "hello world"
         http_port = 8080
+        host_port = find_free_port()[1]
         volume_name = random_name(self)
         container_args = {
             "host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: http_port}),
+                port_bindings={http_port: host_port}),
             "ports": [http_port]}
 
         cid = self.run_python_container(
@@ -112,7 +222,7 @@ class DockerPluginTests(TestCase):
             [u"/data"], cleanup=False)
 
         # Post to container on origin node:
-        d = post_http_server(self, origin_node.public_address, http_port,
+        d = post_http_server(self, origin_node.public_address, host_port,
                              {"data": data})
 
         def posted(_):
@@ -125,7 +235,7 @@ class DockerPluginTests(TestCase):
                 SCRIPTS.child(b"datahttp.py"), [u"/data"])
         d.addCallback(posted)
         d.addCallback(lambda _: assert_http_server(
-            self, destination_node.public_address, http_port,
+            self, destination_node.public_address, host_port,
             expected_response=data))
         return d
 

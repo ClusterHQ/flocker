@@ -125,3 +125,23 @@ class MetadataTests(SynchronousTestCase):
                     "url": "/some/path",
                 }]
             }]})
+
+    def test_url_escaped(self):
+        """
+        When a URL includes special characters, they are escaped so that
+        Vagrant can download the box from Amazon S3 without getting 403 errors.
+
+        "/" and ":" are not escaped (these only appear in the protocol).
+        """
+        metadata = box_metadata("box-name", "0.1.2.3-gxx-dirty",
+                                FilePath('/some/path/with/+/and/:'))
+        self.assertEqual(metadata, {
+            "name": "clusterhq/box-name",
+            "description": "Test clusterhq/box-name box.",
+            "versions": [{
+                "version": "0.1.2.3.gxx.dirty",
+                "providers": [{
+                    "name": "virtualbox",
+                    "url": "/some/path/with/%2B/and/:",
+                }]
+            }]})
