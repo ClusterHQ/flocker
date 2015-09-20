@@ -625,7 +625,7 @@ class EBSBlockDeviceAPI(object):
         default_attributes = pmap({P.SNAPSHOT: None,
                                    P.VOLUME_TYPE: None,
                                    P.IOPS: None,
-                                   P.ENCRYPTED: u'False'})
+                                   P.ENCRYPTED: False})
 
         # Profile 2: gold profile: high performance SLA.
         # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_piops
@@ -634,7 +634,7 @@ class EBSBlockDeviceAPI(object):
         gold_attributes = pmap({P.SNAPSHOT: None,
                                 P.VOLUME_TYPE: u'io1',
                                 P.IOPS: None,
-                                P.ENCRYPTED: u'True'})
+                                P.ENCRYPTED: True})
 
         self.profiles = pmap({u'default': default_attributes,
                               u'gold': gold_attributes})
