@@ -125,7 +125,7 @@ Now run the following command to automatically provision some nodes.
     uft-flocker-sample-files
     uft-flocker-get-nodes --ubuntu-aws
 
-You should see output like this::
+This step should take 30-40 seconds, and then you should see output like this::
 
     Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
 
@@ -142,10 +142,11 @@ Run the following command:
 
     uft-flocker-install cluster.yml && uft-flocker-config cluster.yml && uft-flocker-plugin-install cluster.yml
 
-This step will take about 15 minutes, and will:
+This step should take about 5 minutes, and will:
 
-* install the OS packages on your nodes required to run Flocker
+* install the OS packages on your nodes required to run Flocker, including Docker
 * configure certificates, push them to your nodes, set up firewall rules for the control service
+* start all the requisite Flocker services
 * install the Flocker Docker plugin, so that you can control Flocker directly from the Docker CLI
 
 Check that Flocker cluster is active
