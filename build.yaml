@@ -504,6 +504,7 @@ common_cli:
 # run_trial_modules contains a list of all the modules we want to execute
 # through trial.
 run_trial_modules: &run_trial_modules
+  - admin
   - flocker.acceptance
   - flocker.apiclient
   - flocker.ca.functional
