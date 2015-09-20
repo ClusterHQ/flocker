@@ -623,8 +623,8 @@ class EBSBlockDeviceAPI(object):
         # Profile 1: default profile
         P = ProfileAttributeNames
         default_attributes = pmap({P.SNAPSHOT: None,
-                                   P.VOLUME_TYPE: u'None',
-                                   P.IOPS: u'None',
+                                   P.VOLUME_TYPE: None,
+                                   P.IOPS: None,
                                    P.ENCRYPTED: u'False'})
 
         # Profile 2: gold profile: high performance SLA.
