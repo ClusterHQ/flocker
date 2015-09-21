@@ -147,7 +147,7 @@ Now run the following command to automatically provision some nodes.
 
 This step should take 30-40 seconds, and then you should see output like this::
 
-    Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
+    Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
 This should have created a pre-configured ``cluster.yml`` file in the current directory.
 
