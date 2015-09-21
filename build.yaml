@@ -428,7 +428,7 @@ common_cli:
     echo y | docker push \$DOCKER_IMAGE
 
   build_docker_image: &build_docker_image |
-    docker build -t \$DOCKER_IMAGE .
+    docker build --no-cache -t \$DOCKER_IMAGE .
 
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates
