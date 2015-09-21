@@ -15,6 +15,7 @@ Next release
 
 * The :ref:`dataset API <api>` added support for leases.
   Leases prevent a dataset from being deleted or moved off a node.
+* The :ref:`Docker plugin <docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 
 v1.3.1
 ======
