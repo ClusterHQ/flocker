@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.node.test.test_loop -*-
 
 """
 Convergence loop for a node-specific dataset agent.
@@ -288,6 +289,11 @@ class ConvergenceLoop(object):
         ``None``.
 
     :ivar fsm: The finite state machine this is part of.
+
+    :ivar _last_acknowledged_state: The last state that was sent to and
+        acknowledged by the control service over the most recent connection
+        to the control service.
+    :type _last_acknowledged_state: tuple of IClusterStateChange
     """
     def __init__(self, reactor, deployer):
         """
@@ -299,10 +305,56 @@ class ConvergenceLoop(object):
         self.reactor = reactor
         self.deployer = deployer
         self.cluster_state = None
+        self.client = None
+        self._last_acknowledged_state = None
 
     def output_STORE_INFO(self, context):
+        old_client = self.client
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
+        if old_client is not self.client:
+            # State updates are now being sent somewhere else.  At least send
+            # one update using the new client.
+            self._last_acknowledged_state = None
+
+    def _send_state_to_control_service(self, state_changes):
+        context = LOG_SEND_TO_CONTROL_SERVICE(
+            self.fsm.logger, connection=self.client,
+            local_changes=list(state_changes),
+        )
+        with context.context():
+            d = DeferredContext(self.client.callRemote(
+                NodeStateCommand,
+                state_changes=state_changes,
+                eliot_context=context)
+            )
+
+            def record_acknowledged_state(ignored):
+                self._last_acknowledged_state = state_changes
+
+            d.addCallback(record_acknowledged_state)
+            d.addErrback(
+                writeFailure, self.fsm.logger,
+                u"Failed to send local state to control node.")
+            d.addActionFinish()
+
+    def _maybe_send_state_to_control_service(self, state_changes):
+        """
+        If the given ``state_changes`` differ from those last acknowledged by
+        the control service, send them to the control service.
+
+        :param state_changes: State to send to the control service.
+        :type state_changes: tuple of IClusterStateChange
+        """
+        if self._last_acknowledged_state != state_changes:
+            # XXX If a prior attempt to send the state is still in progress,
+            # it's not a great idea to initiate a new attempt.  The control
+            # service should respond to requests in order, though, so it may
+            # not be catastrophic.  At the very least, the comparison above
+            # doesn't account for this case.  The last acknowledged state may
+            # be stale while state in the process of being sent could be fully
+            # up-to-date.
+            self._send_state_to_control_service(state_changes)
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
@@ -316,16 +368,19 @@ class ConvergenceLoop(object):
         def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
+            #
+            # XXX This somewhat side-steps the whole explicit-state-machine
+            # thing we're aiming for here.  It would be better for these state
+            # changes to arrive as an input to the state machine.
             for state in state_changes:
                 self.cluster_state = state.update_cluster_state(
                     self.cluster_state
                 )
-            with LOG_SEND_TO_CONTROL_SERVICE(
-                    self.fsm.logger, connection=self.client,
-                    local_changes=list(state_changes)) as context:
-                self.client.callRemote(NodeStateCommand,
-                                       state_changes=state_changes,
-                                       eliot_context=context)
+
+            # XXX And for this update to be the side-effect of an output
+            # resulting.
+            self._maybe_send_state_to_control_service(state_changes)
+
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )

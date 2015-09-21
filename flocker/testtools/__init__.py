@@ -36,6 +36,7 @@ from zope.interface.verify import verifyClass, verifyObject
 from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath, Permissions
 from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
@@ -861,6 +862,9 @@ class FakeAMPClient(object):
     """
 
     def __init__(self):
+        """
+        Initialize a fake AMP client.
+        """
         self._responses = {}
         self.calls = []
 
@@ -886,10 +890,13 @@ class FakeAMPClient(object):
 
         @param response: The response to the command.
         """
-        try:
-            command.makeResponse(response, AMP())
-        except KeyError:
-            raise InvalidSignature("Bad registered response")
+        if isinstance(response, Exception):
+            response = Failure(response)
+        else:
+            try:
+                command.makeResponse(response, AMP())
+            except KeyError:
+                raise InvalidSignature("Bad registered response")
         self._responses[self._makeKey(command, kwargs)] = response
 
     def callRemote(self, command, **kwargs):
