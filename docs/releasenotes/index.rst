@@ -10,6 +10,18 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next release
+============
+
+* The :ref:`dataset API <api>` added support for leases.
+  Leases prevent a dataset from being deleted or moved off a node.
+
+v1.3.1
+======
+
+* Fixed a bug in previous fix where OpenStack Cinder volumes failed to mount.
+* Creation of a ZFS pool using ZFS 0.6.5 or later requires the setting of a :ref:`ZFS_MODULE_LOADING environment variable<zfs-creating-pool>`.
+
 v1.3
 ====
 

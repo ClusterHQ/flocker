@@ -99,11 +99,11 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {#
 
 #}
-{% macro wrappers(v, repo_dir)                                              -%}
+{% macro wrappers(v, directory_to_delete)                                              -%}
 {# adds a list of common wrappers to the build jobs.
 
    param v:  dictionary containing the values from the job
-   param repo_dir: directory to clean up
+   param directory_to_delete: directory to clean up
 #}
     wrappers {
 {#    adds timestamps to the job log output                                  #}
@@ -132,7 +132,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {% if v.clean_repo %}
       preScmSteps {
           steps {
-          shell("sudo rm -rf {{ repo_dir }}")
+          shell("sudo rm -rf {{ directory_to_delete }}")
           }
       }
 {% endif %}
@@ -327,7 +327,8 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
+    {{ wrappers(job_values, directory_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -347,8 +348,8 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
-    {{ wrappers(job_values, repo_dir) }}
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
+    {{ wrappers(job_values, directory_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -387,8 +388,8 @@ branches.each {
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
 
-{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
-    {{ wrappers(job_values, repo_dir) }}
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+    {{ wrappers(job_values, directory_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -409,8 +410,8 @@ branches.each {
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
 
-{% set repo_dir = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
-    {{ wrappers(job_values, repo_dir) }}
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+    {{ wrappers(job_values, directory_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}

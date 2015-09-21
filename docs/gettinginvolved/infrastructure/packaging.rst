@@ -8,7 +8,7 @@ We refer to these as "Omnibus" packages.
 
 To build omnibus packages, create a VirtualEnv and install Flocker then its release dependencies:
 
-.. code-block:: sh
+.. prompt:: bash $
 
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
@@ -17,7 +17,7 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
 
 Then run the following command from a clean checkout of the Flocker repository:
 
-.. code-block:: sh
+.. prompt:: bash $
 
    ./admin/build-package --distribution=centos-7 $PWD
 
@@ -48,7 +48,7 @@ This is provided as a template for prospective maintainers who may wish to inclu
 
 To build Flocker RPMs from the ``spec`` file, run the following commands:
 
-.. code-block:: sh
+.. prompt:: bash $
 
    python setup.py sdist
    python setup.py generate_spec
@@ -128,7 +128,7 @@ To build and upload these packages, on a machine with the operating system which
 set up `gsutil` with S3 credentials,
 go to the relevant directory in `admin/release-packaging` and run:
 
-.. code-block:: sh
+.. prompt:: bash $
 
    # The basename is the name (not the full path) of the current directory.
    # Package creation files are in directories which match their equivalent S3 keys.

@@ -16,7 +16,7 @@ Next we'll use a new configuration file that moves the application to a differen
 .. literalinclude:: port-deployment-moved.yml
    :language: yaml
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 port-deployment-moved.yml port-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
@@ -27,15 +27,15 @@ Next we'll use a new configuration file that moves the application to a differen
 If we query the database the records we've previously inserted have disappeared!
 The application has moved but the data has been left behind.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-    alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
-    MongoDB shell version: 2.4.9
-    connecting to: 172.16.255.251/test
-    > use example;
-    switched to db example
-    > db.records.find({})
-    >
+   alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
+   MongoDB shell version: 2.4.9
+   connecting to: 172.16.255.251/test
+   > use example;
+   switched to db example
+   > db.records.find({})
+   >
 
 The Solution
 ============
@@ -57,7 +57,7 @@ We'll create a new configuration for the cluster, this time adding a volume to t
 
 Then we'll run these configuration files with ``flocker-deploy``:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 volume-deployment.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -67,9 +67,9 @@ Then we'll run these configuration files with ``flocker-deploy``:
 
 Once again we'll insert some data into the database:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-   alice@mercury:~/flocker-tutorial$ $ mongo 172.16.255.250
+   alice@mercury:~/flocker-tutorial$ mongo 172.16.255.250
    MongoDB shell version: 2.4.9
    connecting to: 172.16.255.250/test
    > use example;
@@ -85,7 +85,7 @@ Next we'll move the application to the other node.
 .. literalinclude:: volume-deployment-moved.yml
    :language: yaml
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 volume-deployment-moved.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
@@ -95,7 +95,7 @@ Next we'll move the application to the other node.
 
 This time however the data has moved with the application:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
    MongoDB shell version: 2.4.9

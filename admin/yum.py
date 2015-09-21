@@ -165,12 +165,12 @@ class FakeYum(object):
             metadata_directory.child('repomod.xml').setContent(
                 '<newhash>-metadata.xml')
             metadata_directory.child('<newhash>-metadata.xml').setContent(
-                'metadata content for: ' + ','.join(packages))
+                'metadata content for: ' + ','.join(sorted(packages)))
 
             return {'repodata/repomod.xml', 'repodata/<newhash>-metadata.xml'}
         elif package_type == PackageTypes.DEB:
             index = intent.repository_path.child('Packages.gz')
-            index.setContent("Packages.gz for: " + ",".join(packages))
+            index.setContent("Packages.gz for: " + ",".join(sorted(packages)))
             intent.repository_path.child('Release').setContent(
                 "Origin: ClusterHQ\n")
             return {'Packages.gz', 'Release'}

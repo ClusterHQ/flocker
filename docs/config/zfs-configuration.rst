@@ -39,6 +39,8 @@ Installing ZFS on Ubuntu 14.04
    :prompt: [root@ubuntu-14.04]#
 
 
+.. _zfs-creating-pool:
+
 Creating a ZFS Pool
 ===================
 

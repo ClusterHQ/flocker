@@ -16,7 +16,7 @@ Create the Virtual Machines
 You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutmongo>`.
 If you have since shutdown or destroyed those VMs, boot them up again:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
@@ -27,7 +27,7 @@ Download the Docker Image
 
 The Docker image used by this example is quite large, so you should pre-fetch it to your nodes.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull mysql:5.6.17
    ...
@@ -58,10 +58,9 @@ Download and save the following configuration files to the ``flocker-tutorial`` 
    
 Now run ``flocker-deploy`` to deploy the MySQL application to the target Virtual Machine.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 mysql-deployment.yml mysql-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 mysql-deployment.yml mysql-application.yml
 
 Connect to MySQL & Insert Sample Data
 =====================================
@@ -69,7 +68,7 @@ Connect to MySQL & Insert Sample Data
 You can now use the ``mysql`` client on the host machine to connect to the MySQL server running inside the container.
 Connect using the client to the IP address of the Virtual Machine. In this case the example has exposed the default MySQL port 3306 so it is not required to specify a connection port on the command line:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ mysql -h172.16.255.250 -uroot -pclusterhq
 
@@ -104,17 +103,16 @@ Download and save the following configuration file to your ``flocker-tutorial`` 
    
 Then run ``flocker-deploy`` to move the MySQL application along with its data to the new destination host:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 mysql-deployment-moved.yml mysql-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 mysql-deployment-moved.yml mysql-application.yml
 
 Verify Data Has Moved
 =====================
 
 Confirm the application has moved to the target Virtual Machine:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
@@ -123,7 +121,7 @@ Confirm the application has moved to the target Virtual Machine:
 
 And is no longer running on the original host:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
@@ -131,7 +129,7 @@ And is no longer running on the original host:
    
 You can now connect to MySQL on its host and confirm the sample data has also moved:   
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ mysql -h172.16.255.251 -uroot -pclusterhq
 

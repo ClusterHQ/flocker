@@ -200,14 +200,17 @@ common_cli:
     # using the caching-layer, install all the dependencies
     parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
     # using the caching-layer, install flocker
-    parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" --trusted-host \$TRUSTED_HOST
+    parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" \
+      --trusted-host \$TRUSTED_HOST
     # using the caching-layer, install junix for our coverage report
-    parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml  --trusted-host \$TRUSTED_HOST
+    parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml \
+      --trusted-host \$TRUSTED_HOST
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
-    FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - http://169.254.169.254/latest/meta-data/placement/availability-zone`"
+    FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - \
+        http://169.254.169.254/latest/meta-data/placement/availability-zone`"
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
 
@@ -221,7 +224,17 @@ common_cli:
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
 
   setup_coverage: &setup_coverage |
-    parse_logs pip install coverage==3.7.1 http://data.hybridcluster.net/python/coverage_reporter-0.01_hl0-py27-none-any.whl  --trusted-host \$TRUSTED_HOST
+    # we install the python coverage module so generate coverage.xml files
+    # which Jenkins will process through the Jenkins Cobertura plugin.
+    # https://wiki.jenkins-ci.org/display/JENKINS/Cobertura+Plugin
+    # This plugin allows for producing coverage reports over time for a
+    # particular job, or aggregated reports across a set of related jobs.
+    # This is achieved by downloading the coverage.xml artifacts from the
+    # downstream child jobs to the parent job and processing those files
+    # one last time through the cobertura plugin.
+    # The resulting report wil contain stats from every single job.
+    parse_logs pip install coverage  \
+      -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST
 
   run_coverage: &run_coverage |
     # run coverage and produce a report
@@ -229,7 +242,8 @@ common_cli:
 
   convert_results_to_junit: &convert_results_to_junit |
     # pip the trial.log results through subunit and export them as junit in xml
-    cat trial.log | subunit-1to2 | subunit2junitxml --no-passthrough --output-to=results.xml
+    cat trial.log | subunit-1to2 | subunit2junitxml \
+      --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
     parse_logs python setup.py --version
@@ -266,7 +280,19 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    coverage run \$venv/bin/trial --reporter=subunit \$MODULE 2>&1 | parse_logs tee trial.log
+    coverage run \$venv/bin/trial \
+      --reporter=subunit \$MODULE 2>&1 | parse_logs tee trial.log
+
+  run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
+    # The jobs.groovy.j2 file produces jobs that contain a parameterized job
+    # type. These type of jobs always require a parameter to be passed on in
+    # order for they to be executed.
+    # We grab the value from the 'with_modules:' dictionary in the yaml job
+    # defintion, and feed it to the job configuration as the default value for
+    # the 'MODULE' parameter.
+    # This is how we tell trial which flocker module to call.
+    sudo \$venv/bin/coverage run \$venv/bin/trial \
+      --reporter=subunit \$MODULE 2>&1 | parse_logs tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -275,7 +301,8 @@ common_cli:
     # We grab the value from the 'with_modules:' dictionary in the yaml job
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
-    sudo -E \$venv/bin/coverage run \$venv/bin/trial --reporter=subunit --testmodule \$MODULE 2>&1 | parse_logs tee trial.log
+    sudo -E \$venv/bin/coverage run \$venv/bin/trial \
+      --reporter=subunit --testmodule \$MODULE 2>&1 | parse_logs tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -289,19 +316,55 @@ common_cli:
     ssh-add \$HOME/.ssh/id_rsa
 
   run_acceptance_aws_tests: &run_acceptance_aws_tests |
-    # we gather the return code, but make sure we come out of these tests with '0'
+    # We gather the return code but make sure we come out of these tests with 0
     # we store that code into RC and pass it to the end of the job execution.
-    parse_logs \$venv/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster of
+    # several nodes. These nodes will install the flocker packages (RPM/DEB)
+    # during the provisioning process by that tool. These packages are fetched
+    # from a repository on the network through a common apt-get/yum install.
+    # The jenkins slave will be the repository host containing those packages
+    # which are made available through a webserver running on port 80.
+    # We pass the URL of our Jenkins Slave to the acceptance test nodes
+    # through the --build-server parameter below.
+    parse_logs \$venv/bin/python admin/run-acceptance-tests \
+    --distribution \${DISTRIBUTION_NAME} \
+    --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
-    # we gather the return code, but make sure we come out of these tests with '0'
+    # We gather the return code but make sure we come out of these tests with 0
     # we store that code into RC and pass it to the end of the job execution.
-    parse_logs \$venv/bin/python admin/run-acceptance-tests --distribution \${DISTRIBUTION_NAME} --provider rackspace --dataset-backend rackspace --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  --config-file /tmp/acceptance.yaml \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster of
+    # several nodes. These nodes will install the flocker packages (RPM/DEB)
+    # during the provisioning process by that tool. These packages are fetched
+    # from a repository on the network through a common apt-get/yum install.
+    # The jenkins slave will be the repository host containing those packages
+    # which are made available through a webserver running on port 80.
+    # We pass the URL of our Jenkins Slave to the acceptance test nodes
+    # through the --build-server parameter below.
+    parse_logs \$venv/bin/python admin/run-acceptance-tests \
+    --distribution \${DISTRIBUTION_NAME} \
+    --provider rackspace --dataset-backend rackspace \
+    --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_client_tests: &run_client_tests |
-    # we gather the return code, but make sure we come out of these tests with '0'
+    # we gather the return code but make sure we come out of these tests with 0
     # we store that code into RC and pass it to the end of the job execution.
-    parse_logs \$venv/bin/python admin/run-client-tests --distribution \${DISTRIBUTION_NAME} --branch \${TRIGGERED_BRANCH} --build-server  http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) ; RC=\$?
+    parse_logs \$venv/bin/python admin/run-client-tests \
+    --distribution \${DISTRIBUTION_NAME} \
+    --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) \
+    ; RC=\$?
 
   disable_selinux: &disable_selinux |
     sudo /usr/sbin/setenforce 0
@@ -315,16 +378,21 @@ common_cli:
 
   build_package: &build_package  |
     # and build a rpm/deb package using docker
-    parse_logs \$venv/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    parse_logs \$venv/bin/python admin/build-package \
+    --destination-path repo \
+    --distribution \${DISTRIBUTION_NAME} \
+    /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   build_repo_metadata: &build_repo_metadata |
     # the acceptance tests look for a package in a yum repository,
     # we provide one by starting a webserver and pointing the tests
     # to look over there
-    sudo rm -rf /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-    sudo mkdir -p /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-    sudo cp repo/* /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
-    cd /usr/share/nginx/html/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    REPO_PATH=/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    DOC_ROOT=/usr/share/nginx/html
+    sudo rm -rf \${DOC_ROOT}/\${REPO_PATH}
+    sudo mkdir -p \${DOC_ROOT}/\${REPO_PATH}
+    sudo cp repo/* \${DOC_ROOT}/\${REPO_PATH}
+    cd \${DOC_ROOT}/\${REPO_PATH}
     # create a repo on either centos or ubuntu
     case "\$(os)"
     in
@@ -374,10 +442,15 @@ common_cli:
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
-    echo "# URLGRABBER_DEBUG=1 to log low-level network info - see FLOC-2640" >> Dockerfile
-    echo "RUN env URLGRABBER_DEBUG=1 yum groupinstall --assumeyes 'Development Tools'" >> Dockerfile
-    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes epel-release" >> Dockerfile
-    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes git ruby-devel python-devel libffi-devel openssl-devel python-pip rpmlint" >> Dockerfile
+    echo "# URLGRABBER_DEBUG=1 to log low-level network info \
+          - see FLOC-2640" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum groupinstall \
+          --assumeyes 'Development Tools'" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install \
+          --assumeyes epel-release" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes \
+          git ruby-devel python-devel libffi-devel openssl-devel \
+          python-pip rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
@@ -390,22 +463,26 @@ common_cli:
     echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
-    echo "RUN apt-get install --no-install-recommends -y git ruby-dev libffi-dev libssl-dev build-essential python-pip python2.7-dev lintian" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
+          libffi-dev libssl-dev build-essential python-pip \
+          python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
     # don't waste time installing ruby or fpm, use a docker image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
-    echo "RUN apt-get install --no-install-recommends -y git ruby-dev libffi-dev libssl-dev build-essential python-pip python2.7-dev lintian" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y \
+          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
+          python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
-
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -424,83 +501,115 @@ common_cli:
 #   * clean_repo: (enable if we need to clean old files owned by root)
 #
 
+# run_trial_modules contains a list of all the modules we want to execute
+# through trial.
+run_trial_modules: &run_trial_modules
+  - admin
+  - flocker.acceptance
+  - flocker.apiclient
+  - flocker.ca.functional
+  - flocker.ca.test
+  - flocker.cli
+  - flocker.common
+  - flocker.control
+  - flocker.dockerplugin
+  - flocker.node.agents
+  - flocker.node.test
+  # TODO:
+  # one of the functional tests is hanging, so we split the functional
+  # tests and comment out the subset that is hanging
+  # - flocker.node.functional
+  # - flocker.node.functional.test_docker
+  - flocker.node.functional.test_script
+  - flocker.node.functional.test_deploy
+  - flocker.provision
+  - flocker.restapi
+  - flocker.route
+  - flocker.test
+  - flocker.testtools
+  # flocker.volume needs to run as root due to ZFS calls
+  # - flocker.volume
+
+# run_trial_cli contains a list of all the CLI yaml anchors we want to
+# execute as part of our run_trial_tasks
+run_trial_cli: &run_trial_cli [
+  *hashbang,
+  *setup_pip_cache,
+  *cleanup,
+  *setup_venv,
+  *setup_flocker_modules,
+  *setup_coverage,
+  *setup_aws_env_vars,
+  *run_trial_with_coverage,
+  *run_coverage,
+  *convert_results_to_junit ]
+
+run_trial_cli_as_root: &run_trial_cli_as_root [
+  *hashbang,
+  *setup_pip_cache,
+  *cleanup,
+  *setup_venv,
+  *setup_flocker_modules,
+  *setup_coverage,
+  *setup_aws_env_vars,
+  *run_trial_with_coverage_as_root,
+  *run_coverage,
+  *convert_results_to_junit ]
+
+# run_acceptance_modules contains the list of Flocker modules to be executed
+# during the acceptance tests
+run_acceptance_modules: &run_acceptance_modules
+  - flocker.acceptance.endtoend.test_dataset
+  - flocker.acceptance.integration.test_mongodb
+  - flocker.acceptance.integration.test_postgres
+  - flocker.acceptance.obsolete.test_cli
+  - flocker.acceptance.obsolete.test_containers
+
 # flocker.node.functional is hanging, so we don't run it
 job_type:
   run_trial:
     # http://build.clusterhq.com/builders/flocker-centos-7
     run_trial_on_AWS_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
-      with_modules:
-        - flocker.acceptance
-        - flocker.apiclient
-        - flocker.ca.functional
-        - flocker.ca.test
-        - flocker.cli
-        - flocker.common
-        - flocker.control
-        - flocker.dockerplugin
-        - flocker.node.agents
-        - flocker.node.test
-        # TODO:
-        # one of the functional tests is hanging, so we split the functional
-        # tests and comment out the subset that is hanging
-        # - flocker.node.functional
-        # - flocker.node.functional.test_docker
-        - flocker.node.functional.test_script
-        - flocker.node.functional.test_deploy
-        - flocker.provision
-        - flocker.restapi
-        - flocker.route
-        - flocker.test
-        - flocker.testtools
-        - flocker.volume
+      with_modules: *run_trial_modules
       with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
-                   *run_trial_with_coverage, *run_coverage,
-                   *convert_results_to_junit ]
-          }
+        - { type: 'shell', cli: *run_trial_cli }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
+      clean_repo: true
+
+    run_trial_on_AWS_CentOS_7_as_root:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      with_modules:
+        - flocker.volume
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli_as_root }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+
     # http://build.clusterhq.com/builders/flocker-admin
     # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
     run_trial_on_AWS_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
-      with_modules:
-        - admin
-        - flocker.acceptance
-        - flocker.apiclient
-        - flocker.ca.functional
-        - flocker.ca.test
-        - flocker.cli
-        - flocker.common
-        - flocker.control
-        - flocker.dockerplugin
-        - flocker.node.agents
-        - flocker.node.test
-        # TODO:
-        # one of the functional tests is hanging, so we split the functional
-        # tests and comment out the subset that is hanging
-        # - flocker.node.functional
-        # - flocker.node.functional.test_docker
-        - flocker.node.functional.test_script
-        - flocker.node.functional.test_deploy
-        - flocker.provision
-        - flocker.restapi
-        - flocker.route
-        - flocker.test
-        - flocker.testtools
-        - flocker.volume
+      with_modules: *run_trial_modules
       with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
-                   *run_trial_with_coverage, *run_coverage,
-                   *convert_results_to_junit ]
-          }
+        - { type: 'shell', cli: *run_trial_cli }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
+      clean_repo: true
+
+    run_trial_on_AWS_Ubuntu_Trusty_as_root:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      with_modules:
+        - flocker.volume
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli_as_root }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+
+
 
   run_trial_for_storage_driver:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
@@ -510,7 +619,8 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_aws_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
                    *run_trial_for_storage_drivers_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
@@ -526,7 +636,8 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_aws_env_vars,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_aws_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
                    *run_trial_for_storage_drivers_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
@@ -543,7 +654,8 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_rackspace_env_vars,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_rackspace_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
                    *run_trial_for_storage_drivers_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
@@ -559,7 +671,8 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_coverage, *setup_rackspace_env_vars,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_rackspace_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
                    *run_trial_for_storage_drivers_with_coverage, *run_coverage,
                    *convert_results_to_junit ]
@@ -576,20 +689,17 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules, *setup_aws_env_vars,
-                   *run_sphinx ]
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *run_sphinx ]
           }
+
+
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
     run_acceptance_on_AWS_CentOS_7_for:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_modules:
-        - flocker.acceptance.endtoend.test_dataset
-        - flocker.acceptance.integration.test_mongodb
-        - flocker.acceptance.integration.test_postgres
-        - flocker.acceptance.obsolete.test_cli
-        - flocker.acceptance.obsolete.test_containers
+      with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,  *setup_pip_cache,
@@ -607,12 +717,7 @@ job_type:
       clean_repo: true
     run_acceptance_on_AWS_Ubuntu_Trusty_for:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules:
-        - flocker.acceptance.endtoend.test_dataset
-        - flocker.acceptance.integration.test_mongodb
-        - flocker.acceptance.integration.test_postgres
-        - flocker.acceptance.obsolete.test_cli
-        - flocker.acceptance.obsolete.test_containers
+      with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *setup_pip_cache,

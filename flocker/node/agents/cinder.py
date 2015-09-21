@@ -132,12 +132,13 @@ class ICinderVolumeManager(Interface):
     # of 10 ** 9 bytes).  Real world observations indicate size is actually in
     # GiB (multiples of 2 ** 30).  So this method is documented as accepting
     # GiB values.  https://bugs.launchpad.net/openstack-api-site/+bug/1456631
-    def create(size, metadata=None):
+    def create(size, metadata=None, profile=None):
         """
         Creates a volume.
 
         :param size: Size of volume in GiB
         :param metadata: Optional metadata to set on volume creation
+        :param profile: Optional Cinder volume type name
         :rtype: :class:`Volume`
         """
 
@@ -453,7 +454,7 @@ class CinderBlockDeviceAPI(object):
             local_ips=local_ips, api_ips=api_ip_map
         ).write()
 
-    def create_volume(self, dataset_id, size):
+    def create_volume(self, dataset_id, size, profile=None):
         """
         Create a block device using the ICinderVolumeManager.
         The cluster_id and dataset_id are stored as metadata on the volume.
@@ -466,9 +467,14 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
+
+        # Profiles for Cinder correlate to the Cinder volume_type.
+        # If not provided it will default to the configured default
+        # volume type of the tenant.
         requested_volume = self.cinder_volume_manager.create(
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
+            volume_type=profile,
         )
         Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
@@ -499,6 +505,29 @@ class CinderBlockDeviceAPI(object):
                 )
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
+
+    def apply_profile(self, blockdevice_id, profile):
+        """
+        Apply a profile to the given volume.
+        TODO: Throw an exception in case of failure to apply desired profile.
+
+        :param unicode blockdevice_id: UUID of the volume to work on.
+        :param unicode profile: Name of storage profile to apply to volume.
+
+        :raises UnknownVolume: If there does not exist a BlockDeviceVolume
+            corresponding to the input blockdevice_id.
+        """
+        try:
+            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+        except CinderNotFound:
+            raise UnknownVolume(blockdevice_id)
+
+        # Update the volume type if possible.
+        # NOTE: For not we are not supporting retype with migrate as that has
+        # some trickier handling in some cases. This will only work if migrate
+        # is not needed.
+        pass
+
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -571,41 +600,101 @@ class CinderBlockDeviceAPI(object):
                 break
             time.sleep(1.0)
 
+    def _get_device_path_virtio_blk(self, volume):
+        """
+        The virtio_blk driver allows a serial number to be assigned to virtual
+        blockdevices.
+        OpenStack will set a serial number containing the first 20
+        characters of the Cinder block device ID.
+
+        This was introduced in
+        * https://github.com/openstack/nova/commit/3a47c02c58cefed0e230190b4bcef14527c82709  # noqa
+        * https://bugs.launchpad.net/nova/+bug/1004328
+
+        The udev daemon will read the serial number and create a
+        symlink to the canonical virtio_blk device path.
+
+        We do this because libvirt does not return the correct device path when
+        additional disks have been attached using a client other than
+        cinder. This is expected behaviour within Cinder and libvirt See
+        https://bugs.launchpad.net/cinder/+bug/1387945 and
+        http://libvirt.org/formatdomain.html#elementsDisks (target section)
+
+        :param volume: The Cinder ``Volume`` which is attached.
+        :returns: ``FilePath`` of the device created by the virtio_blk
+            driver.
+        """
+        expected_path = FilePath(
+            "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
+        )
+        if expected_path.exists():
+            return expected_path.realpath()
+        else:
+            raise UnattachedVolume(volume.id)
+
+    def _get_device_path_api(self, volume):
+        """
+        Return the device path reported by the Cinder API.
+
+        :param volume: The Cinder ``Volume`` which is attached.
+        :returns: ``FilePath`` of the device created by the virtio_blk
+            driver.
+        """
+        if volume.attachments:
+            attachment = volume.attachments[0]
+            if len(volume.attachments) > 1:
+                # As far as we know you can not have more than one attachment,
+                # but, perhaps we're wrong and there should be a test for the
+                # multiple attachment case.  FLOC-1854.
+                # Log a message if this ever happens.
+                Message.new(
+                    message_type=(
+                        u'flocker:node:agents:blockdevice:openstack:'
+                        u'get_device_path:'
+                        u'unexpected_multiple_attachments'
+                    ),
+                    volume_id=unicode(volume.id),
+                    attachment_devices=u','.join(
+                        unicode(a['device']) for a in volume.attachments
+                    ),
+                ).write()
+        else:
+            raise UnattachedVolume(volume.id)
+
+        return FilePath(attachment['device'])
+
     def get_device_path(self, blockdevice_id):
-        # libvirt does not return the correct device path when additional
-        # disks have been attached using a client other than cinder. This is
-        # expected behaviour within Cinder and libvirt
-        # See https://bugs.launchpad.net/cinder/+bug/1387945 and
-        # http://libvirt.org/formatdomain.html#elementsDisks (target section)
-        # However, the correct device is named as a udev symlink which includes
-        # the first 20 characters of the blockedevice_id.
-        device_path = FilePath(
-            "/dev/disk/by-id/virtio-{}".format(blockdevice_id[:20]))
-        if not device_path.exists():
-            # If the device path does not exist, either virtio driver is
-            # not being used (e.g. Rackspace), or the user has modified
-            # their udev rules.  The following code relies on Cinder
-            # returning the correct device path, which appears to work
-            # for Rackspace and will work with virtio if no disks have
-            # been attached outside Cinder.
-            try:
-                cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-            except CinderNotFound:
-                raise UnknownVolume(blockdevice_id)
+        """
+        On Xen hypervisors (e.g. Rackspace) the Cinder API reports the correct
+        device path. On Qemu / virtio_blk the actual device path may be
+        different. So when we detect ``virtio_blk`` style device paths, we
+        check the virtual disk serial number, which should match the first
+        20 characters of the Cinder Volume UUID on platforms that we support.
+        """
+        try:
+            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+        except CinderNotFound:
+            raise UnknownVolume(blockdevice_id)
 
-            # As far as we know you can not have more than one attachment,
-            # but, perhaps we're wrong and there should be a test for the
-            # multiple attachment case.  FLOC-1854.
-            try:
-                [attachment] = cinder_volume.attachments
-            except ValueError:
-                raise UnattachedVolume(blockdevice_id)
+        device_path = self._get_device_path_api(cinder_volume)
+        if _is_virtio_blk(device_path):
+            device_path = self._get_device_path_virtio_blk(cinder_volume)
 
-            device_path = FilePath(attachment['device'])
-
-        # It could be attached somewhere else...
-        # https://clusterhq.atlassian.net/browse/FLOC-1830
         return device_path
+
+
+def _is_virtio_blk(device_path):
+    """
+    Check whether the supplied device path is a virtio_blk device.
+
+    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    Xen devices begin with `xvd`.
+    See https://www.kernel.org/doc/Documentation/devices.txt
+
+    :param FilePath device_path: The device path returned by the Cinder API.
+    :returns: ``True`` if it's a ``virtio_blk`` device, else ``False``.
+    """
+    return device_path.basename().startswith('vd')
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):

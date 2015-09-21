@@ -8,7 +8,7 @@ Install flocker on a remote node.
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect
+from effect import Func, Effect, parallel
 import yaml
 
 from zope.interface import implementer
@@ -980,14 +980,31 @@ def _uninstall_flocker_centos7():
     Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
     machine.
     """
-    return sequence([
-        run_from_args([
-            b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
-        ]),
-        run_from_args([
-            b"yum", b"erase", b"-y", b"clusterhq-release",
-        ]),
-    ])
+    def maybe_disable(unit):
+        return run(
+            u"{{ "
+            u"systemctl is-enabled {unit} && "
+            u"systemctl stop {unit} && "
+            u"systemctl disable {unit} "
+            u"; }} || /bin/true".format(unit=unit).encode("ascii")
+        )
+
+    return sequence(
+        list(
+            # XXX There should be uninstall hooks for stopping services.
+            maybe_disable(unit) for unit in [
+                u"flocker-control", u"flocker-dataset-agent",
+                u"flocker-container-agent", u"flocker-docker-plugin",
+            ]
+        ) + [
+            run_from_args([
+                b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
+            ]),
+            run_from_args([
+                b"yum", b"erase", b"-y", b"clusterhq-release",
+            ]),
+        ]
+    )
 
 
 _flocker_uninstallers = {
@@ -1169,7 +1186,7 @@ def _run_on_all_nodes(nodes, task):
 
     :return: An ``Effect`` that runs the commands on a group of nodes.
     """
-    return sequence(list(
+    return parallel(list(
         run_remotely(
             username='root',
             address=node.address,

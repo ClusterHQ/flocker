@@ -631,6 +631,83 @@ class MakeRstTests(SynchronousTestCase):
             '',
             ])
 
+    MULTITYPE_SCHEMA = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'object',
+                'properties': {
+                    'param': {
+                        'title': 'TITLE',
+                        'description': 'one\ntwo',
+                        'type': ['integer', 'null'],
+                    },
+                },
+                'required': ['param'],
+            },
+        }}
+
+    def test_multiple_type_property(self):
+        """
+        The generated API documentation support JSON properties with multiple
+        types.
+        """
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @structured(
+            inputSchema={},
+            outputSchema={'$ref': '/v0/test.json#/endpoint'},
+            schema_store=self.INLINED_SCHEMAS,
+        )
+        @user_documentation(
+            u"Undocumented.", header=u"Header", section=u'section')
+        def f():
+            """
+            Developer docs,
+            """
+
+        rest = list(makeRst(
+            b"/prefix", 'section', app, None, self.MULTITYPE_SCHEMA))
+
+        self.assertEqual(rest, [
+            u'Header',
+            u'------',
+            u'',
+            u'',
+            '.. http:get:: /prefix/',
+            '',
+            '   Undocumented.',
+            '   ',
+            '   .. hidden-code-block:: json',
+            '       :label: + Response JSON Schema',
+            '       :starthidden: True',
+            '   ',
+            '       {',
+            '           "$schema": "http://json-schema.org/draft-04/schema#",',
+            '           "properties": {',
+            '               "param": {',
+            '                   "description": "one\\ntwo",',
+            '                   "title": "TITLE",',
+            '                   "type": [',
+            '                       "integer",',
+            '                       "null"',
+            '                   ]',
+            '               }',
+            '           },',
+            '           "required": [',
+            '               "param"',
+            '           ],',
+            '           "type": "object"',
+            '       }',
+            '   ',
+            '   :>json integer|null param: *(required)* TITLE',
+            '   ',
+            '      one',
+            '      two',
+            '      ',
+            '',
+            ])
+
 
 class FormatExampleTests(SynchronousTestCase):
     """

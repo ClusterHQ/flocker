@@ -869,8 +869,6 @@ class ConfigurationAPIUserV1(object):
             raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
 
     @app.route("/configuration/leases", methods=['GET'])
-    # This can stop being private as part of FLOC-2741:
-    @private_api
     @user_documentation(
         u"""
         List the currently existing leases on datasets, including which
@@ -901,8 +899,6 @@ class ConfigurationAPIUserV1(object):
         return result
 
     @app.route("/configuration/leases/<dataset_id>", methods=['DELETE'])
-    # This can stop being private as part of FLOC-2741:
-    @private_api
     @user_documentation(
         u"""
         This will release a lease on a dataset, allowing the dataset to be
@@ -910,9 +906,9 @@ class ConfigurationAPIUserV1(object):
         lease does not modify the dataset in any way, it simply allows
         other operations to do so.
         """,
-        header=u"Delete a lease from the configuration",
+        header=u"Release a lease on a dataset",
         examples=[
-            u"delete a lease",
+            u"release a lease",
         ],
         section=u"dataset",
     )
@@ -950,9 +946,6 @@ class ConfigurationAPIUserV1(object):
             raise LEASE_NOT_FOUND
 
     @app.route("/configuration/leases", methods=['POST'])
-    # This can stop being private as part of FLOC-2741:
-    # We'll remove this once the end-to-end tests are proven.
-    @private_api
     @user_documentation(
         u"""
         Acquire a lease on a particular dataset on a particular
