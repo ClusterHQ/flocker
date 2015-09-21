@@ -62,7 +62,7 @@ For example:
 
    service flocker-docker-plugin restart
 
-Testing Your Installation
+Testing your installation
 =========================
 
 Once installed, two simple Docker tests can be run to verify that the plugin is working correctly with the Flocker agents:
@@ -75,6 +75,11 @@ Once installed, two simple Docker tests can be run to verify that the plugin is 
 In this example, the first command uses the Flocker plugin for Docker as the volume driver to create a named volume called ``apples``.
 
 In the second command we are reattaching the same volume from the first container, and verifying that the data (``hello``) has been preserved.
+
+Upgrading the plugin
+====================
+
+If you are upgrading from an earlier version of the plugin, make sure to stop the Docker daemon before doing so and then start it back up once the plugin has been upgraded.
 
 Known limitations
 =================
