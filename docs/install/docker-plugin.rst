@@ -1,3 +1,4 @@
+.. _install-docker-plugin:
 
 ========================================
 Installing the Flocker Plugin for Docker
