@@ -23,19 +23,21 @@ Now you can use the following instructions to install the Flocker plugin for Doc
 On CentOS 7
 ===========
 
-On each of your container agent servers, install the Flocker plugin:
+On each of your Flocker nodes, install the Flocker plugin:
 
 .. prompt:: bash $
 
    yum install -y clusterhq-flocker-docker-plugin
+   systemctl enable flocker-docker-plugin
+   systemctl start flocker-docker-plugin
 
-The service can be started, stopped, or restarted using ``systemctl``.
+The service can then be started, stopped, or restarted using ``systemctl``.
 For example:
 
 .. prompt:: bash $
 
    systemctl restart flocker-docker-plugin
- 
+
 
 On Ubuntu 14.04
 ===============
@@ -44,7 +46,7 @@ On Ubuntu, it's best to ensure that Docker is using the ``AUFS`` storage driver.
 
 The easiest way to do this is to add a ``-s aufs`` option to the :file:`/etc/default/docker` file.
 For example::
-   
+
    DOCKER_OPTS="-s aufs"
 
 On each of your container agent servers, install the Flocker plugin:
@@ -53,7 +55,12 @@ On each of your container agent servers, install the Flocker plugin:
 
    apt-get install clusterhq-flocker-docker-plugin
 
-The service can be started, stopped, or restarted using ``{[service flocker-docker-plugin restart}}``
+The service can be started, stopped, or restarted using ``service``.
+For example:
+
+.. prompt:: bash $
+
+   service flocker-docker-plugin restart
 
 Testing Your Installation
 =========================
@@ -76,5 +83,4 @@ Known limitations
   It is possible that Docker, or your orchestration tool would prevent this from happening, but Flocker itself does not.
 * If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
   This occurs as Docker defines volume drivers for the entire run command, not per-volume.
-  If you do not want to create anonymous volumes, we recommend only using named volumes. 
-
+  If you do not want to create anonymous volumes, we recommend only using named volumes.
