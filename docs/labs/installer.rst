@@ -49,10 +49,9 @@ This Quick Start Installer can be used in the following configurations.
 ..  * CoreOS on AWS with EBS backend
 ..  * Ubuntu 14.04 on any infrastructure with ZFS backend
 
-Other configurations (CentOS, OpenStack, ZFS, etc) are possible via the official long-form install docs.
+Other configurations (CentOS, OpenStack, ZFS, etc) are possible via the :ref:`official long-form install docs <installing-flocker>`.
 
-For the full, long-form installation instructions, see the :ref:`official Flocker install instructions <installing-flocker>`.
-You may also be interested in the long-form documentation if you like to see exactly how things are done, or if you're automating setting up Flocker in your own configuration management system.
+You may also be interested in the long-form documentation if you like to see exactly how things are done, or if you're automating setting up Flocker within your own configuration management system.
 
 .. note::
 
