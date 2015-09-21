@@ -132,13 +132,12 @@ class ICinderVolumeManager(Interface):
     # of 10 ** 9 bytes).  Real world observations indicate size is actually in
     # GiB (multiples of 2 ** 30).  So this method is documented as accepting
     # GiB values.  https://bugs.launchpad.net/openstack-api-site/+bug/1456631
-    def create(size, metadata=None, profile=None):
+    def create(size, metadata=None):
         """
         Creates a volume.
 
         :param size: Size of volume in GiB
         :param metadata: Optional metadata to set on volume creation
-        :param profile: Optional Cinder volume type name
         :rtype: :class:`Volume`
         """
 
@@ -454,7 +453,7 @@ class CinderBlockDeviceAPI(object):
             local_ips=local_ips, api_ips=api_ip_map
         ).write()
 
-    def create_volume(self, dataset_id, size, profile=None):
+    def create_volume(self, dataset_id, size):
         """
         Create a block device using the ICinderVolumeManager.
         The cluster_id and dataset_id are stored as metadata on the volume.
@@ -467,14 +466,9 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-
-        # Profiles for Cinder correlate to the Cinder volume_type.
-        # If not provided it will default to the configured default
-        # volume type of the tenant.
         requested_volume = self.cinder_volume_manager.create(
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
-            volume_type=profile,
         )
         Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
@@ -505,29 +499,6 @@ class CinderBlockDeviceAPI(object):
                 )
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
-
-    def apply_profile(self, blockdevice_id, profile):
-        """
-        Apply a profile to the given volume.
-        TODO: Throw an exception in case of failure to apply desired profile.
-
-        :param unicode blockdevice_id: UUID of the volume to work on.
-        :param unicode profile: Name of storage profile to apply to volume.
-
-        :raises UnknownVolume: If there does not exist a BlockDeviceVolume
-            corresponding to the input blockdevice_id.
-        """
-        try:
-            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-        except CinderNotFound:
-            raise UnknownVolume(blockdevice_id)
-
-        # Update the volume type if possible.
-        # NOTE: For not we are not supporting retype with migrate as that has
-        # some trickier handling in some cases. This will only work if migrate
-        # is not needed.
-        pass
-
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
