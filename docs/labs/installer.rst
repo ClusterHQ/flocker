@@ -35,7 +35,7 @@ This diagram shows you what you are about to set up.
 Supported Configurations
 ========================
 
-The Installer can be used in the following configurations.
+This Quick Start Installer can be used in the following configurations.
 
 * **Supported configurations**
 
@@ -49,7 +49,10 @@ The Installer can be used in the following configurations.
 ..  * CoreOS on AWS with EBS backend
 ..  * Ubuntu 14.04 on any infrastructure with ZFS backend
 
-Other configurations may work, but have not been tested.
+Other configurations (CentOS, OpenStack, ZFS, etc) are possible via the official long-form install docs.
+
+For the full, long-form installation instructions, see the :ref:`official Flocker install instructions <installing-flocker>`.
+You may also be interested in the long-form documentation if you like to see exactly how things are done, or if you're automating setting up Flocker in your own configuration management system.
 
 .. note::
 
@@ -64,11 +67,11 @@ First we install the installer on your workstation.
 This will work on Linux or OS X machines with Docker installed.
 
 * If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/linux/started/>`_).
-* Then install the installer:
+* Then install the installer, which will pull the Docker image:
 
   .. prompt:: bash $
 
-      curl -sSL https://get-dev.flocker.io/ | sudo sh
+      curl -sSL https://get.flocker.io/ | sudo sh
 
   This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
 
