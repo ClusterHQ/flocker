@@ -86,7 +86,9 @@ Known limitations
 * ``--volumes-from`` and equivalent Docker API calls will only work if both containers are on the same machine.
 
   Some orchestration frameworks may not schedule containers in a way that respects this restriction, so check before using ``--volumes-from``.
-* We recommend only using named volumes when using the Flocker plugin.
+* We recommend only using named volumes when using the Flocker plugin, i.e. volumes which are specified using the ``-v name:/path`` syntax in ``docker run``.
 
-  If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
-  This occurs as Docker defines volume drivers for the entire run command, not per-volume.
+  Anonymous volumes can be created if you use a Docker image that specifies volumes and don't set a name for the volume, or if you add volumes in your Docker ``run`` commands without specified names (e.g. ``-v /path``).
+  Docker defines volume drivers for the entire container, not per-volume, so the anonymous volumes will also be created by Flocker.
+  As a result each time a container with an anonymous volume is started a new volume is created with a random name.
+  This can waste resources when the underlying volumes are provisioned from, for example, EBS.
