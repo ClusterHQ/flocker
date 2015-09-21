@@ -93,7 +93,7 @@ It is convenient to keep these in a directory, so let's make a directory on your
     mkdir -p ~/clusters/test
     cd ~/clusters/test
 
-Later on we'll put some files in this directory.
+Now we'll put some files in this directory.
 
 Get some nodes
 ==============
@@ -104,7 +104,6 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
 
 .. prompt:: bash $
 
-    cd ~/clusters/test
     mkdir terraform
     vim terraform/terraform.tfvars
 
