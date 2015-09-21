@@ -6,8 +6,6 @@ Experimental installer
 
 The experimental installer makes installing Flocker as easy as copying and editing a single YAML file with your node configuration and then running two or three commands to create the certificates and install the software on your nodes.
 
-It also supports deploying the :ref:`Flocker Docker plugin <labs-docker-plugin>` onto the same set of nodes.
-
 The installer is part of the `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ repository, so we will install that to begin with.
 
 .. note:: For the full, long-form installation instructions, see the  :ref:`official Flocker install instructions <installing-flocker>`.
@@ -47,7 +45,6 @@ This will install the following tools on your machine:
 * ``flocker-sample-files``: put some sample ``cluster.yml`` files in the current directory
 * ``flocker-config``: generate certificates and push them
 * ``flocker-install``: install Flocker OS packages on target nodes
-* ``flocker-plugin-install``: install experimental Docker and the :ref:`Flocker Docker plugin <labs-docker-plugin>` on target nodes
 * ``flocker-tutorial``: print out some instructions on how to test the cluster with ``curl`` commands
 * ``flocker-volumes``: an experimental volumes CLI
 
@@ -149,35 +146,6 @@ This will configure certificates, push them to your nodes, and set up firewall r
 
 .. warning::
     On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524.
-
-Install Flocker Docker plugin (optional)
-========================================
-
-If you want to install the :ref:`Flocker Docker plugin <labs-docker-plugin>` then follow these steps.
-Currently this has only been tested on Ubuntu 14.04.
-
-Please keep in mind :ref:`this note on architecture <labs-architecture-note>`.
-
-From the directory where your ``cluster.yml`` file is now, run the following command:
-
-.. prompt:: bash $
-
-    flocker-plugin-install cluster.yml
-
-This will configure API certificates for the Flocker Docker plugin and push them to your nodes - it will name them ``/etc/flocker/plugin.{crt,key}`` on the nodes.
-
-It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the :ref:`manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
-
-It will also download and install a Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
-
-It supports several optional environment variables:
-
-* ``DOCKER_BINARY_URL`` - the URL to download a customized Docker binary from
-* ``DOCKER_SERVICE_NAME`` - the name of the service docker is installed with (``docker``, ``docker.io`` etc)
-* ``PLUGIN_REPO`` - the GitHub repository URL to install the docker plugin from
-* ``PLUGIN_BRANCH`` - the branch of the plugin repository to use
-
-Once you've installed the Flocker Docker plugin, check out the experimental :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`, and the :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>` integrations.
 
 Print a simple tutorial
 =======================
