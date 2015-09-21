@@ -115,12 +115,26 @@ Run the following command in your ``~/clusters/test`` directory you made earlier
 
 Now paste the following variables into your ``terraform.tfvars`` file::
 
+    # AWS keys
     aws_access_key = "your AWS access key"
     aws_secret_key = "your AWS secret key"
+
+    # AWS region and zone
     aws_region = "region you want nodes deployed in e.g. us-east-1"
     aws_availability_zone = "zone you want nodes deployed in e.g. us-east-1a"
+
+    # Key to authenticate to nodes via SSH
     aws_key_name = "name of EC2 keypair"
     private_key_path = "absolute path to EC2 key (.pem file) on your local machine"
+
+    # Instance types and number of nodes (total launched = agent_nodes + 1, for master)
+    aws_instance_type = "m3.large"
+    agent_nodes = "2"
+
+.. note::
+
+    By default, the installer will launch one master node (where the control service runs) and two agent nodes (where volumes get attached and containers run).
+    Please refer to the `AWS pricing guide <https://aws.amazon.com/ec2/pricing/>`_ to understand how much this will cost you.
 
 Now run the following command to automatically provision some nodes.
 
