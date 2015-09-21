@@ -43,13 +43,6 @@ For example:
 On Ubuntu 14.04
 ===============
 
-On Ubuntu, it's best to ensure that Docker is using the ``AUFS`` storage driver.
-
-The easiest way to do this is to add a ``-s aufs`` option to the :file:`/etc/default/docker` file.
-For example::
-
-   DOCKER_OPTS="-s aufs"
-
 On each of your Flocker nodes, install the Flocker plugin:
 
 .. prompt:: bash $
