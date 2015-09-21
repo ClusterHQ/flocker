@@ -70,8 +70,9 @@ This will work on Linux or OS X machines with Docker installed.
 
   .. prompt:: bash $
 
-      curl -sSL https://get.flocker.io/ | sudo sh
+      curl -sSL https://get.flocker.io/ | sh
 
+  This assumes that your user can use ``sudo``, and may prompt you for your password.
   This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
 
 * Now test one of the installed tools:
