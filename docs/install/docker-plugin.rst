@@ -49,7 +49,7 @@ For example::
 
    DOCKER_OPTS="-s aufs"
 
-On each of your container agent servers, install the Flocker plugin:
+On each of your Flocker nodes, install the Flocker plugin:
 
 .. prompt:: bash $
 
