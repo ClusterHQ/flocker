@@ -90,7 +90,7 @@ Known limitations
   It is possible that Docker or your orchestration tool will prevent this from happening, but Flocker itself does not.
 * ``--volumes-from`` and equivalent Docker API calls will only work if both containers are on the same machine.
 
-  Some orchestration frameworks may not schedule containers in a way that respects ths restriction, so check before using ``--volumes-from``.
+  Some orchestration frameworks may not schedule containers in a way that respects this restriction, so check before using ``--volumes-from``.
 * We recommend only using named volumes when using the Flocker plugin.
 
   If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
