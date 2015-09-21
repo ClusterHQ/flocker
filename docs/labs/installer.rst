@@ -28,7 +28,7 @@ This diagram shows you what you are about to set up.
 * Installer provisions servers for you, and it writes a ``cluster.yml`` in your cluster directory containing the addresses of the servers.
 * You run the installer on the ``cluster.yml``.
 * Installer creates certificates for you, saves them in your cluster directory, installs Flocker and certificates on servers, and starts Flocker.
-* You can now interact with your Flocker cluster using the Flocker CLI (which also comes with the installer).
+* You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``uft-flocker-deploy`` tool or the ``uft-flocker-volumes`` tool.
 
 .. _labs-supported-configurations:
 
@@ -50,6 +50,10 @@ The Installer can be used in the following configurations.
 ..  * Ubuntu 14.04 on any infrastructure with ZFS backend
 
 Other configurations may work, but have not been tested.
+
+.. note::
+
+    If you get an error response from any of the commands in this guide, please `report a bug <https://github.com/clusterhq/unofficial-flocker-tools/issues>`_, pasting the ``install-log.txt`` file you will find in the current directory.
 
 .. _labs-installing-unofficial-flocker-tools:
 
