@@ -84,8 +84,14 @@ If you are upgrading from an earlier version of the plugin, make sure to stop th
 Known limitations
 =================
 
-* If the volume exists on a different node and is currently being used by a container, the Flocker plugin would not stop it being migrated out from underneath the running container.
-  It is possible that Docker, or your orchestration tool would prevent this from happening, but Flocker itself does not.
-* If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
+* You should not move a volume from one node to another unless you are sure no containers are using the volume.
+
+  The Flocker plugin will not stop volumes from being migrated out from underneath a running container.
+  It is possible that Docker or your orchestration tool will prevent this from happening, but Flocker itself does not.
+* ``--volumes-from`` and equivalent Docker API calls will only work if both containers are on the same machine.
+
+  Some orchestration frameworks may not schedule containers in a way that respects ths restriction, so check before using ``--volumes-from``.
+* We recommend only using named volumes when using the Flocker plugin.
+
+  If you use volumes in your Docker run commands without specified names, anonymous volumes can be created.
   This occurs as Docker defines volume drivers for the entire run command, not per-volume.
-  If you do not want to create anonymous volumes, we recommend only using named volumes.
