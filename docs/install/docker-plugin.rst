@@ -17,7 +17,8 @@ For example, you can use the ``flocker-ca`` command as below:
 
 Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the nodes where you want to run the Flocker plugin for Docker.
 
-You will also need to have Docker (at least version 1.8 or later) installed. For more information, see `the Docker installation instructions <https://docs.docker.com/>`_.
+Make sure your nodes are running Docker 1.8 or later.
+For more information, see `the Docker installation instructions <https://docs.docker.com/>`_.
 
 Now you can use the following instructions to install the Flocker plugin for Docker on each of the nodes in your cluster.
 
