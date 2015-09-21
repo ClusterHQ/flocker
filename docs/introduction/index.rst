@@ -51,7 +51,7 @@ Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud 
          The Flocker Control Service and containers hosts can run on a VM or bare metal servers.
 		 The Flocker Agent running on each host speaks to the shared storage backend to create and moutn volumes to individual containers.
 
-.. _labs-docker-plugin:
+.. _docker-plugin:
 
 The Flocker Plugin for Docker
 =============================
@@ -77,8 +77,6 @@ As a user of Docker, it means you can use Flocker directly via:
 See the `Docker documentation on volume plugins`_.
 
 This depends on Docker 1.8 or later.
-
-.. _labs-architecture-note:
 
 .. note::
     Note that you should either use the Flocker plugin for Docker to associate containers with volumes (the integration architecture described above), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
