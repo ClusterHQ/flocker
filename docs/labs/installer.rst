@@ -81,7 +81,7 @@ This will work on Linux or OS X machines with Docker installed.
 
       uft-flocker-ca --version
 
-  This should return something like ``1.3.1``, showing you which version of the Flocker Client is installed.
+  This should return something like ``1.4.0``, showing you which version of the Flocker Client is installed.
 
 .. _labs-installer-certs-directory:
 
