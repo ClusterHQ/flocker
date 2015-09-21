@@ -275,6 +275,10 @@ p {
     display: none;
 }
 
+.admonition a {
+    color: #000000;
+}
+
 .admonition p.last {
     padding-right: 15px;
     padding-bottom: 15px;
