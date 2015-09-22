@@ -228,7 +228,7 @@ _LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
 _LOG_EXPIRE = MessageType(
     u"flocker-control:persistence:lease-expired",
     [Field(u"dataset_id", unicode), Field(u"node_id", unicode)],
-    "A lease for a dataset has expired.")
+    u"A lease for a dataset has expired.")
 
 
 class LeaseService(Service):
