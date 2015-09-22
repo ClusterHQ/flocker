@@ -57,7 +57,7 @@ For example:
 
    service flocker-docker-plugin restart
 
-Testing your installation
+Testing Your Installation
 =========================
 
 Once installed, two simple Docker tests can be run to verify that the plugin is working correctly with the Flocker agents:
@@ -71,12 +71,12 @@ In this example, the first command uses the Flocker plugin for Docker as the vol
 
 In the second command we are reattaching the same volume from the first container, and verifying that the data (``hello``) has been preserved.
 
-Upgrading the plugin
+Upgrading the Plugin
 ====================
 
 If you are upgrading from an earlier version of the plugin, make sure to stop the Docker daemon before doing so and then start it back up once the plugin has been upgraded.
 
-Known limitations
+Known Limitations
 =================
 
 * You should not move a volume from one node to another unless you are sure no containers are using the volume.
