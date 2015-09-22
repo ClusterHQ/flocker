@@ -48,6 +48,8 @@ internet
 invalidations
 IPv4
 IPv
+# "isn" is here to allow "isn't"
+isn
 journald
 keypair
 Kubernetes

@@ -28,6 +28,8 @@ ClusterHQ develops software using test-driven development, code reviews and per-
 
     * Resolves the issue.
 
+    * Includes appropriate release notes if necessary.
+
 * The code reviewer can approve the pull request for merging as is, with some changes, or request changes and an additional review.
 
 .. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/

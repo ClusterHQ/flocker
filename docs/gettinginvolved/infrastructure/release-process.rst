@@ -79,10 +79,9 @@ Access
 
 - Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
 
-.. _preparing-for-a-release:
 
-Preparing For a Release
------------------------
+Release
+-------
 
 #. Confirm that the release and the proposed version number have been approved.
 
@@ -90,7 +89,6 @@ Preparing For a Release
    Refer to the ClusterHQ `Flocker Releases and Versioning <https://docs.google.com/a/clusterhq.com/document/d/1xYbcU6chShgQQtqjFPcU1rXzDbi6ZsIg1n0DZpw6FfQ>`_ policy document.
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
-
 
 #. Set the version number of the release being created as an environment variable for later use:
 
@@ -114,50 +112,7 @@ Preparing For a Release
       (flocker-0.1.2)$ admin/create-release-branch --flocker-version=${VERSION}
       (flocker-0.1.2)$ admin/update-license
       (flocker-0.1.2)$ git commit -am "Updated copyright in LICENSE file"
-
-#. Ensure the release notes in :file:`NEWS` are up-to-date:
-
-.. XXX: Process to be decided, see :issue:`523`.
-
-   - The NEWS date format is YYYY-MM-DD.
-   - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
-     This means that in doing a release, you may have to remove the previous development release or pre-release header, merging the changes from that previous release into the current release.
-
-   .. note:: ``git log`` can be used to see all merges between two versions.
-
-      .. prompt:: bash (flocker-0.1.2)$
-
-          # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
-          OLD_VERSION=0.3.0
-
-          BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          git log --first-parent ${OLD_VERSION}..${BRANCH}
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      git commit -am "Updated NEWS"
-
-#. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
-
-   - Update the "Release Notes" document.
-   - (optional) Add a version heading.
-     If this is a Major or Minor Marketing (pre-)release, the "Release Notes" document should have a heading corresponding to the release version.
-     If this is a weekly development release, add a "Next Release" heading instead.
-   - Refer to the appropriate internal release planning document on Google Drive for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
-   - Add bullet points for any other *important* new features and improvements from the NEWS file above,
-   - and add links (where appropriate) to documentation that has been added for those features.
-
-   Finally, commit the changes:
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      git commit -am "Updated Release Notes"
-
-#. Push the changes:
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
+      (flocker-0.1.2)$ git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
 #. Ensure all the required tests pass on BuildBot:
 
@@ -168,55 +123,6 @@ Preparing For a Release
    Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
-
-#. Make a pull request on GitHub:
-
-   The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
-   Add a note to the pull request why any failed tests were deemed acceptable.
-
-   Wait for an accepted code review before continuing.
-
-.. _pre-tag-review:
-
-Pre-tag Review Process
-----------------------
-
-A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
-So it is important to check that the code in the release branch is working before it is tagged.
-
-.. note::
-
-   Make sure to follow the :ref:`latest review process <latest:pre-tag-review>` when reviewing a release.
-
-#. Check the changes in the Pull Request:
-
-   * The NEWS file has suitable changes.
-   * The release notes at :file:`docs/releasenotes/index.rst` should be up to date.
-   * The build should be passing to the team's satisfaction.
-     See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
-
-   For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release branch was created,
-   for example a previous pre-release.
-   These fixes can be ignored in this review.
-
-#. Update GitHub and JIRA:
-
-   If there were no problems spotted while checking the changes, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>`.
-   Do not merge the Pull Request as this should happen after the branch has been tagged.
-   Accept the JIRA issue, and add a comment that the release process can continue.
-
-   If a problem was spotted, add comments to the Pull Request for each problem, and comment that they must be resolved before repeating this review process.
-   Reject the JIRA issue and assign it to the release engineer.
-
-
-.. _release:
-
-Release
--------
-
-.. note::
-
-   The following commands must be run from within the virtualenv and directory created in :ref:`preparing-for-a-release`.
 
 #. Tag the version being released:
 
@@ -278,6 +184,12 @@ Release
    .. prompt:: bash $
 
       rm -rf ${PWD}
+
+#. Make a pull request on GitHub:
+
+   The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
+   GitHub may say that "There isn’t anything to compare." if the branches are identical.
+   In this case, the release process is finished.
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
