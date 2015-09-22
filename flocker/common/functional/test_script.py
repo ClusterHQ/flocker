@@ -40,7 +40,7 @@ class EliotPercentScript(EliotScript):
     key = u"hello%s"
 
 
-class EliotLargeScript(object):
+class EliotLargeScript(EliotScript):
     key = u"1234 " * 20000 + u" ends here"
 
 
