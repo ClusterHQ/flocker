@@ -1,55 +1,95 @@
 .. _labs-installer:
 
-======================
-Experimental installer
-======================
+=========
+Installer
+=========
 
-The experimental installer makes installing Flocker as easy as copying and editing a single YAML file with your node configuration and then running two or three commands to create the certificates and install the software on your nodes.
+This document guides you through setting up a Flocker cluster and gives a simple example of deploying and moving around a service which includes a stateful container.
 
-It also supports deploying the :ref:`Flocker Docker plugin <labs-docker-plugin>` onto the same set of nodes.
+Key points
+==========
 
-The installer is part of the `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ repository, so we will install that to begin with.
+* Flocker is a clustered container data volume manager.
+  This means it runs on a cluster (a group) of machines, and connects containers to data volumes so that containers which store data, such as databases, keep their data as they move around the cluster.
+* Flocker is installed on servers, which you must provision, for example on cloud infrastructure.
+* It works with other container tools, such as Swarm, Compose and Mesos/Marathon.
 
-.. note:: For the full, long-form installation instructions, see the  :ref:`official Flocker install instructions <installing-flocker>`.
+Architecture
+============
+
+This diagram shows you what you are about to set up.
+
+.. image:: install-architecture.png
+
+.. Source file is at "Engineering/Labs/flocker architecture" https://drive.google.com/open?id=0B3gop2KayxkVbmNBR2Jrbk0zYmM
+
+* Installer runs in a Docker container on your local machine.
+* You give the installer your cloud infrastructure credentials.
+* Installer provisions servers for you, and it writes a ``cluster.yml`` in your cluster directory containing the addresses of the servers.
+* You run the installer on the ``cluster.yml``.
+* Installer creates certificates for you, saves them in your cluster directory, installs Flocker and certificates on servers, and starts Flocker.
+* You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``uft-flocker-deploy`` tool or the ``uft-flocker-volumes`` tool.
+
+.. _labs-supported-configurations:
+
+Supported Configurations
+========================
+
+This Quick Start Installer can be used in the following configurations.
+
+* **Supported configurations**
+
+  * Ubuntu 14.04 on AWS with EBS backend
+
+..  * Ubuntu 14.04 on Rackspace with OpenStack backend
+..  * Ubuntu 14.04 on private OpenStack cloud with OpenStack backend
+..
+.. * **Experimental configurations**
+..
+..  * CoreOS on AWS with EBS backend
+..  * Ubuntu 14.04 on any infrastructure with ZFS backend
+
+Other configurations (CentOS, OpenStack, ZFS, etc) are possible via the :ref:`official long-form install docs <installing-flocker>`.
+
+You may also be interested in the long-form documentation if you like to see exactly how things are done, or if you're automating setting up Flocker within your own configuration management system.
+
+.. note::
+
+    If you get an error response from any of the commands in this guide, please `report a bug <https://github.com/clusterhq/unofficial-flocker-tools/issues>`_, pasting the ``install-log.txt`` file you will find in the current directory.
 
 .. _labs-installing-unofficial-flocker-tools:
 
-Installing Unofficial Flocker Tools
-===================================
+Installing the Installer
+========================
 
-First we install the tools **on your local machine**.
+First we install the installer on your workstation.
+This will work on Linux or OS X machines with Docker installed.
 
-* Install :ref:`the Flocker CLI <installing-flocker-cli>` for your platform (in particular, we need the ``flocker-ca`` tool).
-* OS packages:
+* If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/linux/started/>`_).
+  Check that Docker is working, for example by running:
 
-  * Ubuntu/Debian:
+  .. prompt:: bash $
 
-    .. prompt:: bash $
+      docker ps
 
-        sudo apt-get install -y python-pip build-essential libssl-dev libffi-dev python-dev
+  You should get a (possibly empty) list of running containers on your machine.
 
-  * RHEL/CentOS/Fedora:
+* Then install the installer, which will pull the Docker image:
 
-    .. prompt:: bash $
+  .. prompt:: bash $
 
-        sudo yum install -y python-pip gcc libffi-devel python-devel openssl-devel
+      curl -sSL https://get.flocker.io/ | sh
 
-Using ``pip``, you can install ``unofficial-flocker-tools`` straight from GitHub:
+  This assumes that your user can use ``sudo``, and may prompt you for your password.
+  This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
 
-.. prompt:: bash $
+* Now test one of the installed tools:
 
-    sudo pip install git+https://github.com/clusterhq/unofficial-flocker-tools.git
+  .. prompt:: bash $
 
-If you prefer to use a ``virtualenv``, just activate one and then run ``pip`` without ``sudo``.
+      uft-flocker-ca --version
 
-This will install the following tools on your machine:
-
-* ``flocker-sample-files``: put some sample ``cluster.yml`` files in the current directory
-* ``flocker-config``: generate certificates and push them
-* ``flocker-install``: install Flocker OS packages on target nodes
-* ``flocker-plugin-install``: install experimental Docker and the :ref:`Flocker Docker plugin <labs-docker-plugin>` on target nodes
-* ``flocker-tutorial``: print out some instructions on how to test the cluster with ``curl`` commands
-* ``flocker-volumes``: an experimental volumes CLI
+  This should return something like ``1.4.0``, showing you which version of the Flocker Client is installed.
 
 .. _labs-installer-certs-directory:
 
@@ -57,133 +97,179 @@ Make a local directory for your cluster files
 =============================================
 
 The tools will create some configuration files and certificate files for your cluster.
-It is convenient to keep these in a directory, so let's make a directory on your workstation (assuming Linux or OS X) like this:
+It is convenient to keep these in a directory, so let's make a directory on your workstation like this:
 
 .. prompt:: bash $
 
     mkdir -p ~/clusters/test
     cd ~/clusters/test
 
-Later commands in this document will put some files in this directory.
+Now we'll put some files in this directory.
 
 Get some nodes
 ==============
 
-So now let's use the tools we've just installed to deploy and configure a Flocker cluster quickly!
-
-Provision some machines on AWS or an OpenStack deployment (e.g. Rackspace), or even bare metal if you want to try out the experimental ZFS backend.
-Use Ubuntu 14.04, CentOS 7, or CoreOS.
-
-.. warning::
-    CoreOS support is experimental, and should not be used for production workloads.
-	ZFS support is similarly experimental.
-
-We recommend Ubuntu 14.04 if you want to try the Flocker Docker plugin.
-
-Make sure you create the servers a reasonable amount of disk space, since Docker images will be stored on the VM root disk itself.
-
-* Use Amazon EC2 if you want to use our EBS backend.
-  **Note that VMs must be deployed in the same AZ.**
-* Use an OpenStack deployment (e.g. Rackspace, private cloud) if you want to try our OpenStack backend.
-  VMs must be deployed in the same region.
-
-.. warning::
-    Make sure you can log into the nodes as **root** with a private key (e.g. on Ubuntu or CoreOS on AWS, log in as the default user, then run ``sudo mkdir /root/.ssh; sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys``).
-
-You may want to pick a node to be the control node and give it a DNS name (if you do this, set up an A record for it with your DNS provider).
-Using a DNS name is optional, you can also just use its IP address.
-
-cluster.yml
-===========
+So now let's use the tools we've just installed to deploy and configure a Flocker cluster.
 
 Run the following command in your ``~/clusters/test`` directory you made earlier:
 
 .. prompt:: bash $
 
-    flocker-sample-files
-
-This will create some sample configuration files that correspond to the backend Flocker will use - base your ``cluster.yml`` on one of these files:
-
-* AWS EBS: ``cluster.yml.ebs.sample``
-* OpenStack (including Rackspace): ``cluster.yml.openstack.sample``
-* ZFS (local storage): ``cluster.yml.zfs.sample``
-
-.. warning::
-    Note that ZFS support is experimental, and should not be used for production workloads.
-
-Choose the one that's appropriate for you, and then customize it with your choice of text editor.
-For example:
-
-.. prompt:: bash $
-
-    mv cluster.yml.ebs.sample cluster.yml
-    vim cluster.yml # customize for your cluster
+    mkdir terraform
+    vim terraform/terraform.tfvars
 
 .. note::
 
-    You need a private key which can access the machines **as root** - you can configure this in the ``private_key_path`` of ``cluster.yml``.
+    In the following step, do not use a key (.pem file) which is protected by a passphrase.
+    If necessary, generate and download a new keypair in the EC2 console.
 
-Install
-=======
+Now paste the following variables into your ``terraform.tfvars`` file::
 
-From the directory where your ``cluster.yml`` file is now, run the following command:
+    # AWS keys
+    aws_access_key = "your AWS access key"
+    aws_secret_key = "your AWS secret key"
+
+    # AWS region and zone
+    aws_region = "region you want nodes deployed in e.g. us-east-1"
+    aws_availability_zone = "zone you want nodes deployed in e.g. us-east-1a"
+
+    # Key to authenticate to nodes via SSH
+    aws_key_name = "name of EC2 keypair"
+    private_key_path = "private key absolute path on machine running installer"
+
+    # Instance types and number of nodes; total = agent_nodes + 1 (for master)
+    aws_instance_type = "m3.large"
+    agent_nodes = "2"
+
+.. note::
+
+    By default, the installer will launch one master node (where the control service runs) and two agent nodes (where volumes get attached and containers run).
+    Please refer to the `AWS pricing guide <https://aws.amazon.com/ec2/pricing/>`_ to understand how much this will cost you.
+
+Now run the following command to automatically provision some nodes.
 
 .. prompt:: bash $
 
-    flocker-install cluster.yml
+    uft-flocker-sample-files
+    uft-flocker-get-nodes --ubuntu-aws
 
-This will install the OS packages on your nodes required to run Flocker.
-Flocker is not ready to run yet, we still need to do some certificate management.
+This step should take 30-40 seconds, and then you should see output like this::
 
+    Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
-Configure (certificates)
+This should have created a pre-configured ``cluster.yml`` file in the current directory.
+
+Now you have some nodes, it's time to install and configure Flocker on them!
+
+Install and Configure Flocker
+=============================
+
+Run the following command:
+
+.. prompt:: bash $
+
+    uft-flocker-install cluster.yml && uft-flocker-config cluster.yml && uft-flocker-plugin-install cluster.yml
+
+This step should take about 5 minutes, and will:
+
+* install the OS packages on your nodes required to run Flocker, including Docker
+* configure certificates, push them to your nodes, set up firewall rules for the control service
+* start all the requisite Flocker services
+* install the Flocker Docker plugin, so that you can control Flocker directly from the Docker CLI
+
+Check that Flocker cluster is active
+====================================
+
+Try the Flocker CLI to check that all your nodes came up:
+
+.. prompt:: bash $
+
+    uft-flocker-volumes list-nodes
+    uft-flocker-volumes list
+
+You can see that there are no volumes yet.
+
+Deploy and migrate a stateful app
+=================================
+
+Now you will deploy a highly sophisticated stateful app to test out Flocker.
+
+We need to find out the IP addresses of our first two nodes.
+Do this by running:
+
+.. prompt:: bash $
+
+   cat cluster.yml
+
+Copy and paste the public IP addresses of the first two ``agent_nodes``.
+
+In this example, ``demo`` is the name of the Flocker volume being created, which will map onto the Flocker volume being created.
+
+.. prompt:: bash $
+
+    NODE1="<node 1 public IP>"
+    NODE2="<node 2 public IP>"
+    KEY="<path on your machine to your .pem file>"
+    chmod 0600 $KEY
+    ssh -i $KEY root@$NODE1 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
+    ssh -i $KEY root@$NODE1 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
+    uft-flocker-volumes list
+
+This may take up to a minute since Flocker is provisioning and attaching an volume from the storage backend for the Flocker ``demo`` volume.
+At the end you should see the volume created and attached to the first node.
+
+Now visit ``http://<node 1 public IP>/`` and click around to add some Moby Docks to the screen.
+Now let's stop the containers, then start the stateful app on another node in the cluster.
+
+.. prompt:: bash $
+
+    ssh -i $KEY root@$NODE1 docker rm -f app
+    ssh -i $KEY root@$NODE1 docker rm -f redis
+    ssh -i $KEY root@$NODE2 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
+    ssh -i $KEY root@$NODE2 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
+    uft-flocker-volumes list
+
+At the end you should see the volume has moved to the second node.
+
+This may take up to a minute since Flocker is ensuring the volume is on the second host before starting the container.
+
+Now visit ``http://<node 2 public IP>/`` and you’ll see that the location of the Moby Docks has been preserved.
+Nice.
+
+Cleaning up your cluster
 ========================
 
-From the directory where your ``cluster.yml`` file is now, run the following command:
+When you're done, if you want to clean up, run the following steps to clean up your volumes, your instances and your local files:
 
 .. prompt:: bash $
 
-    flocker-config cluster.yml
+    ssh -i $KEY root@$NODE2 docker rm -f app
+    ssh -i $KEY root@$NODE2 docker rm -f redis
+    uft-flocker-volumes list
+    # Note the dataset id of the volume, then destroy it
+    uft-flocker-volumes destroy --dataset=$DATASET_ID
+    # Wait for the dataset to disappear from the list
+    uft-flocker-volumes list
+    # Once it's gone, go ahead and delete the nodes
+    uft-flocker-destroy-nodes
+    cd ~/clusters
+    rm -rf test
 
-This will configure certificates, push them to your nodes, and set up firewall rules for the control service.
+.. note::
 
-.. warning::
-    On AWS, you also need to add a firewall rule allowing traffic for TCP port 4523 and 4524.
+    If you wish to clean up your cluster manually, be sure to delete the instances that were created in your AWS console and the ``flocker_rules`` security group.
 
-Install Flocker Docker plugin (optional)
-========================================
+Further reading
+===============
 
-If you want to install the :ref:`Flocker Docker plugin <labs-docker-plugin>` then follow these steps.
-Currently this has only been tested on Ubuntu 14.04.
+Now that you've installed your own Flocker cluster, you may want to learn more about Flocker:
 
-Please keep in mind :ref:`this note on architecture <labs-architecture-note>`.
+* :ref:`Using Flocker <using>` (note that the ``flocker-deploy`` tool is installed on your system as ``uft-flocker-deploy``)
+* :ref:`Flocker concepts <concepts>`
+* :ref:`API reference <api>`
+* :ref:`Flocker Docker plugin in detail <labs-docker-plugin>`
 
-From the directory where your ``cluster.yml`` file is now, run the following command:
+Or try some of our more experimental projects and integrations, including:
 
-.. prompt:: bash $
-
-    flocker-plugin-install cluster.yml
-
-This will configure API certificates for the Flocker Docker plugin and push them to your nodes - it will name them ``/etc/flocker/plugin.{crt,key}`` on the nodes.
-
-It will install the Flocker Docker plugin, and write a service file (``upstart``/``systemd``) for the plugin (as described in the :ref:`manual installation instructions for the Flocker Docker plugin <labs-docker-plugin>`.
-
-It will also download and install a Docker binary that supports the ``--volume-driver`` flag and restart the Docker service.
-
-It supports several optional environment variables:
-
-* ``DOCKER_BINARY_URL`` - the URL to download a customized Docker binary from
-* ``DOCKER_SERVICE_NAME`` - the name of the service docker is installed with (``docker``, ``docker.io`` etc)
-* ``PLUGIN_REPO`` - the GitHub repository URL to install the docker plugin from
-* ``PLUGIN_BRANCH`` - the branch of the plugin repository to use
-
-Once you've installed the Flocker Docker plugin, check out the experimental :ref:`volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`, and the :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>` integrations.
-
-Print a simple tutorial
-=======================
-
-.. prompt:: bash $
-
-    flocker-tutorial cluster.yml
-
-This will print out a short tutorial on exercising the Flocker volumes and containers APIs, customized to your deployment.
+* :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`GUI <labs-volumes-gui>`
+* :ref:`Swarm <labs-swarm>`, :ref:`Compose <labs-compose>` and :ref:`Mesos/Marathon <labs-mesosphere>` integrations
