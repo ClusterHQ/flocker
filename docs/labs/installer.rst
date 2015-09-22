@@ -135,9 +135,9 @@ Now paste the following variables into your ``terraform.tfvars`` file::
 
     # Key to authenticate to nodes via SSH
     aws_key_name = "name of EC2 keypair"
-    private_key_path = "absolute path to EC2 key (.pem file) on your local machine"
+    private_key_path = "private key absolute path on machine running installer"
 
-    # Instance types and number of nodes (total launched = agent_nodes + 1, for master)
+    # Instance types and number of nodes; total = agent_nodes + 1 (for master)
     aws_instance_type = "m3.large"
     agent_nodes = "2"
 
