@@ -44,6 +44,8 @@ if branch:
 else:
     branch_opt = []
 
+check_call(['yum', 'repolist'] + branch_opt)
+
 # The Flocker packages don't explicitly depend on ZFS because it is only
 # required when using the ZFS storage driver.  That's exactly what this box
 # wants to do.
