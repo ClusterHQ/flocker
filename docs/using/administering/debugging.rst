@@ -138,16 +138,16 @@ To enable profiling of the Control Service run the following command as root on 
 
    pkill -SIGUSR1 flocker-control
 
-Profiling data will then be collected until a signal to dump the profiling data is received.
-To dump the current profile run the following command as root on the control node:
+Profiling data will then be collected until a signal to stop profiling is received.
+
+To stop profiling run the following command as root on the control node:
 
 .. prompt:: bash #
 
    pkill -SIGUSR2 flocker-control
 
-This will output the profiling data to a file named :file:`/etc/flocker/profile-<TIMESTAMP>`.
-This will also disable profiling.
-When profiling is re-enabled, new profiling data will be added to the existing profiling data until the profile is dumped again.
+This will also output the profiling data to a file named :file:`/etc/flocker/profile-<TIMESTAMP>`.
+This file will include all profiling data collected up to that point, including from previous intervals of profiling.
 
 See :py:mod:`pstats` for details on how to extract information from this file.
 For example:
