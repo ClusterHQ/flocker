@@ -14,7 +14,7 @@ These drivers include:
 * `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_
 
 After you have implemented the driver, you will need to test your implementation, and ClusterHQ provide a number of test suites to help you do this.
-Passing all tests ultimately results in certification of your driver to work with Flocker.
+Passing all tests means that your driver is ready to be deployed with Flocker in a customer environment.
    
 Before beginning the testing steps below, you can review our :ref:`build-flocker-driver-faq` for common issues encountered during driver development and testing.
 
@@ -143,7 +143,7 @@ Here's what the module could look like:
                             password=kwargs[u"password"])
 
     FLOCKER_BACKEND = BackendDescription(
-        name=u"mystorage_flocker_plugin", # name isn't actually used for 3rd party plugins
+        name=u"mystorage_flocker_plugin",
         needs_reactor=False, needs_cluster_id=True,
         api_factory=api_factory, deployer_type=DeployerType.block)
 
