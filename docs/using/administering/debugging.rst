@@ -157,7 +157,7 @@ For example:
    import pstats
 
    profile = pstats.Stats('profile-20150917161214')
-   profile.print_stats()
+   profile.sort_stats('cumulative').print_stats(10)
 
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
