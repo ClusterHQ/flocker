@@ -112,11 +112,6 @@ def flocker_standard_options(cls):
         """
         # Log messages are written line by line, so pretend we're a file...
         self['logfile'] = JournaldFile()
-        # XXX tests for these:
-        # 1. raise exception if --logfile was passed in
-        # 2. set flag disabling logging to stdout
-        # 3. set flag enabling logging to journald
-        pass
     cls.opt_journald = opt_journald
 
     return cls
