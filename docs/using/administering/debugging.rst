@@ -146,7 +146,7 @@ To stop profiling run the following command as root on the control node:
 
    pkill -SIGUSR2 flocker-control
 
-This will also output the profiling data to a file named :file:`/etc/flocker/profile-<TIMESTAMP>`.
+This will also output the profiling data to a file named :file:`/var/lib/flocker/profile-<TIMESTAMP>`.
 This file will include all profiling data collected up to that point, including from previous intervals of profiling.
 
 See :py:mod:`pstats` for details on how to extract information from this file.
