@@ -81,7 +81,10 @@ class ControlScript(object):
 
 
 def flocker_control_main():
-    pr = cProfile.Profile()
+    # Use CPU time instead of wallclock time.
+    # The control service does a lot of waiting and we do not
+    # want the profiler to include that.
+    pr = cProfile.Profile(time.clock)
 
     def enable_profiling(signal, frame):
         """
