@@ -15,7 +15,7 @@ For example, you can use the ``flocker-ca`` command as below:
    scp ./plugin.crt root@172.16.255.251:/etc/flocker/plugin.crt
    scp ./plugin.key root@172.16.255.251:/etc/flocker/plugin.key
 
-Upload these files to :file:`/etc/flocker/plugin.key` and :file:`/etc/flocker/plugin.crt` on the nodes where you want to run the Flocker plugin for Docker.
+Upload the :file:`plugin.key` and :file:`plugin.crt` file to the  :file:`/etc/flocker/` folder on the nodes where you want to run the Flocker plugin for Docker.
 
 Make sure your nodes are running Docker 1.8 or later.
 For more information, see `the Docker installation instructions <https://docs.docker.com/>`_.
