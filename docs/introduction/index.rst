@@ -88,7 +88,7 @@ This depends on Docker 1.8 or later.
 .. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
 .. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
 
-How it works
+How It Works
 ------------
 
 The Flocker Docker plugin means you can run containers with named volumes without worrying which server your data is on.
