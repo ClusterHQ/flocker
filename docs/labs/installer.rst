@@ -66,6 +66,14 @@ First we install the installer on your workstation.
 This will work on Linux or OS X machines with Docker installed.
 
 * If you don't have Docker installed, install it now (`Mac <https://docs.docker.com/mac/started/>`_, `Linux <https://docs.docker.com/linux/started/>`_).
+  Check that Docker is working, for example by running:
+
+  .. prompt:: bash $
+
+      docker ps
+
+  You should get a (possibly empty) list of running containers on your machine.
+
 * Then install the installer, which will pull the Docker image:
 
   .. prompt:: bash $
