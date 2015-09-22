@@ -92,10 +92,10 @@ def flocker_control_main():
         """
         pr.enable()
 
-    def output_profile(signal, frame):
+    def disable_profiling(signal, frame):
         """
+        Disable profiling of the control service.
         Dump profiling statistics to a file.
-        This disables profiling.
 
         :param int signal: See ``signal.signal``.
         :param frame: None or frame object. See ``signal.signal``.
@@ -108,7 +108,7 @@ def flocker_control_main():
         pr.dump_stats(path.path)
 
     signal.signal(signal.SIGUSR1, enable_profiling)
-    signal.signal(signal.SIGUSR2, output_profile)
+    signal.signal(signal.SIGUSR2, disable_profiling)
 
     return FlockerScriptRunner(
         script=ControlScript(),
