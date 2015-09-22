@@ -28,7 +28,8 @@ from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
-    _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE
+    _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -371,6 +372,36 @@ class ConfigurationPersistenceServiceTests(TestCase):
             self.assertEqual(callbacks, [1])
         d.addCallback(saved)
         return d
+
+    @validate_logging(assertHasMessage, _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED)
+    def test_callback_not_called_for_unchanged_deployment(self, logger):
+        """
+        If the old deployment and the new deployment are equivalent, registered
+        callbacks are not called.
+        """
+        service = self.service(FilePath(self.mktemp()), logger)
+
+        state = []
+
+        def callback():
+            state.append(None)
+
+        saving = service.save(TEST_DEPLOYMENT)
+
+        def saved_old(ignored):
+            service.register(callback)
+            return service.save(TEST_DEPLOYMENT)
+
+        saving.addCallback(saved_old)
+
+        def saved_new(ignored):
+            self.assertEqual(
+                [], state,
+                "Registered callback was called; should not have been."
+            )
+
+        saving.addCallback(saved_new)
+        return saving
 
 
 class StubMigration(object):
