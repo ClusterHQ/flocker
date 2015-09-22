@@ -85,6 +85,16 @@ def flocker_standard_options(cls):
         )
     cls.opt_logfile = opt_logfile
 
+    def opt_journald(self):
+        """
+        Log to journald.
+        """
+        # 1. raise exception if --logfile was passed in
+        # 2. set flag disabling logging to stdout
+        # 3. set flag enabling logging to journald
+        pass
+    cls.opt_journald = opt_journald
+
     return cls
 
 
