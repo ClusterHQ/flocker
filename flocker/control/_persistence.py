@@ -286,13 +286,10 @@ def update_leases(transform, persistence_service):
         persistence service has saved.
     """
     config = persistence_service.get()
-    new_leases = transform(config.leases)
-    if config.leases != new_leases:
-        new_config = config.set("leases", new_leases)
-        d = persistence_service.save(new_config)
-        d.addCallback(lambda _: new_config.leases)
-        return d
-    return succeed(config.leases)
+    new_config = config.set("leases", transform(config.leases))
+    d = persistence_service.save(new_config)
+    d.addCallback(lambda _: new_config.leases)
+    return d
 
 
 class ConfigurationPersistenceService(MultiService):

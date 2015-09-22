@@ -178,12 +178,6 @@ class LeasesTests(TestCase):
         d.addCallback(saved)
         return d
 
-    def test_only_persist_when_leases_change(self):
-        """
-        The configuration file is only persisted if the leases change.
-        """
-        pass
-
 
 class ConfigurationPersistenceServiceTests(TestCase):
     """
