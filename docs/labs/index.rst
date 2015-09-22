@@ -62,8 +62,10 @@ List of Labs projects
 
 .. toctree::
    :maxdepth: 1
+   :titlesonly:
 
    installer
+   docker-plugin
    volumes-cli
    volumes-gui
    swarm
