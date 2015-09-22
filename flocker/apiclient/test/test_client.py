@@ -355,9 +355,10 @@ class FlockerClientTests(make_clientv1_tests()):
 
         :return: ``FlockerClient`` instance.
         """
+        clock = Clock()
         _, self.port = find_free_port()
         self.persistence_service = ConfigurationPersistenceService(
-            reactor, FilePath(self.mktemp()))
+            clock, FilePath(self.mktemp()))
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(reactor)
         self.cluster_state_service.startService()
@@ -375,7 +376,7 @@ class FlockerClientTests(make_clientv1_tests()):
                 credential_set.root.credential.certificate,
                 credential_set.control),
             # Use consistent fake time for API results:
-            Clock())
+            clock)
         api_service.startService()
         self.addCleanup(api_service.stopService)
 
