@@ -28,11 +28,13 @@ from machinist import (
 
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
+from twisted.internet.defer import succeed
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change
 
+from ..common import gather_deferreds
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
 )
@@ -343,7 +345,7 @@ class ConvergenceLoop(object):
             d.addErrback(
                 writeFailure, self.fsm.logger,
                 u"Failed to send local state to control node.")
-            d.addActionFinish()
+            return d.addActionFinish()
 
     def _maybe_send_state_to_control_service(self, state_changes):
         """
@@ -361,7 +363,9 @@ class ConvergenceLoop(object):
             # doesn't account for this case.  The last acknowledged state may
             # be stale while state in the process of being sent could be fully
             # up-to-date.
-            self._send_state_to_control_service(state_changes)
+            return self._send_state_to_control_service(state_changes)
+        else:
+            return succeed(None)
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
@@ -386,18 +390,19 @@ class ConvergenceLoop(object):
 
             # XXX And for this update to be the side-effect of an output
             # resulting.
-            self._maybe_send_state_to_control_service(state_changes)
+            send_ack = self._maybe_send_state_to_control_service(state_changes)
 
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
-            return run_state_change(action, self.deployer)
+            state_ran = run_state_change(action, self.deployer)
+            # If an error occurred we just want to log it and then try
+            # converging again; hopefully next time we'll have more success.
+            state_ran.addErrback(writeFailure, self.fsm.logger, u"")
+            return gather_deferreds([send_ack, state_ran])
         d.addCallback(got_local_state)
-        # If an error occurred we just want to log it and then try
-        # converging again; hopefully next time we'll have more success.
-        d.addErrback(writeFailure, self.fsm.logger, u"")
 
         # It would be better to have a "quiet time" state in the FSM and
         # transition to that next, then have a timeout input kick the machine

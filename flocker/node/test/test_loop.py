@@ -20,7 +20,7 @@ from twisted.internet.task import Clock
 from twisted.internet.ssl import ClientContextFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
-from ...testtools import FakeAMPClient
+from ...testtools import FakeAMPClient, DelayedAMPClient
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
@@ -611,6 +611,38 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
              [(NodeStateCommand, dict(state_changes=(local_state,)))])
         )
 
+    def test_convergence_done_delays_new_iteration_ack(self):
+        """
+        An FSM completing the changes from one convergence iteration doesn't
+        start another iteration, if the control node hasn't acknowledged the
+        last state update.
+        """
+        self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
+        self.configuration = configuration = Deployment()
+        self.cluster_state = received_state = DeploymentState(nodes=[])
+        self.action = action = ControllableAction(result=succeed(None))
+        deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state)], [action]
+        )
+        client = self.make_amp_client([local_state])
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=DelayedAMPClient(client), configuration=configuration,
+            state=received_state))
+
+        expected_cluster_state = DeploymentState(
+            nodes=[local_state])
+
+        reactor.advance(1.0)
+
+        # Calculating actions happened and the result was run.
+        self.assertTupleEqual(
+            (deployer.calculate_inputs, client.calls),
+            ([(local_state, configuration, expected_cluster_state)],
+             [(NodeStateCommand, dict(state_changes=(local_state,)))])
+        )
+
     @validate_logging(lambda test_case, logger: test_case.assertEqual(
         len(logger.flush_tracebacks(RuntimeError)), 1))
     def test_convergence_error_start_new_iteration(self, logger):
@@ -739,6 +771,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         A FSM doing convergence that receives a stop input and then a status
         update continues on to next convergence iteration (i.e. stop
         ends up being ignored).
+
+        Note: A stop input implies that the client has changed.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         local_state2 = NodeState(hostname=u'192.0.2.123')

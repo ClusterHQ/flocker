@@ -920,6 +920,26 @@ class FakeAMPClient(object):
         return succeed(self._responses[self._makeKey(command, kwargs)])
 
 
+class DelayedAMPClient(object):
+    """
+    A wrapper for ``FakeAMPClient`` that allows responses to be delayed.
+    """
+
+    def __init__(self, client):
+        self._client = client
+        self._calls = []
+
+    def callRemote(self, command, **kwargs):
+        d = Deferred()
+        response = self._client.callRemote(command, **kwargs)
+        self._calls.append((d, response))
+        return d
+
+    def respond(self):
+        d, response = self._calls.pop(0)
+        response.chainDeferred(d)
+
+
 class CustomException(Exception):
     """
     An exception that will never be raised by real code, useful for
