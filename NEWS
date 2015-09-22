@@ -1,3 +1,16 @@
+Flocker 1.4.0.dev2 (2015-09-17)
+===============================
+
+- Flocker container agent systemd unit no longer requires docker
+- Changed api.crt/key to plugin.crt/key in docker plugin (FLOC-2973)
+- Improved documentation (FLOC-2993, FLOC-3050, FLOC-3014, FLOC-2881, FLOC-1612)
+- Installer fixes (FLOC-2853)
+- Vagrant fixes (FLOC-2871)
+- Traffic from flocker node agent state traffic reduced (FLOC-3036)
+- Many acceptance test fixes (FLOC-3033, FLOC-2947, FLOC-3015, FLOC-2947, FLOC-3030, FLOC-2985)
+- End to end tests added (FLOC-2741)
+- Parallel upgrades (FLOC-3031)
+
 Flocker 1.4.0.dev1 (2015-09-08)
 ===============================
 
