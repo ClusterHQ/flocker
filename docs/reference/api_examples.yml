@@ -641,13 +641,13 @@
 
 -
   id:
-    "remove a lease"
+    "release a lease"
 
   doc: |
     Release a lease on a dataset.
 
   request: |
-    DELETE /v1/configuration/leases/886ed03a-5606-453a-94a9-a1cbaf35164c
+    DELETE /v1/configuration/leases/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
 
   response: |
     HTTP/1.1 200 OK
@@ -666,7 +666,7 @@
     Notice how one lease expires in 30 seconds, and one will never expire.
 
   request: |
-    GET /v1/configuration/leases
+    GET /v1/configuration/leases HTTP/1.1
 
   response: |
     HTTP/1.1 200 OK
@@ -675,12 +675,12 @@
       {
         "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
         "node_uuid": "%(NODE_0)s",
-        "expires": null,
+        "expires": null
       },
       {
         "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
         "node_uuid": "%(NODE_1)s",
-        "expires": 30,
+        "expires": 30
       },
     ]
 
@@ -691,12 +691,12 @@
     Acquire a lease that does not expire.
 
   request: |
-    POST /v1/configuration/leases
+    POST /v1/configuration/leases HTTP/1.1
 
     {
       "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
       "node_uuid": "%(NODE_0)s",
-      "expires": null,
+      "expires": null
     }
 
   response: |
@@ -705,7 +705,7 @@
     {
       "dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
       "node_uuid": "%(NODE_0)s",
-      "expires": null,
+      "expires": null
     }
 
 -
@@ -715,7 +715,7 @@
     Acquire a lease that expires in 30 seconds.
 
   request: |
-    POST /v1/configuration/leases
+    POST /v1/configuration/leases HTTP/1.1
 
     {
       "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
@@ -740,7 +740,7 @@
     lease on the same dataset on a different node.
 
   request: |
-    POST /v1/configuration/leases
+    POST /v1/configuration/leases HTTP/1.1
 
     {
       "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
@@ -763,7 +763,7 @@
     renew the lease and extend its expiration.
 
   request: |
-    POST /v1/configuration/leases
+    POST /v1/configuration/leases HTTP/1.1
 
     {
       "dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",

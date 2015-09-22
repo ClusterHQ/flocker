@@ -10,6 +10,12 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next release
+============
+
+* The :ref:`dataset API <api>` added support for leases.
+  Leases prevent a dataset from being deleted or moved off a node.
+
 v1.3.1
 ======
 
