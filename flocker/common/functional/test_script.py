@@ -5,6 +5,7 @@ Functional tests for ``flocker.common.script``.
 from __future__ import print_function
 
 import os
+import time
 import sys
 from json import loads
 from signal import SIGINT
@@ -300,12 +301,19 @@ class FlockerScriptRunnerTests(TestCase):
         name = random_name(self).encode("utf-8")
         code = _SCRIPT_CODE.format(script.__name__, script.__name__)
         d = getProcessOutput(
-            b"systemd-run", [b"--unit=" + name,
-                             sys.executable, b"-c", code, b"--journald"],
-            env=os.environ,
+            b"systemd-run", [b"--unit=" + name, b"--description=testing",
+                             sys.executable, b"-u", b"-c", code,
+                             b"--journald"],
+            env=os.environ, errortoo=True,
         )
-        d.addCallback(lambda _: getProcessOutput(b"journalctl", [b"-u", name]))
-        d.addCallback(lambda data: map(loads, data.splitlines()))
+        d.addCallback(lambda result: msg("systemd-run output: " + result))
+        # Takes a little bit of time before journalctl returns logged messages:
+        d.addCallback(lambda _: time.sleep(3))
+        d.addCallback(lambda _: getProcessOutput(
+            b"journalctl", [b"-u", name, b"-o", b"cat"]))
+        d.addCallback(lambda data: (msg(data), data)[1])
+        d.addCallback(lambda data: [
+            loads(l) for l in data.splitlines() if l.startswith(b"{")])
         return d
 
     def test_journald(self):
