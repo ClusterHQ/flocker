@@ -4,6 +4,7 @@
 Tests for ``flocker.node._loop``.
 """
 
+from itertools import repeat
 from uuid import uuid4
 
 from eliot.testing import validate_logging, assertHasAction, assertHasMessage
@@ -267,23 +268,27 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                                          state=DeploymentState()))
         self.assertEqual(len(deployer.local_states), 0)  # Discovery started
 
-    def make_amp_client(self, local_states, succeed=True):
+    def make_amp_client(self, local_states, successes=None):
         """
         Create AMP client that can respond successfully to a
         ``NodeStateCommand``.
 
         :param local_states: The node states we expect to be able to send.
-        :param bool succeed: ``True`` to make a client which responds to
-            requests with results, ``False`` to make a client which response
-            with failures.  succeed or fail.
+        :param successes: List indicating whether the response to the
+            corresponding states should fail.  ``True`` to make a client which
+            responds to requests with results, ``False`` to make a client which
+            response with failures. Defaults to always succeeding.
+        :type successes: ``list`` of ``bool`` or ``None``
 
         :return FakeAMPClient: Fake AMP client appropriately setup.
         """
         client = FakeAMPClient()
         command = NodeStateCommand
-        for local_state in local_states:
+        if successes is None:
+            successes = repeat(True)
+        for local_state, success in zip(local_states, successes):
             kwargs = dict(state_changes=(local_state,))
-            if succeed:
+            if success:
                 client.register_response(
                     command=command, kwargs=kwargs, response={"result": None},
                 )
@@ -408,7 +413,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             [succeed(local_state), succeed(local_state.copy())],
             [no_action(), no_action()])
         client = self.make_amp_client(
-            [local_state, local_state.copy()], succeed=False
+            [local_state], successes=[False],
         )
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
@@ -426,6 +431,55 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                  (local_state, configuration, state)],
                 # And that state was re-sent even though it remained unchanged
                 [(NodeStateCommand, dict(state_changes=(local_state,))),
+                 (NodeStateCommand, dict(state_changes=(local_state,)))],
+            )
+        )
+
+    def test_convergence_sent_state_fail_resends_alternating(self):
+        """
+        If sending state to the control node fails the next iteration will send
+        state even if the state is the same as the last acknowledge state.
+        """
+        local_state = NodeState(
+            hostname=u'192.0.2.123',
+            used_ports=pset(), applications=pset(),
+        )
+        changed_local_state = local_state.set(
+            used_ports=pset([80]),
+        )
+        configuration = Deployment(nodes=[to_node(local_state)])
+        state = DeploymentState(nodes=[local_state])
+        changed_state = DeploymentState(nodes=[changed_local_state])
+        deployer = ControllableDeployer(
+            local_state.hostname,
+            [succeed(local_state), succeed(changed_local_state),
+             succeed(local_state)],
+            [no_action(), no_action(), no_action()])
+        client = self.make_amp_client(
+            [local_state, changed_local_state.copy()],
+            successes=[True, False],
+        )
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
+        reactor.advance(1.0)
+
+        # Calculating actions happened, result was run... and then we did
+        # whole thing again:
+        self.assertTupleEqual(
+            (deployer.calculate_inputs, client.calls),
+            (
+                # Check that the loop has run twice
+                [(local_state, configuration, state),
+                 (changed_local_state, configuration, changed_state),
+                 (local_state, configuration, state)],
+                # And that state was re-sent even though it matched the last
+                # acknowledged state
+                [(NodeStateCommand, dict(state_changes=(local_state,))),
+                 (NodeStateCommand,
+                  dict(state_changes=(changed_local_state,))),
                  (NodeStateCommand, dict(state_changes=(local_state,)))],
             )
         )

@@ -332,7 +332,14 @@ class ConvergenceLoop(object):
             def record_acknowledged_state(ignored):
                 self._last_acknowledged_state = state_changes
 
-            d.addCallback(record_acknowledged_state)
+            def clear_acknowledged_state(failure):
+                # We don't know if the control service has processed the update
+                # or not. So we clear the last acknowledged state so that we
+                # always send the state on the next iteration.
+                self._last_acknowledged_state = None
+                return failure
+
+            d.addCallbacks(record_acknowledged_state, clear_acknowledged_state)
             d.addErrback(
                 writeFailure, self.fsm.logger,
                 u"Failed to send local state to control node.")
