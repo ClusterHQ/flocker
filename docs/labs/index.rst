@@ -65,7 +65,6 @@ List of Labs projects
    :titlesonly:
 
    installer
-   docker-plugin
    volumes-cli
    volumes-gui
    swarm
