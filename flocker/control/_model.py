@@ -804,6 +804,8 @@ class IClusterStateSource(Interface):
     This is presently used for activity/inactivity tracking to inform change
     wiping.
     """
+    # XXX Should this interface be expanded to include the node UUID and the
+    # type of agent (container or dataset) that reported the state change?
     def last_activity():
         """
         :return: The point in time at which the last activity was observed from

@@ -280,6 +280,7 @@ class ControlAMPTests(ControlTestCase):
         self.assertEqual((current, self.control_amp_service.connections),
                          ({marker}, {marker, self.protocol}))
 
+    # @validate_logging here and check for AGENT_CONNECTED
     def test_connection_made_send_cluster_status(self):
         """
         When a connection is made the cluster status is sent to the new client.
@@ -321,6 +322,7 @@ class ControlAMPTests(ControlTestCase):
             self.successResultOf(self.client.callRemote(VersionCommand)),
             {"major": 1})
 
+    # @validate_logging here and check for NODE_CHANGED
     def test_nodestate_updates_node_state(self):
         """
         ``NodeStateCommand`` updates the node state.
@@ -374,6 +376,7 @@ class ControlAMPTests(ControlTestCase):
             (DeploymentState(nodes={SIMPLE_NODE_STATE}), DeploymentState()),
         )
 
+    # @validate_logging here and check for NODE_CHANGED
     def test_nodestate_notifies_all_connected(self):
         """
         ``NodeStateCommand`` results in all connected ``ControlAMP``
