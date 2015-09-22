@@ -343,8 +343,8 @@ class ConfigurationPersistenceServiceTests(TestCase):
 
         def saved(_):
             service.register(lambda: callbacks2.append(1))
-            changed = TEST_DEPLOYMENT.set(
-                nodes=TEST_DEPLOYMENT.nodes.add(Node(uuid=uuid4()))
+            changed = TEST_DEPLOYMENT.transform(
+                ("nodes",), lambda nodes: nodes.add(Node(uuid=uuid4())),
             )
             return service.save(changed)
         d.addCallback(saved)
