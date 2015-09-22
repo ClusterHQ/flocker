@@ -7,13 +7,11 @@ import os
 import shutil
 import sys
 import tempfile
-import yaml
 
 from characteristic import attributes
 import docker
 from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
-from twisted.python.filepath import FilePath
 
 from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
@@ -115,7 +113,13 @@ class DockerContainer:
     """
 
     def __init__(self, image):
-        self.docker = docker.Client(version='1.18')
+        # See FLOC-3044 - these settings are to avoid problems on OSX
+        # with Boot2Docker and Homebrew Python
+        params = docker.utils.kwargs_from_env(assert_hostname=False)
+        tls_config = params.get('tls')
+        if tls_config:
+            tls_config.verify = False
+        self.docker = docker.Client(version='1.18', **params)
         self.image = image
 
     @classmethod
