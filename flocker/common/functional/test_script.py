@@ -13,7 +13,7 @@ from bitmath import MiB
 
 from zope.interface import implementer
 
-from eliot import Logger, Message
+from eliot import Message
 from eliot.testing import assertContainsFields
 
 from twisted.trial.unittest import TestCase
@@ -23,14 +23,24 @@ from twisted.python.log import msg, err
 from twisted.python.filepath import FilePath
 
 from ..script import ICommandLineScript
+from ...testtools import random_name, if_root
 
 
 @implementer(ICommandLineScript)
 class EliotScript(object):
+    key = 123
+
     def main(self, reactor, options):
-        logger = Logger()
-        Message.new(key=123).write(logger)
+        Message.log(key=self.key)
         return succeed(None)
+
+
+class EliotPercentScript(EliotScript):
+    key = u"hello%s"
+
+
+class EliotLargeScript(object):
+    key = u"1234 " * 20000 + u" ends here"
 
 
 @implementer(ICommandLineScript)
@@ -67,6 +77,20 @@ class SigintScript(object):
         reactor.callLater(0.05, os.kill, os.getpid(), SIGINT)
         return Deferred()
 
+# Code to run a minimal script:
+_SCRIPT_CODE = b'''\
+from twisted.python.usage import Options
+from flocker.common.script import FlockerScriptRunner, flocker_standard_options
+
+from flocker.common.functional.test_script import {}
+
+@flocker_standard_options
+class StandardOptions(Options):
+    pass
+
+FlockerScriptRunner({}(), StandardOptions()).main()
+'''
+
 
 class FlockerScriptRunnerTests(TestCase):
     """
@@ -84,18 +108,7 @@ class FlockerScriptRunnerTests(TestCase):
         """
         if options is None:
             options = []
-        code = b'''\
-from twisted.python.usage import Options
-from flocker.common.script import FlockerScriptRunner, flocker_standard_options
-
-from flocker.common.functional.test_script import {}
-
-@flocker_standard_options
-class StandardOptions(Options):
-    pass
-
-FlockerScriptRunner({}(), StandardOptions()).main()
-'''.format(script.__name__, script.__name__)
+        code = _SCRIPT_CODE.format(script.__name__, script.__name__)
         d = getProcessOutput(
             sys.executable, [b"-c", code] + options,
             env=os.environ,
@@ -271,4 +284,56 @@ FlockerScriptRunner({}(), StandardOptions()).main()
             )
         d.addCallback(verify_logfiles, logfile=logfile)
 
+        return d
+
+    @if_root
+    def run_journald_script(self, script):
+        """
+        Run a script that logs messages to journald and uses
+        ``FlockerScriptRunner``.
+
+        :param ICommandLineScript: Script to run. Must be class in this module.
+
+        :return: ``Deferred`` that fires with decoded JSON messages from the
+            journal for the process.
+        """
+        name = random_name(self).encode("utf-8")
+        code = _SCRIPT_CODE.format(script.__name__, script.__name__)
+        d = getProcessOutput(
+            b"systemd-run", [b"--unit=" + name,
+                             sys.executable, b"-c", code, b"--journald"],
+            env=os.environ,
+        )
+        d.addCallback(lambda _: getProcessOutput(b"journalctl", [b"-u", name]))
+        d.addCallback(lambda data: map(loads, data.splitlines()))
+        return d
+
+    def test_journald(self):
+        """
+        When ``--journald`` option is used messages end up in the journal.
+        """
+        d = self.run_journald_script(EliotScript)
+        d.addCallback(lambda messages: assertContainsFields(self, messages[1],
+                                                            {u"key": 123}))
+        return d
+
+    def test_journald_percent(self):
+        """
+        When ``--journald`` option is used messages with a ``%`` in them can
+        be logged correctly.
+        """
+        d = self.run_journald_script(EliotPercentScript)
+        d.addCallback(lambda messages: assertContainsFields(
+            self, messages[1], {u"key": u"hello%s"}))
+        return d
+
+    def test_journald_large_message(self):
+        """
+        When ``--journald`` option is used large messages end up in the
+        journal and are not broken up, demonstrating we're not hitting
+        https://bugs.freedesktop.org/show_bug.cgi?id=86465
+        """
+        d = self.run_journald_script(EliotLargeScript)
+        d.addCallback(lambda messages: assertContainsFields(
+            self, messages[1], {u"key": EliotLargeScript.key}))
         return d
