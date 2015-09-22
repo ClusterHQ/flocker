@@ -404,14 +404,15 @@ class ConfigurationPersistenceServiceTests(TestCase):
         """
         service = self.service(FilePath(self.mktemp()), None)
 
-        saving = service.save(TEST_DEPLOYMENT)
+        old_saving = service.save(TEST_DEPLOYMENT)
 
         def saved_old(ignored):
-            saving = service.save(TEST_DEPLOYMENT)
-            saving.addCallback(self.assertEqual, None)
+            new_saving = service.save(TEST_DEPLOYMENT)
+            new_saving.addCallback(self.assertEqual, None)
+            return new_saving
 
-        saving.addCallback(saved_old)
-        return saving
+        old_saving.addCallback(saved_old)
+        return old_saving
 
 
 class StubMigration(object):
