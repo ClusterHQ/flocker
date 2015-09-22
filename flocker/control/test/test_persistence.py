@@ -403,6 +403,22 @@ class ConfigurationPersistenceServiceTests(TestCase):
         saving.addCallback(saved_new)
         return saving
 
+    def test_success_returned_for_unchanged_deployment(self):
+        """
+        ``save`` returns a ``Deferred`` that fires with ``None`` when called
+        with a deployment that is the same as the already-saved deployment.
+        """
+        service = self.service(FilePath(self.mktemp()), None)
+
+        saving = service.save(TEST_DEPLOYMENT)
+
+        def saved_old(ignored):
+            saving = service.save(TEST_DEPLOYMENT)
+            saving.addCallback(self.assertEqual, None)
+
+        saving.addCallback(saved_old)
+        return saving
+
 
 class StubMigration(object):
     """

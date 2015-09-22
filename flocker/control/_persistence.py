@@ -412,7 +412,7 @@ class ConfigurationPersistenceService(MultiService):
         """
         if deployment == self._deployment:
             _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED().write(self.logger)
-            return
+            return succeed(None)
 
         with _LOG_SAVE(self.logger, configuration=deployment):
             self._sync_save(deployment)
