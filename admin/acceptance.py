@@ -30,6 +30,9 @@ from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
+from flocker.node.agents.test.blockdevicefactory import (
+    MINIMUM_ALLOCATABLE_SIZES,
+)
 from flocker.provision._ssh import (
     run_remotely,
     ensure_agent_has_ssh_key,
@@ -423,12 +426,15 @@ class VagrantRunner(object):
         )
 
         certificates = Certificates(self.certificates_path)
+        default_volume_size = int(MINIMUM_ALLOCATABLE_SIZES.get(
+            self.dataset_backend, GiB(1)).to_Byte().value)
         cluster = Cluster(
             all_nodes=pvector(nodes),
             control_node=nodes[0],
             agent_nodes=nodes,
             dataset_backend=self.dataset_backend,
-            certificates=certificates
+            certificates=certificates,
+            default_volume_size=default_volume_size,
         )
 
         returnValue(cluster)
