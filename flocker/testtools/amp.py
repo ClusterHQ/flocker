@@ -83,6 +83,9 @@ class FakeAMPClient(object):
 class DelayedAMPClient(object):
     """
     A wrapper for ``FakeAMPClient`` that allows responses to be delayed.
+
+    :ivar _client: The underlying AMP client.
+    :ivar _calls: List of tuples of deferred and response.
     """
 
     def __init__(self, client):
@@ -90,11 +93,25 @@ class DelayedAMPClient(object):
         self._calls = []
 
     def callRemote(self, command, **kwargs):
+        """
+        Call the underlying AMP client, and delay the response until
+        :method:`respond` is called.
+
+        @param commandType: a subclass of C{amp.Command}.
+
+        @param kwargs: Keyword arguments taken by the command, a C{dict}.
+
+        @return: A C{Deferred} that fires when :method:`respond` is called,
+            with the response from the underlying cleint.
+        """
         d = Deferred()
         response = self._client.callRemote(command, **kwargs)
         self._calls.append((d, response))
         return d
 
     def respond(self):
+        """
+        Respond to the oldest outstanding remote call.
+        """
         d, response = self._calls.pop(0)
         response.chainDeferred(d)
