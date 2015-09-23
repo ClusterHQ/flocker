@@ -5,12 +5,11 @@ Functional tests for ``flocker.common.script``.
 from __future__ import print_function
 
 import os
-import time
 import sys
 from json import loads
 from signal import SIGINT
 from unittest import skipUnless
-from subprocess import check_output, CalledProcessError, STDOUT
+from subprocess import check_output, CalledProcessError, STDOUT, Popen
 
 from bitmath import MiB
 
@@ -27,7 +26,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ..script import ICommandLineScript
-from ...testtools import random_name, if_root
+from ...testtools import random_name, if_root, loop_until
 
 
 def _journald_available():
@@ -331,8 +330,10 @@ class FlockerScriptRunnerJournaldTests(TestCase):
             env=os.environ, errortoo=True,
         )
         d.addCallback(lambda result: msg("systemd-run output: " + result))
-        # Takes a little bit of time before journalctl returns logged messages:
-        d.addCallback(lambda _: time.sleep(3))
+        # systemd-run doesn't wait for process to exit, so we need to ask
+        # systemd when it's done:
+        d.addCallback(lambda _: loop_until(lambda: Popen(
+            [b"systemctl", b"-q", b"is-active", name]).wait() != 0))
         d.addCallback(lambda _: getProcessOutput(
             b"journalctl", [b"-u", name, b"-o", b"cat"]))
         d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
