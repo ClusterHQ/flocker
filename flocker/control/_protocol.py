@@ -106,7 +106,8 @@ class SerializableArgument(Argument):
     def __init__(self, *classes):
         """
         :param *classes: The type or types of the objects we expect to
-            (de)serialize.
+            (de)serialize. Only immutable types should be used if encoding
+            caching will be enabled.
         """
         Argument.__init__(self)
         self._expected_classes = classes
