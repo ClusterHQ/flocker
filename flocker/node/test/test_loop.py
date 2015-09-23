@@ -456,7 +456,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
              succeed(local_state)],
             [no_action(), no_action(), no_action()])
         client = self.make_amp_client(
-            [local_state, changed_local_state.copy()],
+            [local_state, changed_local_state],
             successes=[True, False],
         )
         reactor = Clock()
