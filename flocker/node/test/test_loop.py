@@ -439,6 +439,15 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         If sending state to the control node fails the next iteration will send
         state even if the state is the same as the last acknowledge state.
+
+        The situation this is intnded to model is the following sequence:
+        1. Agent sends original state to control node, which records and
+           acknowledges it.
+        2. Agent sends changed state to control node, which records it, but
+           errors out before acknowledging it.
+        3. State returns to original state. If we don't clear the acknowledged
+           state, the agent wont send a state update, but the control node
+           will think the state is still the changed state.
         """
         local_state = NodeState(
             hostname=u'192.0.2.123',
@@ -452,17 +461,27 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         changed_state = DeploymentState(nodes=[changed_local_state])
         deployer = ControllableDeployer(
             local_state.hostname,
-            [succeed(local_state), succeed(changed_local_state),
-             succeed(local_state)],
+            [
+                # Discover current state
+                succeed(local_state),
+                # Discover changed state, this won't be acknowledged
+                succeed(changed_local_state),
+                # Discover last acknowledge state again.
+                succeed(local_state)
+            ],
             [no_action(), no_action(), no_action()])
         client = self.make_amp_client(
             [local_state, changed_local_state],
+            # local_state will be acknowledge
+            # changed_local_state will result in an error.
             successes=[True, False],
         )
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
+
+        # Wait for all three iterations to occure.
         reactor.advance(1.0)
         reactor.advance(1.0)
 
