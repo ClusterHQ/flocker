@@ -16,7 +16,7 @@ Unlike a Docker data volume which is tied to a single server, a Flocker data vol
 Flocker manages Docker containers and data volumes together.
 When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
 
-You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
+You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.  To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker<.. _docker-plugin:>`.
 
 .. image:: images/flocker-v-native-containers.svg
    :alt: Migrating data: Native Docker versus Flocker.
@@ -40,7 +40,9 @@ With the Flocker API or CLI you can:
 * Attach and detach data volumes from containers as they change hosts
 * Migrate local data volumes between servers (currently Experimental)
 
-Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.
+You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.  To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker<.. _docker-plugin:>`.
+
+Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.  :ref:`View a complete list of supported storage backends<storage-backends>`.
 
 .. XXX add link to choosing the best storage for your application marketing page (yet to be published)
 
@@ -56,7 +58,7 @@ Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud 
 The Flocker Plugin for Docker
 =============================
 
-The Flocker plugin for Docker is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
+The Flocker plugin for Docker allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers. The Flocker plugin for Docker is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
 
 This diagram explains how the architecture of a Flocker cluster with the Docker plugin would look if the user is also using :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`:
 
@@ -76,14 +78,14 @@ As a user of Docker, it means you can use Flocker directly via:
 
 See the `Docker documentation on volume plugins`_.
 
-This depends on Docker 1.8 or later.
+The Flocker plugin for Docker depends on Docker 1.8 or later.
 
 .. note::
     Note that you should either use the Flocker plugin for Docker to associate containers with volumes (the integration architecture described above), or you should use the :ref:`Flocker containers API <api>` and :ref:`flocker-deploy CLI <cli>`, but not both.
 
     They are distinct architectures.
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
-    This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
+    This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>.
 
 .. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
 .. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
@@ -132,11 +134,14 @@ Supported Operating Systems
 * Ubuntu 15.04 (Command Line only)
 * OS X (Command Line only)
 
+
 Supported Cloud Providers
 =========================
 
 * AWS
 * Rackspace
+
+.. _storage-backends:
 
 Supported Storage Backends
 ==========================
