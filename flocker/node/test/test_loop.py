@@ -278,7 +278,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             corresponding states should fail.  ``True`` to make a client which
             responds to requests with results, ``False`` to make a client which
             response with failures. Defaults to always succeeding.
-        :type successes: ``list`` of ``bool`` or ``None``
+        :type successes: ``None`` or ``list`` of ``bool``
 
         :return FakeAMPClient: Fake AMP client appropriately setup.
         """
@@ -440,13 +440,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         If sending state to the control node fails the next iteration will send
         state even if the state is the same as the last acknowledge state.
 
-        The situation this is intnded to model is the following sequence:
+        The situation this is intended to model is the following sequence:
         1. Agent sends original state to control node, which records and
            acknowledges it.
         2. Agent sends changed state to control node, which records it, but
            errors out before acknowledging it.
         3. State returns to original state. If we don't clear the acknowledged
-           state, the agent wont send a state update, but the control node
+           state, the agent won't send a state update, but the control node
            will think the state is still the changed state.
         """
         local_state = NodeState(
@@ -481,7 +481,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
 
-        # Wait for all three iterations to occure.
+        # Wait for all three iterations to occur.
         reactor.advance(1.0)
         reactor.advance(1.0)
 
@@ -633,7 +633,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     def test_convergence_done_delays_new_iteration_ack(self):
         """
         An FSM completing the changes from one convergence iteration doesn't
-        start another iteration, if the control node hasn't acknowledged the
+        start another iteration if the control node hasn't acknowledged the
         last state update.
         """
         self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
