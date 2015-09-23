@@ -8,7 +8,7 @@ import os
 import sys
 from json import loads
 from signal import SIGINT
-from unittest import skipUnless
+from unittest import skipUnless, skipIf
 from subprocess import check_output, CalledProcessError, STDOUT, Popen
 
 from bitmath import MiB
@@ -24,8 +24,9 @@ from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.usage import Options, UsageError
 
-from ..script import ICommandLineScript
+from ..script import ICommandLineScript, flocker_standard_options
 from ...testtools import random_name, if_root, loop_until
 
 
@@ -33,8 +34,11 @@ def _journald_available():
     """
     :return: Boolean indicating whether journald is available to use.
     """
+    # Process exists:
     if not which("journalctl"):
         return False
+    # Journald is actually running on this machine (e.g. on some Ubuntu
+    # versions it can be available but not running).
     try:
         check_output(["journalctl", "-b"], stderr=STDOUT)
     except CalledProcessError:
@@ -370,3 +374,25 @@ class FlockerScriptRunnerJournaldTests(TestCase):
         d.addCallback(lambda messages: assertContainsFields(
             self, messages[1], {u"key": EliotLargeScript.key}))
         return d
+
+
+class JournaldOptionsTests(TestCase):
+    """
+    Tests for the ``--journald`` option.
+    """
+    # _journald_available() is too strong of an assertion; a non-root user
+    # on system with journald installed will get False but this test
+    # shouldn't be run in that case.
+    @skipIf(which("journalctl"), "Journald is available on this machine.")
+    def test_journald_unavailable(self):
+        """
+        If journald is unavailable on the machine, ``--journald`` raises a
+        ``UsageError``.
+        """
+        @flocker_standard_options
+        class MyOptions(Options):
+            pass
+
+        exc = self.assertRaises(
+            UsageError, MyOptions().parseOptions, ["--journald"])
+        self.assertEqual(str(exc), "Journald unavailable on this machine.")

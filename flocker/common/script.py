@@ -26,7 +26,7 @@ try:
     from ._journald import sd_journal_send
 except OSError:
     # This platform doens't have journald.
-    pass
+    sd_journal_send = None
 
 
 __all__ = [
@@ -110,6 +110,8 @@ def flocker_standard_options(cls):
         """
         Log to journald.
         """
+        if sd_journal_send is None:
+            raise usage.UsageError("Journald unavailable on this machine.")
         # Log messages are written line by line, so pretend we're a file...
         self['logfile'] = JournaldFile()
     cls.opt_journald = opt_journald
