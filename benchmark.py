@@ -22,6 +22,8 @@ from twisted.web.http import OK
 from flocker.apiclient import FlockerClient
 from flocker.common import gather_deferreds
 
+NUM_DATASETS = 20
+
 
 def stdout(message):
     sys.stdout.write(json.dumps(message) + "\n")
@@ -52,7 +54,7 @@ def control_node_uuid(client):
     d = client.list_nodes()
 
     def identify_control_node(nodes):
-        host = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
+        host = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE_PRIVATE')
         control_node_uuid = [
             node['uuid']
             for node in nodes
@@ -64,22 +66,33 @@ def control_node_uuid(client):
 
 
 def create_datasets(client):
-    d = control_node_uuid(client)
+    d = client.list_nodes()
 
-    def create(control_node_uuid):
-        primary = UUID(control_node_uuid.encode('ascii'))
+    def pick_nodes(nodes):
+        return sorted(nodes, key=lambda node: node['host'])[:2]
+    d.addCallback(pick_nodes)
+
+    def create(nodes):
+        primary_node_uuids = [
+            UUID(node['uuid'].encode('ascii')) for node in nodes
+        ]
+
         maximum_size = int(
             environ.get(
                 'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE'
             )
         )
 
-        creating = list(
-            client.create_dataset(
-                primary=primary,
-                maximum_size=maximum_size,
-            ) for i in range(20)
-        )
+        def _create(client, count, primaries):
+            for primary_node_uuid in primaries:
+                for i in range(NUM_DATASETS / len(primaries)):
+                    yield client.create_dataset(
+                        primary=primary_node_uuid,
+                        maximum_size=maximum_size,
+                    )
+
+        creating = list(_create(client, NUM_DATASETS, primary_node_uuids))
+
         return gather_deferreds(creating)
 
     d.addCallback(create)
@@ -104,7 +117,7 @@ def print_datasets_configuration(client):
 
 
 def delete_datasets(client):
-    d = client.list_datasets_state()
+    d = client.list_datasets_configuration()
 
     def delete(datasets):
         deleted = [
@@ -117,7 +130,13 @@ def delete_datasets(client):
     return d
 
 
+def print_node_state(client):
+    d = client.list_nodes()
+    d.addCallback(output)
+    return d
+
 operations = dict(
+    print_node_state=print_node_state,
     print_datasets_state=print_datasets_state,
     print_datasets_configuration=print_datasets_configuration,
     create_datasets=create_datasets,
