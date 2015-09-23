@@ -29,6 +29,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
 from datetime import timedelta
+from contextlib import contextmanager
 
 from eliot import Logger, ActionType, Action, Field
 from eliot.twisted import DeferredContext
@@ -60,29 +61,36 @@ class CachingEncoder(object):
     Cache results of ``wire_encode`` and re-use them, relying on the fact
     we're encoding immutable objects.
 
-    Not thread-safe, so should only be used by Twisted code (or this
-    module).
+    Not thread-safe, so should only be used by a single thread (the
+    Twisted reactor thread, presumably).
     """
     def __init__(self):
-        self.clear()
+        self._cache = None
 
     def encode(self, obj):
         """
         Encode an object to bytes using ``wire_encode``, or return cached
-        result if available.
+        result if available and running in context of ``cache()`` context
+        manager.
 
         :param obj: Object to encode.
         :return: Resulting ``bytes``.
         """
-        if obj not in self.results:
-            self.results[obj] = wire_encode(obj)
-        return self.results[obj]
+        if self._cache is None:
+            return wire_encode(obj)
 
-    def clear(self):
+        if obj not in self._cache:
+            self._cache[obj] = wire_encode(obj)
+        return self._cache[obj]
+
+    @contextmanager
+    def cache(self):
         """
-        Clear the cache.
+        While in context of this context manager results will be cached.
         """
-        self.results = {}
+        self._cache = {}
+        yield
+        self._cache = None
 
 _caching_encoder = CachingEncoder()
 

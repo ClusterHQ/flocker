@@ -866,35 +866,46 @@ class CachingEncoderTests(SynchronousTestCase):
             [loads(wire_encode(TEST_DEPLOYMENT)),
              loads(wire_encode(NODE_STATE))])
 
-    def test_caches(self):
+    def test_no_caching(self):
         """
-        ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
-        particular object.
-        """
-        cache = CachingEncoder()
-        # Warm up cache:
-        result1 = cache.encode(TEST_DEPLOYMENT)
-        result2 = cache.encode(NODE_STATE)
-
-        self.assertEqual(
-            [cache.encode(TEST_DEPLOYMENT) is result1,
-             cache.encode(NODE_STATE) is result2],
-            [True, True])
-
-    def test_clear(self):
-        """
-        ``CachingEncoder.clear`` clears the cache.
+        ``CachingEncoder.encode`` does not cache results by default.
         """
         cache = CachingEncoder()
-        # Warm up cache:
         result1 = cache.encode(TEST_DEPLOYMENT)
         result2 = cache.encode(NODE_STATE)
-        # Clear the cache:
-        cache.clear()
 
         self.assertEqual(
             [cache.encode(TEST_DEPLOYMENT) is not result1,
-             cache.encode(NODE_STATE) is not result2,
-             loads(cache.encode(TEST_DEPLOYMENT)) == loads(
-                 wire_encode(TEST_DEPLOYMENT))],
-            [True, True, True])
+             cache.encode(NODE_STATE) is not result2],
+            [True, True])
+
+    def test_caches(self):
+        """
+        ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
+        particular object if used in context of ``cache()``.
+        """
+        cache = CachingEncoder()
+        with cache.cache():
+            # Warm up cache:
+            result1 = cache.encode(TEST_DEPLOYMENT)
+            result2 = cache.encode(NODE_STATE)
+
+            self.assertEqual(
+                [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
+                 loads(result2) == loads(wire_encode(NODE_STATE)),
+                 cache.encode(TEST_DEPLOYMENT) is result1,
+                 cache.encode(NODE_STATE) is result2],
+                [True, True, True, True])
+
+    def test_after_caching(self):
+        """
+        Once ``cache`` context is exited the caching no longer applies.
+        """
+        cache = CachingEncoder()
+        with cache.cache():
+            result1 = cache.encode(TEST_DEPLOYMENT)
+            result2 = cache.encode(NODE_STATE)
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is not result1,
+             cache.encode(NODE_STATE) is not result2],
+            [True, True])
