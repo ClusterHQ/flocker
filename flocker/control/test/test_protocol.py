@@ -19,6 +19,7 @@ from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
+    MAX_VALUE_LENGTH, IArgumentType, Command, String, ListOf, Integer,
     UnknownRemoteError, RemoteAmpError, CommandLocator, AMP, parseString,
 )
 from twisted.python.failure import Failure
@@ -31,7 +32,7 @@ from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from .._protocol import (
-    PING_INTERVAL, SerializableArgument,
+    PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
@@ -166,6 +167,78 @@ NONMANIFEST = NonManifestDatasets(
     datasets={dataset.dataset_id: dataset}
 )
 del dataset
+
+
+class BigArgumentTests(SynchronousTestCase):
+    class CommandWithBigArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+        ]
+
+    class CommandWithTwoBigArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+            ("large", Big(String())),
+        ]
+
+    class CommandWithBigAndRegularArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+            ("regular", String()),
+        ]
+
+    class CommandWithBigListArgument(Command):
+        arguments = [
+            ("big", Big(ListOf(Integer()))),
+        ]
+
+    def test_interface(self):
+        """
+        ``Big`` instances provide ``IArgumentType``.
+        """
+        big = dict(self.CommandWithBigArgument.arguments)["big"]
+        self.assertTrue(verifyObject(IArgumentType, big))
+
+    def assert_roundtrips(self, command, **kwargs):
+        amp_protocol = None
+        argument_box = command.makeArguments(kwargs, amp_protocol)
+        [roundtripped] = parseString(argument_box.serialize())
+        parsed_objects = command.parseArguments(roundtripped, amp_protocol)
+        self.assertEqual(kwargs, parsed_objects)
+
+    def test_roundtrip_non_string(self):
+        some_list = range(10)
+        self.assert_roundtrips(self.CommandWithBigListArgument, big=some_list)
+
+    def test_roundtrip_small(self):
+        small_bytes = b"hello world"
+        self.assert_roundtrips(self.CommandWithBigArgument, big=small_bytes)
+
+    def test_roundtrip_medium(self):
+        medium_bytes = b"x" * (MAX_VALUE_LENGTH + 1)
+        self.assert_roundtrips(self.CommandWithBigArgument, big=medium_bytes)
+
+    def test_roundtrip_large(self):
+        big_bytes = u"\n".join(
+            u"{value}".format(value=value)
+            for value
+            in range(MAX_VALUE_LENGTH)
+        ).encode("ascii")
+        self.assert_roundtrips(self.CommandWithBigArgument, big=big_bytes)
+
+    def test_two_big_arguments(self):
+        self.assert_roundtrips(
+            self.CommandWithTwoBigArgument,
+            big=b"hello world",
+            large=b"goodbye world",
+        )
+
+    def test_big_and_regular_arguments(self):
+        self.assert_roundtrips(
+            self.CommandWithBigAndRegularArgument,
+            big=b"hello world",
+            regular=b"goodbye world",
+        )
 
 
 class SerializationTests(SynchronousTestCase):

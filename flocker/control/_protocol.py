@@ -29,6 +29,8 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
 from datetime import timedelta
+from io import BytesIO
+from itertools import count
 
 from eliot import Logger, ActionType, Action, Field
 from eliot.twisted import DeferredContext
@@ -40,6 +42,7 @@ from zope.interface import Interface, Attribute
 from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
+    MAX_VALUE_LENGTH,
 )
 from twisted.internet.task import LoopingCall
 from twisted.internet.protocol import ServerFactory
@@ -53,6 +56,32 @@ from ._model import (
 )
 
 PING_INTERVAL = timedelta(seconds=30)
+
+
+class Big(Argument):
+    def __init__(self, another_argument):
+        self.another_argument = another_argument
+
+    def toBox(self, name, strings, objects, proto):
+        self.another_argument.toBox(name, strings, objects, proto)
+        value = BytesIO(strings.pop(name))
+        counter = 0
+        while True:
+            nextChunk = value.read(MAX_VALUE_LENGTH)
+            if not nextChunk:
+                break
+            strings["%s.%d" % (name, counter)] = nextChunk
+            counter += 1
+
+    def fromBox(self, name, strings, objects, proto):
+        value = BytesIO()
+        for counter in count(0):
+            chunk = strings.get("%s.%d" % (name, counter))
+            if chunk is None:
+                break
+            value.write(chunk)
+            strings[name] = value.getvalue()
+        self.another_argument.fromBox(name, strings, objects, proto)
 
 
 class SerializableArgument(Argument):
