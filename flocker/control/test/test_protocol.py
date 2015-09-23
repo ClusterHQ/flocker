@@ -167,11 +167,8 @@ class SerializationTests(SynchronousTestCase):
         ``SerializableArgument`` can be given multiple types to allow instances
         of any of those types to be serialized and deserialized.
         """
-        argument = SerializableArgument(list, dict)
-        objects = [
-            [u"foo"],
-            {u"bar": u"baz"},
-        ]
+        argument = SerializableArgument(NodeState, Deployment)
+        objects = [TEST_DEPLOYMENT, NODE_STATE]
         serialized = list(
             argument.toString(o)
             for o in objects
