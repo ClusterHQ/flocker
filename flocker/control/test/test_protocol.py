@@ -36,7 +36,7 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    CachingEncoder,
+    CachingEncoder, _caching_encoder
 )
 from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
@@ -196,6 +196,16 @@ class SerializationTests(SynchronousTestCase):
         as_bytes = argument.toString(TEST_DEPLOYMENT)
         self.assertRaises(
             TypeError, SerializableArgument(NodeState).fromString, as_bytes)
+
+    def test_caches(self):
+        """
+        Encoding results are cached when in the context of the caching
+        encoder's ``cache()`` call.
+        """
+        argument = SerializableArgument(Deployment)
+        with _caching_encoder.cache():
+            self.assertIs(argument.toString(TEST_DEPLOYMENT),
+                          argument.toString(TEST_DEPLOYMENT))
 
 
 def build_control_amp_service(test, reactor=None):

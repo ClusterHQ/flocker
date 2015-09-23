@@ -121,7 +121,7 @@ class SerializableArgument(Argument):
             raise TypeError(
                 "{} is none of {}".format(obj, self._expected_classes)
             )
-        return wire_encode(obj)
+        return _caching_encoder.encode(obj)
 
 
 class _EliotActionArgument(Unicode):
@@ -344,17 +344,18 @@ class ControlAMPService(Service):
         with LOG_SEND_CLUSTER_STATE(self.logger,
                                     configuration=configuration,
                                     state=state):
-            for connection in connections:
-                action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
-                with action.context():
-                    d = DeferredContext(connection.callRemote(
-                        ClusterStatusCommand,
-                        configuration=configuration,
-                        state=state,
-                        eliot_context=action
-                    ))
-                    d.addActionFinish()
-                    d.result.addErrback(lambda _: None)
+            with _caching_encoder.cache():
+                for connection in connections:
+                    action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
+                    with action.context():
+                        d = DeferredContext(connection.callRemote(
+                            ClusterStatusCommand,
+                            configuration=configuration,
+                            state=state,
+                            eliot_context=action
+                        ))
+                        d.addActionFinish()
+                        d.result.addErrback(lambda _: None)
 
     def connected(self, connection):
         """
