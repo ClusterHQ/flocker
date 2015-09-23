@@ -20,7 +20,7 @@ from twisted.internet.task import Clock
 from twisted.internet.ssl import ClientContextFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
-from ...testtools import FakeAMPClient, DelayedAMPClient
+from ...testtools.amp import FakeAMPClient, DelayedAMPClient
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
