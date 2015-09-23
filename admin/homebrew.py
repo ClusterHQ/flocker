@@ -59,7 +59,7 @@ def get_class_name(version):
         created is called "flocker-$VERSION.rb".
     """
     class_name = list('Flocker' + version)
-    disallowed_characters = ['-', '.']
+    disallowed_characters = ['-', '.', '+']
     characters = []
 
     for index, character in enumerate(class_name):
