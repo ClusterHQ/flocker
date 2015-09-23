@@ -5,6 +5,7 @@
 Install flocker on a remote node.
 """
 
+from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
@@ -212,7 +213,7 @@ def cli_pkg_test(package_source=PackageSource()):
     expected = package_source.version
     if expected is None:
         expected = get_installable_version(version)
-    return run("test `flocker-deploy --version` = '{}'".format(expected))
+    return run("test `flocker-deploy --version` = {}".format(quote(expected)))
 
 
 def install_commands_yum(package_name, distribution, package_source,
@@ -237,11 +238,13 @@ def install_commands_yum(package_name, distribution, package_source,
     flocker_version = package_source.version
     if flocker_version is None:
         flocker_version = get_installable_version(version)
+    repo_package_name = 'clusterhq-release'
     commands = [
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
         run(
-            command="yum list installed clusterhq-release || yum install -y {0}".format(  # noqa
+            command="yum list installed {} || yum install -y {}".format(
+                quote(repo_package_name),
                 get_repository_url(
                     distribution=distribution,
                     flocker_version=flocker_version))),
@@ -481,7 +484,7 @@ def cli_pip_test(
         expected = get_installable_version(version)
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run("test `flocker-deploy --version` = '{}'".format(expected)),
+        run("test `flocker-deploy --version` = {}".format(quote(expected))),
         ])
 
 
