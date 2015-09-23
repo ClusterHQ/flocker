@@ -19,7 +19,7 @@ from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
-    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP,
+    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP, parseString,
 )
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
@@ -67,9 +67,35 @@ class LoopbackAMPClient(object):
 
         @return: A C{Deferred} that fires with the result of the responder.
         """
-        arguments = command.makeArguments(kwargs, self._locator)
+        # command = ClusterStatusUpdate
+        # kwargs = {"configuration": Deployment(nodes={Node(...)})}
+
+        argument_box = command.makeArguments(kwargs, self._locator)
+
+        # arguments = Box({"configuration": '{"$__class__$": "Deployment", ...}'})
+
+        # Serialize the arguments to prove that we can.  For example, if an
+        # argument would serialize to more than 64kB then we can't actually
+        # serialize it so we want a test attempting this to fail.
+        wire_format = argument_box.serialize()
+
+        # wire_format = "\x12\x32configuration..."
+
+        [decoded_argument_box] = parseString(wire_format)
+
+        # decoded_box = Box({"configuration": '{"$__class__$": "Deployment", ...}'})
+
         responder = self._locator.locateResponder(command.commandName)
-        d = responder(arguments)
+        # internally reverses makeArguments -> back to kwargs
+        d = responder(decoded_argument_box)
+
+        def serialize_response(response_box):
+            # As above, prove we can serialize the response.
+            wire_format = response_box.serialize()
+            [decoded_response_box] = parseString(wire_format)
+            return decoded_response_box
+
+        d.addCallback(serialize_response)
         d.addCallback(command.parseResponse, self._locator)
 
         def massage_error(error):
