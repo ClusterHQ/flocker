@@ -450,6 +450,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
            will think the state is still the changed state.
         """
         local_state = NodeState(
+            uuid=uuid4(),
             hostname=u'192.0.2.123',
             used_ports=pset(), applications=pset(),
         )
@@ -636,7 +637,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         start another iteration if the control node hasn't acknowledged the
         last state update.
         """
-        self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
+        self.local_state = local_state = NodeState(
+            uuid=uuid4(),
+            hostname=u'192.0.2.123',
+        )
         self.configuration = configuration = Deployment()
         self.cluster_state = received_state = DeploymentState(nodes=[])
         self.action = action = ControllableAction(result=succeed(None))
