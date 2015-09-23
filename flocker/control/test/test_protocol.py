@@ -5,6 +5,7 @@ Tests for ``flocker.control._protocol``.
 """
 
 from uuid import uuid4
+from json import loads
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -35,6 +36,7 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
+    CachingEncoder,
 )
 from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
@@ -42,7 +44,7 @@ from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import ConfigurationPersistenceService
+from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -849,3 +851,53 @@ class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
     """
     def build_protocol(self, reactor):
         return AgentAMP(reactor, FakeAgent())
+
+
+class CachingEncoderTests(SynchronousTestCase):
+    """
+    Tests for ``CachingEncoder``.
+    """
+    def test_encodes(self):
+        """
+        ``CachingEncoder.encode`` returns result of ``wire_encode`` for given
+        object.
+        """
+        cache = CachingEncoder()
+        self.assertEqual(
+            [loads(cache.encode(TEST_DEPLOYMENT)),
+             loads(cache.encode(NODE_STATE))],
+            [loads(wire_encode(TEST_DEPLOYMENT)),
+             loads(wire_encode(NODE_STATE))])
+
+    def test_caches(self):
+        """
+        ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
+        particular object.
+        """
+        cache = CachingEncoder()
+        # Warm up cache:
+        result1 = cache.encode(TEST_DEPLOYMENT)
+        result2 = cache.encode(NODE_STATE)
+
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is result1,
+             cache.encode(NODE_STATE) is result2],
+            [True, True])
+
+    def test_clear(self):
+        """
+        ``CachingEncoder.clear`` clears the cache.
+        """
+        cache = CachingEncoder()
+        # Warm up cache:
+        result1 = cache.encode(TEST_DEPLOYMENT)
+        result2 = cache.encode(NODE_STATE)
+        # Clear the cache:
+        cache.clear()
+
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is not result1,
+             cache.encode(NODE_STATE) is not result2,
+             loads(cache.encode(TEST_DEPLOYMENT)) == loads(
+                 wire_encode(TEST_DEPLOYMENT))],
+            [True, True, True])

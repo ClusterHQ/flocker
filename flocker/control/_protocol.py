@@ -55,6 +55,38 @@ from ._model import (
 PING_INTERVAL = timedelta(seconds=30)
 
 
+class CachingEncoder(object):
+    """
+    Cache results of ``wire_encode`` and re-use them, relying on the fact
+    we're encoding immutable objects.
+
+    Not thread-safe, so should only be used by Twisted code (or this
+    module).
+    """
+    def __init__(self):
+        self.clear()
+
+    def encode(self, obj):
+        """
+        Encode an object to bytes using ``wire_encode``, or return cached
+        result if available.
+
+        :param obj: Object to encode.
+        :return: Resulting ``bytes``.
+        """
+        if obj not in self.results:
+            self.results[obj] = wire_encode(obj)
+        return self.results[obj]
+
+    def clear(self):
+        """
+        Clear the cache.
+        """
+        self.results = {}
+
+_caching_encoder = CachingEncoder()
+
+
 class SerializableArgument(Argument):
     """
     AMP argument that takes an object that can be serialized by the
