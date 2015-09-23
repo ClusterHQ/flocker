@@ -63,6 +63,9 @@ class CachingEncoder(object):
 
     Not thread-safe, so should only be used by a single thread (the
     Twisted reactor thread, presumably).
+
+    :var _cache: Either ``None`` indicating no caching or a dicitonary
+        with objects mapped to cached wire encoded values.
     """
     def __init__(self):
         self._cache = None
