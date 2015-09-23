@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Check that published artifacts work.
+"""
+import os
+import unittest
+
+from admin.client import (
+    DockerContainer, get_steps_pkg, get_steps_pip, run_steps
+)
+
+
+class TestPackages(unittest.TestCase):
+
+    def install(self, distribution, get_steps):
+        steps = get_steps(distribution)
+        container = DockerContainer.from_distribution(distribution)
+        filename = '{}.out'.format(self.id())
+        with open(filename, 'w') as out:
+            status = run_steps(container, steps, out)
+            self.assertEqual(
+                status, 0,
+                'Exit status = {}. See file {!r}'.format(status, filename))
+        os.remove(filename)
+
+    def test_centos_7_rpm(self):
+        """
+        CentOS 7 client packaging works.
+
+        Although CentOS 7 is not a supported client, the client packages
+        get built, so it is installed here to test RPM packaging.
+        """
+        self.install('centos-7', get_steps_pkg)
+
+    def test_ubuntu_14_04_deb(self):
+        """
+        Ubuntu 14.04 client packaging works.
+        """
+        self.install('ubuntu-14.04', get_steps_pkg)
+
+    def test_ubuntu_15_04_deb(self):
+        """
+        Ubuntu 15.04 client packaging works.
+        """
+        self.install('ubuntu-15.04', get_steps_pkg)
+
+    def test_pip_install_apt(self):
+        """
+        Pip client instructions work on an APT-based distribution.
+        """
+        self.install('debian-8', get_steps_pip)
+
+    def test_pip_install_yum(self):
+        """
+        Pip client instructions work on a YUM-based distribution.
+        """
+        self.install('centos-7', get_steps_pip)
+
+    def test_pip_install_dnf(self):
+        """
+        Pip client instructions work on a DNF-based distribution.
+        """
+        self.install('fedora-22', get_steps_pip)
+
+if __name__ == '__main__':
+    # XXX Trial might provide a better interface
+    unittest.main()
