@@ -131,6 +131,25 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
+
+def huge_deployment():
+    """
+    Return a configuration with 800 containers.
+    """
+    image = DockerImage.from_string(u'postgresql')
+    applications = [
+        Application(name=u'postgress-{}'.format(i), image=image)
+        for i in range(800)
+    ]
+    return Deployment(
+        nodes=[
+            Node(
+                hostname=u'node1.example.com',
+                applications=applications
+            )
+        ]
+    )
+
 # A very simple piece of node state that makes for nice-looking, easily-read
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
@@ -694,6 +713,21 @@ class AgentClientTests(SynchronousTestCase):
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
+
+    def test_too_long(self):
+        """
+        AMP protocol can transmit configurations with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        actual = DeploymentState(nodes=[])
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=huge_deployment(),
+            state=actual,
+            eliot_context=TEST_ACTION
+        )
+
+        self.successResultOf(d)
 
     def test_cluster_updated(self):
         """
