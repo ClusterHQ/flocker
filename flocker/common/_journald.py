@@ -11,7 +11,7 @@ _ffi = FFI()
 _ffi.cdef("""
 int sd_journal_send(const char *format, ...);
 """)
-_journald = _ffi.dlopen("libsystemd-journal.so")
+_journald = _ffi.dlopen("libsystemd-journal.so.0")
 
 
 def sd_journal_send(message):
