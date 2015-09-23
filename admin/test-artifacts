@@ -64,4 +64,5 @@ class TestPackages(unittest.TestCase):
         self.install('fedora-22', get_steps_pip)
 
 if __name__ == '__main__':
+    # XXX Trial might provide a better interface
     unittest.main()
