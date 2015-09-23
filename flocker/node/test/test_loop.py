@@ -623,7 +623,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         expected_cluster_state = DeploymentState(
             nodes=[local_state])
 
-        # Calculating actions happened and the result was run.
+        # Only one iteration of the covergence loop was run.
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             ([(local_state, configuration, expected_cluster_state)],
@@ -647,15 +647,20 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
-            client=DelayedAMPClient(client), configuration=configuration,
+            # We don't want to receive the acknowledgment of the
+            # state update.
+            client=DelayedAMPClient(client),
+            configuration=configuration,
             state=received_state))
 
         expected_cluster_state = DeploymentState(
             nodes=[local_state])
 
+        # Wait for the delay in the converence loop to pass.  This won't do
+        # anything, since we are also waiting for state to be acknowledged.
         reactor.advance(1.0)
 
-        # Calculating actions happened and the result was run.
+        # Only one iteration of the covergence loop was run.
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             ([(local_state, configuration, expected_cluster_state)],
