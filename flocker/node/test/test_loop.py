@@ -632,8 +632,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_done_delays_new_iteration_ack(self):
         """
-        An FSM completing the changes from one convergence iteration doesn't
-        start another iteration if the control node hasn't acknowledged the
+        A state update isn't sent if the control node hasn't acknowledged the
         last state update.
         """
         self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
@@ -653,18 +652,14 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             configuration=configuration,
             state=received_state))
 
-        expected_cluster_state = DeploymentState(
-            nodes=[local_state])
-
-        # Wait for the delay in the converence loop to pass.  This won't do
+        # Wait for the delay in the convergence loop to pass.  This won't do
         # anything, since we are also waiting for state to be acknowledged.
         reactor.advance(1.0)
 
-        # Only one iteration of the covergence loop was run.
-        self.assertTupleEqual(
-            (deployer.calculate_inputs, client.calls),
-            ([(local_state, configuration, expected_cluster_state)],
-             [(NodeStateCommand, dict(state_changes=(local_state,)))])
+        # Only one status update was sent.
+        self.assertListEqual(
+            client.calls,
+            [(NodeStateCommand, dict(state_changes=(local_state,)))],
         )
 
     @validate_logging(lambda test_case, logger: test_case.assertEqual(
