@@ -26,6 +26,9 @@ Interactions:
 Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
+
+:var _caching_encoder: ``CachingEncoder`` used by
+    ``SerializableArgument``, allowing for cached serialization.
 """
 
 from datetime import timedelta
@@ -64,7 +67,7 @@ class CachingEncoder(object):
     Not thread-safe, so should only be used by a single thread (the
     Twisted reactor thread, presumably).
 
-    :var _cache: Either ``None`` indicating no caching or a dicitonary
+    :attr _cache: Either ``None`` indicating no caching or a dicitonary
         with objects mapped to cached wire encoded values.
     """
     def __init__(self):
