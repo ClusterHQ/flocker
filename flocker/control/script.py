@@ -4,6 +4,7 @@
 """
 Script for starting control service server.
 """
+import sys
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
@@ -77,6 +78,7 @@ class ControlScript(object):
 
 
 def flocker_control_main():
+    print sys.version
     return FlockerScriptRunner(
         script=ControlScript(),
         options=ControlOptions()
