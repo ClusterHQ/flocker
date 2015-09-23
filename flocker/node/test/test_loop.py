@@ -491,7 +491,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             (
-                # Check that the loop has run twice
+                # Check that the loop has run thrice
                 [(local_state, configuration, state),
                  (changed_local_state, configuration, changed_state),
                  (local_state, configuration, state)],
