@@ -9,6 +9,8 @@ import time
 import sys
 from json import loads
 from signal import SIGINT
+from unittest import skipUnless
+from subprocess import check_output, CalledProcessError, STDOUT
 
 from bitmath import MiB
 
@@ -22,9 +24,23 @@ from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
 
 from ..script import ICommandLineScript
 from ...testtools import random_name, if_root
+
+
+def _journald_available():
+    """
+    :return: Boolean indicating whether journald is available to use.
+    """
+    if not which("journalctl"):
+        return False
+    try:
+        check_output(["journalctl", "-b"], stderr=STDOUT)
+    except CalledProcessError:
+        return False
+    return True
 
 
 @implementer(ICommandLineScript)
@@ -115,6 +131,7 @@ class FlockerScriptRunnerTests(TestCase):
             env=os.environ,
             errortoo=True
         )
+        d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
         d.addCallback(lambda data: map(loads, data.splitlines()))
         return d
 
@@ -287,7 +304,14 @@ class FlockerScriptRunnerTests(TestCase):
 
         return d
 
+
+class FlockerScriptRunnerJournaldTests(TestCase):
+    """
+    Functional tests for ``FlockerScriptRunner`` journald support.
+    """
     @if_root
+    @skipUnless(_journald_available(),
+                "journald unavailable or inactive on this machine.")
     def run_journald_script(self, script):
         """
         Run a script that logs messages to journald and uses
@@ -311,7 +335,7 @@ class FlockerScriptRunnerTests(TestCase):
         d.addCallback(lambda _: time.sleep(3))
         d.addCallback(lambda _: getProcessOutput(
             b"journalctl", [b"-u", name, b"-o", b"cat"]))
-        d.addCallback(lambda data: (msg(data), data)[1])
+        d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
         d.addCallback(lambda data: [
             loads(l) for l in data.splitlines() if l.startswith(b"{")])
         return d
