@@ -390,18 +390,21 @@ class ConvergenceLoop(object):
 
             # XXX And for this update to be the side-effect of an output
             # resulting.
-            send_ack = self._maybe_send_state_to_control_service(state_changes)
+            sent_state = self._maybe_send_state_to_control_service(
+                state_changes)
 
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
-            state_ran = run_state_change(action, self.deployer)
-            # If an error occurred we just want to log it and then try
-            # converging again; hopefully next time we'll have more success.
-            state_ran.addErrback(writeFailure, self.fsm.logger, u"")
-            return gather_deferreds([send_ack, state_ran])
+            ran_state_change = run_state_change(action, self.deployer)
+            DeferredContext(ran_state_change).addErrback(
+                writeFailure, self.fsm.logger)
+
+            # Wait for the control node to acknowledge the new
+            # state, and for the convergence actions to run.
+            return gather_deferreds([sent_state, ran_state_change])
         d.addCallback(got_local_state)
 
         # If an error occurred we just want to log it and then try
