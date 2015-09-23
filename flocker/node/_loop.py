@@ -404,6 +404,10 @@ class ConvergenceLoop(object):
             return gather_deferreds([send_ack, state_ran])
         d.addCallback(got_local_state)
 
+        # If an error occurred we just want to log it and then try
+        # converging again; hopefully next time we'll have more success.
+        d.addErrback(writeFailure, self.fsm.logger)
+
         # It would be better to have a "quiet time" state in the FSM and
         # transition to that next, then have a timeout input kick the machine
         # back around to the beginning of the loop in the FSM.  However, we're

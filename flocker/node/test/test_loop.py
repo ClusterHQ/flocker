@@ -652,13 +652,44 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=fail(RuntimeError()))
+        action = ControllableAction(result=fail(RuntimeError("Failed action")))
         # First discovery succeeds, leading to failing action; second
         # discovery will just wait for Deferred to fire. Thus we expect to
         # finish test in discovery state.
         deployer = ControllableDeployer(
             local_state.hostname,
             [succeed(local_state), Deferred()],
+            [action])
+        client = self.make_amp_client([local_state])
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        self.patch(loop, "logger", logger)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
+        # Calculating actions happened, result was run and caused error...
+        # but we started on loop again and are thus in discovery state,
+        # which we can tell because all faked local states have been
+        # consumed:
+        self.assertEqual(len(deployer.local_states), 0)
+
+    @validate_logging(lambda test_case, logger: test_case.assertEqual(
+        len(logger.flush_tracebacks(RuntimeError)), 1))
+    def test_convergence_discover_error_start_new_iteration(self, logger):
+        """
+        If the discovery of local state fails, a new iteration is started
+        anyway.
+        """
+        local_state = NodeState(hostname=u'192.0.2.123')
+        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
+        state = DeploymentState(nodes=[local_state])
+        action = ControllableAction(result=succeed(None))
+        # First discovery succeeds, leading to failing action; second
+        # discovery will just wait for Deferred to fire. Thus we expect to
+        # finish test in discovery state.
+        deployer = ControllableDeployer(
+            local_state.hostname,
+            [fail(RuntimeError("Failed discovery")), Deferred()],
             [action])
         client = self.make_amp_client([local_state])
         reactor = Clock()
