@@ -48,17 +48,25 @@ def flocker_client_from_environment(reactor):
     )
 
 
-def main(reactor):
-    client = flocker_client_from_environment(reactor)
-    listing_nodes = client.list_nodes()
+def control_node_uuid(client):
+    d = client.list_nodes()
 
-    def create_datasets(nodes):
+    def identify_control_node(nodes):
         host = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
         control_node_uuid = [
             node['uuid']
             for node in nodes
             if node['host'] == host
         ][0]
+        return control_node_uuid
+
+    return d.addCallback(identify_control_node)
+
+
+def create_datasets(client):
+    d = control_node_uuid(client)
+
+    def create(control_node_uuid):
         primary = UUID(control_node_uuid.encode('ascii'))
         maximum_size = int(
             environ.get(
@@ -74,9 +82,55 @@ def main(reactor):
         )
         return gather_deferreds(creating)
 
-    creating_nodes = listing_nodes.addCallback(create_datasets)
+    d.addCallback(create)
+    return d
 
-    return creating_nodes
+
+def output(datasets):
+    for dataset in datasets:
+        print dataset
+
+
+def print_datasets_state(client):
+    d = client.list_datasets_state()
+    d.addCallback(output)
+    return d
+
+
+def print_datasets_configuration(client):
+    d = client.list_datasets_configuration()
+    d.addCallback(output)
+    return d
+
+
+def delete_datasets(client):
+    d = client.list_datasets_state()
+
+    def delete(datasets):
+        deleted = [
+            client.delete_dataset(dataset.dataset_id)
+            for dataset in datasets
+        ]
+        return gather_deferreds(deleted)
+    d.addCallback(delete)
+    d.addCallback(output)
+    return d
+
+
+operations = dict(
+    print_datasets_state=print_datasets_state,
+    print_datasets_configuration=print_datasets_configuration,
+    create_datasets=create_datasets,
+    delete_datasets=delete_datasets,
+)
+
+
+def main(reactor):
+    client = flocker_client_from_environment(reactor)
+    operation_name = sys.argv[1]
+    d = operations[operation_name](client)
+    return d
+
 
 if __name__ == '__main__':
     react(main)
