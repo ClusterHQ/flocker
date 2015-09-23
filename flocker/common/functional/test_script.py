@@ -395,4 +395,5 @@ class JournaldOptionsTests(TestCase):
 
         exc = self.assertRaises(
             UsageError, MyOptions().parseOptions, ["--journald"])
-        self.assertEqual(str(exc), "Journald unavailable on this machine.")
+        self.assertTrue(str(exc).startswith(
+            "Journald unavailable on this machine: "))

@@ -24,10 +24,11 @@ from .. import __version__
 
 try:
     from ._journald import sd_journal_send
-except OSError:
+except OSError as e:
     # This platform doens't have journald.
     sd_journal_send = None
-
+    _missing_journald_reason = str(e)
+    del e
 
 __all__ = [
     'flocker_standard_options',
@@ -111,7 +112,8 @@ def flocker_standard_options(cls):
         Log to journald.
         """
         if sd_journal_send is None:
-            raise usage.UsageError("Journald unavailable on this machine.")
+            raise usage.UsageError("Journald unavailable on this machine: "
+                                   + _missing_journald_reason)
         # Log messages are written line by line, so pretend we're a file...
         self['logfile'] = JournaldFile()
     cls.opt_journald = opt_journald
