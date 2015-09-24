@@ -32,6 +32,8 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
 from datetime import timedelta
+from io import BytesIO
+from itertools import count
 from contextlib import contextmanager
 
 from eliot import Logger, ActionType, Action, Field
@@ -44,6 +46,7 @@ from zope.interface import Interface, Attribute
 from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
+    MAX_VALUE_LENGTH,
 )
 from twisted.internet.task import LoopingCall
 from twisted.internet.protocol import ServerFactory
@@ -57,6 +60,62 @@ from ._model import (
 )
 
 PING_INTERVAL = timedelta(seconds=30)
+
+
+class Big(Argument):
+    """
+    An ``Argument`` type which can handle objects which are larger than AMP's
+    MAX_VALUE_LENGTH when serialized.
+
+    Thanks to Glyph Lefkowitz for the idea:
+    * http://bazaar.launchpad.net/~glyph/+junk/amphacks/view/head:/python/amphacks/mediumbox.py  # noqa
+    """
+    def __init__(self, another_argument):
+        """
+        :param Argument another_argument: The wrapped AMP ``Argument``.
+        """
+        self.another_argument = another_argument
+
+    def toBox(self, name, strings, objects, proto):
+        """
+        During serialization, the wrapped ``Argument`` is serialized in full
+        and then popped out of the supplied ``strings`` dictionary, broken into
+        chunks <= MAX_VALUE_LENGTH which are added back to the ``strings``
+        dictionary with indexed key names so that the chunks can be put back
+        together in the correct order during deserialization.
+
+        See ``IArgumentType`` for argument and return type documentation.
+        """
+        self.another_argument.toBox(name, strings, objects, proto)
+        value = BytesIO(strings.pop(name))
+        counter = 0
+        while True:
+            nextChunk = value.read(MAX_VALUE_LENGTH)
+            if not nextChunk:
+                break
+            strings["%s.%d" % (name, counter)] = nextChunk
+            counter += 1
+
+    def fromBox(self, name, strings, objects, proto):
+        """
+        During deserialization, the indexed chunks are re-assembled from the
+        ``strings`` dictionary and the combined value is then placed back into
+        the strings dictionary using the expected key name. The ``fromBox``
+        method of the wrapped ``Argument`` is then called supplied with the
+        updated ``strings`` dictionary, deserializes the large value and
+        populates the ``objects`` dictionary with the result.
+
+        See ``IArgumentType`` for argument and return type documentation.
+        """
+
+        value = BytesIO()
+        for counter in count(0):
+            chunk = strings.get("%s.%d" % (name, counter))
+            if chunk is None:
+                break
+            value.write(chunk)
+            strings[name] = value.getvalue()
+        self.another_argument.fromBox(name, strings, objects, proto)
 
 
 class CachingEncoder(object):
