@@ -53,6 +53,8 @@ class Cluster(PRecord):
         agent in the cluster.
     :ivar DatasetBackend dataset_backend: The volume backend the nodes are
         configured with.
+    :ivar int default_volume_size: The default volume size (in bytes) supported
+        by the ``dataset_backend``.
     :ivar FilePath certificates_path: Directory where certificates can be
         found; specifically the directory used by ``Certificates``.
     :ivar Certificates certificates: Certificates to for the cluster.
