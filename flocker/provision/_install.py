@@ -5,7 +5,6 @@
 Install flocker on a remote node.
 """
 
-from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
@@ -206,14 +205,11 @@ def ensure_minimal_setup(package_manager):
         raise UnsupportedDistribution()
 
 
-def cli_pkg_test(package_source=PackageSource()):
+def task_cli_pkg_test():
     """
     Check that the CLI is working.
     """
-    expected = package_source.version
-    if expected is None:
-        expected = get_installable_version(version)
-    return run("test `flocker-deploy --version` = {}".format(quote(expected)))
+    return run_from_args(['flocker-deploy', '--version'])
 
 
 def install_commands_yum(package_name, distribution, package_source,
@@ -235,21 +231,15 @@ def install_commands_yum(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
-    repo_package_name = 'clusterhq-release'
-    flocker_version = package_source.version
-    if flocker_version is None:
-        flocker_version = get_installable_version(version)
     commands = [
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
         run(
-            command="yum list installed {} || yum install -y {}".format(
-                quote(repo_package_name),
+            command="yum list installed clusterhq-release || yum install -y {0}".format(  # noqa
                 get_repository_url(
                     distribution=distribution,
-                    flocker_version=flocker_version))
-        ),
-    ]
+                    flocker_version=get_installable_version(version)))),
+        ]
 
     if base_url is not None:
         repo = dedent(b"""\
@@ -298,9 +288,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
-    flocker_version = package_source.version
-    if flocker_version is None:
-        flocker_version = get_installable_version(version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -316,7 +303,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
-                flocker_version=flocker_version)))
+                flocker_version=get_installable_version(version))))
         ]
 
     if base_url is not None:
@@ -472,20 +459,17 @@ def task_cli_pip_install(
         ])
 
 
-def cli_pip_test(
-        venv_name='flocker-client', package_source=PackageSource()):
+def task_cli_pip_test(venv_name='flocker-client'):
     """
     Test the Flocker client installed in a virtualenv.
 
     :param bytes venv_name: Name for the virtualenv.
     :return: an Effect to test the client.
     """
-    expected = package_source.version
-    if expected is None:
-        expected = get_installable_version(version)
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run("test `flocker-deploy --version` = {}".format(quote(expected))),
+        run_from_args(
+            ['flocker-deploy', '--version']),
         ])
 
 

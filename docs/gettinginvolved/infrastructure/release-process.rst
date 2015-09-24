@@ -253,19 +253,6 @@ Release
       admin/publish-artifacts
       admin/publish-docs --production
 
-#. Check that the artifacts are set up correctly:
-
-   The following command tests that the client packages can be installed on a number of platforms.
-   This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      admin/test-artifacts
-
-   If an error occurs for a single pip installation, create a JIRA issue to investigate it.
-   If an error occurs for all pip installations, or if an error occurs for the RPM or DEB packages, create a fast-track JIRA issue to investigate the problem.
-   In any case, continue with the release.
-
 #. Check that the documentation is set up correctly:
 
    The following command outputs error messages if the documentation does not redirect correctly.

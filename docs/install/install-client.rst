@@ -75,11 +75,8 @@ To install ``flocker-cli`` in a Python virtualenv, run:
 
 Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 
-.. version-prompt:: bash alice@mercury:~$ auto
-
-   alice@mercury:~$ source flocker-client/bin/activate
-   alice@mercury:~$ flocker-deploy --version
-   |latest-installable|
+.. task:: cli_pip_test flocker-client
+   :prompt: alice@mercury:~$
 
 OS X
 ====
