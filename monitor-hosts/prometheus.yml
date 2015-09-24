@@ -1,0 +1,18 @@
+# vi: set ft=yaml sw=2 :
+# Global settings and defaults.
+global:
+  # By default, scrape targets every 60 seconds.
+  scrape_interval: "30s"
+  # By default, evaluate alerting and recording rules every 60 seconds.
+  evaluation_interval: "60s"
+
+scrape_configs:
+- job_name: "prometheus"
+  target_groups:
+  - targets:
+    - "localhost:9090"
+
+- job_name: "collectd"
+  target_groups:
+  - targets:
+    - "localhost:9103"
