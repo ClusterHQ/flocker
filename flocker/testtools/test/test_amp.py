@@ -8,7 +8,7 @@ from ..amp import FakeAMPClient, DelayedAMPClient
 from ...control.test.test_protocol import LoopbackAMPClient
 
 from twisted.trial.unittest import SynchronousTestCase
-
+from twisted.internet.error import ConnectionLost
 from twisted.protocols.amp import (
     Command, Integer, ListOf, MAX_VALUE_LENGTH, TooLong, CommandLocator,
 )
@@ -94,10 +94,36 @@ class CommandWithBigListArgument(Command):
     ]
 
 
-class CommandWithBigListArgumentLocator(CommandLocator):
+class CommandWithBigResponse(Command):
+    response = [
+        ("big", ListOf(Integer())),
+    ]
+
+
+class CommandWithSmallResponse(Command):
+    response = [
+        ("small", ListOf(Integer())),
+    ]
+
+
+class MinimalLocator(CommandLocator):
     @CommandWithBigListArgument.responder
-    def responder(self, big):
+    def big_argument_responder(self, big):
         return {}
+
+    @CommandWithSmallResponse.responder
+    def small_response_responder(self):
+        return dict(
+            small=range(10),
+        )
+
+    @CommandWithBigResponse.responder
+    def big_response_responder(self):
+        return dict(
+            # A list containing all integers up to MAX_VALUE_LENGTH must be
+            # longer than MAX_VALUE_LENGTH when serialized.
+            big=range(MAX_VALUE_LENGTH),
+        )
 
 
 class LoopbackAMPClientTests(SynchronousTestCase):
@@ -110,7 +136,7 @@ class LoopbackAMPClientTests(SynchronousTestCase):
         MAX_VALUE_LENGTH.
         """
         client = LoopbackAMPClient(
-            command_locator=CommandWithBigListArgumentLocator()
+            command_locator=MinimalLocator()
         )
 
         d = client.callRemote(
@@ -119,13 +145,13 @@ class LoopbackAMPClientTests(SynchronousTestCase):
         )
         self.successResultOf(d)
 
-    def test_long_argument(self):
+    def test_big_argument(self):
         """
         ``LoopbackAMPClient.callRemote`` raises ``TooLong`` when supplied with
         a command argument which is > MAX_VALUE_LENGTH when serialized.
         """
         client = LoopbackAMPClient(
-            command_locator=CommandWithBigListArgumentLocator()
+            command_locator=MinimalLocator()
         )
         self.assertRaises(
             TooLong,
@@ -135,3 +161,31 @@ class LoopbackAMPClientTests(SynchronousTestCase):
             # longer than MAX_VALUE_LENGTH when serialized.
             big=range(MAX_VALUE_LENGTH),
         )
+
+    def test_regular_response(self):
+        """
+        ``LoopbackAMPClient.callRemote`` can serialize responses that are <
+        MAX_VALUE_LENGTH.
+        """
+        client = LoopbackAMPClient(
+            command_locator=MinimalLocator()
+        )
+
+        d = client.callRemote(
+            command=CommandWithSmallResponse,
+        )
+        self.successResultOf(d)
+
+    def test_big_response(self):
+        """
+        ``LoopbackAMPClient.callRemote`` fails with ``ConnectionLost`` when the
+        response is > MAX_VALUE_LENGTH when serialized. The ``ConnectionLost``
+        failure contains the traceback message for the original ``TooLong``
+        error. Not ideal. See https://tm.tl/7055.
+        """
+        client = LoopbackAMPClient(
+            command_locator=MinimalLocator()
+        )
+        d = client.callRemote(command=CommandWithBigResponse)
+        failure = self.failureResultOf(d, ConnectionLost)
+        self.assertIn('twisted.protocols.amp.TooLong', failure.value.args[0])
