@@ -49,10 +49,10 @@ Troubleshooting
 How do I go about debugging after a functional test has failed?
 ---------------------------------------------------------------
 
-Start with Flocker node agent log (:file:`/var/log/flocker/flocker-dataset-agent.log`).
+Start with the Flocker node agent log (:file:`/var/log/flocker/flocker-dataset-agent.log`).
 You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format. 
 
-If the Flocker log looks ok, move on to storage driver log, then storage backend logs.
+Following this, review the storage driver log, then storage backend logs.
 
 How do I triage further if I see the following error in Flocker dataset agent log?
 ----------------------------------------------------------------------------------
