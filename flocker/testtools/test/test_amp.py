@@ -127,9 +127,6 @@ class LoopbackAMPClientTests(SynchronousTestCase):
         client = LoopbackAMPClient(
             command_locator=CommandWithBigListArgumentLocator()
         )
-
-        # XXX The TooLong exception is raised synchronously here rather than as
-        # an errback. Is that realistic?
         self.assertRaises(
             TooLong,
             client.callRemote,
