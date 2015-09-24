@@ -1068,10 +1068,12 @@ def task_install_docker(distribution):
     else:
         update = b""
 
+    # The installation script seems to fail intermittently with Ubuntu dash.
+    # Force use of bash to run script. See FLOC-3013.
     return run(command=(
         b"[[ -e /usr/bin/docker ]] || { " + update +
         b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
-        b"sh /tmp/install-docker.sh"
+        b"bash /tmp/install-docker.sh"
         b"; }"
     ))
 
