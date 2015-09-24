@@ -233,7 +233,7 @@ class ClusterStatusCommand(Command):
     in the convergence agent during startup.
     """
     arguments = [('configuration', Big(SerializableArgument(Deployment))),
-                 ('state', SerializableArgument(DeploymentState)),
+                 ('state', Big(SerializableArgument(DeploymentState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
