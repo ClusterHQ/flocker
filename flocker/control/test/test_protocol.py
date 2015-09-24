@@ -131,6 +131,71 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
+# 800 is arbitrarily selected.  The two interesting properties it has are:
+#
+#   * It is large enough that serializing the result exceeds the native AMP
+#     size limit.
+#   * It is the current target for Flocker "scaling".
+#
+_MANY_CONTAINERS = 800
+
+
+def huge_node(node_prototype):
+    """
+    Return a node with many applications.
+
+    :param node_prototype: A ``Node`` or ``NodeState`` to use as a template for
+        the resulting node.
+
+    :return: An object like ``node_prototype`` but with its applications
+        replaced by a large collection of applications.
+    """
+    image = DockerImage.from_string(u'postgresql')
+    applications = [
+        Application(name=u'postgres-{}'.format(i), image=image)
+        for i in range(_MANY_CONTAINERS)
+    ]
+    return node_prototype.set(applications=applications)
+
+
+def _huge(deployment_prototype, node_prototype):
+    """
+    Return a deployment with many applications.
+
+    :param deployment_prototype: A ``Deployment`` or ``DeploymentState`` to use
+        as a template for the resulting deployment.
+    :param node_prototype: See ``huge_node``.
+
+    :return: An object like ``deployment_prototype`` but with a node like
+        ``node_prototype`` added (or modified) so as to include a large number
+        of applications.
+    """
+    return deployment_prototype.update_node(
+        huge_node(node_prototype),
+    )
+
+
+def huge_deployment():
+    """
+    Return a configuration with many containers.
+
+    :rtype: ``Deployment``
+    """
+    return _huge(Deployment(), Node(hostname=u'192.0.2.31'))
+
+
+def huge_state():
+    """
+    Return a state with many containers.
+
+    :rtype: ``DeploymentState``
+    """
+    return _huge(
+        DeploymentState(),
+        NodeState(hostname=u'192.0.2.31', applications=[], used_ports=[]),
+    )
+
+
 # A very simple piece of node state that makes for nice-looking, easily-read
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
@@ -693,6 +758,34 @@ class AgentClientTests(SynchronousTestCase):
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
+
+    def test_too_long_configuration(self):
+        """
+        AMP protocol can transmit configurations with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        actual = DeploymentState(nodes=[])
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=huge_deployment(),
+            state=actual,
+            eliot_context=TEST_ACTION
+        )
+
+        self.successResultOf(d)
+
+    def test_too_long_state(self):
+        """
+        AMP protocol can transmit states with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=Deployment(),
+            state=huge_state(),
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
 
     def test_cluster_updated(self):
         """

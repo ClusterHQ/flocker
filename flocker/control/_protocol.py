@@ -232,8 +232,8 @@ class ClusterStatusCommand(Command):
     Having both as a single command simplifies the decision making process
     in the convergence agent during startup.
     """
-    arguments = [('configuration', SerializableArgument(Deployment)),
-                 ('state', SerializableArgument(DeploymentState)),
+    arguments = [('configuration', Big(SerializableArgument(Deployment))),
+                 ('state', Big(SerializableArgument(DeploymentState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
