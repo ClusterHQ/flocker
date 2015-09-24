@@ -1,7 +1,7 @@
 .. _contribute-flocker-driver:
 
 ==========================================
-Contributing a new Flocker storage backend
+Contributing a New Flocker Storage Backend
 ==========================================
 
 Flocker supports pluggable storage backends. 
