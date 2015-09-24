@@ -710,8 +710,7 @@ class DockerClient(object):
                 # attempting removal or use -f")'
                 # This code should probably be removed once the above
                 # issue has been resolved. See [FLOC-1850]
-                while self._blocking_container_runs(container_name):
-                    sleep(0.01)
+                self._client.wait(container_name)
 
                 Message.new(
                     message_type="flocker:docker:container_remove",
