@@ -370,7 +370,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         changed_local_state = local_state.set(
-            applications=pset(),
+            applications=pset([Application(
+                name=u"app",
+                image=DockerImage.from_string(u"nginx"))]),
         )
         configuration = Deployment(nodes=[to_node(local_state)])
         state = DeploymentState(nodes=[local_state])
