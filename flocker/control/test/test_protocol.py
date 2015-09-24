@@ -613,12 +613,17 @@ class ControlAMPTests(ControlTestCase):
             hostname=u"192.0.3.13", uuid=uuid4(),
             applications=[], used_ports=[],
         )
+        node = huge_node(node_prototype)
         d = self.client.callRemote(
             NodeStateCommand,
-            state_changes=(huge_node(node_prototype),),
+            state_changes=(node,),
             eliot_context=TEST_ACTION,
         )
         self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(nodes=[node]),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
 
 
 class ControlAMPServiceTests(ControlTestCase):
