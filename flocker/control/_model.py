@@ -876,16 +876,13 @@ class NodeState(PRecord):
     # Dataset attributes that must all be non-None if one is non-None:
     _DATASET_ATTRIBUTES = {"manifestations", "paths", "devices"}
 
-    # Application attributes that must all be non-None if one is non-None:
-    _APPLICATION_ATTRIBUTES = {"applications"}
-
     def __invariant__(self):
         def _field_missing(fields):
             num_known_attributes = sum(getattr(self, name) is None
                                        for name in fields)
             return num_known_attributes not in (0, len(fields))
-        for fields in (self._APPLICATION_ATTRIBUTES, self._DATASET_ATTRIBUTES):
-            if _field_missing(fields):
+        for fields in [self._DATASET_ATTRIBUTES]:
+            if _field_missing(self._DATASET_ATTRIBUTES):
                 return (False,
                         "Either all or none of {} must be set.".format(fields))
         return (True, "")
