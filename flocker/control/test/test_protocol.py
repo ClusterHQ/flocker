@@ -192,7 +192,7 @@ def huge_state():
     """
     return _huge(
         DeploymentState(),
-        NodeState(hostname=u'192.0.2.31', applications=[], used_ports=[]),
+        NodeState(hostname=u'192.0.2.31', applications=[]),
     )
 
 
@@ -609,8 +609,7 @@ class ControlAMPTests(ControlTestCase):
         AMP protocol can transmit node states with 800 applications.
         """
         node_prototype = NodeState(
-            hostname=u"192.0.3.13", uuid=uuid4(),
-            applications=[], used_ports=[],
+            hostname=u"192.0.3.13", uuid=uuid4(), applications=[],
         )
         node = huge_node(node_prototype)
         d = self.client.callRemote(
