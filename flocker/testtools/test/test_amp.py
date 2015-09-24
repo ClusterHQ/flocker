@@ -5,10 +5,13 @@ Tests for :module:`flocker.testtools.amp`.
 """
 
 from ..amp import FakeAMPClient, DelayedAMPClient
+from ...control.test.test_protocol import LoopbackAMPClient
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from twisted.protocols.amp import Command, Integer
+from twisted.protocols.amp import (
+    Command, Integer, ListOf, MAX_VALUE_LENGTH, TooLong,
+)
 
 
 class TestCommand(Command):
@@ -83,3 +86,51 @@ class DelayedAMPClientTests(SynchronousTestCase):
         )
 
     # Missing test: Handling of multiple calls.
+
+
+class CommandWithBigListArgument(Command):
+    arguments = [
+        ("big", ListOf(Integer())),
+    ]
+
+
+class LoopbackAMPClientTests(SynchronousTestCase):
+    """
+    Tests for :class:`LoopbackAMPClient`.
+    """
+    def test_regular_argument(self):
+        """
+        ``LoopbackAMPClient.callRemote`` can serialize arguments that are <
+        MAX_VALUE_LENGTH.
+        """
+        client = LoopbackAMPClient(
+            # XXX What is the minimum viable command locator I can supply here?
+            command_locator=object()
+        )
+
+        d = client.callRemote(
+            command=CommandWithBigListArgument,
+            big=range(10),
+        )
+        self.successResultOf(d)
+
+    def test_long_argument(self):
+        """
+        ``LoopbackAMPClient.callRemote`` raises ``TooLong`` when supplied with
+        a command argument which is > MAX_VALUE_LENGTH when serialized.
+        """
+        client = LoopbackAMPClient(
+            command_locator=object()
+        )
+
+        # XXX The TooLong exception is raised synchronously here rather than as
+        # an errback. Is that realistic? If so, I need to use assertRaises here
+        # instead.
+        d = client.callRemote(
+            command=CommandWithBigListArgument,
+            # A list containing all integers up to MAX_VALUE_LENGTH must be
+            # longer than MAX_VALUE_LENGTH when serialized.
+            big=range(MAX_VALUE_LENGTH),
+        )
+        failure = self.failureResultOf(d, TooLong)
+        self.assertEqual('', failure)
