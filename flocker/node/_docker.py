@@ -12,7 +12,7 @@ from time import sleep
 from zope.interface import Interface, implementer
 
 from docker import Client
-from docker.errors import APIError
+from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
 from eliot import Message
@@ -594,10 +594,13 @@ class DockerClient(object):
             # stop on this container Docker might well complain it knows
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
-            while not self._blocking_exists(container_name):
-                sleep(0.001)
-                continue
-            self._client.start(container_name)
+            while True:
+                try:
+                    self._client.start(container_name)
+                except NotFound:
+                    sleep(0.001)
+                else:
+                    break
 
         d = deferToThread(_add)
 
