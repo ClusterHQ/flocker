@@ -45,7 +45,7 @@ from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode,
     MAX_VALUE_LENGTH,
 )
 from twisted.internet.task import LoopingCall
@@ -55,8 +55,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ._persistence import wire_encode, wire_decode
 from ._model import (
-    Deployment, NodeState, DeploymentState, NonManifestDatasets,
-    ChangeSource,
+    Deployment, DeploymentState, ChangeSource,
 )
 
 PING_INTERVAL = timedelta(seconds=30)
