@@ -66,9 +66,9 @@ Testing Your Driver
 
    After all functional tests pass, please run acceptance tests according to our :ref:`acceptance-testing` documentation.
 
-#. Setup Continuous Integration environment for tests.
+#. Setup a Continuous Integration environment for tests.
 
-   After your acceptance tests run clean, please set up a CI environment for functional and acceptance tests for your driver.
+   After your acceptance tests pass, we recommend you set up a CI environment for functional and acceptance tests for your driver.
    For example:
    
    * `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_
