@@ -135,7 +135,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 #
 #   * It is large enough that serializing the result exceeds the native AMP
 #     size limit.
-#   * It is the current target for Flocker "scaling".
+#   * As of September 2015 it is the target for Flocker "scaling".
 #
 _MANY_CONTAINERS = 800
 
@@ -192,7 +192,7 @@ def huge_state():
     """
     return _huge(
         DeploymentState(),
-        NodeState(hostname=u'192.0.2.31', applications=[], used_ports=[]),
+        NodeState(hostname=u'192.0.2.31', applications=[]),
     )
 
 
@@ -604,6 +604,25 @@ class ControlAMPTests(ControlTestCase):
               dict(configuration=TEST_DEPLOYMENT,
                    state=cluster_state)))] * 2)
 
+    def test_too_long_node_state(self):
+        """
+        AMP protocol can transmit node states with 800 applications.
+        """
+        node_prototype = NodeState(
+            hostname=u"192.0.3.13", uuid=uuid4(), applications=[],
+        )
+        node = huge_node(node_prototype)
+        d = self.client.callRemote(
+            NodeStateCommand,
+            state_changes=(node,),
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(nodes=[node]),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
@@ -765,27 +784,31 @@ class AgentClientTests(SynchronousTestCase):
         """
         self.client.makeConnection(StringTransport())
         actual = DeploymentState(nodes=[])
+        configuration = huge_deployment()
         d = self.server.callRemote(
             ClusterStatusCommand,
-            configuration=huge_deployment(),
+            configuration=configuration,
             state=actual,
             eliot_context=TEST_ACTION
         )
 
         self.successResultOf(d)
+        self.assertEqual(configuration, self.agent.desired)
 
     def test_too_long_state(self):
         """
         AMP protocol can transmit states with 800 applications.
         """
         self.client.makeConnection(StringTransport())
+        state = huge_state()
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=Deployment(),
-            state=huge_state(),
+            state=state,
             eliot_context=TEST_ACTION,
         )
         self.successResultOf(d)
+        self.assertEqual(state, self.agent.actual)
 
     def test_cluster_updated(self):
         """
