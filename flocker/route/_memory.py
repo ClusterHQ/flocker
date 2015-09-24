@@ -21,9 +21,8 @@ class MemoryNetwork(object):
     """
     logger = Logger()
 
-    def __init__(self, used_ports):
+    def __init__(self):
         self._proxies = set()
-        self._used_ports = used_ports
         self._open_ports = set()
 
     def create_proxy_to(self, ip, port):
@@ -48,19 +47,9 @@ class MemoryNetwork(object):
     def enumerate_open_ports(self):
         return list(self._open_ports)
 
-    def enumerate_used_ports(self):
-        proxy_ports = frozenset(proxy.port for proxy in self._proxies)
-        open_ports = frozenset(open_port.port
-                               for open_port in self._open_ports)
-        return proxy_ports | open_ports | self._used_ports
 
-
-def make_memory_network(used_ports=frozenset()):
+def make_memory_network():
     """
     Create a new, isolated, in-memory-only provider of ``INetwork``.
-
-    :param frozenset used_ports: Some port numbers which are to be considered
-        already used and included in the result of ``enumerate_used_ports``
-        when called on the returned object.
     """
-    return MemoryNetwork(used_ports=used_ports)
+    return MemoryNetwork()

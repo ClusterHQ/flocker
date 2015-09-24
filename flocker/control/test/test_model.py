@@ -291,7 +291,7 @@ class NodeStateTests(SynchronousTestCase):
             applications=None,
             manifestations=None,
         )
-        app_state = node.set(applications=apps, used_ports=[])
+        app_state = node.set(applications=apps)
         data_state = node.set(manifestations=manifestations,
                               devices={}, paths={})
         cluster = DeploymentState(nodes={app_state})
@@ -302,7 +302,7 @@ class NodeStateTests(SynchronousTestCase):
                     hostname=hostname,
                     applications=apps,
                     manifestations=manifestations,
-                    devices={}, paths={}, used_ports={},
+                    devices={}, paths={},
                 )
             }),
             changed_cluster
@@ -344,25 +344,16 @@ class NodeStateTests(SynchronousTestCase):
             NodeState(hostname=u"1.2.3.4", paths=None).paths,
             None)
 
-    def test_no_used_ports(self):
-        """
-        A ``NodeState`` may have ``used_ports`` set to ``None``, indicating
-        ignorance of the correct value.
-        """
-        self.assertEqual(
-            NodeState(hostname=u"1.2.3.4", used_ports=None).used_ports,
-            None)
-
     def test_completely_ignorant_by_default(self):
         """
         A newly created ``NodeState`` is completely ignorant.
         """
         node_state = NodeState(hostname=u"1.2.3.4", uuid=uuid4())
         self.assertEqual(
-            [node_state.used_ports, node_state.applications,
+            [node_state.applications,
              node_state.manifestations, node_state.paths, node_state.devices,
              node_state._provides_information()],
-            [None, None, None, None, None, False])
+            [None, None, None, None, False])
 
     def assert_required_field_set(self, **fields):
         """
@@ -383,13 +374,6 @@ class NodeStateTests(SynchronousTestCase):
             self.assertRaises(InvariantException, NodeState,
                               hostname=u"127.0.0.1", uuid=uuid4(),
                               **remaining_fields)
-
-    def test_application_fields(self):
-        """
-        Both ``applications`` and ``used_ports`` must be set if one of them is
-        set.
-        """
-        self.assert_required_field_set(applications=[], used_ports={})
 
     def test_dataset_fields(self):
         """
@@ -1172,7 +1156,6 @@ class DeploymentStateTests(SynchronousTestCase):
             applications={Application(
                 name=u'postgresql-clusterhq',
                 image=DockerImage.from_string(u"image"))},
-            used_ports=[],
             manifestations={dataset_id: manifestation},
             devices={}, paths={})
         another_node = NodeState(
@@ -1180,7 +1163,6 @@ class DeploymentStateTests(SynchronousTestCase):
             applications=frozenset({Application(
                 name=u'site-clusterhq.com',
                 image=DockerImage.from_string(u"image"))}),
-            used_ports=[],
         )
         original = DeploymentState(nodes=[node])
         updated = original.update_node(another_node)
@@ -1202,7 +1184,6 @@ class DeploymentStateTests(SynchronousTestCase):
             applications=frozenset({Application(
                 name=u'site-clusterhq.com',
                 image=DockerImage.from_string(u"image"))}),
-            used_ports=[1, 2],
             paths={dataset_id: FilePath(b"/xxx")},
             devices={},
             manifestations={dataset_id: manifestation})
@@ -1213,7 +1194,6 @@ class DeploymentStateTests(SynchronousTestCase):
         ))
         update_manifestations = end_node.update(dict(
             applications=None,
-            used_ports=None,
         ))
 
         original = DeploymentState(
@@ -1242,7 +1222,7 @@ class DeploymentStateTests(SynchronousTestCase):
 
         expected_nodestate = NodeState(
             uuid=uuid4(), hostname=u"192.0.2.5",
-            applications={}, used_ports={},
+            applications={},
             manifestations={
                 MANIFESTATION.dataset_id: MANIFESTATION,
             },
@@ -1260,7 +1240,7 @@ class DeploymentStateTests(SynchronousTestCase):
                 # contribute nothing to the result.
                 NodeState(
                     uuid=uuid4(), hostname=u"192.0.2.4",
-                    applications={}, used_ports={},
+                    applications={},
                     manifestations=None, paths=None, devices=None,
                 ),
                 # A node with a manifestation.
@@ -1292,7 +1272,7 @@ class DeploymentStateTests(SynchronousTestCase):
                 # A node with a replica manifestation only.
                 NodeState(
                     uuid=uuid4(), hostname=u"192.0.2.5",
-                    applications={}, used_ports={},
+                    applications={},
                     manifestations={
                         replica.dataset_id: replica,
                     },
@@ -1352,7 +1332,6 @@ class NodeStateWipingTests(SynchronousTestCase):
     """
     NODE_FROM_APP_AGENT = NodeState(hostname=u"1.2.3.4", uuid=uuid4(),
                                     applications={APP1},
-                                    used_ports={1, 2, 3},
                                     manifestations=None,
                                     paths=None,
                                     devices=None)
@@ -1360,7 +1339,7 @@ class NodeStateWipingTests(SynchronousTestCase):
 
     NODE_FROM_DATASET_AGENT = NodeState(hostname=NODE_FROM_APP_AGENT.hostname,
                                         uuid=NODE_FROM_APP_AGENT.uuid,
-                                        applications=None, used_ports=None,
+                                        applications=None,
                                         manifestations={
                                             MANIFESTATION.dataset_id:
                                             MANIFESTATION},
@@ -1394,8 +1373,7 @@ class NodeStateWipingTests(SynchronousTestCase):
         The ``IClusterStateWipe`` has the same key if it is wiping same
         attributes on same node.
         """
-        different_apps_node = self.NODE_FROM_APP_AGENT.set(
-            "applications", {APP2}, "used_ports", {4, 5})
+        different_apps_node = self.NODE_FROM_APP_AGENT.set(applications={APP2})
 
         self.assertEqual(self.APP_WIPE.key(),
                          different_apps_node.get_information_wipe().key())
