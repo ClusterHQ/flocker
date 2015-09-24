@@ -545,7 +545,8 @@ class FilesystemTests(TestCase):
                 chunk = b"x" * chunk_size
                 for i in range(maximum_size / chunk_size):
                     total += len(chunk)
-                    print(total)
+                    if total > 40000000:
+                        print(total)
                     fObj.write(chunk)
                 fObj.flush()
                 with self.assertRaises(IOError) as ctx:
