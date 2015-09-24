@@ -41,6 +41,7 @@ from flocker.provision._install import (
     install_flocker,
     configure_cluster,
     configure_zfs,
+    collectd_on_cluster,
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
@@ -576,6 +577,8 @@ class RunOptions(Options):
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
+        ['collectd-server', None, None,
+         'Hostname of collectd server to report metrics to.']
     ]
 
     optFlags = [
@@ -939,6 +942,16 @@ def main(reactor, args, base_path, top_level):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 capture_journal(reactor, node.address, remote_logs_file)
+
+        if options['collectd-server']:
+            yield perform(
+                make_dispatcher(reactor),
+                collectd_on_cluster(
+                    distribution=options['distribution'],
+                    cluster=cluster,
+                    collectd_host=options['collectd-server'],
+                ),
+            )
 
         if not options["no-pull"]:
             yield perform(

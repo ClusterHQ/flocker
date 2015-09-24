@@ -1144,6 +1144,66 @@ def task_enable_docker_head_repository(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def task_install_collectd(
+        distribution, node_uuid, cluster_uuid,
+        collectd_host):
+    if not is_centos(distribution):
+        raise DistributionNotSupported(distribution=distribution)
+
+    return sequence([
+        run_from_args(["yum", "install", "-y", "epel-release"]),
+        run_from_args(["yum", "install", "-y", "collectd"]),
+        put(content=dedent("""\
+            Hostname "{node_uuid}:{cluster_uuid}"
+            LoadPlugin processes
+            <Plugin processes>
+            Process "flocker-control"
+            Process "flocker-dataset-agent"
+            Process "flocker-container-agent"
+            Process "flocker-docker-plugin"
+            </Plugin>
+            LoadPlugin network
+            <Plugin network>
+            Server "{collectd_host}"
+            </Plugin>
+            """).format(
+            node_uuid=node_uuid,
+            cluster_uuid=cluster_uuid,
+            collectd_host=collectd_host,
+            ),
+            path="/etc/collectd.d/flocker.conf",
+            ),
+        run_from_args(["systemctl", "enable", "collectd"]),
+        run_from_args(["systemctl", "start", "collectd"]),
+    ])
+
+
+def collectd_on_cluster(distribution, cluster, collectd_host):
+    """
+    :param Cluster cluster:
+    """
+    from flocker.ca import RootCredential, NodeCredential
+    cluster_uuid = RootCredential.from_path(
+        cluster.certificates.directory,
+    ).organizational_unit
+    return parallel([
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=task_install_collectd(
+                distribution=distribution,
+                node_uuid=NodeCredential.from_path(
+                    cluster.certificates.directory,
+                    "node-%d" % (i,)
+                ).uuid,
+                cluster_uuid=cluster_uuid,
+                collectd_host=collectd_host,
+            ),
+        ) for i, node
+        in enumerate(cluster.agent_nodes)
+    ])
+
+
 def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
