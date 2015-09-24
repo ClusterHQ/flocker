@@ -591,7 +591,7 @@ class DockerClient(object):
 
             # Just because we got a response doesn't mean Docker has
             # actually updated any internal state yet! So if e.g. we did a
-            # stop on this container Docker might well complain it knows
+            # start on this container Docker might well complain it knows
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
             while True:
