@@ -5,6 +5,7 @@ Tests for ``flocker.control._protocol``.
 """
 
 from uuid import uuid4
+from json import loads
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -35,6 +36,7 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
+    CachingEncoder, _caching_encoder
 )
 from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
@@ -42,7 +44,7 @@ from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import ConfigurationPersistenceService
+from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -165,11 +167,8 @@ class SerializationTests(SynchronousTestCase):
         ``SerializableArgument`` can be given multiple types to allow instances
         of any of those types to be serialized and deserialized.
         """
-        argument = SerializableArgument(list, dict)
-        objects = [
-            [u"foo"],
-            {u"bar": u"baz"},
-        ]
+        argument = SerializableArgument(NodeState, Deployment)
+        objects = [TEST_DEPLOYMENT, NODE_STATE]
         serialized = list(
             argument.toString(o)
             for o in objects
@@ -197,6 +196,16 @@ class SerializationTests(SynchronousTestCase):
         as_bytes = argument.toString(TEST_DEPLOYMENT)
         self.assertRaises(
             TypeError, SerializableArgument(NodeState).fromString, as_bytes)
+
+    def test_caches(self):
+        """
+        Encoding results are cached when in the context of the caching
+        encoder's ``cache()`` call.
+        """
+        argument = SerializableArgument(Deployment)
+        with _caching_encoder.cache():
+            self.assertIs(argument.toString(TEST_DEPLOYMENT),
+                          argument.toString(TEST_DEPLOYMENT))
 
 
 def build_control_amp_service(test, reactor=None):
@@ -849,3 +858,64 @@ class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
     """
     def build_protocol(self, reactor):
         return AgentAMP(reactor, FakeAgent())
+
+
+class CachingEncoderTests(SynchronousTestCase):
+    """
+    Tests for ``CachingEncoder``.
+    """
+    def test_encodes(self):
+        """
+        ``CachingEncoder.encode`` returns result of ``wire_encode`` for given
+        object.
+        """
+        cache = CachingEncoder()
+        self.assertEqual(
+            [loads(cache.encode(TEST_DEPLOYMENT)),
+             loads(cache.encode(NODE_STATE))],
+            [loads(wire_encode(TEST_DEPLOYMENT)),
+             loads(wire_encode(NODE_STATE))])
+
+    def test_no_caching(self):
+        """
+        ``CachingEncoder.encode`` does not cache results by default.
+        """
+        cache = CachingEncoder()
+        result1 = cache.encode(TEST_DEPLOYMENT)
+        result2 = cache.encode(NODE_STATE)
+
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is not result1,
+             cache.encode(NODE_STATE) is not result2],
+            [True, True])
+
+    def test_caches(self):
+        """
+        ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
+        particular object if used in context of ``cache()``.
+        """
+        cache = CachingEncoder()
+        with cache.cache():
+            # Warm up cache:
+            result1 = cache.encode(TEST_DEPLOYMENT)
+            result2 = cache.encode(NODE_STATE)
+
+            self.assertEqual(
+                [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
+                 loads(result2) == loads(wire_encode(NODE_STATE)),
+                 cache.encode(TEST_DEPLOYMENT) is result1,
+                 cache.encode(NODE_STATE) is result2],
+                [True, True, True, True])
+
+    def test_after_caching(self):
+        """
+        Once ``cache`` context is exited the caching no longer applies.
+        """
+        cache = CachingEncoder()
+        with cache.cache():
+            result1 = cache.encode(TEST_DEPLOYMENT)
+            result2 = cache.encode(NODE_STATE)
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is not result1,
+             cache.encode(NODE_STATE) is not result2],
+            [True, True])
