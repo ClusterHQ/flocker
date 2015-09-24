@@ -541,7 +541,7 @@ class FilesystemTests(TestCase):
             # Try to write one byte more than the maximum_size of data.
             total = 0
             with path.child(b"ok").open("w") as fObj:
-                chunk_size = 8 * 1024
+                chunk_size = 1
                 chunk = b"x" * chunk_size
                 for i in range(maximum_size / chunk_size):
                     total += len(chunk)
