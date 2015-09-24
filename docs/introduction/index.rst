@@ -89,7 +89,7 @@ The Flocker plugin for Docker depends on Docker 1.8 or later.
 
     They are distinct architectures.
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
-    This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>.
+    This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`.
 
 .. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
 .. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
