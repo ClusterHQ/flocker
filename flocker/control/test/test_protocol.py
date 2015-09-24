@@ -605,6 +605,21 @@ class ControlAMPTests(ControlTestCase):
               dict(configuration=TEST_DEPLOYMENT,
                    state=cluster_state)))] * 2)
 
+    def test_too_long_node_state(self):
+        """
+        AMP protocol can transmit node states with 800 applications.
+        """
+        node_prototype = NodeState(
+            hostname=u"192.0.3.13", uuid=uuid4(),
+            applications=[], used_ports=[],
+        )
+        d = self.client.callRemote(
+            NodeStateCommand,
+            state_changes=(huge_node(node_prototype),),
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
