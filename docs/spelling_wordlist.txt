@@ -75,7 +75,6 @@ plugin
 plugins
 pluggable
 pre
-preceding
 programmatically
 proxied
 proxying
