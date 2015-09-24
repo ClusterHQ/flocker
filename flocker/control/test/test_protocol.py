@@ -135,7 +135,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 #
 #   * It is large enough that serializing the result exceeds the native AMP
 #     size limit.
-#   * It is the current target for Flocker "scaling".
+#   * As of September 2015 it is the target for Flocker "scaling".
 #
 _MANY_CONTAINERS = 800
 
