@@ -881,10 +881,10 @@ class NodeState(PRecord):
             num_known_attributes = sum(getattr(self, name) is None
                                        for name in fields)
             return num_known_attributes not in (0, len(fields))
-        for fields in [self._DATASET_ATTRIBUTES]:
-            if _field_missing(self._DATASET_ATTRIBUTES):
-                return (False,
-                        "Either all or none of {} must be set.".format(fields))
+        if _field_missing(self._DATASET_ATTRIBUTES):
+            return (False,
+                    "Either all or none of {} must be set.".format(
+                        self._DATASET_ATTRIBUTES))
         return (True, "")
 
     def __new__(cls, **kwargs):
