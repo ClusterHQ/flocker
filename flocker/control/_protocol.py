@@ -244,9 +244,26 @@ class NodeStateCommand(Command):
     status of a particular node.
     """
     arguments = [
-        ('state_changes', ListOf(
-            SerializableArgument(NodeState, NonManifestDatasets))),
-        ('eliot_context', _EliotActionArgument())]
+        # A state change might be large enough not to fit into a single AMP
+        # value so use Big to split it across multiple values if necessary.
+        #
+        # The protocol specifies that a sequence of changes is always sent so
+        # the type required by ``SerializableArgument`` is either ``list`` or
+        # ``tuple`` (the implementation mostly or always uses a ``tuple`` but
+        # ``SerializableArgument`` converts ``tuple`` to ``list`` so we have to
+        # allow both types so the *receiving* side, where that conversion has
+        # happened, accepts the value).
+        #
+        # The sequence items will be some other serializable type (and should
+        # be a type that implements ``IClusterStateSource`` - such as
+        # ``NodeState`` or ``NonManifestDatasets``) and ``wire_encode`` will
+        # enforce that for us.
+        #
+        # Note that Big is not a great way to deal with large quantities of
+        # data.  See FLOC-3113.
+        ('state_changes', Big(SerializableArgument(list, tuple))),
+        ('eliot_context', _EliotActionArgument()),
+    ]
     response = []
 
 
