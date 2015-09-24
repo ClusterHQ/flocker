@@ -598,7 +598,7 @@ class DockerClient(object):
                 try:
                     self._client.start(container_name)
                 except NotFound:
-                    sleep(0.001)
+                    sleep(0.01)
                 else:
                     break
 
