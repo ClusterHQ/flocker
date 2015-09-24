@@ -12,6 +12,8 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
 from twisted.internet.ssl import Certificate
 
+from eliot import Logger, Message
+
 from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
@@ -78,7 +80,8 @@ class ControlScript(object):
 
 
 def flocker_control_main():
-    print sys.version
+    logger = Logger()
+    Message.new(python=sys.version).write(logger)
     return FlockerScriptRunner(
         script=ControlScript(),
         options=ControlOptions()
