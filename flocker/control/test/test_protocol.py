@@ -125,6 +125,9 @@ del dataset
 
 
 class BigArgumentTests(SynchronousTestCase):
+    """
+    Tests for ``Big``.
+    """
     class CommandWithBigArgument(Command):
         arguments = [
             ("big", Big(String())),
@@ -155,6 +158,9 @@ class BigArgumentTests(SynchronousTestCase):
         self.assertTrue(verifyObject(IArgumentType, big))
 
     def assert_roundtrips(self, command, **kwargs):
+        """
+        ``kwargs`` supplied to ``command`` can be serialized and unserialized.
+        """
         amp_protocol = None
         argument_box = command.makeArguments(kwargs, amp_protocol)
         [roundtripped] = parseString(argument_box.serialize())
@@ -162,26 +168,47 @@ class BigArgumentTests(SynchronousTestCase):
         self.assertEqual(kwargs, parsed_objects)
 
     def test_roundtrip_non_string(self):
+        """
+        When ``Big`` wraps a non-string argument, it can serialize and
+        unserialize it.
+        """
         some_list = range(10)
         self.assert_roundtrips(self.CommandWithBigListArgument, big=some_list)
 
     def test_roundtrip_small(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are smaller then
+        MAX_VALUE_LENGTH.
+        """
         small_bytes = b"hello world"
         self.assert_roundtrips(self.CommandWithBigArgument, big=small_bytes)
 
     def test_roundtrip_medium(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are larger than
+        MAX_VALUE_LENGTH.
+        """
         medium_bytes = b"x" * (MAX_VALUE_LENGTH + 1)
         self.assert_roundtrips(self.CommandWithBigArgument, big=medium_bytes)
 
     def test_roundtrip_large(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are larger than
+        MAX_VALUE_LENGTH.
+        """
         big_bytes = u"\n".join(
             u"{value}".format(value=value)
             for value
             in range(MAX_VALUE_LENGTH)
         ).encode("ascii")
+
         self.assert_roundtrips(self.CommandWithBigArgument, big=big_bytes)
 
     def test_two_big_arguments(self):
+        """
+        AMP can serialize and unserialize a ``Command`` with multiple ``Big``
+        arguments.
+        """
         self.assert_roundtrips(
             self.CommandWithTwoBigArgument,
             big=b"hello world",
@@ -189,6 +216,10 @@ class BigArgumentTests(SynchronousTestCase):
         )
 
     def test_big_and_regular_arguments(self):
+        """
+        AMP can serialize and unserialize a ``Command`` with a combination of
+        ``Big`` and regular arguments.
+        """
         self.assert_roundtrips(
             self.CommandWithBigAndRegularArgument,
             big=b"hello world",
