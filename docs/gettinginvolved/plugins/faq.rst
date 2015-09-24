@@ -83,7 +83,7 @@ How do I reset the Flocker control service state if my test environment is messe
 -------------------------------------------------------------------------------------
 
 Flocker control state is stored in :file:`/var/lib/flocker/current_configuration.v1.json` on the control compute node.
-You can edit/remove the file to reduce/cleanup control service state:
+You can remove the file to reset the Flocker control service state:
 
 
 .. prompt:: bash $
