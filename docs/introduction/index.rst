@@ -17,7 +17,7 @@ Flocker manages Docker containers and data volumes together.
 When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
-To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker<.. _docker-plugin:>`.
+To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker <docker-plugin>`.
 
 .. image:: images/flocker-v-native-containers.svg
    :alt: Migrating data: Native Docker versus Flocker.
