@@ -786,27 +786,31 @@ class AgentClientTests(SynchronousTestCase):
         """
         self.client.makeConnection(StringTransport())
         actual = DeploymentState(nodes=[])
+        configuration = huge_deployment()
         d = self.server.callRemote(
             ClusterStatusCommand,
-            configuration=huge_deployment(),
+            configuration=configuration,
             state=actual,
             eliot_context=TEST_ACTION
         )
 
         self.successResultOf(d)
+        self.assertEqual(configuration, self.agent.desired)
 
     def test_too_long_state(self):
         """
         AMP protocol can transmit states with 800 applications.
         """
         self.client.makeConnection(StringTransport())
+        state = huge_state()
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=Deployment(),
-            state=huge_state(),
+            state=state,
             eliot_context=TEST_ACTION,
         )
         self.successResultOf(d)
+        self.assertEqual(state, self.agent.actual)
 
     def test_cluster_updated(self):
         """
