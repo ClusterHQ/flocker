@@ -140,14 +140,18 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 _MANY_CONTAINERS = 800
 
 
-def _huge(deployment_prototype, node_prototype):
+def huge_node(node_prototype):
     image = DockerImage.from_string(u'postgresql')
     applications = [
         Application(name=u'postgres-{}'.format(i), image=image)
         for i in range(_MANY_CONTAINERS)
     ]
+    return node_prototype.set(applications=applications)
+
+
+def _huge(deployment_prototype, node_prototype):
     return deployment_prototype.update_node(
-        node_prototype.set(applications=applications),
+        huge_node(node_prototype),
     )
 
 
