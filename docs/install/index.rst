@@ -8,12 +8,12 @@ Quick Start
 ===========
 
 Want to get started with Flocker quickly?
-Try the :ref:`Installer <labs-installer>`.
+You can try the Labs Installer.
 
 * It makes it easy to set up and manage a Flocker cluster.
 * It runs inside a Docker container on your local machine.
 
-:ref:`Click here to proceed with the automatic installer <labs-installer>`.
+:ref:`Try the Labs installer <labs-installer>`.
 
 If you'd rather install Flocker manually, read on.
 
