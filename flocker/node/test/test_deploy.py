@@ -693,6 +693,49 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
 
+    def test_discover_application_with_cpushares(self):
+        """
+        An ``Application`` with a cpu_shares value is discovered from a
+        ``Unit`` with a cpu_shares value.
+        """
+        unit1 = UNIT_FOR_APP.set("cpu_shares", 512)
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [APP.set("cpu_shares", 512)]
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_state(self.EMPTY_NODESTATE)
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d)[0].applications))
+
+    def test_discover_application_with_memory_limit(self):
+        """
+        An ``Application`` with a memory_limit value is discovered from a
+        ``Unit`` with a mem_limit value.
+        """
+        memory_limit = 104857600
+        unit1 = UNIT_FOR_APP.set("mem_limit", memory_limit)
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [APP.set("memory_limit", memory_limit)]
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_state(self.EMPTY_NODESTATE)
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d)[0].applications))
+
     def test_discover_application_with_environment(self):
         """
         An ``Application`` with ``Environment`` objects is discovered from a
