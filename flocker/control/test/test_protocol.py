@@ -158,6 +158,16 @@ def huge_deployment():
     return _huge(Deployment(), Node(hostname=u'192.0.2.31'))
 
 
+def huge_state():
+    """
+    Return a state with many containers.
+    """
+    return _huge(
+        DeploymentState(),
+        NodeState(hostname=u'192.0.2.31', applications=[], used_ports=[]),
+    )
+
+
 # A very simple piece of node state that makes for nice-looking, easily-read
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
@@ -735,6 +745,19 @@ class AgentClientTests(SynchronousTestCase):
             eliot_context=TEST_ACTION
         )
 
+        self.successResultOf(d)
+
+    def test_too_long_state(self):
+        """
+        AMP protocol can transmit states with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=Deployment(),
+            state=huge_state(),
+            eliot_context=TEST_ACTION,
+        )
         self.successResultOf(d)
 
     def test_cluster_updated(self):
