@@ -131,24 +131,32 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
+# 800 is arbitrarily selected.  The two interesting properties it has are:
+#
+#   * It is large enough that serializing the result exceeds the native AMP
+#     size limit.
+#   * It is the current target for Flocker "scaling".
+#
+_MANY_CONTAINERS = 800
+
+
+def _huge(deployment_prototype, node_prototype):
+    image = DockerImage.from_string(u'postgresql')
+    applications = [
+        Application(name=u'postgres-{}'.format(i), image=image)
+        for i in range(_MANY_CONTAINERS)
+    ]
+    return deployment_prototype.update_node(
+        node_prototype.set(applications=applications),
+    )
+
 
 def huge_deployment():
     """
-    Return a configuration with 800 containers.
+    Return a configuration with many containers.
     """
-    image = DockerImage.from_string(u'postgresql')
-    applications = [
-        Application(name=u'postgress-{}'.format(i), image=image)
-        for i in range(800)
-    ]
-    return Deployment(
-        nodes=[
-            Node(
-                hostname=u'node1.example.com',
-                applications=applications
-            )
-        ]
-    )
+    return _huge(Deployment(), Node(hostname=u'192.0.2.31'))
+
 
 # A very simple piece of node state that makes for nice-looking, easily-read
 # test failures.  It arbitrarily supplies only ports because integers have a
@@ -714,7 +722,7 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
 
-    def test_too_long(self):
+    def test_too_long_configuration(self):
         """
         AMP protocol can transmit configurations with 800 applications.
         """
