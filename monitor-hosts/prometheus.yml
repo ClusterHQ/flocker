@@ -16,3 +16,12 @@ scrape_configs:
   target_groups:
   - targets:
     - "localhost:9103"
+  metric_relabel_configs:
+  - source_labels: [exported_instance]
+    target_label: cluster_uuid
+    regex: (.*):(.*)
+    replacement: ${2}
+  - source_labels: [exported_instance]
+    target_label: node_uuid
+    regex: (.*):(.*)
+    replacement: ${1}
