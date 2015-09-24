@@ -10,7 +10,7 @@ from ...control.test.test_protocol import LoopbackAMPClient
 from twisted.trial.unittest import SynchronousTestCase
 
 from twisted.protocols.amp import (
-    Command, Integer, ListOf, MAX_VALUE_LENGTH, TooLong,
+    Command, Integer, ListOf, MAX_VALUE_LENGTH, TooLong, CommandLocator,
 )
 
 
@@ -94,6 +94,12 @@ class CommandWithBigListArgument(Command):
     ]
 
 
+class CommandWithBigListArgumentLocator(CommandLocator):
+    @CommandWithBigListArgument.responder
+    def responder(self, big):
+        return {}
+
+
 class LoopbackAMPClientTests(SynchronousTestCase):
     """
     Tests for :class:`LoopbackAMPClient`.
@@ -104,8 +110,7 @@ class LoopbackAMPClientTests(SynchronousTestCase):
         MAX_VALUE_LENGTH.
         """
         client = LoopbackAMPClient(
-            # XXX What is the minimum viable command locator I can supply here?
-            command_locator=object()
+            command_locator=CommandWithBigListArgumentLocator()
         )
 
         d = client.callRemote(
@@ -120,7 +125,7 @@ class LoopbackAMPClientTests(SynchronousTestCase):
         a command argument which is > MAX_VALUE_LENGTH when serialized.
         """
         client = LoopbackAMPClient(
-            command_locator=object()
+            command_locator=CommandWithBigListArgumentLocator()
         )
 
         # XXX The TooLong exception is raised synchronously here rather than as
