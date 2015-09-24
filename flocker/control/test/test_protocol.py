@@ -20,7 +20,7 @@ from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
-    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP,
+    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP, parseString,
 )
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
@@ -69,9 +69,35 @@ class LoopbackAMPClient(object):
 
         @return: A C{Deferred} that fires with the result of the responder.
         """
-        arguments = command.makeArguments(kwargs, self._locator)
+        # Get a Box for the supplied arguments. E.g.
+        # command = ClusterStatusUpdate
+        # kwargs = {"configuration": Deployment(nodes={Node(...)})}
+        # The Box contains the Deployment object converted to nested dict. E.g.
+        # Box({"configuration": {"$__class__$": "Deployment", ...}})
+        argument_box = command.makeArguments(kwargs, self._locator)
+
+        # Serialize the arguments to prove that we can.  For example, if an
+        # argument would serialize to more than 64kB then we can't actually
+        # serialize it so we want a test attempting this to fail.
+        # Wire format will contain bytes. E.g.
+        # b"\x12\x32configuration..."
+        wire_format = argument_box.serialize()
+
+        # Now decode the bytes back to a Box
+        [decoded_argument_box] = parseString(wire_format)
+
+        # And supply that to the responder which internally reverses
+        # makeArguments -> back to kwargs
         responder = self._locator.locateResponder(command.commandName)
-        d = responder(arguments)
+        d = responder(decoded_argument_box)
+
+        def serialize_response(response_box):
+            # As above, prove we can serialize the response.
+            wire_format = response_box.serialize()
+            [decoded_response_box] = parseString(wire_format)
+            return decoded_response_box
+
+        d.addCallback(serialize_response)
         d.addCallback(command.parseResponse, self._locator)
 
         def massage_error(error):
