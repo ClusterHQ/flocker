@@ -42,7 +42,7 @@ With the Flocker API or CLI you can:
 * Migrate local data volumes between servers (currently Experimental)
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
-To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker<.. _docker-plugin:>`.
+To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker <docker-plugin>`.
 
 Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.
 :ref:`View a complete list of supported storage backends <storage-backends>`.
