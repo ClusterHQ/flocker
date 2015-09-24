@@ -129,13 +129,12 @@ class LoopbackAMPClientTests(SynchronousTestCase):
         )
 
         # XXX The TooLong exception is raised synchronously here rather than as
-        # an errback. Is that realistic? If so, I need to use assertRaises here
-        # instead.
-        d = client.callRemote(
+        # an errback. Is that realistic?
+        self.assertRaises(
+            TooLong,
+            client.callRemote,
             command=CommandWithBigListArgument,
             # A list containing all integers up to MAX_VALUE_LENGTH must be
             # longer than MAX_VALUE_LENGTH when serialized.
             big=range(MAX_VALUE_LENGTH),
         )
-        failure = self.failureResultOf(d, TooLong)
-        self.assertEqual('', failure)
