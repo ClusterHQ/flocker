@@ -14,7 +14,6 @@ from zope.interface import implementer
 from ipaddr import IPAddress
 from characteristic import attributes
 from eliot import Logger
-from psutil import net_connections
 from twisted.python.filepath import FilePath
 
 from ._logging import (
@@ -423,31 +422,6 @@ class HostNetwork(object):
     enumerate_proxies = staticmethod(enumerate_proxies)
 
     enumerate_open_ports = staticmethod(enumerate_open_ports)
-
-    def enumerate_used_ports(self):
-        """
-        Find all ports that are in use on this node by normal TCP servers or by
-        proxies managed by this object.
-
-        :see: :meth:`INetwork.enumerate_used_ports` for parameter
-            documentation.
-        """
-        listening = set(
-            conn.laddr[1]
-            for conn
-            in net_connections(kind='tcp')
-        )
-        proxied = set(
-            proxy.port
-            for proxy in self.enumerate_proxies()
-        )
-        open_ports = set(
-            open_port.port
-            for open_port in self.enumerate_open_ports()
-        )
-        # net_connections won't tell us about ports bound by sockets that
-        # haven't entered the TCP state graph yet.
-        return frozenset(listening | proxied | open_ports)
 
 
 def make_host_network():
