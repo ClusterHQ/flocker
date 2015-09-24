@@ -18,7 +18,7 @@ Is ``dataset_id`` unique for each volume created?
 
 Yes.
 
-Is there some way to get the ``dataset_id`` from flocker given the ``blockdevice_id`` specific to our driver?
+Is there some way to get the ``dataset_id`` from Flocker given the ``blockdevice_id`` specific to our driver?
 -------------------------------------------------------------------------------------------------------------
 
 No.
