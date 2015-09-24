@@ -26,11 +26,15 @@ Interactions:
 Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
+
+:var _caching_encoder: ``CachingEncoder`` used by
+    ``SerializableArgument``, allowing for cached serialization.
 """
 
 from datetime import timedelta
 from io import BytesIO
 from itertools import count
+from contextlib import contextmanager
 
 from eliot import Logger, ActionType, Action, Field
 from eliot.twisted import DeferredContext
@@ -114,6 +118,48 @@ class Big(Argument):
         self.another_argument.fromBox(name, strings, objects, proto)
 
 
+class CachingEncoder(object):
+    """
+    Cache results of ``wire_encode`` and re-use them, relying on the fact
+    we're encoding immutable objects.
+
+    Not thread-safe, so should only be used by a single thread (the
+    Twisted reactor thread, presumably).
+
+    :attr _cache: Either ``None`` indicating no caching or a dicitonary
+        with objects mapped to cached wire encoded values.
+    """
+    def __init__(self):
+        self._cache = None
+
+    def encode(self, obj):
+        """
+        Encode an object to bytes using ``wire_encode``, or return cached
+        result if available and running in context of ``cache()`` context
+        manager.
+
+        :param obj: Object to encode.
+        :return: Resulting ``bytes``.
+        """
+        if self._cache is None:
+            return wire_encode(obj)
+
+        if obj not in self._cache:
+            self._cache[obj] = wire_encode(obj)
+        return self._cache[obj]
+
+    @contextmanager
+    def cache(self):
+        """
+        While in context of this context manager results will be cached.
+        """
+        self._cache = {}
+        yield
+        self._cache = None
+
+_caching_encoder = CachingEncoder()
+
+
 class SerializableArgument(Argument):
     """
     AMP argument that takes an object that can be serialized by the
@@ -122,7 +168,8 @@ class SerializableArgument(Argument):
     def __init__(self, *classes):
         """
         :param *classes: The type or types of the objects we expect to
-            (de)serialize.
+            (de)serialize. Only immutable types should be used if encoding
+            caching will be enabled.
         """
         Argument.__init__(self)
         self._expected_classes = classes
@@ -140,7 +187,7 @@ class SerializableArgument(Argument):
             raise TypeError(
                 "{} is none of {}".format(obj, self._expected_classes)
             )
-        return wire_encode(obj)
+        return _caching_encoder.encode(obj)
 
 
 class _EliotActionArgument(Unicode):
@@ -363,17 +410,18 @@ class ControlAMPService(Service):
         with LOG_SEND_CLUSTER_STATE(self.logger,
                                     configuration=configuration,
                                     state=state):
-            for connection in connections:
-                action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
-                with action.context():
-                    d = DeferredContext(connection.callRemote(
-                        ClusterStatusCommand,
-                        configuration=configuration,
-                        state=state,
-                        eliot_context=action
-                    ))
-                    d.addActionFinish()
-                    d.result.addErrback(lambda _: None)
+            with _caching_encoder.cache():
+                for connection in connections:
+                    action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
+                    with action.context():
+                        d = DeferredContext(connection.callRemote(
+                            ClusterStatusCommand,
+                            configuration=configuration,
+                            state=state,
+                            eliot_context=action
+                        ))
+                        d.addActionFinish()
+                        d.result.addErrback(lambda _: None)
 
     def connected(self, connection):
         """
