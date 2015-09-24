@@ -108,7 +108,7 @@ The basic implementation strategy is that your user installs a Python package wi
 
 You can also provide RPMs or DEBs that have same effect of installing a new Python package.
 
-Once your users have installed the package, they will write an :file:`agent.yml` file (:file:`/etc/flocker/agent.yml`), whose ``backend`` key in the ``dataset`` section is the importable name of the Python package you've installed.
+Once your users have installed the package, you should instruct your users to write an :file:`agent.yml` file (:file:`/etc/flocker/agent.yml`), whose ``backend`` key in the ``dataset`` section is the importable name of the Python package you've installed.
 
 All other sub-keys of the ``dataset`` section will be passed to a function you must implement (see below), and can be used to configure the resulting ``IBlockDeviceAPI`` instance.
 
