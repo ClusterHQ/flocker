@@ -78,7 +78,7 @@ Testing Your Driver
 Publishing Your Driver
 ======================
 
-Once CI test runs pass for a week, you are ready to publish your driver and assert that is certified to work with Flocker.  
+Once your CI tests are running and passing successfully, you are ready to publish your driver and assert that is certified to work with Flocker.  
 
 Completed drivers should be published as a ``Public`` repository on GitHub.
 
