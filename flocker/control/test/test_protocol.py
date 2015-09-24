@@ -20,6 +20,7 @@ from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
+    MAX_VALUE_LENGTH, IArgumentType, Command, String, ListOf, Integer,
     UnknownRemoteError, RemoteAmpError, CommandLocator, AMP, parseString,
 )
 from twisted.python.failure import Failure
@@ -32,7 +33,7 @@ from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from .._protocol import (
-    PING_INTERVAL, SerializableArgument,
+    PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
@@ -130,6 +131,71 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
+# 800 is arbitrarily selected.  The two interesting properties it has are:
+#
+#   * It is large enough that serializing the result exceeds the native AMP
+#     size limit.
+#   * It is the current target for Flocker "scaling".
+#
+_MANY_CONTAINERS = 800
+
+
+def huge_node(node_prototype):
+    """
+    Return a node with many applications.
+
+    :param node_prototype: A ``Node`` or ``NodeState`` to use as a template for
+        the resulting node.
+
+    :return: An object like ``node_prototype`` but with its applications
+        replaced by a large collection of applications.
+    """
+    image = DockerImage.from_string(u'postgresql')
+    applications = [
+        Application(name=u'postgres-{}'.format(i), image=image)
+        for i in range(_MANY_CONTAINERS)
+    ]
+    return node_prototype.set(applications=applications)
+
+
+def _huge(deployment_prototype, node_prototype):
+    """
+    Return a deployment with many applications.
+
+    :param deployment_prototype: A ``Deployment`` or ``DeploymentState`` to use
+        as a template for the resulting deployment.
+    :param node_prototype: See ``huge_node``.
+
+    :return: An object like ``deployment_prototype`` but with a node like
+        ``node_prototype`` added (or modified) so as to include a large number
+        of applications.
+    """
+    return deployment_prototype.update_node(
+        huge_node(node_prototype),
+    )
+
+
+def huge_deployment():
+    """
+    Return a configuration with many containers.
+
+    :rtype: ``Deployment``
+    """
+    return _huge(Deployment(), Node(hostname=u'192.0.2.31'))
+
+
+def huge_state():
+    """
+    Return a state with many containers.
+
+    :rtype: ``DeploymentState``
+    """
+    return _huge(
+        DeploymentState(),
+        NodeState(hostname=u'192.0.2.31', applications=[], used_ports=[]),
+    )
+
+
 # A very simple piece of node state that makes for nice-looking, easily-read
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
@@ -149,6 +215,109 @@ NONMANIFEST = NonManifestDatasets(
     datasets={dataset.dataset_id: dataset}
 )
 del dataset
+
+
+class BigArgumentTests(SynchronousTestCase):
+    """
+    Tests for ``Big``.
+    """
+    class CommandWithBigArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+        ]
+
+    class CommandWithTwoBigArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+            ("large", Big(String())),
+        ]
+
+    class CommandWithBigAndRegularArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+            ("regular", String()),
+        ]
+
+    class CommandWithBigListArgument(Command):
+        arguments = [
+            ("big", Big(ListOf(Integer()))),
+        ]
+
+    def test_interface(self):
+        """
+        ``Big`` instances provide ``IArgumentType``.
+        """
+        big = dict(self.CommandWithBigArgument.arguments)["big"]
+        self.assertTrue(verifyObject(IArgumentType, big))
+
+    def assert_roundtrips(self, command, **kwargs):
+        """
+        ``kwargs`` supplied to ``command`` can be serialized and unserialized.
+        """
+        amp_protocol = None
+        argument_box = command.makeArguments(kwargs, amp_protocol)
+        [roundtripped] = parseString(argument_box.serialize())
+        parsed_objects = command.parseArguments(roundtripped, amp_protocol)
+        self.assertEqual(kwargs, parsed_objects)
+
+    def test_roundtrip_non_string(self):
+        """
+        When ``Big`` wraps a non-string argument, it can serialize and
+        unserialize it.
+        """
+        some_list = range(10)
+        self.assert_roundtrips(self.CommandWithBigListArgument, big=some_list)
+
+    def test_roundtrip_small(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are smaller then
+        MAX_VALUE_LENGTH.
+        """
+        small_bytes = b"hello world"
+        self.assert_roundtrips(self.CommandWithBigArgument, big=small_bytes)
+
+    def test_roundtrip_medium(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are larger than
+        MAX_VALUE_LENGTH.
+        """
+        medium_bytes = b"x" * (MAX_VALUE_LENGTH + 1)
+        self.assert_roundtrips(self.CommandWithBigArgument, big=medium_bytes)
+
+    def test_roundtrip_large(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are larger than
+        MAX_VALUE_LENGTH.
+        """
+        big_bytes = u"\n".join(
+            u"{value}".format(value=value)
+            for value
+            in range(MAX_VALUE_LENGTH)
+        ).encode("ascii")
+
+        self.assert_roundtrips(self.CommandWithBigArgument, big=big_bytes)
+
+    def test_two_big_arguments(self):
+        """
+        AMP can serialize and unserialize a ``Command`` with multiple ``Big``
+        arguments.
+        """
+        self.assert_roundtrips(
+            self.CommandWithTwoBigArgument,
+            big=b"hello world",
+            large=b"goodbye world",
+        )
+
+    def test_big_and_regular_arguments(self):
+        """
+        AMP can serialize and unserialize a ``Command`` with a combination of
+        ``Big`` and regular arguments.
+        """
+        self.assert_roundtrips(
+            self.CommandWithBigAndRegularArgument,
+            big=b"hello world",
+            regular=b"goodbye world",
+        )
 
 
 class SerializationTests(SynchronousTestCase):
@@ -436,6 +605,21 @@ class ControlAMPTests(ControlTestCase):
               dict(configuration=TEST_DEPLOYMENT,
                    state=cluster_state)))] * 2)
 
+    def test_too_long_node_state(self):
+        """
+        AMP protocol can transmit node states with 800 applications.
+        """
+        node_prototype = NodeState(
+            hostname=u"192.0.3.13", uuid=uuid4(),
+            applications=[], used_ports=[],
+        )
+        d = self.client.callRemote(
+            NodeStateCommand,
+            state_changes=(huge_node(node_prototype),),
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
@@ -590,6 +774,34 @@ class AgentClientTests(SynchronousTestCase):
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
+
+    def test_too_long_configuration(self):
+        """
+        AMP protocol can transmit configurations with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        actual = DeploymentState(nodes=[])
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=huge_deployment(),
+            state=actual,
+            eliot_context=TEST_ACTION
+        )
+
+        self.successResultOf(d)
+
+    def test_too_long_state(self):
+        """
+        AMP protocol can transmit states with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=Deployment(),
+            state=huge_state(),
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
 
     def test_cluster_updated(self):
         """
