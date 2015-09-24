@@ -14,6 +14,19 @@ rackspace:
   key: "33333333333333333333333333333333"
   keyname: "your.rackspace.ssh.key.identifier"
 
+openstack:
+  auth_plugin: <auth_plugin, one of "password" or "apikey">
+  auth_url: <keystone_url, e.g. "https://192.168.1.101:5000/v2.0/tokens/">
+  region: <region, e.g. "RegionOne">
+  tenant: <tenant, e.g. "demo">
+  username: <username>
+  secret: <password or apikey>
+  keyname: <ssh-key-name>
+  images:
+    ubuntu-14.04: <image_name, e.g. "ubuntu-14_04">
+    centos-7: <image_id, e.g. "327637d0-b744-4567-837e-100f01017d56">  # noqa
+  flavor: <flavor, e.g. "m1.medium">
+
 managed:
   addresses:
     - "192.0.2.15"

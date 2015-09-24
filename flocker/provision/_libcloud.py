@@ -12,16 +12,16 @@ from twisted.conch.ssh.keys import Key
 from flocker.provision._ssh import run_remotely, run_from_args
 
 
-def get_size(driver, size_id):
+def get_size(driver, size_name_or_id):
     """
     Return a ``NodeSize`` corresponding to a given id.
 
     :param driver: The libcloud driver to query for sizes.
     """
     try:
-        return [s for s in driver.list_sizes() if s.id == size_id][0]
+        return [s for s in driver.list_sizes() if size_name_or_id in (s.id, s.name)][0]
     except IndexError:
-        raise ValueError("Unknown size.", size_id)
+        raise ValueError("Unknown size.", size_name_or_id)
 
 
 def get_image(driver, image_name):
@@ -224,7 +224,13 @@ class LibcloudProvisioner(object):
         )
 
         node, addresses = self._driver.wait_until_running(
-            [node], wait_period=15)[0]
+            [node], 
+            wait_period=15,
+            # XXX: devstack guests don't have public_ips by default.
+            # Need to figure out how to handle this generally. Look at
+            # self.use_private_addresses
+            ssh_interface="private_ips",
+        )[0]
 
         public_address = addresses[0]
 
