@@ -85,7 +85,7 @@ def change_node_state(deployer, desired_configuration):
     def converge():
         d = deployer.discover_state(
             NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
-                      applications=[], used_ports=[],
+                      applications=[],
                       manifestations={}, paths={}, devices={}))
 
         def got_changes(changes):
@@ -284,7 +284,7 @@ class DeployerTests(TestCase):
         d = change_node_state(deployer, desired_configuration)
         d.addCallback(lambda _: deployer.discover_state(
             NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
-                      applications=[], used_ports=[],
+                      applications=[],
                       manifestations={}, paths={}, devices={})))
         return d
 

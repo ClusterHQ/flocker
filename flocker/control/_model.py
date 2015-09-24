@@ -859,8 +859,6 @@ class NodeState(PRecord):
     :ivar unicode hostname: The IP of the node.
     :ivar applications: A ``PSet`` of ``Application`` instances on this node,
         or ``None`` if the information is not known.
-    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers in
-        use (by anything) on this node.
     :ivar PMap manifestations: Mapping between dataset IDs and corresponding
         ``Manifestation`` instances that are present on the node.  Includes
         both those attached as volumes to any applications, and those that are
@@ -871,7 +869,7 @@ class NodeState(PRecord):
         Maps ``dataset_id`` (as a ``UUID``) to a ``FilePath``.
     """
     # Attributes that may be set to None to indicate ignorance:
-    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
+    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["applications",
                                         "manifestations", "paths",
                                         "devices"]
 
@@ -879,7 +877,7 @@ class NodeState(PRecord):
     _DATASET_ATTRIBUTES = {"manifestations", "paths", "devices"}
 
     # Application attributes that must all be non-None if one is non-None:
-    _APPLICATION_ATTRIBUTES = {"applications", "used_ports"}
+    _APPLICATION_ATTRIBUTES = {"applications"}
 
     def __invariant__(self):
         def _field_missing(fields):
@@ -905,7 +903,6 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = pset_field(int, optional=True, initial=None)
     applications = pset_field(Application, optional=True, initial=None)
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)

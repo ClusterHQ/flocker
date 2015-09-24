@@ -332,7 +332,7 @@ def assert_discovered_state(case,
     """
     previous_state = NodeState(
         uuid=deployer.node_uuid, hostname=deployer.hostname,
-        applications=None, used_ports=None, manifestations=None, paths=None,
+        applications=None, manifestations=None, paths=None,
         devices=None,
     )
     discovering = deployer.discover_state(previous_state)
@@ -345,7 +345,6 @@ def assert_discovered_state(case,
     expected = (
         NodeState(
             applications=None,
-            used_ports=None,
             uuid=deployer.node_uuid,
             hostname=deployer.hostname,
             manifestations={
@@ -677,7 +676,7 @@ class ScenarioMixin(object):
         devices={
             DATASET_ID: FilePath(b"/dev/sda"),
         },
-        applications=[], used_ports=[],
+        applications=[],
     )
 
 
@@ -1199,7 +1198,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         state = DeploymentState(nodes=[NodeState(
             uuid=uuid, hostname=node, applications=[], manifestations={},
-            devices={}, paths={}, used_ports=[])])
+            devices={}, paths={})])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
@@ -1331,7 +1330,6 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     manifestations={},
                     devices={},
                     paths={},
-                    used_ports=[]
                 )
             ]
         )
@@ -1432,7 +1430,6 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
             applications={},
-            used_ports=set(),
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
             paths={},

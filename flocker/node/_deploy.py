@@ -541,7 +541,6 @@ class P2PManifestationDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
@@ -778,7 +777,6 @@ class ApplicationNodeDeployer(object):
             uuid=self.node_uuid,
             hostname=self.hostname,
             applications=applications,
-            used_ports=self.network.enumerate_used_ports(),
             manifestations=None,
             paths=None,
         )]
@@ -814,7 +812,6 @@ class ApplicationNodeDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations=None,
                 paths=None,
             )])
