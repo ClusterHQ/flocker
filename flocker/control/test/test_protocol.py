@@ -141,6 +141,15 @@ _MANY_CONTAINERS = 800
 
 
 def huge_node(node_prototype):
+    """
+    Return a node with many applications.
+
+    :param node_prototype: A ``Node`` or ``NodeState`` to use as a template for
+        the resulting node.
+
+    :return: An object like ``node_prototype`` but with its applications
+        replaced by a large collection of applications.
+    """
     image = DockerImage.from_string(u'postgresql')
     applications = [
         Application(name=u'postgres-{}'.format(i), image=image)
@@ -150,6 +159,17 @@ def huge_node(node_prototype):
 
 
 def _huge(deployment_prototype, node_prototype):
+    """
+    Return a deployment with many applications.
+
+    :param deployment_prototype: A ``Deployment`` or ``DeploymentState`` to use
+        as a template for the resulting deployment.
+    :param node_prototype: See ``huge_node``.
+
+    :return: An object like ``deployment_prototype`` but with a node like
+        ``node_prototype`` added (or modified) so as to include a large number
+        of applications.
+    """
     return deployment_prototype.update_node(
         huge_node(node_prototype),
     )
@@ -158,6 +178,8 @@ def _huge(deployment_prototype, node_prototype):
 def huge_deployment():
     """
     Return a configuration with many containers.
+
+    :rtype: ``Deployment``
     """
     return _huge(Deployment(), Node(hostname=u'192.0.2.31'))
 
@@ -165,6 +187,8 @@ def huge_deployment():
 def huge_state():
     """
     Return a state with many containers.
+
+    :rtype: ``DeploymentState``
     """
     return _huge(
         DeploymentState(),
