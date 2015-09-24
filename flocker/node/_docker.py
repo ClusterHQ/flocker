@@ -638,23 +638,6 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
 
-    def _blocking_container_runs(self, container_name):
-        """
-        Blocking API to check if container is running.
-
-        :param unicode container_name: The name of the container whose
-            state we're checking.
-
-        :return: ``True`` if container is running, otherwise ``False``.
-        """
-        result = self._client.inspect_container(container_name)
-        Message.new(
-            message_type="flocker:docker:container_state",
-            container=container_name,
-            state=result
-        ).write()
-        return result['State']['Running']
-
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
 
