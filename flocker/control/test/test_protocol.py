@@ -200,12 +200,11 @@ def huge_state():
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
 SIMPLE_NODE_STATE = NodeState(
-    hostname=u"192.0.2.17", uuid=uuid4(), applications=[], used_ports=[1],
+    hostname=u"192.0.2.17", uuid=uuid4(), applications=[],
 )
 
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
-                       used_ports=[1, 2],
                        devices={}, paths={},
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
