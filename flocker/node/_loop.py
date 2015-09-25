@@ -28,7 +28,7 @@ from machinist import (
 
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
@@ -366,8 +366,8 @@ class ConvergenceLoop(object):
 
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
-            d = DeferredContext(
-                self.deployer.discover_state(known_local_state))
+            d = DeferredContext(maybeDeferred(
+                self.deployer.discover_state, known_local_state))
 
         def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
