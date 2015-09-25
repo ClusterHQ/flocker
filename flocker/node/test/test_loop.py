@@ -21,6 +21,7 @@ from twisted.internet.ssl import ClientContextFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
 from ...testtools.amp import FakeAMPClient, DelayedAMPClient
+from ...testtools import CustomException
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
@@ -697,23 +698,22 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # consumed:
         self.assertEqual(len(deployer.local_states), 0)
 
-    def _discover_state_error_test(self, logger, async):
+    def _discover_state_error_test(self, logger, error):
         """
         Verify that an error from ``IDeployer.discover_state`` does not prevent
         a subsequent loop iteration from re-trying state discovery.
+
+        :param logger: The ``MemoryLogger`` where log messages are going.
+        :param error: The first state to pass to the
+            ``ControllableDeployer``, a ``CustomException`` or a ``Deferred``
+            that fails with ``CustomException``.
         """
         local_state = NodeState(hostname=u"192.0.1.2")
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
 
         client = self.make_amp_client([local_state])
-
-        first_state = Exception("Simulated error")
-        if async:
-            # Make it a failed Deferred instead
-            first_state = fail(first_state)
-
-        local_states = [first_state, succeed(local_state)]
+        local_states = [error, succeed(local_state)]
 
         actions = [no_action(), no_action()]
         deployer = ControllableDeployer(
@@ -742,14 +742,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         Verify that the error used by ``_discover_state_error_test`` has been
         logged to ``logger``.
         """
-        self.assertEqual(
-            list(
-                str(traceback["reason"])
-                for traceback
-                in logger.flush_tracebacks(Exception)
-            ),
-            [str(Exception("Simulated error"))],
-        )
+        self.assertEqual(len(logger.flush_tracebacks(CustomException)), 1)
 
     @validate_logging(_assert_simulated_error)
     def test_discover_state_async_error_start_new_iteration(self, logger):
@@ -757,7 +750,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         If the discovery of local state fails with a ``Deferred`` that fires
         with a ``Failure``, a new iteration is started anyway.
         """
-        self._discover_state_error_test(logger, async=True)
+        self._discover_state_error_test(logger, fail(CustomException()))
 
     @validate_logging(_assert_simulated_error)
     def test_discover_state_sync_error_start_new_iteration(self, logger):
@@ -765,7 +758,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         If the discovery of local state raises a synchronous exception, a new
         iteration is started anyway.
         """
-        self._discover_state_error_test(logger, async=False)
+        self._discover_state_error_test(logger, CustomException())
 
     def test_convergence_status_update(self):
         """
