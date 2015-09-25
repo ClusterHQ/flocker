@@ -1,4 +1,4 @@
-.. netapp-backend:
+.. _netapp-backend:
 
 =========================================
 NetApp Block Device Backend Configuration
