@@ -86,3 +86,5 @@ Supported Storage Backends
 * ConvergeIO
 * Saratoga Speed
 * Local storage using our ZFS driver (currently Experimental)
+
+For more information about supported backends, and configuration, see the :ref:`<list-of-backends>`.
