@@ -18,7 +18,7 @@ v1.4.0
 * Fix line splitting when logging to `systemd`'s journal.
 * Various performance and scalability improvements.
 * Remove limits on size of configuration and state in agent protocol.
-- Prevent repeated restart of containers with CPU shares or memory limits.
+* Prevent repeated restart of containers with CPU shares or memory limits.
 
 v1.3.1
 ======
