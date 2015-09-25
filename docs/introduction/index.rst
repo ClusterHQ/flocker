@@ -80,4 +80,9 @@ Supported Storage Backends
 * Anything that supports the OpenStack Cinder API
 * EMC ScaleIO
 * EMC XtremIO
+* VMware
+* NetApp OnTap
+* Hedvig
+* ConvergeIO
+* Saratoga Speed
 * Local storage using our ZFS driver (currently Experimental)
