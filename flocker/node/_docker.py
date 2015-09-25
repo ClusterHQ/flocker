@@ -242,32 +242,6 @@ class IDockerClient(Interface):
         :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
         """
 
-    def _image_data(image, container, state):
-        """
-        Supply data about an image, by either inspecting it or returning
-        cached data if available.
-
-        :param unicode image: The ID of the image.
-
-        :param unicode container: The ID of the container for which this
-            image is being used.
-
-        :param unicode state: The state of the container.
-
-        :return: ``dict`` representing data about the image properties.
-        """
-
-    def _image_cached_data(image):
-        """
-        Supply data about an image from the IDockerClient's image data
-        cache if available.
-
-        :param unicode image: The ID of the image.
-
-        :return: Either a ``dict`` representing data about the image, or
-            None if the image does not exist in the cache.
-        """
-
 
 def make_response(code, message):
     """
@@ -307,7 +281,6 @@ class FakeDockerClient(object):
             units = {}
         self._units = units
         self._used_ports = pset()
-        self._image_cache = {}
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
@@ -360,19 +333,6 @@ class FakeDockerClient(object):
         units = set(self._units.values())
         return succeed(units)
 
-    def _image_data(self, image, container, state):
-        cached_data = self._image_cached_data(image)
-        if cached_data is not None:
-            return cached_data
-        # Fake client does not care about accurate data.
-        image_data = {u"Id": image, u"Config": {u"Env": [], u"Cmd": []}}
-        self._image_cache[image] = image_data
-        return image_data
-
-    def _image_cached_data(self, image):
-        if image in self._image_cache:
-            return self._image_cache[image]
-        return None
 
 # Basic namespace for Flocker containers:
 BASE_NAMESPACE = u"flocker--"
@@ -569,32 +529,48 @@ class DockerClient(object):
         return AddressInUse(address=(ip, int(port)), apierror=apierror)
 
     def _image_data(self, image, container, state):
-        cached_data = self._image_cached_data(image)
-        if cached_data is not None:
-            return cached_data
+        """
+        Supply data about an image, by either inspecting it or returning
+        cached data if available.
+
+        :param unicode image: The ID of the image.
+
+        :param unicode container: The ID of the container for which this
+            image is being used.
+
+        :param unicode state: The state of the container.
+
+        :return: ``dict`` representing data about the image properties.
+        """
+        # This caching technique isn't thread-safe, but allowable
+        # in this case because a) the data is for our purposes
+        # immutable, so two writes of same key isn't a problem and
+        # b) we never remove entries.
+        if image in self._image_cache:
+            return self._image_cache[image]
         try:
             image_data = self._client.inspect_image(image)
-            self._image_cache[image] = image_data
+            self._image_cache[image] = {
+                u"Config": {
+                    u"Cmd": image_data[u"Config"][u"Cmd"],
+                    u"Env": image_data[u"Config"][u"Env"],
+                }
+            }
         except APIError as e:
             if e.response.status_code == NOT_FOUND:
                 # Image has been deleted, so just fill in some
                 # stub data so we can return *something*. This
                 # should happen only for stopped containers so
                 # some inaccuracy is acceptable.
+                # We won't cache stub data though.
                 Message.new(
                     message_type="flocker:docker:image_not_found",
                     container=container, running=state
                 ).write()
                 image_data = {u"Config": {u"Env": [], u"Cmd": []}}
-                self._image_cache[image] = image_data
             else:
                 raise
         return image_data
-
-    def _image_cached_data(self, image):
-        if image in self._image_cache:
-            return self._image_cache[image]
-        return None
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,

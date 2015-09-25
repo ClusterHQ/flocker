@@ -218,9 +218,37 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, image_name=image_name)
 
         def started(client):
-            docker = Client()
-            data = docker.inspect_container(self.namespacing_prefix + name)
-            self.assertIsNotNone(client._image_cached_data(data['Image']))
+            listing = client.list()
+
+            def listed(_):
+                docker = Client()
+                data = docker.inspect_container(self.namespacing_prefix + name)
+                # This is kind of nasty, but NamespacedDockerClient represents
+                # its client via a proxying attribute, so we can't assume
+                # client here directly has an _image_cache.
+                if isinstance(client, NamespacedDockerClient):
+                    image_cache = client._client._image_cache
+                else:
+                    image_cache = client._image_cache
+                self.assertIn(data['Image'], image_cache)
+                image_cache[data['Image']][u'TestCached'] = True
+                cached_listing = client.list()
+
+                def cached_listed(units):
+                    # If calling ``list`` again is failing to use the cached
+                    # data, the key TestCached should've disappeared from
+                    # the client's image_cache, as it will have been
+                    # overwritten with the data returned by inspecting through
+                    # the Docker API.
+                    data = docker.inspect_container(
+                        self.namespacing_prefix + name)
+                    self.assertIn(
+                        u'TestCached', image_cache[data['Image']])
+                cached_listing.addCallback(cached_listed)
+                return cached_listing
+
+            listing.addCallback(listed)
+            return listing
 
         d.addCallback(started)
         return d
