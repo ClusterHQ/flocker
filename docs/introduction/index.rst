@@ -75,6 +75,8 @@ Supported Cloud Providers
 Supported Storage Backends
 ==========================
 
+The following backends are supported:
+
 * AWS EBS
 * Rackspace Cloud Block Storage
 * Anything that supports the OpenStack Cinder API
@@ -86,3 +88,5 @@ Supported Storage Backends
 * ConvergeIO
 * Saratoga Speed
 * Local storage using our ZFS driver (currently Experimental)
+
+Configuration details for each of the supported backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
