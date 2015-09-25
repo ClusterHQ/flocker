@@ -13,9 +13,17 @@ You can learn more about where we might be going with future releases by:
 Next release
 ============
 
+* The :ref:`Docker plugin <docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
+
+v1.4.0
+======
+
 * The :ref:`dataset API <api>` added support for leases.
   Leases prevent a dataset from being deleted or moved off a node.
-* The :ref:`Docker plugin <docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
+* Fix line splitting when logging to `systemd`'s journal.
+* Various performance and scalability improvements.
+* Remove limits on size of configuration and state in agent protocol.
+* Prevent repeated restart of containers with CPU shares or memory limits.
 
 v1.3.1
 ======

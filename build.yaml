@@ -428,7 +428,11 @@ common_cli:
     echo y | docker push \$DOCKER_IMAGE
 
   build_docker_image: &build_docker_image |
-    docker build -t \$DOCKER_IMAGE .
+    # we want to make sure we are fetching the latest OS updates every time
+    # so we build the docker image using --no-cache, this way apt-get updates
+    # are actually executed.
+    # See: https://github.com/docker/docker/issues/3313
+    docker build --no-cache -t \$DOCKER_IMAGE .
 
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates

@@ -1550,7 +1550,6 @@ class BlockDeviceDeployer(PRecord):
                 # Discovering these is ApplicationNodeDeployer's job, we
                 # don't anything about these:
                 applications=None,
-                used_ports=None,
             ),
             NonManifestDatasets(datasets=nonmanifest),
         )
