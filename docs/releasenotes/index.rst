@@ -15,10 +15,10 @@ v1.4.0
 
 * The :ref:`dataset API <api>` added support for leases.
   Leases prevent a dataset from being deleted or moved off a node.
-* Fix line splitting when logging to systemd's journal.
+* Fix line splitting when logging to `systemd`'s journal.
 * Various performance and scalability improvements.
 * Remove limits on size of configuration and state in agent protocol.
-* Don't endlessly restart containers with CPU shares or memory limits.
+- Prevent repeated restart of containers with CPU shares or memory limits.
 
 v1.3.1
 ======

@@ -12,12 +12,12 @@ Flocker 1.4.0 (2015-09-24)
   - Only save the configuration when it has changed. (FLOC-3081)
   - Only send state updates if the state has changed. (FLOC-3036)
   - Avoid serializing state to send to multiple agents (FLOC-3100)
-  - Add support for enabling cProfile on flocker services. (FLOC-3039)
+  - Add support for enabling cProfile on Flocker services. (FLOC-3039)
 - Removed limits on size of configuration and state in agent protocol.
   (FLOC-3112, FLOC-3110.  FLOC-3108.  FLOC-3106)
 - Made various documentation improvements.
   (FLOC 2993, FLOC-2993, FLOC 1612, FLOC-2141)
-- Don't endlessly restart containers with CPU shares or memory limits. (FLOC-3107)
+- Prevent repeated restart of containers with CPU shares or memory limits. (FLOC-3107)
 - Retry if EBS returns bogus error when asked to list volumes.  (FLOC-2944)
 - Improved internal error when unexpected state is entered for Cinder devices. (FLOC-2970)
 - Various testing and build infrastructure improvemnts.
