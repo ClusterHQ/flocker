@@ -208,6 +208,44 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
+    def test_list_image_data_cached(self):
+        """
+        ``DockerClient.list`` will only an inspect an image ID once, caching
+        the resulting data and using the cached data in subsequent calls.
+        """
+        image_name = u"openshift/busybox-http-app:latest"
+        name = random_name(self)
+        d = self.start_container(name, image_name=image_name)
+
+        def started(client):
+            listing = client.list()
+
+            def listed(_):
+                docker = Client()
+                data = docker.inspect_container(self.namespacing_prefix + name)
+                self.assertIn(data['Image'], client._image_cache)
+                client._image_cache[data['Image']][u'TestCached'] = True
+                cached_listing = client.list()
+
+                def cached_listed(units):
+                    # If calling ``list`` again is failing to use the cached
+                    # data, the key TestCached should've disappeared from
+                    # the client's image_cache, as it will have been
+                    # overwritten with the data returned by inspecting through
+                    # the Docker API.
+                    data = docker.inspect_container(
+                        self.namespacing_prefix + name)
+                    self.assertIn(
+                        u'TestCached', client._image_cache[data['Image']])
+                cached_listing.addCallback(cached_listed)
+                return cached_listing
+
+            listing.addCallback(listed)
+            return listing
+
+        d.addCallback(started)
+        return d
+
     @require_docker_version(
         '1.6.0',
         'This test uses the registry:2 image '

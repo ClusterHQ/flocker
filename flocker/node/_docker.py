@@ -386,6 +386,7 @@ class DockerClient(object):
         self.namespace = namespace
         self._client = TimeoutClient(
             version="1.15", base_url=base_url, long_timeout=long_timeout)
+        self._image_cache = {}
 
     def _to_container_name(self, unit_name):
         """
@@ -745,21 +746,26 @@ class DockerClient(object):
                 image = data[u"Image"]
                 image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                try:
-                    image_data = self._client.inspect_image(image)
-                except APIError as e:
-                    if e.response.status_code == NOT_FOUND:
-                        # Image has been deleted, so just fill in some
-                        # stub data so we can return *something*. This
-                        # should happen only for stopped containers so
-                        # some inaccuracy is acceptable.
-                        Message.new(
-                            message_type="flocker:docker:image_not_found",
-                            container=i, running=data[u"State"][u"Running"]
-                        ).write()
-                        image_data = {u"Config": {u"Env": [], u"Cmd": []}}
-                    else:
-                        raise
+                if image in self._image_cache:
+                    image_data = self._image_cache[image]
+                else:
+                    try:
+                        image_data = self._client.inspect_image(image)
+                        self._image_cache[image] = image_data
+                    except APIError as e:
+                        if e.response.status_code == NOT_FOUND:
+                            # Image has been deleted, so just fill in some
+                            # stub data so we can return *something*. This
+                            # should happen only for stopped containers so
+                            # some inaccuracy is acceptable.
+                            Message.new(
+                                message_type="flocker:docker:image_not_found",
+                                container=i, running=data[u"State"][u"Running"]
+                            ).write()
+                            image_data = {u"Config": {u"Env": [], u"Cmd": []}}
+                            self._image_cache[image] = image_data
+                        else:
+                            raise
                 if image_data[u"Config"][u"Cmd"] == command:
                     command = None
                 port_bindings = data[u"NetworkSettings"][u"Ports"]
