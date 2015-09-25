@@ -297,7 +297,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         run_from_args(["apt-get", "update"]),
         run_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
-            "software-properties-common", "pypy"]),
+            "software-properties-common"]),
 
         # Add ClusterHQ repo for installation of Flocker packages.
         run(command='add-apt-repository -y "deb {} /"'.format(
@@ -333,8 +333,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     commands.append(run_from_args([
         'apt-get', '-y', '--force-yes', 'install', package_name]))
 
-    commands.append(run_from_args(['rm', '/opt/flocker/bin/python']))
-    commands.append(run_from_args(['ln', '-s', '/usr/bin/pypy', '/opt/flocker/bin/python']))
     return sequence(commands)
 
 

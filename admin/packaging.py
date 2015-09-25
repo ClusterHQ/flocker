@@ -292,7 +292,7 @@ def create_virtualenv(root):
     # We call ``virtualenv`` as a subprocess rather than as a library, so that
     # we can turn off Python byte code compilation.
     run_command(
-        ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', root.path],
+        ['virtualenv', '--python=/usr/bin/pypy', '--quiet', root.path],
         added_env=dict(PYTHONDONTWRITEBYTECODE='1')
     )
     # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
