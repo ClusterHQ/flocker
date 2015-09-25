@@ -697,36 +697,75 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # consumed:
         self.assertEqual(len(deployer.local_states), 0)
 
-    @validate_logging(lambda test_case, logger: test_case.assertEqual(
-        len(logger.flush_tracebacks(RuntimeError)), 1))
-    def test_convergence_discover_error_start_new_iteration(self, logger):
+    def _discover_state_error_test(self, logger, async):
         """
-        If the discovery of local state fails, a new iteration is started
-        anyway.
+        Verify that an error from ``IDeployer.discover_state`` does not prevent
+        a subsequent loop iteration from re-trying state discovery.
         """
-        local_state = NodeState(hostname=u'192.0.2.123')
+        local_state = NodeState(hostname=u"192.0.1.2")
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=succeed(None))
-        # First discovery succeeds, leading to failing action; second
-        # discovery will just wait for Deferred to fire. Thus we expect to
-        # finish test in discovery state.
-        deployer = ControllableDeployer(
-            local_state.hostname,
-            [fail(RuntimeError("Failed discovery")), Deferred()],
-            [action])
+
         client = self.make_amp_client([local_state])
+
+        first_state = Exception("Simulated error")
+        if async:
+            # Make it a failed Deferred instead
+            first_state = fail(first_state)
+
+        local_states = [first_state, succeed(local_state)]
+
+        actions = [no_action(), no_action()]
+        deployer = ControllableDeployer(
+            hostname=local_state.hostname,
+            local_states=local_states,
+            calculated_actions=actions,
+        )
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         self.patch(loop, "logger", logger)
+
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
         reactor.advance(1.0)
-        # Calculating actions happened, result was run and caused error...
-        # but we started on loop again and are thus in discovery state,
-        # which we can tell because all faked local states have been
-        # consumed:
-        self.assertEqual(len(deployer.local_states), 0)
+
+        # If the loop kept running then the good state following the error
+        # state should have been sent via the AMP client on a subsequent
+        # iteration.
+        self.assertEqual(
+            [(NodeStateCommand, dict(state_changes=(local_state,)))],
+            client.calls
+        )
+
+    def _assert_simulated_error(self, logger):
+        """
+        Verify that the error used by ``_discover_state_error_test`` has been
+        logged to ``logger``.
+        """
+        self.assertEqual(
+            list(
+                str(traceback["reason"])
+                for traceback
+                in logger.flush_tracebacks(Exception)
+            ),
+            [str(Exception("Simulated error"))],
+        )
+
+    @validate_logging(_assert_simulated_error)
+    def test_discover_state_async_error_start_new_iteration(self, logger):
+        """
+        If the discovery of local state fails with a ``Deferred`` that fires
+        with a ``Failure``, a new iteration is started anyway.
+        """
+        self._discover_state_error_test(logger, async=True)
+
+    @validate_logging(_assert_simulated_error)
+    def test_discover_state_sync_error_start_new_iteration(self, logger):
+        """
+        If the discovery of local state raises a synchronous exception, a new
+        iteration is started anyway.
+        """
+        self._discover_state_error_test(logger, async=False)
 
     def test_convergence_status_update(self):
         """
