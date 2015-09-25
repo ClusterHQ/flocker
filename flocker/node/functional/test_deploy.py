@@ -360,10 +360,11 @@ class DeployerTests(TestCase):
             deferred_list = docker_client.list()
 
             def app_memory(units):
-                [
+                checked = [
                     self.assertEqual(unit.mem_limit, EXPECTED_MEMORY_LIMIT)
                     for unit in units if unit.name == application_name
                 ]
+                self.assertNotEqual(checked, [])
             deferred_list.addCallback(app_memory)
             return deferred_list
         d.addCallback(inspect_application)
@@ -407,10 +408,11 @@ class DeployerTests(TestCase):
             deferred_list = docker_client.list()
 
             def app_cpu_shares(units):
-                [
+                checked = [
                     self.assertEqual(unit.cpu_shares, EXPECTED_CPU_SHARES)
                     for unit in units if unit.name == application_name
                 ]
+                self.assertNotEqual(checked, [])
             deferred_list.addCallback(app_cpu_shares)
             return deferred_list
         d.addCallback(inspect_application)
