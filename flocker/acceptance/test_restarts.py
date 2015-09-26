@@ -55,7 +55,7 @@ class RestartTests(TestCase):
                 u"ports": [{u"internal": 12345, u"external": 12345}],
                 # We expect restarts to occur after reboot with this policy:
                 u'restart_policy': {u'name': u'always'},
-                u"volumes": [{u"dataset_id": dataset.dataset_id,
+                u"volumes": [{u"dataset_id": str(dataset.dataset_id),
                               u"mountpoint": u"/data"}],
                 u"command_line": [u"python", u"-c",
                                   REBOOT_SERVER.getContent().decode("ascii"),
