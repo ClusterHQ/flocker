@@ -13,8 +13,9 @@ import os
 import sys
 import tempfile
 
-from setuptools import __version__ as setuptools_version
+from datetime import datetime
 from subprocess import check_call
+from urllib import quote
 
 from effect import (
     Effect, sync_perform, ComposedDispatcher)
@@ -22,6 +23,7 @@ from effect.do import do
 
 from characteristic import attributes
 from git import GitCommandError, Repo
+from pytz import UTC
 
 import requests
 
@@ -129,13 +131,6 @@ class NoPreRelease(Exception):
 class PushFailed(Exception):
     """
     Raised if pushing to Git fails.
-    """
-
-
-class IncorrectSetuptoolsVersion(Exception):
-    """
-    Raised if trying to create packages which require a specific version of
-    setuptools to be installed.
     """
 
 
@@ -295,7 +290,7 @@ class PublishDocsOptions(Options):
          "This will differ from \"flocker-version\" for staging uploads."
          "Attempting to publish documentation as a documentation version "
          "publishes it as the version being updated.\n"
-         "``doc-version`` is set to 0.3.0+doc1 the documentation will be "
+         "``doc-version`` is set to 0.3.0.post1 the documentation will be "
          "published as 0.3.0.\n"],
     ]
 
@@ -379,11 +374,12 @@ FLOCKER_PACKAGES = [
     b'clusterhq-python-flocker',
     b'clusterhq-flocker-cli',
     b'clusterhq-flocker-node',
+    b'clusterhq-flocker-docker-plugin',
 ]
 
 
 def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
-                            scratch_directory):
+                            scratch_directory, top_level):
     """
     Publish a Homebrew recipe to a Git repository.
 
@@ -393,12 +389,16 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
     :param bytes source_bucket: S3 bucket to get source distribution from.
     :param FilePath scratch_directory: Temporary directory to create a recipe
         in.
+    :param FilePath top_level: The top-level of the flocker repository.
     """
     url_template = 'https://{bucket}.s3.amazonaws.com/python/Flocker-{version}.tar.gz'  # noqa
     sdist_url = url_template.format(bucket=source_bucket, version=version)
+    requirements_path = top_level.child('requirements.txt')
     content = make_recipe(
         version=version,
-        sdist_url=sdist_url)
+        sdist_url=sdist_url,
+        requirements_path=requirements_path,
+    )
     homebrew_repo = Repo.clone_from(
         url=homebrew_repo_url,
         to_path=scratch_directory.path)
@@ -411,7 +411,12 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
     # Sometimes this raises an index error, and it seems to be a race
     # condition. There should probably be a loop until push succeeds or
     # whatever condition is necessary for it to succeed is met. FLOC-2043.
-    push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    push_info = homebrew_repo.remotes.origin.push(
+        homebrew_repo.head,
+        # Ignore any hooks which might prevent pushing (to master in this
+        # case). Without this, the release process can hang.
+        no_verify=True,
+        )[0]
 
     if (push_info.flags & push_info.ERROR) != 0:
         raise PushFailed()
@@ -462,7 +467,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         "version": vagrant_version(version),
         "providers": [
             {
-                "url": box_url,
+                "url": quote(box_url, safe=":/"),
                 "name": "virtualbox",
             },
         ],
@@ -658,11 +663,6 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
     :param bytes target_bucket: S3 bucket to upload packages to.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    if setuptools_version != '3.6':
-        # XXX Use PEP440 version system so new setuptools can be used.
-        # https://clusterhq.atlassian.net/browse/FLOC-1331.
-        raise IncorrectSetuptoolsVersion()
-
     # XXX This has a side effect so it should be an Effect
     # https://clusterhq.atlassian.net/browse/FLOC-1731
     check_call([
@@ -774,12 +774,9 @@ def publish_artifacts_main(args, base_path, top_level):
             version=options['flocker-version'],
             source_bucket=options['target'],
             scratch_directory=scratch_directory.child('homebrew'),
+            top_level=top_level,
         )
 
-    except IncorrectSetuptoolsVersion:
-        sys.stderr.write("%s: setuptools version must be 3.6.\n"
-            % (base_path.basename(),))
-        raise SystemExit(1)
     finally:
         scratch_directory.remove()
 
@@ -928,7 +925,7 @@ class TestRedirectsOptions(Options):
     Arguments for ``test-redirects`` script.
     """
     optParameters = [
-        ["doc-version", None, None,
+        ["doc-version", None, flocker.__version__,
          "The version which the documentation sites are expected to redirect "
          "to.\n"
         ],
@@ -941,12 +938,40 @@ class TestRedirectsOptions(Options):
     environment = Environments.STAGING
 
     def parseArgs(self):
-        if self['doc-version'] is None:
-            self['doc-version'] = get_doc_version(flocker.__version__)
-
         if self['production']:
             self.environment = Environments.PRODUCTION
 
+
+def get_expected_redirects(flocker_version):
+    """
+    Get the expected redirects for a given version of Flocker, if that version
+    has been published successfully. Documentation versions (e.g. 0.3.0.post2)
+    are published to their release version counterparts (e.g. 0.3.0).
+
+    :param bytes flocker_version: The version of Flocker for which to get
+        expected redirects.
+
+    :return: Dictionary mapping paths to the path to which they are expected to
+        redirect.
+    """
+    published_version = get_doc_version(flocker_version)
+
+    if is_release(published_version):
+        expected_redirects = {
+            '/': '/en/' + published_version + '/',
+            '/en/': '/en/' + published_version + '/',
+            '/en/latest': '/en/' + published_version + '/',
+            '/en/latest/faq/index.html':
+                '/en/' + published_version + '/faq/index.html',
+        }
+    else:
+        expected_redirects = {
+            '/en/devel': '/en/' + published_version + '/',
+            '/en/devel/faq/index.html':
+                '/en/' + published_version + '/faq/index.html',
+        }
+
+    return expected_redirects
 
 def test_redirects_main(args, base_path, top_level):
     """
@@ -964,26 +989,10 @@ def test_redirects_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    doc_version = options['doc-version']
-
+    expected_redirects = get_expected_redirects(
+        flocker_version=options['doc-version'])
     document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
     base_url = 'https://' + document_configuration.cloudfront_cname
-
-    is_dev = not is_release(doc_version)
-    if is_dev:
-        expected_redirects = {
-            '/en/devel': '/en/' + doc_version + '/',
-            '/en/devel/faq/index.html':
-                '/en/' + doc_version + '/faq/index.html',
-        }
-    else:
-        expected_redirects = {
-            '/': '/en/' + doc_version + '/',
-            '/en/': '/en/' + doc_version + '/',
-            '/en/latest': '/en/' + doc_version + '/',
-            '/en/latest/faq/index.html':
-                '/en/' + doc_version + '/faq/index.html',
-        }
 
     failed_redirects = []
 
@@ -1076,3 +1085,16 @@ def publish_dev_box_main(args, base_path, top_level):
             ),
         ]),
     )
+
+
+def update_license_file(args, top_level, year=datetime.now(UTC).year):
+    """
+    Update the LICENSE file to include the current year.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    license_template = top_level.child('admin').child('LICENSE.template')
+    with license_template.open() as input_file:
+        with top_level.child('LICENSE').open('w') as output_file:
+            output_file.write(input_file.read().format(current_year=year))

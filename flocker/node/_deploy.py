@@ -7,6 +7,7 @@ Deploy applications on nodes.
 
 from itertools import chain
 from warnings import warn
+from uuid import UUID
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -24,7 +25,7 @@ from . import IStateChange, in_parallel, sequentially
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset,
-    pset_field, ip_to_uuid
+    pset_field, ip_to_uuid, RestartNever,
     )
 from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -171,7 +172,8 @@ class StartApplication(PRecord):
             volumes=volumes,
             mem_limit=application.memory_limit,
             cpu_shares=application.cpu_shares,
-            restart_policy=application.restart_policy,
+            # The only supported policy is "never".  See FLOC-2449.
+            restart_policy=RestartNever(),
             command_line=application.command_line,
         )
 
@@ -437,20 +439,25 @@ class OpenPorts(PRecord):
 
 class NotInUseDatasets(object):
     """
-    Filter out datasets that are in use by applications.
+    Filter out datasets that are in use by applications on the current
+    node.
 
     For now we delay things like deletion until we know applications
-    aren't using the dataset. Later on we'll use leases to decouple
-    the application and dataset logic better; see
-    https://clusterhq.atlassian.net/browse/FLOC-1425.
+    aren't using the dataset, and also until there are no leases. Later on
+    we'll switch the container agent to rely solely on leases, at which
+    point we can rip out the logic related to Application objects. See
+    https://clusterhq.atlassian.net/browse/FLOC-2732.
     """
-    def __init__(self, node_state):
+    def __init__(self, node_state, leases):
         """
         :param NodeState node_state: Known local state.
+        :param Leases leases: The current leases on datasets.
         """
+        self._node_id = node_state.uuid
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in node_state.applications
                                  if app.volume is not None}
+        self._leases = leases
 
     def __call__(self, objects,
                  get_dataset_id=lambda d: unicode(d.dataset_id)):
@@ -459,15 +466,23 @@ class NotInUseDatasets(object):
 
         :param objects: Objects to filter.
 
-        :param get_dataset_id: Callable to extract a ``dataset_id`` from
-            an object. By default looks up ``dataset_id`` attribute.
+        :param get_dataset_id: Callable to extract a unicode dataset ID
+            from an object. By default looks up ``dataset_id`` attribute.
 
         :return list: Filtered objects.
         """
         result = []
         for obj in objects:
-            if get_dataset_id(obj) not in self._in_use_datasets:
-                result.append(obj)
+            u_dataset_id = get_dataset_id(obj)
+            dataset_id = UUID(u_dataset_id)
+            if u_dataset_id in self._in_use_datasets:
+                continue
+            if dataset_id in self._leases:
+                # If there's a lease on this node elsewhere we don't
+                # consider it to be in use on this node:
+                if self._leases[dataset_id].node_id == self._node_id:
+                    continue
+            result.append(obj)
         return result
 
 
@@ -526,7 +541,6 @@ class P2PManifestationDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
@@ -551,7 +565,8 @@ class P2PManifestationDeployer(object):
             return sequentially(changes=[])
         phases = []
 
-        not_in_use_datasets = NotInUseDatasets(local_state)
+        not_in_use_datasets = NotInUseDatasets(
+            local_state, configuration.leases)
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
@@ -741,6 +756,8 @@ class ApplicationNodeDeployer(object):
                 volume=volume,
                 environment=environment if environment else None,
                 links=frozenset(links),
+                memory_limit=container.mem_limit,
+                cpu_shares=container.cpu_shares,
                 restart_policy=container.restart_policy,
                 running=(container.activation_state == u"active"),
                 command_line=container.command_line,
@@ -762,7 +779,6 @@ class ApplicationNodeDeployer(object):
             uuid=self.node_uuid,
             hostname=self.hostname,
             applications=applications,
-            used_ports=self.network.enumerate_used_ports(),
             manifestations=None,
             paths=None,
         )]
@@ -798,7 +814,6 @@ class ApplicationNodeDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations=None,
                 paths=None,
             )])
@@ -934,8 +949,27 @@ class ApplicationNodeDeployer(object):
         # we don't want to do anything:
         comparable_state = comparable_state.transform(["running"], True)
 
+        # Restart policies don't implement comparison usefully.  See FLOC-2500.
+        restart_state = comparable_state.restart_policy
+        comparable_state = comparable_state.set(restart_policy=RestartNever())
+        comparable_configuration = comparable_configuration.set(
+            restart_policy=RestartNever()
+        )
+
         return (
             comparable_state != comparable_configuration
+
+            # Restart policies were briefly supported but they interact poorly
+            # with system restarts.  They're disabled now (except for the
+            # default policy, "never").  Ignore the Application's configured
+            # policy and enforce the "never" policy.  This will change any
+            # existing container that was configured with a different policy.
+            # See FLOC-2449.
+            #
+            # Also restart policies don't implement comparison usefully.  See
+            # FLOC-2500.
+            or not isinstance(restart_state, RestartNever)
+
             or self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )
@@ -1000,8 +1034,9 @@ class ApplicationNodeDeployer(object):
         local_application_names = {app.name for app in all_applications}
         desired_local_state = {app.name for app in
                                desired_node_applications}
-        # Don't start applications that exist on this node but aren't
-        # running; Docker is in charge of restarts:
+        # Don't start applications that exist on this node but aren't running;
+        # Docker is in charge of restarts (and restarts aren't supported yet
+        # anyway; see FLOC-2449):
         start_names = desired_local_state.difference(local_application_names)
         stop_names = {app.name for app in all_applications}.difference(
             desired_local_state)

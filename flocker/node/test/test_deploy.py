@@ -5,6 +5,9 @@ Tests for ``flocker.node._deploy``.
 """
 
 from uuid import UUID, uuid4
+from datetime import datetime
+
+from pytz import UTC
 
 from eliot.testing import validate_logging
 
@@ -27,7 +30,8 @@ from ..testtools import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState, DeploymentState, RestartAlways)
+    NodeState, DeploymentState, RestartNever, RestartAlways, RestartOnFailure
+)
 
 from .. import sequentially, in_parallel
 
@@ -39,7 +43,9 @@ from .._deploy import (
 )
 from ...testtools import CustomException
 from .. import _deploy
-from ...control._model import AttachedVolume, Dataset, Manifestation
+from ...control._model import (
+    AttachedVolume, Dataset, Manifestation, Leases
+)
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
@@ -464,10 +470,13 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_restart_policy(self):
         """
-        ``StartApplication.run()`` passes an ``Application``'s restart_policy
-        to ``DockerClient.add`` which is used when creating a Unit.
+        ``StartApplication.run()`` passes ``RestartNever`` to
+        ``DockerClient.add`` which is used when creating a Unit.
+
+        It doesn't pass the ``Application``\ 's ``restart_policy`` because
+        ``RestartNever`` is the only implemented policy.  See FLOC-2449.
         """
-        policy = object()
+        policy = RestartAlways()
         fake_docker = FakeDockerClient()
         deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
@@ -482,10 +491,7 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          node_state=EMPTY_NODESTATE).run(deployer)
 
-        self.assertIs(
-            policy,
-            fake_docker._units[application_name].restart_policy,
-        )
+        self.assertEqual(policy, RestartNever())
 
     def test_command_line(self):
         """
@@ -611,7 +617,7 @@ APP2 = Application(
 # https://clusterhq.atlassian.net/browse/FLOC-1926
 EMPTY_NODESTATE = NodeState(hostname=u"example.com", uuid=uuid4(),
                             manifestations={}, devices={}, paths={},
-                            applications=[], used_ports=[])
+                            applications=[])
 
 
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
@@ -627,7 +633,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             hostname=u"example.com",
             uuid=self.node_uuid,
             manifestations={}, devices={}, paths={},
-            applications=[], used_ports=[])
+            applications=[])
 
     def test_discover_none(self):
         """
@@ -644,7 +650,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[], used_ports=[])],
+                                    applications=[])],
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -663,7 +669,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[APP], used_ports=[])],
+                                    applications=[APP])],
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -686,6 +692,49 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
+
+    def test_discover_application_with_cpushares(self):
+        """
+        An ``Application`` with a cpu_shares value is discovered from a
+        ``Unit`` with a cpu_shares value.
+        """
+        unit1 = UNIT_FOR_APP.set("cpu_shares", 512)
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [APP.set("cpu_shares", 512)]
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_state(self.EMPTY_NODESTATE)
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d)[0].applications))
+
+    def test_discover_application_with_memory_limit(self):
+        """
+        An ``Application`` with a memory_limit value is discovered from a
+        ``Unit`` with a mem_limit value.
+        """
+        memory_limit = 104857600
+        unit1 = UNIT_FOR_APP.set("mem_limit", memory_limit)
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [APP.set("memory_limit", memory_limit)]
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_state(self.EMPTY_NODESTATE)
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d)[0].applications))
 
     def test_discover_application_with_environment(self):
         """
@@ -906,31 +955,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         result = self.successResultOf(d)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=applications, used_ports=[])],
+                                    applications=applications)],
                          result)
-
-    def test_discover_used_ports(self):
-        """
-        Any ports in use, as reported by the deployer's ``INetwork`` provider,
-        are reported in the ``used_ports`` attribute of the ``NodeState``
-        returned by ``discover_state``.
-        """
-        used_ports = frozenset([1, 3, 5, 1000])
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network(used_ports=used_ports)
-        )
-
-        discovering = api.discover_state(self.EMPTY_NODESTATE)
-        states = self.successResultOf(discovering)
-
-        self.assertEqual(
-            [NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                       used_ports=used_ports, applications=[])],
-            states
-        )
 
     def test_discover_application_restart_policy(self):
         """
@@ -979,7 +1005,6 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                     # Can't do app discovery if don't know
                                     # about manifestations:
                                     applications=None,
-                                    used_ports=None,
                                     manifestations=None,
                                     paths=None)],
                          self.successResultOf(d))
@@ -1011,7 +1036,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             [NodeState(hostname=deployer.hostname,
                        uuid=deployer.node_uuid,
                        manifestations={}, paths={}, devices={},
-                       applications=None, used_ports=None)])
+                       applications=None)])
 
     def _setup_datasets(self):
         """
@@ -1388,12 +1413,12 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         )
         local_state = NodeState(
             uuid=uuid4(), hostname=u"192.0.2.100",
-            applications=[], used_ports=[],
+            applications=[],
             manifestations={}, devices={}, paths={},
         )
         destination_state = NodeState(
             uuid=uuid4(), hostname=u"192.0.2.101",
-            applications=[application], used_ports=[],
+            applications=[application],
             manifestations={}, devices={}, paths={},
         )
         local_config = to_node(local_state)
@@ -1483,7 +1508,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         node_state = NodeState(
             hostname=api.hostname, uuid=api.node_uuid,
-            applications=[], used_ports=[])
+            applications=[])
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1530,7 +1555,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=EMPTY,
             current_cluster_state=DeploymentState(nodes=[NodeState(
                 hostname=api.hostname, applications={to_stop.application},
-                used_ports=[])]))
+            )]))
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
@@ -1559,7 +1584,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         node_state = NodeState(
             hostname=api.hostname, uuid=api.node_uuid,
-            applications=[], used_ports=[])
+            applications=[])
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
@@ -1628,7 +1653,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications=[application], used_ports=[])]))
+                          applications=[application])]))
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
@@ -1650,7 +1675,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications=[application], used_ports=[])]))
+                          applications=[application])]))
         to_stop = StopApplication(
             application=application,
         )
@@ -1681,7 +1706,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         node_state = NodeState(
             hostname=api.hostname,
             uuid=api.node_uuid,
-            used_ports=[],
             applications=[application.set("running", False)])
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
@@ -1709,7 +1733,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=EMPTY,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          used_ports=[],
                           applications={to_stop})]))
         expected = sequentially(changes=[in_parallel(changes=[
             StopApplication(application=to_stop)])])
@@ -1747,7 +1770,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         node_state = NodeState(
             uuid=api.node_uuid,
             hostname=api.hostname,
-            used_ports=[],
             applications={old_postgres_app})
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1802,7 +1824,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         node_state = NodeState(
             hostname=api.hostname,
-            used_ports=[],
             applications={old_postgres_app},
         )
 
@@ -1872,7 +1893,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
                  applications=frozenset({new_wordpress_app, postgres_app})),
         }))
         node_state = NodeState(hostname=api.hostname,
-                               used_ports=[],
                                applications={postgres_app, old_wordpress_app})
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1917,7 +1937,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         node_state = NodeState(
             uuid=api.node_uuid,
             hostname=api.hostname,
-            used_ports=[],
             applications={old_postgres_app})
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1994,6 +2013,213 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
+    def _app_restart_policy_test(self, restart_state, restart_config,
+                                 expect_restart):
+        """
+        Verify that an application with a particular restart policy in its
+        state and in another (or the same) policy in its configuration is
+        either restarted or not.
+
+        :param IRestartPolicy restart_state: The policy to put into the
+            application state.
+        :param IRestartPolicy restart_config: The policy to put into the
+            application configuration.
+        :param bool expect_restart: ``True`` if the given combination must
+            provoke an application restart.  ``False`` if it must not.
+
+        :raise: A test-failing exception if the restart expection is not met.
+        """
+        app_state = APPLICATION_WITHOUT_VOLUME.set(
+            restart_policy=restart_state,
+        )
+        node_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.10",
+            applications={app_state},
+        )
+        app_config = app_state.set(
+            restart_policy=restart_config,
+        )
+        node_config = to_node(node_state.set(applications={app_config}))
+        if expect_restart:
+            expected_changes = restart(app_state, app_config, node_state)
+        else:
+            expected_changes = no_change()
+        assert_application_calculated_changes(
+            self, node_state, node_config, set(),
+            expected_changes,
+        )
+
+    def test_app_state_always_and_config_always_restarted(self):
+        """
+        Restart policies interact poorly with containers with volumes.  If an
+        application state is found with a restart policy other than "never",
+        even if the application configuration matches that restart policy, it
+        is restarted with the "never" policy.  See FLOC-2449.
+        """
+        self._app_restart_policy_test(RestartAlways(), RestartAlways(), True)
+
+    def test_app_state_always_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartAlways(), RestartOnFailure(maximum_retry_count=2), True,
+        )
+
+    def test_app_state_always_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartAlways(), RestartNever(), True)
+
+    def test_app_state_never_and_config_never_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartNever(), False)
+
+    def test_app_state_never_and_config_always_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartAlways(), False)
+
+    def test_app_state_never_and_config_failure_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartNever(), RestartOnFailure(maximum_retry_count=2), False,
+        )
+
+    def test_app_state_failure_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartNever(), True,
+        )
+
+    def test_app_state_failure_and_config_always_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartAlways(), True,
+        )
+
+    def test_app_state_failure_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2),
+            RestartOnFailure(maximum_retry_count=2),
+            True,
+        )
+
+
+class P2PManifestationDeployerLeaseTests(SynchronousTestCase):
+    """
+    Tests for impact of leases on
+    ``P2PManifestationDeployer.calculate_changes``.
+    """
+    NODE_ID = uuid4()
+    NODE_ID2 = uuid4()
+    NODE_HOSTNAMES = {NODE_ID: u"10.1.1.1", NODE_ID2: u"10.1.2.3"}
+    NOW = datetime.now(tz=UTC)
+
+    def changes_when_leased(self, configured, actual,
+                            lease_node=NODE_ID,
+                            configured_node=NODE_ID,
+                            actual_node=NODE_ID):
+        """
+        Given a lease on a dataset and configuration and state, return
+        calculated changes.
+
+        :param Manifestation configured: The configured ``Manifestation``.
+        :param Manifestation actual: The ``Manifestation`` in the node's state.
+        :param UUID lease_node: Node for which we have lease.
+        :param UUID configured_node: Node for which we have configuration.
+        :param UUID actual_node: Node for which we have state.
+
+        :return: Result of ``P2PManifestationDeployer.calculate_changes``.
+        """
+        node = Node(
+            uuid=configured_node,
+            manifestations={configured.dataset_id: configured})
+        desired = Deployment(nodes=[node], leases=Leases().acquire(
+            self.NOW, UUID(configured.dataset_id), lease_node))
+        other_actual_node = (self.NODE_ID if actual_node is self.NODE_ID2
+                             else self.NODE_ID2)
+        current = DeploymentState(nodes=[
+            NodeState(
+                uuid=actual_node,
+                hostname=self.NODE_HOSTNAMES[actual_node],
+                applications={}, devices={}, paths={},
+                manifestations={actual.dataset_id: actual}),
+            # We have state for other node too, so handoffs aren't
+            # prevented:
+            NodeState(
+                uuid=other_actual_node,
+                hostname=self.NODE_HOSTNAMES[other_actual_node],
+                applications={}, devices={}, paths={},
+                manifestations={})])
+
+        api = P2PManifestationDeployer(
+            self.NODE_HOSTNAMES[actual_node], create_volume_service(self),
+            node_uuid=actual_node,
+        )
+        return api.calculate_changes(desired, current)
+
+    def test_no_deletion_if_leased(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        deletion does not happens if there is a lease on the dataset.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION.transform(("dataset", "deleted"), True),
+            MANIFESTATION)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_resize_if_leased(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        resize does not happens if there is a lease on the dataset.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION_WITH_SIZE, MANIFESTATION)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_handoff_if_leased_on_different_node(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset handoff
+        does not happens if there is a lease on the dataset and that lease
+        is on a different node than the destination.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION, MANIFESTATION,
+            # lease:       destination:  origin:
+            self.NODE_ID2, self.NODE_ID, self.NODE_ID2)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_handoff_if_leased_on_destination_node(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` results in dataset
+        handoff even if there is a lease on the dataset as long as that
+        lease is for the same node as the destination.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION, MANIFESTATION,
+            # lease:       destination:  origin:
+            self.NODE_ID, self.NODE_ID, self.NODE_ID2)
+        expected = sequentially(changes=[
+            in_parallel(changes=[HandoffDataset(
+                dataset=MANIFESTATION.dataset,
+                hostname=self.NODE_HOSTNAMES[self.NODE_ID])]),
+        ])
+        self.assertEqual(expected, changes)
+
 
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
     """
@@ -2015,7 +2241,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
             devices={}, paths={},
-            applications=[], used_ports=[],
+            applications=[],
         )
 
         api = P2PManifestationDeployer(
@@ -2054,7 +2280,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         current = DeploymentState(nodes=[NodeState(
             uuid=node.uuid,
             hostname=u"10.1.1.1",
-            used_ports=[],
             applications={APPLICATION_WITH_VOLUME},
             devices={}, paths={},
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION})])
@@ -2079,7 +2304,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             devices={}, paths={},
             applications={APPLICATION_WITH_VOLUME},
-            used_ports=[],
         )
         desired_node = Node(
             hostname=u"node1.example.com",
@@ -2112,7 +2336,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                             MANIFESTATION},
             paths={}, devices={},
             applications={APPLICATION_WITH_VOLUME},
-            used_ports=[],
         )
         another_node_state = NodeState(
             hostname=u"node2.example.com", manifestations={},
@@ -2170,7 +2393,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
-            devices={}, paths={}, used_ports=[],
+            devices={}, paths={},
             applications=[],
         )
         another_node_state = NodeState(
@@ -2207,7 +2430,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         current_node = NodeState(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
-            used_ports=[],
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
             devices={}, paths={},
@@ -2242,7 +2464,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             NodeState(
                 hostname=u"node1.example.com",
                 applications={APPLICATION_WITH_VOLUME},
-                used_ports=[],
                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
                 devices={}, paths={},
             ),
@@ -2284,7 +2505,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
         current = DeploymentState(nodes=frozenset({
             NodeState(hostname=hostname, applications=[], manifestations={},
-                      used_ports=[], devices={}, paths={}),
+                      devices={}, paths={}),
         }))
 
         api = P2PManifestationDeployer(
@@ -2316,7 +2537,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             paths={}, devices={},
-            applications=[], used_ports=[],
+            applications=[],
         )
         desired_node = Node(
             hostname=u"node1.example.com",
@@ -2356,12 +2577,12 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                 hostname=u"node1.example.com",
                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
                 devices={}, paths={},
-                applications=[], used_ports=[],
+                applications=[],
             ),
             NodeState(
                 hostname=u"node2.example.com",
                 manifestations={}, devices={}, paths={},
-                applications=[], used_ports=[],
+                applications=[],
             )
         ]
         desired_nodes = [
@@ -2435,7 +2656,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
             devices={}, paths={},
-            applications=[], used_ports=[],
+            applications=[],
         )
         another_node_state = NodeState(hostname=u"10.1.2.3", uuid=uuid4())
 

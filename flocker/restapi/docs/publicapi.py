@@ -238,7 +238,11 @@ def _formatSchema(data, incoming):
             required = '*(required)* '
         else:
             required = ''
-        yield ':%s %s %s: %s%s' % (param, attr['type'], property, required,
+        if isinstance(attr['type'], list):
+            types = "|".join(attr['type'])
+        else:
+            types = attr['type']
+        yield ':%s %s %s: %s%s' % (param, types, property, required,
                                    attr['title'])
         yield ''
         for line in attr['description']:

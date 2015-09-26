@@ -26,9 +26,15 @@ Interactions:
 Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
+
+:var _caching_encoder: ``CachingEncoder`` used by
+    ``SerializableArgument``, allowing for cached serialization.
 """
 
 from datetime import timedelta
+from io import BytesIO
+from itertools import count
+from contextlib import contextmanager
 
 from eliot import Logger, ActionType, Action, Field
 from eliot.twisted import DeferredContext
@@ -39,7 +45,8 @@ from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode,
+    MAX_VALUE_LENGTH,
 )
 from twisted.internet.task import LoopingCall
 from twisted.internet.protocol import ServerFactory
@@ -48,11 +55,108 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ._persistence import wire_encode, wire_decode
 from ._model import (
-    Deployment, NodeState, DeploymentState, NonManifestDatasets,
-    ChangeSource,
+    Deployment, DeploymentState, ChangeSource,
 )
 
 PING_INTERVAL = timedelta(seconds=30)
+
+
+class Big(Argument):
+    """
+    An ``Argument`` type which can handle objects which are larger than AMP's
+    MAX_VALUE_LENGTH when serialized.
+
+    Thanks to Glyph Lefkowitz for the idea:
+    * http://bazaar.launchpad.net/~glyph/+junk/amphacks/view/head:/python/amphacks/mediumbox.py  # noqa
+    """
+    def __init__(self, another_argument):
+        """
+        :param Argument another_argument: The wrapped AMP ``Argument``.
+        """
+        self.another_argument = another_argument
+
+    def toBox(self, name, strings, objects, proto):
+        """
+        During serialization, the wrapped ``Argument`` is serialized in full
+        and then popped out of the supplied ``strings`` dictionary, broken into
+        chunks <= MAX_VALUE_LENGTH which are added back to the ``strings``
+        dictionary with indexed key names so that the chunks can be put back
+        together in the correct order during deserialization.
+
+        See ``IArgumentType`` for argument and return type documentation.
+        """
+        self.another_argument.toBox(name, strings, objects, proto)
+        value = BytesIO(strings.pop(name))
+        counter = 0
+        while True:
+            nextChunk = value.read(MAX_VALUE_LENGTH)
+            if not nextChunk:
+                break
+            strings["%s.%d" % (name, counter)] = nextChunk
+            counter += 1
+
+    def fromBox(self, name, strings, objects, proto):
+        """
+        During deserialization, the indexed chunks are re-assembled from the
+        ``strings`` dictionary and the combined value is then placed back into
+        the strings dictionary using the expected key name. The ``fromBox``
+        method of the wrapped ``Argument`` is then called supplied with the
+        updated ``strings`` dictionary, deserializes the large value and
+        populates the ``objects`` dictionary with the result.
+
+        See ``IArgumentType`` for argument and return type documentation.
+        """
+
+        value = BytesIO()
+        for counter in count(0):
+            chunk = strings.get("%s.%d" % (name, counter))
+            if chunk is None:
+                break
+            value.write(chunk)
+            strings[name] = value.getvalue()
+        self.another_argument.fromBox(name, strings, objects, proto)
+
+
+class CachingEncoder(object):
+    """
+    Cache results of ``wire_encode`` and re-use them, relying on the fact
+    we're encoding immutable objects.
+
+    Not thread-safe, so should only be used by a single thread (the
+    Twisted reactor thread, presumably).
+
+    :attr _cache: Either ``None`` indicating no caching or a dicitonary
+        with objects mapped to cached wire encoded values.
+    """
+    def __init__(self):
+        self._cache = None
+
+    def encode(self, obj):
+        """
+        Encode an object to bytes using ``wire_encode``, or return cached
+        result if available and running in context of ``cache()`` context
+        manager.
+
+        :param obj: Object to encode.
+        :return: Resulting ``bytes``.
+        """
+        if self._cache is None:
+            return wire_encode(obj)
+
+        if obj not in self._cache:
+            self._cache[obj] = wire_encode(obj)
+        return self._cache[obj]
+
+    @contextmanager
+    def cache(self):
+        """
+        While in context of this context manager results will be cached.
+        """
+        self._cache = {}
+        yield
+        self._cache = None
+
+_caching_encoder = CachingEncoder()
 
 
 class SerializableArgument(Argument):
@@ -63,7 +167,8 @@ class SerializableArgument(Argument):
     def __init__(self, *classes):
         """
         :param *classes: The type or types of the objects we expect to
-            (de)serialize.
+            (de)serialize. Only immutable types should be used if encoding
+            caching will be enabled.
         """
         Argument.__init__(self)
         self._expected_classes = classes
@@ -81,7 +186,7 @@ class SerializableArgument(Argument):
             raise TypeError(
                 "{} is none of {}".format(obj, self._expected_classes)
             )
-        return wire_encode(obj)
+        return _caching_encoder.encode(obj)
 
 
 class _EliotActionArgument(Unicode):
@@ -126,8 +231,8 @@ class ClusterStatusCommand(Command):
     Having both as a single command simplifies the decision making process
     in the convergence agent during startup.
     """
-    arguments = [('configuration', SerializableArgument(Deployment)),
-                 ('state', SerializableArgument(DeploymentState)),
+    arguments = [('configuration', Big(SerializableArgument(Deployment))),
+                 ('state', Big(SerializableArgument(DeploymentState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
@@ -138,9 +243,26 @@ class NodeStateCommand(Command):
     status of a particular node.
     """
     arguments = [
-        ('state_changes', ListOf(
-            SerializableArgument(NodeState, NonManifestDatasets))),
-        ('eliot_context', _EliotActionArgument())]
+        # A state change might be large enough not to fit into a single AMP
+        # value so use Big to split it across multiple values if necessary.
+        #
+        # The protocol specifies that a sequence of changes is always sent so
+        # the type required by ``SerializableArgument`` is either ``list`` or
+        # ``tuple`` (the implementation mostly or always uses a ``tuple`` but
+        # ``SerializableArgument`` converts ``tuple`` to ``list`` so we have to
+        # allow both types so the *receiving* side, where that conversion has
+        # happened, accepts the value).
+        #
+        # The sequence items will be some other serializable type (and should
+        # be a type that implements ``IClusterStateSource`` - such as
+        # ``NodeState`` or ``NonManifestDatasets``) and ``wire_encode`` will
+        # enforce that for us.
+        #
+        # Note that Big is not a great way to deal with large quantities of
+        # data.  See FLOC-3113.
+        ('state_changes', Big(SerializableArgument(list, tuple))),
+        ('eliot_context', _EliotActionArgument()),
+    ]
     response = []
 
 
@@ -304,17 +426,18 @@ class ControlAMPService(Service):
         with LOG_SEND_CLUSTER_STATE(self.logger,
                                     configuration=configuration,
                                     state=state):
-            for connection in connections:
-                action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
-                with action.context():
-                    d = DeferredContext(connection.callRemote(
-                        ClusterStatusCommand,
-                        configuration=configuration,
-                        state=state,
-                        eliot_context=action
-                    ))
-                    d.addActionFinish()
-                    d.result.addErrback(lambda _: None)
+            with _caching_encoder.cache():
+                for connection in connections:
+                    action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
+                    with action.context():
+                        d = DeferredContext(connection.callRemote(
+                            ClusterStatusCommand,
+                            configuration=configuration,
+                            state=state,
+                            eliot_context=action
+                        ))
+                        d.addActionFinish()
+                        d.result.addErrback(lambda _: None)
 
     def connected(self, connection):
         """

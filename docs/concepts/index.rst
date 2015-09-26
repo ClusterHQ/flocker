@@ -1,4 +1,4 @@
-:tocdepth: 2
+.. _concepts:
 
 ================
 Flocker Concepts

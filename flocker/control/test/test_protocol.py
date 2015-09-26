@@ -5,6 +5,7 @@ Tests for ``flocker.control._protocol``.
 """
 
 from uuid import uuid4
+from json import loads
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -19,7 +20,8 @@ from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
-    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP,
+    MAX_VALUE_LENGTH, IArgumentType, Command, String, ListOf, Integer,
+    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP, parseString,
 )
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
@@ -31,10 +33,11 @@ from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from .._protocol import (
-    PING_INTERVAL, SerializableArgument,
+    PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
+    CachingEncoder, _caching_encoder
 )
 from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
@@ -42,7 +45,7 @@ from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import ConfigurationPersistenceService
+from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -67,9 +70,35 @@ class LoopbackAMPClient(object):
 
         @return: A C{Deferred} that fires with the result of the responder.
         """
-        arguments = command.makeArguments(kwargs, self._locator)
+        # Get a Box for the supplied arguments. E.g.
+        # command = ClusterStatusUpdate
+        # kwargs = {"configuration": Deployment(nodes={Node(...)})}
+        # The Box contains the Deployment object converted to nested dict. E.g.
+        # Box({"configuration": {"$__class__$": "Deployment", ...}})
+        argument_box = command.makeArguments(kwargs, self._locator)
+
+        # Serialize the arguments to prove that we can.  For example, if an
+        # argument would serialize to more than 64kB then we can't actually
+        # serialize it so we want a test attempting this to fail.
+        # Wire format will contain bytes. E.g.
+        # b"\x12\x32configuration..."
+        wire_format = argument_box.serialize()
+
+        # Now decode the bytes back to a Box
+        [decoded_argument_box] = parseString(wire_format)
+
+        # And supply that to the responder which internally reverses
+        # makeArguments -> back to kwargs
         responder = self._locator.locateResponder(command.commandName)
-        d = responder(arguments)
+        d = responder(decoded_argument_box)
+
+        def serialize_response(response_box):
+            # As above, prove we can serialize the response.
+            wire_format = response_box.serialize()
+            [decoded_response_box] = parseString(wire_format)
+            return decoded_response_box
+
+        d.addCallback(serialize_response)
         d.addCallback(command.parseResponse, self._locator)
 
         def massage_error(error):
@@ -102,16 +131,80 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
+# 800 is arbitrarily selected.  The two interesting properties it has are:
+#
+#   * It is large enough that serializing the result exceeds the native AMP
+#     size limit.
+#   * As of September 2015 it is the target for Flocker "scaling".
+#
+_MANY_CONTAINERS = 800
+
+
+def huge_node(node_prototype):
+    """
+    Return a node with many applications.
+
+    :param node_prototype: A ``Node`` or ``NodeState`` to use as a template for
+        the resulting node.
+
+    :return: An object like ``node_prototype`` but with its applications
+        replaced by a large collection of applications.
+    """
+    image = DockerImage.from_string(u'postgresql')
+    applications = [
+        Application(name=u'postgres-{}'.format(i), image=image)
+        for i in range(_MANY_CONTAINERS)
+    ]
+    return node_prototype.set(applications=applications)
+
+
+def _huge(deployment_prototype, node_prototype):
+    """
+    Return a deployment with many applications.
+
+    :param deployment_prototype: A ``Deployment`` or ``DeploymentState`` to use
+        as a template for the resulting deployment.
+    :param node_prototype: See ``huge_node``.
+
+    :return: An object like ``deployment_prototype`` but with a node like
+        ``node_prototype`` added (or modified) so as to include a large number
+        of applications.
+    """
+    return deployment_prototype.update_node(
+        huge_node(node_prototype),
+    )
+
+
+def huge_deployment():
+    """
+    Return a configuration with many containers.
+
+    :rtype: ``Deployment``
+    """
+    return _huge(Deployment(), Node(hostname=u'192.0.2.31'))
+
+
+def huge_state():
+    """
+    Return a state with many containers.
+
+    :rtype: ``DeploymentState``
+    """
+    return _huge(
+        DeploymentState(),
+        NodeState(hostname=u'192.0.2.31', applications=[]),
+    )
+
+
 # A very simple piece of node state that makes for nice-looking, easily-read
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
 SIMPLE_NODE_STATE = NodeState(
-    hostname=u"192.0.2.17", uuid=uuid4(), applications=[], used_ports=[1],
+    hostname=u"192.0.2.17", uuid=uuid4(), applications=[],
 )
 
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
-                       used_ports=[1, 2],
                        devices={}, paths={},
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
@@ -121,6 +214,109 @@ NONMANIFEST = NonManifestDatasets(
     datasets={dataset.dataset_id: dataset}
 )
 del dataset
+
+
+class BigArgumentTests(SynchronousTestCase):
+    """
+    Tests for ``Big``.
+    """
+    class CommandWithBigArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+        ]
+
+    class CommandWithTwoBigArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+            ("large", Big(String())),
+        ]
+
+    class CommandWithBigAndRegularArgument(Command):
+        arguments = [
+            ("big", Big(String())),
+            ("regular", String()),
+        ]
+
+    class CommandWithBigListArgument(Command):
+        arguments = [
+            ("big", Big(ListOf(Integer()))),
+        ]
+
+    def test_interface(self):
+        """
+        ``Big`` instances provide ``IArgumentType``.
+        """
+        big = dict(self.CommandWithBigArgument.arguments)["big"]
+        self.assertTrue(verifyObject(IArgumentType, big))
+
+    def assert_roundtrips(self, command, **kwargs):
+        """
+        ``kwargs`` supplied to ``command`` can be serialized and unserialized.
+        """
+        amp_protocol = None
+        argument_box = command.makeArguments(kwargs, amp_protocol)
+        [roundtripped] = parseString(argument_box.serialize())
+        parsed_objects = command.parseArguments(roundtripped, amp_protocol)
+        self.assertEqual(kwargs, parsed_objects)
+
+    def test_roundtrip_non_string(self):
+        """
+        When ``Big`` wraps a non-string argument, it can serialize and
+        unserialize it.
+        """
+        some_list = range(10)
+        self.assert_roundtrips(self.CommandWithBigListArgument, big=some_list)
+
+    def test_roundtrip_small(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are smaller then
+        MAX_VALUE_LENGTH.
+        """
+        small_bytes = b"hello world"
+        self.assert_roundtrips(self.CommandWithBigArgument, big=small_bytes)
+
+    def test_roundtrip_medium(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are larger than
+        MAX_VALUE_LENGTH.
+        """
+        medium_bytes = b"x" * (MAX_VALUE_LENGTH + 1)
+        self.assert_roundtrips(self.CommandWithBigArgument, big=medium_bytes)
+
+    def test_roundtrip_large(self):
+        """
+        ``Big`` can serialize and unserialize argmuments which are larger than
+        MAX_VALUE_LENGTH.
+        """
+        big_bytes = u"\n".join(
+            u"{value}".format(value=value)
+            for value
+            in range(MAX_VALUE_LENGTH)
+        ).encode("ascii")
+
+        self.assert_roundtrips(self.CommandWithBigArgument, big=big_bytes)
+
+    def test_two_big_arguments(self):
+        """
+        AMP can serialize and unserialize a ``Command`` with multiple ``Big``
+        arguments.
+        """
+        self.assert_roundtrips(
+            self.CommandWithTwoBigArgument,
+            big=b"hello world",
+            large=b"goodbye world",
+        )
+
+    def test_big_and_regular_arguments(self):
+        """
+        AMP can serialize and unserialize a ``Command`` with a combination of
+        ``Big`` and regular arguments.
+        """
+        self.assert_roundtrips(
+            self.CommandWithBigAndRegularArgument,
+            big=b"hello world",
+            regular=b"goodbye world",
+        )
 
 
 class SerializationTests(SynchronousTestCase):
@@ -165,11 +361,8 @@ class SerializationTests(SynchronousTestCase):
         ``SerializableArgument`` can be given multiple types to allow instances
         of any of those types to be serialized and deserialized.
         """
-        argument = SerializableArgument(list, dict)
-        objects = [
-            [u"foo"],
-            {u"bar": u"baz"},
-        ]
+        argument = SerializableArgument(NodeState, Deployment)
+        objects = [TEST_DEPLOYMENT, NODE_STATE]
         serialized = list(
             argument.toString(o)
             for o in objects
@@ -198,6 +391,16 @@ class SerializationTests(SynchronousTestCase):
         self.assertRaises(
             TypeError, SerializableArgument(NodeState).fromString, as_bytes)
 
+    def test_caches(self):
+        """
+        Encoding results are cached when in the context of the caching
+        encoder's ``cache()`` call.
+        """
+        argument = SerializableArgument(Deployment)
+        with _caching_encoder.cache():
+            self.assertIs(argument.toString(TEST_DEPLOYMENT),
+                          argument.toString(TEST_DEPLOYMENT))
+
 
 def build_control_amp_service(test, reactor=None):
     """
@@ -213,7 +416,7 @@ def build_control_amp_service(test, reactor=None):
     cluster_state.startService()
     test.addCleanup(cluster_state.stopService)
     persistence_service = ConfigurationPersistenceService(
-        None, FilePath(test.mktemp()))
+        reactor, FilePath(test.mktemp()))
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
     return ControlAMPService(reactor, cluster_state, persistence_service,
@@ -401,6 +604,25 @@ class ControlAMPTests(ControlTestCase):
               dict(configuration=TEST_DEPLOYMENT,
                    state=cluster_state)))] * 2)
 
+    def test_too_long_node_state(self):
+        """
+        AMP protocol can transmit node states with 800 applications.
+        """
+        node_prototype = NodeState(
+            hostname=u"192.0.3.13", uuid=uuid4(), applications=[],
+        )
+        node = huge_node(node_prototype)
+        d = self.client.callRemote(
+            NodeStateCommand,
+            state_changes=(node,),
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(nodes=[node]),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
@@ -555,6 +777,38 @@ class AgentClientTests(SynchronousTestCase):
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
+
+    def test_too_long_configuration(self):
+        """
+        AMP protocol can transmit configurations with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        actual = DeploymentState(nodes=[])
+        configuration = huge_deployment()
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=configuration,
+            state=actual,
+            eliot_context=TEST_ACTION
+        )
+
+        self.successResultOf(d)
+        self.assertEqual(configuration, self.agent.desired)
+
+    def test_too_long_state(self):
+        """
+        AMP protocol can transmit states with 800 applications.
+        """
+        self.client.makeConnection(StringTransport())
+        state = huge_state()
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=Deployment(),
+            state=state,
+            eliot_context=TEST_ACTION,
+        )
+        self.successResultOf(d)
+        self.assertEqual(state, self.agent.actual)
 
     def test_cluster_updated(self):
         """
@@ -849,3 +1103,64 @@ class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
     """
     def build_protocol(self, reactor):
         return AgentAMP(reactor, FakeAgent())
+
+
+class CachingEncoderTests(SynchronousTestCase):
+    """
+    Tests for ``CachingEncoder``.
+    """
+    def test_encodes(self):
+        """
+        ``CachingEncoder.encode`` returns result of ``wire_encode`` for given
+        object.
+        """
+        cache = CachingEncoder()
+        self.assertEqual(
+            [loads(cache.encode(TEST_DEPLOYMENT)),
+             loads(cache.encode(NODE_STATE))],
+            [loads(wire_encode(TEST_DEPLOYMENT)),
+             loads(wire_encode(NODE_STATE))])
+
+    def test_no_caching(self):
+        """
+        ``CachingEncoder.encode`` does not cache results by default.
+        """
+        cache = CachingEncoder()
+        result1 = cache.encode(TEST_DEPLOYMENT)
+        result2 = cache.encode(NODE_STATE)
+
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is not result1,
+             cache.encode(NODE_STATE) is not result2],
+            [True, True])
+
+    def test_caches(self):
+        """
+        ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
+        particular object if used in context of ``cache()``.
+        """
+        cache = CachingEncoder()
+        with cache.cache():
+            # Warm up cache:
+            result1 = cache.encode(TEST_DEPLOYMENT)
+            result2 = cache.encode(NODE_STATE)
+
+            self.assertEqual(
+                [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
+                 loads(result2) == loads(wire_encode(NODE_STATE)),
+                 cache.encode(TEST_DEPLOYMENT) is result1,
+                 cache.encode(NODE_STATE) is result2],
+                [True, True, True, True])
+
+    def test_after_caching(self):
+        """
+        Once ``cache`` context is exited the caching no longer applies.
+        """
+        cache = CachingEncoder()
+        with cache.cache():
+            result1 = cache.encode(TEST_DEPLOYMENT)
+            result2 = cache.encode(NODE_STATE)
+        self.assertEqual(
+            [cache.encode(TEST_DEPLOYMENT) is not result1,
+             cache.encode(NODE_STATE) is not result2],
+            [True, True])

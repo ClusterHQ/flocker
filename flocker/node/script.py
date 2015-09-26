@@ -7,6 +7,7 @@ The command-line ``flocker-*-agent`` tools.
 
 from socket import socket
 from contextlib import closing
+import sys
 from time import sleep
 
 import yaml
@@ -20,9 +21,10 @@ from eliot import ActionType, fields
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
-from twisted.python.usage import Options
+from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
+from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
 
@@ -35,6 +37,10 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
+from ._diagnostics import (
+    current_distribution, FlockerDebugArchive, DISTRIBUTION_BY_LABEL,
+    lookup_distribution,
+)
 from .agents.blockdevice import (
     LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
 )
@@ -44,6 +50,7 @@ from ..ca import ControlServicePolicy, NodeCredential
 __all__ = [
     "flocker_dataset_agent_main",
     "flocker_container_agent_main",
+    "flocker_diagnostics_main",
 ]
 
 
@@ -653,3 +660,65 @@ class DatasetServiceFactory(PRecord):
         loop_service = agent_service.get_loop_service(deployer)
 
         return loop_service
+
+
+@flocker_standard_options
+class DiagnosticsOptions(Options):
+    """
+    Command line options for ``flocker-diagnostics``.
+    """
+    longdesc = """\
+    Exports Flocker log files and diagnostic data. Run this script as root, on
+    an Ubuntu 14.04 or Centos 7 server where the clusterhq-flocker-node package
+    has been installed.
+    """
+
+    synopsis = "Usage: flocker-diagnostics [OPTIONS]"
+
+    optParameters = [
+        ["distribution-name", "d", "auto",
+         "Force the use of ``distribution`` specific tools "
+         "when gathering diagnostic information. "
+         "One of {}".format(
+             ', '.join(['auto'] + DISTRIBUTION_BY_LABEL.keys())
+         )],
+    ]
+
+    def postOptions(self):
+        distribution_name = self['distribution-name']
+        if distribution_name is 'auto':
+            distribution_name = current_distribution()
+
+        distribution = lookup_distribution(distribution_name)
+
+        if distribution is None:
+            raise UsageError(
+                "flocker-diagnostics "
+                "is not supported on this distribution ({!r}).\n"
+                "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
+                "for alternative ways to export Flocker logs "
+                "and diagnostic data.\n".format(distribution_name)
+            )
+        self.distribution = distribution
+
+
+@implementer(ICommandLineScript)
+class DiagnosticsScript(PRecord):
+    """
+    Implement top-level logic for the ``flocker-diagnostics``.
+    """
+    def main(self, reactor, options):
+        archive_path = FlockerDebugArchive(
+            service_manager=options.distribution.service_manager(),
+            log_exporter=options.distribution.log_exporter()
+        ).create()
+        sys.stdout.write(archive_path + '\n')
+        return succeed(None)
+
+
+def flocker_diagnostics_main():
+    return FlockerScriptRunner(
+        script=DiagnosticsScript(),
+        options=DiagnosticsOptions(),
+        logging=False,
+    ).main()

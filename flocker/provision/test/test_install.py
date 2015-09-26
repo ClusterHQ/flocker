@@ -10,14 +10,15 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from pyrsistent import freeze, thaw
 
-from .. import PackageSource
+from textwrap import dedent
+
 from .._install import (
-    task_install_flocker,
     task_configure_flocker_agent,
     task_enable_flocker_agent,
     run, put, run_from_args,
     get_repository_url, UnsupportedDistribution, get_installable_version,
     get_repo_options,
+    _remove_dataset_fields, _remove_private_key,
 )
 from .._ssh import Put
 from .._effect import sequence
@@ -73,6 +74,7 @@ class ConfigureFlockerAgentTests(SynchronousTestCase):
             put(
                 content=yaml.safe_dump(thaw(expected_agent_config)),
                 path=THE_AGENT_YML_PATH,
+                log_content_filter=_remove_dataset_fields,
             ).intent,
             put_agent_yml,
         )
@@ -156,7 +158,7 @@ class GetRepoOptionsTests(SynchronousTestCase):
         version is not a marketing release.
         """
         self.assertEqual(
-            get_repo_options(flocker_version='0.3.0dev1'),
+            get_repo_options(flocker_version='0.3.0.dev1'),
             ['--enablerepo=clusterhq-testing'])
 
 
@@ -229,7 +231,7 @@ class GetRepositoryURLTests(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='ubuntu-14.04',
-                flocker_version='0.3.0dev1'),
+                flocker_version='0.3.0.dev1'),
             expected
         )
 
@@ -244,199 +246,85 @@ class GetRepositoryURLTests(SynchronousTestCase):
         self.assertEqual(
             get_repository_url(
                 distribution='centos-7',
-                flocker_version='0.3.0dev1'),
+                flocker_version='0.3.0.dev1'),
             expected
         )
 
 
-class InstallFlockerTests(SynchronousTestCase):
+class PrivateKeyLoggingTest(SynchronousTestCase):
     """
-    Tests for ``task_install_flocker``.
+    Test removal of private keys from logs.
     """
 
-    def test_centos_no_arguments(self):
+    def test_private_key_removed(self):
         """
-        With no arguments, ``task_install_flocker`` installs the latest
-        release.
+        A private key is removed for logging.
         """
-        distribution = 'centos-7'
-        commands = task_install_flocker(distribution=distribution)
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            -----END PRIVATE KEY-----
+            ''')
         self.assertEqual(
-            commands,
-            _centos7_install_commands("")
-        )
+            dedent('''
+                -----BEGIN PRIVATE KEY-----
+                MFDk...REMOVED...OEWe
+                -----END PRIVATE KEY-----
+                '''),
+            _remove_private_key(key))
 
-    def test_centos_with_version(self):
+    def test_non_key_kept(self):
         """
-        With a ``PackageSource`` containing just a version,
-        ``task_install_flocker`` installs that version from our release
-        repositories.
+        Non-key data is kept for logging.
         """
-        distribution = 'centos-7'
-        source = PackageSource(os_version="1.2.3-1")
-        commands = task_install_flocker(
-            package_source=source,
-            distribution=distribution)
-        self.assertEqual(commands, _centos7_install_commands("-1.2.3-1"))
+        key = 'some random data, not a key'
+        self.assertEqual(key, _remove_private_key(key))
 
-    def test_ubuntu_no_arguments(self):
+    def test_short_key_kept(self):
         """
-        With no arguments, ``task_install_flocker`` installs the latest
-        release.
+        A key that is suspiciously short is kept for logging.
         """
-        distribution = 'ubuntu-14.04'
-        commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
-            run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command='add-apt-repository -y "deb {} /"'.format(
-                get_repository_url(
-                    distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(
-                        flocker_version
-                    )))),
-            run(command='apt-get update'),
-            run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
-        ]))
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            short
+            -----END PRIVATE KEY-----
+            ''')
+        self.assertEqual(key, _remove_private_key(key))
 
-    def test_ubuntu_with_version(self):
+    def test_no_end_key_removed(self):
         """
-        With a ``PackageSource`` containing just a version,
-        ``task_install_flocker`` installs that version from our release
-        repositories.
+        A missing end tag does not prevent removal working.
         """
-        distribution = 'ubuntu-14.04'
-        source = PackageSource(os_version="1.2.3-1")
-        commands = task_install_flocker(
-            package_source=source,
-            distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
-            run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command='add-apt-repository -y "deb {} /"'.format(
-                get_repository_url(
-                    distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(
-                        flocker_version
-                    )))),
-            run(command='apt-get update'),
-            run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
-        ]))
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            ''')
+        self.assertEqual(
+            '\n-----BEGIN PRIVATE KEY-----\nMFDk...REMOVED...OEWe\n',
+            _remove_private_key(key))
 
-    def test_ubuntu_with_branch(self):
-        """
-        With a ``PackageSource`` containing just a branch,
-        ``task_install_flocker`` installs that version from buildbot.
-        """
-        distribution = 'ubuntu-14.04'
-        source = PackageSource(branch="branch-FLOC-1234")
-        commands = task_install_flocker(
-            package_source=source,
-            distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
-            run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command='add-apt-repository -y "deb {} /"'.format(
-                get_repository_url(
-                    distribution='ubuntu-14.04',
-                    flocker_version=get_installable_version(
-                        flocker_version
-                    )))),
-            run(command="add-apt-repository -y "
-                        "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
-            put(
-                content='Package:  *\nPin: origin build.clusterhq.com\nPin-Priority: 900\n',  # noqa
-                path='/etc/apt/preferences.d/buildbot-900'),
-            run(command='apt-get update'),
-            run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
-        ]))
 
-    def test_with_branch(self):
-        """
-        With a ``PackageSource`` containing just a branch,
-        ``task_install_flocker`` installs the latest build of the branch from
-        our build server.
-        """
-        distribution = 'centos-7'
-        source = PackageSource(branch="branch")
-        commands = task_install_flocker(
-            package_source=source,
-            distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum clean all"),
-            run(command="yum install -y {}".format(
-                get_repository_url(
-                    distribution='centos-7',
-                    flocker_version=get_installable_version(flocker_version),
-                ),
-            )),
-            put(content="""\
-[clusterhq-build]
-name=clusterhq-build
-baseurl=http://build.clusterhq.com/results/omnibus/branch/centos-7
-gpgcheck=0
-enabled=0
-""",
-                path="/etc/yum.repos.d/clusterhq-build.repo"),
-            run(command="yum install --enablerepo=clusterhq-build "
-                        "-y clusterhq-flocker-node")
-        ]))
+class DatasetLoggingTest(SynchronousTestCase):
+    """
+    Test removal of sensitive information from logged configuration files.
+    """
 
-    def test_with_server(self):
+    def test_dataset_logged_safely(self):
         """
-        With a ``PackageSource`` containing a branch and build server,
-        ``task_install_flocker`` installs the latest build of the branch from
-        that build server.
+        Values are either the same or replaced by 'REMOVED'.
         """
-        distribution = "centos-7"
-        source = PackageSource(branch="branch",
-                               build_server='http://nowhere.example/')
-        commands = task_install_flocker(
-            package_source=source,
-            distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum clean all"),
-            run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7',
-                flocker_version=get_installable_version(flocker_version),
-            )),
-            put(content="""\
-[clusterhq-build]
-name=clusterhq-build
-baseurl=http://nowhere.example/results/omnibus/branch/centos-7
-gpgcheck=0
-enabled=0
-""",
-                path="/etc/yum.repos.d/clusterhq-build.repo"),
-            run(command="yum install --enablerepo=clusterhq-build "
-                        "-y clusterhq-flocker-node")
-        ]))
-
-    def test_with_branch_and_version(self):
-        """
-        With a ``PackageSource`` containing a branch and version,
-        ``task_install_flocker`` installs the specifed build of the branch from
-        that build server.
-        """
-        distribution = "centos-7"
-        source = PackageSource(branch="branch", os_version='1.2.3-1')
-        commands = task_install_flocker(
-            package_source=source,
-            distribution=distribution)
-        self.assertEqual(commands, sequence([
-            run(command="yum clean all"),
-            run(command="yum install -y %s" % get_repository_url(
-                distribution='centos-7',
-                flocker_version=get_installable_version(flocker_version),
-            )),
-            put(content="""\
-[clusterhq-build]
-name=clusterhq-build
-baseurl=http://build.clusterhq.com/results/omnibus/branch/centos-7
-gpgcheck=0
-enabled=0
-""",
-                path="/etc/yum.repos.d/clusterhq-build.repo"),
-            run(command="yum install --enablerepo=clusterhq-build "
-                        "-y clusterhq-flocker-node-1.2.3-1")
-        ]))
+        config = {
+            'dataset': {
+                'secret': 'SENSITIVE',
+                'zone': 'keep'
+                }
+            }
+        content = yaml.safe_dump(config)
+        logged = _remove_dataset_fields(content)
+        self.assertEqual(
+            yaml.safe_load(logged),
+            {'dataset': {'secret': 'REMOVED', 'zone': 'keep'}})

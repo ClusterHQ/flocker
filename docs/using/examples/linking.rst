@@ -25,7 +25,7 @@ Create the Virtual Machines
 You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutmongo>`.
 If you have since shutdown or destroyed those VMs, boot them up again:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
@@ -36,7 +36,7 @@ Download the Docker Images
 
 The Docker images used by this example are quite large, so you should pre-fetch them to your nodes.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/elasticsearch
    ...
@@ -46,7 +46,7 @@ The Docker images used by this example are quite large, so you should pre-fetch 
    ...
    alice@mercury:~/flocker-tutorial$
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/elasticsearch
    ...
@@ -74,10 +74,9 @@ Download and save the following configuration files to your ``flocker-tutorial``
 
 Run ``flocker-deploy`` to start the three applications:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
 
 Connect to ``Kibana``
 =====================
@@ -94,7 +93,7 @@ Generate Sample Log Messages
 
 Use ``telnet`` to connect to the ``Logstash`` service running in the Virtual Machine and send some sample ``JSON`` data.
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ telnet 172.16.255.250 5000
    {"firstname": "Joe", "lastname": "Bloggs"}
@@ -121,14 +120,13 @@ Download and save the following configuration files to the ``flocker-tutorial`` 
 
 Then run ``flocker-deploy`` to move the ``Elasticsearch`` application along with its data to the new destination host:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
    
 Now verify that the ``ElasticSearch`` application has moved to the other VM:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
@@ -137,7 +135,7 @@ Now verify that the ``ElasticSearch`` application has moved to the other VM:
 
 And is no longer running on the original host:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                            COMMAND                CREATED             STATUS              PORTS                    NAMES

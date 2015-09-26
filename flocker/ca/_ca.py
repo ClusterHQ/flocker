@@ -214,6 +214,51 @@ def flocker_keypair():
     )
 
 
+def load_certificate_file(path):
+    """
+    Load a certificate from a specified path.
+
+    :param FilePath path: Absolute path to certificate file.
+
+    :return: A ``Certificate`` instance representing the parsed
+        certificate data.
+    """
+    try:
+        certificate_file = path.open()
+    except IOError as e:
+        code, failure = e
+        raise PathError(
+            b"Certificate file could not be opened.",
+            e.filename, code, failure
+        )
+    certificate = Certificate.load(
+        certificate_file.read(), format=crypto.FILETYPE_PEM)
+    return certificate
+
+
+def load_key_file(path):
+    """
+    Load a private key from a specified path.
+
+    :param FilePath path: Absolute path to certificate file.
+
+    :return: A ``ComparableKeyPair`` instance representing the parsed
+        key data.
+    """
+    try:
+        key_file = path.open()
+    except IOError as e:
+        code, failure = e
+        raise PathError(
+            b"Private key file could not be opened.",
+            e.filename, code, failure
+        )
+    keypair = ComparableKeyPair(
+        keypair=KeyPair.load(key_file.read(), format=crypto.FILETYPE_PEM)
+    )
+    return keypair
+
+
 def load_certificate_from_path(path, key_filename, cert_filename):
     """
     Load a certificate and keypair from a specified path.
@@ -226,32 +271,10 @@ def load_certificate_from_path(path, key_filename, cert_filename):
     :return: A ``tuple`` containing the loaded key and certificate
         instances.
     """
-    certPath = path.child(cert_filename)
-    keyPath = path.child(key_filename)
-
-    try:
-        certFile = certPath.open()
-    except IOError as e:
-        code, failure = e
-        raise PathError(
-            b"Certificate file could not be opened.",
-            e.filename, code, failure
-        )
-
-    try:
-        keyFile = keyPath.open()
-    except IOError as e:
-        code, failure = e
-        raise PathError(
-            b"Private key file could not be opened.",
-            e.filename, code, failure
-        )
-
-    certificate = Certificate.load(
-        certFile.read(), format=crypto.FILETYPE_PEM)
-    keypair = ComparableKeyPair(
-        keypair=KeyPair.load(keyFile.read(), format=crypto.FILETYPE_PEM)
-    )
+    cert_path = path.child(cert_filename)
+    key_path = path.child(key_filename)
+    certificate = load_certificate_file(cert_path)
+    keypair = load_key_file(key_path)
     return (keypair, certificate)
 
 
@@ -332,9 +355,39 @@ class UserCredential(PRecord):
     username = field(mandatory=True, type=unicode)
 
     @classmethod
+    def from_files(cls, certificate_path, key_path):
+        """
+        Load a user certificate and keypair from the specified file paths.
+        Extracts the username from the parsed certificate.
+
+        :param FilePath certificate_path: Absolute path to the user
+            certificate file.
+        :param FilePath key_path: Absolute path to the user private key file.
+
+        :return: A ``UserCredential`` instance representing the parsed data.
+        """
+        certificate = load_certificate_file(certificate_path)
+        keypair = load_key_file(key_path)
+        dn = certificate.getSubject()
+        # Convert the common name to a string and remove the "user-" prefix
+        # to extract the actual username.
+        username = dn.CN.decode("utf-8").replace(u"user-", u"", 1)
+        # We have no need for the ``path`` attribute on FlockerCredential
+        # except when we write the files, so for now we can set this to the
+        # directory of the certificate path.
+        # FlockerCredential should be modified to not work like this though.
+        # See FLOC-2414
+        credential = FlockerCredential(
+            path=certificate_path.parent(),
+            keypair=keypair,
+            certificate=certificate
+        )
+        return cls(credential=credential, username=username)
+
+    @classmethod
     def from_path(cls, path, username):
         """
-        Load a user certificate from a specified path.
+        Load a user certificate from a specified directory path.
 
         :param FilePath path: Directory where user certificate and key
             files are stored.
@@ -608,10 +661,10 @@ class RootCredential(PRecord):
         return cls(credential=credential)
 
     @classmethod
-    def initialize(cls, path, name, begin=None):
+    def initialize(cls, path, name, begin=None, cluster_id=None):
         """
-        Generate new private/public key pair and self-sign, then store in
-        given directory.
+        Generate new private/public key pair and self-sign, then store in given
+        directory.
 
         :param FilePath path: Directory where private key and certificate are
             stored.
@@ -619,11 +672,19 @@ class RootCredential(PRecord):
             subject and issuer identities of the generated root certificate.
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
+        :param UUID cluster_id: The unique identifier of the cluster for which
+            to generate the key and certificate.  If not given, a random
+            identifier will be generated.
 
         :return RootCredential: Initialized certificate authority.
         """
-        dn = DistinguishedName(commonName=name,
-                               organizationalUnitName=bytes(uuid4()))
+        if cluster_id is None:
+            cluster_id = uuid4()
+
+        dn = DistinguishedName(
+            commonName=name,
+            organizationalUnitName=bytes(cluster_id),
+        )
         keypair = flocker_keypair()
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")

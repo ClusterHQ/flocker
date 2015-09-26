@@ -6,12 +6,16 @@ Testing utilities for ``flocker.acceptance``.
 from functools import wraps
 from json import dumps
 from os import environ
-from subprocess import check_call
 from unittest import SkipTest, skipUnless
 from uuid import uuid4
+from socket import socket
+from contextlib import closing
 
-from yaml import safe_dump
 import json
+import ssl
+
+from docker import Client
+from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -22,7 +26,7 @@ from twisted.internet import reactor
 from eliot import Logger, start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
-from treq import json_content, content
+from treq import json_content, content, get, post
 
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
@@ -32,9 +36,10 @@ from ..control import (
 
 from ..common import gather_deferreds
 
-from ..control.httpapi import container_configuration_response, REST_API_PORT
+from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
-from ..testtools import loop_until, REALISTIC_BLOCKDEVICE_SIZE
+from ..testtools import loop_until, random_name
+from ..apiclient import FlockerClient, DatasetState
 
 try:
     from pymongo import MongoClient
@@ -47,7 +52,7 @@ __all__ = [
     'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
-    'create_attached_volume'
+    'create_attached_volume', 'get_docker_client'
     ]
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
@@ -65,6 +70,33 @@ require_mongo = skipUnless(
 # https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
+
+DOCKER_PORT = 2376
+
+
+def get_docker_client(cluster, address):
+    """
+    Open a Docker client to the given address.
+
+    :param Cluster cluster: Description of the cluster we're talking to.
+    :param bytes address: The public IP of the node to connect to.
+
+    :return: Docker ``Client`` instance.
+    """
+    def get_path(name):
+        return cluster.certificates_path.child(name).path
+
+    tls = TLSConfig(
+        client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
+        # Blows up if not set
+        # (https://github.com/shazow/urllib3/issues/695):
+        ssl_version=ssl.PROTOCOL_TLSv1,
+        # Don't validate hostname, we don't generate it correctly, but
+        # do verify certificate authority signed the server certificate:
+        assert_hostname=False,
+        verify=get_path(b"cluster.crt"))
+    return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
+                  tls=tls, timeout=100)
 
 
 def get_mongo_application():
@@ -120,6 +152,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
+# Highly duplicative of other constants.  FLOC-2584.
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
@@ -174,6 +207,19 @@ def skip_backend(unsupported, reason):
 require_moving_backend = skip_backend(
     unsupported={DatasetBackend.loopback},
     reason="doesn't support moving")
+
+
+def get_default_volume_size():
+    """
+    :returns int: the default volume size (in bytes) supported by the
+        backend the acceptance tests are using.
+    """
+    default_volume_size = environ.get("FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE")
+    if default_volume_size is None:
+        raise SkipTest(
+            "Set acceptance testing default volume size using the " +
+            "FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE environment variable.")
+    return int(default_volume_size)
 
 
 def get_mongo_client(host, port=27017):
@@ -304,11 +350,15 @@ class Cluster(PRecord):
     :ivar Node control_node: The node running the ``flocker-control``
         service.
     :ivar list nodes: The ``Node`` s in this cluster.
-    :ivar treq: A ``treq`` client.
+
+    :ivar treq: A ``treq`` client, eventually to be completely replaced by
+        ``FlockerClient`` usage.
+    :ivar client: A ``FlockerClient``.
     """
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
 
     @property
@@ -322,131 +372,65 @@ class Cluster(PRecord):
         )
 
     @log_method
-    def configured_datasets(self):
+    def wait_for_deleted_dataset(self, deleted_dataset):
         """
-        Return the configured dataset state of the cluster.
+        Poll the dataset state API until the supplied dataset does
+        not exist.
 
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the configuration of the cluster.
+        :param Dataset deleted_dataset: The configured dataset that
+            we're waiting for to be removed from state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when the dataset is no longer found in state.
         """
-        request = self.treq.get(
-            self.base_url + b"/configuration/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
+        def deleted():
+            request = self.client.list_datasets_state()
+
+            def got_results(datasets):
+                return deleted_dataset.dataset_id not in (
+                    d.dataset_id for d in datasets)
+            request.addCallback(got_results)
+            return request
+
+        waiting = loop_until(deleted)
+        waiting.addCallback(lambda _: deleted_dataset)
+        return waiting
 
     @log_method
-    def datasets_state(self):
-        """
-        Return the actual dataset state of the cluster.
-
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the state of the cluster.
-        """
-        request = self.treq.get(
-            self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def wait_for_dataset(self, dataset_properties):
+    def wait_for_dataset(self, expected_dataset):
         """
         Poll the dataset state API until the supplied dataset exists.
 
-        :param dict dataset_properties: The attributes of the dataset that
-            we're waiting for.
-        :returns: A ``Deferred`` which fires with an API response when a
-            dataset with the supplied properties appears in the cluster.
+        :param Dataset expected_dataset: The configured dataset that
+            we're waiting for in state.
+
+        :returns: A ``Deferred`` which fires with ``expected_datasets``
+            when the cluster state matches the configuration for the given
+            dataset.
         """
+        expected_dataset_state = DatasetState(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_dataset.primary,
+            maximum_size=expected_dataset.maximum_size,
+            path=None)
+
         def created():
             """
             Check the dataset state list for the expected dataset.
             """
-            request = self.datasets_state()
+            request = self.client.list_datasets_state()
 
-            def got_body(body):
-                # State listing doesn't have metadata or deleted, but does
-                # have unpredictable path.
-                expected_dataset = dataset_properties.copy()
-                del expected_dataset[u"metadata"]
-                del expected_dataset[u"deleted"]
-                for dataset in body:
-                    try:
-                        dataset.pop("path")
-                    except KeyError:
-                        # Non-manifest datasets don't have a path
-                        pass
-                return expected_dataset in body
-            request.addCallback(got_body)
+            def got_results(results):
+                # State has unpredictable path, so we don't bother
+                # checking for its contents:
+                actual_dataset_states = [d.set(path=None) for d in results]
+                return expected_dataset_state in actual_dataset_states
+            request.addCallback(got_results)
             return request
 
         waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: dataset_properties)
+        waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
-
-    @log_method
-    def create_dataset(self, dataset_properties):
-        """
-        Create a dataset with the supplied ``dataset_properties``.
-
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with an API response when a
-            dataset with the supplied properties has been persisted to the
-            cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/datasets",
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, CREATED)
-        return request
-
-    @log_method
-    def update_dataset(self, dataset_id, dataset_properties):
-        """
-        Update a dataset with the supplied ``dataset_properties``.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with an API response when the
-            dataset update has been persisted to the cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def delete_dataset(self, dataset_id):
-        """
-        Delete a dataset.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-
-        :returns: A ``Deferred`` which fires with an API response when the
-            dataset deletion has been persisted to the cluster configuration.
-        """
-        request = self.treq.delete(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
 
     @log_method
     def create_container(self, properties):
@@ -594,27 +578,6 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
-    def flocker_deploy(self, test_case, deployment_config, application_config):
-        """
-        Run ``flocker-deploy`` with given configuration files.
-
-        :param test_case: The ``TestCase`` running this unit test.
-        :param dict deployment_config: The desired deployment configuration.
-        :param dict application_config: The desired application configuration.
-        """
-        temp = FilePath(test_case.mktemp())
-        temp.makedirs()
-
-        deployment = temp.child(b"deployment.yml")
-        deployment.setContent(safe_dump(deployment_config))
-
-        application = temp.child(b"application.yml")
-        application.setContent(safe_dump(application_config))
-        check_call([b"flocker-deploy",
-                    b"--certificates-directory", self.certificates_path.path,
-                    self.control_node.public_address,
-                    deployment.path, application.path])
-
     def clean_nodes(self):
         """
         Clean containers and datasets via the API.
@@ -650,69 +613,37 @@ class Cluster(PRecord):
             )
             return get_items
 
-        def cleanup_containers():
+        def cleanup_containers(_):
             return api_clean_state(
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
 
-        def cleanup_datasets():
+        def cleanup_datasets(_):
             return api_clean_state(
-                lambda: self.configured_datasets().addCallback(
-                    lambda datasets: list(
-                        dataset
-                        for dataset
-                        in datasets
-                        if not dataset.get(u"deleted", False)
-                    )
-                ),
-                self.datasets_state,
-                lambda item: self.delete_dataset(item[u"dataset_id"]),
+                self.client.list_datasets_configuration,
+                self.client.list_datasets_state,
+                lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
-        return cleanup_containers().addCallback(lambda _: cleanup_datasets())
+        def cleanup_leases():
+            get_items = self.client.list_leases()
 
-    def assert_expected_deployment(self, test_case, expected_deployment):
-        """
-        Assert that the expected set of ``Application`` instances on a set of
-        nodes is the same as the actual set of ``Application`` instance on
-        those nodes.
+            def release_all(leases):
+                release_list = []
+                for lease in leases:
+                    release_list.append(
+                        self.client.release_lease(lease.dataset_id))
+                return gather_deferreds(release_list)
 
-        The tutorial looks at Docker output, but the acceptance tests are
-        intended to test high-level external behaviors. Since this is looking
-        at the output of the control service API it merely verifies what
-        Flocker believes the system state is, not the actual state.
-        The latter should be verified separately with additional tests
-        for external side-effects (applications being available on ports,
-        say).
+            get_items.addCallback(release_all)
+            return get_items
 
-        :param test_case: The ``TestCase`` running this unit test.
-        :param dict expected_deployment: A mapping of IP addresses to set of
-            ``Application`` instances expected on the nodes with those IP
-            addresses.
-
-        :return Deferred: Fires on end of assertion.
-        """
-        ip_to_uuid = {node.reported_hostname: node.uuid for node in self.nodes}
-
-        def got_results(existing_containers):
-            expected = []
-            for reported_hostname, apps in expected_deployment.items():
-                node_uuid = ip_to_uuid[reported_hostname]
-                expected += [container_configuration_response(app, node_uuid)
-                             for app in apps]
-            for app in expected:
-                app[u"running"] = True
-
-            return sorted(existing_containers) == sorted(expected)
-
-        def configuration_matches_state():
-            d = self.current_containers()
-            d.addCallback(got_results)
-            return d
-
-        return loop_until(configuration_matches_state)
+        d = cleanup_leases()
+        d.addCallback(cleanup_containers)
+        d.addCallback(cleanup_datasets)
+        return d
 
 
 def _get_test_cluster(reactor, node_count):
@@ -746,10 +677,16 @@ def _get_test_cluster(reactor, node_count):
 
     certificates_path = FilePath(
         environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+    cluster_cert = certificates_path.child(b"cluster.crt")
+    user_cert = certificates_path.child(b"user.crt")
+    user_key = certificates_path.child(b"user.key")
     cluster = Cluster(
         control_node=ControlService(public_address=control_node),
         nodes=[],
-        treq=treq_with_authentication(reactor, certificates_path),
+        treq=treq_with_authentication(
+            reactor, cluster_cert, user_cert, user_key),
+        client=FlockerClient(reactor, control_node, REST_API_PORT,
+                             cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
     )
 
@@ -838,8 +775,43 @@ def require_cluster(num_nodes):
     return decorator
 
 
-def create_dataset(test_case, cluster,
-                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+def create_python_container(test_case, cluster, parameters, script,
+                            cleanup=True, additional_arguments=()):
+    """
+    Create a Python container that runs a given script.
+
+    :param TestCase test_case: The current test.
+    :param Cluster cluster: The cluster to run on.
+    :param dict parameters: Parameters for the ``create_container`` JSON
+        query, beyond those provided by this function.
+    :param FilePath script: Python code to run.
+    :param bool cleanup: If true, remove container when test is over.
+    :param additional_arguments: Additional arguments to pass to the
+        script.
+
+    :return: ``Deferred`` that fires when the configuration has been updated.
+    """
+    parameters = parameters.copy()
+    parameters[u"image"] = u"python:2.7-slim"
+    parameters[u"command_line"] = [u"python", u"-c",
+                                   script.getContent().decode("ascii")] + list(
+                                       additional_arguments)
+    if u"restart_policy" not in parameters:
+        parameters[u"restart_policy"] = {u"name": u"never"}
+    if u"name" not in parameters:
+        parameters[u"name"] = random_name(test_case)
+    creating = cluster.create_container(parameters)
+
+    def created(response):
+        if cleanup:
+            test_case.addCleanup(cluster.remove_container, parameters[u"name"])
+        test_case.assertEqual(response, parameters)
+        return response
+    creating.addCallback(created)
+    return creating
+
+
+def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -851,15 +823,15 @@ def create_dataset(test_case, cluster,
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
     """
-    # Configure a dataset on node1
-    requested_dataset = {
-        u"primary": cluster.nodes[0].uuid,
-        u"dataset_id": unicode(uuid4()),
-        u"maximum_size": maximum_size,
-        u"metadata": {u"name": u"my_volume"},
-    }
+    if maximum_size is None:
+        maximum_size = get_default_volume_size()
+    if dataset_id is None:
+        dataset_id = uuid4()
 
-    configuring_dataset = cluster.create_dataset(requested_dataset)
+    configuring_dataset = cluster.client.create_dataset(
+        cluster.nodes[0].uuid, maximum_size=maximum_size,
+        dataset_id=dataset_id, metadata={u"name": u"my_volume"}
+    )
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
@@ -867,3 +839,142 @@ def create_dataset(test_case, cluster,
     )
 
     return waiting_for_create
+
+
+def verify_socket(host, port):
+    """
+    Wait until the destination socket can be reached.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Firing when connection is possible.
+    """
+    def can_connect():
+        with closing(socket()) as s:
+            conn = s.connect_ex((host, port))
+            Message.new(
+                message_type="acceptance:verify_socket",
+                host=host,
+                port=port,
+                result=conn,
+            ).write()
+            return conn == 0
+
+    dl = loop_until(can_connect)
+    return dl
+
+
+def post_http_server(test, host, port, data, expected_response=b"ok"):
+    """
+    Make a POST request to an HTTP server on the given host and port
+    and assert that the response body matches the expected response.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes data: The raw request body data.
+    :param bytes expected_response: The HTTP response body expected.
+        Defaults to b"ok"
+    """
+    def make_post(host, port, data):
+        request = post(
+            "http://{host}:{port}".format(host=host, port=port),
+            data=data,
+            persistent=False
+        )
+
+        def failed(failure):
+            Message.new(message_type=u"acceptance:http_query_failed",
+                        reason=unicode(failure)).write()
+            return False
+        request.addCallbacks(content, failed)
+        return request
+    d = verify_socket(host, port)
+    d.addCallback(lambda _: loop_until(lambda: make_post(
+        host, port, data)))
+    d.addCallback(test.assertEqual, expected_response)
+    return d
+
+
+def check_http_server(host, port):
+    """
+    Check if an HTTP server is running.
+
+    Attempts a request to an HTTP server and indicate the success
+    or failure of the request.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Fires with True if the request received a response,
+            False if the request failed.
+    """
+    req = get(
+        "http://{host}:{port}".format(host=host, port=port),
+        persistent=False
+    )
+
+    def failed(failure):
+        return False
+
+    def succeeded(result):
+        return True
+
+    req.addCallbacks(succeeded, failed)
+    return req
+
+
+def query_http_server(host, port, path=b""):
+    """
+    Return the response from a HTTP server.
+
+    We try multiple since it may take a little time for the HTTP
+    server to start up.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes path: Optional path and query string.
+
+    :return: ``Deferred`` that fires with the body of the response.
+    """
+    def query():
+        req = get(
+            "http://{host}:{port}{path}".format(
+                host=host, port=port, path=path),
+            persistent=False
+        )
+
+        def failed(failure):
+            Message.new(message_type=u"acceptance:http_query_failed",
+                        reason=unicode(failure)).write()
+            return False
+        req.addCallbacks(content, failed)
+        return req
+
+    d = verify_socket(host, port)
+    d.addCallback(lambda _: loop_until(query))
+    return d
+
+
+def assert_http_server(test, host, port,
+                       path=b"", expected_response=b"hi"):
+
+    """
+    Assert that a HTTP serving a response with body ``b"hi"`` is running
+    at given host and port.
+
+    This can be coupled with code that only conditionally starts up
+    the HTTP server via Flocker in order to check if that particular
+    setup succeeded.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+    :param bytes path: Optional path and query string.
+    :param bytes expected_response: The HTTP response body expected.
+        Defaults to b"hi"
+
+    :return: ``Deferred`` that fires when assertion has run.
+    """
+    d = query_http_server(host, port, path)
+    d.addCallback(test.assertEqual, expected_response)
+    return d
