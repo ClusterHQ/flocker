@@ -30,7 +30,7 @@ class RestartTests(TestCase):
         to a dataset, on reboots it will only be restarted after the
         volume becomes available.
         """
-        raise SkipTest("Don't want to run this on buildbot, for now at least.")
+        #raise SkipTest("Don't want to run this on buildbot, for now at least.")
         node = cluster.nodes[0]
         # Implicitly uses first node:
         creating_dataset = create_dataset(self, cluster)
@@ -43,14 +43,15 @@ class RestartTests(TestCase):
             return req
 
         def created_dataset(dataset):
+            print "DATASET", dataset
             http_server = {
                 u"name": random_name(self),
-                u"node_uuid": cluster.nodes[0].uuid,
+                u"node_uuid": str(cluster.nodes[0].uuid),
                 u"image": u"python:2.7-slim",
                 u"ports": [{u"internal": 12345, u"external": 12345}],
                 # We expect restarts to occur after reboot with this policy:
                 u'restart_policy': {u'name': u'always'},
-                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                u"volumes": [{u"dataset_id": dataset.dataset_id,
                               u"mountpoint": u"/data"}],
                 u"command_line": [u"python", u"-c",
                                   REBOOT_SERVER.getContent().decode("ascii"),
