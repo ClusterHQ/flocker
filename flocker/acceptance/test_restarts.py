@@ -4,6 +4,8 @@
 Tests for restarting and reboots and their interactions.
 """
 
+import os
+
 from subprocess import call
 from unittest import SkipTest
 
@@ -30,7 +32,8 @@ class RestartTests(TestCase):
         to a dataset, on reboots it will only be restarted after the
         volume becomes available.
         """
-        #raise SkipTest("Don't want to run this on buildbot, for now at least.")
+        if not os.environ.get("RUN_REBOOT_TESTS"):
+            raise SkipTest("Don't want to run this on buildbot, for now at least.")
         node = cluster.nodes[0]
         # Implicitly uses first node:
         creating_dataset = create_dataset(self, cluster)
