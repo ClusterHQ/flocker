@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+import psutil
+
 from itertools import chain
 from warnings import warn
 from uuid import UUID
@@ -101,6 +103,10 @@ def _eliot_system(part):
     return u"flocker:p2pdeployer:" + part
 
 
+class ExpectedDatasetNotPresent(Exception):
+    pass
+
+
 @implementer(IStateChange)
 class StartApplication(PRecord):
     """
@@ -127,15 +133,37 @@ class StartApplication(PRecord):
             name=self.application.name,
         )
 
+    def _dataset_locally_manifests(self, path):
+        """
+        Return boolean representing whether the given path to a dataset
+        corresponds to a filesystem mount point on this host.
+
+        :param bytes path: Local path which is about to get mounted into a
+            container.
+        """
+        return path in [
+            partition.mountpoint for partition in psutil.disk_partitions()]
+
     def run(self, deployer):
         application = self.application
 
         volumes = []
         if application.volume is not None:
             dataset_id = application.volume.manifestation.dataset_id
+            node_path = self.node_state.paths[dataset_id]
+            # Sanity check that the dataset we're about to mount into the
+            # container is **actually, really present right now** on the host.
+            # This helps guard against stale state about the local node's
+            # current datasets coming from the control service. If it isn't
+            # present, abort this operation, it will be retried again on a
+            # later convergence loop iteration and that might go better.
+            # Allowing the container to be started regardless would result in a
+            # container being started without its data, which is bad.
+            if not self._dataset_locally_manifests(node_path):
+                raise ExpectedDatasetNotPresent(node_path)
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
-                node_path=self.node_state.paths[dataset_id]))
+                node_path=node_path))
 
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
