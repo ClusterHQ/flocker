@@ -138,10 +138,10 @@ class StartApplication(PRecord):
         Return boolean representing whether the given path to a dataset
         corresponds to a filesystem mount point on this host.
 
-        :param bytes path: Local path which is about to get mounted into a
+        :param FilePath path: Local path which is about to get mounted into a
             container.
         """
-        return path in [
+        return path.path in [
             partition.mountpoint for partition in psutil.disk_partitions()]
 
     def run(self, deployer):
@@ -150,7 +150,7 @@ class StartApplication(PRecord):
         volumes = []
         if application.volume is not None:
             dataset_id = application.volume.manifestation.dataset_id
-            node_path = self.node_state.paths[dataset_id].path
+            node_path = self.node_state.paths[dataset_id]
             # Sanity check that the dataset we're about to mount into the
             # container is **actually, really present right now** on the host.
             # This helps guard against stale state about the local node's
