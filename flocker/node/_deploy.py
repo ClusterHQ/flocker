@@ -952,8 +952,8 @@ class ApplicationNodeDeployer(object):
         # a reboot in cases where the dataset is manifest by the time we get
         # round to this check, we might want to disable the following line.
         # Docker's default behaviour is to leave restart=never containers
-        # stopped after a reboot, which is not what we want. See
-        # https://clusterhq.atlassian.net/browse/FLOC-3137
+        # stopped after a reboot or restart of Docker, which is not what we
+        # want. See https://clusterhq.atlassian.net/browse/FLOC-3137
         comparable_state = comparable_state.transform(["running"], True)
 
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
