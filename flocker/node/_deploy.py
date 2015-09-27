@@ -982,7 +982,7 @@ class ApplicationNodeDeployer(object):
         # Docker's default behaviour is to leave restart=never containers
         # stopped after a reboot or restart of Docker, which is not what we
         # want. See https://clusterhq.atlassian.net/browse/FLOC-3137
-        comparable_state = comparable_state.transform(["running"], True)
+        #comparable_state = comparable_state.transform(["running"], True)
 
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
         restart_state = comparable_state.restart_policy
