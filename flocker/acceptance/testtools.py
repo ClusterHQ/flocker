@@ -819,9 +819,10 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
     :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
-    :return: ``Deferred`` firing with a tuple of (``Cluster``
-        instance, dataset dictionary) once the dataset is present in
-        actual cluster state.
+    :param UUID dataset_id: The v4 UUID of the dataset.
+        Generated if not specified.
+    :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
+        dataset is present in actual cluster state.
     """
     if maximum_size is None:
         maximum_size = get_default_volume_size()
