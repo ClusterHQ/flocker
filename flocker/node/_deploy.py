@@ -150,7 +150,7 @@ class StartApplication(PRecord):
         volumes = []
         if application.volume is not None:
             dataset_id = application.volume.manifestation.dataset_id
-            node_path = self.node_state.paths[dataset_id]
+            node_path = self.node_state.paths[dataset_id].path
             # Sanity check that the dataset we're about to mount into the
             # container is **actually, really present right now** on the host.
             # This helps guard against stale state about the local node's
