@@ -43,6 +43,7 @@ from characteristic import with_cmp
 
 from zope.interface import Interface, Attribute
 
+from twisted.python.reflect import fullyQualifiedName
 from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode,
@@ -364,13 +365,44 @@ LOG_SEND_CLUSTER_STATE = ActionType(
     [],
     "Send the configuration and state of the cluster to all agents.")
 
-AGENT = Field(u"agent", repr, u"The agent we're sending to")
+
+def _serialize_agent(controlamp):
+    """
+    Serialize a connected ``ControlAMP`` to the address of its peer.
+
+    :raise TypeError: If the given protocol is not an instance of
+        ``ControlAMP``.
+
+    :return: A string representation of the Twisted address object describing
+        the remote address of the connection of the given protocol.
+
+    :rtype str:
+    """
+    if not isinstance(controlamp, ControlAMP):
+        raise TypeError(
+            "Logged agent field must be ControlAMP, not {}".format(
+                fullyQualifiedName(controlamp.__class__),
+            )
+        )
+    return str(controlamp.transport.getPeer())
+
+
+AGENT = Field(
+    u"agent", _serialize_agent, u"The agent we're sending to",
+)
 
 LOG_SEND_TO_AGENT = ActionType(
     "flocker:controlservice:send_state_to_agent",
     [AGENT],
     [],
     "Send the configuration and state of the cluster to a specific agent.")
+
+AGENT_CONNECTED = ActionType(
+    "flocker:controlservice:agent_connected",
+    [AGENT],
+    [],
+    "An agent connected to the control service."
+)
 
 
 class ControlAMPService(Service):
@@ -430,6 +462,12 @@ class ControlAMPService(Service):
                 for connection in connections:
                     action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
                     with action.context():
+                        # XXX If callRemote raises an exception, the loop won't
+                        # finish and the rest of the connections won't receive
+                        # the updated state.  Asynchronous exceptions aren't a
+                        # problem since they won't interrupt the loop (and they
+                        # shouldn't be allowed to).  No test coverage for
+                        # either of these cases.
                         d = DeferredContext(connection.callRemote(
                             ClusterStatusCommand,
                             configuration=configuration,
@@ -445,8 +483,9 @@ class ControlAMPService(Service):
 
         :param ControlAMP connection: The new connection.
         """
-        self.connections.add(connection)
-        self._send_state_to_connections([connection])
+        with AGENT_CONNECTED(agent=connection):
+            self.connections.add(connection)
+            self._send_state_to_connections([connection])
 
     def disconnected(self, connection):
         """
