@@ -306,21 +306,21 @@ def create_virtualenv(root):
     )
     # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
     # modules. See https://github.com/pypa/virtualenv/issues/659
-    for module_name in virtualenv.REQUIRED_MODULES:
-        py_base = root.descendant(
-            ['lib', 'python2.7', module_name])
-        py = py_base.siblingExtension('.py')
-        if py.exists() and py.islink():
-            pyc = py_base.siblingExtension('.pyc')
-            py_target = py.realpath()
-            pyc_target = FilePath(
-                py_target.splitext()[0]).siblingExtension('.pyc')
+    # for module_name in virtualenv.REQUIRED_MODULES:
+    #     py_base = root.descendant(
+    #         ['lib', 'python2.7', module_name])
+    #     py = py_base.siblingExtension('.py')
+    #     if py.exists() and py.islink():
+    #         pyc = py_base.siblingExtension('.pyc')
+    #         py_target = py.realpath()
+    #         pyc_target = FilePath(
+    #             py_target.splitext()[0]).siblingExtension('.pyc')
 
-            if pyc.exists():
-                pyc.remove()
+    #         if pyc.exists():
+    #             pyc.remove()
 
-            if pyc_target.exists():
-                pyc_target.linkTo(pyc)
+    #         if pyc_target.exists():
+    #             pyc_target.linkTo(pyc)
 
     return VirtualEnv(root=root)
 
