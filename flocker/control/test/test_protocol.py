@@ -976,6 +976,8 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         """
         control_amp_service = build_control_amp_service(self)
         connection_protocol = ControlAMP(Clock(), control_amp_service)
+        connection_protocol.makeConnection(StringTransport())
+
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(
