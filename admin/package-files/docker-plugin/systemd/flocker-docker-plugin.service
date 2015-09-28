@@ -3,7 +3,7 @@ Description=Flocker Docker Plugin
 Before=docker.service
 
 [Service]
-ExecStart=/usr/sbin/flocker-docker-plugin
+ExecStart=/usr/sbin/flocker-docker-plugin --journald
 Restart=always
 
 [Install]

@@ -10,6 +10,22 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+
+Next Release
+============
+
+* Unexpected errors in agent state discovery no longer break the agent convergence loop.
+
+v1.4.0
+======
+
+* The :ref:`dataset API <api>` added support for leases.
+  Leases prevent a dataset from being deleted or moved off a node.
+* Fix line splitting when logging to `systemd`'s journal.
+* Various performance and scalability improvements.
+* Remove limits on size of configuration and state in agent protocol.
+* Prevent repeated restart of containers with CPU shares or memory limits.
+
 v1.3.1
 ======
 

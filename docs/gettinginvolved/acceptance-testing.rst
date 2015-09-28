@@ -85,7 +85,7 @@ It may optionally contain a ``metadata`` key.
 If it does and if the provider supports it,
 the value should be a mapping and the contents will be added as metadata of the created nodes.
 
-The top-level mapping must contain a ``dataset-backends`` item.
+The top-level mapping must contain a ``storage-drivers`` item.
 The value should be another mapping from names to dataset backend configuration mappings.
 The names are primarily human-readable and meant for easy use with the ``--dataset-backend`` option.
 In some cases,

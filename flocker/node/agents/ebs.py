@@ -46,6 +46,10 @@ BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
 
+# http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
+# for error details:
+NOT_FOUND = u'InvalidVolume.NotFound'
+
 
 class VolumeOperations(Names):
     """
@@ -427,9 +431,7 @@ def _should_finish(operation, volume, update, start_time,
         update(volume)
     except EC2ResponseError as e:
         # If AWS cannot find the volume, raise ``UnknownVolume``.
-        # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
-        # for error details).
-        if e.code == u'InvalidVolume.NotFound':
+        if e.code == NOT_FOUND:
             raise UnknownVolume(volume.id)
 
     if volume.status not in [start_state, transient_state, end_state]:
@@ -624,8 +626,7 @@ class EBSBlockDeviceAPI(object):
             all_volumes = self.connection.get_all_volumes(
                 volume_ids=[blockdevice_id])
         except EC2ResponseError as e:
-            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors
-            if e.error_code == "InvalidVolume.NotFound":
+            if e.error_code == NOT_FOUND:
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise
@@ -706,8 +707,18 @@ class EBSBlockDeviceAPI(object):
         """
         Return all volumes that belong to this Flocker cluster.
         """
+        try:
+            ebs_volumes = self.connection.get_all_volumes()
+        except EC2ResponseError as e:
+            # Work around some internal race-condition in EBS by retrying,
+            # since this error makes no sense:
+            if e.code == NOT_FOUND:
+                return self.list_volumes()
+            else:
+                raise
+
         volumes = []
-        for ebs_volume in self.connection.get_all_volumes():
+        for ebs_volume in ebs_volumes:
             if _is_cluster_volume(self.cluster_id, ebs_volume):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)

@@ -1,3 +1,4 @@
+.. _concepts:
 
 ================
 Flocker Concepts

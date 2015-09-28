@@ -1238,7 +1238,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                 task_enable_flocker_control(cluster.control_node.distribution),
                 ]),
         ),
-        sequence([
+        parallel([
             sequence([
                 run_remotely(
                     username='root',

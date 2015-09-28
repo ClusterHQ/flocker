@@ -28,11 +28,13 @@ from machinist import (
 
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
+from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change
 
+from ..common import gather_deferreds
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
 )
@@ -332,11 +334,18 @@ class ConvergenceLoop(object):
             def record_acknowledged_state(ignored):
                 self._last_acknowledged_state = state_changes
 
-            d.addCallback(record_acknowledged_state)
+            def clear_acknowledged_state(failure):
+                # We don't know if the control service has processed the update
+                # or not. So we clear the last acknowledged state so that we
+                # always send the state on the next iteration.
+                self._last_acknowledged_state = None
+                return failure
+
+            d.addCallbacks(record_acknowledged_state, clear_acknowledged_state)
             d.addErrback(
                 writeFailure, self.fsm.logger,
                 u"Failed to send local state to control node.")
-            d.addActionFinish()
+            return d.addActionFinish()
 
     def _maybe_send_state_to_control_service(self, state_changes):
         """
@@ -347,14 +356,9 @@ class ConvergenceLoop(object):
         :type state_changes: tuple of IClusterStateChange
         """
         if self._last_acknowledged_state != state_changes:
-            # XXX If a prior attempt to send the state is still in progress,
-            # it's not a great idea to initiate a new attempt.  The control
-            # service should respond to requests in order, though, so it may
-            # not be catastrophic.  At the very least, the comparison above
-            # doesn't account for this case.  The last acknowledged state may
-            # be stale while state in the process of being sent could be fully
-            # up-to-date.
-            self._send_state_to_control_service(state_changes)
+            return self._send_state_to_control_service(state_changes)
+        else:
+            return succeed(None)
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
@@ -362,8 +366,8 @@ class ConvergenceLoop(object):
 
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
-            d = DeferredContext(
-                self.deployer.discover_state(known_local_state))
+            d = DeferredContext(maybeDeferred(
+                self.deployer.discover_state, known_local_state))
 
         def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
@@ -379,18 +383,26 @@ class ConvergenceLoop(object):
 
             # XXX And for this update to be the side-effect of an output
             # resulting.
-            self._maybe_send_state_to_control_service(state_changes)
+            sent_state = self._maybe_send_state_to_control_service(
+                state_changes)
 
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
-            return run_state_change(action, self.deployer)
+            ran_state_change = run_state_change(action, self.deployer)
+            DeferredContext(ran_state_change).addErrback(
+                writeFailure, self.fsm.logger)
+
+            # Wait for the control node to acknowledge the new
+            # state, and for the convergence actions to run.
+            return gather_deferreds([sent_state, ran_state_change])
         d.addCallback(got_local_state)
+
         # If an error occurred we just want to log it and then try
         # converging again; hopefully next time we'll have more success.
-        d.addErrback(writeFailure, self.fsm.logger, u"")
+        d.addErrback(writeFailure, self.fsm.logger)
 
         # It would be better to have a "quiet time" state in the FSM and
         # transition to that next, then have a timeout input kick the machine

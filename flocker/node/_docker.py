@@ -12,7 +12,7 @@ from time import sleep
 from zope.interface import Interface, implementer
 
 from docker import Client
-from docker.errors import APIError
+from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
 from eliot import Message
@@ -591,13 +591,16 @@ class DockerClient(object):
 
             # Just because we got a response doesn't mean Docker has
             # actually updated any internal state yet! So if e.g. we did a
-            # stop on this container Docker might well complain it knows
+            # start on this container Docker might well complain it knows
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
-            while not self._blocking_exists(container_name):
-                sleep(0.001)
-                continue
-            self._client.start(container_name)
+            while True:
+                try:
+                    self._client.start(container_name)
+                except NotFound:
+                    sleep(0.01)
+                else:
+                    break
 
         d = deferToThread(_add)
 
@@ -637,23 +640,6 @@ class DockerClient(object):
     def exists(self, unit_name):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
-
-    def _blocking_container_runs(self, container_name):
-        """
-        Blocking API to check if container is running.
-
-        :param unicode container_name: The name of the container whose
-            state we're checking.
-
-        :return: ``True`` if container is running, otherwise ``False``.
-        """
-        result = self._client.inspect_container(container_name)
-        Message.new(
-            message_type="flocker:docker:container_state",
-            container=container_name,
-            state=result
-        ).write()
-        return result['State']['Running']
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
@@ -710,8 +696,7 @@ class DockerClient(object):
                 # attempting removal or use -f")'
                 # This code should probably be removed once the above
                 # issue has been resolved. See [FLOC-1850]
-                while self._blocking_container_runs(container_name):
-                    sleep(0.01)
+                self._client.wait(container_name)
 
                 Message.new(
                     message_type="flocker:docker:container_remove",
