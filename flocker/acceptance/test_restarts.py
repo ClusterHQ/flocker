@@ -25,7 +25,8 @@ class RestartTests(TestCase):
     """
     Tests for restart policies.
     """
-    @require_cluster(1)
+    
+    @require_cluster(2)
     def test_restart_always_reboot_with_dataset(self, cluster):
         """
         If a container has a restart policy of ``always`` and a volume mapped
@@ -35,9 +36,10 @@ class RestartTests(TestCase):
         if not os.environ.get("RUN_REBOOT_TESTS"):
             raise SkipTest(
                     "Don't want to run this on buildbot, for now at least.")
-        node = cluster.nodes[0]
-        # Implicitly uses first node:
-        creating_dataset = create_dataset(self, cluster)
+        SECOND_NODE = 1
+        node = cluster.nodes[SECOND_NODE]
+        # Explicitly uses 2nd node (not the node running the control service):
+        creating_dataset = create_dataset(self, cluster, node_index=SECOND_NODE)
 
         def query_server():
             req = get(
@@ -50,7 +52,7 @@ class RestartTests(TestCase):
             print "DATASET", dataset
             http_server = {
                 u"name": random_name(self),
-                u"node_uuid": str(cluster.nodes[0].uuid),
+                u"node_uuid": str(cluster.nodes[SECOND_NODE].uuid),
                 u"image": u"python:2.7-slim",
                 u"ports": [{u"internal": 12345, u"external": 12345}],
                 # We expect containers to be restarted irrespective of restart
