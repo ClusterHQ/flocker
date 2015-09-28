@@ -217,9 +217,8 @@ class GenericDockerClientTests(TestCase):
         ``DockerClient.list`` will only an inspect an image ID once, caching
         the resulting data.
         """
-        image_name = u"openshift/busybox-http-app:latest"
         name = random_name(self)
-        d = self.start_container(name, image_name=image_name)
+        d = self.start_container(name, image_name=ANY_IMAGE)
 
         def started(client):
             listing = client.list()

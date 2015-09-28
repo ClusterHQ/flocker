@@ -35,8 +35,8 @@ from ..control._model import (
 
 LOG_CACHED_IMAGE = MessageType(
     u"flocker:node:docker:image_from_cache",
-    [Field(u"image", repr, "The image ID.")],
-    "The image that was retrieved from the cache."
+    [Field.for_types(u"image", [unicode], "The image ID.")],
+    "An image was retrieved from the cache."
 )
 
 
