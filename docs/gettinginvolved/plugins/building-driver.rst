@@ -14,8 +14,10 @@ These drivers include:
 * `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_
 
 After you have implemented the driver, you will need to test your implementation, and ClusterHQ provide a number of test suites to help you do this.
-Passing all tests means that your driver is ready to be deployed with Flocker in a customer environment.
-   
+These tests are the bare minimum required to accept the driver.
+Other tests may be required that are specific to your design choices and driver implementation that cannot be covered by the test suites provided by ClusterHQ.
+We highly encourage driver developers to write additional tests for these cases before your driver is ready to be deployed with Flocker in a customer environment.
+
 Before beginning the testing steps below, you can review our :ref:`build-flocker-driver-faq` for common issues encountered during driver development and testing.
 
 Testing Your Driver
