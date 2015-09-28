@@ -58,6 +58,47 @@ class RebootTests(TestCase):
           before the reboot.
         * Stateful application appears to have lost its data, because it only
           sees the local directory on the host, not the mounted dataset.
+
+        We record the uptime to a file in the /data directory if the file does
+        not already exist.
+        If backed by a dataset, the uptime should be recorded once and then
+        reported every time the container is started with that dataset.
+        If the container starts before the dataset is mounted, the uptime will
+        be different when the container is started after a reboot.
+        We force the situation by disabling the dataset-agent before rebooting.
+
+        The test fails as follows when run against master:
+
+        ```
+        ./admin/run-acceptance-tests --keep --distribution=centos-7 --provider=aws --dataset-backend=aws --config-file=$PWD/acceptance.yml --branch=master --flocker-version='' flocker.acceptance.endtoend.test_restarts
+
+        ...
+
+        [FAIL]
+        Traceback (most recent call last):
+          File "/home/richard/projects/HybridLogic/flocker/flocker/acceptance/endtoend/test_restarts.py", line 142, in got_rebooted_response
+            preserved_initial_reboot_time)
+          File "/home/richard/.virtualenvs/3137/lib/python2.7/site-packages/twisted/trial/_synctest.py", line 447, in assertEqual
+            % (msg, pformat(first), pformat(second)))
+        twisted.trial.unittest.FailTest: not equal:
+        a = '2015-09-28 18:11:35'
+        b = '2015-09-28 18:35:59'
+
+        flocker.acceptance.endtoend.test_restarts.RebootTests.test_restart_always_reboot_with_dataset
+        -------------------------------------------------------------------------------
+        Ran 1 tests in 167.584s
+        ```
+
+        With the fix, this test will simply time out because the container will
+        never start.
+        So after rebooting we plan to poll the control service until we get an
+        empty application state then restart the flocker-dataset agent and poll
+        until the reboot_httpserver responds with the original uptime and
+        container ID. i.e.
+         * The container is only restarted once the dataset agent reports its
+           state.
+         * And the container is *re-started* rather than a new container being
+           started.
         """
         # Find a node which is not running the control service.
         # If the control node is rebooted, we won't get stale dataset state.
@@ -117,6 +158,10 @@ class RebootTests(TestCase):
                 call([b"ssh", b"root@{}".format(node.public_address),
                       b"shutdown", b"-r", b"now"])
             rebooting = disabling.addCallback(reboot)
+
+            # Final implementation will:
+            # * poll control service for empty application state here, then
+            # * re-enable and restart the dataset-agent.
 
             # Now, keep trying to get a response until it's different than
             # the one we originally got, thus indicating a reboot:
