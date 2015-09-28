@@ -560,10 +560,6 @@ class DockerClient(object):
 
         :return: ``dict`` representing data about the image properties.
         """
-        # This caching technique isn't thread-safe, but allowable
-        # in this case because a) the data is for our purposes
-        # immutable, so two writes of same key isn't a problem and
-        # b) we never remove entries.
         cached_image = self._image_cache.get(image)
         if cached_image is not None:
             LOG_CACHED_IMAGE(image=image).write()
