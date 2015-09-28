@@ -6,7 +6,6 @@ Tests for restarting and reboots and their interactions.
 
 from subprocess import call
 
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase, FailTest
 
 from treq import get, content
@@ -14,9 +13,7 @@ from treq import get, content
 from ...testtools import loop_until, random_name
 from ..testtools import create_dataset, require_cluster
 from ...common.runner import run_ssh
-
-
-REBOOT_SERVER = FilePath(__file__).sibling(b"reboot_httpserver.py")
+from ..scripts import SCRIPTS
 
 
 def _service(address, name, action):
@@ -86,7 +83,9 @@ class RebootTests(TestCase):
                 u"volumes": [{u"dataset_id": str(dataset.dataset_id),
                               u"mountpoint": u"/data"}],
                 u"command_line": [u"python", u"-c",
-                                  REBOOT_SERVER.getContent().decode("ascii"),
+                                  SCRIPTS.child(
+                                      b"reboot_httpserver.py"
+                                  ).getContent().decode("ascii"),
                                   u"/data"],
             }
             created = cluster.create_container(http_server)
