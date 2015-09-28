@@ -187,7 +187,9 @@ common_cli:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     sudo chmod 777 /var/run/docker.sock
 
-
+  # TODO: do we need to clean up old files on ubuntu and centos or
+  # does the pre-scm plugin does this correctly for us ?
+  # https://clusterhq.atlassian.net/browse/FLOC-3139
   cleanup: &cleanup |
     export PATH=/usr/local/bin:\${PATH}
     # clean up the stuff from previous runs
