@@ -10,10 +10,14 @@ from hypothesis import given, strategies
 
 from zope.interface import Interface
 
-from .. import OnceAtATime, methods_once_at_a_time, gather_deferreds
+from .. import (
+    EventChannel, OnceAtATime, methods_once_at_a_time, gather_deferreds,
+)
 from ...testtools import CustomException
 
-from twisted.internet.defer import fail, FirstError, succeed, Deferred
+from twisted.internet.defer import (
+    CancelledError, Deferred, FirstError, succeed, fail,
+)
 from twisted.python.failure import Failure
 from twisted.trial.unittest import TestCase
 

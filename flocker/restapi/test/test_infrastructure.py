@@ -28,11 +28,13 @@ from .._infrastructure import (
 from .._logging import REQUEST, JSON_REQUEST
 from .._error import DECODING_ERROR_DESCRIPTION, BadRequest
 
-from ..testtools import (EventChannel, dumps, loads,
+from ..testtools import (dumps, loads,
                          CloseEnoughJSONResponse, dummyRequest, render,
                          asResponse)
 from .utils import (
     _assertRequestLogged, _assertTracebackLogged, FAILED_INPUT_VALIDATION)
+
+from ...common import EventChannel
 
 
 class ArbitraryException(Exception):
