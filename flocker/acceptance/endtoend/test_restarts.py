@@ -14,9 +14,9 @@ from twisted.trial.unittest import TestCase, FailTest
 
 from treq import get, content
 
-from ..testtools import loop_until, random_name
-from .testtools import create_dataset, require_cluster
-from ..common.runner import run_ssh
+from ...testtools import loop_until, random_name
+from ..testtools import create_dataset, require_cluster
+from ...common.runner import run_ssh
 
 
 REBOOT_SERVER = FilePath(__file__).sibling(b"reboot_httpserver.py")
