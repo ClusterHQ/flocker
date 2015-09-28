@@ -975,12 +975,15 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         its connections.
         """
         control_amp_service = build_control_amp_service(self)
-        self.patch(control_amp_service, 'logger', logger)
-
         connection_protocol = ControlAMP(Clock(), control_amp_service)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
-        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
+        self.patch(
+            connection_protocol,
+            "callRemote",
+            lambda *args, **kwargs: succeed({})
+        )
+        self.patch(control_amp_service, 'logger', logger)
 
         control_amp_service._send_state_to_connections(
             connections=[connection_protocol])
