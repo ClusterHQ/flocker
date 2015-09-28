@@ -34,7 +34,7 @@ from ..control._model import (
 
 
 LOG_CACHED_IMAGE = MessageType(
-    u"flocker:docker:image_from_cache",
+    u"flocker:node:docker:image_from_cache",
     [Field(u"image", repr, "The image ID.")],
     "The image that was retrieved from the cache."
 )
@@ -571,7 +571,7 @@ class DockerClient(object):
         try:
             image_data = self._client.inspect_image(image)
             Message.new(
-                message_type="flocker:docker:image_inspected",
+                message_type="flocker:node:docker:image_inspected",
                 image=image
             ).write()
         except APIError as e:
@@ -582,7 +582,7 @@ class DockerClient(object):
                 # some inaccuracy is acceptable.
                 # We won't cache stub data though.
                 Message.new(
-                    message_type="flocker:docker:image_not_found",
+                    message_type="flocker:node:docker:image_not_found",
                     image=image
                 ).write()
                 image_data = {u"Config": {u"Env": [], u"Cmd": []}}
@@ -594,7 +594,7 @@ class DockerClient(object):
         )
         self._image_cache.put(image, cached_data)
         Message.new(
-            message_type="flocker:docker:image_data_cached",
+            message_type="flocker:node:docker:image_data_cached",
             image=image
         ).write()
         return cached_data
@@ -817,9 +817,11 @@ class DockerClient(object):
                 image = data[u"Image"]
                 image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                with start_action(action_type=u"inspect_image",
-                                  container=i,
-                                  running=data[u"State"][u"Running"]):
+                with start_action(
+                    action_type=u"flocker:node:docker:inspect_image",
+                    container=i,
+                    running=data[u"State"][u"Running"]
+                ):
                     image_data = self._image_data(image)
                 if image_data.command == command:
                     command = None
