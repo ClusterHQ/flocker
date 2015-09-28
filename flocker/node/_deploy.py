@@ -604,15 +604,13 @@ class P2PManifestationDeployer(object):
         return sequentially(changes=phases)
 
 
-def _is_manifest(manifestation):
+def _is_mounted(path):
     """
-    Return boolean representing whether the dataset of the supplied
-    manifestation is mounted on this host.
+    Return True of the supplied path is mounted.
 
-    :param Manifestation manifestation: Manifestation which should be mounted
-        on the node.
+    :param unicode path: Path which may be mounted.
     """
-    return manifestation.dataset.path in [
+    return path in [
         partition.mountpoint for partition in psutil.disk_partitions()]
 
 
@@ -840,8 +838,13 @@ class ApplicationNodeDeployer(object):
         # In that situation a stateful container may be started before the
         # dataset agent has attached and mounted its dataset.
         all_manifest = True
-        for manifestation in local_state.manifestations:
-            if not _is_manifest(manifestation):
+        for manifestation in local_state.manifestations.values():
+            if not _is_mounted(
+                    # XXX This isn't right. Need a clean way to get the dataset
+                    # mountpoint from here. How?
+                    u'/flocker/{}'.format(manifestation.dataset.dataset_id)
+            ):
+                # XXX: Log an error message here...
                 all_manifest = False
                 break
 
