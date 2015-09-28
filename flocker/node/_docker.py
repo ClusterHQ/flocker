@@ -15,7 +15,9 @@ from docker import Client
 from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
-from eliot import Message
+from eliot import Message, MessageType, Field, start_action
+
+from repoze.lru import LRUCache
 
 from pyrsistent import field, PRecord, pset
 from requests import Response
@@ -29,6 +31,13 @@ from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
+
+
+LOG_CACHED_IMAGE = MessageType(
+    u"flocker:docker:image_from_cache",
+    [Field(u"image", repr, "The image ID.")],
+    "The image that was retrieved from the cache."
+)
 
 
 class AlreadyExists(Exception):
@@ -97,6 +106,19 @@ class PortMap(PRecord):
     """
     internal_port = field(mandatory=True, type=int)
     external_port = field(mandatory=True, type=int)
+
+
+class ImageDataCache(PRecord):
+    """
+    A record representing cached image data. The cache only stores
+    the data we care about from an inspected image.
+
+    :ivar list command: The image command.
+    :ivar list environment: A list of unicode strings representing
+        the image's environment variables.
+    """
+    command = field(mandatory=True, type=(list, type(None)))
+    environment = field(mandatory=True, type=(list, type(None)))
 
 
 class Unit(PRecord):
@@ -379,6 +401,7 @@ class DockerClient(object):
     :ivar str base_url: URL for connection to the Docker server.
     :ivar int long_timeout: Maximum time in seconds to wait for
         long-running operations, particularly pulling an image.
+    :ivar LRUCache _image_cache: Mapped cache of image IDs to their data.
     """
     def __init__(
             self, namespace=BASE_NAMESPACE, base_url=None,
@@ -386,7 +409,7 @@ class DockerClient(object):
         self.namespace = namespace
         self._client = TimeoutClient(
             version="1.15", base_url=base_url, long_timeout=long_timeout)
-        self._image_cache = {}
+        self._image_cache = LRUCache(100)
 
     def _to_container_name(self, unit_name):
         """
@@ -528,17 +551,12 @@ class DockerClient(object):
             return None
         return AddressInUse(address=(ip, int(port)), apierror=apierror)
 
-    def _image_data(self, image, container, state):
+    def _image_data(self, image):
         """
         Supply data about an image, by either inspecting it or returning
         cached data if available.
 
         :param unicode image: The ID of the image.
-
-        :param unicode container: The ID of the container for which this
-            image is being used.
-
-        :param unicode state: The state of the container.
 
         :return: ``dict`` representing data about the image properties.
         """
@@ -546,16 +564,16 @@ class DockerClient(object):
         # in this case because a) the data is for our purposes
         # immutable, so two writes of same key isn't a problem and
         # b) we never remove entries.
-        if image in self._image_cache:
-            return self._image_cache[image]
+        cached_image = self._image_cache.get(image)
+        if cached_image is not None:
+            LOG_CACHED_IMAGE(image=image).write()
+            return cached_image
         try:
             image_data = self._client.inspect_image(image)
-            self._image_cache[image] = {
-                u"Config": {
-                    u"Cmd": image_data[u"Config"][u"Cmd"],
-                    u"Env": image_data[u"Config"][u"Env"],
-                }
-            }
+            Message.new(
+                message_type="flocker:docker:image_inspected",
+                image=image
+            ).write()
         except APIError as e:
             if e.response.status_code == NOT_FOUND:
                 # Image has been deleted, so just fill in some
@@ -565,12 +583,21 @@ class DockerClient(object):
                 # We won't cache stub data though.
                 Message.new(
                     message_type="flocker:docker:image_not_found",
-                    container=container, running=state
+                    image=image
                 ).write()
                 image_data = {u"Config": {u"Env": [], u"Cmd": []}}
             else:
                 raise
-        return image_data
+        cached_data = ImageDataCache(
+            command=image_data[u"Config"][u"Cmd"],
+            environment=image_data[u"Config"][u"Env"]
+        )
+        self._image_cache.put(image, cached_data)
+        Message.new(
+            message_type="flocker:docker:image_data_cached",
+            image=image
+        ).write()
+        return cached_data
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
@@ -790,9 +817,11 @@ class DockerClient(object):
                 image = data[u"Image"]
                 image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                image_data = self._image_data(
-                    image, i, data[u"State"][u"Running"])
-                if image_data[u"Config"][u"Cmd"] == command:
+                with start_action(action_type=u"inspect_image",
+                                  container=i,
+                                  running=data[u"State"][u"Running"]):
+                    image_data = self._image_data(image)
+                if image_data.command == command:
                     command = None
                 port_bindings = data[u"NetworkSettings"][u"Ports"]
                 if port_bindings is not None:
@@ -818,10 +847,10 @@ class DockerClient(object):
                 # of the image, rather than supplied in the configuration.
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
-                if image_data[u"Config"]["Env"] is None:
+                if image_data.environment is None:
                     image_environment = []
                 else:
-                    image_environment = image_data[u"Config"]["Env"]
+                    image_environment = image_data.environment
                 if container_environment is not None:
                     for environment in container_environment:
                         if environment not in image_environment:
