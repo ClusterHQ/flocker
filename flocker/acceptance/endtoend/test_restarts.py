@@ -106,15 +106,14 @@ class RebootTests(TestCase):
             initial_reboot_time = initial_response.splitlines()[0]
             initial_container_id = initial_response.splitlines()[2]
             initial_container_id = initial_container_id.encode("ascii")
-            # XXX Checking exit code is problematic insofar as reboot
-
-            # kills the ssh process...
-            print "Rebooting!"
             disabling = _service(
                 node.public_address, b'flocker-dataset-agent', b'disable'
             )
 
             def reboot(ignored):
+                # XXX Checking exit code is problematic insofar as reboot
+                # kills the ssh process...
+                print "Rebooting!"
                 call([b"ssh", b"root@{}".format(node.public_address),
                       b"shutdown", b"-r", b"now"])
             rebooting = disabling.addCallback(reboot)
@@ -127,50 +126,11 @@ class RebootTests(TestCase):
                     lambda response: response != initial_response,
                     lambda _: False)
 
-            # Now, poll the host until the now-stopped Docker container that
-            # existed on the first run is destroyed. This is an external sign
-            # that the container agent tried to "restart" (by destroying and
-            # recreating) the container.
-            def old_container_gone():
-                # This is only necessary to allow the fixed code to proceed.  A
-                # simpler test against master shows that the container-agent
-                # does start the container before the dataset is mounted and
-                # the webserver returns the new uptime.
-                if call([b"ssh", b"root@{}".format(node.public_address),
-                         b"true"]) == 0:
-                    inspect_result = call([
-                        b"ssh", b"root@{}".format(node.public_address),
-                        b"docker", b"inspect", initial_container_id
-                    ])
-                    if inspect_result == 0:
-                        print "Container",
-                        print initial_container_id, "still exists."
-                        return False
-                    else:
-                        print "Container",
-                        print initial_container_id, "stopped existing!"
-                        return True
-                else:
-                    print "Failed to connect this time, trying again..."
-                    return False
-
-            gone = rebooting.addCallback(
-                lambda _: loop_until(old_container_gone)
-            )
-            enabled = gone.addCallback(
-                lambda _: _service(
-                    node.public_address, b'flocker-dataset-agent', b'enable'
-                )
-            )
-            started = enabled.addCallback(
-                lambda _: _service(
-                    node.public_address, b'flocker-dataset-agent', b'start'
-                )
-            )
-            different = started.addCallback(
+            rebooted = rebooting.addCallback(
                 lambda _: loop_until(query_until_different)
             )
-            queried = different.addCallback(lambda _: query_server())
+
+            querying = rebooted.addCallback(lambda _: query_server())
 
             # Now that we've rebooted, we expect first line to be
             # unchanged (i.e. preserved across reboots in the volume):
@@ -181,8 +141,8 @@ class RebootTests(TestCase):
                 self.assertEqual(initial_reboot_time,
                                  preserved_initial_reboot_time)
                 self.assertNotEqual(initial_container_id, new_container_id)
-            queried.addCallback(got_rebooted_response)
-            return queried
+            querying.addCallback(got_rebooted_response)
+            return querying
         creating_dataset.addCallback(server_started)
         return creating_dataset
 
