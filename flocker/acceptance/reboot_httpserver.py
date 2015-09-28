@@ -21,6 +21,14 @@ def boot_time():
     return check_output([b"uptime", b"--since"])
 
 
+def hostname():
+    """
+    :return: ``bytes`` with the hostname of the container this process is
+    running in. Corresponds to the Docker container ID.
+    """
+    return check_output([b"hostname"])
+
+
 class RebootHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     """
     Respond to HTTP requests with bootup time of first time process was
@@ -32,7 +40,8 @@ class RebootHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.send_header("Content-type", "text/plain")
         s.end_headers()
         s.wfile.write(file(FIRST_BOOT_PATH).read() + b"\n")
-        s.wfile.write(boot_time())
+        s.wfile.write(boot_time() + "\n")
+        s.wfile.write(hostname())
 
 
 if __name__ == '__main__':

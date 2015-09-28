@@ -6,7 +6,7 @@ Tests for restarting and reboots and their interactions.
 
 import os
 
-from subprocess import call
+from subprocess import call, check_call, CalledProcessError
 from unittest import SkipTest
 
 from twisted.python.filepath import FilePath
@@ -102,6 +102,7 @@ class RebootTests(TestCase):
             # we restart the machine.
             print "INITIAL RESPONSE", initial_response
             initial_reboot_time = initial_response.splitlines()[0]
+            initial_container_id = initial_response.splitlines()[2].encode("ascii")
             # XXX Checking exit code is problematic insofar as reboot
 
             # kills the ssh process...
@@ -119,17 +120,47 @@ class RebootTests(TestCase):
                 return query_server().addCallbacks(
                     lambda response: response != initial_response,
                     lambda _: False)
-            rebooted = rebooting.addCallback(lambda _: loop_until(query_until_different))
-            rebooted.addCallback(lambda _: query_server())
+
+            # Now, poll the host until the now-stopped Docker container that existed
+            # on the first run is destroyed. This is an external sign that the container
+            # agent tried to "restart" (by destroying and recreating) the container.
+            # If the bug that this test is designed to catch occurs, then the container
+            # will have been stopped and a new one started before the dataset is in place.
+            # The dataset cannot be in place because the dataset agent isn't running.
+            # So by the time (just after) the container agent kills the first container
+            # ID, the bad thing will already have happened, and we can start the dataset
+            # agent in order to allow a correct implementation (where the bug is avoided)
+            # to eventually get the dataset in place and start the container correctly.
+            def old_container_gone(ignored):
+                if call([b"ssh", b"root@{}".format(node.public_address),
+                         b"true"]) == 0:
+                    if call([b"ssh", b"root@{}".format(node.public_address),
+                             b"docker", b"inspect", initial_container_id]) == 0:
+                        print "Container", initial_container_id, "still exists..."
+                        return False
+                    else:
+                        print "Container", initial_container_id, "stopped existing!"
+                        return True
+                else:
+                    print "Failed to connect this time, trying again..."
+                    return False
+
+            gone = rebooting.addCallback(lambda _: loop_until(old_container_gone))
+            enabled = gone.addCallback(lambda _: _service(node.public_address, b'flocker-dataset-agent', b'enable'))
+            started = enabled.addCallback(lambda _: _service(node.public_address, b'flocker-dataset-agent', b'start'))
+            different = started.addCallback(lambda _: loop_until(query_until_different))
+            queried = different.addCallback(lambda _: query_server())
 
             # Now that we've rebooted, we expect first line to be
             # unchanged (i.e. preserved across reboots in the volume):
             def got_rebooted_response(second_response):
                 print "SECOND RESPONSE", second_response
                 preserved_initial_reboot_time = second_response.splitlines()[0]
+                new_container_id = second_response.splitlines()[2]
                 self.assertEqual(initial_reboot_time,
                                  preserved_initial_reboot_time)
-            rebooted.addCallback(got_rebooted_response)
+                self.assertNotEqual(initial_container_id, new_container_id)
+            queried.addCallback(got_rebooted_response)
             return rebooted
         creating_dataset.addCallback(server_started)
         return creating_dataset
