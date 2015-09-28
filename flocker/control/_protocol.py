@@ -462,6 +462,12 @@ class ControlAMPService(Service):
                 for connection in connections:
                     action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
                     with action.context():
+                        # XXX If callRemote raises an exception, the loop won't
+                        # finish and the rest of the connections won't receive
+                        # the updated state.  Asynchronous exceptions aren't a
+                        # problem since they won't interrupt the loop (and they
+                        # shouldn't be allowed to).  No test coverage for
+                        # either of these cases.
                         d = DeferredContext(connection.callRemote(
                             ClusterStatusCommand,
                             configuration=configuration,
