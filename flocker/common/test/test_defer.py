@@ -149,6 +149,54 @@ class GatherDeferredsTests(TestCase):
         self.assertEqual([], self.flushLoggedErrors(ZeroDivisionError))
 
 
+class EventChannelTests(TestCase):
+    """
+    Tests for ``EventChannel``.
+    """
+    def test_callback(self):
+        """
+        ``EventChannel.callback`` fires each ``Deferred`` previously returned
+        by ``EventChannel.subscribe``.
+        """
+        channel = EventChannel()
+        d = channel.subscribe()
+        channel.callback(3)
+        self.assertEqual(3, self.successResultOf(d))
+
+    def test_errback(self):
+        """
+        ``EventChannel.errback`` fires each ``Deferred`` previously returned by
+        ``EventChannel.subscribe``.
+        """
+        channel = EventChannel()
+        d = channel.subscribe()
+        channel.errback(Failure(ZeroDivisionError()))
+        self.failureResultOf(d, ZeroDivisionError)
+
+    def test_reentrant(self):
+        """
+        A callback on a ``Deferred`` returned by ``EventChannel.subscribe`` may
+        use ``EventChannel.subscribe`` to obtain a new ``Deferred`` which is
+        not fired with the same result as the first ``Deferred``.
+        """
+        waiting = []
+        channel = EventChannel()
+        d = channel.subscribe()
+        d.addCallback(lambda ignored: waiting.append(channel.subscribe()))
+        channel.callback(None)
+
+        self.assertNoResult(waiting[0])
+
+    def test_cancel(self):
+        """
+        A subscription ``Deferred`` may be cancelled.
+        """
+        channel = EventChannel()
+        d = channel.subscribe()
+        d.cancel()
+        self.failureResultOf(d, CancelledError)
+
+
 def _sync():
     once = OnceAtATime()
     once.run(lambda: None)
