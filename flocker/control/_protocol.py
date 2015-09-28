@@ -257,19 +257,6 @@ AGENT_CONNECTED = ActionType(
     "An agent connected to the control service."
 )
 
-STATE_SOURCE = Field(
-    u"source",
-    lambda o: unicode(o.last_activity()),
-    u"The IClusterStateSource"
-)
-
-NODE_CHANGED = ActionType(
-    "flocker:controlservice:node_changed",
-    [STATE_SOURCE],
-    [],
-    "An agent reported its state."
-)
-
 
 class ControlAMPService(Service):
     """
