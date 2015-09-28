@@ -39,9 +39,9 @@ class RebootHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.send_response(200)
         s.send_header("Content-type", "text/plain")
         s.end_headers()
-        s.wfile.write(file(FIRST_BOOT_PATH).read() + b"\n")
-        s.wfile.write(boot_time() + "\n")
-        s.wfile.write(hostname())
+        s.wfile.write(file(FIRST_BOOT_PATH).read().strip() + b"\n")
+        s.wfile.write(boot_time().strip() + "\n")
+        s.wfile.write(hostname().strip())
 
 
 if __name__ == '__main__':
