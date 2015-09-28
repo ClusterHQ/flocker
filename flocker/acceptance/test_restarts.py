@@ -10,22 +10,42 @@ from subprocess import call
 from unittest import SkipTest
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, FailTest
 
 from treq import get, content
 
 from ..testtools import loop_until, random_name
 from .testtools import create_dataset, require_cluster
+from ..common.runner import run_ssh
 
 
 REBOOT_SERVER = FilePath(__file__).sibling(b"reboot_httpserver.py")
 
+def _service(address, name, action):
+    """
+    :param bytes address: The public IP of the node on which the service will
+        be changed.
+    :param bytes action: The action to perform on the service.
+    """
+    from twisted.internet import reactor
+    command = ["systemctl", action, name]
+    d = run_ssh(reactor, b"root", address, command)
+
+    def handle_error(_, action):
+        raise FailTest(
+            "{} failed. See logs for process output.".format(
+                command
+            )
+        )
+
+    d.addErrback(handle_error, action)
+    return d
 
 class RestartTests(TestCase):
     """
     Tests for restart policies.
     """
-    
+
     @require_cluster(2)
     def test_restart_always_reboot_with_dataset(self, cluster):
         """
@@ -82,10 +102,15 @@ class RestartTests(TestCase):
             print "INITIAL RESPONSE", initial_response
             initial_reboot_time = initial_response.splitlines()[0]
             # XXX Checking exit code is problematic insofar as reboot
+
             # kills the ssh process...
             print "Rebooting!"
-            call([b"ssh", b"root@{}".format(node.public_address),
-                  b"shutdown", b"-r", b"now"])
+            disabling = _service(node.public_address, b'flocker-dataset-agent', b'disable')
+            def reboot(ignored):
+                call([b"ssh", b"root@{}".format(node.public_address),
+                      b"shutdown", b"-r", b"now"])
+            rebooting = disabling.addCallback(reboot)
+
             # Now, keep trying to get a response until it's different than
             # the one we originally got, thus indicating a reboot:
 
@@ -94,7 +119,7 @@ class RestartTests(TestCase):
                 return query_server().addCallbacks(
                     lambda response: response != initial_response,
                     lambda _: False)
-            rebooted = loop_until(query_until_different)
+            rebooted = rebooting.addCallback(lambda _: loop_until(query_until_different))
             rebooted.addCallback(lambda _: query_server())
 
             # Now that we've rebooted, we expect first line to be
