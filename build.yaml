@@ -200,6 +200,8 @@ common_cli:
     #
     if is_osx; then
       # OSX doesn't allow us to sudo (no tty)
+      # we can't be certain that cloudbees will always gives us a new OSX slave
+      # so we make sure we remove any old files
       rm -f results.xml
       rm -f trial.log
       rm -rf _trial_temp/
