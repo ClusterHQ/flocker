@@ -8,12 +8,14 @@ import gc
 
 from hypothesis import given, strategies
 
-from .. import OnceAtATime, gather_deferreds
+from zope.interface import Interface
+
+from .. import OnceAtATime, methods_once_at_a_time, gather_deferreds
 from ...testtools import CustomException
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.python.failure import Failure
-from twisted.trial.unittest import SynchronousTestCase, TestCase
+from twisted.trial.unittest import TestCase
 
 
 class GatherDeferredsTests(TestCase):
@@ -295,3 +297,141 @@ class OnceAtATimeTests(TestCase):
         self.assertNoResult(run_result)
         deferred_result.errback(result)
         self.successResultOf(deferred_result)
+
+
+class MultipleAtATime(TestCase):
+    """
+    Tests for ``OnceAtATime`` in the case where additional calls are attempted
+    before the first has finished.
+    """
+    @given(ONCE_FACTORY)
+    def test_next_call_delayed(self, once_factory):
+        """
+        If a prior call hasn't completed yet, ``OnceAtATime.run`` does not call
+        a method passed to another call.
+        """
+        delayed = Deferred()
+        self.called = False
+
+        def method():
+            self.called = True
+
+        once = once_factory()
+        once.run(lambda: delayed)
+        once.run(method)
+
+        self.assertFalse(self.called)
+
+    @given(ONCE_FACTORY)
+    def test_next_call_completes(self, once_factory):
+        """
+        Once a prior call completes, ``OnceAtATime.run`` calls the method that
+        was passed to its next call.
+        """
+        delayed = Deferred()
+        result = object()
+
+        def method():
+            return result
+
+        once = once_factory()
+        once.run(lambda: delayed)
+        second_result = once.run(method)
+        delayed.callback(None)
+
+        self.assertIs(result, self.successResultOf(second_result))
+
+    @given(ONCE_FACTORY)
+    def test_third_replaces_second(self, once_factory):
+        """
+        If a third call is made before the first call completes,
+        ``OnceAtATime.run`` never makes the second method call.
+        """
+        delayed = Deferred()
+        self.second = False
+        self.third = False
+
+        def second_method():
+            self.second = True
+
+        def third_method():
+            self.third = True
+
+        once = once_factory()
+        once.run(lambda: delayed)
+        once.run(second_method)
+        once.run(third_method)
+        delayed.callback(None)
+
+        self.assertEqual(
+            (False, True),
+            (self.second, self.third),
+        )
+
+    @given(ONCE_FACTORY)
+    def test_intermediate_results(self, once_factory):
+        """
+        If a third call is made before the first call completes, the
+        ``Deferred`` returned by the second call to ``OnceAtATime.run`` fires
+        with the same result as the ``Deferred`` returned by the third call to
+        ``OnceAtATime.run``.
+        """
+        delayed = Deferred()
+        result = object()
+
+        def second_method():
+            return None
+
+        def third_method():
+            return result
+
+        once = once_factory()
+        once.run(lambda: delayed)
+        second_result = once.run(second_method)
+        third_result = once.run(third_method)
+        delayed.callback(None)
+
+        self.assertEqual(
+            (result, result),
+            (self.successResultOf(second_result),
+             self.successResultOf(third_result)),
+        )
+
+
+class MethodsOnceAtATimeTests(TestCase):
+    """
+    Tests for the ``methods_once_at_a_time`` class decorator.
+    """
+    def test_interface_method_once_at_a_time(self):
+        """
+        The implementation of methods of an interface on a class decorated with
+        ``methods_once_at_a_time`` have the ``OnceAtATime`` behavior applied to
+        them.
+        """
+        class IFoo(Interface):
+            def foo():
+                pass
+
+        class Foo(object):
+            def __init__(self):
+                self.counter = 0
+
+            def foo(self):
+                self.counter += 1
+                self.result = Deferred()
+                return self.result
+
+        @methods_once_at_a_time(IFoo, "_foo")
+        class FooWrapper(object):
+            def __init__(self, foo):
+                self._foo = foo
+
+        foo = Foo()
+        wrapper = FooWrapper(foo=foo)
+        wrapper.foo()
+        waiting = foo.result
+        wrapper.foo()
+        wrapper.foo()
+        waiting.callback(None)
+
+        self.assertEqual(2, foo.counter)
