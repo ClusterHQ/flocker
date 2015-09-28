@@ -121,17 +121,33 @@ class RebootTests(TestCase):
                     lambda response: response != initial_response,
                     lambda _: False)
 
-            # Now, poll the host until the now-stopped Docker container that existed
-            # on the first run is destroyed. This is an external sign that the container
-            # agent tried to "restart" (by destroying and recreating) the container.
-            # If the bug that this test is designed to catch occurs, then the container
-            # will have been stopped and a new one started before the dataset is in place.
-            # The dataset cannot be in place because the dataset agent isn't running.
-            # So by the time (just after) the container agent kills the first container
-            # ID, the bad thing will already have happened, and we can start the dataset
-            # agent in order to allow a correct implementation (where the bug is avoided)
-            # to eventually get the dataset in place and start the container correctly.
+            # Now, poll the host until the now-stopped Docker container that
+            # existed on the first run is destroyed. This is an external sign
+            # that the container agent tried to "restart" (by destroying and
+            # recreating) the container.
+            #
+            # The bug that this test is designed to catch is:
+            # * Server reboots.
+            # * Container agent starts before dataset agent and receives state
+            #   about which datasets were manifest from before the reboot
+            #   (before the dataset agent reports its state).
+            # * Container agent acts on this state by starting a container,
+            #   unfortunately, without its data.
+            #
+            # If this bug occurs then the container will have been stopped and
+            # a new one started before the dataset is in place.  We've just
+            # ensured that the dataset *cannot* be in place because the dataset
+            # agent isn't running. In other words, we force the race condition.
+            # So by the time the container agent kills the first container if
+            # the bug has manifested, the above is already destined to
+            # happen. So we can start the dataset agent in order to allow a
+            # correct implementation (where the bug is avoided) to eventually
+            # get the dataset in place and start the container correctly.
             def old_container_gone():
+                # This is only necessary to allow the fixed code to proceed.  A
+                # simpler test against master shows that the container-agent
+                # does start the container before the dataset is mounted and
+                # the webserver returns the new uptime.
                 if call([b"ssh", b"root@{}".format(node.public_address),
                          b"true"]) == 0:
                     if call([b"ssh", b"root@{}".format(node.public_address),
@@ -146,8 +162,12 @@ class RebootTests(TestCase):
                     return False
 
             gone = rebooting.addCallback(lambda _: loop_until(old_container_gone))
-            enabled = gone.addCallback(lambda _: _service(node.public_address, b'flocker-dataset-agent', b'enable'))
-            started = enabled.addCallback(lambda _: _service(node.public_address, b'flocker-dataset-agent', b'start'))
+            enabled = gone.addCallback(
+                lambda _: _service(node.public_address, b'flocker-dataset-agent', b'enable')
+            )
+            started = enabled.addCallback(
+                lambda _: _service(node.public_address, b'flocker-dataset-agent', b'start')
+            )
             different = started.addCallback(lambda _: loop_until(query_until_different))
             queried = different.addCallback(lambda _: query_server())
 

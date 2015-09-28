@@ -847,7 +847,18 @@ class ApplicationNodeDeployer(object):
                 manifestations=None,
                 paths=None,
             )])
-        # XXX Perhaps this would be a better place to put the manifestation-checking logic?
+        # XXX Perhaps this would be a better place to put the
+        # manifestation-checking logic? i.e.
+        # Declare ignorance if the supplied manifestations are found
+        # not be mounted (manifest)
+        # Advantages:
+        # * All links with dataset-agent are in one place.
+        # * StartApplication unit tests need not be modified.
+        # Disadvantages:
+        # * But this would break our existing acceptance test because
+        #   we rely on the calculation of restarts due to change in
+        #   Application.running value.
+        # * maybe others, discuss?
 
         path_to_manifestations = {
             path: local_state.manifestations[dataset_id]
@@ -951,9 +962,6 @@ class ApplicationNodeDeployer(object):
 
         Certain differences are not considered divergences:
 
-            - The running state of the application.  It may have exited
-              normally and correctly after completing its task.
-
             - Certain volume differences.  See ``_restart_for_volume_change``.
 
         :param NodeState node_state: The known local state of this node.
@@ -975,17 +983,10 @@ class ApplicationNodeDeployer(object):
         comparable_state = state.set(volume=None)
         comparable_configuration = configuration.set(volume=None)
 
-        # For our purposes what we care about is if configuration has
-        # changed, so if it's not running but it's otherwise the same
-        # we don't want to do anything:
-
-        # TODO if we want to make containers more reliably get restarted after
-        # a reboot in cases where the dataset is manifest by the time we get
-        # round to this check, we might want to disable the following line.
-        # Docker's default behaviour is to leave restart=never containers
-        # stopped after a reboot or restart of Docker, which is not what we
-        # want. See https://clusterhq.atlassian.net/browse/FLOC-3137
-        #comparable_state = comparable_state.transform(["running"], True)
+        # FLOC-3137 requires that containers are always restarted if
+        # they are not running. Therefore, we no longer transform the
+        # measured state of the container to pretend that it's always
+        # running.
 
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
         restart_state = comparable_state.restart_policy

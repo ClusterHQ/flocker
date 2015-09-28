@@ -215,7 +215,10 @@ class DeployerTests(TestCase):
 
             docker_client = DockerClient()
             self.addCleanup(docker_client.remove, application_name)
-
+            # In order to make this test pass we'd need to
+            # parameterize the Deployer with a in-memory
+            # manifestation_checker. Same goes for other failing tests
+            # in this module.
             deployer = P2PNodeDeployer(
                 u"localhost", volume_service, docker_client,
                 make_memory_network(), node_uuid=uuid4())
