@@ -161,7 +161,7 @@ class RebootTests(TestCase):
                                  preserved_initial_reboot_time)
                 self.assertNotEqual(initial_container_id, new_container_id)
             queried.addCallback(got_rebooted_response)
-            return rebooted
+            return queried
         creating_dataset.addCallback(server_started)
         return creating_dataset
 
