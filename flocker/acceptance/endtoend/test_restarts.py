@@ -52,26 +52,20 @@ class RebootTests(TestCase):
         If a container has a volume mapped to a dataset, on reboots it will
         only be restarted after the volume becomes available.
 
-        The bug that this test is designed to catch is:
+        This test is designed to catch the following bug:
         * Server reboots.
-        * Container agent starts before dataset agent and receives state
-          about which datasets were manifest from before the reboot
-          (before the dataset agent reports its state).
-        * Container agent acts on this state by starting a container,
-          unfortunately, without its data.
-
-        If this bug occurs then the container will have been stopped and
-        a new one started before the dataset is in place.  We've just
-        ensured that the dataset *cannot* be in place because the dataset
-        agent isn't running. In other words, we force the race condition.
-        So by the time the container agent kills the first container if
-        the bug has manifested, the above is already destined to
-        happen. So we can start the dataset agent in order to allow a
-        correct implementation (where the bug is avoided) to eventually
-        get the dataset in place and start the container correctly.
-
+        * Container agent starts before dataset agent has reported its state.
+        * On connecting to control service it receives stale dataset state from
+          before the reboot. (The stale state wiper has not yet purged the
+          stale dataset state)
+        * Container agent acts on this state by starting a container.
+        * Docker finds the (unmounted) /flocker/<dataset_id> subdirectory from
+          before the reboot.
+        * Stateful application begins writing data to a Docker AUFs layer which
+          will be lost upon next container restart.
         """
-        # Explicitly uses a node which is not running the control service):
+        # Find a node which is not running the control service.
+        # If the control node is rebooted, we won't get stale dataset state.
         node = [node for node in cluster.nodes if
                 node.public_address != cluster.control_node.public_address][0]
         print "OPERATING ON:", node
