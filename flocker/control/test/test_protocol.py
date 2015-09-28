@@ -14,7 +14,7 @@ from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
 from eliot.testing import (
-    capture_logging, validate_logging, assertHasAction, LoggedAction,
+    capture_logging, validate_logging, assertHasAction,
 )
 
 from twisted.internet.error import ConnectionDone
@@ -28,7 +28,7 @@ from twisted.protocols.amp import (
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet.defer import succeed, fail
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
@@ -41,7 +41,6 @@ from .._protocol import (
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
     AGENT_CONNECTED, CachingEncoder, _caching_encoder
 )
-from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
