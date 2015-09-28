@@ -131,11 +131,11 @@ class GetClassNameTests(SynchronousTestCase):
     """
     def test_disallowed_characters_removed(self):
         """
-        Hyphens and periods are removed.
+        Hyphens, periods and + signs are removed.
         """
         self.assertEqual(
-            get_class_name(version='0.3.0-444-05215b'),
-            'Flocker03044405215b')
+            get_class_name(version='0.3.0.dev1+444-05215b'),
+            'Flocker030Dev144405215b')
 
     def test_caps_after_disallowed(self):
         """

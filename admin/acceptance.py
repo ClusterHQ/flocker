@@ -423,12 +423,17 @@ class VagrantRunner(object):
         )
 
         certificates = Certificates(self.certificates_path)
+        # Default volume size is meaningless here as Vagrant only uses ZFS, and
+        # not a block device backend.
+        # XXX Change ``Cluster`` to not require default_volume_size
+        default_volume_size = int(GiB(1).to_Byte().value)
         cluster = Cluster(
             all_nodes=pvector(nodes),
             control_node=nodes[0],
             agent_nodes=nodes,
             dataset_backend=self.dataset_backend,
-            certificates=certificates
+            certificates=certificates,
+            default_volume_size=default_volume_size,
         )
 
         returnValue(cluster)

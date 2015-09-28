@@ -162,6 +162,13 @@ class ControllableDeployer(object):
     ``IDeployer`` whose results can be controlled.
     """
     def __init__(self, hostname, local_states, calculated_actions):
+        """
+        :param list local_states: A list of results to produce from
+            ``discover_state``.  Each call to ``discover_state`` pops the first
+            element from this list and uses it as its result.  If the element
+            is an exception, it is raised.  Otherwise it must be a
+            ``Deferred``.
+        """
         self.node_uuid = ip_to_uuid(hostname)
         self.hostname = hostname
         self.local_states = local_states
@@ -169,7 +176,11 @@ class ControllableDeployer(object):
         self.calculate_inputs = []
 
     def discover_state(self, node_state):
-        return self.local_states.pop(0).addCallback(lambda val: (val,))
+        state = self.local_states.pop(0)
+        if isinstance(state, Exception):
+            raise state
+        else:
+            return state.addCallback(lambda val: (val,))
 
     def calculate_changes(self, desired_configuration, cluster_state):
         self.calculate_inputs.append(

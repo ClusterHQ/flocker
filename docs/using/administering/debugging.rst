@@ -119,6 +119,47 @@ Alternatively, the information can be gathered manually using the following comm
 
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 
+Profiling
+---------
+
+.. warning::
+
+   It is not recommended to use profiling while relying on Flocker within a production environment as there is a performance overhead.
+
+Control Service
+^^^^^^^^^^^^^^^
+
+It is possible to obtain :py:mod:`cProfile` profiling data of the :ref:`Control Service <control-service>` between two user defined intervals.
+
+Profiling is disabled by default.
+To enable profiling of the Control Service run the following command as root on the control node:
+
+.. prompt:: bash #
+
+   pkill -SIGUSR1 flocker-control
+
+Profiling data will then be collected until a signal to stop profiling is received.
+
+To stop profiling run the following command as root on the control node:
+
+.. prompt:: bash #
+
+   pkill -SIGUSR2 flocker-control
+
+This will also output the profiling data to a file named :file:`/var/lib/flocker/profile-<TIMESTAMP>`.
+This file will include all profiling data collected up to that point, including from previous intervals of profiling.
+
+See :py:mod:`pstats` for details on how to extract information from this file.
+For example:
+
+.. code-block:: python
+
+   import pstats
+
+   profile = pstats.Stats('profile-20150917161214')
+   profile.sort_stats('cumulative').print_stats(10)
+
+
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`eliot`: https://github.com/ClusterHQ/eliot
 .. _`eliottree`: https://github.com/jonathanj/eliottree

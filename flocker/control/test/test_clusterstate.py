@@ -32,7 +32,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
     """
     WITH_APPS = NodeState(
         hostname=u"192.0.2.56", uuid=uuid4(),
-        applications=[APP1, APP2], used_ports=[],
+        applications=[APP1, APP2],
     )
     WITH_MANIFESTATION = NodeState(
         hostname=u"host2",
@@ -80,7 +80,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", applications=[APP1], used_ports=[]),
+            NodeState(hostname=u"host1", applications=[APP1]),
             NodeState(hostname=u"host1", applications=None,
                       manifestations={
                           MANIFESTATION.dataset_id:
@@ -93,7 +93,6 @@ class ClusterStateServiceTests(SynchronousTestCase):
                              manifestations={
                                  MANIFESTATION.dataset_id: MANIFESTATION},
                              devices={}, paths={},
-                             used_ports=[],
                              applications=[APP1])]))
 
     def test_update(self):
@@ -103,13 +102,12 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", applications=[APP1], used_ports=[]),
-            NodeState(hostname=u"host1", applications=[APP2], used_ports=[]),
+            NodeState(hostname=u"host1", applications=[APP1]),
+            NodeState(hostname=u"host1", applications=[APP2]),
         ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[NodeState(
                              hostname=u"host1",
-                             used_ports=[],
                              applications=frozenset([APP2]))]))
 
     def test_multiple_hosts(self):
@@ -119,18 +117,16 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", applications=[APP1], used_ports=[]),
-            NodeState(hostname=u"host2", applications=[APP2], used_ports=[]),
+            NodeState(hostname=u"host1", applications=[APP1]),
+            NodeState(hostname=u"host2", applications=[APP2]),
         ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[
                              NodeState(
                                  hostname=u"host1",
-                                 used_ports=[],
                                  applications=frozenset([APP1])),
                              NodeState(
                                  hostname=u"host2",
-                                 used_ports=[],
                                  applications=frozenset([APP2])),
                          ]))
 

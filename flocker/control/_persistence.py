@@ -228,7 +228,14 @@ _LOG_UPGRADE = ActionType(u"flocker-control:persistence:migrate_configuration",
 _LOG_EXPIRE = MessageType(
     u"flocker-control:persistence:lease-expired",
     [Field(u"dataset_id", unicode), Field(u"node_id", unicode)],
-    "A lease for a dataset has expired.")
+    u"A lease for a dataset has expired.")
+
+_LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED = MessageType(
+    u"flocker-control:persistence:unchanged-deployment-not-saved",
+    [],
+    u"The persistence service was told to save a deployment which is the same "
+    u"as the already-saved deployment.  It has optimized this away."
+)
 
 
 class LeaseService(Service):
@@ -400,6 +407,10 @@ class ConfigurationPersistenceService(MultiService):
 
         :return Deferred: Fires when write is finished.
         """
+        if deployment == self._deployment:
+            _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED().write(self.logger)
+            return succeed(None)
+
         with _LOG_SAVE(self.logger, configuration=deployment):
             self._sync_save(deployment)
             self._deployment = deployment
