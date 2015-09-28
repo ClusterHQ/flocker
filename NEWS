@@ -1,4 +1,4 @@
-Flocker 1.4.0 (2015-09-27)
+Flocker 1.4.1 (2015-09-27)
 ==========================
 
 - Unexpected errors in agent state discovery no longer break the agent convergence loop. (FLOC-3135)
