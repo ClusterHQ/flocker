@@ -5,8 +5,10 @@
 Various helpers for dealing with Deferred APIs in flocker.
 """
 
-from twisted.internet.defer import Deferred, gatherResults
+from twisted.internet.defer import Deferred, gatherResults, maybeDeferred
 from twisted.python import log
+
+from ._interface import interface_decorator
 
 
 def gather_deferreds(deferreds):
@@ -106,3 +108,96 @@ class EventChannel(object):
         d = Deferred(canceller=self._subscriptions.remove)
         self._subscriptions.append(d)
         return d
+
+
+def methods_once_at_a_time(interface, original_name):
+    return interface_decorator(
+        "once_upon_a_time",
+        interface,
+        _run_once_at_a_time_method,
+        original_name,
+    )
+
+
+def _run_once_at_a_time_method(method_name, original_name):
+    def _run_once_at_a_time(self, *args, **kwargs):
+        try:
+            cache = self._once_at_a_time_cache
+        except AttributeError:
+            cache = self._once_at_a_time_cache = {}
+        try:
+            state = cache[method_name]
+        except KeyError:
+            state = cache[method_name] = OnceAtATime()
+
+        # Look up the method each time instead of saving it on the _OnceCache
+        # to avoid automatically building a circular reference.
+        original_self = getattr(self, original_name)
+        original_method = getattr(original_self, method_name)
+        return state.run(original_method, args, kwargs)
+
+    return _run_once_at_a_time
+
+
+class OnceAtATime(object):
+    _call = None
+    _next = None
+
+    def run(self, method, args=(), kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+
+        if self._call is None:
+            # No call is active.  Start one.
+            self._call = _Call(method, args, kwargs)
+            return self._go()
+
+        # Set up the next call to match the given arguments.
+        new_next = _Call(method, args, kwargs)
+
+        if self._next is not None:
+            # A next call is already planned.  Publish the result of the new
+            # next call to anyone waiting on the result of the old next call.
+            # The old next call will never actually run so this is where its
+            # results will come from.
+            new_next.result().addBoth(self._next.complete)
+
+        # Save the next call for eventual execution.
+        self._next = new_next
+
+        # Give the caller a Deferred that will fire with the result of the next
+        # call (or the call that replaces it).
+        return self._next.result()
+
+    def _go(self):
+        self._call.result().addBoth(self._continue)
+        result = self._call.result()
+        self._call.go()
+        return result
+
+    def _continue(self, ignored):
+        # A call finished.
+        self._call = None
+        # If there is a next call, start it.
+        if self._next is not None:
+            self._call = self._next
+            self._next = None
+            self._go()
+
+
+class _Call(object):
+    def __init__(self, method, args, kwargs):
+        self.method = method
+        self.args = args
+        self.kwargs = kwargs
+        self._channel = EventChannel()
+
+    def result(self):
+        return self._channel.subscribe()
+
+    def go(self):
+        d = maybeDeferred(self.method, *self.args, **self.kwargs)
+        d.addBoth(self.complete)
+
+    def complete(self, result):
+        self._channel.callback(result)
