@@ -59,6 +59,8 @@ from ._model import (
     Deployment, DeploymentState, ChangeSource,
 )
 
+from ..common import OnceAtATime
+
 PING_INTERVAL = timedelta(seconds=30)
 
 
@@ -438,6 +440,7 @@ class ControlAMPService(Service):
         # When configuration changes, notify all connected clients:
         self.configuration_service.register(
             lambda: self._send_state_to_connections(self.connections))
+        self._oncers = {}
 
     def startService(self):
         self.endpoint_service.startService()
@@ -462,18 +465,23 @@ class ControlAMPService(Service):
                 for connection in connections:
                     action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
                     with action.context():
-                        # XXX If callRemote raises an exception, the loop won't
-                        # finish and the rest of the connections won't receive
-                        # the updated state.  Asynchronous exceptions aren't a
+                        # XXX If run raises an exception, the loop won't finish
+                        # and the rest of the connections won't receive the
+                        # updated state.  Asynchronous exceptions aren't a
                         # problem since they won't interrupt the loop (and they
                         # shouldn't be allowed to).  No test coverage for
-                        # either of these cases.
-                        d = DeferredContext(connection.callRemote(
-                            ClusterStatusCommand,
-                            configuration=configuration,
-                            state=state,
-                            eliot_context=action
-                        ))
+                        # either of these cases.  Also run isn't supposed to
+                        # raise exceptions.
+                        sending = self._oncers[connection.transport.getPeer()].run(
+                            connection.callRemote,
+                            (ClusterStatusCommand,),
+                            dict(
+                                configuration=configuration,
+                                state=state,
+                                eliot_context=action,
+                            ),
+                        )
+                        d = DeferredContext(sending)
                         d.addActionFinish()
                         d.result.addErrback(lambda _: None)
 
@@ -484,6 +492,7 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The new connection.
         """
         with AGENT_CONNECTED(agent=connection):
+            self._oncers[connection.transport.getPeer()] = OnceAtATime()
             self.connections.add(connection)
             self._send_state_to_connections([connection])
 
@@ -493,6 +502,7 @@ class ControlAMPService(Service):
 
         :param ControlAMP connection: The lost connection.
         """
+        del self._oncers[connection.transport.getPeer()]
         self.connections.remove(connection)
 
     def node_changed(self, source, state_changes):
