@@ -1008,41 +1008,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
             }
         )
 
-    @validate_logging(None)
-    def test_error_sending(self, logger):
-        """
-        An error sending to one agent does not prevent others from being
-        notified.
-        """
-        control_amp_service = build_control_amp_service(self)
-        self.patch(control_amp_service, 'logger', logger)
-
-        connected_protocol = ControlAMP(Clock(), control_amp_service)
-        # Patching is bad.
-        # https://clusterhq.atlassian.net/browse/FLOC-1603
-        connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
-
-        error = ConnectionLost()
-        disconnected_protocol = ControlAMP(Clock(), control_amp_service)
-        results = [succeed({}), fail(error)]
-        # Patching is bad.
-        # https://clusterhq.atlassian.net/browse/FLOC-1603
-        disconnected_protocol.callRemote = (
-            lambda *args, **kwargs: results.pop(0))
-
-        control_amp_service.connected(disconnected_protocol)
-        control_amp_service.connected(connected_protocol)
-        control_amp_service.node_changed(
-            ChangeSource(),
-            (NodeState(hostname=u"1.2.3.4"),)
-        )
-
-        actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
-        self.assertEqual(
-            [action.end_message["exception"] for action in actions
-             if not action.succeeded],
-            [u"twisted.internet.error.ConnectionLost"])
-
 
 class _NoOpCounter(CommandLocator):
     noops = 0
