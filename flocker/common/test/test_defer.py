@@ -6,11 +6,14 @@ Tests for ``flocker.common._defer``.
 
 import gc
 
-from .._defer import gather_deferreds
+from hypothesis import given, strategies
+
+from .. import OnceAtATime, gather_deferreds
+from ...testtools import CustomException
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.python.failure import Failure
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 
 class GatherDeferredsTests(TestCase):
@@ -142,3 +145,153 @@ class GatherDeferredsTests(TestCase):
         del d1, d2, d3
         gc.collect()
         self.assertEqual([], self.flushLoggedErrors(ZeroDivisionError))
+
+
+def _sync():
+    once = OnceAtATime()
+    once.run(lambda: None)
+    return once
+
+def _sync_error():
+    once = OnceAtATime()
+    once.run(lambda: 1 / 0).addErrback(lambda err: None)
+    return once
+
+def _sync_deferred():
+    once = OnceAtATime()
+    once.run(lambda: succeed(None))
+    return once
+
+def _sync_deferred_error():
+    once = OnceAtATime()
+    once.run(lambda: fail(CustomException())).addErrback(lambda err: None)
+    return once
+
+def _async_deferred():
+    once = OnceAtATime()
+    d = Deferred()
+    once.run(lambda: d)
+    d.callback(None)
+    return once
+
+def _async_deferred_error():
+    once = OnceAtATime()
+    d = Deferred()
+    once.run(lambda: d).addErrback(lambda err: None)
+    d.errback(Failure(CustomException()))
+    return once
+
+ONCE_FACTORY = strategies.sampled_from([
+    OnceAtATime,
+    _sync,
+    _sync_error,
+    _sync_deferred,
+    _sync_deferred_error,
+    _async_deferred,
+    _async_deferred_error,
+])
+
+class OnceAtATimeTests(TestCase):
+    """
+    Tests for ``OnceAtATime`` in the cases where only one call is made at a
+    time.
+    """
+    @given(ONCE_FACTORY)
+    def test_arguments(self, once_factory):
+        """
+        Arguments after the first passed to ``OnceAtATime.run`` are passed to
+        the callable object that is the first parameter of ``OnceAtATime.run``.
+        """
+        positional_arguments = (object(), object())
+        keyword_arguments = dict(foo=object(), bar=object())
+
+        def method(*args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+
+        once = once_factory()
+        once.run(method, positional_arguments, keyword_arguments)
+        self.assertEqual(
+            (positional_arguments, keyword_arguments),
+            (self.args, self.kwargs),
+        )
+
+    @given(ONCE_FACTORY)
+    def test_returns_synchronous_success(self, once_factory):
+        """
+        When called once with a method that returns a ``Deferred`` that has
+        already fired, ``OnceAtATime.run`` returns a ``Deferred`` that fires
+        with the same result.
+        """
+        result = object()
+        deferred_result = succeed(result)
+
+        def method():
+            return deferred_result
+
+        once = once_factory()
+        run_result = once.run(method)
+        self.assertIs(
+            result,
+            self.successResultOf(run_result),
+        )
+
+    @given(ONCE_FACTORY)
+    def test_raises_synchronous_exception(self, once_factory):
+        """
+        When called once with a method that returns a ``Deferred`` that has
+        already fired with a ``Failure``, ``OnceAtATime.run`` returns a
+        ``Deferred`` that fires with the same ``Failure``.
+        """
+        result = Failure(CustomException())
+        deferred_result = fail(result)
+
+        def method():
+            return deferred_result
+
+        once = once_factory()
+        run_result = once.run(method)
+        self.failureResultOf(run_result, CustomException)
+
+    @given(ONCE_FACTORY)
+    def test_returns_asynchronous_success(self, once_factory):
+        """
+        When called once with a method that returns a ``Deferred`` that has not
+        yet fired with a result, ``OnceAtATime.run`` returns a ``Deferred``
+        that fires with the result that ``Deferred`` eventually fires with.
+        """
+        result = object()
+        deferred_result = Deferred()
+
+        def method():
+            return deferred_result
+
+        once = once_factory()
+        run_result = once.run(method)
+        run_result.addCallback(self.assertIs, result)
+
+        self.assertNoResult(run_result)
+        deferred_result.callback(result)
+        self.successResultOf(deferred_result)
+
+    @given(ONCE_FACTORY)
+    def test_raises_asynchronous_exception(self, once_factory):
+        """
+        When called once with a method that returns a ``Deferred`` that has not
+        yet fired with a ``Failure``, ``OnceAtATime.run`` returns a
+        ``Deferred`` that fires with the ``Failure`` that ``Deferred``
+        eventually fires with.
+        """
+        result = Failure(CustomException())
+        deferred_result = Deferred()
+
+        def method():
+            return deferred_result
+
+        once = once_factory()
+        run_result = once.run(method)
+        self.assertFailure(run_result, CustomException)
+
+        self.assertNoResult(run_result)
+        deferred_result.errback(result)
+        self.successResultOf(deferred_result)
