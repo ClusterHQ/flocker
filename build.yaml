@@ -69,13 +69,15 @@ git_url: 'https://github.com/ClusterHQ/flocker.git'
 #
 common_cli:
 
-  # our first line, jenkins will execute our code according to this shebang.
+  # add_shell_functions, contains our the bash functions consumed by the
+  # the build script.
+  # We set the shebang to /bin/bash. Jenkins 'should' respect this.
   # Note:
   # We noticed that our Ubuntu /bin/bash call were being executed as /bin/sh.
   # So we as part of the slave image build process symlinked
   # /bin/sh -> /bin/bash.
-  #
-  hashbang: &hashbang |
+  # TODO: https://clusterhq.atlassian.net/browse/FLOC-2986
+  add_shell_functions: &add_shell_functions |
     #!/bin/bash -l
     set -x
     set -e
@@ -597,7 +599,7 @@ run_trial_modules: &run_trial_modules
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
 run_trial_cli: &run_trial_cli [
-  *hashbang,
+  *add_shell_functions,
   *setup_pip_cache,
   *cleanup,
   *setup_venv,
@@ -609,7 +611,7 @@ run_trial_cli: &run_trial_cli [
   *convert_results_to_junit ]
 
 run_trial_cli_as_root: &run_trial_cli_as_root [
-  *hashbang,
+  *add_shell_functions,
   *setup_pip_cache,
   *cleanup,
   *setup_venv,
@@ -681,7 +683,7 @@ job_type:
         - flocker/node/agents/ebs.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_aws_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -698,7 +700,7 @@ job_type:
         - flocker/node/agents/ebs.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_aws_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -716,7 +718,7 @@ job_type:
         - flocker/node/agents/cinder.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_rackspace_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -733,7 +735,7 @@ job_type:
         - flocker/node/agents/cinder.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_rackspace_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -751,7 +753,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Small'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *run_sphinx ]
           }
@@ -764,7 +766,7 @@ job_type:
       with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version,
@@ -782,7 +784,7 @@ job_type:
       with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_cache,
+            cli: [ *add_shell_functions, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
@@ -802,7 +804,7 @@ job_type:
       with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version,
@@ -822,7 +824,7 @@ job_type:
       with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_cache,
+            cli: [ *add_shell_functions, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
@@ -841,7 +843,7 @@ job_type:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_aws_env_vars, *check_version,
@@ -856,7 +858,7 @@ job_type:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-15.04',
                    *setup_aws_env_vars, *check_version,
@@ -871,7 +873,7 @@ job_type:
       on_nodes_with_labels: 'osx'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=OSX',
                    *check_version,
@@ -886,7 +888,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-centos-7',
                    *build_dockerfile_centos7,
                    *build_docker_image,
@@ -897,7 +899,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-trusty',
                    *build_dockerfile_ubuntu_trusty,
                    *build_docker_image,
@@ -908,7 +910,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
                    *build_dockerfile_ubuntu_vivid,
                    *build_docker_image,
