@@ -322,7 +322,6 @@ class ControlAMPTests(ControlTestCase):
             self.successResultOf(self.client.callRemote(VersionCommand)),
             {"major": 1})
 
-    # @validate_logging here and check for NODE_CHANGED
     def test_nodestate_updates_node_state(self):
         """
         ``NodeStateCommand`` updates the node state.
@@ -376,7 +375,6 @@ class ControlAMPTests(ControlTestCase):
             (DeploymentState(nodes={SIMPLE_NODE_STATE}), DeploymentState()),
         )
 
-    # @validate_logging here and check for NODE_CHANGED
     def test_nodestate_notifies_all_connected(self):
         """
         ``NodeStateCommand`` results in all connected ``ControlAMP``
