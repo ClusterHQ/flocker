@@ -4,10 +4,7 @@
 Tests for restarting and reboots and their interactions.
 """
 
-import os
-
-from subprocess import call, check_call, CalledProcessError
-from unittest import SkipTest
+from subprocess import call
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase, FailTest
@@ -20,6 +17,7 @@ from ...common.runner import run_ssh
 
 
 REBOOT_SERVER = FilePath(__file__).sibling(b"reboot_httpserver.py")
+
 
 def _service(address, name, action):
     """
@@ -107,12 +105,16 @@ class RebootTests(TestCase):
             # we restart the machine.
             print "INITIAL RESPONSE", initial_response
             initial_reboot_time = initial_response.splitlines()[0]
-            initial_container_id = initial_response.splitlines()[2].encode("ascii")
+            initial_container_id = initial_response.splitlines()[2]
+            initial_container_id = initial_container_id.encode("ascii")
             # XXX Checking exit code is problematic insofar as reboot
 
             # kills the ssh process...
             print "Rebooting!"
-            disabling = _service(node.public_address, b'flocker-dataset-agent', b'disable')
+            disabling = _service(
+                node.public_address, b'flocker-dataset-agent', b'disable'
+            )
+
             def reboot(ignored):
                 call([b"ssh", b"root@{}".format(node.public_address),
                       b"shutdown", b"-r", b"now"])
@@ -130,7 +132,6 @@ class RebootTests(TestCase):
             # existed on the first run is destroyed. This is an external sign
             # that the container agent tried to "restart" (by destroying and
             # recreating) the container.
-            #
             def old_container_gone():
                 # This is only necessary to allow the fixed code to proceed.  A
                 # simpler test against master shows that the container-agent
@@ -138,25 +139,38 @@ class RebootTests(TestCase):
                 # the webserver returns the new uptime.
                 if call([b"ssh", b"root@{}".format(node.public_address),
                          b"true"]) == 0:
-                    if call([b"ssh", b"root@{}".format(node.public_address),
-                             b"docker", b"inspect", initial_container_id]) == 0:
-                        print "Container", initial_container_id, "still exists..."
+                    inspect_result = call([
+                        b"ssh", b"root@{}".format(node.public_address),
+                        b"docker", b"inspect", initial_container_id
+                    ])
+                    if inspect_result == 0:
+                        print "Container",
+                        print initial_container_id, "still exists."
                         return False
                     else:
-                        print "Container", initial_container_id, "stopped existing!"
+                        print "Container",
+                        print initial_container_id, "stopped existing!"
                         return True
                 else:
                     print "Failed to connect this time, trying again..."
                     return False
 
-            gone = rebooting.addCallback(lambda _: loop_until(old_container_gone))
+            gone = rebooting.addCallback(
+                lambda _: loop_until(old_container_gone)
+            )
             enabled = gone.addCallback(
-                lambda _: _service(node.public_address, b'flocker-dataset-agent', b'enable')
+                lambda _: _service(
+                    node.public_address, b'flocker-dataset-agent', b'enable'
+                )
             )
             started = enabled.addCallback(
-                lambda _: _service(node.public_address, b'flocker-dataset-agent', b'start')
+                lambda _: _service(
+                    node.public_address, b'flocker-dataset-agent', b'start'
+                )
             )
-            different = started.addCallback(lambda _: loop_until(query_until_different))
+            different = started.addCallback(
+                lambda _: loop_until(query_until_different)
+            )
             queried = different.addCallback(lambda _: query_server())
 
             # Now that we've rebooted, we expect first line to be
