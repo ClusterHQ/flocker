@@ -85,10 +85,6 @@ class RebootTests(TestCase):
                 u"node_uuid": str(node.uuid),
                 u"image": u"python:2.7-slim",
                 u"ports": [{u"internal": 12345, u"external": 12345}],
-                # We expect containers to be restarted irrespective of restart
-                # policy because FLOC-3137 makes that the intended behaviour.
-                # The restart policy will be ignored by the containers API.
-                u'restart_policy': {u'name': u'never'},
                 u"volumes": [{u"dataset_id": str(dataset.dataset_id),
                               u"mountpoint": u"/data"}],
                 u"command_line": [u"python", u"-c",
