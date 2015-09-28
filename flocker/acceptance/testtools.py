@@ -811,7 +811,8 @@ def create_python_container(test_case, cluster, parameters, script,
     return creating
 
 
-def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None, node=None):
+def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
+                   node=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
