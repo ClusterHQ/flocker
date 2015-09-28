@@ -131,7 +131,7 @@ class RebootTests(TestCase):
             # ID, the bad thing will already have happened, and we can start the dataset
             # agent in order to allow a correct implementation (where the bug is avoided)
             # to eventually get the dataset in place and start the container correctly.
-            def old_container_gone(ignored):
+            def old_container_gone():
                 if call([b"ssh", b"root@{}".format(node.public_address),
                          b"true"]) == 0:
                     if call([b"ssh", b"root@{}".format(node.public_address),
