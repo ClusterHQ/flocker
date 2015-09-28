@@ -12,7 +12,9 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, assertHasAction, LoggedAction
+from eliot.testing import (
+    capture_logging, validate_logging, assertHasAction, LoggedAction,
+)
 
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
@@ -35,6 +37,7 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
+    AGENT_CONNECTED,
 )
 from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
@@ -280,8 +283,8 @@ class ControlAMPTests(ControlTestCase):
         self.assertEqual((current, self.control_amp_service.connections),
                          ({marker}, {marker, self.protocol}))
 
-    # @validate_logging here and check for AGENT_CONNECTED
-    def test_connection_made_send_cluster_status(self):
+    @capture_logging(assertHasAction, AGENT_CONNECTED, succeeded=True)
+    def test_connection_made_send_cluster_status(self, logger):
         """
         When a connection is made the cluster status is sent to the new client.
         """
