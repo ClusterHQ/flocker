@@ -41,24 +41,24 @@ def _service(address, name, action):
     d.addErrback(handle_error, action)
     return d
 
-class RestartTests(TestCase):
+class RebootTests(TestCase):
     """
-    Tests for restart policies.
+    Tests for rebooting machines.
     """
 
     @require_cluster(2)
     def test_restart_always_reboot_with_dataset(self, cluster):
         """
-        If a container has a restart policy of ``always`` and a volume mapped
-        to a dataset, on reboots it will only be restarted after the
-        volume becomes available.
+        If a container has a volume mapped to a dataset, on reboots it will
+        only be restarted after the volume becomes available.
         """
         if not os.environ.get("RUN_REBOOT_TESTS"):
             raise SkipTest(
                     "Don't want to run this on buildbot, for now at least.")
 
-        # Explicitly uses a  node which is not running the control service):
-        node = [node for node in cluster.nodes if node.public_address != cluster.control_node.public_address][0]
+        # Explicitly uses a node which is not running the control service):
+        node = [node for node in cluster.nodes if
+                node.public_address != cluster.control_node.public_address][0]
         print "OPERATING ON:", node
         creating_dataset = create_dataset(self, cluster, node=node)
 
@@ -114,7 +114,6 @@ class RestartTests(TestCase):
 
             # Now, keep trying to get a response until it's different than
             # the one we originally got, thus indicating a reboot:
-
             def query_until_different():
                 print "query!"
                 return query_server().addCallbacks(
