@@ -452,6 +452,8 @@ common_cli:
       /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   install_homebrew_package: &install_homebrew_package
+    # make sure we're no longer in our virtualenv
+    deactivate
     # install the new freshly baked package
     brew update
     brew tap ClusterHQ/tap
