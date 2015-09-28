@@ -135,7 +135,7 @@ common_cli:
     function parse_logs {
       # ubuntu defaults to mawk, which causes some things to break
       # it seems to be related to buffering, -W interactive seems to fix it.
-      if is_osx; then
+      if is_ubuntu; then
         alias awk='mawk -W interactive'
       fi
 
