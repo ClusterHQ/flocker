@@ -103,6 +103,18 @@ def _eliot_system(part):
     return u"flocker:p2pdeployer:" + part
 
 
+def _dataset_locally_manifests(path):
+    """
+    Return boolean representing whether the given path to a dataset
+    corresponds to a filesystem mount point on this host.
+
+    :param FilePath path: Local path which is about to get mounted into a
+        container.
+    """
+    return path.path in [
+        partition.mountpoint for partition in psutil.disk_partitions()]
+
+
 class ExpectedDatasetNotPresent(Exception):
     pass
 
@@ -120,6 +132,7 @@ class StartApplication(PRecord):
     """
     application = field(type=Application, mandatory=True)
     node_state = field(type=NodeState, mandatory=True)
+    _manifestation_checker = field(initial=_dataset_locally_manifests)
 
     # This (and other eliot_action implementations) uses `start_action` because
     # it was easier than defining a new `ActionType` with a bunch of fields.
@@ -132,17 +145,6 @@ class StartApplication(PRecord):
             _logger, _eliot_system(u"startapplication"),
             name=self.application.name,
         )
-
-    def _dataset_locally_manifests(self, path):
-        """
-        Return boolean representing whether the given path to a dataset
-        corresponds to a filesystem mount point on this host.
-
-        :param FilePath path: Local path which is about to get mounted into a
-            container.
-        """
-        return path.path in [
-            partition.mountpoint for partition in psutil.disk_partitions()]
 
     def run(self, deployer):
         application = self.application
@@ -159,7 +161,7 @@ class StartApplication(PRecord):
             # later convergence loop iteration and that might go better.
             # Allowing the container to be started regardless would result in a
             # container being started without its data, which is bad.
-            if not self._dataset_locally_manifests(node_path):
+            if not self._manifestation_checker(node_path):
                 raise ExpectedDatasetNotPresent(node_path)
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
