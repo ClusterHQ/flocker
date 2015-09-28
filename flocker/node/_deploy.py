@@ -845,6 +845,7 @@ class ApplicationNodeDeployer(object):
                 manifestations=None,
                 paths=None,
             )])
+        # XXX Perhaps this would be a better place to put the manifestation-checking logic?
 
         path_to_manifestations = {
             path: local_state.manifestations[dataset_id]
