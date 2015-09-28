@@ -122,9 +122,6 @@ def run_tests(reactor, cluster, trial_args):
         else:
             return f
 
-    print "To re-run tests against running cluster, run:"
-    print " ".join("%s=%s" % (k ,v) for (k, v) in get_trial_environment(cluster).iteritems()),
-    print " ".join(['trial'] + list(trial_args))
     return run(
         reactor,
         ['trial'] + list(trial_args),
