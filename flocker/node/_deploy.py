@@ -604,14 +604,15 @@ class P2PManifestationDeployer(object):
         return sequentially(changes=phases)
 
 
-def _is_manifest(path):
+def _is_manifest(manifestation):
     """
     Return boolean representing whether the dataset of the supplied
     manifestation is mounted on this host.
-    :param FilePath path: Local path which is about to get mounted into a
-        container.
+
+    :param Manifestation manifestation: Manifestation which should be mounted
+        on the node.
     """
-    return path.path in [
+    return manifestation.dataset.path in [
         partition.mountpoint for partition in psutil.disk_partitions()]
 
 
