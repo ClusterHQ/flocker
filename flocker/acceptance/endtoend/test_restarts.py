@@ -52,10 +52,6 @@ class RebootTests(TestCase):
         If a container has a volume mapped to a dataset, on reboots it will
         only be restarted after the volume becomes available.
         """
-        if not os.environ.get("RUN_REBOOT_TESTS"):
-            raise SkipTest(
-                    "Don't want to run this on buildbot, for now at least.")
-
         # Explicitly uses a node which is not running the control service):
         node = [node for node in cluster.nodes if
                 node.public_address != cluster.control_node.public_address][0]
