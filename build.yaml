@@ -390,7 +390,7 @@ common_cli:
     \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
-    # we gather the return code, but make sure we come out of these tests with '0'
+    # We gather the return code but make sure we come out of these tests with 0
     # we store that code into RC and pass it to the end of the job execution.
     #
     # The admin/run-acceptance-tests will provision a flocker cluster of
@@ -411,7 +411,7 @@ common_cli:
     \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_client_tests: &run_client_tests |
-    # we gather the return code, but make sure we come out of these tests with '0'
+    # We gather the return code but make sure we come out of these tests with 0
     # we store that code into RC and pass it to the end of the job execution.
     parse_logs \$venv/bin/python admin/run-client-tests \
     --distribution \${DISTRIBUTION_NAME} \
@@ -441,8 +441,11 @@ common_cli:
     # and build a homebrew
     SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
     RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
-    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
-    \${venv}/bin/python admin/build-package --destination-path repo --distribution \${DISTRIBUTION_NAME} /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
+      --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
+    \${venv}/bin/python admin/build-package --destination-path repo \
+      --distribution \${DISTRIBUTION_NAME} \
+      /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   install_homebrew_package: &install_homebrew_package
     # install the new freshly baked package
@@ -502,8 +505,9 @@ common_cli:
   #
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
@@ -522,8 +526,9 @@ common_cli:
 
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
@@ -538,7 +543,7 @@ common_cli:
     # Download the latest pip requirements file from master branch of flocker
     wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
