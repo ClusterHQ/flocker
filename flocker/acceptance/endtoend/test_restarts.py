@@ -59,8 +59,8 @@ class RebootTests(TestCase):
         * Container agent acts on this state by starting a container.
         * Docker finds the (unmounted) /flocker/<dataset_id> subdirectory from
           before the reboot.
-        * Stateful application begins writing data to a Docker AUFs layer which
-          will be lost upon next container restart.
+        * Stateful application appears to have lost its data, because it only
+          sees the local directory on the host, not the mounted dataset.
         """
         # Find a node which is not running the control service.
         # If the control node is rebooted, we won't get stale dataset state.
