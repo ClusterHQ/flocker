@@ -811,7 +811,7 @@ def create_python_container(test_case, cluster, parameters, script,
     return creating
 
 
-def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None, node_index=0):
+def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None, node=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -828,9 +828,11 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None, node_
         maximum_size = get_default_volume_size()
     if dataset_id is None:
         dataset_id = uuid4()
+    if node is None:
+        node = cluster.nodes[0]
 
     configuring_dataset = cluster.client.create_dataset(
-        cluster.nodes[node_index].uuid, maximum_size=maximum_size,
+        node.uuid, maximum_size=maximum_size,
         dataset_id=dataset_id, metadata={u"name": u"my_volume"}
     )
 

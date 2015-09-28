@@ -56,10 +56,11 @@ class RestartTests(TestCase):
         if not os.environ.get("RUN_REBOOT_TESTS"):
             raise SkipTest(
                     "Don't want to run this on buildbot, for now at least.")
-        SECOND_NODE = 1
-        node = cluster.nodes[SECOND_NODE]
-        # Explicitly uses 2nd node (not the node running the control service):
-        creating_dataset = create_dataset(self, cluster, node_index=SECOND_NODE)
+
+        # Explicitly uses a  node which is not running the control service):
+        node = [node for node in cluster.nodes if node.public_address != cluster.control_node.public_address][0]
+        print "OPERATING ON:", node
+        creating_dataset = create_dataset(self, cluster, node=node)
 
         def query_server():
             req = get(
@@ -72,7 +73,7 @@ class RestartTests(TestCase):
             print "DATASET", dataset
             http_server = {
                 u"name": random_name(self),
-                u"node_uuid": str(cluster.nodes[SECOND_NODE].uuid),
+                u"node_uuid": str(node.uuid),
                 u"image": u"python:2.7-slim",
                 u"ports": [{u"internal": 12345, u"external": 12345}],
                 # We expect containers to be restarted irrespective of restart
