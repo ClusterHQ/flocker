@@ -103,22 +103,6 @@ def _eliot_system(part):
     return u"flocker:p2pdeployer:" + part
 
 
-def _dataset_locally_manifests(path):
-    """
-    Return boolean representing whether the given path to a dataset
-    corresponds to a filesystem mount point on this host.
-
-    :param FilePath path: Local path which is about to get mounted into a
-        container.
-    """
-    return path.path in [
-        partition.mountpoint for partition in psutil.disk_partitions()]
-
-
-class ExpectedDatasetNotPresent(Exception):
-    pass
-
-
 @implementer(IStateChange)
 class StartApplication(PRecord):
     """
@@ -132,7 +116,6 @@ class StartApplication(PRecord):
     """
     application = field(type=Application, mandatory=True)
     node_state = field(type=NodeState, mandatory=True)
-    _manifestation_checker = field(initial=_dataset_locally_manifests)
 
     # This (and other eliot_action implementations) uses `start_action` because
     # it was easier than defining a new `ActionType` with a bunch of fields.
@@ -153,16 +136,6 @@ class StartApplication(PRecord):
         if application.volume is not None:
             dataset_id = application.volume.manifestation.dataset_id
             node_path = self.node_state.paths[dataset_id]
-            # Sanity check that the dataset we're about to mount into the
-            # container is **actually, really present right now** on the host.
-            # This helps guard against stale state about the local node's
-            # current datasets coming from the control service. If it isn't
-            # present, abort this operation, it will be retried again on a
-            # later convergence loop iteration and that might go better.
-            # Allowing the container to be started regardless would result in a
-            # container being started without its data, which is bad.
-            if not self._manifestation_checker(node_path):
-                raise ExpectedDatasetNotPresent(node_path)
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
                 node_path=node_path))
@@ -631,6 +604,17 @@ class P2PManifestationDeployer(object):
         return sequentially(changes=phases)
 
 
+def _is_manifest(path):
+    """
+    Return boolean representing whether the dataset of the supplied
+    manifestation is mounted on this host.
+    :param FilePath path: Local path which is about to get mounted into a
+        container.
+    """
+    return path.path in [
+        partition.mountpoint for partition in psutil.disk_partitions()]
+
+
 @implementer(IDeployer)
 class ApplicationNodeDeployer(object):
     """
@@ -847,18 +831,27 @@ class ApplicationNodeDeployer(object):
                 manifestations=None,
                 paths=None,
             )])
-        # XXX Perhaps this would be a better place to put the
-        # manifestation-checking logic? i.e.
-        # Declare ignorance if the supplied manifestations are found
-        # not be mounted (manifest)
-        # Advantages:
-        # * All links with dataset-agent are in one place.
-        # * StartApplication unit tests need not be modified.
-        # Disadvantages:
-        # * But this would break our existing acceptance test because
-        #   we rely on the calculation of restarts due to change in
-        #   Application.running value.
-        # * maybe others, discuss?
+        # Declare ignorance if any of the reported manifestations are found not
+        # mounted (manifest).
+        # This may occur after a reboot, if the container agent connects to the
+        # control service before the dataset agent and receives the (now stale)
+        # dataset state reported prior to the reboot.
+        # In that situation a stateful container may be started before the
+        # dataset agent has attached and mounted its dataset.
+        all_manifest = True
+        for manifestation in local_state.manifestations:
+            if not _is_manifest(manifestation):
+                all_manifest = False
+                break
+
+        if not all_manifest:
+            return succeed([NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                applications=None,
+                manifestations=None,
+                paths=None,
+            )])
 
         path_to_manifestations = {
             path: local_state.manifestations[dataset_id]
