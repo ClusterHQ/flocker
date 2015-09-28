@@ -11,8 +11,8 @@ You can learn more about where we might be going with future releases by:
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
 
-Next Release
-============
+v1.4.1
+======
 
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
 

@@ -1,3 +1,11 @@
+Flocker 1.4.0 (2015-09-27)
+==========================
+
+- Unexpected errors in agent state discovery no longer break the agent convergence loop. (FLOC-3135)
+- Fixed formating of links in admonitions. (FLOC-1292)
+- Various testing and build infrastructure improvemnts.
+  (FLOC-3126, FLOC-3121, FLOC-3122, FLOC-3121)
+
 Flocker 1.4.0 (2015-09-24)
 ==========================
 
