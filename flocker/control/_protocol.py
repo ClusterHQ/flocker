@@ -302,8 +302,6 @@ class ControlAMPService(Service):
             )
         )
         # When configuration changes, notify all connected clients:
-        # XXX: I think this will be logged in the context of _LOG_SAVE in the
-        # persistence_service. So no extra logging needed.
         self.configuration_service.register(
             lambda: self._send_state_to_connections(self.connections))
 
@@ -365,14 +363,8 @@ class ControlAMPService(Service):
         :param list state_changes: One or more ``IClusterStateChange``
             providers representing the state change which has taken place.
         """
-        # XXX The IClusterStateSource source doesn't seem terribly useful.  I
-        # hoped it might have an IP address or node UUID which we could log but
-        # it only has `last_activity`. On the other hand there will be a parent
-        # Action that includes information about which connection called this
-        # method remotely.
-        with NODE_CHANGED(source=source):
-            self.cluster_state.apply_changes_from_source(source, state_changes)
-            self._send_state_to_connections(self.connections)
+        self.cluster_state.apply_changes_from_source(source, state_changes)
+        self._send_state_to_connections(self.connections)
 
 
 class IConvergenceAgent(Interface):

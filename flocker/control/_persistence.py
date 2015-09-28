@@ -408,9 +408,6 @@ class ConfigurationPersistenceService(MultiService):
             # guarantee immediate saving of the data.
             for callback in self._change_callbacks:
                 try:
-                    # XXX _send_state_to_connections here will be logged as a
-                    # child of _LOG_SAVE so it will be clear what triggered it
-                    # in eliot-tree.
                     callback()
                 except:
                     # Second argument will be ignored in next Eliot release, so
