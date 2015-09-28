@@ -212,6 +212,24 @@ def task_cli_pkg_test():
     return run_from_args(['flocker-deploy', '--version'])
 
 
+def wipe_yum_cache(repository):
+    """
+    Return a command which will clear all of yum's cached data for a particular
+    repository.
+
+    :param bytes repository: The name of the repository to clear.
+    """
+    return run_from_args([
+        b"yum",
+        b"--disablerepo='*'",
+        # XXX If there are shell special characters in the repository name this
+        # will break.
+        b"--enablerepo=" + repository,
+        b"clean",
+        b"all"
+    ])
+
+
 def install_commands_yum(package_name, distribution, package_source,
                          base_url):
     """
@@ -256,19 +274,13 @@ def install_commands_yum(package_name, distribution, package_source,
             '/etc/yum.repos.d/clusterhq-build.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
 
-        # There might be a clusterhq-build repo already and its metadata will
-        # be cached.  Wipe out the cache so that metadata gets loaded from the
-        # latest build URL.
-        # XXX: Would it be better to do this during uninstallation?
-        commands.append(
-            run_from_args([
-                b"yum",
-                b"--disablerepo='*'",
-                b"--enablerepo=clusterhq-build",
-                b"clean",
-                b"all"
-            ])
-        ),
+        # There is a distinct clusterhq-build repository for each branch.  The
+        # metadata across these different repositories varies.  Version numbers
+        # are not comparable.  A version which exists in one likely does not
+        # exist in another.  In order to support switching between branches
+        # (and therefore between clusterhq-build repositories), clear yum's
+        # metadata cache for the repository with this name.
+        commands.append(wipe_yum_cache(repository="clusterhq-build"))
     else:
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
