@@ -403,14 +403,10 @@ class StartApplicationTests(SynchronousTestCase):
                     primary=True),
                 mountpoint=mountpoint))
 
-        state_change = StartApplication(
+        StartApplication(
             application=application,
             node_state=EMPTY_NODESTATE.set(
-                "paths", {DATASET_ID: node_path}),
-            _manifestation_checker=lambda path: True,
-        )
-
-        state_change.run(deployer)
+                "paths", {DATASET_ID: node_path})).run(deployer)
 
         self.assertEqual(
             pset([DockerVolume(node_path=node_path,
