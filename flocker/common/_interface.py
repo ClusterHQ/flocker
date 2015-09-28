@@ -24,12 +24,16 @@ def interface_decorator(decorator_name, interface, method_decorator,
                 pass
 
         def method_decorator(method_name, original_name):
-            def _run_with_logging(self):
+            def _run_with_logging(self, *a, **kw):
                 Log()
+                original_self = getattr(self, original_name)
+                return getattr(original_self, method_name)(*a, **kw)
             return _run_with_logging
 
-        logged_dummy = interface_decorator("decorator", IDummy,
-                                           method_decorator, _dummy=Dummy())
+        def auto_logging(interface, original_name):
+            return interface_decorator(
+                "auto_logging", IDummy, method_decorator, original,
+        )
 
     :param str decorator_name: A human-meaningful name for the class decorator
         that will be returned by this function.
