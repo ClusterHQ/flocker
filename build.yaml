@@ -442,7 +442,7 @@ common_cli:
     /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
 
   build_homebrew_package: &build_homebrew_package  |
-    # and build a homebrew
+    # and build a homebrew recipe and a package
     SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
     RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
     \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
