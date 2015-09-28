@@ -280,6 +280,9 @@ def install_commands_yum(package_name, distribution, package_source,
         # exist in another.  In order to support switching between branches
         # (and therefore between clusterhq-build repositories), clear yum's
         # metadata cache for the repository with this name.
+        #
+        # Only the clusterhq-build repository needs to be wiped because other
+        # repositories don't have contents which vary in this way.
         commands.append(wipe_yum_cache(repository="clusterhq-build"))
     else:
         repo_options = get_repo_options(
