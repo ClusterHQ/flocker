@@ -292,7 +292,8 @@ def create_virtualenv(root):
     # We call ``virtualenv`` as a subprocess rather than as a library, so that
     # we can turn off Python byte code compilation.
     run_command(
-        ['/usr/bin/wget', 'https://bitbucket.org/squeaky/portable-pypy/downloads/'
+        ['curl', '-O', 'pypy-2.6.1-linux_x86_64-portable.tar.bz2',
+         'https://bitbucket.org/squeaky/portable-pypy/downloads/'
          'pypy-2.6.1-linux_x86_64-portable.tar.bz2'])
     run_command(['tar', 'xf', 'pypy-2.6.1-linux_x86_64-portable.tar.bz2'])
     run_command(
