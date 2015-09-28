@@ -837,13 +837,10 @@ class ApplicationNodeDeployer(object):
         # dataset state reported prior to the reboot.
         # In that situation a stateful container may be started before the
         # dataset agent has attached and mounted its dataset.
+
         all_manifest = True
-        for manifestation in local_state.manifestations.values():
-            if not _is_mounted(
-                    # XXX This isn't right. Need a clean way to get the dataset
-                    # mountpoint from here. How?
-                    u'/flocker/{}'.format(manifestation.dataset.dataset_id)
-            ):
+        for dataset_id, manifestation in local_state.manifestations.iteritems():
+            if not _is_mounted(local_state.paths[dataset_id]):
                 # XXX: Log an error message here...
                 all_manifest = False
                 break
