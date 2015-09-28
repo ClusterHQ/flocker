@@ -292,7 +292,15 @@ def create_virtualenv(root):
     # We call ``virtualenv`` as a subprocess rather than as a library, so that
     # we can turn off Python byte code compilation.
     run_command(
-        ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', root.path],
+        ['wget', 'https://bitbucket.org/squeaky/portable-pypy/downloads/'
+         'pypy-2.6.1-linux_x86_64-portable.tar.bz2'])
+    run_command(['tar', 'xf', 'pypy-2.6.1-linux_x86_64-portable.tar.bz2'])
+    run_command(
+        ['ln', '-s',
+         '{}/pypy-2.6.1-linux_x86_64-portable/bin/pypy'.format(os.getcwd()),
+         '/usr/local/bin/pypy'])
+    run_command(
+        ['virtualenv', '--python=/usr/local/bin/pypy', '--quiet', root.path],
         added_env=dict(PYTHONDONTWRITEBYTECODE='1')
     )
     # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
