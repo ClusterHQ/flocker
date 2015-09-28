@@ -839,7 +839,7 @@ class ApplicationNodeDeployer(object):
         # dataset agent has attached and mounted its dataset.
 
         all_manifest = True
-        for dataset_id, manifestation in local_state.manifestations.iteritems():
+        for dataset_id in local_state.manifestations:
             if not _is_mounted(local_state.paths[dataset_id]):
                 # XXX: Log an error message here...
                 all_manifest = False
