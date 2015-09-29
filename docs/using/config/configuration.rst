@@ -141,7 +141,6 @@ The following parameters are optional when defining an application:
 
      Containers will always behave as though created with the ``always`` restart policy, irrespective of the ``restart_policy`` in the configuration.
      They are restarted if they are ever stopped: for example, when they terminate, or when a machine is rebooted or Docker is restarted.
-     A container will only be started once any dataset it depends is mounted on the host.
 
   The ``on-failure`` restart policy accepts an optional ``maximum_retry_count`` sub-key, which specifies how many times Docker will attempt to restart the application container in the event of repeated failures.
   See the `Docker Restart Policy reference <https://docs.docker.com/reference/commandline/cli/#restart-policies>`_ for more information on restart policies.

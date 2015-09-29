@@ -381,7 +381,6 @@
   doc: |
     Containers will always behave as though created with the ``always`` restart policy, irrespective of the ``restart_policy`` in the configuration.
     They are restarted if they are ever stopped: for example, when they terminate, or when a machine is rebooted or Docker is restarted.
-    A container will only be started once any dataset it depends is mounted on the host.
 
 -
   id:
