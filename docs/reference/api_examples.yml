@@ -378,6 +378,12 @@
      "image": "nginx:latest",
      "restart_policy": {"name": "never"}}
 
+  doc: |
+    Note that the Flocker will always restart stopped containers deployed via this containers API.
+    Containers are restarted when they terminate, or when a machine is rebooted or Docker is restarted.
+    Containers will *only* be started once datasets they depend on are mounted on the host.
+    This will happen irrespective of the ``restart_policy`` in the configuration.
+
 -
   id:
     "create container with links"
