@@ -711,8 +711,21 @@ def task_enable_flocker_control(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', START, 'flocker-control']),
+            put(
+                content=dedent('''\
+                    #!/bin/sh
+                    set -ex
+                    [ -d /var/flocker || mkdir /var/flocker ]
+                    curl --location --output /tmp/pypy.tar.bz2 https://bitbucket.org/squeaky/portable-pypy/downloads/pypy-2.6.1-linux_x86_64-portable.tar.bz2
+                    tar --extract --strip-components=1 --directory pypy-install --file /tmp/pypy.tar.bz2
+                    pypy-install/bin/virtualenv-pypy pypy
+                    source pypy/bin/activate
+                    pip install --allow-unverified pyasn1,six https://clusterhq-archive.s3.amazonaws.com/python/Flocker-1.4.0-py2-none-any.whl
+                    flocker-control --journald &
+                    '''),
+                path='/var/flocker/control-start.sh'),
+            run_from_args(['chmod', '644', '/var/flocker/control-start.sh']),
+            run_from_args(['/var/flocker/control-start.sh']),
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
@@ -721,15 +734,20 @@ def task_enable_flocker_control(distribution):
         # service.  Here, we provide an override file to start it.
         return sequence([
             put(
-                path='/etc/init/flocker-control.override',
                 content=dedent('''\
-                    start on runlevel [2345]
-                    stop on runlevel [016]
+                    #!/bin/sh
+                    set -ex
+                    [ -d /var/flocker || mkdir /var/flocker ]
+                    curl --location --output /tmp/pypy.tar.bz2 https://bitbucket.org/squeaky/portable-pypy/downloads/pypy-2.6.1-linux_x86_64-portable.tar.bz2
+                    tar --extract --strip-components=1 --directory pypy-install --file /tmp/pypy.tar.bz2
+                    pypy-install/bin/virtualenv-pypy pypy
+                    source pypy/bin/activate
+                    pip install --allow-unverified pyasn1,six https://clusterhq-archive.s3.amazonaws.com/python/Flocker-1.4.0-py2-none-any.whl
+                    flocker-control --logfile=/var/log/flocker/flocker-control.log &
                     '''),
-            ),
-            run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
-            run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-            run_from_args(['service', 'flocker-control', 'start']),
+                path='/var/flocker/control-start.sh'),
+            run_from_args(['chmod', '644', '/var/flocker/control-start.sh']),
+            run_from_args(['/var/flocker/control-start.sh']),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
