@@ -72,10 +72,10 @@ Supported Cloud Providers
 * AWS
 * Rackspace
 
-Supported Storage Backends
-==========================
+List of Storage Backends
+========================
 
-The following backends are supported:
+The following backends can be used with Flocker:
 
 * AWS EBS
 * Rackspace Cloud Block Storage
@@ -89,4 +89,6 @@ The following backends are supported:
 * Saratoga Speed
 * Local storage using our ZFS driver (currently Experimental)
 
-Configuration details for each of the supported backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
+Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
+
+.. XXX FLOC 3144 - add a link here to the instructions on how to create your own backend driver
