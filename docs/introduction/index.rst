@@ -97,11 +97,11 @@ The Flocker plugin for Docker depends on Docker 1.8 or later.
 How It Works
 ------------
 
-The Flocker Docker plugin means you can run containers with named volumes without worrying which server your data is on.
+The Flocker plugin for Docker enables you to run containers with named volumes without worrying which server your data is on.
 
 The plugin will create or move the volumes in place as necessary.
 
-The Flocker Docker plugin operates on the ``name`` passed to Docker in the ``docker run`` command and associates it with a Flocker dataset with the same name (i.e. with metadata ``name=foo``).
+The Flocker plugin for Docker operates on the ``name`` passed to Docker in the ``docker run`` command and associates it with a Flocker dataset with the same name (i.e. with metadata ``name=foo``).
 
 There are three main cases which the plugin handles:
 
@@ -114,7 +114,7 @@ Multiple containers can use the same Flocker volume (by referencing the same vol
 Demo
 ----
 
-This demo shows both the Flocker Docker plugin in conjunction with the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
+This demo shows both the Flocker plugin for Docker in conjunction with the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
 
 .. raw:: html
 
