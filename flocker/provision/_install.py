@@ -715,6 +715,7 @@ def task_enable_flocker_control(distribution):
     """
     if is_centos(distribution):
         return sequence([
+            run_from_args(['yum', 'install', '-y', 'bzip']),
             run_from_args(['mkdir', '-p', '/var/flocker/pypy-install']),
             put(
                 content=dedent('''\
@@ -739,6 +740,8 @@ def task_enable_flocker_control(distribution):
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
         return sequence([
+            run_from_args(['apt-get', 'update']),
+            run_from_args(['apt-get', 'install', '-y', 'gcc']),
             run_from_args(['mkdir', '-p', '/var/flocker/pypy-install']),
             put(
                 content=dedent('''\
