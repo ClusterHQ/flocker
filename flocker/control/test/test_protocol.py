@@ -4,8 +4,10 @@
 Tests for ``flocker.control._protocol``.
 """
 
+from os import urandom
 from uuid import uuid4
 from json import loads
+from socket import AF_INET6, inet_ntop
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -34,6 +36,8 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
+from ...testtools.amp import DelayedAMPClient
+
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
@@ -50,6 +54,26 @@ from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
 
+def random_ip():
+    return inet_ntop(AF_INET6, urandom(16))
+
+
+def arbitrary_transformation(deployment):
+    """
+    Make some change to a deployment configuration.  Any change.
+
+    The exact change made is unspecified but the resulting ``Deployment`` will
+    be different from the given ``Deployment``.
+
+    :param Deployment deployment: A configuration to change.
+
+    :return: A ``Deployment`` similar but not exactly equal to the given.
+    """
+    return deployment.transform(
+        ["nodes"],
+        lambda nodes: nodes.add(Node(hostname=random_ip(), uuid=uuid4())),
+    )
+
 class LoopbackAMPClient(object):
     """
     Allow sending commands, in-memory, to an AMP command locator.
@@ -60,6 +84,7 @@ class LoopbackAMPClient(object):
             will handle commands sent using ``callRemote``.
         """
         self._locator = command_locator
+        self.transport = StringTransport()
 
     def callRemote(self, command, **kwargs):
         """
@@ -586,25 +611,30 @@ class ControlAMPTests(ControlTestCase):
         desired configuration.
         """
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.protocol.makeConnection(StringTransport())
-        another_protocol = ControlAMP(self.reactor, self.control_amp_service)
-        another_protocol.makeConnection(StringTransport())
-        sent1 = []
-        sent2 = []
 
-        self.patch_call_remote(sent1, self.protocol)
-        self.patch_call_remote(sent2, protocol=another_protocol)
+        agents = [FakeAgent(), FakeAgent()]
+        clients = list(AgentAMP(Clock(), agent) for agent in agents)
+        servers = list(LoopbackAMPClient(client.locator) for client in clients)
+
+        for server in servers:
+            delayed = DelayedAMPClient(server)
+            self.control_amp_service.connected(delayed)
+            delayed.respond()
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
                                    state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
+
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
-        self.assertListEqual(
-            [sent1[-1], sent2[-1]],
-            [(((ClusterStatusCommand,),
-              dict(configuration=TEST_DEPLOYMENT,
-                   state=cluster_state)))] * 2)
+        expected = dict(configuration=TEST_DEPLOYMENT, state=cluster_state)
+        self.assertEqual(
+            [expected] * len(agents),
+            list(
+                dict(configuration=agent.desired, state=agent.actual)
+                for agent in agents
+            ),
+        )
 
     def test_too_long_node_state(self):
         """
@@ -693,25 +723,99 @@ class ControlAMPServiceTests(ControlTestCase):
         A configuration change results in connected protocols being notified
         of new cluster status.
         """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
         service = build_control_amp_service(self)
         service.startService()
-        protocol = ControlAMP(Clock(), service)
-        protocol.makeConnection(StringTransport())
-        sent = []
-        self.patch_call_remote(sent, protocol=protocol)
+        server = LoopbackAMPClient(client.locator)
+        service.connected(server)
 
         service.configuration_service.save(TEST_DEPLOYMENT)
-        # Should only be one callRemote call.
-        (sent,) = sent
-        self.assertArgsEqual(
-            sent,
-            (
-                (ClusterStatusCommand,),
-                dict(
-                    configuration=TEST_DEPLOYMENT,
-                    state=DeploymentState(),
-                )
-            )
+
+        self.assertEqual(
+            dict(configuration=TEST_DEPLOYMENT, state=DeploymentState()),
+            dict(configuration=agent.desired, state=agent.actual),
+        )
+
+    def test_second_configuration_change_waits_for_first_acknowledgement(self):
+        """
+        A second configuration change is only transmitted after acknowledgement
+        of the first configuration change is received.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+        first_agent_desired = agent.desired
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=configuration,
+                third=modified_configuration,
+            ),
+            dict(
+                first=first_agent_desired,
+                second=second_agent_desired,
+                third=third_agent_desired,
+            ),
+        )
+
+    def test_third_configuration_change_supercedes_second(self):
+        """
+        A third configuration change completely replaces a second configuration
+        change if the first configuration change has not yet been acknowledged.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+        more_modified_configuration = arbitrary_transformation(modified_configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        # Send third update
+        service.configuration_service.save(more_modified_configuration)
+
+        first_agent_desired = agent.desired
+        delayed_server.respond()
+        second_agent_desired = agent.desired
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        # Only two calls should be required because only two states should be
+        # sent.  The intermediate state should never get sent.
+        self.assertRaises(IndexError, delayed_server.respond)
+
+        self.assertEqual(
+            [configuration,
+             more_modified_configuration,
+             more_modified_configuration],
+            [first_agent_desired,
+             second_agent_desired,
+             third_agent_desired],
         )
 
 
@@ -966,7 +1070,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
     """
     Tests for ``ControlAMPService._send_state_to_connections``.
     """
-    @validate_logging(None)
+    @capture_logging(None)
     def test_logging(self, logger):
         """
         ``_send_state_to_connections`` logs a single LOG_SEND_CLUSTER_STATE
@@ -974,20 +1078,16 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         its connections.
         """
         control_amp_service = build_control_amp_service(self)
-        connection_protocol = ControlAMP(Clock(), control_amp_service)
-        connection_protocol.makeConnection(StringTransport())
 
-        # Patching is bad.
-        # https://clusterhq.atlassian.net/browse/FLOC-1603
-        self.patch(
-            connection_protocol,
-            "callRemote",
-            lambda *args, **kwargs: succeed({})
-        )
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        server = LoopbackAMPClient(client.locator)
+
+        control_amp_service.connected(server)
+
         self.patch(control_amp_service, 'logger', logger)
 
-        control_amp_service._send_state_to_connections(
-            connections=[connection_protocol])
+        control_amp_service._send_state_to_connections(connections=[server])
 
         assertHasAction(
             self,
@@ -1007,9 +1107,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
             logger,
             LOG_SEND_TO_AGENT,
             succeeded=True,
-            startFields={
-                "agent": connection_protocol,
-            }
+            startFields={"agent": server},
         )
 
 
