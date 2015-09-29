@@ -5,9 +5,11 @@ Using The Flocker Plugin for Docker
 ===================================
 
 The Flocker plugin for Docker is a `Docker volumes plugin`_ connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
-Once :ref:`installed <install-docker-plugin>` it can be invoked by Docker using the Docker CLI or Docker Remote API.
+Once :ref:`installed <install-docker-plugin>` it can be invoked by Docker using the :ref:`docker-plugin-cli` or :ref:`docker-plugin-api`.
 
 .. include:: ../using/docker-plugin-limitations.rst
+
+.. _docker-plugin-cli:
 
 Docker CLI
 ==========
@@ -23,5 +25,15 @@ The Flocker driver type is ``flocker``.
 In this example, a Flocker volume with name of ``volumename`` is created.
 If a container is started with a volume of the same name in your Flocker cluster, the volume will be migrated to the calling node before Docker starts the container.
 
-.. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
+.. _docker-plugin-api:
 
+Docker Remote API
+=================
+
+The Docker Remote API call which supports ``--volume-driver`` in the CLI is undocumented at time of writing.
+However, currently is it is specified by the ``VolumeDriver`` attribute of ``HostConfig`` under ``POST /containers/create``.
+Set the container ``Mount`` attributes according to the instructions in the :ref:`docker-plugin-cli` section.
+Full documentation for ``VolumeDriver`` will appear after the release of `docker-1.9`_.
+
+.. _`Docker volumes plugin`: https://docs.docker.com/extend/plugins_volume/
+.. _`Docker Engine 1.9`: https://github.com/docker/docker/wiki/Engine-1.9.0
