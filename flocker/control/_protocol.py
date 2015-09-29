@@ -460,23 +460,25 @@ class ControlAMPService(Service):
                         # shouldn't be allowed to).  No test coverage for
                         # either of these cases.
                         try:
-                            current_command = self._current_command_for_connection[
+                            (current_command, already_scheduled) = self._current_command_for_connection[
                                 connection
                             ]
                         except KeyError:
                             current_command = self._update_connection(
                                 connection, configuration, state, action
                             )
-                            self._current_command_for_connection[connection] = current_command
+                            self._current_command_for_connection[connection] = (current_command, False)
 
                             def finished_update(ignored, connection):
                                 del self._current_command_for_connection[connection]
                             current_command.addCallback(finished_update, connection)
                         else:
-                            current_command.addCallback(
-                                lambda ignored, connection: self._send_state_to_connections([connection]),
-                                connection,
-                            )
+                            if not already_scheduled:
+                                current_command.addCallback(
+                                    lambda ignored, connection: self._send_state_to_connections([connection]),
+                                    connection,
+                                )
+                                self._current_command_for_connection[connection] = (current_command, True)
 
 
     def _update_connection(self, connection, configuration, state, action):
