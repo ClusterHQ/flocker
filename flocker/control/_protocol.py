@@ -451,46 +451,45 @@ class ControlAMPService(Service):
                                     state=state):
             with _caching_encoder.cache():
                 for connection in connections:
-                    action = LOG_SEND_TO_AGENT(agent=connection)
-                    with action.context():
-                        # XXX If callRemote raises an exception, the loop won't
-                        # finish and the rest of the connections won't receive
-                        # the updated state.  Asynchronous exceptions aren't a
-                        # problem since they won't interrupt the loop (and they
-                        # shouldn't be allowed to).  No test coverage for
-                        # either of these cases.
-                        try:
-                            (current_command, already_scheduled) = self._current_command_for_connection[
-                                connection
-                            ]
-                        except KeyError:
-                            current_command = self._update_connection(
-                                connection, configuration, state, action
+                    # XXX If callRemote raises an exception, the loop won't
+                    # finish and the rest of the connections won't receive
+                    # the updated state.  Asynchronous exceptions aren't a
+                    # problem since they won't interrupt the loop (and they
+                    # shouldn't be allowed to).  No test coverage for
+                    # either of these cases.
+                    try:
+                        (current_command, already_scheduled) = self._current_command_for_connection[
+                            connection
+                        ]
+                    except KeyError:
+                        current_command = self._update_connection(
+                            connection, configuration, state, action
+                        )
+                        self._current_command_for_connection[connection] = (current_command, False)
+
+                        def finished_update(ignored, connection):
+                            del self._current_command_for_connection[connection]
+                        current_command.addCallback(finished_update, connection)
+                    else:
+                        if not already_scheduled:
+                            current_command.addCallback(
+                                lambda ignored, connection: self._send_state_to_connections([connection]),
+                                connection,
                             )
-                            self._current_command_for_connection[connection] = (current_command, False)
-
-                            def finished_update(ignored, connection):
-                                del self._current_command_for_connection[connection]
-                            current_command.addCallback(finished_update, connection)
-                        else:
-                            if not already_scheduled:
-                                current_command.addCallback(
-                                    lambda ignored, connection: self._send_state_to_connections([connection]),
-                                    connection,
-                                )
-                                self._current_command_for_connection[connection] = (current_command, True)
-
+                            self._current_command_for_connection[connection] = (current_command, True)
 
     def _update_connection(self, connection, configuration, state, action):
-        d = DeferredContext(connection.callRemote(
-            ClusterStatusCommand,
-            configuration=configuration,
-            state=state,
-            eliot_context=action
-        ))
-        d.addActionFinish()
-        d.result.addErrback(lambda _: None)
-        return d.result
+        action = LOG_SEND_TO_AGENT(agent=connection)
+        with action.context():
+            d = DeferredContext(connection.callRemote(
+                ClusterStatusCommand,
+                configuration=configuration,
+                state=state,
+                eliot_context=action
+            ))
+            d.addActionFinish()
+            d.result.addErrback(lambda _: None)
+            return d.result
 
     def connected(self, connection):
         """
