@@ -715,15 +715,16 @@ def task_enable_flocker_control(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            run_from_args(['mkdir', '-p', '/var/flocker']),
+            run_from_args(['mkdir', '-p', '/var/flocker/pypy-install']),
             put(
                 content=dedent('''\
                     #!/bin/sh
                     set -ex
                     curl --location --output /tmp/pypy.tar.bz2 {url}
                     tar --extract --strip-components=1 \
-                        --directory pypy-install --file /tmp/pypy.tar.bz2
-                    pypy-install/bin/virtualenv-pypy pypy
+                        --directory /var/flocker/pypy-install \
+                        --file /tmp/pypy.tar.bz2
+                    /var/flocker/pypy-install/bin/virtualenv-pypy pypy
                     source pypy/bin/activate
                     pip install --allow-unverified pyasn1,six {wheel}
                     flocker-control --journald &
@@ -738,15 +739,16 @@ def task_enable_flocker_control(distribution):
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
         return sequence([
-            run_from_args(['mkdir', '-p', '/var/flocker']),
+            run_from_args(['mkdir', '-p', '/var/flocker/pypy-install']),
             put(
                 content=dedent('''\
                     #!/bin/sh
                     set -ex
                     curl --location --output /tmp/pypy.tar.bz2 {url}
                     tar --extract --strip-components=1 \
-                        --directory pypy-install --file /tmp/pypy.tar.bz2
-                    pypy-install/bin/virtualenv-pypy pypy
+                        --directory /var/flocker/pypy-install \
+                        --file /tmp/pypy.tar.bz2
+                    /var/flocker/pypy-install/bin/virtualenv-pypy pypy
                     source pypy/bin/activate
                     pip install --allow-unverified pyasn1,six {wheel}
                     flocker-control \
