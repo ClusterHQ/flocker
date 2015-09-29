@@ -17,7 +17,7 @@ Flocker manages Docker containers and data volumes together.
 When you use Flocker to manage your stateful microservice, your volumes will follow your containers when they move between different hosts in your cluster.
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
-To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker <docker-plugin>`.
+To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, you can :ref:`use the Flocker plugin for Docker <docker-plugin>`.
 
 .. image:: images/flocker-v-native-containers.svg
    :alt: Migrating data: Native Docker versus Flocker.
@@ -40,9 +40,6 @@ With the Flocker API or CLI you can:
 * Move containers between hosts along with their volumes
 * Attach and detach data volumes from containers as they change hosts
 * Migrate local data volumes between servers (currently Experimental)
-
-You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
-To use Flocker to manage your volumes while tools like Docker, Docker Swarm or Mesos manage your containers, :ref:`use the Flocker plugin for Docker <docker-plugin>`.
 
 Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose the storage backend that is best for your application.
 :ref:`View a complete list of supported storage backends <storage-backends>`.
@@ -121,7 +118,7 @@ This demo shows both the Flocker plugin for Docker in conjunction with the :ref:
    <iframe width="100%" height="450" src="https://www.youtube.com/embed/OhWxJ_hOPx8?rel=0&amp;showinfo=0" frameborder="0" allowfullscreen style="margin-top:1em;"></iframe>
 
 Also check out the `DockerCon Plugin Demos <https://plugins-demo-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
-This is the "ultimate integration demo" — a pre-built demo environment that includes Flocker, Weave, Swarm, Compose & Docker, all working together in harmony.
+This is the "ultimate integration demo", a pre-built demo environment that includes Flocker, Weave, Swarm, Compose, and Docker, all working together in harmony.
 
 Flocker also has planned integrations with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos.
 More information on these integrations is :ref:`available in the Labs section <labs-projects>`.
