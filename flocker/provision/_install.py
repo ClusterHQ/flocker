@@ -718,7 +718,7 @@ def task_enable_flocker_control(distribution):
             run_from_args(['mkdir', '-p', '/var/flocker/pypy-install']),
             put(
                 content=dedent('''\
-                    #!/bin/sh
+                    #!/bin/bash
                     set -ex
                     curl --location --output /tmp/pypy.tar.bz2 {url}
                     tar --extract --strip-components=1 \
@@ -742,7 +742,7 @@ def task_enable_flocker_control(distribution):
             run_from_args(['mkdir', '-p', '/var/flocker/pypy-install']),
             put(
                 content=dedent('''\
-                    #!/bin/sh
+                    #!/bin/bash
                     set -ex
                     curl --location --output /tmp/pypy.tar.bz2 {url}
                     tar --extract --strip-components=1 \
