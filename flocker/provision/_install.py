@@ -1157,10 +1157,11 @@ def task_install_collectd(
             Hostname "{node_uuid}:{cluster_uuid}"
             LoadPlugin processes
             <Plugin processes>
-            Process "flocker-control"
-            Process "flocker-dataset-agent"
-            Process "flocker-container-agent"
-            Process "flocker-docker-plugin"
+            # https://github.com/collectd/collectd/issues/1284
+            ProcessMatch "flocker-control" "flocker-control"
+            ProcessMatch "flocker-dataset-agent" "flocker-dataset-agent"
+            ProcessMatch "flocker-container-agent" "flocker-container-agent"
+            ProcessMatch "flocker-docker-plugin" "flocker-docker-plugin"
             </Plugin>
             LoadPlugin network
             <Plugin network>
