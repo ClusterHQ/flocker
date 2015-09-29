@@ -379,8 +379,9 @@
      "restart_policy": {"name": "never"}}
 
   doc: |
+    Containers will always behave as though created with the ``always`` restart policy.
     Note that the Flocker will always restart stopped containers deployed via this containers API.
-    Containers are restarted when they terminate, or when a machine is rebooted or Docker is restarted.
+    Containers are restarted if they are ever stopped: for example, when they terminate, or when a machine is rebooted or Docker is restarted.
     Containers will *only* be started once datasets they depend on are mounted on the host.
     This will happen irrespective of the ``restart_policy`` in the configuration.
 
