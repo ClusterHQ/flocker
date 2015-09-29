@@ -5,9 +5,8 @@ Hedvig Block Device Backend Configuration
 =========================================
 
 Hedvig provides a plugin for Flocker integration with their storage solution, allowing Dockerized applications to use Hedvig storage.
-For more information, visit the following GitHub repository:  
 
-* `Hedvig Flocker driver on GitHub`_
+For more information, visit the following GitHub repository: `Hedvig Flocker driver on GitHub`_
 
 .. XXX FLOC 2443 to expand this Backend storage section
 
