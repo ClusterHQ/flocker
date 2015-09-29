@@ -463,7 +463,7 @@ class ControlAMPService(Service):
                         ]
                     except KeyError:
                         current_command = self._update_connection(
-                            connection, configuration, state, action
+                            connection, configuration, state,
                         )
                         self._current_command_for_connection[connection] = (current_command, False)
 
@@ -478,7 +478,7 @@ class ControlAMPService(Service):
                             )
                             self._current_command_for_connection[connection] = (current_command, True)
 
-    def _update_connection(self, connection, configuration, state, action):
+    def _update_connection(self, connection, configuration, state):
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
             d = DeferredContext(connection.callRemote(
