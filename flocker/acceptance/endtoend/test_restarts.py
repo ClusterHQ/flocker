@@ -201,7 +201,7 @@ class RebootTests(TestCase):
 
             def assert_container_not_started(ignored):
                 """
-                Wait 60s after the container agent is known to have started.
+                Wait 30s after the container agent is known to have started.
                 If the server (container) starts up in that time, the container
                 agent is incorrectly converging before the dataset agent has
                 reported its post-reboot state.
@@ -212,15 +212,15 @@ class RebootTests(TestCase):
                 def server_responding():
                     print "CHECKING FOR SERVER RESPONSE"
                     # Break out of the loop if we've been trying longer than
-                    # 60s. This indicates that the container-agent did not
+                    # 30s. This indicates that the container-agent did not
                     # erroneously start the container before the dataset agent
                     # had mounted the dataset.
-                    if time.time() - start_time > 60:
+                    if time.time() - start_time > 30:
                         print "TIMEOUT REACHED :-)"
                         return True
                     d = query_server()
 
-                    # Fail the test if the server responds within 60s; the
+                    # Fail the test if the server responds within 30s; the
                     # container was erroneously started.
                     def handle_success(response):
                         print "RESPONSE", response
@@ -253,10 +253,11 @@ class RebootTests(TestCase):
                     action='enable'
                 )
                 d.addCallback(
-                    _service,
-                    address=node.public_address,
-                    name='flocker-dataset-agent',
-                    action='start'
+                    lambda result: _service(
+                        address=node.public_address,
+                        name='flocker-dataset-agent',
+                        action='start'
+                    )
                 )
                 return d
             restarting_dataset_agent = hoping_for_no_containers.addCallback(
