@@ -8,6 +8,8 @@ from uuid import uuid4
 
 from pyrsistent import pmap, pvector, pset
 
+from eliot import Message
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
@@ -102,6 +104,16 @@ def change_node_state(deployer, desired_configuration):
     result.addCallback(lambda _: converge())
     result.addCallback(lambda _: converge())
     return result
+
+
+def find_unit(units, unit_name):
+    Message.new(
+        message_type="flocker:node:functional:deploy:find_unit",
+        units=list(unit.name for unit in units), desired_unit=unit_name
+    ).write()
+    for unit in units:
+        if unit.name == unit_name:
+            return unit
 
 
 class DeployerTests(TestCase):
@@ -359,12 +371,12 @@ class DeployerTests(TestCase):
         def inspect_application(_):
             deferred_list = docker_client.list()
 
-            def app_memory(units):
-                unit = units.pop()
+            def app_memory(unit):
                 self.assertEqual(unit.mem_limit, EXPECTED_MEMORY_LIMIT)
-                return deferred_list
 
+            deferred_list.addCallback(find_unit, application_name)
             deferred_list.addCallback(app_memory)
+            return deferred_list
         d.addCallback(inspect_application)
         return d
 
@@ -405,11 +417,11 @@ class DeployerTests(TestCase):
         def inspect_application(_):
             deferred_list = docker_client.list()
 
-            def app_memory(units):
-                unit = units.pop()
+            def app_cpu_shares(unit):
                 self.assertEqual(unit.cpu_shares, EXPECTED_CPU_SHARES)
-                return deferred_list
 
-            deferred_list.addCallback(app_memory)
+            deferred_list.addCallback(find_unit, application_name)
+            deferred_list.addCallback(app_cpu_shares)
+            return deferred_list
         d.addCallback(inspect_application)
         return d

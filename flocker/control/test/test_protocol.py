@@ -13,7 +13,9 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, assertHasAction, LoggedAction
+from eliot.testing import (
+    capture_logging, validate_logging, assertHasAction,
+)
 
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
@@ -26,7 +28,7 @@ from twisted.protocols.amp import (
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet.defer import succeed, fail
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
@@ -37,9 +39,8 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    CachingEncoder, _caching_encoder
+    AGENT_CONNECTED, CachingEncoder, _caching_encoder
 )
-from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
@@ -483,7 +484,8 @@ class ControlAMPTests(ControlTestCase):
         self.assertEqual((current, self.control_amp_service.connections),
                          ({marker}, {marker, self.protocol}))
 
-    def test_connection_made_send_cluster_status(self):
+    @capture_logging(assertHasAction, AGENT_CONNECTED, succeeded=True)
+    def test_connection_made_send_cluster_status(self, logger):
         """
         When a connection is made the cluster status is sent to the new client.
         """
@@ -972,12 +974,17 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         its connections.
         """
         control_amp_service = build_control_amp_service(self)
-        self.patch(control_amp_service, 'logger', logger)
-
         connection_protocol = ControlAMP(Clock(), control_amp_service)
+        connection_protocol.makeConnection(StringTransport())
+
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
-        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
+        self.patch(
+            connection_protocol,
+            "callRemote",
+            lambda *args, **kwargs: succeed({})
+        )
+        self.patch(control_amp_service, 'logger', logger)
 
         control_amp_service._send_state_to_connections(
             connections=[connection_protocol])
@@ -1004,41 +1011,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
                 "agent": connection_protocol,
             }
         )
-
-    @validate_logging(None)
-    def test_error_sending(self, logger):
-        """
-        An error sending to one agent does not prevent others from being
-        notified.
-        """
-        control_amp_service = build_control_amp_service(self)
-        self.patch(control_amp_service, 'logger', logger)
-
-        connected_protocol = ControlAMP(Clock(), control_amp_service)
-        # Patching is bad.
-        # https://clusterhq.atlassian.net/browse/FLOC-1603
-        connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
-
-        error = ConnectionLost()
-        disconnected_protocol = ControlAMP(Clock(), control_amp_service)
-        results = [succeed({}), fail(error)]
-        # Patching is bad.
-        # https://clusterhq.atlassian.net/browse/FLOC-1603
-        disconnected_protocol.callRemote = (
-            lambda *args, **kwargs: results.pop(0))
-
-        control_amp_service.connected(disconnected_protocol)
-        control_amp_service.connected(connected_protocol)
-        control_amp_service.node_changed(
-            ChangeSource(),
-            (NodeState(hostname=u"1.2.3.4"),)
-        )
-
-        actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
-        self.assertEqual(
-            [action.end_message["exception"] for action in actions
-             if not action.succeeded],
-            [u"twisted.internet.error.ConnectionLost"])
 
 
 class _NoOpCounter(CommandLocator):
