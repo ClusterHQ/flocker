@@ -6,6 +6,9 @@ Tests for restarting and reboots and their interactions.
 
 from subprocess import call
 
+from twisted.internet import reactor
+from twisted.internet.defer import CancelledError
+from twisted.internet.error import ProcessTerminated
 from twisted.trial.unittest import TestCase, FailTest
 
 from treq import get, content
@@ -22,7 +25,6 @@ def _service(address, name, action):
         be changed.
     :param bytes action: The action to perform on the service.
     """
-    from twisted.internet import reactor
     command = ["systemctl", action, name]
     d = run_ssh(reactor, b"root", address, command)
 
@@ -78,7 +80,7 @@ class RebootTests(TestCase):
         Traceback (most recent call last):
           File "/home/richard/projects/HybridLogic/flocker/flocker/acceptance/endtoend/test_restarts.py", line 142, in got_rebooted_response
             preserved_initial_reboot_time)
-          File "/home/richard/.virtualenvs/3137/lib/python2.7/site-packages/twisted/trial/_synctest.py", line 447, in assertEqual
+          File "/home/richard/.virtualenvs/3137/lib/python2.7/site-packages/twisted/trial/_synctest.py", line 447, in assertEqual  # noqa
             % (msg, pformat(first), pformat(second)))
         twisted.trial.unittest.FailTest: not equal:
         a = '2015-09-28 18:11:35'
@@ -116,7 +118,7 @@ class RebootTests(TestCase):
             ).addCallbacks(content)
             return req
 
-        def created_dataset(dataset):
+        def start_server(dataset):
             print "DATASET", dataset
             http_server = {
                 u"name": random_name(self),
@@ -143,7 +145,7 @@ class RebootTests(TestCase):
                                     lambda _: False)))
             created.addCallback(lambda _: query_server())
             return created
-        starting_server = creating_dataset.addCallback(created_dataset)
+        starting_server = creating_dataset.addCallback(start_server)
 
         def server_started(initial_response):
             # We now have the initial response of the server. This should
@@ -168,9 +170,79 @@ class RebootTests(TestCase):
                       b"shutdown", b"-r", b"now"])
             rebooting = disabling.addCallback(reboot)
 
-            # Final implementation will:
-            # * poll control service for empty application state here, then
-            # * re-enable and restart the dataset-agent.
+            # Wait for the container agent to start up
+            def container_agent_running():
+                # pidof will return the pid if flocker-container-agent is
+                # running else status 1 which triggers the errback chain.
+                command = [b'pidof', b'-x', b'flocker-container-agent']
+                d = run_ssh(reactor, b"root", node.public_address, command)
+
+                def handle_error(failure):
+                    failure.trap(ProcessTerminated)
+                    print "NON-ZERO-STATUS", failure.value
+                    return False
+                d.addErrback(handle_error)
+
+            def wait_for_container_agent(ignored):
+                return loop_until(container_agent_running)
+
+            waiting_for_container_agent = rebooting.addCallback(
+                wait_for_container_agent
+            )
+
+            def server_responding():
+                d = query_server()
+                d.addErrback(lambda failure: False)
+                return d
+
+            def assert_container_not_started(ignored):
+                """
+                Wait 60s after the container agent is known to have started.
+                If the server (container) starts up in that time, the container
+                agent is incorrectly converging before the dataset agent has
+                reported its post-reboot state.
+                """
+                d = loop_until(server_responding)
+                call_id = reactor.callLater(60, d.cancel)
+
+                def handle_response(response):
+                    call_id.cancel()
+                    self.fail(
+                        'The web server responded '
+                        'despite the dataset-agent not running. '
+                        'Response: {!r} '.format(response)
+                    )
+                    return response
+
+                def handle_cancel(failure):
+                    # XXX I think I need to somehow stop the loop_until....or
+                    # maybe loop_until needs to explicitly support
+                    # cancellation.
+                    failure.trap(CancelledError)
+                d.addCallbacks(handle_response, handle_cancel)
+                return d
+            hoping_for_no_containers = waiting_for_container_agent.addCallback(
+                assert_container_not_started
+            )
+            # After the container agent has been running for a reasonable
+            # amount of time, we re-enable and restart the dataset-agent.
+
+            def restart_dataset_agent(ignored):
+                d = _service(
+                    address=node.public_address,
+                    name='flocker-dataset-agent',
+                    action='enable'
+                )
+                d.addCallback(
+                    _service,
+                    address=node.public_address,
+                    name='flocker-dataset-agent',
+                    action='start'
+                )
+                return d
+            restarting_dataset_agent = hoping_for_no_containers.addCallback(
+                restart_dataset_agent
+            )
 
             # Now, keep trying to get a response until it's different than
             # the one we originally got, thus indicating a reboot:
@@ -180,11 +252,11 @@ class RebootTests(TestCase):
                     lambda response: response != initial_response,
                     lambda _: False)
 
-            rebooted = rebooting.addCallback(
+            waiting_for_server = restarting_dataset_agent.addCallback(
                 lambda _: loop_until(query_until_different)
             )
 
-            querying = rebooted.addCallback(lambda _: query_server())
+            querying = waiting_for_server.addCallback(lambda _: query_server())
 
             # Now that we've rebooted, we expect first line to be
             # unchanged (i.e. preserved across reboots in the volume):
@@ -197,8 +269,8 @@ class RebootTests(TestCase):
                 self.assertNotEqual(initial_container_id, new_container_id)
             querying.addCallback(got_rebooted_response)
             return querying
-        creating_dataset.addCallback(server_started)
-        return creating_dataset
+        starting_server.addCallback(server_started)
+        return starting_server
 
     # Reboots can take a while:
     test_restart_always_reboot_with_dataset.timeout = 480
