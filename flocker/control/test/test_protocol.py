@@ -586,25 +586,28 @@ class ControlAMPTests(ControlTestCase):
         desired configuration.
         """
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.protocol.makeConnection(StringTransport())
-        another_protocol = ControlAMP(self.reactor, self.control_amp_service)
-        another_protocol.makeConnection(StringTransport())
-        sent1 = []
-        sent2 = []
 
-        self.patch_call_remote(sent1, self.protocol)
-        self.patch_call_remote(sent2, protocol=another_protocol)
+        agents = [FakeAgent(), FakeAgent()]
+        clients = list(AgentAMP(Clock(), agent) for agent in agents)
+        servers = list(LoopbackAMPClient(client.locator) for client in clients)
+
+        for server in servers:
+            self.control_amp_service.connected(server)
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
                                    state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
+
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
-        self.assertListEqual(
-            [sent1[-1], sent2[-1]],
-            [(((ClusterStatusCommand,),
-              dict(configuration=TEST_DEPLOYMENT,
-                   state=cluster_state)))] * 2)
+        expected = dict(configuration=TEST_DEPLOYMENT, state=cluster_state)
+        self.assertEqual(
+            [expected] * len(agents),
+            list(
+                dict(configuration=agent.desired, state=agent.actual)
+                for agent in agents
+            ),
+        )
 
     def test_too_long_node_state(self):
         """
