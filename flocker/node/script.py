@@ -16,7 +16,7 @@ from jsonschema import FormatChecker, Draft4Validator
 
 from pyrsistent import PRecord, field, PMap, pmap, pvector
 
-from eliot import ActionType, fields
+from eliot import ActionType, fields, Message
 
 from zope.interface import implementer
 
@@ -25,6 +25,7 @@ from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
+from twisted.internet.task import deferLater
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
 
@@ -46,6 +47,7 @@ from .agents.blockdevice import (
 )
 from ..ca import ControlServicePolicy, NodeCredential
 
+from ..control._clusterstate import EXPIRATION_TIME
 
 __all__ = [
     "flocker_dataset_agent_main",
@@ -84,7 +86,16 @@ def flocker_container_agent_main():
     service_factory = AgentServiceFactory(
         deployer_factory=deployer_factory
     ).get_service
-    agent_script = AgentScript(service_factory=service_factory)
+    # We start the container agent with a delay equal to that of the state
+    # wiper in the control service, so that after a reboot of a node, stale
+    # state from the pre-reboot dataset agent must be expired by the time this
+    # container agent starts up. This avoids a bug where the container agent
+    # starts containers before their datasets are ready because of such stale
+    # dataset state.
+    agent_script = AgentScript(
+        service_factory=service_factory,
+        startup_delay=EXPIRATION_TIME.total_seconds(),
+    )
     return FlockerScriptRunner(
         script=agent_script,
         options=ContainerAgentOptions()
@@ -263,14 +274,28 @@ class AgentScript(PRecord):
         provider that will get run when this script is run.  The arguments
         passed to it are the reactor being used and a ``AgentOptions``
         instance which has parsed any command line options that were given.
+
+    :ivar startup_delay: An optional startup delay before letting the agent
+        start up.
     """
     service_factory = field(mandatory=True)
+    startup_delay = field(initial=0)
 
     def main(self, reactor, options):
-        return main_for_service(
-            reactor,
-            self.service_factory(reactor, options)
-        )
+        if self.startup_delay > 0:
+            Message.log(
+                message='Waiting {}s for cluster state to expire.'.format(
+                    EXPIRATION_TIME.total_seconds(),
+                )
+            )
+
+        def delay():
+            return main_for_service(
+                reactor,
+                self.service_factory(reactor, options)
+            )
+
+        return deferLater(reactor, self.startup_delay, delay)
 
 
 class AgentServiceFactory(PRecord):
