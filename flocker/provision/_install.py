@@ -728,7 +728,8 @@ def task_enable_flocker_control(distribution):
                     /var/flocker/pypy-install/bin/virtualenv-pypy pypy
                     source pypy/bin/activate
                     pip install --allow-unverified pyasn1,six {wheel}
-                    nohup flocker-control --journald </dev/null >/dev/null 2>&1 &
+                    nohup flocker-control --journald \
+                        </dev/null >/dev/null 2>&1 &
                     '''.format(url=pypy_url, wheel=flocker_wheel)),
                 path='/var/flocker/control-start.sh'),
             run_from_args(['chmod', '755', '/var/flocker/control-start.sh']),
@@ -755,7 +756,8 @@ def task_enable_flocker_control(distribution):
                     source pypy/bin/activate
                     pip install --allow-unverified pyasn1,six {wheel}
                     nohup flocker-control \
-                        --logfile=/var/log/flocker/flocker-control.log </dev/null >/dev/null 2>&1 &
+                        --logfile=/var/log/flocker/flocker-control.log \
+                        </dev/null >/dev/null 2>&1 &
                     '''.format(url=pypy_url, wheel=flocker_wheel)),
                 path='/var/flocker/control-start.sh'),
             run_from_args(['chmod', '755', '/var/flocker/control-start.sh']),
