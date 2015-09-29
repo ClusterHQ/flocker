@@ -24,7 +24,7 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    def _create_container(self, cluster):
+    def _create_container(self, cluster, script):
         """
         Create a container listening on port 8080.
 
@@ -35,7 +35,7 @@ class ContainerAPITests(TestCase):
             self, cluster, {
                 u"ports": [{u"internal": 8080, u"external": 8080}],
                 u"node_uuid": cluster.nodes[0].uuid,
-            }, SCRIPTS.child(b"hellohttp.py"))
+            }, script)
 
         def check_result(response):
             dl = verify_socket(cluster.nodes[0].public_address, 8080)
@@ -50,7 +50,23 @@ class ContainerAPITests(TestCase):
         """
         Create a container including port mappings on a single-node cluster.
         """
-        return self._create_container(cluster)
+        return self._create_container(cluster, SCRIPTS.child(b"hellohttp.py"))
+
+    @require_cluster(1)
+    def test_create_container_restart_stopped(self, cluster):
+        """
+        A container is restarted if it is stopped.
+        """
+        # `verify_socket` is called by _create_container and will kill the
+        # server first time round.
+        created = self._create_container(
+            cluster, SCRIPTS.child(b"exitinghttp.py")
+        )
+        # Call it again and see that the container is running again.
+        created.addCallback(
+            verify_socket(cluster.nodes[0].public_address, 8080)
+        )
+        return created
 
     @require_cluster(1)
     def test_create_container_with_environment(self, cluster):
@@ -191,7 +207,9 @@ class ContainerAPITests(TestCase):
         """
         The current container endpoint includes a currently running container.
         """
-        creating = self._create_container(cluster)
+        creating = self._create_container(
+            cluster, SCRIPTS.child(b"hellohttp.py")
+        )
 
         def created(data):
             data[u"running"] = True
