@@ -696,25 +696,18 @@ class ControlAMPServiceTests(ControlTestCase):
         A configuration change results in connected protocols being notified
         of new cluster status.
         """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
         service = build_control_amp_service(self)
         service.startService()
-        protocol = ControlAMP(Clock(), service)
-        protocol.makeConnection(StringTransport())
-        sent = []
-        self.patch_call_remote(sent, protocol=protocol)
+        server = LoopbackAMPClient(client.locator)
+        service.connected(server)
 
         service.configuration_service.save(TEST_DEPLOYMENT)
-        # Should only be one callRemote call.
-        (sent,) = sent
-        self.assertArgsEqual(
-            sent,
-            (
-                (ClusterStatusCommand,),
-                dict(
-                    configuration=TEST_DEPLOYMENT,
-                    state=DeploymentState(),
-                )
-            )
+
+        self.assertEqual(
+            dict(configuration=TEST_DEPLOYMENT, state=DeploymentState()),
+            dict(configuration=agent.desired, state=agent.actual),
         )
 
 
