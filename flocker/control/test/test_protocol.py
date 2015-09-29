@@ -736,7 +736,6 @@ class ControlAMPServiceTests(ControlTestCase):
 
         server = LoopbackAMPClient(client.locator)
         delayed_server = DelayedAMPClient(server)
-        delayed_server.transport = StringTransport()
         # Send first update
         service.connected(delayed_server)
         first_agent_desired = agent.desired
