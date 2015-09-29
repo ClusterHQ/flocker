@@ -60,6 +60,7 @@ class LoopbackAMPClient(object):
             will handle commands sent using ``callRemote``.
         """
         self._locator = command_locator
+        self.transport = StringTransport()
 
     def callRemote(self, command, **kwargs):
         """
@@ -962,7 +963,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
     """
     Tests for ``ControlAMPService._send_state_to_connections``.
     """
-    @validate_logging(None)
+    @capture_logging(None)
     def test_logging(self, logger):
         """
         ``_send_state_to_connections`` logs a single LOG_SEND_CLUSTER_STATE
@@ -970,20 +971,16 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         its connections.
         """
         control_amp_service = build_control_amp_service(self)
-        connection_protocol = ControlAMP(Clock(), control_amp_service)
-        connection_protocol.makeConnection(StringTransport())
 
-        # Patching is bad.
-        # https://clusterhq.atlassian.net/browse/FLOC-1603
-        self.patch(
-            connection_protocol,
-            "callRemote",
-            lambda *args, **kwargs: succeed({})
-        )
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        server = LoopbackAMPClient(client.locator)
+
+        control_amp_service.connected(server)
+
         self.patch(control_amp_service, 'logger', logger)
 
-        control_amp_service._send_state_to_connections(
-            connections=[connection_protocol])
+        control_amp_service._send_state_to_connections(connections=[server])
 
         assertHasAction(
             self,
@@ -1003,9 +1000,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
             logger,
             LOG_SEND_TO_AGENT,
             succeeded=True,
-            startFields={
-                "agent": connection_protocol,
-            }
+            startFields={"agent": server},
         )
 
 

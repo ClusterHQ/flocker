@@ -370,20 +370,11 @@ def _serialize_agent(controlamp):
     """
     Serialize a connected ``ControlAMP`` to the address of its peer.
 
-    :raise TypeError: If the given protocol is not an instance of
-        ``ControlAMP``.
-
     :return: A string representation of the Twisted address object describing
         the remote address of the connection of the given protocol.
 
     :rtype str:
     """
-    if not isinstance(controlamp, ControlAMP):
-        raise TypeError(
-            "Logged agent field must be ControlAMP, not {}".format(
-                fullyQualifiedName(controlamp.__class__),
-            )
-        )
     return str(controlamp.transport.getPeer())
 
 
@@ -455,12 +446,11 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        with LOG_SEND_CLUSTER_STATE(self.logger,
-                                    configuration=configuration,
+        with LOG_SEND_CLUSTER_STATE(configuration=configuration,
                                     state=state):
             with _caching_encoder.cache():
                 for connection in connections:
-                    action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
+                    action = LOG_SEND_TO_AGENT(agent=connection)
                     with action.context():
                         # XXX If callRemote raises an exception, the loop won't
                         # finish and the rest of the connections won't receive
