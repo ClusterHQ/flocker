@@ -416,6 +416,7 @@ class ControlAMPService(Service):
         :param context_factory: TLS context factory.
         """
         self.connections = set()
+        self._current_command_for_connection = {}
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
@@ -458,14 +459,36 @@ class ControlAMPService(Service):
                         # problem since they won't interrupt the loop (and they
                         # shouldn't be allowed to).  No test coverage for
                         # either of these cases.
-                        d = DeferredContext(connection.callRemote(
-                            ClusterStatusCommand,
-                            configuration=configuration,
-                            state=state,
-                            eliot_context=action
-                        ))
-                        d.addActionFinish()
-                        d.result.addErrback(lambda _: None)
+                        try:
+                            current_command = self._current_command_for_connection[
+                                connection
+                            ]
+                        except KeyError:
+                            current_command = self._update_connection(
+                                connection, configuration, state, action
+                            )
+                            self._current_command_for_connection[connection] = current_command
+
+                            def finished_update(ignored, connection):
+                                del self._current_command_for_connection[connection]
+                            current_command.addCallback(finished_update, connection)
+                        else:
+                            current_command.addCallback(
+                                lambda ignored, connection: self._send_state_to_connections([connection]),
+                                connection,
+                            )
+
+
+    def _update_connection(self, connection, configuration, state, action):
+        d = DeferredContext(connection.callRemote(
+            ClusterStatusCommand,
+            configuration=configuration,
+            state=state,
+            eliot_context=action
+        ))
+        d.addActionFinish()
+        d.result.addErrback(lambda _: None)
+        return d.result
 
     def connected(self, connection):
         """

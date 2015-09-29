@@ -34,6 +34,8 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
+from ...testtools.amp import DelayedAMPClient
+
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
@@ -709,6 +711,52 @@ class ControlAMPServiceTests(ControlTestCase):
         self.assertEqual(
             dict(configuration=TEST_DEPLOYMENT, state=DeploymentState()),
             dict(configuration=agent.desired, state=agent.actual),
+        )
+
+    def test_second_configuration_change_waits_for_first_acknowledgement(self):
+        """
+        A second configuration change is only transmitted after acknowledgement
+        of the first configuration change is received.
+        """
+        def arbitrary_transformation(deployment):
+            return deployment.transform(
+                ["nodes"],
+                lambda nodes: nodes.add(Node(hostname=u"192.0.3.71")),
+            )
+
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        delayed_server.transport = StringTransport()
+        # Send first update
+        service.connected(delayed_server)
+        first_agent_desired = agent.desired
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=configuration,
+                third=modified_configuration,
+            ),
+            dict(
+                first=first_agent_desired,
+                second=second_agent_desired,
+                third=third_agent_desired,
+            ),
         )
 
 
