@@ -5,8 +5,6 @@
 Deploy applications on nodes.
 """
 
-import psutil
-
 from itertools import chain
 from warnings import warn
 from uuid import UUID
@@ -135,10 +133,9 @@ class StartApplication(PRecord):
         volumes = []
         if application.volume is not None:
             dataset_id = application.volume.manifestation.dataset_id
-            node_path = self.node_state.paths[dataset_id]
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
-                node_path=node_path))
+                node_path=self.node_state.paths[dataset_id]))
 
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
@@ -604,16 +601,6 @@ class P2PManifestationDeployer(object):
         return sequentially(changes=phases)
 
 
-def _is_mounted(path):
-    """
-    Return True of the supplied path is mounted.
-
-    :param unicode path: Path which may be mounted.
-    """
-    return path in [
-        partition.mountpoint for partition in psutil.disk_partitions()]
-
-
 @implementer(IDeployer)
 class ApplicationNodeDeployer(object):
     """
@@ -830,29 +817,6 @@ class ApplicationNodeDeployer(object):
                 manifestations=None,
                 paths=None,
             )])
-        # Declare ignorance if any of the reported manifestations are found not
-        # mounted (manifest).
-        # This may occur after a reboot, if the container agent connects to the
-        # control service before the dataset agent and receives the (now stale)
-        # dataset state reported prior to the reboot.
-        # In that situation a stateful container may be started before the
-        # dataset agent has attached and mounted its dataset.
-
-        all_manifest = True
-        for dataset_id in local_state.manifestations:
-            if not _is_mounted(local_state.paths[dataset_id]):
-                # XXX: Log an error message here...
-                all_manifest = False
-                break
-
-        if not all_manifest:
-            return succeed([NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=None,
-                manifestations=None,
-                paths=None,
-            )])
 
         path_to_manifestations = {
             path: local_state.manifestations[dataset_id]
@@ -976,11 +940,6 @@ class ApplicationNodeDeployer(object):
         # Check volumes separately.
         comparable_state = state.set(volume=None)
         comparable_configuration = configuration.set(volume=None)
-
-        # FLOC-3137 requires that containers are always restarted if
-        # they are not running. Therefore, we no longer transform the
-        # measured state of the container to pretend that it's always
-        # running.
 
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
         restart_state = comparable_state.restart_policy

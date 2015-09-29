@@ -215,6 +215,7 @@ class DeployerTests(TestCase):
 
             docker_client = DockerClient()
             self.addCleanup(docker_client.remove, application_name)
+
             deployer = P2PNodeDeployer(
                 u"localhost", volume_service, docker_client,
                 make_memory_network(), node_uuid=uuid4())
