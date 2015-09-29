@@ -941,11 +941,6 @@ class ApplicationNodeDeployer(object):
         comparable_state = state.set(volume=None)
         comparable_configuration = configuration.set(volume=None)
 
-        # FLOC-3137 requires that containers are always restarted if
-        # they are not running. Therefore, we no longer transform the
-        # measured state of the container to pretend that it's always
-        # running.
-
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
         restart_state = comparable_state.restart_policy
         comparable_state = comparable_state.set(restart_policy=RestartNever())
