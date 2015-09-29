@@ -705,24 +705,29 @@ def open_ufw(service):
         ])
 
 
+pypy_url = 'https://bitbucket.org/squeaky/portable-pypy/downloads/pypy-2.6.1-linux_x86_64-portable.tar.bz2'  # noqa
+flocker_wheel = 'https://clusterhq-archive.s3.amazonaws.com/python/Flocker-1.4.0-py2-none-any.whl'  # noqa
+
+
 def task_enable_flocker_control(distribution):
     """
     Enable flocker-control service.
     """
     if is_centos(distribution):
         return sequence([
+            run_from_args(['mkdir', '-p', '/var/flocker']),
             put(
                 content=dedent('''\
                     #!/bin/sh
                     set -ex
-                    [ -d /var/flocker || mkdir /var/flocker ]
-                    curl --location --output /tmp/pypy.tar.bz2 https://bitbucket.org/squeaky/portable-pypy/downloads/pypy-2.6.1-linux_x86_64-portable.tar.bz2
-                    tar --extract --strip-components=1 --directory pypy-install --file /tmp/pypy.tar.bz2
+                    curl --location --output /tmp/pypy.tar.bz2 {url}
+                    tar --extract --strip-components=1 \
+                        --directory pypy-install --file /tmp/pypy.tar.bz2
                     pypy-install/bin/virtualenv-pypy pypy
                     source pypy/bin/activate
-                    pip install --allow-unverified pyasn1,six https://clusterhq-archive.s3.amazonaws.com/python/Flocker-1.4.0-py2-none-any.whl
+                    pip install --allow-unverified pyasn1,six {wheel}
                     flocker-control --journald &
-                    '''),
+                    '''.format(url=pypy_url, wheel=flocker_wheel)),
                 path='/var/flocker/control-start.sh'),
             run_from_args(['chmod', '644', '/var/flocker/control-start.sh']),
             run_from_args(['/var/flocker/control-start.sh']),
@@ -733,18 +738,20 @@ def task_enable_flocker_control(distribution):
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
         return sequence([
+            run_from_args(['mkdir', '-p', '/var/flocker']),
             put(
                 content=dedent('''\
                     #!/bin/sh
                     set -ex
-                    [ -d /var/flocker || mkdir /var/flocker ]
-                    curl --location --output /tmp/pypy.tar.bz2 https://bitbucket.org/squeaky/portable-pypy/downloads/pypy-2.6.1-linux_x86_64-portable.tar.bz2
-                    tar --extract --strip-components=1 --directory pypy-install --file /tmp/pypy.tar.bz2
+                    curl --location --output /tmp/pypy.tar.bz2 {url}
+                    tar --extract --strip-components=1 \
+                        --directory pypy-install --file /tmp/pypy.tar.bz2
                     pypy-install/bin/virtualenv-pypy pypy
                     source pypy/bin/activate
-                    pip install --allow-unverified pyasn1,six https://clusterhq-archive.s3.amazonaws.com/python/Flocker-1.4.0-py2-none-any.whl
-                    flocker-control --logfile=/var/log/flocker/flocker-control.log &
-                    '''),
+                    pip install --allow-unverified pyasn1,six {wheel}
+                    flocker-control \
+                        --logfile=/var/log/flocker/flocker-control.log &
+                    '''.format(url=pypy_url, wheel=flocker_wheel)),
                 path='/var/flocker/control-start.sh'),
             run_from_args(['chmod', '644', '/var/flocker/control-start.sh']),
             run_from_args(['/var/flocker/control-start.sh']),
