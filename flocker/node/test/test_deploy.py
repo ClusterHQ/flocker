@@ -1685,8 +1685,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
     def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
-        node are restarted by Flocker (we cannot rely on Docker restart policies
-        to do so because FLOC-3148).
+        node are restarted by Flocker (we cannot rely on Docker restart
+        policies to do so because FLOC-3148).
         """
         api = ApplicationNodeDeployer(u'n.example.com',
                                       docker_client=FakeDockerClient(),
