@@ -165,7 +165,7 @@ SSH_OPTIONS = [
 ]
 
 
-def run_ssh(reactor, username, host, command, **kwargs):
+def run_ssh(reactor, username, host, command, timeout=None, **kwargs):
     """
     Run a process on a remote server using the locally installed ``ssh``
     command and kill it if the reactor stops.
@@ -177,9 +177,12 @@ def run_ssh(reactor, username, host, command, **kwargs):
     :param dict kwargs: Remaining keyword arguments to pass to ``run``.
     :return Deferred: Deferred that fires when the process is ended.
     """
+    additional_options = []
+    if timeout is not None:
+        additional_options.extend([b'-o', b'ConnectTimeout=%d' % (timeout,)])
     ssh_command = [
         b"ssh",
-    ] + SSH_OPTIONS + [
+    ] + SSH_OPTIONS + additional_options + [
         b"-l", username,
         host,
         ' '.join(map(shell_quote, command)),
