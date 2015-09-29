@@ -18,7 +18,7 @@ The Flocker driver type is ``flocker``.
 
 .. prompt:: bash $
 
-   docker run -ti -v volumename:/data --volume-driver=*flocker* busybox sh
+   docker run -ti -v volumename:/data --volume-driver=flocker busybox sh
 
 In this example, a Flocker volume with name of ``volumename`` is created.
 If a container is started with a volume of the same name in your Flocker cluster, the volume will be migrated to the calling node before Docker starts the container.
