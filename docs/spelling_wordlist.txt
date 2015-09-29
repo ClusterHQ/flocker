@@ -105,6 +105,7 @@ versa
 versioning
 virtualization
 VMware
+vSphere
 webhook
 workflow
 Weaveworks

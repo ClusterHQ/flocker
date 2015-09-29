@@ -49,6 +49,11 @@ The following pages describe how to configure the backends currently supported b
    openstack-configuration
    aws-configuration
    emc-configuration
+   vmware-configuration
+   netapp-configuration
+   hedvig-configuration
+   convergeio-configuration
+   saratogaspeed-configuration
    zfs-configuration
    loopback-configuration
    
