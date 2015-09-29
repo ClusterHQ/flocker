@@ -6,7 +6,10 @@ Installing the Flocker Plugin for Docker
 
 Before installing the Flocker plugin for Docker, you will need to have installed Flocker on some nodes, using the :ref:`node installation instructions <installing-flocker-node>`.
 
-The Flocker plugin for Docker requires access to the Flocker REST API, and therefore you will need to create an API user certificate and key for a user named ``plugin`` on each node, as described in the :ref:`generate-api` instructions.
+The Flocker plugin for Docker requires access to the Flocker REST API.
+To use the plugin, you will need to create an API user certificate and key for a user named ``plugin`` on each node. 
+For more information, see the :ref:`generate-api` instructions.
+
 For example, you can use the ``flocker-ca`` command as below:
 
 .. prompt:: bash $
