@@ -57,14 +57,21 @@ class ContainerAPITests(TestCase):
         """
         A container is restarted if it is stopped.
         """
-        # `verify_socket` is called by _create_container and will kill the
-        # server first time round.
         created = self._create_container(
             cluster, SCRIPTS.child(b"exitinghttp.py")
         )
+
+        # `query_http_server` will kill the server first time round.
+        created.addCallback(
+            lambda ignored: query_http_server(
+                cluster.nodes[0].public_address, 8080
+            )
+        )
         # Call it again and see that the container is running again.
         created.addCallback(
-            verify_socket(cluster.nodes[0].public_address, 8080)
+            lambda ignored: query_http_server(
+                cluster.nodes[0].public_address, 8080
+            )
         )
         return created
 
