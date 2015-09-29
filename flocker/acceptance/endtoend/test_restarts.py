@@ -105,6 +105,8 @@ class RebootTests(TestCase):
         node = [node for node in cluster.nodes if
                 node.public_address != cluster.control_node.public_address][0]
         print "OPERATING ON:", node
+
+        # Create a dataset on non-control node.
         creating_dataset = create_dataset(self, cluster, node=node)
 
         def query_server():
@@ -129,15 +131,19 @@ class RebootTests(TestCase):
                                   ).getContent().decode("ascii"),
                                   u"/data"],
             }
+            # Start a container on non-control node.
+            # The container has a web server that saves state to the dataset
+            # created earlier.
             created = cluster.create_container(http_server)
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, http_server[u"name"]))
+            # Continue when the server has responded to an HTTP request.
             created.addCallback(lambda _:
                                 loop_until(lambda: query_server().addErrback(
                                     lambda _: False)))
             created.addCallback(lambda _: query_server())
             return created
-        creating_dataset.addCallback(created_dataset)
+        starting_server = creating_dataset.addCallback(created_dataset)
 
         def server_started(initial_response):
             # We now have the initial response of the server. This should
@@ -147,10 +153,13 @@ class RebootTests(TestCase):
             initial_reboot_time = initial_response.splitlines()[0]
             initial_container_id = initial_response.splitlines()[2]
             initial_container_id = initial_container_id.encode("ascii")
+
+            # Disable the dataset-agent before rebooting
             disabling = _service(
                 node.public_address, b'flocker-dataset-agent', b'disable'
             )
 
+            # Reboot the server once the dataset agent has been disabled.
             def reboot(ignored):
                 # XXX Checking exit code is problematic insofar as reboot
                 # kills the ssh process...
