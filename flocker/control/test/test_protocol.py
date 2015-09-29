@@ -595,7 +595,9 @@ class ControlAMPTests(ControlTestCase):
         servers = list(LoopbackAMPClient(client.locator) for client in clients)
 
         for server in servers:
-            self.control_amp_service.connected(server)
+            delayed = DelayedAMPClient(server)
+            self.control_amp_service.connected(delayed)
+            delayed.respond()
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
