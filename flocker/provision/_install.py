@@ -729,7 +729,7 @@ def task_enable_flocker_control(distribution):
                     flocker-control --journald &
                     '''.format(url=pypy_url, wheel=flocker_wheel)),
                 path='/var/flocker/control-start.sh'),
-            run_from_args(['chmod', '644', '/var/flocker/control-start.sh']),
+            run_from_args(['chmod', '755', '/var/flocker/control-start.sh']),
             run_from_args(['/var/flocker/control-start.sh']),
         ])
     elif distribution == 'ubuntu-14.04':
@@ -753,7 +753,7 @@ def task_enable_flocker_control(distribution):
                         --logfile=/var/log/flocker/flocker-control.log &
                     '''.format(url=pypy_url, wheel=flocker_wheel)),
                 path='/var/flocker/control-start.sh'),
-            run_from_args(['chmod', '644', '/var/flocker/control-start.sh']),
+            run_from_args(['chmod', '755', '/var/flocker/control-start.sh']),
             run_from_args(['/var/flocker/control-start.sh']),
         ])
     else:
