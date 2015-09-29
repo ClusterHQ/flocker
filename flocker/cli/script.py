@@ -65,9 +65,15 @@ class DeployOptions(Options):
     optParameters = [
         ["port", "p", REST_API_PORT,
          "The REST API port on the server.", int],
+        ["cacert", None, None,
+         "Path to cluster certificate file."],
+        ["cert", None, None,
+         "Path to user certificate file."],
+        ["key", None, None,
+         "Path to user private key file."],
         ["certificates-directory", "c",
-         None, ("Path to directory where TLS certificate and keys can be "
-                "found. Defaults to current directory.")],
+         None, ("Path to directory containing TLS certificates and keys. "
+                "Defaults to current directory.")],
     ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
@@ -108,11 +114,48 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
+
+        for credential, default_path in {
+            "cacert": b"cluster.crt",
+            "cert": b"user.crt",
+            "key": b"user.key",
+        }.items():
+            if self[credential] is None:
+                self[credential] = FilePath(default_path)
+            else:
+                if self["certificates-directory"] is not None:
+                    raise UsageError(
+                        "Cannot use --certificates-directory and "
+                        "--{credential} options together. Please specify "
+                        "either certificates directory or full paths to each "
+                        "file via the --cacert, --cert and --key "
+                        "options.".format(credential=credential)
+                    )
+                self[credential] = FilePath(self[credential])
+
         if self["certificates-directory"] is None:
             self["certificates-directory"] = FilePath(os.getcwd())
         else:
+            # Use the directory set by certificates-directory and the
+            # default credential file names, which have already been set
+            # against the relevant option keys.
             self["certificates-directory"] = FilePath(
                 self["certificates-directory"])
+            self["cacert"] = self["certificates-directory"].child(
+                self["cacert"].basename())
+            self["cert"] = self["certificates-directory"].child(
+                self["cert"].basename())
+            self["key"] = self["certificates-directory"].child(
+                self["key"].basename())
+
+        for credential in ["cacert", "cert", "key"]:
+            if not self[credential].isfile():
+                raise UsageError(
+                    "File " + self[credential].path + " does not exist. "
+                    "Use the flocker-ca command to create the credential, "
+                    "or use the --" + credential +
+                    " flag to specify the credential location."
+                )
 
 
 @implementer(ICommandLineScript)
@@ -131,7 +174,7 @@ class DeployScript(object):
                       "deployment": options["deployment_config"]})
 
         treq_client = treq_with_authentication(
-            reactor, options["certificates-directory"])
+            reactor, options["cacert"], options["cert"], options["key"])
         posted = treq_client.post(
             options["url"], data=body,
             headers={b"content-type": b"application/json"},

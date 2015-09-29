@@ -1,6 +1,7 @@
+from collections import MutableSequence
 from pipes import quote as shell_quote
 from pyrsistent import PRecord, field
-from effect import Effect
+from effect import Effect, sync_performer
 
 
 def identity(arg):
@@ -45,6 +46,27 @@ def run_remotely(
         log_command_filter=log_command_filter))
 
 
+def _shell_join(seq):
+    """
+    Convert a nested list of strings to a shell command.
+
+    Each string in the list is escaped as necessary to allow it to be
+    passed to a shell as a single word. If an item is a list, it is a
+    nested command, which will be escaped first, and then added as a
+    single word to the top-level command.
+
+    For example, ['su', 'root', '-c', ['apt-get', 'update']] becomes
+    "su root -c 'apt-get update'".
+    """
+    result = []
+    for word in seq:
+        if isinstance(word, (tuple, MutableSequence)):
+            word = _shell_join(word)
+        escaped = shell_quote(word)
+        result.append(escaped)
+    return ' '.join(result)
+
+
 class Run(PRecord):
     """
     Run a shell command on a remote host.
@@ -59,7 +81,7 @@ class Run(PRecord):
     @classmethod
     def from_args(cls, command_args, log_command_filter=identity):
         return cls(
-            command=" ".join(map(shell_quote, command_args)),
+            command=_shell_join(command_args),
             log_command_filter=log_command_filter)
 
 
@@ -77,8 +99,17 @@ class Sudo(PRecord):
     @classmethod
     def from_args(cls, command_args, log_command_filter=identity):
         return cls(
-            command=" ".join(map(shell_quote, command_args)),
+            command=_shell_join(command_args),
             log_command_filter=log_command_filter)
+
+
+@sync_performer
+def perform_sudo(dispatcher, intent):
+    """
+    Default implementation of `Sudo`.
+    """
+    return Effect(Run(
+        command='sudo ' + intent.command, log_command_filter=identity))
 
 
 class Put(PRecord):
@@ -95,6 +126,20 @@ class Put(PRecord):
     log_content_filter = field(mandatory=True)
 
 
+@sync_performer
+def perform_put(dispatcher, intent):
+    """
+    Default implementation of `Put`.
+    """
+    def create_put_command(content, path):
+        return 'printf -- %s > %s' % (shell_quote(content), shell_quote(path))
+    return Effect(Run(
+        command=create_put_command(intent.content, intent.path),
+        log_command_filter=lambda _: create_put_command(
+            intent.log_content_filter(intent.content), intent.path)
+        ))
+
+
 class Comment(PRecord):
     """
     Record a comment to be shown in the documentation corresponding to a task.
@@ -102,6 +147,13 @@ class Comment(PRecord):
     :ivar bytes comment: The desired comment.
     """
     comment = field(type=bytes, mandatory=True)
+
+
+@sync_performer
+def perform_comment(dispatcher, intent):
+    """
+    Default implementation of `Comment`.
+    """
 
 
 def run(command, log_command_filter=identity):

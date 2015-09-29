@@ -11,8 +11,11 @@ import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
 from stat import S_IRWXU
+from datetime import datetime
 
 from bitmath import Byte, MB, MiB, GB, GiB
+
+from pytz import UTC
 
 import psutil
 
@@ -71,6 +74,8 @@ from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets, Application, AttachedVolume, DockerImage
 )
+from ....control._model import Leases
+
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
@@ -327,7 +332,7 @@ def assert_discovered_state(case,
     """
     previous_state = NodeState(
         uuid=deployer.node_uuid, hostname=deployer.hostname,
-        applications=None, used_ports=None, manifestations=None, paths=None,
+        applications=None, manifestations=None, paths=None,
         devices=None,
     )
     discovering = deployer.discover_state(previous_state)
@@ -340,7 +345,6 @@ def assert_discovered_state(case,
     expected = (
         NodeState(
             applications=None,
-            used_ports=None,
             uuid=deployer.node_uuid,
             hostname=deployer.hostname,
             manifestations={
@@ -618,7 +622,7 @@ class UnusableAPI(object):
 
 def assert_calculated_changes(
     case, node_state, node_config, nonmanifest_datasets, expected_changes,
-    additional_node_states=frozenset(),
+    additional_node_states=frozenset(), leases=Leases(),
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -637,7 +641,7 @@ def assert_calculated_changes(
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
         nonmanifest_datasets, additional_node_states, set(),
-        expected_changes,
+        expected_changes, leases=leases,
     )
 
 
@@ -672,7 +676,7 @@ class ScenarioMixin(object):
         devices={
             DATASET_ID: FilePath(b"/dev/sda"),
         },
-        applications=[], used_ports=[],
+        applications=[],
     )
 
 
@@ -878,6 +882,27 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             in_parallel(changes=[]),
         )
 
+    def test_no_delete_if_leased(self):
+        """
+        If a dataset has been marked as deleted *and* it is leased, no changes
+        are made.
+        """
+        # We have a dataset with a lease:
+        local_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  self.ONE_DATASET_STATE.uuid)
+
+        # Dataset is deleted:
+        local_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True)
+        local_config = add_application_with_volume(local_config)
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(),
+            in_parallel(changes=[]), leases=leases,
+        )
+
     def test_deleted_dataset_volume_unmounted(self):
         """
         ``DestroyBlockDeviceDataset`` is a compound state change that first
@@ -1063,6 +1088,53 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
             in_parallel(changes=[]),
         )
 
+    def test_no_unmount_if_leased(self):
+        """
+        If a dataset should be unmounted *and* it is leased on this node, no
+        changes are made.
+        """
+        # State has a dataset which is leased
+        local_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  self.ONE_DATASET_STATE.uuid)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, set(),
+            in_parallel(changes=[]), leases=leases,
+        )
+
+    def test_unmount_manifestation_when_leased_elsewhere(self):
+        """
+        If the filesystem for a dataset is mounted on the node and the
+        configuration says the dataset is not meant to be manifest on that
+        node, ``BlockDeviceDeployer.calculate_changes`` returns a state
+        change to unmount the filesystem even if there is a lease, as long
+        as the lease is for another node.
+        """
+        # Give it a state that says it has a manifestation of the dataset.
+        node_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  uuid4())
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, node_state, node_config, set(),
+            in_parallel(changes=[
+                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+            ]), leases=leases,
+        )
+
 
 class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase,
@@ -1126,7 +1198,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         state = DeploymentState(nodes=[NodeState(
             uuid=uuid, hostname=node, applications=[], manifestations={},
-            devices={}, paths={}, used_ports=[])])
+            devices={}, paths={})])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
@@ -1228,7 +1300,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         When supplied with a configuration containing a dataset with a null
         size, ``BlockDeviceDeployer.calculate_changes`` returns a
         ``CreateBlockDeviceDataset`` for a 100GiB dataset.
-        XXX: Make the default size configurable. FLOC-2044
+        XXX: Make the default size configurable. FLOC-2679
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
@@ -1258,7 +1330,6 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     manifestations={},
                     devices={},
                     paths={},
-                    used_ports=[]
                 )
             ]
         )
@@ -1359,7 +1430,6 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
             applications={},
-            used_ports=set(),
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
             paths={},

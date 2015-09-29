@@ -18,11 +18,10 @@ from pyrsistent import PRecord, field, pvector
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
-from eliot import Logger, writeFailure
+from eliot import Logger, writeFailure, Action
 from eliot.twisted import DeferredContext
 
-from ._error import (
-    ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
+from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
 
@@ -111,6 +110,36 @@ def _logging(original):
     return logger
 
 
+def _remote_logging(original):
+    """
+    Decorate a method which implements an API endpoint to do Eliot-based log
+    tracing; that is, the ability to continue a remote task.
+
+    The remote task's context will be extracted from a C{X-Eliot-Task-Id}
+    HTTP header.
+
+    :param original: Function to wrap.
+
+    :return: Wrapped function.
+    """
+    @wraps(original)
+    def logger(self, request, **routeArguments):
+        serialized_remote_task = request.requestHeaders.getRawHeaders(
+            "X-Eliot-Task-Id", [None])[0]
+        if serialized_remote_task is None:
+            return original(self, request, **routeArguments)
+
+        try:
+            action = Action.continue_task(task_id=serialized_remote_task)
+        except ValueError:
+            return original(self, request, **routeArguments)
+        with action.context():
+            d = DeferredContext(original(self, request, **routeArguments))
+            d.addActionFinish()
+            return d.result
+    return logger
+
+
 def _serialize(outputValidator):
     """
     Decorate a function so that its return value is automatically JSON encoded
@@ -142,7 +171,8 @@ def _serialize(outputValidator):
     return deco
 
 
-def structured(inputSchema, outputSchema, schema_store=None):
+def structured(inputSchema, outputSchema, schema_store=None,
+               ignore_body=False):
     """
     Decorate a Klein-style endpoint method so that the request body is
     automatically decoded and the response body is automatically encoded.
@@ -165,6 +195,9 @@ def structured(inputSchema, outputSchema, schema_store=None):
     :param schema_store: A mapping between schema paths
         (e.g. ``b/v1/types.json``) and the JSON schema structure, allowing
         input/output schemas to just be references.
+    :param ignore_body: If true, the body is not passed to the endpoint
+        regardless of HTTP method, in particular including ``POST``. By
+        default the body is only ignored for ``GET`` and ``HEAD``.
     """
     if schema_store is None:
         schema_store = {}
@@ -173,17 +206,13 @@ def structured(inputSchema, outputSchema, schema_store=None):
 
     def deco(original):
         @wraps(original)
+        @_remote_logging
         @_logging
         @_serialize(outputValidator)
         def loadAndDispatch(self, request, **routeArguments):
-            if request.method in (b"GET", b"DELETE"):
+            if request.method in (b"GET", b"DELETE") or ignore_body:
                 objects = {}
             else:
-                contentType = request.requestHeaders.getRawHeaders(
-                    b"content-type", [None])[0]
-                if contentType != b"application/json":
-                    raise ILLEGAL_CONTENT_TYPE
-
                 body = request.content.read()
                 try:
                     objects = loads(body)

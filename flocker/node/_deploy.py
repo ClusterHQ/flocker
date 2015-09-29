@@ -7,6 +7,7 @@ Deploy applications on nodes.
 
 from itertools import chain
 from warnings import warn
+from uuid import UUID
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -438,20 +439,25 @@ class OpenPorts(PRecord):
 
 class NotInUseDatasets(object):
     """
-    Filter out datasets that are in use by applications.
+    Filter out datasets that are in use by applications on the current
+    node.
 
     For now we delay things like deletion until we know applications
-    aren't using the dataset. Later on we'll use leases to decouple
-    the application and dataset logic better; see
-    https://clusterhq.atlassian.net/browse/FLOC-1425.
+    aren't using the dataset, and also until there are no leases. Later on
+    we'll switch the container agent to rely solely on leases, at which
+    point we can rip out the logic related to Application objects. See
+    https://clusterhq.atlassian.net/browse/FLOC-2732.
     """
-    def __init__(self, node_state):
+    def __init__(self, node_state, leases):
         """
         :param NodeState node_state: Known local state.
+        :param Leases leases: The current leases on datasets.
         """
+        self._node_id = node_state.uuid
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in node_state.applications
                                  if app.volume is not None}
+        self._leases = leases
 
     def __call__(self, objects,
                  get_dataset_id=lambda d: unicode(d.dataset_id)):
@@ -460,15 +466,23 @@ class NotInUseDatasets(object):
 
         :param objects: Objects to filter.
 
-        :param get_dataset_id: Callable to extract a ``dataset_id`` from
-            an object. By default looks up ``dataset_id`` attribute.
+        :param get_dataset_id: Callable to extract a unicode dataset ID
+            from an object. By default looks up ``dataset_id`` attribute.
 
         :return list: Filtered objects.
         """
         result = []
         for obj in objects:
-            if get_dataset_id(obj) not in self._in_use_datasets:
-                result.append(obj)
+            u_dataset_id = get_dataset_id(obj)
+            dataset_id = UUID(u_dataset_id)
+            if u_dataset_id in self._in_use_datasets:
+                continue
+            if dataset_id in self._leases:
+                # If there's a lease on this node elsewhere we don't
+                # consider it to be in use on this node:
+                if self._leases[dataset_id].node_id == self._node_id:
+                    continue
+            result.append(obj)
         return result
 
 
@@ -527,7 +541,6 @@ class P2PManifestationDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
@@ -552,7 +565,8 @@ class P2PManifestationDeployer(object):
             return sequentially(changes=[])
         phases = []
 
-        not_in_use_datasets = NotInUseDatasets(local_state)
+        not_in_use_datasets = NotInUseDatasets(
+            local_state, configuration.leases)
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
@@ -742,6 +756,8 @@ class ApplicationNodeDeployer(object):
                 volume=volume,
                 environment=environment if environment else None,
                 links=frozenset(links),
+                memory_limit=container.mem_limit,
+                cpu_shares=container.cpu_shares,
                 restart_policy=container.restart_policy,
                 running=(container.activation_state == u"active"),
                 command_line=container.command_line,
@@ -763,7 +779,6 @@ class ApplicationNodeDeployer(object):
             uuid=self.node_uuid,
             hostname=self.hostname,
             applications=applications,
-            used_ports=self.network.enumerate_used_ports(),
             manifestations=None,
             paths=None,
         )]
@@ -799,7 +814,6 @@ class ApplicationNodeDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations=None,
                 paths=None,
             )])

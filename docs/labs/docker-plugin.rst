@@ -4,7 +4,7 @@
 Flocker Docker plugin
 =====================
 
-The Flocker Docker plugin is a `Docker volumes plugin <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
+The Flocker Docker plugin is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
 
 This diagram explains how the architecture of a Flocker cluster with the Docker plugin would look if the user is also using :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`:
 
@@ -22,9 +22,9 @@ As a user of Docker, it means you can use Flocker directly via:
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API (set it to ``flocker``).
 
-See the `Docker documentation on volume plugins <https://github.com/docker/docker/blob/master/experimental/plugins_volume.md>`_.
+See the `Docker documentation on volume plugins`_.
 
-This currently depends on the `experimental build of Docker <https://github.com/docker/docker/tree/master/experimental>`_.
+This depends on Docker 1.8 or later.
 
 See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker-docker-plugin>`_.
 
@@ -36,6 +36,9 @@ See also the `GitHub repo for this project <https://github.com/ClusterHQ/flocker
     They are distinct architectures.
     The integration approach allows Docker to control Flocker via the Flocker Dataset API.
     This allows Flocker to be used in conjunction with other ecosystem tools like :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`, which is more experimental than ``flocker-deploy`` and the Flocker containers API.
+
+.. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
+.. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
 
 How it works
 ============
@@ -77,7 +80,7 @@ Manual Installation on Ubuntu 14.04
 ===================================
 
 First install Flocker on some hosts.
-These instructions assume you have followed the :ref:`official Flocker install instructions <installflocker>`.
+These instructions assume you have followed the :ref:`official Flocker install instructions <installing-flocker>`.
 See the :ref:`unofficial installer <labs-installer>` for a quicker method.
 
 On the same machine where you ran ``flocker-ca`` while installing Flocker, :ref:`generate a new API user certificate and key <generate-api>` for a user named ``plugin``.
@@ -85,17 +88,18 @@ Upload these files to ``/etc/flocker/plugin.key`` and ``/etc/flocker/plugin.crt`
 
 Then perform the following instructions on each of the hosts where you want to install the Flocker Docker plugin.
 
-Install Experimental Docker
----------------------------
+Install Docker
+--------------
 
-Install the experimental build of Docker:
+Install Docker 1.8 or later.
+The following command will install the latest version available:
 
 .. prompt:: bash $
 
-    wget -qO- https://experimental.docker.com/ | sudo sh
+    wget -qO- https://get.docker.com/ | sudo sh
 
-You must ensure that Docker is using the ``AUFS`` storage driver.
-The easiest way to do this is to add a ``-s aufs`` option to the ``/etc/defaults/docker`` file.
+On Ubuntu, it's best to ensure that Docker is using the ``AUFS`` storage driver.
+The easiest way to do this is to add a ``-s aufs`` option to the ``/etc/default/docker`` file.
 
 Here is an example::
 

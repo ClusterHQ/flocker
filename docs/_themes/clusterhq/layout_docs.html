@@ -81,7 +81,7 @@
                         <li><a href="https://clusterhq.com/flocker/introduction">About Flocker</a></li>
                         <li><a href="https://clusterhq.com/flocker/getting-started">Getting Started</a></li>
                         <li><a href="https://clusterhq.com/flocker/use-cases">Use Cases</a></li>
-                        <li><a class="active" href="https://docs.clusterhq.com/en/latest/">Docs</a></li>
+                        <li><a class="active" href="https://docs.clusterhq.com/en/latest/">Install &amp; Docs</a></li>
                         <li><a href="https://clusterhq.com/flocker/support/">Support</a></li>
                         <li><a href="https://clusterhq.com/blog/">Blog</a></li>
                         <li><a href="https://clusterhq.com/flocker/try-flocker/">Try Flocker</a></li>
@@ -203,5 +203,41 @@
             })();
         </script>
     {% endif %}
+
+    <!-- 
+        Optimizely: AB Testing tool
+        Snippet generated from:
+        https://app.optimizely.com/projects/2309470232/implementation
+    -->
+    <script src="https://cdn.optimizely.com/js/2309470232.js"></script>
+
+    <!-- Heatmap.me snippet -->
+    <script type="text/javascript">
+    (function() {
+    var hm = document.createElement('script'); hm.type ='text/javascript'; hm.async = true;
+    hm.src = ('++u-heatmap-it+log-js').replace(/[+]/g,'/').replace(/-/g,'.');
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(hm, s);
+    })();
+    </script>
+
+    <!-- Display out-of-date documentation notice -->
+    <script>
+        // Do an AJAX request to check latest version
+        var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+
+        request.done(function( msg ) {
+            // Trim HTML from returned contents
+            currentversion = $(msg).text();
+
+            // Is version equal to this documentation release?
+            if (currentversion !== DOCUMENTATION_OPTIONS.VERSION) {
+                $('.section:first').prepend('<div class="admonition note warning"> \
+                    <p class="last"> \
+                        You are currently viewing a different version of the documentation to the latest release of Flocker. \
+                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '.</p> \
+                    </div>');
+            }
+        });
+    </script>
   </body>
 </html>

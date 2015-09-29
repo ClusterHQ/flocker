@@ -22,6 +22,13 @@ from zope.interface import Interface
 
 from .. import __version__
 
+try:
+    from ._journald import sd_journal_send
+except OSError as e:
+    # This platform doens't have journald.
+    sd_journal_send = None
+    _missing_journald_reason = str(e)
+    del e
 
 __all__ = [
     'flocker_standard_options',
@@ -33,6 +40,20 @@ __all__ = [
 
 LOGFILE_LENGTH = int(MiB(100).to_Byte().value)
 LOGFILE_COUNT = 5
+
+
+class JournaldFile(object):
+    """
+    Pretend to be a file but write to journald.
+
+    Relies on fact that ``ThreadedFileWriter`` writes messages as lines in
+    single write() call.
+    """
+    def flush(self):
+        pass
+
+    def write(self, message):
+        sd_journal_send(message.rstrip(b"\n"))
 
 
 def flocker_standard_options(cls):
@@ -54,6 +75,7 @@ def flocker_standard_options(cls):
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
         self['logfile'] = self._sys_module.stdout
+        self['journald'] = False
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
 
@@ -84,6 +106,17 @@ def flocker_standard_options(cls):
             maxRotatedFiles=LOGFILE_COUNT,
         )
     cls.opt_logfile = opt_logfile
+
+    def opt_journald(self):
+        """
+        Log to journald.
+        """
+        if sd_journal_send is None:
+            raise usage.UsageError("Journald unavailable on this machine: "
+                                   + _missing_journald_reason)
+        # Log messages are written line by line, so pretend we're a file...
+        self['logfile'] = JournaldFile()
+    cls.opt_journald = opt_journald
 
     return cls
 

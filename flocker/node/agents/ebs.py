@@ -13,13 +13,16 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset
+from pyrsistent import PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
+from twisted.python.constants import (
+    Names, NamedConstant, Values, ValueConstant
+)
 from twisted.python.filepath import FilePath
 
 from eliot import Message
@@ -28,6 +31,8 @@ from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume,
 )
+from ...control import pmap_field
+
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
@@ -41,9 +46,139 @@ BOTO_NUM_RETRIES = u'20'
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
 
+# http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
+# for error details:
+NOT_FOUND = u'InvalidVolume.NotFound'
+
+
+class VolumeOperations(Names):
+    """
+    Supported EBS backend operations on a volume.
+    """
+    CREATE = NamedConstant()
+    ATTACH = NamedConstant()
+    DETACH = NamedConstant()
+    DESTROY = NamedConstant()
+
+
+class VolumeStates(Values):
+    """
+    Expected EBS volume states during ``VolumeOperations``.
+    """
+    EMPTY = ValueConstant('')
+    CREATING = ValueConstant(u'creating')
+    AVAILABLE = ValueConstant(u'available')
+    ATTACHING = ValueConstant(u'attaching')
+    IN_USE = ValueConstant(u'in-use')
+    DETACHING = ValueConstant(u'detaching')
+    DELETING = ValueConstant(u'deleting')
+
+
+class VolumeStateFlow(PRecord):
+    """
+    Expected EBS volume state flow during ``VolumeOperations``.
+    """
+    start_state = field(mandatory=True, type=ValueConstant)
+    transient_state = field(mandatory=True, type=ValueConstant)
+    end_state = field(mandatory=True, type=ValueConstant)
+
+    # Boolean flag to indicate if a volume state transition
+    # results in non-empty ``attach_data.device`` and
+    # ``attach_data.instance_id`` for the EBS volume.
+    sets_attach = field(mandatory=True, type=bool)
+    unsets_attach = field(mandatory=True, type=bool)
+
+
+class VolumeStateTable(PRecord):
+    """
+    Map of volume operation to expected volume state transitions
+    and expected update to volume's ``attach_data``.
+    """
+
+    def _populate_volume_state_table():
+        """
+        Initialize volume state table  with transitions for ``create_volume``,
+        ``attach_volume``, ``detach_volume``, ``delete_volume`` operations.
+        """
+        O = VolumeOperations
+        S = VolumeStates
+        table = pmap()
+
+        def add_flow(operation, start, transient, end, sets_attach,
+                     unsets_attach):
+            """
+            Helper to add expected volume states for given operation.
+            """
+            return table.set(operation,
+                             VolumeStateFlow(start_state=start,
+                                             transient_state=transient,
+                                             end_state=end,
+                                             sets_attach=sets_attach,
+                                             unsets_attach=unsets_attach))
+
+        table = add_flow(O.CREATE, S.EMPTY, S.CREATING, S.AVAILABLE,
+                         False, False)
+        table = add_flow(O.ATTACH, S.AVAILABLE, S.ATTACHING, S.IN_USE,
+                         True, False)
+        table = add_flow(O.DETACH, S.IN_USE, S.DETACHING, S.AVAILABLE,
+                         False, True)
+        table = add_flow(O.DESTROY, S.AVAILABLE, S.DELETING, S.EMPTY,
+                         False, False)
+        return table
+
+    table = pmap_field(NamedConstant, VolumeStateFlow,
+                       initial=_populate_volume_state_table())
+
+VOLUME_STATE_TABLE = VolumeStateTable()
+
+
+class TimeoutException(Exception):
+    """
+    A timeout on waiting for volume to reach destination end state.
+
+    :param unicode blockdevice_id: Unique identifier for a volume.
+    :param NamedConstant operation: Operation performed on volume.
+    :param unicode start_state: Volume's start state before operation.
+    :param unicode transient_state: Expected transient state during operation.
+    :param unicode end_state: Expected end state on operation completion.
+    :param unicode current_state: Volume's state at timeout.
+    """
+    def __init__(self, blockdevice_id, operation,
+                 start_state, transient_state, end_state, current_state):
+        Exception.__init__(self, blockdevice_id)
+        self.blockdevice_id = blockdevice_id
+        self.operation = operation
+        self.start_state = start_state
+        self.transient_state = transient_state
+        self.end_state = end_state
+        self.current_state = current_state
+
+
+class UnexpectedStateException(Exception):
+    """
+    An unexpected state was encountered by a volume as a result of operation.
+
+    :param unicode blockdevice_id: Unique identifier for a volume.
+    :param NamedConstant operation: Operation performed on volume.
+    :param unicode start_state: Volume's start state before operation.
+    :param unicode transient_state: Expected transient state during operation.
+    :param unicode end_state: Expected end state on operation completion.
+    :param unicode current_state: Volume's state at timeout.
+    """
+    def __init__(self, blockdevice_id, operation,
+                 start_state, transient_state, end_state, current_state):
+        Exception.__init__(self, blockdevice_id)
+        self.blockdevice_id = blockdevice_id
+        self.operation = operation
+        self.start_state = start_state
+        self.transient_state = transient_state
+        self.end_state = end_state
+        self.current_state = current_state
+
 
 class EliotLogHandler(logging.Handler):
-    _to_log = {"Method", "Path", "Params"}
+    # Whitelist ``"msg": "Params:`` field for logging.
+    _to_log = {"Params"}
 
     def emit(self, record):
         fields = vars(record)
@@ -243,73 +378,114 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
-def _wait_for_volume(volume,
-                     start_status,
-                     transient_status,
-                     end_status):
+def _get_ebs_volume_state(volume):
+    """
+    Fetch input EBS volume's latest state from backend.
+
+    :param boto.ec2.volume volume: Volume that needs state update.
+
+    :returns: EBS volume with latest state known to backend.
+    :rtype: boto.ec2.volume
+
+    """
+    return volume.update()
+
+
+def _should_finish(operation, volume, update, start_time,
+                   timeout=VOLUME_STATE_CHANGE_TIMEOUT):
+    """
+    Helper function to determine if wait for volume's state transition
+    resulting from given operation is over.
+    The method completes if volume reached expected end state, or, failed
+    to reach expected end state, or we timed out waiting for the volume to
+    reach expected end state.
+
+    :param NamedConstant operation: Operation performed on given volume.
+    :param boto.ec2.volume volume: Target volume of given operation.
+    :param method update: Method to use to check volume state.
+    :param float start_time: Time when operation was executed on volume.
+    :param int timeout: Time, in seconds, to wait for volume to reach expected
+        destination state.
+
+    :returns: True or False indicating end of wait for volume state transition.
+    :rtype: bool
+    """
+    state_flow = VOLUME_STATE_TABLE.table[operation]
+    start_state = state_flow.start_state.value
+    transient_state = state_flow.transient_state.value
+    end_state = state_flow.end_state.value
+    sets_attach = state_flow.sets_attach
+    unsets_attach = state_flow.unsets_attach
+
+    if time.time() - start_time > timeout:
+        # We either:
+        # 1) Timed out waiting to reach ``end_status``, or,
+        # 2) Reached an unexpected status (state change resulted in error), or,
+        # 3) Reached ``end_status``, but ``end_status`` comes with
+        #    attach data, and we timed out waiting for attach data.
+        # Raise a ``TimeoutException`` in all cases.
+        raise TimeoutException(unicode(volume.id), operation, start_state,
+                               transient_state, end_state, volume.status)
+
+    try:
+        update(volume)
+    except EC2ResponseError as e:
+        # If AWS cannot find the volume, raise ``UnknownVolume``.
+        if e.code == NOT_FOUND:
+            raise UnknownVolume(volume.id)
+
+    if volume.status not in [start_state, transient_state, end_state]:
+        raise UnexpectedStateException(unicode(volume.id), operation,
+                                       start_state, transient_state, end_state,
+                                       volume.status)
+    if volume.status != end_state:
+        return False
+
+    # If end state for the volume comes with attach data,
+    # declare success only upon discovering attach data.
+    if sets_attach:
+        return (volume.attach_data is not None and
+                (volume.attach_data.device != '' and
+                 volume.attach_data.instance_id != ''))
+    elif unsets_attach:
+        return (volume.attach_data is None or
+                (volume.attach_data.device is None and
+                 volume.attach_data.instance_id is None))
+    else:
+        return True
+
+
+def _wait_for_volume_state_change(operation,
+                                  volume,
+                                  update=_get_ebs_volume_state,
+                                  timeout=VOLUME_STATE_CHANGE_TIMEOUT):
     """
     Helper function to wait for a given volume to change state
     from ``start_status`` via ``transient_status`` to ``end_status``.
 
-    :param boto.ec2.volume volume: Volume to check
-        status for.
-    :param unicode start_status: Volume status at starting point.
-    :param unicode transient_status: Allowed transient state for
-        volume to be in, on the way to ``end_status``.
-    :param unicode end_status: Expected destination status for
-        the input volume.
+    :param NamedConstant operation: Operation triggering volume state change.
+        A value from ``VolumeOperations``.
+    :param boto.ec2.volume volume: Volume to check status for.
+    :param update: Method to use to fetch EBS volume's latest state.
+    :param int timeout: Seconds to wait for volume operation to succeed.
 
-    :raises Exception: When input volume failed to reach
-        expected destination status.
+    :raises Exception: When input volume fails to reach expected backend
+        state for given operation within timeout seconds.
     """
     # It typically takes a few seconds for anything to happen, so start
     # out sleeping a little before doing initial check to reduce
     # unnecessary polling of the API:
     time.sleep(5.0)
 
-    # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
+    # Wait ``timeout`` seconds for
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
-        try:
-            volume.update()
-        except EC2ResponseError as e:
-            # If AWS cannot find the volume, raise ``UnknownVolume``.
-            # (http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
-            # for error details).
-            if e.code == u'InvalidVolume.NotFound':
-                raise UnknownVolume(volume.id)
-        if volume.status == end_status:
-            return
-        elif volume.status not in [start_status, transient_status]:
-            break
+    while not _should_finish(operation, volume, update, start_time, timeout):
         time.sleep(1.0)
-
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
                                          status=volume.status,
-                                         target_status=end_status,
                                          wait_time=(time.time() - start_time))
-
-    # We either:
-    # 1) Timed out waiting to reach ``end_status``, or,
-    # 2) Reached an unexpected status (state change did not
-    #    start, or failed).
-    # Raise an ``Exception`` in both cases.
-    raise Exception(
-        'Volume state transition failed. '
-        'Volume: {!r}, '
-        'Start Status: {!r}, '
-        'Transient Status: {!r}, '
-        'Expected End Status: {!r}, '
-        'Discovered End Status: {!r},'
-        'Wait time: {!r},'
-        'Time limit: {!r}.'.format(
-            volume, start_status, transient_status, end_status,
-            volume.status, time.time() - start_time,
-            VOLUME_STATE_CHANGE_TIMEOUT
-            )
-        )
 
 
 def _get_device_size(device):
@@ -450,8 +626,7 @@ class EBSBlockDeviceAPI(object):
             all_volumes = self.connection.get_all_volumes(
                 volume_ids=[blockdevice_id])
         except EC2ResponseError as e:
-            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors
-            if e.error_code == "InvalidVolume.NotFound":
+            if e.error_code == NOT_FOUND:
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise
@@ -489,7 +664,8 @@ class EBSBlockDeviceAPI(object):
         devices = pset({v.attach_data.device for v in volumes
                        if v.attach_data.instance_id == instance_id})
         devices = devices | devices_in_use
-        IN_USE_DEVICES(devices=devices).write()
+        sorted_devices = sorted(list(thaw(devices)))
+        IN_USE_DEVICES(devices=sorted_devices).write()
 
         for suffix in b"fghijklmonp":
             file_name = u'/dev/sd' + suffix
@@ -498,7 +674,7 @@ class EBSBlockDeviceAPI(object):
 
         # Could not find any suitable device that is available
         # for attachment. Log to Eliot before giving up.
-        NO_AVAILABLE_DEVICE(devices=devices).write()
+        NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
         return None
 
     def create_volume(self, dataset_id, size):
@@ -521,10 +697,8 @@ class EBSBlockDeviceAPI(object):
                                     metadata)
 
         # Wait for created volume to reach 'available' state.
-        _wait_for_volume(requested_volume,
-                         start_status=u'',
-                         transient_status=u'creating',
-                         end_status=u'available')
+        _wait_for_volume_state_change(VolumeOperations.CREATE,
+                                      requested_volume)
 
         # Return created volume in BlockDeviceVolume format.
         return _blockdevicevolume_from_ebs_volume(requested_volume)
@@ -533,8 +707,18 @@ class EBSBlockDeviceAPI(object):
         """
         Return all volumes that belong to this Flocker cluster.
         """
+        try:
+            ebs_volumes = self.connection.get_all_volumes()
+        except EC2ResponseError as e:
+            # Work around some internal race-condition in EBS by retrying,
+            # since this error makes no sense:
+            if e.code == NOT_FOUND:
+                return self.list_volumes()
+            else:
+                raise
+
         volumes = []
-        for ebs_volume in self.connection.get_all_volumes():
+        for ebs_volume in ebs_volumes:
             if _is_cluster_volume(self.cluster_id, ebs_volume):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
@@ -561,7 +745,7 @@ class EBSBlockDeviceAPI(object):
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
-                ebs_volume.status != 'available'):
+                ebs_volume.status != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         ignore_devices = pset([])
@@ -630,10 +814,7 @@ class EBSBlockDeviceAPI(object):
                     break
                 # end lock scope
 
-        _wait_for_volume(ebs_volume,
-                         start_status=u'available',
-                         transient_status=u'attaching',
-                         end_status=u'in-use')
+        _wait_for_volume_state_change(VolumeOperations.ATTACH, ebs_volume)
 
         attached_volume = volume.set('attached_to', attach_to)
         return attached_volume
@@ -650,17 +831,12 @@ class EBSBlockDeviceAPI(object):
             blockdevice_id is not currently 'in-use'.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
-        if (volume.attached_to is None or
-                ebs_volume.status != 'in-use'):
+        if ebs_volume.status != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
 
         self.connection.detach_volume(blockdevice_id)
 
-        _wait_for_volume(ebs_volume,
-                         start_status=u'in-use',
-                         transient_status=u'detaching',
-                         end_status=u'available')
+        _wait_for_volume_state_change(VolumeOperations.DETACH, ebs_volume)
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -677,10 +853,8 @@ class EBSBlockDeviceAPI(object):
         destroy_result = self.connection.delete_volume(blockdevice_id)
         if destroy_result:
             try:
-                _wait_for_volume(ebs_volume,
-                                 start_status=u'available',
-                                 transient_status=u'deleting',
-                                 end_status='')
+                _wait_for_volume_state_change(VolumeOperations.DESTROY,
+                                              ebs_volume)
             except UnknownVolume:
                 return
         else:

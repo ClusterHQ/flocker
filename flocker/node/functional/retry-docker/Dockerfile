@@ -2,6 +2,10 @@
 # in /data/count.
 FROM python:2.7-slim
 VOLUME /data
-ADD run /usr/local/bin/run
 WORKDIR /data
+
+ADD run /usr/local/bin/run
+# If installed via wheel, the installed file will not have +x set.
+RUN ["chmod", "+x", "/usr/local/bin/run"]
+
 CMD ["/usr/local/bin/run"]

@@ -4,13 +4,10 @@
 Moving Applications
 ===================
 
-.. note:: If you haven't already, make sure to :doc:`install the flocker-cli package <../installing/index>` before continuing with this tutorial.
+.. note:: If you haven't already, make sure to :ref:`install the flocker-cli package <installing-flocker-cli>` before continuing with this tutorial.
 
 Starting an Application
 =======================
-
-.. This section is tested in flocker.acceptance.test_deployment.DeploymentTests.
-   Reflect any relevant changes here in those tests.
 
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB server.
 
@@ -30,7 +27,7 @@ If we hadn't done that certain actions that might need to be taken on that node 
 Next take a look at what containers Docker is running on the VM you just created.
 The node IPs are those which were specified earlier in the ``Vagrantfile``:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS     PORTS     NAMES
@@ -39,7 +36,7 @@ The node IPs are those which were specified earlier in the ``Vagrantfile``:
 From this you can see that there are no running containers.
 To fix this, use ``flocker-deploy`` with the simple configuration files given above and then check again:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 minimal-deployment.yml minimal-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -73,14 +70,13 @@ Note that nothing in the application configuration file needs to change.
 
 Use ``flocker-deploy`` again to enact the change:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 minimal-deployment-moved.yml minimal-application.yml
-   alice@mercury:~/flocker-tutorial$
+   flocker-deploy 172.16.255.250 minimal-deployment-moved.yml minimal-application.yml
 
 ``docker ps`` shows that no containers are running on ``172.16.255.250``:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS     PORTS     NAMES
@@ -88,11 +84,11 @@ Use ``flocker-deploy`` again to enact the change:
 
 and that MongoDB has been successfully moved to ``172.16.255.251``:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto  
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    clusterhq/mongodb:latest   mongod     3 seconds ago   Up 2 seconds   27017/tcp, 28017/tcp   mongodb-example
+   4d117c7e653e    clusterhq/mongodb:latest    mongod     3 seconds ago   Up 2 seconds   27017/tcp, 28017/tcp   mongodb-example
    alice@mercury:~/flocker-tutorial$
 
 At this point you have successfully deployed a MongoDB server in a container on your VM.
