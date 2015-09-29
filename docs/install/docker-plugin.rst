@@ -51,7 +51,7 @@ On each of your Flocker nodes, install the Flocker plugin:
 
 .. prompt:: bash $
 
-   apt-get install clusterhq-flocker-docker-plugin
+   apt-get install -y clusterhq-flocker-docker-plugin
 
 The service can be started, stopped, or restarted using ``service``.
 For example:
