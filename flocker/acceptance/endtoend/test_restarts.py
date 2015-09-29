@@ -182,6 +182,7 @@ class RebootTests(TestCase):
                     print "NON-ZERO-STATUS", failure.value
                     return False
                 d.addErrback(handle_error)
+                return d
 
             def wait_for_container_agent(ignored):
                 return loop_until(container_agent_running)
