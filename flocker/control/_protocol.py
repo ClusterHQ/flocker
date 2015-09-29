@@ -361,7 +361,7 @@ CLUSTER_STATE = Field(u"state", repr,
 
 LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
-    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
+    [],
     [],
     "Send the configuration and state of the cluster to all agents.")
 
@@ -458,8 +458,7 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        with LOG_SEND_CLUSTER_STATE(configuration=configuration,
-                                    state=state):
+        with LOG_SEND_CLUSTER_STATE():
             with _caching_encoder.cache():
                 for connection in connections:
                     # XXX If callRemote raises an exception, the loop won't
