@@ -354,15 +354,19 @@ class ControlAMP(AMP):
         self._pinger.stop()
 
 
-DEPLOYMENT_CONFIG = Field(u"configuration", repr,
+# These two logging fields use wire_encode as the serializer so that they can
+# share the encoding cache with the network code related to this logging.  This
+# reduces the overhead of logging these (potentially quite large) data
+# structures.
+DEPLOYMENT_CONFIG = Field(u"configuration", wire_encode,
                           u"The cluster configuration")
-CLUSTER_STATE = Field(u"state", repr,
+CLUSTER_STATE = Field(u"state", wire_encode,
                       u"The cluster state")
 
 LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
-    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
     [],
+    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
     "Send the configuration and state of the cluster to all agents.")
 
 
@@ -458,41 +462,96 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        with LOG_SEND_CLUSTER_STATE(configuration=configuration,
-                                    state=state):
-            with _caching_encoder.cache():
-                for connection in connections:
-                    # XXX If callRemote raises an exception, the loop won't
-                    # finish and the rest of the connections won't receive
-                    # the updated state.  Asynchronous exceptions aren't a
-                    # problem since they won't interrupt the loop (and they
-                    # shouldn't be allowed to).  No test coverage for
-                    # either of these cases.
-                    try:
-                        (current_command, already_scheduled) = self._current_command_for_connection[
-                            connection
-                        ]
-                    except KeyError:
-                        current_command = self._update_connection(
-                            connection, configuration, state,
-                        )
-                        self._current_command_for_connection[connection] = (current_command, False)
 
-                        def finished_update(ignored, connection):
-                            del self._current_command_for_connection[connection]
-                        current_command.addCallback(finished_update, connection)
-                    else:
-                        if already_scheduled:
-                            AGENT_UPDATE_ELIDED(agent=connection).write()
-                        else:
-                            AGENT_UPDATE_DELAYED(agent=connection).write()
-                            current_command.addCallback(
-                                lambda ignored, connection: self._send_state_to_connections([connection]),
-                                connection,
-                            )
-                            self._current_command_for_connection[connection] = (current_command, True)
+        # Connections are separated into three groups to support a scheme which
+        # lets us avoid sending certain updates which we know are not
+        # necessary.  This reduces traffic and associated costs (CPU, memory).
+
+        # Collect connections for which there is currently no unacknowledged
+        # update.  These can receive a new update right away.
+        can_update = []
+
+        # Collect connections for which there is an unacknowledged update.
+        # Since something has changed, these should receive another update once
+        # that acknowledgement is received.
+        delayed_update = []
+
+        # Collect connections which were already set to receive a delayed
+        # update and still haven't sent an acknowledgement.  These will still
+        # receive a delayed update but we'll also note that we're going to skip
+        # sending one intermediate update to them.
+        elided_update = []
+
+        for connection in connections:
+            try:
+                (current_command, already_scheduled) = self._current_command_for_connection[
+                    connection
+                ]
+            except KeyError:
+                # There's nothing in the tracking state for this connection.
+                # That means there's no unacknowledged update.  That means we
+                # can send another update right away.
+                can_update.append(connection)
+            else:
+                # These connections do currently have an unacknowledged update
+                # outstanding.
+                if already_scheduled:
+                    # And these connections are also already scheduled to
+                    # receive another update after the one they're currently
+                    # processing.  That update will include the most up-to-date
+                    # information so we're effectively skipping an update
+                    # that's no longer useful.
+                    elided_update.append(connection)
+                else:
+                    # These don't have another update scheduled yet so we'll
+                    # schedule one.
+                    delayed_update.append(connection)
+
+        # Do all of the update work inside this caching context.  This makes
+        # multiple encodings of the same piece of state much less expensive by
+        # saving the first result and re-using it.  The cache is only
+        # maintained for the duration of the block.
+        with _caching_encoder.cache():
+            # Make sure to run the logging action inside the caching block.
+            # This lets encoding for logging share the cache with encoding for
+            # network traffic.
+            with LOG_SEND_CLUSTER_STATE() as action:
+                if can_update:
+                    # If there are any protocols that can be updated right now,
+                    # we also want to see what updates they receive.  Since
+                    # logging shares the caching context, it shouldn't be any
+                    # more expensive to serialize this information into the log
+                    # now.  We specifically avoid logging this information if
+                    # no protocols are being updated because the serializing is
+                    # more expensive in that case and at the same time that
+                    # information isn't actually useful.
+                    action.add_success_fields(
+                        configuration=configuration, state=state
+                    )
+                else:
+                    # Eliot wants those fields though.
+                    action.add_success_fields(configuration=None, state=None)
+
+                for connection in can_update:
+                    self._update_connection(connection, configuration, state)
+
+                for connection in elided_update:
+                    AGENT_UPDATE_ELIDED(agent=connection).write()
+
+                for conection in delayed_update:
+                    self._delayed_update_connection(connection)
+
 
     def _update_connection(self, connection, configuration, state):
+        """
+        Send a ``ClusterStatusCommand`` to an agent.
+
+        :param ControlAMP connection: The connection to use to send the
+            command.
+
+        :param Deployment configuration: The cluster configuration to send.
+        :param DeploymentState state: The current cluster state to send.
+        """
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
             d = DeferredContext(connection.callRemote(
@@ -503,7 +562,32 @@ class ControlAMPService(Service):
             ))
             d.addActionFinish()
             d.result.addErrback(lambda _: None)
-            return d.result
+            current_command = d.result
+
+        self._current_command_for_connection[connection] = (current_command, False)
+
+        def finished_update(ignored):
+            del self._current_command_for_connection[connection]
+        current_command.addCallback(finished_update)
+
+    def _delayed_update_connection(self, connection):
+        """
+        Send a ``ClusterStatusCommand`` to an agent after it has acknowledged
+        the last one.
+
+        :param ControlAMP connection: The connection to use to send the
+            command.  This connection is expected to have previously been sent
+            such a command and to not yet have acknowledged it.  Internal state
+            related to this will be used and then updated.
+        """
+        AGENT_UPDATE_DELAYED(agent=connection).write()
+        current_command, already_scheduled = self._current_command_for_connection[
+            connection
+        ]
+        current_command.addCallback(
+            lambda ignored: self._send_state_to_connections([connection]),
+        )
+        self._current_command_for_connection[connection] = (current_command, True)
 
     def connected(self, connection):
         """

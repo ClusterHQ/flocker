@@ -1094,7 +1094,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
             logger,
             LOG_SEND_CLUSTER_STATE,
             succeeded=True,
-            startFields={
+            endFields={
                 "configuration": (
                     control_amp_service.configuration_service.get()
                 ),
