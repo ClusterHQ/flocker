@@ -69,13 +69,15 @@ git_url: 'https://github.com/ClusterHQ/flocker.git'
 #
 common_cli:
 
-  # our first line, jenkins will execute our code according to this shebang.
+  # add_shell_functions, contains our the bash functions consumed by the
+  # the build script.
+  # We set the shebang to /bin/bash. Jenkins 'should' respect this.
   # Note:
   # We noticed that our Ubuntu /bin/bash call were being executed as /bin/sh.
   # So we as part of the slave image build process symlinked
   # /bin/sh -> /bin/bash.
-  #
-  hashbang: &hashbang |
+  # TODO: https://clusterhq.atlassian.net/browse/FLOC-2986
+  add_shell_functions: &add_shell_functions |
     #!/bin/bash -l
     set -x
     set -e
@@ -90,24 +92,52 @@ common_cli:
     #
     export venv=/tmp/v
 
-    os() {
-      # Determine OS platform
-      source /etc/os-release
-      echo \$ID
+    function os {
+      # Let's figure out if this is OSX or Linux
+      # and return the OS type (or the distribution for a Linux OS)
+      _nix_flavour=\$(uname)
+      if [ 'Darwin' == "\${_nix_flavour}" ]; then
+        echo "OSX"
+      else
+        # Determine OS platform
+        source /etc/os-release
+        echo \${ID}
+      fi
     }
+    function is_ubuntu {
+      if [ 'ubuntu' == "\$(os)" ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    function is_centos {
+      if [ 'centos' == "\$(os)" ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    function is_osx {
+      if [ 'OSX' == "\$(os)" ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+
     # add a function that we can consume to colorise output
     # This could be better, for now it is a simple parser based on keywords
     # which will highlight 'errors, warnings' or other type of messages we
     # choose to configured.
     # The list of ASCII codes it uses can be found here.
     # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
-    parse_logs() {
+    function parse_logs {
       # ubuntu defaults to mawk, which causes some things to break
       # it seems to be related to buffering, -W interactive seems to fix it.
-      case "\$(os)"
-      in
-        "ubuntu") alias awk='mawk -W interactive'
-      esac
+      if is_ubuntu; then
+        alias awk='mawk -W interactive'
+      fi
 
       # The 'awk' parse_logs function consumes the standard output from a piped
       # command, and returns PIPESTATUS of that command (return code).
@@ -157,9 +187,11 @@ common_cli:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     sudo chmod 777 /var/run/docker.sock
 
-
+  # TODO: do we need to clean up old files on ubuntu and centos or
+  # does the pre-scm plugin does this correctly for us ?
+  # https://clusterhq.atlassian.net/browse/FLOC-3139
   cleanup: &cleanup |
-    export PATH=/usr/local/bin:\$PATH
+    export PATH=/usr/local/bin:\${PATH}
     # clean up the stuff from previous runs
     # due to the length of the jobname workspace, we are hitting limits in
     # our sheebang path name in pip.
@@ -168,14 +200,30 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    sudo rm -rf \$venv
-    sudo rm -f results.xml
-    sudo rm -f trial.log
-    sudo rm -rf _trial_temp/
+    if is_osx; then
+      # OSX doesn't allow us to sudo (no tty)
+      # we can't be certain that cloudbees will always gives us a new OSX slave
+      # so we make sure we remove any old files
+      rm -f results.xml
+      rm -f trial.log
+      rm -rf _trial_temp/
+      rm -rf \${venv}
+      rm -f "Flocker*.rb"
+      rm -f "dist/Flocker-*.tar.gz"
+    fi
+    if is_centos || is_ubuntu; then
+      # some of our tests (which run as root), leave some files behind when
+      # they abort or fail to complete.
+      # We use 'sudo' so that we can remove those files before a next job run.
+      sudo rm -rf \${venv}
+      sudo rm -f results.xml
+      sudo rm -f trial.log
+      sudo rm -rf _trial_temp/
+    fi
 
   setup_venv: &setup_venv |
     # setup the new venv
-    virtualenv -p python2.7 --clear \$venv
+    virtualenv -p python2.7 --clear \${venv}
     . \${venv}/bin/activate
 
   setup_pip_cache: &setup_pip_cache |
@@ -196,15 +244,26 @@ common_cli:
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
-    parse_logs pip install --upgrade pip
+    if is_ubuntu || is_centos; then
+        PIP_ADDITIONAL_OPTIONS=" -i \${PIP_INDEX_URL} --trusted-host \${TRUSTED_HOST}"
+        PARSE_LOGS="parse_logs "
+    fi
+    if is_osx; then
+      # we can't use our pip caching layer on our OSX cloudbees boxes
+      # as we're unable run the slave_setup plugin that injects the environment
+      # variables to the slave.
+      # So we just go upstream for the python modules.
+      PIP_ADDITIONAL_OPTIONS=""
+      PARSE_LOGS=""
+    fi
+
     # using the caching-layer, install all the dependencies
-    parse_logs pip install -i \$PIP_INDEX_URL . --trusted-host \$TRUSTED_HOST
-    # using the caching-layer, install flocker
-    parse_logs pip install -i \$PIP_INDEX_URL "Flocker[dev]" \
-      --trusted-host \$TRUSTED_HOST
-    # using the caching-layer, install junix for our coverage report
-    parse_logs pip install -i \$PIP_INDEX_URL python-subunit junitxml \
-      --trusted-host \$TRUSTED_HOST
+    \${PARSE_LOGS} pip install --upgrade pip \${PIP_ADDITIONAL_OPTIONS}
+    \${PARSE_LOGS} pip install . \${PIP_ADDITIONAL_OPTIONS}
+    # install Flocker
+    \${PARSE_LOGS} pip install  "Flocker[dev]" \${PIP_ADDITIONAL_OPTIONS}
+    # install junix for our coverage report
+    \${PARSE_LOGS} pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
@@ -233,8 +292,7 @@ common_cli:
     # downstream child jobs to the parent job and processing those files
     # one last time through the cobertura plugin.
     # The resulting report wil contain stats from every single job.
-    parse_logs pip install coverage  \
-      -i \$PIP_INDEX_URL --trusted-host \$TRUSTED_HOST
+    parse_logs pip install coverage  \${PIP_ADDITIONAL_OPTIONS}
 
   run_coverage: &run_coverage |
     # run coverage and produce a report
@@ -252,13 +310,13 @@ common_cli:
     let status=0
     # check spelling
     parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
-    let status=status+\$?
+    let status=status+\${?}
     # check links
     parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-    let status=status+\$?
+    let status=status+\${?}
     # build html pages
     parse_logs sphinx-build -d _build/doctree -b html . _build/html
-    exit \$status
+    exit \${status}
     # TODO:
     # upload html
     #link-release-documentation
@@ -280,8 +338,8 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    coverage run \$venv/bin/trial \
-      --reporter=subunit \$MODULE 2>&1 | parse_logs tee trial.log
+    coverage run \${venv}/bin/trial \
+      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -291,8 +349,8 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    sudo \$venv/bin/coverage run \$venv/bin/trial \
-      --reporter=subunit \$MODULE 2>&1 | parse_logs tee trial.log
+    sudo \${venv}/bin/coverage run \${venv}/bin/trial \
+      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -301,19 +359,19 @@ common_cli:
     # We grab the value from the 'with_modules:' dictionary in the yaml job
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
-    sudo -E \$venv/bin/coverage run \$venv/bin/trial \
-      --reporter=subunit --testmodule \$MODULE 2>&1 | parse_logs tee trial.log
+    sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
+      --reporter=subunit --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
-    touch \$HOME/.ssh/known_hosts
+    touch \${HOME}/.ssh/known_hosts
     # remove existing keys
-    rm -f \$HOME/.ssh/id_rsa*
-    cp /tmp/id_rsa \$HOME/.ssh/id_rsa
-    chmod -R 0700 \$HOME/.ssh
-    ssh-keygen -N '' -f \$HOME/.ssh/id_rsa_flocker
+    rm -f \${HOME}/.ssh/id_rsa*
+    cp /tmp/id_rsa \${HOME}/.ssh/id_rsa
+    chmod -R 0700 \${HOME}/.ssh
+    ssh-keygen -N '' -f \${HOME}/.ssh/id_rsa_flocker
     eval `ssh-agent -s`
-    ssh-add \$HOME/.ssh/id_rsa
+    ssh-add \${HOME}/.ssh/id_rsa
 
   run_acceptance_aws_tests: &run_acceptance_aws_tests |
     # We gather the return code but make sure we come out of these tests with 0
@@ -357,7 +415,7 @@ common_cli:
     \${ACCEPTANCE_TEST_MODULE} ; RC=\$?
 
   run_client_tests: &run_client_tests |
-    # we gather the return code but make sure we come out of these tests with 0
+    # We gather the return code but make sure we come out of these tests with 0
     # we store that code into RC and pass it to the end of the job execution.
     parse_logs \$venv/bin/python admin/run-client-tests \
     --distribution \${DISTRIBUTION_NAME} \
@@ -374,14 +432,33 @@ common_cli:
 
   build_sdist: &build_sdist  |
     # package the goodies
-    parse_logs \$venv/bin/python setup.py sdist
+    parse_logs \${venv}/bin/python setup.py sdist
 
   build_package: &build_package  |
     # and build a rpm/deb package using docker
-    parse_logs \$venv/bin/python admin/build-package \
+    parse_logs \${venv}/bin/python admin/build-package \
     --destination-path repo \
     --distribution \${DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+
+  build_homebrew_package: &build_homebrew_package  |
+    # and build a homebrew recipe and a package
+    SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
+    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
+      --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
+    \${venv}/bin/python admin/build-package --destination-path repo \
+      --distribution \${DISTRIBUTION_NAME} \
+      /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+
+  install_homebrew_package: &install_homebrew_package |
+    # make sure we're no longer in our virtualenv
+    deactivate
+    # install the new freshly baked package
+    brew update
+    brew tap ClusterHQ/tap
+    brew install \${RECIPE_FILE}
+    brew test \${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
     # the acceptance tests look for a package in a yum repository,
@@ -394,15 +471,12 @@ common_cli:
     sudo cp repo/* \${DOC_ROOT}/\${REPO_PATH}
     cd \${DOC_ROOT}/\${REPO_PATH}
     # create a repo on either centos or ubuntu
-    case "\$(os)"
-    in
-      "ubuntu")
-        sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-        ;;
-      "centos")
-        sudo createrepo .
-        ;;
-    esac
+    if is_ubuntu; then
+      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+    fi
+    if is_centos; then
+      sudo createrepo .
+    fi
     cd -
 
   clean_packages: &clean_packages |
@@ -424,8 +498,8 @@ common_cli:
     export D_USER=\$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
     export D_PASSWORD=\$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
     export D_EMAIL=\$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
-    docker login -u \$D_USER -p \$D_PASSWORD -e \$D_EMAIL
-    echo y | docker push \$DOCKER_IMAGE
+    docker login -u \${D_USER} -p \${D_PASSWORD} -e \${D_EMAIL}
+    echo y | docker push \${DOCKER_IMAGE}
 
   build_docker_image: &build_docker_image |
     # we want to make sure we are fetching the latest OS updates every time
@@ -441,8 +515,9 @@ common_cli:
   #
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
@@ -461,8 +536,9 @@ common_cli:
 
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
@@ -477,7 +553,7 @@ common_cli:
     # Download the latest pip requirements file from master branch of flocker
     wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use a docker image containing fpm
+    # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
@@ -487,6 +563,7 @@ common_cli:
           python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -537,7 +614,7 @@ run_trial_modules: &run_trial_modules
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
 run_trial_cli: &run_trial_cli [
-  *hashbang,
+  *add_shell_functions,
   *setup_pip_cache,
   *cleanup,
   *setup_venv,
@@ -549,7 +626,7 @@ run_trial_cli: &run_trial_cli [
   *convert_results_to_junit ]
 
 run_trial_cli_as_root: &run_trial_cli_as_root [
-  *hashbang,
+  *add_shell_functions,
   *setup_pip_cache,
   *cleanup,
   *setup_venv,
@@ -614,7 +691,6 @@ job_type:
       clean_repo: true
 
 
-
   run_trial_for_storage_driver:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
@@ -622,7 +698,7 @@ job_type:
         - flocker/node/agents/ebs.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_aws_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -639,7 +715,7 @@ job_type:
         - flocker/node/agents/ebs.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_aws_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -657,7 +733,7 @@ job_type:
         - flocker/node/agents/cinder.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_rackspace_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -674,7 +750,7 @@ job_type:
         - flocker/node/agents/cinder.py
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_coverage, *setup_rackspace_env_vars,
                    'export FLOCKER_FUNCTIONAL_TEST=TRUE',
@@ -692,11 +768,10 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Small'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *run_sphinx ]
           }
-
 
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
@@ -706,7 +781,7 @@ job_type:
       with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version,
@@ -724,7 +799,7 @@ job_type:
       with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_cache,
+            cli: [ *add_shell_functions, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
@@ -741,15 +816,10 @@ job_type:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_modules:
-        - flocker.acceptance.endtoend.test_dataset
-        - flocker.acceptance.integration.test_mongodb
-        - flocker.acceptance.integration.test_postgres
-        - flocker.acceptance.obsolete.test_cli
-        - flocker.acceptance.obsolete.test_containers
+      with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
                    *setup_aws_env_vars, *check_version,
@@ -766,15 +836,10 @@ job_type:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules:
-        - flocker.acceptance.endtoend.test_dataset
-        - flocker.acceptance.integration.test_mongodb
-        - flocker.acceptance.integration.test_postgres
-        - flocker.acceptance.obsolete.test_cli
-        - flocker.acceptance.obsolete.test_containers
+      with_modules: *run_acceptance_modules
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang, *setup_pip_cache,
+            cli: [ *add_shell_functions, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
@@ -793,7 +858,7 @@ job_type:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *setup_aws_env_vars, *check_version,
@@ -808,7 +873,7 @@ job_type:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,  *setup_pip_cache,
+            cli: [ *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-15.04',
                    *setup_aws_env_vars, *check_version,
@@ -819,6 +884,18 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+    run_client_installation_on_OSX:
+      on_nodes_with_labels: 'osx'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=OSX',
+                   *check_version,
+                   *build_sdist, *build_homebrew_package,
+                   *install_homebrew_package ]
+          }
+      clean_repo: false
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
@@ -826,7 +903,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-centos-7',
                    *build_dockerfile_centos7,
                    *build_docker_image,
@@ -837,7 +914,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-trusty',
                    *build_dockerfile_ubuntu_trusty,
                    *build_docker_image,
@@ -848,7 +925,7 @@ job_type:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
-            cli: [ *hashbang,
+            cli: [ *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
                    *build_dockerfile_ubuntu_vivid,
                    *build_docker_image,
