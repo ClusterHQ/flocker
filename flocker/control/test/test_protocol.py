@@ -4,8 +4,10 @@
 Tests for ``flocker.control._protocol``.
 """
 
+from os import urandom
 from uuid import uuid4
 from json import loads
+from socket import AF_INET6, inet_ntop
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -51,6 +53,26 @@ from .. import (
 from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
+
+def random_ip():
+    return inet_ntop(AF_INET6, urandom(16))
+
+
+def arbitrary_transformation(deployment):
+    """
+    Make some change to a deployment configuration.  Any change.
+
+    The exact change made is unspecified but the resulting ``Deployment`` will
+    be different from the given ``Deployment``.
+
+    :param Deployment deployment: A configuration to change.
+
+    :return: A ``Deployment`` similar but not exactly equal to the given.
+    """
+    return deployment.transform(
+        ["nodes"],
+        lambda nodes: nodes.add(Node(hostname=random_ip(), uuid=uuid4())),
+    )
 
 class LoopbackAMPClient(object):
     """
@@ -720,12 +742,6 @@ class ControlAMPServiceTests(ControlTestCase):
         A second configuration change is only transmitted after acknowledgement
         of the first configuration change is received.
         """
-        def arbitrary_transformation(deployment):
-            return deployment.transform(
-                ["nodes"],
-                lambda nodes: nodes.add(Node(hostname=u"192.0.3.71")),
-            )
-
         agent = FakeAgent()
         client = AgentAMP(Clock(), agent)
         service = build_control_amp_service(self)
@@ -758,6 +774,48 @@ class ControlAMPServiceTests(ControlTestCase):
                 second=second_agent_desired,
                 third=third_agent_desired,
             ),
+        )
+
+    def test_third_configuration_change_supercedes_second(self):
+        """
+        A third configuration change completely replaces a second configuration
+        change if the first configuration change has not yet been acknowledged.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+        more_modified_configuration = arbitrary_transformation(modified_configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        # Send third update
+        service.configuration_service.save(more_modified_configuration)
+
+        first_agent_desired = agent.desired
+        delayed_server.respond()
+        second_agent_desired = agent.desired
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        # Only two calls should be required because only two states should be
+        # sent.  The intermediate state should never get sent.
+        self.assertRaises(IndexError, delayed_server.respond)
+
+        self.assertEqual(
+            [configuration,
+             more_modified_configuration,
+             more_modified_configuration],
+            [first_agent_desired,
+             second_agent_desired,
+             third_agent_desired],
         )
 
 
