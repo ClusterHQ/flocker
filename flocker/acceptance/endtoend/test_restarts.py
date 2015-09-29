@@ -8,7 +8,6 @@ import time
 from subprocess import call
 
 from twisted.internet import reactor
-from twisted.internet.defer import CancelledError
 from twisted.internet.error import ProcessTerminated
 from twisted.trial.unittest import TestCase, FailTest
 
@@ -26,6 +25,7 @@ def _service(address, name, action):
         be changed.
     :param bytes action: The action to perform on the service.
     """
+    # TODO: See DockerPluginTests.docker_service for how to handle ubuntu here
     command = ["systemctl", action, name]
     d = run_ssh(reactor, b"root", address, command)
 
@@ -229,7 +229,7 @@ class RebootTests(TestCase):
                             'The web server responded '
                             'despite the dataset-agent not running. '
                             'Response: {!r} '.format(response)
-                        ),
+                        )
                     d.addCallbacks(
                         handle_success,
                         # If we fail to connect to the server then try again
