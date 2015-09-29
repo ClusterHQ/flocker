@@ -36,7 +36,7 @@ from io import BytesIO
 from itertools import count
 from contextlib import contextmanager
 
-from eliot import Logger, ActionType, Action, Field
+from eliot import Logger, ActionType, Action, Field, MessageType
 from eliot.twisted import DeferredContext
 
 from characteristic import with_cmp
@@ -395,6 +395,17 @@ AGENT_CONNECTED = ActionType(
     "An agent connected to the control service."
 )
 
+AGENT_UPDATE_ELIDED = MessageType(
+    "flocker:controlservice:agent_update_elided",
+    [AGENT],
+    u"An update to an agent was elided because a subsequent update supercedes it.",
+)
+
+AGENT_UPDATE_DELAYED = MessageType(
+    "flocker:controlservice:agent_update_delayed",
+    [AGENT],
+    u"An update to an agent was delayed because an earlier update is still in progress.",
+)
 
 class ControlAMPService(Service):
     """
@@ -471,7 +482,10 @@ class ControlAMPService(Service):
                             del self._current_command_for_connection[connection]
                         current_command.addCallback(finished_update, connection)
                     else:
-                        if not already_scheduled:
+                        if already_scheduled:
+                            AGENT_UPDATE_ELIDED(agent=connection).write()
+                        else:
+                            AGENT_UPDATE_DELAYED(agent=connection).write()
                             current_command.addCallback(
                                 lambda ignored, connection: self._send_state_to_connections([connection]),
                                 connection,
