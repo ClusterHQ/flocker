@@ -4,6 +4,7 @@
 Tests for restarting and reboots and their interactions.
 """
 
+import time
 from subprocess import call
 
 from twisted.internet import reactor
@@ -175,13 +176,20 @@ class RebootTests(TestCase):
                 # pidof will return the pid if flocker-container-agent is
                 # running else status 1 which triggers the errback chain.
                 command = [b'pidof', b'-x', b'flocker-container-agent']
-                d = run_ssh(reactor, b"root", node.public_address, command)
+                d = run_ssh(
+                    reactor, b"root", node.public_address, command, timeout=5
+                )
+
+                def handle_success(result):
+                    print "RESULT", result
+                    return True
 
                 def handle_error(failure):
                     failure.trap(ProcessTerminated)
                     print "NON-ZERO-STATUS", failure.value
                     return False
-                d.addErrback(handle_error)
+
+                d.addCallbacks(handle_success, handle_error)
                 return d
 
             def wait_for_container_agent(ignored):
@@ -191,11 +199,6 @@ class RebootTests(TestCase):
                 wait_for_container_agent
             )
 
-            def server_responding():
-                d = query_server()
-                d.addErrback(lambda failure: False)
-                return d
-
             def assert_container_not_started(ignored):
                 """
                 Wait 60s after the container agent is known to have started.
@@ -203,32 +206,47 @@ class RebootTests(TestCase):
                 agent is incorrectly converging before the dataset agent has
                 reported its post-reboot state.
                 """
-                d = loop_until(server_responding)
-                call_id = reactor.callLater(60, d.cancel)
+                start_time = time.time()
+                print "CONTAINER AGENT STARTED AT", start_time
 
-                def handle_response(response):
-                    call_id.cancel()
-                    self.fail(
-                        'The web server responded '
-                        'despite the dataset-agent not running. '
-                        'Response: {!r} '.format(response)
+                def server_responding():
+                    print "CHECKING FOR SERVER RESPONSE"
+                    # Break out of the loop if we've been trying longer than
+                    # 60s. This indicates that the container-agent did not
+                    # erroneously start the container before the dataset agent
+                    # had mounted the dataset.
+                    if time.time() - start_time > 60:
+                        print "TIMEOUT REACHED :-)"
+                        return True
+                    d = query_server()
+
+                    # Fail the test if the server responds within 60s; the
+                    # container was erroneously started.
+                    def handle_success(response):
+                        print "RESPONSE", response
+                        print "CONTAINER STARTED AT", time.time()
+                        self.fail(
+                            'The web server responded '
+                            'despite the dataset-agent not running. '
+                            'Response: {!r} '.format(response)
+                        ),
+                    d.addCallbacks(
+                        handle_success,
+                        # If we fail to connect to the server then try again
+                        # until the timeout.
+                        lambda failure: False
                     )
-                    return response
+                    return d
+                return loop_until(server_responding)
 
-                def handle_cancel(failure):
-                    # XXX I think I need to somehow stop the loop_until....or
-                    # maybe loop_until needs to explicitly support
-                    # cancellation.
-                    failure.trap(CancelledError)
-                d.addCallbacks(handle_response, handle_cancel)
-                return d
             hoping_for_no_containers = waiting_for_container_agent.addCallback(
                 assert_container_not_started
             )
+
             # After the container agent has been running for a reasonable
             # amount of time, we re-enable and restart the dataset-agent.
-
             def restart_dataset_agent(ignored):
+                print "RESTARTING DATASET AGENT"
                 d = _service(
                     address=node.public_address,
                     name='flocker-dataset-agent',
