@@ -12,15 +12,15 @@ Once :ref:`installed <install-docker-plugin>` it can be invoked by Docker using 
 Docker CLI
 ==========
 
-A volume plugin makes use of the `-v` and `--volume-driver` flag on the docker run command.
-The `-v` flag accepts a volume name and the `--volume-driver` flag a driver type.
-The Flocker driver type is `flocker`.
+A volume plugin makes use of the ``-v`` and ``--volume-driver`` flag on the docker run command.
+The ``-v`` flag accepts a volume name and the ``--volume-driver`` flag a driver type.
+The Flocker driver type is ``flocker``.
 
 .. prompt:: bash $
 
    docker run -ti -v volumename:/data --volume-driver=*flocker* busybox sh
 
-In this example, a Flocker volume with name of `volumename` is created.
+In this example, a Flocker volume with name of ``volumename`` is created.
 If a container is started with a volume of the same name in your Flocker cluster, the volume will be migrated to the calling node before Docker starts the container.
 
 .. _`Docker volumes plugin`: https://github.com/docker/docker/blob/master/docs/extend/plugins_volume.md
