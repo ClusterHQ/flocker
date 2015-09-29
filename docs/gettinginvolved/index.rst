@@ -8,7 +8,7 @@ Getting Involved
    :maxdepth: 2
 
    contributing
-   plugins
+   plugins/index
    acceptance-testing
    client-testing
    infrastructure/index
