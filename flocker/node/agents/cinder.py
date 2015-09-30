@@ -49,6 +49,8 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
+# The longest time we're willing to wait for a Cinder API call to complete.
+CINDER_TIMEOUT = 600
 
 def _openstack_logged_method(method_name, original_name):
     """
@@ -283,7 +285,8 @@ class VolumeStateMonitor:
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
     def __init__(self, volume_manager, expected_volume,
-                 desired_state, transient_states=(), time_limit=60):
+                 desired_state, transient_states=(),
+                 time_limit=CINDER_TIMEOUT):
         self.volume_manager = volume_manager
         self.expected_volume = expected_volume
         self.desired_state = desired_state
@@ -342,7 +345,7 @@ def poll_until(predicate, interval):
 
 
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
-                          transient_states=(), time_limit=60):
+                          transient_states=(), time_limit=CINDER_TIMEOUT):
     """
     Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
     listed and to have a ``status`` value of ``desired_state``.
