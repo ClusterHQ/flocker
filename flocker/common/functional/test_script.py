@@ -40,7 +40,7 @@ def _journald_available():
     # Journald is actually running on this machine (e.g. on some Ubuntu
     # versions it can be available but not running).
     try:
-        check_output(["journalctl", "-b"], stderr=STDOUT)
+        check_output(["journalctl", "-b", "-n1"], stderr=STDOUT)
     except CalledProcessError:
         return False
     return True
