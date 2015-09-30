@@ -61,16 +61,12 @@ The Flocker Plugin for Docker
 The Flocker plugin for Docker allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 The Flocker plugin for Docker is a `Docker volumes plugin`_, connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
 
-This diagram explains how the architecture of a Flocker cluster with the Docker plugin would look if the user is also using :ref:`Docker Swarm <labs-swarm>` and :ref:`Docker Compose <labs-compose>`:
+.. XXX FLOC 3156 will add an architecture diagram to this document.
 
-.. The source file for this diagram is in Engineering/Labs folder on GDrive: https://drive.google.com/open?id=0B3gop2KayxkVc1g3R1AyQzFNODQ
-
-.. image:: docker-plugin-platform-architecture.png
-
-Note that in contrast to the normal :ref:`Flocker container-centric architecture <flocker-containers-architecture>`, in this architecture, the Flocker volume manager (control service + dataset agents) is **being controlled by Docker**, rather than Flocker container manager controlling Docker.
+In contrast to the normal :ref:`Flocker container-centric architecture <flocker-containers-architecture>`, when using the Flocker plugin for Docker the Flocker volume manager (control service + dataset agents) is **being controlled by Docker**, rather than Flocker container manager controlling Docker.
 This allows for easier integration with other Docker ecosystem tools.
 
-Also note that, as per this diagram, :ref:`Docker Swarm <labs-swarm>` and Flocker must be configured on the **same set of nodes**.
+Also, please note that :ref:`Docker Swarm <labs-swarm>` and Flocker must be configured on the **same set of nodes**.
 
 As a user of Docker, it means you can use Flocker directly via:
 
