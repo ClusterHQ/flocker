@@ -266,6 +266,13 @@ def install_commands_yum(package_name, distribution, package_source,
             baseurl=%s
             gpgcheck=0
             enabled=0
+            # There is a distinct clusterhq-build repository for each branch.
+            # The metadata across these different repositories varies.  Version
+            # numbers are not comparable.  A version which exists in one likely
+            # does not exist in another.  In order to support switching between
+            # branches (and therefore between clusterhq-build repositories),
+            # tell yum to always update metadata for this repository.
+            metadata_expire=0
             """) % (base_url,)
         commands.append(put(content=repo,
                             path='/tmp/clusterhq-build.repo'))
@@ -273,17 +280,6 @@ def install_commands_yum(package_name, distribution, package_source,
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
-
-        # There is a distinct clusterhq-build repository for each branch.  The
-        # metadata across these different repositories varies.  Version numbers
-        # are not comparable.  A version which exists in one likely does not
-        # exist in another.  In order to support switching between branches
-        # (and therefore between clusterhq-build repositories), clear yum's
-        # metadata cache for the repository with this name.
-        #
-        # Only the clusterhq-build repository needs to be wiped because other
-        # repositories don't have contents which vary in this way.
-        commands.append(wipe_yum_cache(repository="clusterhq-build"))
     else:
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
