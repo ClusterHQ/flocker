@@ -527,7 +527,7 @@ class CinderBlockDeviceAPI(object):
             volume_manager=self.cinder_volume_manager,
             expected_volume=nova_volume,
             desired_state=u'in-use',
-            transient_states=(u'attaching',),
+            transient_states=(u'available', u'attaching',),
         )
 
         attached_volume = unattached_volume.set('attached_to', attach_to)
