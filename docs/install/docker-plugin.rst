@@ -78,3 +78,5 @@ Upgrading the Plugin
 ====================
 
 If you are upgrading from an earlier version of the plugin, make sure to stop the Docker daemon before doing so and then start it back up once the plugin has been upgraded.
+
+.. include:: ../using/docker-plugin-limitations.rst
