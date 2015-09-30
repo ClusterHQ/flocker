@@ -36,7 +36,7 @@ from io import BytesIO
 from itertools import count
 from contextlib import contextmanager
 
-from eliot import Logger, ActionType, Action, Field
+from eliot import Logger, ActionType, Action, Field, MessageType
 from eliot.twisted import DeferredContext
 
 from characteristic import with_cmp
@@ -370,20 +370,11 @@ def _serialize_agent(controlamp):
     """
     Serialize a connected ``ControlAMP`` to the address of its peer.
 
-    :raise TypeError: If the given protocol is not an instance of
-        ``ControlAMP``.
-
     :return: A string representation of the Twisted address object describing
         the remote address of the connection of the given protocol.
 
     :rtype str:
     """
-    if not isinstance(controlamp, ControlAMP):
-        raise TypeError(
-            "Logged agent field must be ControlAMP, not {}".format(
-                fullyQualifiedName(controlamp.__class__),
-            )
-        )
     return str(controlamp.transport.getPeer())
 
 
@@ -404,6 +395,17 @@ AGENT_CONNECTED = ActionType(
     "An agent connected to the control service."
 )
 
+AGENT_UPDATE_ELIDED = MessageType(
+    "flocker:controlservice:agent_update_elided",
+    [AGENT],
+    u"An update to an agent was elided because a subsequent update supercedes it.",
+)
+
+AGENT_UPDATE_DELAYED = MessageType(
+    "flocker:controlservice:agent_update_delayed",
+    [AGENT],
+    u"An update to an agent was delayed because an earlier update is still in progress.",
+)
 
 class ControlAMPService(Service):
     """
@@ -425,6 +427,7 @@ class ControlAMPService(Service):
         :param context_factory: TLS context factory.
         """
         self.connections = set()
+        self._current_command_for_connection = {}
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
@@ -455,27 +458,52 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        with LOG_SEND_CLUSTER_STATE(self.logger,
-                                    configuration=configuration,
+        with LOG_SEND_CLUSTER_STATE(configuration=configuration,
                                     state=state):
             with _caching_encoder.cache():
                 for connection in connections:
-                    action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
-                    with action.context():
-                        # XXX If callRemote raises an exception, the loop won't
-                        # finish and the rest of the connections won't receive
-                        # the updated state.  Asynchronous exceptions aren't a
-                        # problem since they won't interrupt the loop (and they
-                        # shouldn't be allowed to).  No test coverage for
-                        # either of these cases.
-                        d = DeferredContext(connection.callRemote(
-                            ClusterStatusCommand,
-                            configuration=configuration,
-                            state=state,
-                            eliot_context=action
-                        ))
-                        d.addActionFinish()
-                        d.result.addErrback(lambda _: None)
+                    # XXX If callRemote raises an exception, the loop won't
+                    # finish and the rest of the connections won't receive
+                    # the updated state.  Asynchronous exceptions aren't a
+                    # problem since they won't interrupt the loop (and they
+                    # shouldn't be allowed to).  No test coverage for
+                    # either of these cases.
+                    try:
+                        (current_command, already_scheduled) = self._current_command_for_connection[
+                            connection
+                        ]
+                    except KeyError:
+                        current_command = self._update_connection(
+                            connection, configuration, state,
+                        )
+                        self._current_command_for_connection[connection] = (current_command, False)
+
+                        def finished_update(ignored, connection):
+                            del self._current_command_for_connection[connection]
+                        current_command.addCallback(finished_update, connection)
+                    else:
+                        if already_scheduled:
+                            AGENT_UPDATE_ELIDED(agent=connection).write()
+                        else:
+                            AGENT_UPDATE_DELAYED(agent=connection).write()
+                            current_command.addCallback(
+                                lambda ignored, connection: self._send_state_to_connections([connection]),
+                                connection,
+                            )
+                            self._current_command_for_connection[connection] = (current_command, True)
+
+    def _update_connection(self, connection, configuration, state):
+        action = LOG_SEND_TO_AGENT(agent=connection)
+        with action.context():
+            d = DeferredContext(connection.callRemote(
+                ClusterStatusCommand,
+                configuration=configuration,
+                state=state,
+                eliot_context=action
+            ))
+            d.addActionFinish()
+            d.result.addErrback(lambda _: None)
+            return d.result
 
     def connected(self, connection):
         """
