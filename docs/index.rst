@@ -16,7 +16,7 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    introduction/index
    install/index
    config/index
-   using/index
+   control/index
    concepts/index
    reference/index
    releasenotes/index
