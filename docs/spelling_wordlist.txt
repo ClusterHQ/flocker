@@ -20,6 +20,7 @@ Copr
 dataset
 datasets
 Debian
+deduplication
 Deis
 devel
 DigitalOcean
@@ -65,6 +66,7 @@ multi
 mv
 namespace
 NAT'd
+ok
 online
 OpenStack
 pathnames
@@ -103,6 +105,7 @@ versa
 versioning
 virtualization
 VMware
+vSphere
 webhook
 workflow
 Weaveworks
