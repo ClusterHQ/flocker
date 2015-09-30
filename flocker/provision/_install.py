@@ -220,9 +220,7 @@ def wipe_yum_cache(repository):
     """
     return run_from_args([
         b"yum",
-        b"--disablerepo='*'",
-        # XXX If there are shell special characters in the repository name this
-        # will break.
+        b"--disablerepo=*",
         b"--enablerepo=" + repository,
         b"clean",
         b"expire-cache"
