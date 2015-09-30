@@ -487,6 +487,10 @@ class ControlAMPService(Service):
         # Connections are separated into three groups to support a scheme which
         # lets us avoid sending certain updates which we know are not
         # necessary.  This reduces traffic and associated costs (CPU, memory).
+        #
+        # Other schemes are possible and might produce even better performance.
+        # See https://clusterhq.atlassian.net/browse/FLOC-3140 for some
+        # brainstorming.
 
         # Collect connections for which there is currently no unacknowledged
         # update.  These can receive a new update right away.
