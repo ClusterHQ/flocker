@@ -12,19 +12,19 @@ Each node where Docker is installed will have a Flocker agent as well.
 The Flocker agents are controlled by the Flocker control service which is installed on just one node (usually a dedicated node).
 The Flocker control service is controlled via API endpoints, either directly or indirectly.
 
-Here’s how you can control Flocker:
+You can control Flocker in the following ways:
+
+* From the command line, using the Flocker CLI tools.
+* The Flocker plugin for Docker is installed on each node where a Flocker agent is running, and enables you to control Flocker using the Docker command line tools.
+* Using the :ref:`Flocker API <api>` directly.
+
+The following topics go into more detail about how you can control Flocker, including information about how to administer Flocker, a tutorial, and some examples:
 
 .. toctree::
    :maxdepth: 2
 
    config/index
    plugin/index
-
-Additionally, this section contains information about how to administer Flocker, a tutorial, and some examples:
-
-.. toctree::
-   :maxdepth: 2
-
    administering/index
    tutorial/index
    examples/apps
