@@ -257,7 +257,12 @@ def install_commands_yum(package_name, distribution, package_source,
                 get_repository_url(
                     distribution=distribution,
                     flocker_version=get_installable_version(version)))),
-        ]
+        # Force yum to update the metadata for the release repositories.
+        # If we are running tests against a release, it is likely that the
+        # metadata will not have expired for them yet.
+        wipe_yum_cache(repository="clusterhq"),
+        wipe_yum_cache(repository="clusterhq-testing"),
+    ]
 
     if base_url is not None:
         repo = dedent(b"""\
