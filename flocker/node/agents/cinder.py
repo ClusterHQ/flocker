@@ -283,7 +283,7 @@ class VolumeStateMonitor:
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
     def __init__(self, volume_manager, expected_volume,
-                 desired_state, transient_states=(), time_limit=60):
+                 desired_state, transient_states=(), time_limit=300):
         self.volume_manager = volume_manager
         self.expected_volume = expected_volume
         self.desired_state = desired_state
@@ -339,7 +339,7 @@ def poll_until(predicate, interval):
 
 
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
-                          transient_states=(), time_limit=60):
+                          transient_states=(), time_limit=300):
     """
     Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
     listed and to have a ``status`` value of ``desired_state``.
