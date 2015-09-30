@@ -74,6 +74,7 @@ def arbitrary_transformation(deployment):
         lambda nodes: nodes.add(Node(hostname=random_ip(), uuid=uuid4())),
     )
 
+
 class LoopbackAMPClient(object):
     """
     Allow sending commands, in-memory, to an AMP command locator.
@@ -788,7 +789,9 @@ class ControlAMPServiceTests(ControlTestCase):
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
-        more_modified_configuration = arbitrary_transformation(modified_configuration)
+        more_modified_configuration = arbitrary_transformation(
+            modified_configuration
+        )
 
         server = LoopbackAMPClient(client.locator)
         delayed_server = DelayedAMPClient(server)

@@ -45,7 +45,6 @@ from characteristic import with_cmp
 
 from zope.interface import Interface, Attribute
 
-from twisted.python.reflect import fullyQualifiedName
 from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode,
@@ -404,13 +403,15 @@ AGENT_CONNECTED = ActionType(
 AGENT_UPDATE_ELIDED = MessageType(
     "flocker:controlservice:agent_update_elided",
     [AGENT],
-    u"An update to an agent was elided because a subsequent update supercedes it.",
+    u"An update to an agent was elided because a subsequent update supercedes "
+    u"it.",
 )
 
 AGENT_UPDATE_DELAYED = MessageType(
     "flocker:controlservice:agent_update_delayed",
     [AGENT],
-    u"An update to an agent was delayed because an earlier update is still in progress.",
+    u"An update to an agent was delayed because an earlier update is still in "
+    u"progress.",
 )
 
 
@@ -558,7 +559,6 @@ class ControlAMPService(Service):
 
                 for conection in delayed_update:
                     self._delayed_update_connection(connection)
-
 
     def _update_connection(self, connection, configuration, state):
         """
