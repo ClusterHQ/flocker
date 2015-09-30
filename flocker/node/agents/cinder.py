@@ -52,6 +52,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 # The longest time we're willing to wait for a Cinder API call to complete.
 CINDER_TIMEOUT = 600
 
+
 def _openstack_logged_method(method_name, original_name):
     """
     Run a method and log additional information about any exceptions that are
