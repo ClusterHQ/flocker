@@ -307,8 +307,11 @@ class VolumeStateMonitor:
                 if current_state == self.desired_state:
                     return listed_volume
                 elif current_state in self.transient_states:
-                    # ignore transient states
-                    pass
+                    # Once an intermediate state is reached, the prior
+                    # states become invalid.
+                    idx = self.transient_states.index(current_state)
+                    if idx > 0:
+                        self.transient_states = self.transient_states[idx:]
                 else:
                     raise UnexpectedStateException(
                         self.expected_volume, self.desired_state,
