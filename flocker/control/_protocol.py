@@ -39,6 +39,8 @@ from contextlib import contextmanager
 from eliot import Logger, ActionType, Action, Field, MessageType
 from eliot.twisted import DeferredContext
 
+from pyrsistent import PClass, field
+
 from characteristic import with_cmp
 
 from zope.interface import Interface, Attribute
@@ -411,11 +413,29 @@ AGENT_UPDATE_DELAYED = MessageType(
     u"An update to an agent was delayed because an earlier update is still in progress.",
 )
 
+
+class _UpdateState(PClass):
+    """
+    Represent the state related to sending a ``ClusterStatusCommand`` to an
+    agent.
+
+    :ivar response: The pending result of an update that is in progress.
+    :ivar scheduled: ``True`` if another update should be performed as soon as
+        the current one is done, ``False`` otherwise.
+    """
+    response = field()
+    next_scheduled = field()
+
+
 class ControlAMPService(Service):
     """
     Control Service AMP server.
 
     Convergence agents connect to this server.
+
+    :ivar dict _current_command: A dictionary containing information about
+        connections to which state updates are currently in progress.  The keys
+        are protocol instances.  The values are ``_UpdateState`` instances.
     """
     logger = Logger()
 
@@ -431,7 +451,7 @@ class ControlAMPService(Service):
         :param context_factory: TLS context factory.
         """
         self.connections = set()
-        self._current_command_for_connection = {}
+        self._current_command = {}
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
@@ -484,9 +504,7 @@ class ControlAMPService(Service):
 
         for connection in connections:
             try:
-                (current_command, already_scheduled) = self._current_command_for_connection[
-                    connection
-                ]
+                update = self._current_command[connection]
             except KeyError:
                 # There's nothing in the tracking state for this connection.
                 # That means there's no unacknowledged update.  That means we
@@ -495,7 +513,7 @@ class ControlAMPService(Service):
             else:
                 # These connections do currently have an unacknowledged update
                 # outstanding.
-                if already_scheduled:
+                if update.next_scheduled:
                     # And these connections are also already scheduled to
                     # receive another update after the one they're currently
                     # processing.  That update will include the most up-to-date
@@ -562,13 +580,15 @@ class ControlAMPService(Service):
             ))
             d.addActionFinish()
             d.result.addErrback(lambda _: None)
-            current_command = d.result
 
-        self._current_command_for_connection[connection] = (current_command, False)
+        update = self._current_command[connection] = _UpdateState(
+            response=d.result,
+            next_scheduled=False,
+        )
 
         def finished_update(ignored):
-            del self._current_command_for_connection[connection]
-        current_command.addCallback(finished_update)
+            del self._current_command[connection]
+        update.response.addCallback(finished_update)
 
     def _delayed_update_connection(self, connection):
         """
@@ -581,13 +601,11 @@ class ControlAMPService(Service):
             related to this will be used and then updated.
         """
         AGENT_UPDATE_DELAYED(agent=connection).write()
-        current_command, already_scheduled = self._current_command_for_connection[
-            connection
-        ]
-        current_command.addCallback(
+        update = self._current_command[connection]
+        update.response.addCallback(
             lambda ignored: self._send_state_to_connections([connection]),
         )
-        self._current_command_for_connection[connection] = (current_command, True)
+        self._current_command[connection] = update.set(next_scheduled=True)
 
     def connected(self, connection):
         """
