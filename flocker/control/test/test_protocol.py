@@ -1078,9 +1078,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         server = LoopbackAMPClient(client.locator)
 
         control_amp_service.connected(server)
-
-        self.patch(control_amp_service, 'logger', logger)
-
         control_amp_service._send_state_to_connections(connections=[server])
 
         assertHasAction(
