@@ -12,6 +12,7 @@ You can try the Labs Installer.
 
 * It makes it easy to set up and manage a Flocker cluster.
 * It runs inside a Docker container on your local machine.
+* The :ref:`Flocker plugin for Docker <docker-plugin>` is also installed.
 
 :ref:`Try the Labs installer <labs-installer>`.
 
