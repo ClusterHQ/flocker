@@ -359,10 +359,9 @@ class ControlAMP(AMP):
 # share the encoding cache with the network code related to this logging.  This
 # reduces the overhead of logging these (potentially quite large) data
 # structures.
-DEPLOYMENT_CONFIG = Field(u"configuration", wire_encode,
+DEPLOYMENT_CONFIG = Field(u"configuration", _caching_encoder.encode,
                           u"The cluster configuration")
-CLUSTER_STATE = Field(u"state", wire_encode,
-                      u"The cluster state")
+CLUSTER_STATE = Field(u"state", _caching_encoder.encode, u"The cluster state")
 
 LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
