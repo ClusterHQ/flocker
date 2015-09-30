@@ -4,10 +4,8 @@
 Tests for ``flocker.control._protocol``.
 """
 
-from os import urandom
 from uuid import uuid4
 from json import loads
-from socket import AF_INET6, inet_ntop
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -54,10 +52,6 @@ from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
 
-def random_ip():
-    return inet_ntop(AF_INET6, urandom(16))
-
-
 def arbitrary_transformation(deployment):
     """
     Make some change to a deployment configuration.  Any change.
@@ -71,7 +65,7 @@ def arbitrary_transformation(deployment):
     """
     return deployment.transform(
         ["nodes"],
-        lambda nodes: nodes.add(Node(hostname=random_ip(), uuid=uuid4())),
+        lambda nodes: nodes.add(Node(uuid=uuid4())),
     )
 
 class LoopbackAMPClient(object):
@@ -1084,9 +1078,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         server = LoopbackAMPClient(client.locator)
 
         control_amp_service.connected(server)
-
-        self.patch(control_amp_service, 'logger', logger)
-
         control_amp_service._send_state_to_connections(connections=[server])
 
         assertHasAction(
