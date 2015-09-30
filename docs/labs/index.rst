@@ -15,10 +15,10 @@ If we get lots of positive feedback about any one of these projects then we will
 
 .. _labs-demo:
 
-Flocker Docker plugin with CLI and GUI
-======================================
+Flocker Plugin for Docker with CLI and GUI
+==========================================
 
-By way of example, here is a 55 second demo of the :ref:`Flocker Docker plugin <docker-plugin>` provisioning portable Flocker volumes and moving them between hosts directly from the Docker CLI.
+By way of example, here is a 55 second demo of the :ref:`Flocker plugin for Docker <docker-plugin>` provisioning portable Flocker volumes and moving them between hosts directly from the Docker CLI.
 
 The video shows our experimental :ref:`Volumes GUI <labs-volumes-gui>` and :ref:`Volumes CLI <labs-volumes-cli>` which both give insight into what Flocker is doing while this happens.
 
