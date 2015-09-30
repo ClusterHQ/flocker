@@ -1089,8 +1089,13 @@ def task_install_flocker(
 
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
-    return task_package_install("clusterhq-flocker-node",
-                                distribution, package_source)
+    return sequence(list(
+        task_package_install(package, distribution, package_source)
+        for package in [
+            "clusterhq-flocker-node",
+            "clusterhq-flocker-docker-plugin"
+        ]
+    ))
 
 
 ACCEPTANCE_IMAGES = [
@@ -1168,9 +1173,6 @@ def provision(distribution, package_source, variants):
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
-    commands.append(
-        task_package_install(
-            "clusterhq-flocker-docker-plugin", distribution, package_source))
     commands.append(task_enable_docker(distribution))
     return sequence(commands)
 
