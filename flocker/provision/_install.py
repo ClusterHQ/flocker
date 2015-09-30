@@ -22,7 +22,8 @@ from ._ssh import (
     run, run_from_args, Run,
     sudo_from_args, Sudo,
     put,
-    run_remotely
+    run_remotely,
+    ignore_in_documentation,
 )
 from ._effect import sequence
 
@@ -257,8 +258,14 @@ def install_commands_yum(package_name, distribution, package_source,
         # Force yum to update the metadata for the release repositories.
         # If we are running tests against a release, it is likely that the
         # metadata will not have expired for them yet.
-        wipe_yum_cache(repository="clusterhq"),
-        wipe_yum_cache(repository="clusterhq-testing"),
+        # We don't document this as users
+        # - won't have cached metadata if they are installing for the first
+        #   time.
+        # - won't be using these instructions, if they are upgrading.
+        ignore_in_documentation(sequence([
+            wipe_yum_cache(repository="clusterhq"),
+            wipe_yum_cache(repository="clusterhq-testing"),
+        ]))
     ]
 
     if base_url is not None:
