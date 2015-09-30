@@ -24,6 +24,7 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    :maxdepth: 2
 
    config/index
+   plugin/index
    administering/index
    tutorial/index
    examples/apps
