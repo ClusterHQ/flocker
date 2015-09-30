@@ -2,6 +2,7 @@
 
 """Helpers for flocker shell commands."""
 
+from os.path import basename
 import sys
 
 from bitmath import MiB
@@ -49,11 +50,17 @@ class JournaldFile(object):
     Relies on fact that ``ThreadedFileWriter`` writes messages as lines in
     single write() call.
     """
+    def __init__(self):
+        self._identifier = basename(sys.argv[0]).encode("utf-8")
+
     def flush(self):
         pass
 
     def write(self, message):
-        sd_journal_send(message.rstrip(b"\n"))
+        sd_journal_send(
+            MESSAGE=message.rstrip(b"\n"),
+            SYSLOG_IDENTIFIER=self._identifier,
+        )
 
 
 def flocker_standard_options(cls):
