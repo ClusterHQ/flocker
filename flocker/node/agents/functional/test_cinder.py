@@ -331,7 +331,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
             desired_state=u'in-use',
-            transient_states=(u'attaching',),
+            transient_states=(u'available', u'attaching',),
         )
 
         devices_after = set(FilePath('/dev').children())
@@ -376,7 +376,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
             desired_state=u'in-use',
-            transient_states=(u'attaching',),
+            transient_states=(u'available', u'attaching',),
         )
 
         devices_after = set(FilePath('/dev').children())
@@ -421,7 +421,7 @@ class CinderAttachmentTests(SynchronousTestCase):
                 volume_manager=self.cinder.volumes,
                 expected_volume=attached_volume,
                 desired_state=u'in-use',
-                transient_states=(u'attaching',),
+                transient_states=(u'available', u'attaching',),
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
@@ -461,7 +461,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
             desired_state=u'in-use',
-            transient_states=(u'attaching',),
+            transient_states=(u'available', u'attaching',),
         )
 
         self.assertRaises(
@@ -499,7 +499,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume_manager=self.cinder.volumes,
             expected_volume=attached_volume,
             desired_state=u'in-use',
-            transient_states=(u'attaching',),
+            transient_states=(u'available', u'attaching',),
         )
         self.assertEqual(
             FilePath(
