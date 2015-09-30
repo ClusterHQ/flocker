@@ -214,8 +214,7 @@ def task_cli_pkg_test():
 
 def wipe_yum_cache(repository):
     """
-    Return a command which will clear all of yum's cached data for a particular
-    repository.
+    Force yum to update the metadata for a particular repository.
 
     :param bytes repository: The name of the repository to clear.
     """
@@ -226,7 +225,7 @@ def wipe_yum_cache(repository):
         # will break.
         b"--enablerepo=" + repository,
         b"clean",
-        b"all"
+        b"expire-cache"
     ])
 
 
