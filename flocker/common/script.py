@@ -24,12 +24,13 @@ from .. import __version__
 
 try:
     from eliot.journald import JournaldDestination
-    from eliot.logwriter import ThreadedWriter
 except OSError as e:
-    # This platform doens't have journald.
+    # This platform doesn't have journald.
     JournaldDestination = None
     _missing_journald_reason = str(e)
     del e
+else:
+    from eliot.logwriter import ThreadedWriter
 
 __all__ = [
     'flocker_standard_options',
