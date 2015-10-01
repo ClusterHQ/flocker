@@ -14,7 +14,11 @@ class SyslogTests(TestCase):
     """
     Tests for Flocker's integration with syslog.
     """
-    def _assert_not_logged(self, fragment):
+    def _assert_not_logged(self, cluster, fragment):
+        """
+        Assert that the given fragment of a log line does not appear in the
+        ``/var/log/messages`` file on the control node of the cluster.
+        """
         getting = cluster.get_file(
             cluster.control_node,
             FilePath(b"/var/log/messages"),
@@ -33,11 +37,11 @@ class SyslogTests(TestCase):
         """
         Log messages from ``flocker-control`` do not appear in syslog.
         """
-        return self._assert_not_logged(b"flocker:controlservice:")
+        return self._assert_not_logged(cluster, b"flocker:controlservice:")
 
     @require_cluster(1)
     def test_flocker_agent_not_logged(self, cluster):
         """
         Log messages from the Flocker agents do not appear in syslog.
         """
-        return self._assert_not_logged(b"flocker:agent:")
+        return self._assert_not_logged(cluster, b"flocker:agent:")
