@@ -24,7 +24,7 @@ from .. import __version__
 
 try:
     from eliot.journald import JournaldDestination
-except OSError as e:
+except ImportError as e:
     # This platform doesn't have journald.
     JournaldDestination = None
     _missing_journald_reason = str(e)
