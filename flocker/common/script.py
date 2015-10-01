@@ -111,7 +111,7 @@ def flocker_standard_options(cls):
                 # A twisted.python.logfile which has write and flush methods
                 # but which also rotates the log file.
                 logfile = LogFile.fromFullPath(
-                    logfile.path,
+                    logfilepath.path,
                     rotateLength=LOGFILE_LENGTH,
                     maxRotatedFiles=LOGFILE_COUNT,
                 )
