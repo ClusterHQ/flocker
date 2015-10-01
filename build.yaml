@@ -944,8 +944,8 @@ job_type:
                    *build_repo_metadata,
                    'export HOME=/root',
                    'vagrant destroy -f',
-                   'parse_logs $venv/bin/python admin/build-vagrant-box --box tutorial --branch ${TRIGGERED_BRANCH} --build-server  http://188.165.193.39',
-                   'parse_logs vagrant box add --force "clusterhq/flocker-tutorial" vagrant/tutorial/flocker-tutorial-${FLOCKER_VERSION}.box',
+                   'parse_logs $venv/bin/python admin/build-vagrant-box --box tutorial --branch \${TRIGGERED_BRANCH} --build-server  http://188.165.193.39',
+                   'parse_logs vagrant box add --force "clusterhq/flocker-tutorial" vagrant/tutorial/flocker-tutorial-\${FLOCKER_VERSION}.box',
                    *clean_packages]
           }
 
