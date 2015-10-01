@@ -24,7 +24,7 @@ from flocker.common.version import get_installable_version
 from flocker.docs.version_extensions import PLACEHOLDER
 
 from . import _tasks as tasks
-from ._ssh import Run, Sudo, Comment, Put, IgnoreInDocumentation
+from ._ssh import Run, Sudo, Comment, Put
 from ._effect import dispatcher as base_dispatcher, SequenceFailed
 from effect import (
     sync_perform, sync_performer,
@@ -57,10 +57,6 @@ def run_for_docs(effect):
             "EOF",
         ])
 
-    @sync_performer
-    def ignore_in_documentation(dispatcher, intent):
-        pass
-
     sync_perform(
         ComposedDispatcher([
             TypeDispatcher({
@@ -68,7 +64,6 @@ def run_for_docs(effect):
                 Sudo: sudo,
                 Comment: comment,
                 Put: put,
-                IgnoreInDocumentation: ignore_in_documentation,
             }),
             base_dispatcher,
         ]),

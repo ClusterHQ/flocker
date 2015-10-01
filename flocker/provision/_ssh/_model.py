@@ -234,30 +234,3 @@ def sudo_from_args(command, log_command_filter=identity):
     """
     return Effect(
         Sudo.from_args(command, log_command_filter=log_command_filter))
-
-
-class IgnoreInDocumentation(PRecord):
-    """
-    Wraps an effect to ignore it in documentation.
-
-    :ivar Effect command: The commands to run.
-    """
-    command = field(type=Effect, mandatory=True)
-
-
-def ignore_in_documentation(command):
-    """
-    Wraps an effect to ignore it in documentation.
-
-    :ivar Effect command: The commands to run.
-    :return Effect:
-    """
-    return Effect(IgnoreInDocumentation(command=command))
-
-
-@sync_performer
-def perform_ignore_in_documentation(base_dispatcher, intent):
-    """
-    Default implementation of `IgnoreInDocumentation`.
-    """
-    return intent.command

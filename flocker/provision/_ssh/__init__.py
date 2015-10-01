@@ -6,8 +6,7 @@ from ._model import (
     Put, put,
     Comment, comment,
     RunRemotely, run_remotely,
-    perform_comment, perform_put, perform_sudo,
-    IgnoreInDocumentation, ignore_in_documentation,
+    perform_comment, perform_put, perform_sudo
 )
 
 __all__ = [
@@ -17,7 +16,6 @@ __all__ = [
     "Comment", "comment",
     "RunRemotely", "run_remotely",
     "perform_comment", "perform_put", "perform_sudo",
-    "IgnoreInDocumentation", "ignore_in_documentation",
 ]
 
 try:

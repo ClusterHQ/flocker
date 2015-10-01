@@ -30,9 +30,8 @@ import os
 from flocker.testtools import loop_until
 
 from ._model import (
-    Run, Sudo, Put, Comment, RunRemotely, IgnoreInDocumentation,
-    perform_comment, perform_put, perform_sudo,
-    perform_ignore_in_documentation)
+    Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
+    perform_sudo)
 
 from .._effect import dispatcher as base_dispatcher
 
@@ -177,7 +176,6 @@ def make_dispatcher(reactor):
     return ComposedDispatcher([
         TypeDispatcher({
             RunRemotely: perform_run_remotely,
-            IgnoreInDocumentation: perform_ignore_in_documentation,
         }),
         make_twisted_dispatcher(reactor),
         base_dispatcher,
