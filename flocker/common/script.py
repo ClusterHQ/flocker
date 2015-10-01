@@ -23,10 +23,11 @@ from zope.interface import Interface
 from .. import __version__
 
 try:
-    from ._journald import sd_journal_send
+    from eliot.journald import JournaldDestination
+    from eliot.logwriter import ThreadedWriter
 except OSError as e:
     # This platform doens't have journald.
-    sd_journal_send = None
+    JournaldDestination = None
     _missing_journald_reason = str(e)
     del e
 
@@ -53,7 +54,7 @@ class JournaldFile(object):
         pass
 
     def write(self, message):
-        sd_journal_send(message.rstrip(b"\n"))
+        JournaldDestination(message.rstrip(b"\n"))
 
 
 def flocker_standard_options(cls):
