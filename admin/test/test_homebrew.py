@@ -224,6 +224,8 @@ class Flocker030 < Formula
   end
 
   def install
+    ENV["LDFLAGS"] = "-L#{opt_prefix}/openssl/lib"
+    ENV["CFLAGS"] = "-I#{opt_prefix}/openssl/include"
     ENV.prepend_create_path "PYTHONPATH", "#{libexec}/vendor/lib/python2.7/site-packages"
     %w[six].each do |r|
       resource(r).stage do
