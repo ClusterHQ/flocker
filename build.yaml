@@ -936,7 +936,7 @@ job_type:
       on_nodes_with_labels: 'mesos-vbox'
       with_steps:
         - { type: 'shell',
-            cli: [ *add_shell_functions, *setup_pip_cache,
+            cli: [ *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version,
                    'export DISTRIBUTION_NAME=centos-7',
