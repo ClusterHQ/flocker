@@ -297,18 +297,22 @@ class ConvergenceLoop(object):
         to the control service.
     :type _last_acknowledged_state: tuple of IClusterStateChange
     """
-    def __init__(self, reactor, deployer):
+    def __init__(self, reactor, deployer, loop_delay):
         """
         :param IReactorTime reactor: Used to schedule delays in the loop.
 
         :param IDeployer deployer: Used to discover local state and calculate
             necessary changes to match desired configuration.
+
+        :param float loop_delay: The interval between convergence iterations
+            in seconds.
         """
         self.reactor = reactor
         self.deployer = deployer
         self.cluster_state = None
         self.client = None
         self._last_acknowledged_state = None
+        self._loop_delay = loop_delay
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -414,13 +418,14 @@ class ConvergenceLoop(object):
         d.addCallback(
             lambda _:
                 self.reactor.callLater(
-                    1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
+                    self._loop_delay, self.fsm.receive,
+                    ConvergenceLoopInputs.ITERATION_DONE
                 )
         )
         d.addActionFinish()
 
 
-def build_convergence_loop_fsm(reactor, deployer):
+def build_convergence_loop_fsm(reactor, deployer, loop_delay):
     """
     Create a convergence loop FSM.
 
@@ -428,6 +433,9 @@ def build_convergence_loop_fsm(reactor, deployer):
 
     :param IDeployer deployer: Used to discover local state and calcualte
         necessary changes to match desired configuration.
+
+    :param float loop_delay: The interval between convergence iterations
+        in seconds.
     """
     I = ConvergenceLoopInputs
     O = ConvergenceLoopOutputs
@@ -448,7 +456,7 @@ def build_convergence_loop_fsm(reactor, deployer):
             I.ITERATION_DONE: ([], S.STOPPED),
         })
 
-    loop = ConvergenceLoop(reactor, deployer)
+    loop = ConvergenceLoop(reactor, deployer, loop_delay)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
         richInputs=[_ClientStatusUpdate], inputContext={},
@@ -480,7 +488,7 @@ class AgentLoopService(MultiService, object):
         """
         MultiService.__init__(self)
         convergence_loop = build_convergence_loop_fsm(
-            self.reactor, self.deployer
+            self.reactor, self.deployer, 2.0
         )
         self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
