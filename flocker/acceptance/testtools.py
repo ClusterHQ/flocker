@@ -10,6 +10,7 @@ from unittest import SkipTest, skipUnless
 from uuid import uuid4
 from socket import socket
 from contextlib import closing
+import traceback
 
 import json
 import ssl
@@ -321,10 +322,13 @@ def log_method(function):
     label = "acceptance:" + function.__name__
 
     def log_result(result):
-        Message.new(
-            message_type=label + ":result",
-            value=result,
-        ).write()
+        try:
+            Message.new(
+                message_type=label + ":result",
+                value=result,
+            ).write()
+        except:
+            traceback.print_exc()
         return result
 
     @wraps(function)
