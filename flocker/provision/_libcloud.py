@@ -181,7 +181,12 @@ class LibcloudProvisioner(object):
         """
         try:
             key_pair = self._driver.get_key_pair(self._keyname)
-        except Exception:
+        except Exception as e:
+            if "RequestLimitExceeded" in e.message:
+                # If we have run into API limits, we don't know if the key is
+                # available. Re-raise the the exception, so that we can
+                # accurately see the cause of the error.
+                raise
             raise CloudKeyNotFound(self._keyname)
         if key_pair.public_key is not None:
             return Key.fromString(key_pair.public_key, type='public_openssh')
