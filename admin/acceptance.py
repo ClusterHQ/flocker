@@ -12,7 +12,9 @@ from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination, write_failure
+from eliot import (
+    add_destination, write_failure, FileDestination
+)
 from pyrsistent import pvector
 from bitmath import GiB
 
@@ -921,9 +923,10 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     from flocker.common.script import eliot_logging_service
-    log_file = open("%s.log" % base_path.basename(), "a")
     log_writer = eliot_logging_service(
-        log_file=log_file,
+        destination=FileDestination(
+            file=open("%s.log" % base_path.basename(), "a")
+        ),
         reactor=reactor,
         capture_stdout=False)
     log_writer.startService()
