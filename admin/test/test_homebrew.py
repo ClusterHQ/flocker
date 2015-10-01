@@ -216,6 +216,7 @@ class Flocker030 < Formula
   url "https://example.com/flocker_sdist"
   sha1 "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a"
   depends_on :python if MacOS.version <= :snow_leopard
+  depends_on "openssl"
 
   resource "six" do
     url "https://example.com/six/six-1.9.0.tar.gz"
