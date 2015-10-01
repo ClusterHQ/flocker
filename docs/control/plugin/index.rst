@@ -14,7 +14,7 @@ Once :ref:`installed <install-docker-plugin>` it can be invoked by Docker using 
 Docker CLI
 ==========
 
-A volume plugin makes use of the ``-v`` and ``--volume-driver`` flag on the docker run command.
+A volume plugin makes use of the ``-v`` and ``--volume-driver`` flags on the docker ``run`` command.
 The ``-v`` flag accepts a volume name and the ``--volume-driver`` flag a driver type.
 The Flocker driver type is ``flocker``.
 
