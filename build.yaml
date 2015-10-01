@@ -931,3 +931,21 @@ job_type:
                    *build_docker_image,
                    *push_image_to_dockerhub ]
           }
+    build_vagrant_basebox_for_flocker_tutorial:
+      at: '0 2 * * *'
+      on_nodes_with_labels: 'mesos-vbox'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   'export HOME=/root',
+                   'vagrant destroy -f',
+                   'parse_logs $venv/bin/python admin/build-vagrant-box --box tutorial --branch ${TRIGGERED_BRANCH} --build-server  http://188.165.193.39',
+                   'parse_logs vagrant box add --force "clusterhq/flocker-tutorial" vagrant/tutorial/flocker-tutorial-${FLOCKER_VERSION}.box',
+                   *clean_packages]
+          }
+
