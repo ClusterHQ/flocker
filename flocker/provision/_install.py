@@ -23,7 +23,6 @@ from ._ssh import (
     sudo_from_args, Sudo,
     put,
     run_remotely,
-    ignore_in_documentation,
 )
 from ._effect import sequence
 
@@ -255,17 +254,6 @@ def install_commands_yum(package_name, distribution, package_source,
                 get_repository_url(
                     distribution=distribution,
                     flocker_version=get_installable_version(version)))),
-        # Force yum to update the metadata for the release repositories.
-        # If we are running tests against a release, it is likely that the
-        # metadata will not have expired for them yet.
-        # We don't document this as users
-        # - won't have cached metadata if they are installing for the first
-        #   time.
-        # - won't be using these instructions, if they are upgrading.
-        ignore_in_documentation(sequence([
-            wipe_yum_cache(repository="clusterhq"),
-            wipe_yum_cache(repository="clusterhq-testing"),
-        ]))
     ]
 
     if base_url is not None:
@@ -1034,6 +1022,11 @@ def _uninstall_flocker_centos7():
             run_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
             ]),
+            # Force yum to update the metadata for the release repositories.
+            # If we are running tests against a release, it is likely that the
+            # metadata will not have expired for them yet.
+            wipe_yum_cache(repository="clusterhq"),
+            wipe_yum_cache(repository="clusterhq-testing"),
             run_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-release",
             ]),
