@@ -27,7 +27,7 @@ NUM_DATASETS = 20
 
 def stdout(message):
     sys.stdout.write(json.dumps(message) + "\n")
-add_destination(stdout)
+# add_destination(stdout)
 
 
 class MoreFlockerClient(FlockerClient):
