@@ -172,8 +172,12 @@ class {class_name} < Formula
   depends_on "openssl"
 {resources}
   def install
+    # XXX These environment variables are necessary until cryptography has
+    # wheels for OS X 10.11.
+    # See https://github.com/pyca/cryptography/issues/2350
     ENV["LDFLAGS"] = "-L#{{opt_prefix}}/openssl/lib"
     ENV["CFLAGS"] = "-I#{{opt_prefix}}/openssl/include"
+
     ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
     %w[{dependencies}].each do |r|
       resource(r).stage do
