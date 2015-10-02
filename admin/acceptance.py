@@ -393,12 +393,15 @@ class VagrantRunner(object):
         :raise UsageError: if no such distribution found.
         :return: ``FilePath`` of the vagrant directory.
         """
-        vagrant_path = top_level.descendant([
-            'admin', 'vagrant-acceptance-targets', distribution,
+        vagrant_dir = top_level.descendant([
+            'admin', 'vagrant-acceptance-targets'
         ])
+        vagrant_path = vagrant_dir.child(distribution)
         if not vagrant_path.exists():
-            raise UsageError("Distribution not found: %s."
-                             % (self.distribution,))
+            distributions = vagrant_dir.listdir()
+            raise UsageError(
+                "Distribution not found: %s. Valid distributions: %s."
+                % (self.distribution, ', '.join(distributions)))
         return vagrant_path
 
     def ensure_keys(self, reactor):
