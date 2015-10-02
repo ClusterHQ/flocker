@@ -37,6 +37,9 @@ class SyslogTests(TestCase):
         """
         Log messages from ``flocker-control`` do not appear in syslog.
         """
+        # Agents will connect to the control service right away.  This triggers
+        # some logging that we'll be able to notice if it is going where we
+        # don't want it.
         return self._assert_not_logged(cluster, b"flocker:controlservice:")
 
     @require_cluster(1)
@@ -44,4 +47,6 @@ class SyslogTests(TestCase):
         """
         Log messages from the Flocker agents do not appear in syslog.
         """
+        # As above - the agent connects to the control service right away and
+        # logs things.
         return self._assert_not_logged(cluster, b"flocker:agent:")
