@@ -911,6 +911,10 @@ def journald_json_formatter(output_file):
     Eliot JSON with extra fields to identify the log origin.
     """
     accumulated = {}
+
+
+    # XXX Factoring the parsing code separately from the IO would make this
+    # whole thing nicer.
     def handle_output_line(line):
         if line:
             key, value = line.split(b"=", 1)
