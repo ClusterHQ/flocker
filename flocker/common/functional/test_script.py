@@ -40,7 +40,8 @@ def _journald_available():
     # Journald is actually running on this machine (e.g. on some Ubuntu
     # versions it can be available but not running).
     try:
-        check_output(["journalctl", "-b"], stderr=STDOUT)
+        # Output as little as possible. One line of log since since last boot.
+        check_output(["journalctl", "--boot", "--lines=1"], stderr=STDOUT)
     except CalledProcessError:
         return False
     return True
@@ -337,9 +338,9 @@ class FlockerScriptRunnerJournaldTests(TestCase):
         # systemd-run doesn't wait for process to exit, so we need to ask
         # systemd when it's done:
         d.addCallback(lambda _: loop_until(lambda: Popen(
-            [b"systemctl", b"-q", b"is-active", name]).wait() != 0))
+            [b"systemctl", b"--quiet", b"is-active", name]).wait() != 0))
         d.addCallback(lambda _: getProcessOutput(
-            b"journalctl", [b"-u", name, b"-o", b"cat"]))
+            b"journalctl", [b"--unit", name, b"--output", b"cat"]))
         d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
         d.addCallback(lambda data: [
             loads(l) for l in data.splitlines() if l.startswith(b"{")])
@@ -352,27 +353,6 @@ class FlockerScriptRunnerJournaldTests(TestCase):
         d = self.run_journald_script(EliotScript)
         d.addCallback(lambda messages: assertContainsFields(self, messages[1],
                                                             {u"key": 123}))
-        return d
-
-    def test_journald_percent(self):
-        """
-        When ``--journald`` option is used messages with a ``%`` in them can
-        be logged correctly.
-        """
-        d = self.run_journald_script(EliotPercentScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"key": u"hello%s"}))
-        return d
-
-    def test_journald_large_message(self):
-        """
-        When ``--journald`` option is used large messages end up in the
-        journal and are not broken up, demonstrating we're not hitting
-        https://bugs.freedesktop.org/show_bug.cgi?id=86465
-        """
-        d = self.run_journald_script(EliotLargeScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"key": EliotLargeScript.key}))
         return d
 
 
