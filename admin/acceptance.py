@@ -375,17 +375,31 @@ class VagrantRunner(object):
     NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
-        self.vagrant_path = self.top_level.descendant([
-            'admin', 'vagrant-acceptance-targets', self.distribution,
-        ])
+        self.vagrant_path = self._get_vagrant_path(self.top_level, self.distribution)
+
         self.certificates_path = self.top_level.descendant([
             'vagrant', 'tutorial', 'credentials'])
-        if not self.vagrant_path.exists():
-            raise UsageError("Distribution not found: %s."
-                             % (self.distribution,))
 
         if self.variants:
             raise UsageError("Variants unsupported on vagrant.")
+
+    def _get_vagrant_path(self, top_level, distribution):
+        """
+        Get the path to the Vagrant directory for ``distribution``.
+
+        :param FilePath top_level: the directory containing the ``admin``
+            package.
+        :param str distribution: the name of a distribution
+        :raise UsageError: if no such distribution found.
+        :return: ``FilePath`` of the vagrant directory.
+        """
+        vagrant_path = top_level.descendant([
+            'admin', 'vagrant-acceptance-targets', distribution,
+        ])
+        if not vagrant_path.exists():
+            raise UsageError("Distribution not found: %s."
+                             % (self.distribution,))
+        return vagrant_path
 
     def ensure_keys(self, reactor):
         key = Key.fromFile(os.path.expanduser(
