@@ -238,7 +238,7 @@ class ManagedRunner(object):
         def install(ignored):
             return perform(
                 dispatcher,
-                provision(nodes, package_source),
+                provision(nodes, package_source, ()),
             )
         installing = uninstalling.addCallback(install)
         return installing
