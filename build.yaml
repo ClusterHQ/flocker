@@ -480,10 +480,10 @@ common_cli:
     sudo cp repo/* \${DOC_ROOT}/\${REPO_PATH}
     cd \${DOC_ROOT}/\${REPO_PATH}
     # create a repo on either centos or ubuntu
-    if is_ubuntu; then
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if is_centos; then
+    if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
       sudo createrepo .
     fi
     cd -
