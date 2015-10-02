@@ -881,6 +881,7 @@ def capture_journal(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
+    formatter = journald_json_formatter(output_file)
     ran = run_ssh(
         reactor=reactor,
         host=host,
@@ -888,6 +889,7 @@ def capture_journal(reactor, host, output_file):
         command=[
             b'journalctl',
             b'--lines', b'0',
+            b'--output', b'export',
             b'--follow',
             # Only bother with units we care about:
             b'-u', b'docker',
@@ -896,9 +898,45 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-container-agent',
             b'-u', b'flocker-docker-plugin',
         ],
-        handle_stdout=lambda line: output_file.write(line + b'\n')
+        handle_stdout=formatter,
     )
     ran.addErrback(write_failure, logger=None)
+    # Deliver a final empty line to process the last message
+    ran.addCallback(lambda ignored: formatter(b""))
+
+
+def journald_json_formatter(output_file):
+    """
+    Create an output handler which turns journald's export format back into
+    Eliot JSON with extra fields to identify the log origin.
+    """
+    accumulated = {}
+
+
+    # XXX Factoring the parsing code separately from the IO would make this
+    # whole thing nicer.
+    def handle_output_line(line):
+        if line:
+            key, value = line.split(b"=", 1)
+            accumulated[key] = value
+        else:
+            if accumulated:
+                raw_message = accumulated.get(b"MESSAGE", b"{}")
+                try:
+                    message = json.loads(raw_message)
+                except ValueError:
+                    # Docker log messages are not JSON
+                    message = dict(message=raw_message)
+
+                message[u"_HOSTNAME"] = accumulated.get(
+                    b"_HOSTNAME", b"<no hostname>"
+                )
+                message[u"_SYSTEMD_UNIT"] = accumulated.get(
+                    b"_SYSTEMD_UNIT", b"<no unit>"
+                )
+                output_file.write(json.dumps(message) + b"\n")
+                accumulated.clear()
+    return handle_output_line
 
 
 @inlineCallbacks
