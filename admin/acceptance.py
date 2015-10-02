@@ -925,7 +925,7 @@ def main(reactor, args, base_path, top_level):
     from flocker.common.script import eliot_logging_service
     log_writer = eliot_logging_service(
         destination=FileDestination(
-            file=open("%s.log" % base_path.basename(), "a")
+            file=open("%s.log" % (base_path.basename(),), "a")
         ),
         reactor=reactor,
         capture_stdout=False)
