@@ -190,6 +190,12 @@ common_cli:
     # https://clusterhq.atlassian.net/browse/FLOC-2689
     sudo chmod 777 /var/run/docker.sock
 
+    # Returns the ip address for eth0
+    # We consume this as part or the vagrant build tests.
+    # Those tests run on our Mesos Cluster, the job connects to a local nginx
+    # instance running on the Mesos Slave where the job is running.
+    export eth0_ip=\$( ip -o -4 addr show eth0 |awk '{ print \$4 '} | cut -f 1 -d "/")
+
   # TODO: do we need to clean up old files on ubuntu and centos or
   # does the pre-scm plugin does this correctly for us ?
   # https://clusterhq.atlassian.net/browse/FLOC-3139
@@ -247,17 +253,17 @@ common_cli:
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
-    if is_ubuntu || is_centos; then
-        PIP_ADDITIONAL_OPTIONS=" -i \${PIP_INDEX_URL} --trusted-host \${TRUSTED_HOST}"
-        PARSE_LOGS="parse_logs "
+    if [ \${PIP_INDEX_URL} ]; then
+        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} -i \${PIP_INDEX_URL} "
     fi
-    if is_osx; then
-      # we can't use our pip caching layer on our OSX cloudbees boxes
-      # as we're unable run the slave_setup plugin that injects the environment
-      # variables to the slave.
-      # So we just go upstream for the python modules.
-      PIP_ADDITIONAL_OPTIONS=""
-      PARSE_LOGS=""
+    if [ \${TRUSTED_HOST} ]; then
+        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} -i \${TRUSTED_HOST} "
+    fi
+
+    # parse_logs() currently only works on Ubuntu or Centos builds
+    # due to a different awk implementation on OSX cloudbees servers
+    if is_ubuntu || is_centos; then
+        PARSE_LOGS="parse_logs "
     fi
 
     # using the caching-layer, install all the dependencies
@@ -567,6 +573,12 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
+  build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
+    vagrant destroy -f
+    parse_logs \$venv/bin/python admin/build-vagrant-box --box tutorial \
+      --branch \${TRIGGERED_BRANCH} --build-server  http://\${eth0_ip}
+    parse_logs vagrant box add --force "clusterhq/flocker-tutorial" \
+      vagrant/tutorial/flocker-tutorial-\${FLOCKER_VERSION}.box
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -933,4 +945,19 @@ job_type:
                    *build_dockerfile_ubuntu_vivid,
                    *build_docker_image,
                    *push_image_to_dockerhub ]
+          }
+    build_vagrant_basebox_for_flocker_tutorial:
+      at: '0 2 * * *'
+      on_nodes_with_labels: 'mesos-vbox'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *check_version,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   'export HOME=/root',
+                   *build_vagrant_tutorial_basebox,
+                   *clean_packages]
           }
