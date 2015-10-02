@@ -3,6 +3,7 @@
 Tests for ``admin.acceptance``.
 """
 
+import json
 from io import BytesIO
 from uuid import UUID
 
@@ -120,6 +121,7 @@ class JournaldJSONFormatter(SynchronousTestCase):
         converter = journald_json_formatter(output)
         for line in JOURNAL_EXPORT.splitlines():
             converter(line)
+        converter(b"")
 
         self.assertEqual(
             [dict(
@@ -133,5 +135,9 @@ class JournaldJSONFormatter(SynchronousTestCase):
                  _SYSTEMD_UNIT="flocker-container-agent.service",
              ),
          ],
-            list(loads(line) for line in output.getvalue().splitlines()),
+            list(
+                json.loads(line)
+                for line
+                in output.getvalue().splitlines()
+            ),
         )

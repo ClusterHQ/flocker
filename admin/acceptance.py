@@ -912,16 +912,19 @@ def journald_json_formatter(output_file):
     """
     accumulated = {}
     def handle_output_line(line):
-        if not line:
+        if line:
+            key, value = line.split(b"=", 1)
+            accumulated[key] = value
+        else:
             if accumulated:
-                message = loads(accumulated.get(b"MESSAGE", b"{}"))
+                message = json.loads(accumulated.get(b"MESSAGE", b"{}"))
                 message[u"_HOSTNAME"] = accumulated.get(
                     b"_HOSTNAME", b"<no hostname>"
                 )
                 message[u"_SYSTEMD_UNIT"] = accumulated.get(
                     b"_SYSTEMD_UNIT", b"<no unit>"
                 )
-                output_file.write(dumps(message) + b"\n")
+                output_file.write(json.dumps(message) + b"\n")
                 accumulated.clear()
     return handle_output_line
 
