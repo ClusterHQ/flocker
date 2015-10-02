@@ -86,11 +86,9 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
     # https://github.com/spotify/dh-virtualenv/issues/10
-    # so we set our virtualenv dir to live in /tmp/v. We avoid any race
-    # conditions by only executing one build per jenkins_slave at any moment
-    # in time, and cleaning up old virtualenvs at the begining of the build.
+    # so we set our virtualenv dir to live in /tmp/<random number>
     #
-    export venv=/tmp/v
+    export venv=/tmp/\${RANDOM}
 
     function os {
       # Let's figure out if this is OSX or Linux
