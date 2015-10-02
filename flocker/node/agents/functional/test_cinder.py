@@ -425,6 +425,10 @@ class CinderAttachmentTests(SynchronousTestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
+
+    # XXX: TODO: This test doesn't require virsh. Either the decorator should
+    # be renamed, or maybe a different decorator for tests that require
+    # virtio, but not particularly virsh.
     @require_virsh
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
@@ -470,6 +474,9 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume.id,
         )
 
+    # XXX: TODO: This test doesn't require virsh. Either the decorator should
+    # be renamed, or maybe a different decorator for tests that require
+    # virtio, but not particularly virsh.
     @require_virsh
     def test_get_device_path_virtio_blk_symlink(self):
         """

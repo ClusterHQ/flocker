@@ -342,6 +342,9 @@ def configured_cluster_for_nodes(
         configured.
     """
     default_volume_size = GiB(1)
+    # XXX: TODO: This looks like it should come from
+    # node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. Or maybe
+    # they should both come from a non-test file.
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
         default_volume_size = GiB(100)
 

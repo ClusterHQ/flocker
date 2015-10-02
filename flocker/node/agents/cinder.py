@@ -602,6 +602,11 @@ class CinderBlockDeviceAPI(object):
         expected_path = FilePath(
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
+        # XXX: TODO: Is there a reason you chose to return the real device
+        # path, rather than the symbolic link? It would be good to document
+        # any reason, because the symbolic link has the advantage of being
+        # less ambiguous / more robust in the face of concurrent
+        # detaching/attaching activity.
         if expected_path.exists():
             return expected_path.realpath()
         else:
@@ -662,7 +667,7 @@ def _is_virtio_blk(device_path):
     """
     Check whether the supplied device path is a virtio_blk device.
 
-    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    We assume that virtio_blk device name always begin with `vd` whereas
     Xen devices begin with `xvd`.
     See https://www.kernel.org/doc/Documentation/devices.txt
 
