@@ -355,27 +355,6 @@ class FlockerScriptRunnerJournaldTests(TestCase):
                                                             {u"key": 123}))
         return d
 
-    def test_journald_percent(self):
-        """
-        When ``--journald`` option is used messages with a ``%`` in them can
-        be logged correctly.
-        """
-        d = self.run_journald_script(EliotPercentScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"key": u"hello%s"}))
-        return d
-
-    def test_journald_large_message(self):
-        """
-        When ``--journald`` option is used large messages end up in the
-        journal and are not broken up, demonstrating we're not hitting
-        https://bugs.freedesktop.org/show_bug.cgi?id=86465
-        """
-        d = self.run_journald_script(EliotLargeScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"key": EliotLargeScript.key}))
-        return d
-
 
 class JournaldOptionsTests(TestCase):
     """
