@@ -38,7 +38,7 @@ from flocker.provision._install import (
     ManagedNode,
     task_pull_docker_images,
     uninstall_flocker,
-    install_flocker,
+    provision,
     configure_cluster,
     configure_zfs,
 )
@@ -238,7 +238,7 @@ class ManagedRunner(object):
         def install(ignored):
             return perform(
                 dispatcher,
-                install_flocker(nodes, package_source),
+                provision(nodes, package_source),
             )
         installing = uninstalling.addCallback(install)
         return installing
