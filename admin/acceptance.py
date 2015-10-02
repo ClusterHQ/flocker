@@ -389,7 +389,7 @@ class VagrantRunner(object):
 
         :param FilePath top_level: the directory containing the ``admin``
             package.
-        :param str distribution: the name of a distribution
+        :param bytes distribution: the name of a distribution
         :raise UsageError: if no such distribution found.
         :return: ``FilePath`` of the vagrant directory.
         """
