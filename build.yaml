@@ -89,6 +89,11 @@ common_cli:
     # so we set our virtualenv dir to live in /tmp/<random number>
     #
     export venv=/tmp/\${RANDOM}
+    # make sure the virtualenv doesn't already exist
+    while [ -e \${venv} ]
+    do
+      export venv=/tmp/\${RANDOM}
+    done
 
     function os {
       # Let's figure out if this is OSX or Linux
