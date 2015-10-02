@@ -63,6 +63,18 @@ class INode(Interface):
             provisioning
         """
 
+    def destroy():
+        """
+        Destroy the node.
+        """
+
+    def reboot():
+        """
+        Reboot the node.
+
+        :return Effect:
+        """
+
 
 @implementer(INode)
 @attributes([
