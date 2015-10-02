@@ -111,9 +111,33 @@ Preparing For a Release
       # Use system site packages e.g. so that "rpm" can be imported
       $ mkvirtualenv -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
       (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
-      (flocker-0.1.2)$ admin/create-release-branch --flocker-version=${VERSION}
+
+   Create or switch to the correct branch. If this is a major or minor release, create a new branch
+
+   .. prompt:: bash $ auto
+
+      $ git checkout -b release/flocker-1.2 origin/master
+
+   If this is a patch release, checkout the release branch
+
+   .. prompt:: bash $ auto
+
+      $ git checkout -b release/flocker-1.2 origin/master
+
+   If this is a development release, create a new branch
+
+   .. prompt:: bash $ auto
+
+      $ git checkout -b release/flocker-1.2.0.dev1 origin/master
+
+#. Ensure the copyright is up-to-date.
+
+   .. prompt:: bash $,(flocker-0.1.2)$ auto
+
       (flocker-0.1.2)$ admin/update-license
       (flocker-0.1.2)$ git commit -am "Updated copyright in LICENSE file"
+
+   .. note:: The ``git commit`` may fail saying there is nothing to commit.
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
