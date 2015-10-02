@@ -1228,7 +1228,7 @@ def _run_on_all_nodes(nodes, task):
     ))
 
 
-def install_flocker(nodes, package_source):
+def provision_nodes(nodes, package_source, variants):
     """
     Return an ``Effect`` that installs a certain version of Flocker on the
     given nodes.
@@ -1236,14 +1236,17 @@ def install_flocker(nodes, package_source):
     :param nodes: An iterable of ``Node`` instances on which to install
         Flocker.
     :param PackageSource package_source: The version of Flocker to install.
+    :param set variants: The set of variant configurations to use when
+        provisioning
 
     :return: An ``Effect`` which installs Flocker on the nodes.
     """
     return _run_on_all_nodes(
         nodes,
-        task=lambda node: task_install_flocker(
+        task=lambda node: provision(
             distribution=node.distribution,
             package_source=package_source,
+            variants=variants
         )
     )
 
