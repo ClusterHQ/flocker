@@ -115,36 +115,24 @@ Preparing For a Release
       (flocker-0.1.2)$ admin/update-license
       (flocker-0.1.2)$ git commit -am "Updated copyright in LICENSE file"
 
-#. Ensure the release notes in :file:`NEWS` are up-to-date:
-
-   XXX: Process to be decided, see :issue:`523`.
-
-   - The NEWS date format is YYYY-MM-DD.
-   - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
-     This means that in doing a release, you may have to remove the previous development release or pre-release header, merging the changes from that previous release into the current release.
+#. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
       .. prompt:: bash (flocker-0.1.2)$
 
-          # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
+          # Choose the tag of the last version with a "Release Notes" entry to compare the latest version to.
           OLD_VERSION=0.3.0
 
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           git log --first-parent ${OLD_VERSION}..${BRANCH}
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      git commit -am "Updated NEWS"
-
-#. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
    - Update the "Release Notes" document.
    - (optional) Add a version heading.
      If this is a Major or Minor Marketing (pre-)release, the "Release Notes" document should have a heading corresponding to the release version.
      If this is a weekly development release, add a "Next Release" heading instead.
    - Refer to the appropriate internal release planning document on Google Drive for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
-   - Add bullet points for any other *important* new features and improvements from the NEWS file above,
+   - Add bullet points for any other *important* new features and improvements from the ``git log`` above,
    - and add links (where appropriate) to documentation that has been added for those features.
 
    Finally, commit the changes:
@@ -190,7 +178,6 @@ So it is important to check that the code in the release branch is working befor
 
 #. Check the changes in the Pull Request:
 
-   * The NEWS file has suitable changes.
    * The release notes at :file:`docs/releasenotes/index.rst` should be up to date.
    * The build should be passing to the team's satisfaction.
      See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
