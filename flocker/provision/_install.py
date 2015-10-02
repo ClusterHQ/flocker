@@ -1283,6 +1283,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                         task_install_api_certificates(
                             cluster.certificates.user.certificate,
                             cluster.certificates.user.key),
+                        task_install_docker(node.distribution),
                         task_enable_docker(node.distribution),
                         task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
