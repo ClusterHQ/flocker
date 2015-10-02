@@ -948,7 +948,7 @@ job_type:
           }
     build_vagrant_basebox_for_flocker_tutorial:
       at: '0 2 * * *'
-      on_nodes_with_labels: 'mesos-vbox'
+      on_nodes_with_labels: 'mesos-512MB'
       with_steps:
         - { type: 'shell',
             cli: [ *add_shell_functions,
