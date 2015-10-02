@@ -20,8 +20,6 @@ from ._install import (
 from ._ssh import run_remotely, run_from_args
 from ._effect import sequence
 
-import boto.ec2
-
 
 _usernames = {
     'centos-7': 'centos',
@@ -147,16 +145,19 @@ class AWSProvisioner(PClass):
     def create_node(self, name, distribution,
                     size=None, disk_size=8,
                     metadata={}):
+        from boto.ec2.blockdevicemapping import (
+            EBSBlockDeviceType, BlockDeviceMapping,
+        )
         if size is None:
             size = self.default_size
 
         metadata = metadata.copy()
         metadata['Name'] = name
 
-        disk1 = boto.ec2.blockdevicemapping.EBSBlockDeviceType()
+        disk1 = EBSBlockDeviceType()
         disk1.size = disk_size
         disk1.delete_on_termination = True
-        diskmap = boto.ec2.blockdevicemapping.BlockDeviceMapping()
+        diskmap = BlockDeviceMapping()
         diskmap['/dev/sda1'] = disk1
 
         images = self.connection.get_all_images(
@@ -222,7 +223,8 @@ def aws_provisioner(access_key, secret_access_token, keyname,
     :param list security_groups: List of security groups to put created nodes
         in.
     """
-    conn = boto.ec2.connect_to_region(
+    from boto.ec2 import connect_to_region
+    conn = connect_to_region(
         region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_access_token,
