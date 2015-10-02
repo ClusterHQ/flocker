@@ -917,7 +917,13 @@ def journald_json_formatter(output_file):
             accumulated[key] = value
         else:
             if accumulated:
-                message = json.loads(accumulated.get(b"MESSAGE", b"{}"))
+                raw_message = accumulated.get(b"MESSAGE", b"{}")
+                try:
+                    message = json.loads(raw_message)
+                except ValueError:
+                    # Docker log messages are not JSON
+                    message = dict(message=raw_message)
+
                 message[u"_HOSTNAME"] = accumulated.get(
                     b"_HOSTNAME", b"<no hostname>"
                 )
