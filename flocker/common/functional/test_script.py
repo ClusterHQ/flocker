@@ -40,7 +40,8 @@ def _journald_available():
     # Journald is actually running on this machine (e.g. on some Ubuntu
     # versions it can be available but not running).
     try:
-        check_output(["journalctl", "-b", "-n1"], stderr=STDOUT)
+        # Output as little as possible. One line of log since since last boot.
+        check_output(["journalctl", "--boot", "--lines=1"], stderr=STDOUT)
     except CalledProcessError:
         return False
     return True
@@ -337,9 +338,9 @@ class FlockerScriptRunnerJournaldTests(TestCase):
         # systemd-run doesn't wait for process to exit, so we need to ask
         # systemd when it's done:
         d.addCallback(lambda _: loop_until(lambda: Popen(
-            [b"systemctl", b"-q", b"is-active", name]).wait() != 0))
+            [b"systemctl", b"--quiet", b"is-active", name]).wait() != 0))
         d.addCallback(lambda _: getProcessOutput(
-            b"journalctl", [b"-u", name, b"-o", b"cat"]))
+            b"journalctl", [b"--unit", name, b"--output", b"cat"]))
         d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
         d.addCallback(lambda data: [
             loads(l) for l in data.splitlines() if l.startswith(b"{")])
