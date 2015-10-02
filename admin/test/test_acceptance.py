@@ -142,6 +142,9 @@ class JournaldJSONFormatter(SynchronousTestCase):
     Tests for ``journald_json_formatter``.
     """
     def _convert(self, journal):
+        """
+        Use ``journald_json_formatter`` to convert a journal export to json.
+        """
         output = BytesIO()
         converter = journald_json_formatter(output)
         for line in journal.splitlines():
@@ -154,7 +157,10 @@ class JournaldJSONFormatter(SynchronousTestCase):
         )
 
     def test_converted(self):
-
+        """
+        Journal entries are converted to JSON lines with the hostname and
+        systemd unit added to the json-format message.
+        """
         self.assertEqual(
             [dict(
                 some="json",
