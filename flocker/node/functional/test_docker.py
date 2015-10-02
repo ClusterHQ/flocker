@@ -10,6 +10,8 @@ import time
 import socket
 from functools import partial
 
+from eliot.testing import capture_logging, assertHasMessage
+
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 from docker import Client
@@ -36,6 +38,7 @@ from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse, make_response,
+    LOG_CACHED_IMAGE,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
@@ -205,6 +208,45 @@ class GenericDockerClientTests(TestCase):
                 image_name,
                 data[u"Config"][u"Image"],
             )
+        d.addCallback(started)
+        return d
+
+    @capture_logging(assertHasMessage, LOG_CACHED_IMAGE)
+    def test_list_image_data_cached(self, logger):
+        """
+        ``DockerClient.list`` will only an inspect an image ID once, caching
+        the resulting data.
+        """
+        name = random_name(self)
+        d = self.start_container(name, image_name=ANY_IMAGE)
+
+        def started(client):
+            listing = client.list()
+
+            def listed(_):
+                class FakeAPIError(Exception):
+                    pass
+
+                def fake_inspect_image(image):
+                    raise FakeAPIError(
+                        "Tried to inspect image {} twice.".format(image))
+                # This is kind of nasty, but NamespacedDockerClient represents
+                # its client via a proxying attribute.
+                if isinstance(client, NamespacedDockerClient):
+                    docker_client = client._client._client
+                else:
+                    docker_client = client._client
+                self.patch(docker_client, "inspect_image", fake_inspect_image)
+                # If image is not retrieved from the cache, list() here will
+                # attempt to call inspect_image again, resulting in a call to
+                # the fake_inspect_image function that will raise an exception.
+                cached_listing = client.list()
+                cached_listing.addCallback(lambda _: None)
+                return cached_listing
+
+            listing.addCallback(listed)
+            return listing
+
         d.addCallback(started)
         return d
 

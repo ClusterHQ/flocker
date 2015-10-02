@@ -16,7 +16,7 @@ from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
+from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
@@ -25,8 +25,7 @@ from ..ebs import (
 )
 
 from .._logging import (
-    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
-    IN_USE_DEVICES
+    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER
 )
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
@@ -163,24 +162,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
-
-    @capture_logging(
-        assertHasMessage, IN_USE_DEVICES, {
-            'devices': [u'/dev/sda1']
-        },
-    )
-    def test_in_use_devices_log(self, logger):
-        """
-        Attached device shows up as being in use during subsequent
-        ``attach_volume``.
-        """
-        volume1 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.attach_volume(
-            volume1.blockdevice_id, attach_to=self.this_node,
-        )
 
 
 class VolumeStateTransitionTests(TestCase):

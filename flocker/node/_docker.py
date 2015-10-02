@@ -12,10 +12,12 @@ from time import sleep
 from zope.interface import Interface, implementer
 
 from docker import Client
-from docker.errors import APIError
+from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
-from eliot import Message
+from eliot import Message, MessageType, Field, start_action
+
+from repoze.lru import LRUCache
 
 from pyrsistent import field, PRecord, pset
 from requests import Response
@@ -29,6 +31,13 @@ from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
+
+
+LOG_CACHED_IMAGE = MessageType(
+    u"flocker:node:docker:image_from_cache",
+    [Field.for_types(u"image", [unicode], "The image ID.")],
+    "An image was retrieved from the cache."
+)
 
 
 class AlreadyExists(Exception):
@@ -97,6 +106,19 @@ class PortMap(PRecord):
     """
     internal_port = field(mandatory=True, type=int)
     external_port = field(mandatory=True, type=int)
+
+
+class ImageDataCache(PRecord):
+    """
+    A record representing cached image data. The cache only stores
+    the data we care about from an inspected image.
+
+    :ivar list command: The image command.
+    :ivar list environment: A list of unicode strings representing
+        the image's environment variables.
+    """
+    command = field(mandatory=True, type=(list, type(None)))
+    environment = field(mandatory=True, type=(list, type(None)))
 
 
 class Unit(PRecord):
@@ -379,6 +401,7 @@ class DockerClient(object):
     :ivar str base_url: URL for connection to the Docker server.
     :ivar int long_timeout: Maximum time in seconds to wait for
         long-running operations, particularly pulling an image.
+    :ivar LRUCache _image_cache: Mapped cache of image IDs to their data.
     """
     def __init__(
             self, namespace=BASE_NAMESPACE, base_url=None,
@@ -386,6 +409,7 @@ class DockerClient(object):
         self.namespace = namespace
         self._client = TimeoutClient(
             version="1.15", base_url=base_url, long_timeout=long_timeout)
+        self._image_cache = LRUCache(100)
 
     def _to_container_name(self, unit_name):
         """
@@ -527,6 +551,50 @@ class DockerClient(object):
             return None
         return AddressInUse(address=(ip, int(port)), apierror=apierror)
 
+    def _image_data(self, image):
+        """
+        Supply data about an image, by either inspecting it or returning
+        cached data if available.
+
+        :param unicode image: The ID of the image.
+
+        :return: ``dict`` representing data about the image properties.
+        """
+        cached_image = self._image_cache.get(image)
+        if cached_image is not None:
+            LOG_CACHED_IMAGE(image=image).write()
+            return cached_image
+        try:
+            image_data = self._client.inspect_image(image)
+            Message.new(
+                message_type="flocker:node:docker:image_inspected",
+                image=image
+            ).write()
+        except APIError as e:
+            if e.response.status_code == NOT_FOUND:
+                # Image has been deleted, so just fill in some
+                # stub data so we can return *something*. This
+                # should happen only for stopped containers so
+                # some inaccuracy is acceptable.
+                # We won't cache stub data though.
+                Message.new(
+                    message_type="flocker:node:docker:image_not_found",
+                    image=image
+                ).write()
+                image_data = {u"Config": {u"Env": [], u"Cmd": []}}
+            else:
+                raise
+        cached_data = ImageDataCache(
+            command=image_data[u"Config"][u"Cmd"],
+            environment=image_data[u"Config"][u"Env"]
+        )
+        self._image_cache.put(image, cached_data)
+        Message.new(
+            message_type="flocker:node:docker:image_data_cached",
+            image=image
+        ).write()
+        return cached_data
+
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None):
@@ -591,13 +659,16 @@ class DockerClient(object):
 
             # Just because we got a response doesn't mean Docker has
             # actually updated any internal state yet! So if e.g. we did a
-            # stop on this container Docker might well complain it knows
+            # start on this container Docker might well complain it knows
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
-            while not self._blocking_exists(container_name):
-                sleep(0.001)
-                continue
-            self._client.start(container_name)
+            while True:
+                try:
+                    self._client.start(container_name)
+                except NotFound:
+                    sleep(0.01)
+                else:
+                    break
 
         d = deferToThread(_add)
 
@@ -637,23 +708,6 @@ class DockerClient(object):
     def exists(self, unit_name):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
-
-    def _blocking_container_runs(self, container_name):
-        """
-        Blocking API to check if container is running.
-
-        :param unicode container_name: The name of the container whose
-            state we're checking.
-
-        :return: ``True`` if container is running, otherwise ``False``.
-        """
-        result = self._client.inspect_container(container_name)
-        Message.new(
-            message_type="flocker:docker:container_state",
-            container=container_name,
-            state=result
-        ).write()
-        return result['State']['Running']
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
@@ -710,8 +764,7 @@ class DockerClient(object):
                 # attempting removal or use -f")'
                 # This code should probably be removed once the above
                 # issue has been resolved. See [FLOC-1850]
-                while self._blocking_container_runs(container_name):
-                    sleep(0.01)
+                self._client.wait(container_name)
 
                 Message.new(
                     message_type="flocker:docker:container_remove",
@@ -760,22 +813,13 @@ class DockerClient(object):
                 image = data[u"Image"]
                 image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                try:
-                    image_data = self._client.inspect_image(image)
-                except APIError as e:
-                    if e.response.status_code == NOT_FOUND:
-                        # Image has been deleted, so just fill in some
-                        # stub data so we can return *something*. This
-                        # should happen only for stopped containers so
-                        # some inaccuracy is acceptable.
-                        Message.new(
-                            message_type="flocker:docker:image_not_found",
-                            container=i, running=data[u"State"][u"Running"]
-                        ).write()
-                        image_data = {u"Config": {u"Env": [], u"Cmd": []}}
-                    else:
-                        raise
-                if image_data[u"Config"][u"Cmd"] == command:
+                with start_action(
+                    action_type=u"flocker:node:docker:inspect_image",
+                    container=i,
+                    running=data[u"State"][u"Running"]
+                ):
+                    image_data = self._image_data(image)
+                if image_data.command == command:
                     command = None
                 port_bindings = data[u"NetworkSettings"][u"Ports"]
                 if port_bindings is not None:
@@ -801,10 +845,10 @@ class DockerClient(object):
                 # of the image, rather than supplied in the configuration.
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
-                if image_data[u"Config"]["Env"] is None:
+                if image_data.environment is None:
                     image_environment = []
                 else:
-                    image_environment = image_data[u"Config"]["Env"]
+                    image_environment = image_data.environment
                 if container_environment is not None:
                     for environment in container_environment:
                         if environment not in image_environment:

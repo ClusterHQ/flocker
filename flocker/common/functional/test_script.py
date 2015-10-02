@@ -8,12 +8,14 @@ import os
 import sys
 from json import loads
 from signal import SIGINT
+from unittest import skipUnless, skipIf
+from subprocess import check_output, CalledProcessError, STDOUT, Popen
 
 from bitmath import MiB
 
 from zope.interface import implementer
 
-from eliot import Logger, Message
+from eliot import Message
 from eliot.testing import assertContainsFields
 
 from twisted.trial.unittest import TestCase
@@ -21,16 +23,45 @@ from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
+from twisted.python.usage import Options, UsageError
 
-from ..script import ICommandLineScript
+from ..script import ICommandLineScript, flocker_standard_options
+from ...testtools import random_name, if_root, loop_until
+
+
+def _journald_available():
+    """
+    :return: Boolean indicating whether journald is available to use.
+    """
+    # Process exists:
+    if not which("journalctl"):
+        return False
+    # Journald is actually running on this machine (e.g. on some Ubuntu
+    # versions it can be available but not running).
+    try:
+        # Output as little as possible. One line of log since since last boot.
+        check_output(["journalctl", "--boot", "--lines=1"], stderr=STDOUT)
+    except CalledProcessError:
+        return False
+    return True
 
 
 @implementer(ICommandLineScript)
 class EliotScript(object):
+    key = 123
+
     def main(self, reactor, options):
-        logger = Logger()
-        Message.new(key=123).write(logger)
+        Message.log(key=self.key)
         return succeed(None)
+
+
+class EliotPercentScript(EliotScript):
+    key = u"hello%s"
+
+
+class EliotLargeScript(EliotScript):
+    key = u"1234 " * 20000 + u" ends here"
 
 
 @implementer(ICommandLineScript)
@@ -67,6 +98,20 @@ class SigintScript(object):
         reactor.callLater(0.05, os.kill, os.getpid(), SIGINT)
         return Deferred()
 
+# Code to run a minimal script:
+_SCRIPT_CODE = b'''\
+from twisted.python.usage import Options
+from flocker.common.script import FlockerScriptRunner, flocker_standard_options
+
+from flocker.common.functional.test_script import {}
+
+@flocker_standard_options
+class StandardOptions(Options):
+    pass
+
+FlockerScriptRunner({}(), StandardOptions()).main()
+'''
+
 
 class FlockerScriptRunnerTests(TestCase):
     """
@@ -84,23 +129,13 @@ class FlockerScriptRunnerTests(TestCase):
         """
         if options is None:
             options = []
-        code = b'''\
-from twisted.python.usage import Options
-from flocker.common.script import FlockerScriptRunner, flocker_standard_options
-
-from flocker.common.functional.test_script import {}
-
-@flocker_standard_options
-class StandardOptions(Options):
-    pass
-
-FlockerScriptRunner({}(), StandardOptions()).main()
-'''.format(script.__name__, script.__name__)
+        code = _SCRIPT_CODE.format(script.__name__, script.__name__)
         d = getProcessOutput(
             sys.executable, [b"-c", code] + options,
             env=os.environ,
             errortoo=True
         )
+        d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
         d.addCallback(lambda data: map(loads, data.splitlines()))
         return d
 
@@ -272,3 +307,73 @@ FlockerScriptRunner({}(), StandardOptions()).main()
         d.addCallback(verify_logfiles, logfile=logfile)
 
         return d
+
+
+class FlockerScriptRunnerJournaldTests(TestCase):
+    """
+    Functional tests for ``FlockerScriptRunner`` journald support.
+    """
+    @if_root
+    @skipUnless(_journald_available(),
+                "journald unavailable or inactive on this machine.")
+    def run_journald_script(self, script):
+        """
+        Run a script that logs messages to journald and uses
+        ``FlockerScriptRunner``.
+
+        :param ICommandLineScript: Script to run. Must be class in this module.
+
+        :return: ``Deferred`` that fires with decoded JSON messages from the
+            journal for the process.
+        """
+        name = random_name(self).encode("utf-8")
+        code = _SCRIPT_CODE.format(script.__name__, script.__name__)
+        d = getProcessOutput(
+            b"systemd-run", [b"--unit=" + name, b"--description=testing",
+                             sys.executable, b"-u", b"-c", code,
+                             b"--journald"],
+            env=os.environ, errortoo=True,
+        )
+        d.addCallback(lambda result: msg("systemd-run output: " + result))
+        # systemd-run doesn't wait for process to exit, so we need to ask
+        # systemd when it's done:
+        d.addCallback(lambda _: loop_until(lambda: Popen(
+            [b"systemctl", b"--quiet", b"is-active", name]).wait() != 0))
+        d.addCallback(lambda _: getProcessOutput(
+            b"journalctl", [b"--unit", name, b"--output", b"cat"]))
+        d.addCallback(lambda data: (msg(b"script output: " + data), data)[1])
+        d.addCallback(lambda data: [
+            loads(l) for l in data.splitlines() if l.startswith(b"{")])
+        return d
+
+    def test_journald(self):
+        """
+        When ``--journald`` option is used messages end up in the journal.
+        """
+        d = self.run_journald_script(EliotScript)
+        d.addCallback(lambda messages: assertContainsFields(self, messages[1],
+                                                            {u"key": 123}))
+        return d
+
+
+class JournaldOptionsTests(TestCase):
+    """
+    Tests for the ``--journald`` option.
+    """
+    # _journald_available() is too strong of an assertion; a non-root user
+    # on system with journald installed will get False but this test
+    # shouldn't be run in that case.
+    @skipIf(which("journalctl"), "Journald is available on this machine.")
+    def test_journald_unavailable(self):
+        """
+        If journald is unavailable on the machine, ``--journald`` raises a
+        ``UsageError``.
+        """
+        @flocker_standard_options
+        class MyOptions(Options):
+            pass
+
+        exc = self.assertRaises(
+            UsageError, MyOptions().parseOptions, ["--journald"])
+        self.assertTrue(str(exc).startswith(
+            "Journald unavailable on this machine: "))

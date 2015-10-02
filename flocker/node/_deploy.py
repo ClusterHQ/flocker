@@ -541,7 +541,6 @@ class P2PManifestationDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
@@ -757,6 +756,8 @@ class ApplicationNodeDeployer(object):
                 volume=volume,
                 environment=environment if environment else None,
                 links=frozenset(links),
+                memory_limit=container.mem_limit,
+                cpu_shares=container.cpu_shares,
                 restart_policy=container.restart_policy,
                 running=(container.activation_state == u"active"),
                 command_line=container.command_line,
@@ -778,7 +779,6 @@ class ApplicationNodeDeployer(object):
             uuid=self.node_uuid,
             hostname=self.hostname,
             applications=applications,
-            used_ports=self.network.enumerate_used_ports(),
             manifestations=None,
             paths=None,
         )]
@@ -814,7 +814,6 @@ class ApplicationNodeDeployer(object):
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
-                used_ports=None,
                 manifestations=None,
                 paths=None,
             )])
@@ -921,9 +920,6 @@ class ApplicationNodeDeployer(object):
 
         Certain differences are not considered divergences:
 
-            - The running state of the application.  It may have exited
-              normally and correctly after completing its task.
-
             - Certain volume differences.  See ``_restart_for_volume_change``.
 
         :param NodeState node_state: The known local state of this node.
@@ -944,11 +940,6 @@ class ApplicationNodeDeployer(object):
         # Check volumes separately.
         comparable_state = state.set(volume=None)
         comparable_configuration = configuration.set(volume=None)
-
-        # For our purposes what we care about is if configuration has
-        # changed, so if it's not running but it's otherwise the same
-        # we don't want to do anything:
-        comparable_state = comparable_state.transform(["running"], True)
 
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
         restart_state = comparable_state.restart_policy

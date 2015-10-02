@@ -1116,8 +1116,29 @@ def task_install_flocker(
 
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
-    return task_package_install("clusterhq-flocker-node",
-                                distribution, package_source)
+    return task_package_install(
+        "clusterhq-flocker-node",
+        distribution, package_source,
+    )
+
+
+def task_install_docker_plugin(
+    distribution=None,
+    package_source=PackageSource(),
+):
+    """
+    Install flocker docker plugin on a distribution.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
+    """
+    return task_package_install(
+        "clusterhq-flocker-docker-plugin",
+        distribution, package_source,
+    )
 
 
 ACCEPTANCE_IMAGES = [
@@ -1196,8 +1217,8 @@ def provision(distribution, package_source, variants):
         task_install_flocker(
             package_source=package_source, distribution=distribution))
     commands.append(
-        task_package_install(
-            "clusterhq-flocker-docker-plugin", distribution, package_source))
+        task_install_docker_plugin(
+            package_source=package_source, distribution=distribution))
     commands.append(task_enable_docker(distribution))
     return sequence(commands)
 
@@ -1236,10 +1257,16 @@ def install_flocker(nodes, package_source):
     """
     return _run_on_all_nodes(
         nodes,
-        task=lambda node: task_install_flocker(
-            distribution=node.distribution,
-            package_source=package_source,
-        )
+        task=lambda node: sequence([
+            task_install_flocker(
+                distribution=node.distribution,
+                package_source=package_source,
+            ),
+            task_install_docker_plugin(
+                distribution=node.distribution,
+                package_source=package_source,
+            )
+        ]),
     )
 
 
@@ -1265,7 +1292,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                 task_enable_flocker_control(cluster.control_node.distribution),
                 ]),
         ),
-        sequence([
+        parallel([
             sequence([
                 run_remotely(
                     username='root',

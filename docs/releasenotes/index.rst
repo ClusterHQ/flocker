@@ -10,6 +10,23 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
+* Unexpected errors in agent state discovery no longer break the agent convergence loop.
+
+
+v1.4.0
+======
+
+* The :ref:`dataset API <api>` added support for leases.
+  Leases prevent a dataset from being deleted or moved off a node.
+* Fix line splitting when logging to `systemd`'s journal.
+* Various performance and scalability improvements.
+* Remove limits on size of configuration and state in agent protocol.
+* Prevent repeated restart of containers with CPU shares or memory limits.
+
 v1.3.1
 ======
 
@@ -70,7 +87,7 @@ v1.0
 
 * Dataset backend support for :ref:`AWS Elastic Block Storage (EBS)<aws-dataset-backend>`, :ref:`OpenStack Cinder<openstack-dataset-backend>`, and :ref:`EMC ScaleIO and XtremIO<emc-dataset-backend>`.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
-  See :ref:`dataset-backend-plugins`.
+  See :ref:`contribute-flocker-driver`.
 * It is now necessary to specify a dataset backend for each agent node.
   See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
