@@ -438,7 +438,7 @@ branches.each {
 
 
 {# the multijob is responsible for running all configured jobs in parallel   #}
-  multiJob("${dashProject}/${dashBranchName}/_main_multijob") {
+  multiJob("${dashProject}/${dashBranchName}/__main_multijob") {
     wrappers {
       timestamps()
       colorizeOutput()
