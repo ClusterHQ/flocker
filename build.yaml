@@ -241,7 +241,9 @@ common_cli:
     # during the bootstrapping of the slave.
     # This file is located in /etc/jenkins_slave on the Master box.
     # These variables contain the PIP URL and IP address of our caching server.
-    . /tmp/pip.sh
+    if [ -e /tmp/pip.sh ]; then
+      . /tmp/pip.sh
+    fi
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
@@ -951,7 +953,7 @@ job_type:
       on_nodes_with_labels: 'mesos-512MB'
       with_steps:
         - { type: 'shell',
-            cli: [ *add_shell_functions,
+            cli: [ *add_shell_functions, *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *check_version,
                    'export DISTRIBUTION_NAME=centos-7',
