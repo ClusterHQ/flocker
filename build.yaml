@@ -426,7 +426,7 @@ common_cli:
     sudo /usr/sbin/setenforce 0
 
   check_version: &check_version |
-    export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
+    export FLOCKER_VERSION=\$(\${venv}/bin/python setup.py --version)
 
   build_sdist: &build_sdist  |
     # package the goodies
