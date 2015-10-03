@@ -251,7 +251,7 @@ common_cli:
     # We have a devpi cache in AWS which we will consume instead of going
     # upstream to the PyPi servers.
     # We specify that devpi caching server using -i \$PIP_INDEX_URL
-    # which requires as to include --trusted_host as we are not (yet) using
+    # which requires as to include --trusted-host as we are not (yet) using
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
@@ -259,7 +259,8 @@ common_cli:
         PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} -i \${PIP_INDEX_URL} "
     fi
     if [ \${TRUSTED_HOST} ]; then
-        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} -i \${TRUSTED_HOST} "
+        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} \
+                                --trusted-host \${TRUSTED_HOST} "
     fi
 
     # parse_logs() currently only works on Ubuntu or Centos builds
