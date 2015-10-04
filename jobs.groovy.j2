@@ -99,7 +99,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {#
 
 #}
-{% macro wrappers(v, directory_to_delete)                                              -%}
+{% macro wrappers(v, directory_to_delete)                                   -%}
 {# adds a list of common wrappers to the build jobs.
 
    param v:  dictionary containing the values from the job
@@ -118,7 +118,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
       An improvement here (TODO) would be to receibe the timeout as a parameter
       so that we can have different timeouts for different job types.        #}
       timeout {
-          absolute(30)
+          absolute({{v.timeout}})
           failBuild()
       }
 {#    Jobs that are executed with sudo can leave files behind that prevents
@@ -442,6 +442,9 @@ branches.each {
     wrappers {
       timestamps()
       colorizeOutput()
+      timeout {
+          absolute(45)
+          }
     }
       steps {
 {# make sure we are starting with a clean workspace                          #}
