@@ -118,6 +118,8 @@ class IProvisioner(Interface):
     """
     A provisioner for creating nodes to run acceptance tests agasint.
     """
+    default_size = InterfaceAttribute(
+        'The default instance size created by this provisioner.')
 
     def get_ssh_key():
         """
