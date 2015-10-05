@@ -11,7 +11,8 @@ from characteristic import attributes
 from eliot import MessageType, ActionType, Field
 from eliot.twisted import DeferredContext
 
-from twisted.internet.error import ProcessDone
+from twisted.python.failure import Failure
+from twisted.internet.error import ProcessTerminated, ProcessDone
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ProcessProtocol
 
@@ -40,6 +41,22 @@ RUN_ERROR_MESSAGE = MessageType(
     ],
     description=u"A line of command stderr.",
 )
+
+
+class RemoteFileNotFound(Exception):
+    """
+    A file on a remote server was not found.
+    """
+    def __init__(self, remote_path):
+        """
+        :param bytes remote_path: A ``username@host:path``-style string
+            describing the file that was not found.
+        """
+        Exception.__init__(self, remote_path)
+        self.remote_path = remote_path
+
+    def __str__(self):
+        return repr(self)
 
 
 # LineOnlyReceiver is mutable, so can't use pyrsistent
@@ -194,24 +211,52 @@ def run_ssh(reactor, username, host, command, **kwargs):
 
 def download_file(reactor, username, host, remote_path, local_path):
     """
-    Run the local ``scp`` command to download a single file from a remote
-    host and kill it if the reactor stops.
+    Run the local ``scp`` command to download a single file from a remote host
+    and kill it if the reactor stops.
 
     :param reactor: Reactor to use.
     :param username: The username to use when logging into the remote server.
     :param host: The hostname or IP address of the remote server.
     :param FilePath remote_path: The path of the file on the remote host.
     :param FilePath local_path: The path of the file on the local host.
-    :return Deferred: Deferred that fires when the process is ended.
+
+    :return Deferred: Deferred that fires when the process is ended.  If the
+        file isn't found on the remote server, it fires with ``FileNotFound``.
     """
+    remote_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
     ] + SSH_OPTIONS + [
-        username + b'@' + host + b':' + remote_path.path,
+        remote_path,
         local_path.path
     ]
 
-    return run(
+    # A place to hold failure state between parsing stderr and needing to fire
+    # a Deferred.
+    failed_reason = []
+
+    def check_for_missing(line):
+        """
+        Notice scp's particular way of describing the file-not-found condition
+        and turn it into a more easily recognized form.
+        """
+        if b"No such file or directory" in line:
+            failed_reason.append(RemoteFileNotFound(remote_path))
+
+    scp_result = run(
         reactor,
         scp_command,
+        handle_stderr=check_for_missing,
     )
+
+    def scp_failed(reason):
+        """
+        Check for a known error with the scp attempt and turn the normal
+        failure into a more meaningful one.
+        """
+        reason.trap(ProcessTerminated)
+        if failed_reason:
+            return Failure(failed_reason[0])
+
+    scp_result.addErrback(scp_failed)
+    return scp_result
