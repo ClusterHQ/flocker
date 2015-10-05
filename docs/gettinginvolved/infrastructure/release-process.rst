@@ -289,7 +289,7 @@ Release
       git checkout -b merge-release-${VERSION}-FLOC-XXX release/flocker-1.2
       git merge origin/master
 
-   Merging this pull-reuqest will also close the release pull request.
+   Merging this pull-request will also close the release pull request.
 
    Unless this is a development release,
    do not delete the release branch because it may be used as a base branch for future releases.
