@@ -73,7 +73,8 @@ from ..cinder import (
 #     FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$PWD/acceptance.yml \
 #     FLOCKER_FUNCTIONAL_TEST=TRUE \
 #     FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
-#     $(type -p trial) flocker.node.agents.functional.test_cinder.CinderAttachmentTests
+#     $(type -p trial) \
+#     flocker.node.agents.functional.test_cinder.CinderAttachmentTests
 require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
@@ -449,7 +450,6 @@ class CinderAttachmentTests(SynchronousTestCase):
                 transient_states=(u'available', u'attaching',),
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
-
 
     @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
