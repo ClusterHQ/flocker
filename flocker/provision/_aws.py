@@ -21,6 +21,8 @@ from ._install import (
     task_install_ssh_key,
 )
 
+from eliot import start_action
+
 from ._ssh import run_remotely, run_from_args
 from ._effect import sequence
 
@@ -40,6 +42,29 @@ IMAGE_NAMES = {
 }
 
 
+def _wait_until_running(instance):
+    """
+    Wait until a instance is running.
+
+    :param boto.ec2.instance.Instance instance: The instance to wait for.
+    """
+    with start_action(
+        action_type=u"flocker:provision:aws:wait_until_running",
+        instance_id=instance.id,
+    ):
+        state = instance.state
+        while state != 'running':
+            with start_action(
+                action_type=u"flocker:provision:aws:wait_until_running:sleep",
+                instance_state=instance.state,
+            ):
+                sleep(1)
+            instance.update()
+            new_state = instance.state
+            if new_state != state:
+                state = new_state
+
+
 @implementer(INode)
 class AWSNode(PClass):
     _provisioner = field(mandatory=True)
@@ -56,7 +81,11 @@ class AWSNode(PClass):
         return self._instance.private_ip_address.encode('ascii')
 
     def destroy(self):
-        self._instance.terminate()
+        with start_action(
+            action_type=u"flocker:provision:aws:destroy",
+            instance_id=self._instance.id,
+        ):
+            self._instance.terminate()
 
     def get_default_username(self):
         """
@@ -112,15 +141,12 @@ class AWSNode(PClass):
         """
 
         def do_reboot(_):
-            self._node.reboot()
-            state = self.instance.state
-            while state != 'running':
-                sleep(1)
-                self.instance.update()
-                new_state = self.instance.state
-                if new_state != state:
-                    state = new_state
-                    print 'Instance', state
+            with start_action(
+                action_type=u"flocker:provision:aws:reboot",
+                instance_id=self._instance.id,
+            ):
+                self._instance.reboot()
+                _wait_until_running(self._instance)
 
         return run_remotely(
             username="root",
@@ -159,61 +185,62 @@ class AWSProvisioner(PClass):
         if size is None:
             size = self.default_size
 
-        metadata = metadata.copy()
-        metadata['Name'] = name
-
-        disk1 = EBSBlockDeviceType()
-        disk1.size = disk_size
-        disk1.delete_on_termination = True
-        diskmap = BlockDeviceMapping()
-        diskmap['/dev/sda1'] = disk1
-
-        images = self.connection.get_all_images(
-            filters={'name': IMAGE_NAMES[distribution]},
-        )
-
-        reservation = self.connection.run_instances(
-            images[0].id,
-            key_name=self.keyname,
-            instance_type=size,
-            security_groups=self.security_groups,
-            block_device_map=diskmap,
-            placement=self.zone,
-            # On some operating systems, a tty is requried for sudo.
-            # Since AWS systems have a non-root user as the login,
-            # disable this, so we can use sudo with conch.
-            user_data=dedent("""\
-                #!/bin/sh
-                sed -i '/Defaults *requiretty/d' /etc/sudoers
-                """),
-        )
-
-        instance = reservation.instances[0]
-
-        self.connection.create_tags([instance.id], metadata)
-
-        state = instance.state
-        print 'Instance', state
-
-        # Display state as instance starts up, to keep user informed that
-        # things are happening.
-        while state != 'running':
-            sleep(1)
-            instance.update()
-            new_state = instance.state
-            if new_state != state:
-                state = new_state
-                print 'Instance', state
-
-        print 'Instance ID:', instance.id
-        print 'Instance IP:', instance.ip_address
-
-        return AWSNode(
+        with start_action(
+            action_type=u"flocker:provision:aws:create_node",
             name=name,
-            _provisioner=self,
-            _instance=instance,
             distribution=distribution,
-        )
+            image_size=size,
+            disk_size=disk_size,
+            metadata=metadata,
+        ):
+
+            metadata = metadata.copy()
+            metadata['Name'] = name
+
+            disk1 = EBSBlockDeviceType()
+            disk1.size = disk_size
+            disk1.delete_on_termination = True
+            diskmap = BlockDeviceMapping()
+            diskmap['/dev/sda1'] = disk1
+
+            images = self.connection.get_all_images(
+                filters={'name': IMAGE_NAMES[distribution]},
+            )
+
+            with start_action(
+                action_type=u"flocker:provision:aws:create_node:run_instances",
+            ) as context:
+                reservation = self.connection.run_instances(
+                    images[0].id,
+                    key_name=self.keyname,
+                    instance_type=size,
+                    security_groups=self.security_groups,
+                    block_device_map=diskmap,
+                    placement=self.zone,
+                    # On some operating systems, a tty is requried for sudo.
+                    # Since AWS systems have a non-root user as the login,
+                    # disable this, so we can use sudo with conch.
+                    user_data=dedent("""\
+                        #!/bin/sh
+                        sed -i '/Defaults *requiretty/d' /etc/sudoers
+                        """),
+                )
+
+                instance = reservation.instances[0]
+                context.add_success_fields(instance_id=instance.id)
+
+            self.connection.create_tags([instance.id], metadata)
+
+            # Display state as instance starts up, to keep user informed that
+            # things are happening.
+            _wait_until_running(instance)
+
+            return AWSNode(
+                name=name,
+                _provisioner=self,
+                _instance=instance,
+                distribution=distribution,
+            )
 
 
 def aws_provisioner(access_key, secret_access_token, keyname,
