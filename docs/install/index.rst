@@ -43,3 +43,4 @@ It also describes how to get Vagrant nodes started which already have these serv
 
    install-client
    install-node
+   docker-plugin

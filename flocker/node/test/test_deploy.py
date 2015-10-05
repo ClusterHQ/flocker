@@ -1682,37 +1682,43 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
-    def test_local_not_running_applications_not_restarted(self):
+    def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
-        node are not restarted by Flocker (we rely on Docker restart
-        policies to do so).
+        node are restarted by Flocker (we cannot rely on Docker restart
+        policies to do so because FLOC-3148).
         """
         api = ApplicationNodeDeployer(u'n.example.com',
                                       docker_client=FakeDockerClient(),
                                       network=make_memory_network(),
                                       node_uuid=uuid4())
-        application = Application(
+        application_desired = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
         )
-        nodes = frozenset([
+        application_stopped = application_desired.set("running", False)
+        nodes_desired = frozenset([
             Node(
                 uuid=api.node_uuid,
-                applications=frozenset([application])
+                applications=frozenset([application_desired])
             )
         ])
         node_state = NodeState(
             hostname=api.hostname,
             uuid=api.node_uuid,
-            applications=[application.set("running", False)])
-        desired = Deployment(nodes=nodes)
+            applications=[application_stopped])
+        desired = Deployment(nodes=nodes_desired)
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]))
 
-        expected = sequentially(changes=[])
+        expected = sequentially(changes=[in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=application_stopped),
+                StartApplication(
+                    application=application_desired, node_state=node_state),
+            ])])])
         self.assertEqual(expected, result)
 
     def test_not_local_not_running_applications_stopped(self):

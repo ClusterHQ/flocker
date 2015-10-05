@@ -216,6 +216,7 @@ class Flocker030 < Formula
   url "https://example.com/flocker_sdist"
   sha1 "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a"
   depends_on :python if MacOS.version <= :snow_leopard
+  depends_on "openssl"
 
   resource "six" do
     url "https://example.com/six/six-1.9.0.tar.gz"
@@ -223,6 +224,12 @@ class Flocker030 < Formula
   end
 
   def install
+    # XXX These environment variables are necessary until cryptography has
+    # wheels for OS X 10.11.
+    # See https://github.com/pyca/cryptography/issues/2350
+    ENV["LDFLAGS"] = "-L#{opt_prefix}/openssl/lib"
+    ENV["CFLAGS"] = "-I#{opt_prefix}/openssl/include"
+
     ENV.prepend_create_path "PYTHONPATH", "#{libexec}/vendor/lib/python2.7/site-packages"
     %w[six].each do |r|
       resource(r).stage do

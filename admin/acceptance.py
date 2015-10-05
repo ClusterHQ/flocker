@@ -12,7 +12,9 @@ from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination, write_failure
+from eliot import (
+    add_destination, write_failure, FileDestination
+)
 from pyrsistent import pvector
 from bitmath import GiB
 
@@ -375,17 +377,34 @@ class VagrantRunner(object):
     NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
-        self.vagrant_path = self.top_level.descendant([
-            'admin', 'vagrant-acceptance-targets', self.distribution,
-        ])
+        self.vagrant_path = self._get_vagrant_path(self.top_level, self.distribution)
+
         self.certificates_path = self.top_level.descendant([
             'vagrant', 'tutorial', 'credentials'])
-        if not self.vagrant_path.exists():
-            raise UsageError("Distribution not found: %s."
-                             % (self.distribution,))
 
         if self.variants:
             raise UsageError("Variants unsupported on vagrant.")
+
+    def _get_vagrant_path(self, top_level, distribution):
+        """
+        Get the path to the Vagrant directory for ``distribution``.
+
+        :param FilePath top_level: the directory containing the ``admin``
+            package.
+        :param bytes distribution: the name of a distribution
+        :raise UsageError: if no such distribution found.
+        :return: ``FilePath`` of the vagrant directory.
+        """
+        vagrant_dir = top_level.descendant([
+            'admin', 'vagrant-acceptance-targets'
+        ])
+        vagrant_path = vagrant_dir.child(distribution)
+        if not vagrant_path.exists():
+            distributions = vagrant_dir.listdir()
+            raise UsageError(
+                "Distribution not found: %s. Valid distributions: %s."
+                % (self.distribution, ', '.join(distributions)))
+        return vagrant_path
 
     def ensure_keys(self, reactor):
         key = Key.fromFile(os.path.expanduser(
@@ -881,6 +900,7 @@ def capture_journal(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
+    formatter = journald_json_formatter(output_file)
     ran = run_ssh(
         reactor=reactor,
         host=host,
@@ -888,6 +908,7 @@ def capture_journal(reactor, host, output_file):
         command=[
             b'journalctl',
             b'--lines', b'0',
+            b'--output', b'export',
             b'--follow',
             # Only bother with units we care about:
             b'-u', b'docker',
@@ -896,9 +917,45 @@ def capture_journal(reactor, host, output_file):
             b'-u', b'flocker-container-agent',
             b'-u', b'flocker-docker-plugin',
         ],
-        handle_stdout=lambda line: output_file.write(line + b'\n')
+        handle_stdout=formatter,
     )
     ran.addErrback(write_failure, logger=None)
+    # Deliver a final empty line to process the last message
+    ran.addCallback(lambda ignored: formatter(b""))
+
+
+def journald_json_formatter(output_file):
+    """
+    Create an output handler which turns journald's export format back into
+    Eliot JSON with extra fields to identify the log origin.
+    """
+    accumulated = {}
+
+
+    # XXX Factoring the parsing code separately from the IO would make this
+    # whole thing nicer.
+    def handle_output_line(line):
+        if line:
+            key, value = line.split(b"=", 1)
+            accumulated[key] = value
+        else:
+            if accumulated:
+                raw_message = accumulated.get(b"MESSAGE", b"{}")
+                try:
+                    message = json.loads(raw_message)
+                except ValueError:
+                    # Docker log messages are not JSON
+                    message = dict(message=raw_message)
+
+                message[u"_HOSTNAME"] = accumulated.get(
+                    b"_HOSTNAME", b"<no hostname>"
+                )
+                message[u"_SYSTEMD_UNIT"] = accumulated.get(
+                    b"_SYSTEMD_UNIT", b"<no unit>"
+                )
+                output_file.write(json.dumps(message) + b"\n")
+                accumulated.clear()
+    return handle_output_line
 
 
 @inlineCallbacks
@@ -921,9 +978,10 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     from flocker.common.script import eliot_logging_service
-    log_file = open("%s.log" % base_path.basename(), "a")
     log_writer = eliot_logging_service(
-        log_file=log_file,
+        destination=FileDestination(
+            file=open("%s.log" % (base_path.basename(),), "a")
+        ),
         reactor=reactor,
         capture_stdout=False)
     log_writer.startService()

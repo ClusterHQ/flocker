@@ -450,7 +450,7 @@ class StandardOptionsTestsMixin(object):
 
     def test_logfile_default(self):
         """
-        `--logfile` is optional and if ommited, the default value will be
+        `--logfile` is optional and if ommited, logs will be directed to
         ``stdout``.
         """
         sys = FakeSysModule()
@@ -461,11 +461,11 @@ class StandardOptionsTestsMixin(object):
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions([])
-        self.assertIs(sys.stdout, options['logfile'])
+        self.assertIs(sys.stdout, options.eliot_destination.file)
 
     def test_logfile_override(self):
         """
-        If `--logfile` is supplied, its value is stored as a
+        If `--logfile` is supplied, the Eliot logging destination wraps
         ``twisted.python.logfile.LogFile``.
         """
         options = self.options()
@@ -476,7 +476,7 @@ class StandardOptionsTestsMixin(object):
         self.patch(options, "parseArgs", lambda: None)
         expected_path = FilePath(self.mktemp()).path
         options.parseOptions(['--logfile={}'.format(expected_path)])
-        logfile = options['logfile']
+        logfile = options.eliot_destination.file
         self.assertEqual(
             (LogFile, expected_path, int(MiB(100).to_Byte().value), 5),
             (logfile.__class__, logfile.path,

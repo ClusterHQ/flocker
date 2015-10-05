@@ -8,6 +8,7 @@ Fakes for interacting with AMP.
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred, succeed
 from twisted.protocols.amp import AMP, InvalidSignature
+from twisted.test.proto_helpers import StringTransport
 
 
 class FakeAMPClient(object):
@@ -91,6 +92,7 @@ class DelayedAMPClient(object):
     def __init__(self, client):
         self._client = client
         self._calls = []
+        self.transport = StringTransport()
 
     def callRemote(self, command, **kwargs):
         """

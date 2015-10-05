@@ -86,11 +86,14 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
     # https://github.com/spotify/dh-virtualenv/issues/10
-    # so we set our virtualenv dir to live in /tmp/v. We avoid any race
-    # conditions by only executing one build per jenkins_slave at any moment
-    # in time, and cleaning up old virtualenvs at the begining of the build.
+    # so we set our virtualenv dir to live in /tmp/<random number>
     #
-    export venv=/tmp/v
+    export venv=/tmp/\${RANDOM}
+    # make sure the virtualenv doesn't already exist
+    while [ -e \${venv} ]
+    do
+      export venv=/tmp/\${RANDOM}
+    done
 
     function os {
       # Let's figure out if this is OSX or Linux
@@ -428,7 +431,7 @@ common_cli:
     sudo /usr/sbin/setenforce 0
 
   check_version: &check_version |
-    export FLOCKER_VERSION=\$(/tmp/v/bin/python setup.py --version)
+    export FLOCKER_VERSION=\$(\${venv}/bin/python setup.py --version)
 
   build_sdist: &build_sdist  |
     # package the goodies
@@ -900,7 +903,7 @@ job_type:
   cronly_jobs:
     run_docker_build_centos7_fpm:
       at: '0 0 * * *'
-      on_nodes_with_labels: 'aws-centos-7-T2Medium'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *add_shell_functions,
@@ -911,7 +914,7 @@ job_type:
           }
     run_docker_build_ubuntu_trusty_fpm:
       at: '0 1 * * *'
-      on_nodes_with_labels: 'aws-centos-7-T2Medium'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *add_shell_functions,
@@ -922,7 +925,7 @@ job_type:
           }
     run_docker_build_ubuntu_vivid_fpm:
       at: '0 2 * * *'
-      on_nodes_with_labels: 'aws-centos-7-T2Medium'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *add_shell_functions,

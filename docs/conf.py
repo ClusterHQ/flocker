@@ -330,12 +330,13 @@ linkcheck_ignore = [
     # UserVoice forbids (403) Buildbot, but works for browsers and local runs
     r'https://feedback.clusterhq.com/',
 
+
     # The following link checks fail because of a TLS handshake error.
     # The link checking should be fixed and these ignores should be removed.
     # See https://clusterhq.atlassian.net/browse/FLOC-1156.
     r'https://docs.clusterhq.com/',
     r'https://docs.staging.clusterhq.com/',
-    r'https://docs.docker.com/\S+',
+    r'https://docs.docker.com/\S*',
 ]
 
 
