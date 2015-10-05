@@ -2,6 +2,9 @@
 
 from characteristic import attributes, Attribute
 from pyrsistent import PRecord, field
+from zope.interface import (
+    Attribute as InterfaceAttribute, Interface)
+
 from twisted.python.constants import Values, ValueConstant
 
 from flocker.common.version import make_rpm_version
@@ -79,3 +82,72 @@ class Cluster(PRecord):
     @property
     def certificates_path(self):
         return self.certificates.directory
+
+
+class INode(Interface):
+    """
+    Interface for node for running acceptance tests.
+    """
+    address = InterfaceAttribute('Public IP address for node')
+    private_address = InterfaceAttribute('Private IP address for node')
+    distribution = InterfaceAttribute('distribution on node')
+
+    def get_default_username():
+        """
+        Return the username available by default on a system.
+
+        Some cloud systems (e.g. AWS) provide a specific username, which
+        depends on the OS distribution started.  This method returns
+        the username based on the node distribution.
+        """
+
+    def provision(package_source, variants):
+        """
+        Provision flocker on this node.
+
+        :param PackageSource package_source: The source from which to install
+            flocker.
+        :param set variants: The set of variant configurations to use when
+            provisioning
+        """
+
+    def destroy():
+        """
+        Destroy the node.
+        """
+
+    def reboot():
+        """
+        Reboot the node.
+
+        :return Effect:
+        """
+
+
+class IProvisioner(Interface):
+    """
+    A provisioner for creating nodes to run acceptance tests agasint.
+    """
+
+    def get_ssh_key():
+        """
+        Return the public key associated with the provided keyname.
+
+        :return Key: The ssh public key or ``None`` if it can't be determined.
+        """
+
+    def create_node(name, distribution,
+                    size=None, disk_size=8,
+                    metadata={}):
+        """
+        Create a node.
+
+        :param str name: The name of the node.
+        :param str distribution: The name of the distribution to
+            install on the node.
+        :param str size: The name of the size to use.
+        :param int disk_size: The size of disk to allocate.
+        :param dict metadata: Metadata to associate with the node.
+
+        :return INode: The created node.
+        """
