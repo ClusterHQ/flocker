@@ -212,10 +212,16 @@ def cli_pkg_test(package_source=PackageSource()):
     """
     expected = package_source.version
     if not expected:
-        # support empty values other than None, as '' sometimes used to
-        # indicate latest version, due to previous behaviour
-        expected = get_installable_version(version)
-    return run("test `flocker-deploy --version` = {}".format(quote(expected)))
+        if package_source.branch:
+            # If branch is set but version isn't, we don't know the
+            # latest version. In this case, just check that the version
+            # can be displayed.
+            return run('flocker-deploy --version')
+        else:
+            # If neither branch nor version is set, the latest
+            # installable release will be installed.
+            expected = get_installable_version(version)
+    return run('test `flocker-deploy --version` = {}'.format(quote(expected)))
 
 
 def install_commands_yum(package_name, distribution, package_source, base_url):
@@ -448,6 +454,17 @@ def task_cli_pip_prereqs(package_manager):
         raise UnsupportedDistribution()
 
 
+def _get_wheel_version(package_source):
+    """
+    Get the latest available wheel version for the specified package source.
+
+    If package source version is not set, the latest installable release
+    will be installed.  Note, branch is never used for wheel
+    installations, since the wheel file is not created for branches.
+    """
+    return get_installable_version(package_source.version or version)
+
+
 def task_cli_pip_install(
         venv_name='flocker-client', package_source=PackageSource()):
     """
@@ -457,14 +474,11 @@ def task_cli_pip_install(
     :param package_source: Package source description
     :return: an Effect to install the client.
     """
-    vers = package_source.version
-    if vers is None:
-        vers = version
     url = (
         'https://{bucket}.s3.amazonaws.com/{key}/'
         'Flocker-{version}-py2-none-any.whl'.format(
             bucket=ARCHIVE_BUCKET, key='python',
-            version=get_installable_version(vers))
+            version=_get_wheel_version(package_source))
         )
     return sequence([
         run_from_args(
@@ -476,20 +490,17 @@ def task_cli_pip_install(
         ])
 
 
-def cli_pip_test(
-        venv_name='flocker-client', package_source=PackageSource()):
+def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
     """
     Test the Flocker client installed in a virtualenv.
 
     :param bytes venv_name: Name for the virtualenv.
     :return: an Effect to test the client.
     """
-    expected = package_source.version
-    if expected is None:
-        expected = get_installable_version(version)
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run("test `flocker-deploy --version` = {}".format(quote(expected))),
+        run('test `flocker-deploy --version` = {}'.format(
+            quote(_get_wheel_version(package_source))))
         ])
 
 
