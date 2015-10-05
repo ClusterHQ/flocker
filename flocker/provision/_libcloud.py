@@ -4,12 +4,13 @@
 Helpers for using libcloud.
 """
 
-from zope.interface import (
-    Attribute as InterfaceAttribute, Interface, implementer)
+from zope.interface import implementer
 from characteristic import attributes, Attribute
 from twisted.conch.ssh.keys import Key
 
 from flocker.provision._ssh import run_remotely, run_from_args
+
+from ._common import INode, IProvisioner
 
 
 def get_size(driver, size_id):
@@ -34,46 +35,6 @@ def get_image(driver, image_name):
         return [s for s in driver.list_images() if s.name == image_name][0]
     except IndexError:
         raise ValueError("Unknown image.", image_name)
-
-
-class INode(Interface):
-    """
-    Interface for node for running acceptance tests.
-    """
-    address = InterfaceAttribute('Public IP address for node')
-    private_address = InterfaceAttribute('Private IP address for node')
-    distribution = InterfaceAttribute('distribution on node')
-
-    def get_default_username():
-        """
-        Return the username available by default on a system.
-
-        Some cloud systems (e.g. AWS) provide a specific username, which
-        depends on the OS distribution started.  This method returns
-        the username based on the node distribution.
-        """
-
-    def provision(package_source, variants):
-        """
-        Provision flocker on this node.
-
-        :param PackageSource package_source: The source from which to install
-            flocker.
-        :param set variants: The set of variant configurations to use when
-            provisioning
-        """
-
-    def destroy():
-        """
-        Destroy the node.
-        """
-
-    def reboot():
-        """
-        Reboot the node.
-
-        :return Effect:
-        """
 
 
 @implementer(INode)
@@ -156,6 +117,7 @@ class CloudKeyNotFound(Exception):
     """
 
 
+@implementer(IProvisioner)
 @attributes([
     Attribute('_driver'),
     Attribute('_keyname'),
