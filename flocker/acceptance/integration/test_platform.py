@@ -8,7 +8,7 @@ from ..testtools import require_cluster
 from ...common.runner import RemoteFileNotFound
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 
 class SyslogTests(TestCase):
