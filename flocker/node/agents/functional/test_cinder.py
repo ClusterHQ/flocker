@@ -74,7 +74,7 @@ from ..cinder import (
 #     FLOCKER_FUNCTIONAL_TEST=TRUE \
 #     FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
 #     $(type -p trial) flocker.node.agents.functional.test_cinder.CinderAttachmentTests
-require_virsh = skipIf(
+require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
@@ -367,7 +367,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_correct_with_attached_disk(self):
         """
         get_device_path returns the correct device name even when a non-Cinder
@@ -412,7 +412,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virsh
+    @require_virtio
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
@@ -451,10 +451,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.assertEqual(e.exception.unexpected_state, u'available')
 
 
-    # XXX: TODO: This test doesn't require virsh. Either the decorator should
-    # be renamed, or maybe a different decorator for tests that require
-    # virtio, but not particularly virsh.
-    @require_virsh
+    @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver raises
@@ -499,10 +496,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume.id,
         )
 
-    # XXX: TODO: This test doesn't require virsh. Either the decorator should
-    # be renamed, or maybe a different decorator for tests that require
-    # virtio, but not particularly virsh.
-    @require_virsh
+    @require_virtio
     def test_get_device_path_virtio_blk_symlink(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver
