@@ -602,11 +602,17 @@ class CinderBlockDeviceAPI(object):
         expected_path = FilePath(
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
-        # XXX: TODO: Is there a reason you chose to return the real device
-        # path, rather than the symbolic link? It would be good to document
-        # any reason, because the symbolic link has the advantage of being
-        # less ambiguous / more robust in the face of concurrent
-        # detaching/attaching activity.
+        # Return the real path to avoid two problems:
+        #
+        # 1. flocker-dataset-agent mounting volumes before udev has populated
+        #    the by-id symlinks.
+        # 2. Even if we mount with `/dev/disk/by-id/xxx`, the mounted
+        #    filesystems are listed (in e.g. `/proc/mounts`) with the **target**
+        #    (i.e. the real path) of the `/dev/disk/by-id/xxx` symlinks. This
+        #    confuses flocker-dataset-agent (which assumes path equality is
+        #    string equality), causing it to believe that `/dev/disk/by-id/xxx`
+        #    has not been mounted, leading it to repeatedly attempt to mount the
+        #    device.
         if expected_path.exists():
             return expected_path.realpath()
         else:
