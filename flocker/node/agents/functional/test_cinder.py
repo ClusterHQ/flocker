@@ -49,6 +49,31 @@ from ..cinder import (
 
 # Tests requiring virsh can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
+#
+# In the meantime, you can do the following (provided you have access):
+#
+# Connect to the devstack host:
+#   ssh -A root@104.130.19.104
+#
+# From the devstack host, connect to the guest:
+#   ssh -A ubuntu@10.0.0.3
+#
+# This is a shared machine that only ClusterHQ employees have access to. Make
+# sure that no one else is using it at the same time.
+#
+# On the devstack guest do the following:
+#   cd flocker
+#   workon flocker
+#
+# Then update the branch to match the code you want to test.
+#
+# Then run these tests:
+#
+#   sudo /usr/bin/env \
+#     FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$PWD/acceptance.yml \
+#     FLOCKER_FUNCTIONAL_TEST=TRUE \
+#     FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
+#     $(type -p trial) flocker.node.agents.functional.test_cinder.CinderAttachmentTests
 require_virsh = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
