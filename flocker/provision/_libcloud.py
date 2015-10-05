@@ -88,7 +88,7 @@ class LibcloudNode(object):
         """
         Return the default username on this provisioner.
         """
-        return self._provisioner.get_default_user(self.distribution)
+        return self._provisioner._get_default_user(self.distribution)
 
     def provision(self, package_source, variants=()):
         """
@@ -99,7 +99,7 @@ class LibcloudNode(object):
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        return self._provisioner.provision(
+        return self._provisioner._provision(
             node=self,
             package_source=package_source,
             distribution=self.distribution,
@@ -121,12 +121,12 @@ class CloudKeyNotFound(Exception):
 @attributes([
     Attribute('_driver'),
     Attribute('_keyname'),
-    Attribute('image_names'),
+    Attribute('_image_names'),
     Attribute('_create_node_arguments'),
-    Attribute('provision'),
+    Attribute('_provision'),
     Attribute('default_size'),
-    Attribute('get_default_user'),
-    Attribute('use_private_addresses', instance_of=bool, default_value=False),
+    Attribute('_get_default_user'),
+    Attribute('_use_private_addresses', instance_of=bool, default_value=False),
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
@@ -134,15 +134,15 @@ class LibcloudProvisioner(object):
     :ivar bytes _keyname: The name of an existing ssh public key configured
         with the cloud provider. The provision step assumes the corresponding
         private key is available from an agent.
-    :ivar dict image_names: Dictionary mapping distributions to cloud image
+    :ivar dict _image_names: Dictionary mapping distributions to cloud image
         names.
     :ivar callable _create_node_arguments: Extra arguments to pass to
         libcloud's ``create_node``.
-    :ivar callable provision: Function to call to provision a node.
+    :ivar callable _provision: Function to call to provision a node.
     :ivar str default_size: Name of the default size of node to create.
     :ivar callable get_default_user: Function to provide the default
         username on the node.
-    :ivar bool use_private_addresses: Whether the `private_address` of nodes
+    :ivar bool _use_private_addresses: Whether the `private_address` of nodes
         should be populated. This should be specified if the cluster nodes
         use the private address for inter-node communication.
     """
@@ -188,7 +188,7 @@ class LibcloudProvisioner(object):
         if size is None:
             size = self.default_size
 
-        image_name = self.image_names[distribution]
+        image_name = self._image_names[distribution]
 
         create_node_arguments = self._create_node_arguments(
             disk_size=disk_size)
@@ -209,7 +209,7 @@ class LibcloudProvisioner(object):
         if isinstance(public_address, unicode):
             public_address = public_address.encode("ascii")
 
-        if self.use_private_addresses:
+        if self._use_private_addresses:
             private_address = node.private_ips[0]
         else:
             private_address = None

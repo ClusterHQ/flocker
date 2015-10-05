@@ -157,11 +157,24 @@ class AWSNode(PClass):
 
 @implementer(IProvisioner)
 class AWSProvisioner(PClass):
-    connection = field(mandatory=True)
-    keyname = field(mandatory=True)
-    security_groups = field(mandatory=True)
-    zone = field(mandatory=True)
-    default_size = field(mandatory=True)
+    """
+    A provisioner that creates nodes on AWS.
+
+    :ivar boto.ec2.connection.EC2Connection _connection: The boto connection to
+        use.
+    :ivar bytes _keyname: The name of an existing ssh public key configured
+        with the cloud provider.
+    :ivar _security_groups: List of security groups to put the instances
+        created by this provisioner in.
+    :type _security_groups: `list` of `bytes`
+    :param bytes _zone: The AWS availability zone to put instances created by
+        this provisioner in.
+    """
+    _connection = field(mandatory=True)
+    _keyname = field(type=bytes, mandatory=True)
+    _security_groups = field(mandatory=True)
+    _zone = field(type=bytes, mandatory=True)
+    default_size = field(type=bytes, mandatory=True)
 
     def get_ssh_key(self):
         """
@@ -203,20 +216,20 @@ class AWSProvisioner(PClass):
             diskmap = BlockDeviceMapping()
             diskmap['/dev/sda1'] = disk1
 
-            images = self.connection.get_all_images(
+            images = self._connection.get_all_images(
                 filters={'name': IMAGE_NAMES[distribution]},
             )
 
             with start_action(
                 action_type=u"flocker:provision:aws:create_node:run_instances",
             ) as context:
-                reservation = self.connection.run_instances(
+                reservation = self._connection.run_instances(
                     images[0].id,
-                    key_name=self.keyname,
+                    key_name=self._keyname,
                     instance_type=size,
-                    security_groups=self.security_groups,
+                    security_groups=self._security_groups,
                     block_device_map=diskmap,
-                    placement=self.zone,
+                    placement=self._zone,
                     # On some operating systems, a tty is requried for sudo.
                     # Since AWS systems have a non-root user as the login,
                     # disable this, so we can use sudo with conch.
@@ -229,7 +242,7 @@ class AWSProvisioner(PClass):
                 instance = reservation.instances[0]
                 context.add_success_fields(instance_id=instance.id)
 
-            self.connection.create_tags([instance.id], metadata)
+            self._connection.create_tags([instance.id], metadata)
 
             # Display state as instance starts up, to keep user informed that
             # things are happening.
@@ -271,5 +284,5 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         keyname=keyname,
         security_groups=security_groups,
         zone=zone,
-        default_size="m3.large",
+        default_size=b"m3.large",
     )
