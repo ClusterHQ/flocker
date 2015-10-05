@@ -5,7 +5,8 @@ Controlling Flocker with the Flocker Plugin for Docker
 ======================================================
 
 The Flocker plugin for Docker is a `Docker volumes plugin`_ connecting Docker on a host directly to Flocker, where Flocker agents will be running on the same host and hooked up to the Flocker control service.
-Once :ref:`installed <install-docker-plugin>` it can be invoked by Docker using the :ref:`docker-plugin-cli` or :ref:`docker-plugin-api`.
+
+The following instructions describe how to control Flocker by using the :ref:`docker-plugin-cli` or :ref:`docker-plugin-api`. This can only be done once you have :ref:`installed the Flocker plugin for Docker <install-docker-plugin>`.
 
 .. include:: ../../install/plugin-restrictions.rst
 
