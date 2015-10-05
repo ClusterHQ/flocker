@@ -286,7 +286,7 @@ Release
 
    .. prompt:: bash $
 
-      git checkout -b merge-release-${VERSION}-FLOC-XXX release/flocker-1.2
+      git checkout -b merge-release-${VERSION}-FLOC-XXX release/flocker-${VERSION}
       git merge origin/master
 
    Merging this pull-request will also close the release pull request.
