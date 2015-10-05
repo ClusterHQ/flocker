@@ -23,7 +23,7 @@ from ._ssh import (
     run, run_from_args, Run,
     sudo_from_args, Sudo,
     put,
-    run_remotely
+    run_remotely,
 )
 from ._effect import sequence
 
@@ -224,6 +224,21 @@ def cli_pkg_test(package_source=PackageSource()):
     return run('test `flocker-deploy --version` = {}'.format(quote(expected)))
 
 
+def wipe_yum_cache(repository):
+    """
+    Force yum to update the metadata for a particular repository.
+
+    :param bytes repository: The name of the repository to clear.
+    """
+    return run_from_args([
+        b"yum",
+        b"--disablerepo=*",
+        b"--enablerepo=" + repository,
+        b"clean",
+        b"expire-cache"
+    ])
+
+
 def install_commands_yum(package_name, distribution, package_source, base_url):
     """
     Install Flocker package on CentOS.
@@ -266,6 +281,13 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
             baseurl=%s
             gpgcheck=0
             enabled=0
+            # There is a distinct clusterhq-build repository for each branch.
+            # The metadata across these different repositories varies.  Version
+            # numbers are not comparable.  A version which exists in one likely
+            # does not exist in another.  In order to support switching between
+            # branches (and therefore between clusterhq-build repositories),
+            # tell yum to always update metadata for this repository.
+            metadata_expire=0
             """) % (base_url,)
         commands.append(put(content=repo,
                             path='/tmp/clusterhq-build.repo'))
@@ -336,21 +358,38 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # During a release, the ClusterHQ repo may contain packages with
         # a higher version number than the Buildbot repo for a branch.
         # Use a pin file to ensure that any Buildbot repo has higher
-        # priority than the ClusterHQ repo.
+        # priority than the ClusterHQ repo.  We only add the Buildbot
+        # repo when a branch is specified, so it wil not interfere with
+        # attempts to install a release (when no branch is specified).
         buildbot_host = urlparse(package_source.build_server).hostname
         commands.append(put(dedent('''\
-            Package:  *
+            Package: *
             Pin: origin {}
-            Pin-Priority: 900
+            Pin-Priority: 700
         '''.format(buildbot_host)), '/tmp/apt-pref'))
         commands.append(run_from_args([
-            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
     commands.append(run_from_args(["apt-get", "update"]))
 
     if package_source.os_version:
+        # Set the version of the top-level package
         package_name += '=%s' % (package_source.os_version,)
+
+        # If a specific version is required, ensure that the version for
+        # all ClusterHQ packages is consistent.  This prevents conflicts
+        # between the top-level package, which may depend on a lower
+        # version of a dependency, and apt, which wants to install the
+        # most recent version.  Note that this trumps the Buildbot
+        # pinning above.
+        commands.append(put(dedent('''\
+            Package: clusterhq-*
+            Pin: version {}
+            Pin-Priority: 900
+        '''.format(package_source.os_version)), '/tmp/apt-pref'))
+        commands.append(run_from_args([
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
 
     # Install package and all dependencies
     commands.append(run_from_args([
@@ -1031,6 +1070,11 @@ def _uninstall_flocker_centos7():
             run_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
             ]),
+            # Force yum to update the metadata for the release repositories.
+            # If we are running tests against a release, it is likely that the
+            # metadata will not have expired for them yet.
+            wipe_yum_cache(repository="clusterhq"),
+            wipe_yum_cache(repository="clusterhq-testing"),
             run_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-release",
             ]),
