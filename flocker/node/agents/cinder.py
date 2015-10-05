@@ -34,7 +34,7 @@ from ...common import (
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume, UnknownInstanceID, get_blockdevice_volume,
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -449,13 +449,14 @@ class CinderBlockDeviceAPI(object):
 
         # If we've got this correct there should only be one matching instance.
         # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1:
+        if len(matching_instances) == 1 and matching_instances[0]:
             return matching_instances[0]
         # If there was no match, or if multiple matches were found, log an
         # error containing all the local and remote IPs.
         COMPUTE_INSTANCE_ID_NOT_FOUND(
             local_ips=local_ips, api_ips=api_ip_map
         ).write()
+        raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
         """
