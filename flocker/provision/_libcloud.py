@@ -130,7 +130,7 @@ class CloudKeyNotFound(Exception):
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
-    :ivar libcloud.compute.base.NodeDriver driver: The libcloud driver to use.
+    :ivar libcloud.compute.base.NodeDriver _driver: The libcloud driver to use.
     :ivar bytes _keyname: The name of an existing ssh public key configured
         with the cloud provider. The provision step assumes the corresponding
         private key is available from an agent.
