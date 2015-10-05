@@ -602,7 +602,7 @@ class CinderBlockDeviceAPI(object):
         expected_path = FilePath(
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
-        # Return the real path to avoid two problems:
+        # Return the real path instead of the symlink to avoid two problems:
         #
         # 1. flocker-dataset-agent mounting volumes before udev has populated
         #    the by-id symlinks.

@@ -47,7 +47,7 @@ from ..cinder import (
     wait_for_volume_state, UnexpectedStateException, UnattachedVolume
 )
 
-# Tests requiring virsh can currently only be run on a devstack installation
+# Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
 #
 # In the meantime, you can do the following (provided you have access):
