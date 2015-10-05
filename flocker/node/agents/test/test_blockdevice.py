@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node.agents.blockdevice``.
@@ -2047,7 +2047,10 @@ def make_iblockdeviceapi_tests(
             )
             self.minimum_allocatable_size = minimum_allocatable_size
             self.device_allocation_unit = device_allocation_unit
-            self.this_node = self.api.compute_instance_id()
+            this_node = self.api.compute_instance_id()
+            if not this_node:
+                raise ValueError('Could not determine instance_id')
+            self.this_node = this_node
 
     return Tests
 
