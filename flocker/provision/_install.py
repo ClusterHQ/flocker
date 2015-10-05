@@ -211,13 +211,14 @@ def cli_pkg_test(package_source=PackageSource()):
     Check that the CLI is working.
     """
     expected = package_source.version
-    if expected is None:
+    if not expected:
+        # support empty values other than None, as '' sometimes used to
+        # indicate latest version, due to previous behaviour
         expected = get_installable_version(version)
     return run("test `flocker-deploy --version` = {}".format(quote(expected)))
 
 
-def install_commands_yum(package_name, distribution, package_source,
-                         base_url):
+def install_commands_yum(package_name, distribution, package_source, base_url):
     """
     Install Flocker package on CentOS.
 
@@ -236,7 +237,9 @@ def install_commands_yum(package_name, distribution, package_source,
     :return: a sequence of commands to run on the distribution
     """
     flocker_version = package_source.version
-    if flocker_version is None:
+    if not flocker_version:
+        # support empty values other than None, as '' sometimes used to
+        # indicate latest version, due to previous behaviour
         flocker_version = get_installable_version(version)
     repo_package_name = 'clusterhq-release'
     commands = [
@@ -298,7 +301,9 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     :return: a sequence of commands to run on the distribution
     """
     flocker_version = package_source.version
-    if flocker_version is None:
+    if not flocker_version:
+        # support empty values other than None, as '' sometimes used to
+        # indicate latest version, due to previous behaviour
         flocker_version = get_installable_version(version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
