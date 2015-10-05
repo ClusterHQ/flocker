@@ -39,6 +39,7 @@ class SyslogTests(TestCase):
             # Currently, CentOS and Ubuntu are supported and CentOS is expected
             # to have this log file and Ubuntu is expected not to.
             return SkipTest("{} not found".format(reason.value))
+        getting.addErrback(check_missing_messages)
 
         def got_messages(path):
             with path.open() as messages:
