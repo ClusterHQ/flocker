@@ -306,25 +306,11 @@ class CinderAttachmentTests(SynchronousTestCase):
             self._detach(instance_id, volume)
         self.cinder.volumes.delete(volume.id)
 
-    def compute_blockdevice_instance_id(self):
-        """
-        Compute the instance ID for the block device API.
-
-        :raise ValueError: if we cannot determine the instance ID
-        :return: the computed instance id
-        """
-        # FLOC-3203: Really, compute_instance_id should raise an error in this
-        # case.
-        instance_id = self.blockdevice_api.compute_instance_id()
-        if not instance_id:
-            raise ValueError('Could not determine instance_id')
-        return instance_id
-
     def test_get_device_path_no_attached_disks(self):
         """
         get_device_path returns the most recently attached device
         """
-        instance_id = self.compute_blockdevice_instance_id()
+        instance_id = self.blockdevice_api.compute_instance_id()
 
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
@@ -362,7 +348,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         get_device_path returns the correct device name even when a non-Cinder
         volume has been attached. See FLOC-2859.
         """
-        instance_id = self.compute_blockdevice_instance_id()
+        instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
         tmpdir = FilePath(self.mktemp())
@@ -407,7 +393,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         create_server_volume will raise an exception when Cinder attempts to
         attach a device to a path that is in use by a non-Cinder volume.
         """
-        instance_id = self.compute_blockdevice_instance_id()
+        instance_id = self.blockdevice_api.compute_instance_id()
 
         host_device = "/dev/null"
         tmpdir = FilePath(self.mktemp())
