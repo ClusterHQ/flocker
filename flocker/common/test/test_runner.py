@@ -15,7 +15,9 @@ from flocker.testtools import (
     MemoryCoreReactor, FakeProcessReactor,
 )
 
-from ..runner import run, CommandProtocol, RUN_OUTPUT_MESSAGE
+from ..runner import (
+    RemoteFileNotFound, run, CommandProtocol, RUN_OUTPUT_MESSAGE,
+)
 
 
 class ProcessCoreReactor(MemoryCoreReactor, FakeProcessReactor):
@@ -25,6 +27,24 @@ class ProcessCoreReactor(MemoryCoreReactor, FakeProcessReactor):
     def __init__(self):
         MemoryCoreReactor.__init__(self)
         FakeProcessReactor.__init__(self)
+
+
+class RemoteFileNotFoundTests(TestCase):
+    """
+    Tests for ``RemoteFileNotFound``.
+    """
+    def test_str(self):
+        """
+        The string representation of ``RemoteFileNotFound`` identifies both the
+        exception type and the path to the remote file that was not found.
+        """
+        self.assertEqual(
+            # Don't really care about the quoting style but we have to pick
+            # one.  Don't really care about the trailing comma but that's what
+            # Exception does by default.
+            "RemoteFileNotFound('user@host:/foo/bar',)",
+            str(RemoteFileNotFound(b"user@host:/foo/bar")),
+        )
 
 
 class RunTests(TestCase):
