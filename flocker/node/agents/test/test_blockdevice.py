@@ -633,6 +633,7 @@ class UnusableAPI(object):
 def assert_calculated_changes(
     case, node_state, node_config, nonmanifest_datasets, expected_changes,
     additional_node_states=frozenset(), leases=Leases(),
+    cluster_volumes=frozenset(),
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -650,7 +651,7 @@ def assert_calculated_changes(
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
-        nonmanifest_datasets, additional_node_states, set(),
+        nonmanifest_datasets, cluster_volumes, additional_node_states, set(),
         expected_changes, leases=leases,
     )
 
@@ -1071,8 +1072,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, node_state, node_config, set(),
             in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID)
-            ])
+                UnmountBlockDevice(
+                    blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id,
+                    dataset_id=self.DATASET_ID)
+            ]),
+            cluster_volumes=[_ARBITRARY_VOLUME.set('dataset_id',
+                                                   self.DATASET_ID)]
         )
 
     def test_no_unmount_if_in_use(self):
@@ -1092,6 +1097,8 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, node_config, set(),
             in_parallel(changes=[]),
+            cluster_volumes=[_ARBITRARY_VOLUME.set('dataset_id',
+                                                   self.DATASET_ID)]
         )
 
     def test_no_unmount_if_leased(self):
@@ -1113,6 +1120,8 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, node_config, set(),
             in_parallel(changes=[]), leases=leases,
+            cluster_volumes=[_ARBITRARY_VOLUME.set('dataset_id',
+                                                   self.DATASET_ID)]
         )
 
     def test_unmount_manifestation_when_leased_elsewhere(self):
@@ -1137,8 +1146,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, node_state, node_config, set(),
             in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+                UnmountBlockDevice(
+                    blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id,
+                    dataset_id=self.DATASET_ID)
             ]), leases=leases,
+            cluster_volumes=[_ARBITRARY_VOLUME.set('dataset_id',
+                                                   self.DATASET_ID)]
         )
 
 
@@ -2936,7 +2949,7 @@ class MountBlockDeviceTests(
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
         record_type=UnmountBlockDevice,
-        kwargs=dict(dataset_id=uuid4()),
+        kwargs=dict(blockdevice_id=u"abc"),
         expected_defaults=dict(),
     )
 ):
@@ -2948,8 +2961,8 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
+        dict(blockdevice_id=u"abcmouse"),
+        dict(blockdevice_id=u"xyzmouse"),
     )
 ):
     """
@@ -2987,7 +3000,7 @@ class UnmountBlockDeviceTests(
         make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
-        change = UnmountBlockDevice(dataset_id=dataset_id)
+        change = UnmountBlockDevice(blockdevice_id=volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
         self.assertNotIn(
             device,
