@@ -1029,6 +1029,7 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,
+                   *add_shell_functions,
                    *new_vagrantfile_for_yosemite,
 
                    *begin_build_sh_EOF,
