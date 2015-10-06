@@ -1,5 +1,5 @@
 ====================================
-Enabling the Flocker control service
+Enabling the Flocker control service 
 ====================================
 
 CentOS 7
