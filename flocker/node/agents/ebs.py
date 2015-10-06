@@ -610,7 +610,7 @@ class EBSBlockDeviceAPI(object):
         Look up the EC2 instance ID for this node.
         """
         instance_id = get_instance_metadata().get('instance-id', None)
-        if not instance_id:
+        if instance_id is None:
             raise UnknownInstanceID(self)
         return instance_id.decode("ascii")
 
