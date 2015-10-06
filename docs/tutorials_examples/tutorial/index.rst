@@ -1,4 +1,4 @@
-.. _tutmongo:
+.. _tutorial-mongo:
 
 =========================================
 Tutorial: Deploying and Migrating MongoDB
