@@ -5,9 +5,7 @@ Rackspace provisioner.
 """
 
 from ._libcloud import LibcloudProvisioner
-from ._install import (
-    provision, open_firewall_for_docker_api,
-)
+from ._install import provision
 from ._ssh import run_remotely
 
 from ._effect import sequence
@@ -44,7 +42,6 @@ def provision_rackspace(node, package_source, distribution, variants):
                 distribution=node.distribution,
                 variants=variants,
             ),
-            open_firewall_for_docker_api(node.distribution),
         ]),
     ))
 

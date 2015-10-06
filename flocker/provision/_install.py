@@ -761,6 +761,8 @@ def open_firewall_for_docker_api(distribution):
     Open the firewall for remote access to Docker API.
     """
     if is_centos(distribution):
+        firewall_command = u'firewall-cmd'
+
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
                          """\
@@ -773,6 +775,8 @@ def open_firewall_for_docker_api(distribution):
                          """))
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
+        firewall_command = u'ufw'
+
         upload = put(path="/etc/ufw/applications.d/docker",
                      content=dedent(
                          """
@@ -785,7 +789,11 @@ def open_firewall_for_docker_api(distribution):
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-    return sequence([upload, open_firewall('docker')])
+    # Only configure the firewall if the firewall command line is available.
+    return run_from_args(['which', firewall_command]).on(
+        success=lambda result: sequence([upload, open_firewall('docker')]),
+        # error=lambda exc_info: None,
+    )
 
 
 # Set of dataset fields which are *not* sensitive.  Only fields in this
@@ -1275,6 +1283,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.user.certificate,
                             cluster.certificates.user.key),
                         task_enable_docker(node.distribution),
+                        open_firewall_for_docker_api(node.distribution),
                         task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
