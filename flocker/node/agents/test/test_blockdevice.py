@@ -70,8 +70,8 @@ from ....testtools import (
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, BlockDeviceVolume, Deployment,
-    DeploymentState, NonManifestDatasets, Application, AttachedVolume,
-    DockerImage
+    DeploymentState, NonManifestDatasets, ClusterVolumes, Application,
+    AttachedVolume, DockerImage
 )
 from ....control._model import Leases
 
@@ -310,6 +310,7 @@ def assert_discovered_state(case,
                             deployer,
                             expected_manifestations,
                             expected_nonmanifest_datasets=(),
+                            expected_volumes=(),
                             expected_devices=pmap()):
     """
     Assert that the manifestations on the state object returned by
@@ -322,6 +323,8 @@ def assert_discovered_state(case,
     :param expected_nonmanifest_datasets: Sequence of the ``Dataset``\ s
         expected to be discovered on the cluster but not attached to any
         node.
+    :param expected_volumes: Sequence of the ``BlockDeviceVolume``\ s
+        expected to be discovered on the cluster.
     :param dict expected_devices: The OS device files which are expected to be
         discovered as allocated to volumes attached to the node.  See
         ``NodeState.devices``.
@@ -361,6 +364,7 @@ def assert_discovered_state(case,
             Dataset(dataset_id=unicode(dataset_id))
             for dataset_id in expected_nonmanifest_datasets
         }),)
+    expected += (ClusterVolumes(volumes=expected_volumes),)
     case.assertEqual(expected, state)
 
 
@@ -398,7 +402,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        self.api.attach_volume(
+        attached = self.api.attach_volume(
             unmounted.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -407,6 +411,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_manifestations=[],
             # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unmounted.dataset_id],
+            expected_volumes=[attached],
             expected_devices={
                 unmounted.dataset_id:
                     self.api.get_device_path(unmounted.blockdevice_id),
@@ -425,7 +430,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             unexpected.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -444,6 +449,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_manifestations=[],
             # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unexpected.dataset_id],
+            expected_volumes=[attached_volume],
             expected_devices={
                 unexpected.dataset_id: device,
             },
@@ -458,7 +464,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
         )
 
@@ -470,6 +476,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
+            expected_volumes=[attached_volume],
             expected_nonmanifest_datasets=[],
             expected_devices={},
         )
@@ -521,7 +528,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         mountpoint = self.deployer.mountroot.child(bytes(unmounted.dataset_id))
         mountpoint.makedirs()
-        self.api.attach_volume(
+        attached = self.api.attach_volume(
             unmounted.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -534,6 +541,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_manifestations=[],
             # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[unmounted.dataset_id],
+            expected_volumes=[attached],
             expected_devices={
                 unmounted.dataset_id:
                     self.api.get_device_path(unmounted.blockdevice_id),
@@ -551,7 +559,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -570,6 +578,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             [expected_manifestation],
+            expected_volumes=[attached_volume],
             expected_devices={
                 dataset_id: device,
             },
@@ -585,13 +594,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
-        self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
             # This is a hack.  We don't know any other IDs, though.
             # https://clusterhq.atlassian.net/browse/FLOC-1839
             attach_to=u'some.other.host',
         )
-        assert_discovered_state(self, self.deployer, [])
+        assert_discovered_state(self, self.deployer, [],
+                                expected_volumes=[attached_volume])
 
     def test_only_unattached_devices(self):
         """
@@ -600,12 +610,13 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         instance corresponding to them.
         """
         dataset_id = uuid4()
-        self.api.create_volume(
+        volume = self.api.create_volume(
             dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
+            expected_volumes=[volume],
             # FLOC-1806 Expect dataset with size.
             expected_nonmanifest_datasets=[dataset_id],
         )

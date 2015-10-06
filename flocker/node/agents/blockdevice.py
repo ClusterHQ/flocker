@@ -35,7 +35,8 @@ from .. import (
 from .._deploy import NotInUseDatasets
 
 from ...control import (
-    NodeState, BlockDeviceVolume, Manifestation, Dataset, NonManifestDatasets
+    NodeState, BlockDeviceVolume, Manifestation, Dataset, NonManifestDatasets,
+    ClusterVolumes
 )
 from ...common import auto_threaded
 
@@ -1535,6 +1536,7 @@ class BlockDeviceDeployer(PRecord):
                 applications=None,
             ),
             NonManifestDatasets(datasets=nonmanifest),
+            ClusterVolumes(volumes=volumes),
         )
 
         return succeed(state)
