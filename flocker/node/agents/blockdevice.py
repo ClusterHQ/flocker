@@ -257,7 +257,7 @@ DETACH_VOLUME_DETAILS = MessageType(
 
 DESTROY_VOLUME = ActionType(
     u"agent:blockdevice:destroy_volume",
-    [VOLUME],
+    [BLOCK_DEVICE_ID],
     [],
     u"The volume for a block-device-backed dataset is being destroyed."
 )
@@ -372,7 +372,7 @@ class DestroyBlockDeviceDataset(PRecord):
                 changes=[
                     UnmountBlockDevice(dataset_id=self.dataset_id),
                     DetachVolume(dataset_id=self.dataset_id),
-                    DestroyVolume(volume=volume),
+                    DestroyVolume(blockdevice_id=volume.blockdevice_id),
                 ]
             ),
             deployer,
@@ -655,20 +655,21 @@ class DestroyVolume(PRecord):
     """
     Destroy the storage (and therefore contents) of a volume.
 
-    :ivar BlockDeviceVolume volume: The volume to destroy.
+    :ivar unicode blockdevice_id: The unique identifier for the volume to
+        destroy.
     """
-    volume = _volume_field()
+    blockdevice_id = field(type=unicode, mandatory=True)
 
     @property
     def eliot_action(self):
-        return DESTROY_VOLUME(_logger, volume=self.volume)
+        return DESTROY_VOLUME(_logger, block_device_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
         # FLOC-1818 Make this asynchronous
-        deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
+        deployer.block_device_api.destroy_volume(self.blockdevice_id)
         return succeed(None)
 
 

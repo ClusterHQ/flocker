@@ -3032,7 +3032,7 @@ class DetachVolumeTests(
 class DestroyVolumeInitTests(
     make_with_init_tests(
         DestroyVolume,
-        dict(volume=_ARBITRARY_VOLUME),
+        dict(blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id),
         dict(),
     )
 ):
@@ -3044,8 +3044,8 @@ class DestroyVolumeInitTests(
 class DestroyVolumeTests(
     make_istatechange_tests(
         DestroyVolume,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id),
+        dict(blockdevice_id=u"wxyz"),
     )
 ):
     """
@@ -3069,7 +3069,7 @@ class DestroyVolumeTests(
             block_device_api=api,
         )
 
-        change = DestroyVolume(volume=volume)
+        change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
         self.successResultOf(change.run(deployer))
 
         self.assertEqual([], api.list_volumes())
