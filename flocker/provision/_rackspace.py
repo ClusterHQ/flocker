@@ -7,7 +7,6 @@ Rackspace provisioner.
 from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision,
-    task_open_control_firewall,
 )
 from ._ssh import run_remotely
 
@@ -45,9 +44,6 @@ def provision_rackspace(node, package_source, distribution, variants):
                 distribution=node.distribution,
                 variants=variants,
             ),
-            # https://clusterhq.atlassian.net/browse/FLOC-1550
-            # This should be part of ._install.configure_cluster
-            task_open_control_firewall(node.distribution),
         ]),
     ))
 
