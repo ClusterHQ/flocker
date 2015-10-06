@@ -1117,6 +1117,7 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,
+                   *add_shell_functions,
                    *set_home_variable_on_mesos,
                    *do_not_abort_on_errors,
                    *start_vanilla_yosemite_vagrant_box,
