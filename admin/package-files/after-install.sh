@@ -5,4 +5,9 @@ test -f /usr/bin/firewall-cmd \
     && /usr/bin/firewall-cmd --add-service flocker-control-api \
     && /usr/bin/firewall-cmd --permanent --add-service flocker-control-agent \
     && /usr/bin/firewall-cmd --add-service flocker-control-agent || :
+
+test -f /usr/sbin/ufw \
+    && /usr/sbin/ufw allow flocker-control-api \
+    && /usr/sbin/ufw allow flocker-control-agent || :
+
 which systemctl && systemctl reload-or-restart rsyslog.service || :
