@@ -756,9 +756,9 @@ def task_enable_docker_plugin(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
-def task_open_control_firewall(distribution):
+def open_firewall_for_docker_api(distribution):
     """
-    Open the firewall for flocker-control.
+    Open the firewall for remote access to Docker API.
     """
     if is_centos(distribution):
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
@@ -785,11 +785,7 @@ def task_open_control_firewall(distribution):
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-    return sequence([upload] + [
-        open_firewall(service)
-        for service in ['flocker-control-api', 'flocker-control-agent',
-                        'docker']
-    ])
+    return sequence([upload, open_firewall('docker')])
 
 
 # Set of dataset fields which are *not* sensitive.  Only fields in this
@@ -1238,7 +1234,7 @@ def install_flocker(nodes, package_source):
             task_install_docker_plugin(
                 distribution=node.distribution,
                 package_source=package_source,
-            )
+            ),
         ]),
     )
 
@@ -1286,11 +1282,15 @@ def configure_cluster(cluster, dataset_backend_configuration):
                                 dataset_backend_configuration
                             ),
                         ),
+                        open_firewall_for_docker_api(
+                            distribution=cluster.control_node.distribution
+                        ),
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
-                        )]),
-                    ),
+                        ),
+                    ]),
+                ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
