@@ -18,16 +18,21 @@ from twisted.python.filepath import FilePath
 
 from zope.interface.verify import verifyObject
 
-from ...testtools import make_with_init_tests
+from ...testtools import REALISTIC_BLOCKDEVICE_SIZE, make_with_init_tests
 from .._model import pset_field, pmap_field, pvector_field, ip_to_uuid
 
 from .. import (
     IClusterStateChange, IClusterStateWipe,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Lease, Leases, LeaseError
+    NodeState, BlockDeviceVolume, DeploymentState, NonManifestDatasets,
+    ClusterVolumes, same_node, Link, Lease, Leases, LeaseError
 )
+
+_ARBITRARY_VOLUME = BlockDeviceVolume(blockdevice_id=u"abcde",
+                                      size=REALISTIC_BLOCKDEVICE_SIZE,
+                                      attached_to=u"instance_id",
+                                      dataset_id=uuid4(),)
 
 
 class IPToUUIDTests(SynchronousTestCase):
@@ -433,6 +438,42 @@ class NonManifestDatasetsTests(SynchronousTestCase):
         )
 
 
+class ClusterVolumesInitTests(make_with_init_tests(
+        record_type=ClusterVolumes,
+        kwargs=dict(volumes=pset({_ARBITRARY_VOLUME}))
+)):
+    """
+    Tests for ``ClusterVolumesInitTests.__init__``.
+    """
+
+
+class ClusterVolumesTests(SynchronousTestCase):
+    """
+    Tests for ``ClusterVolumes``.
+    """
+    def test_iclusterstatechange(self):
+        """
+        ``ClusterVolumes`` instances provide ``IClusterStateChange``.
+        """
+        self.assertTrue(
+            verifyObject(IClusterStateChange, ClusterVolumes())
+        )
+
+    def test_update_cluster_state(self):
+        """
+        ``ClusterVolumes.update_cluster_state`` returns a new
+        ``DeploymentState`` instance with its ``volumes`` field
+        replaced with the value of the ``ClusterVolumes.volumes`` field.
+        """
+        volumes = {_ARBITRARY_VOLUME}
+        cluster_volumes = ClusterVolumes(volumes=volumes)
+        deployment = DeploymentState()
+        updated = cluster_volumes.update_cluster_state(deployment)
+        self.assertEqual(
+            volumes, thaw(updated.volumes)
+        )
+
+
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
         kwargs=dict(nodes=pset([
@@ -499,6 +540,14 @@ class GetNodeTests(SynchronousTestCase):
             NodeState(uuid=identifier, hostname=u"1.2.3.4"),
             state.get_node(identifier, hostname=u"1.2.3.4"),
         )
+
+    def test_deploymentstate_with_volume(self):
+        """
+        Verify ``DeploymentState`` can have a volumes.
+        """
+        volume = _ARBITRARY_VOLUME
+        state = DeploymentState(volumes={volume})
+        self.assertIn(volume, state.volumes)
 
 
 class DeploymentTests(SynchronousTestCase):

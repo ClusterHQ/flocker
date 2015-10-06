@@ -39,12 +39,10 @@ from eliot.testing import (
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
-    BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
-    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
-    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    AttachVolume, CreateFilesystem,
-    DestroyVolume, MountBlockDevice,
+    BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI, UnknownVolume,
+    AlreadyAttachedVolume, CreateBlockDeviceDataset, UnattachedVolume,
+    DatasetExists, DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
+    AttachVolume, CreateFilesystem, DestroyVolume, MountBlockDevice,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -71,8 +69,9 @@ from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
 )
 from ....control import (
-    Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
-    NonManifestDatasets, Application, AttachedVolume, DockerImage
+    Dataset, Manifestation, Node, NodeState, BlockDeviceVolume, Deployment,
+    DeploymentState, NonManifestDatasets, Application, AttachedVolume,
+    DockerImage
 )
 from ....control._model import Leases
 

@@ -18,9 +18,10 @@ from ._config import (
 from ._model import (
     IClusterStateChange,
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
-    NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
-    RestartAlways, DeploymentState, NonManifestDatasets, same_node,
-    IClusterStateWipe, Leases, Lease, LeaseError, pmap_field
+    BlockDeviceVolume, NodeState, Manifestation, Dataset, RestartNever,
+    RestartOnFailure, RestartAlways, DeploymentState, NonManifestDatasets,
+    ClusterVolumes, same_node, IClusterStateWipe, Leases, Lease, LeaseError,
+    pmap_field
 )
 from ._protocol import (
     IConvergenceAgent,
@@ -42,6 +43,7 @@ __all__ = [
     'Node',
     'Port',
     'Link',
+    'BlockDeviceVolume',
     'AttachedVolume',
     'NodeState',
     'DeploymentState',
@@ -51,6 +53,7 @@ __all__ = [
     'RestartOnFailure',
     'RestartAlways',
     'NonManifestDatasets',
+    'ClusterVolumes',
 
     'IConvergenceAgent',
     'NodeStateCommand',

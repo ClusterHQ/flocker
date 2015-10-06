@@ -34,7 +34,9 @@ from .. import (
 )
 from .._deploy import NotInUseDatasets
 
-from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...control import (
+    NodeState, BlockDeviceVolume, Manifestation, Dataset, NonManifestDatasets
+)
 from ...common import auto_threaded
 
 
@@ -296,30 +298,6 @@ def _volume_field():
         # supplied by default.
         factory=lambda x: x
     )
-
-
-class BlockDeviceVolume(PRecord):
-    """
-    A block device that may be attached to a host.
-
-    :ivar unicode blockdevice_id: An identifier for the block device which is
-        unique across the entire cluster.  For example, an EBS volume
-        identifier (``vol-4282672b``).  This is used to address the block
-        device for operations like attach and detach.
-    :ivar int size: The size, in bytes, of the block device.
-    :ivar unicode attached_to: An opaque identifier for the node to which the
-        volume is attached or ``None`` if it is currently unattached.  The
-        identifier is supplied by the ``IBlockDeviceAPI.compute_instance_id``
-        method based on the underlying infrastructure services (for example, if
-        the cluster runs on AWS, this is very likely an EC2 instance id).
-    :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
-    """
-    blockdevice_id = field(type=unicode, mandatory=True)
-    size = field(type=int, mandatory=True)
-    attached_to = field(
-        type=(unicode, type(None)), initial=None, mandatory=True
-    )
-    dataset_id = field(type=UUID, mandatory=True)
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):

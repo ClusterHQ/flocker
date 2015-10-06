@@ -360,6 +360,30 @@ class Manifestation(PRecord):
         return self.dataset.dataset_id
 
 
+class BlockDeviceVolume(PRecord):
+    """
+    A block device that may be attached to a host.
+
+    :ivar unicode blockdevice_id: An identifier for the block device which is
+        unique across the entire cluster.  For example, an EBS volume
+        identifier (``vol-4282672b``).  This is used to address the block
+        device for operations like attach and detach.
+    :ivar int size: The size, in bytes, of the block device.
+    :ivar unicode attached_to: An opaque identifier for the node to which the
+        volume is attached or ``None`` if it is currently unattached.  The
+        identifier is supplied by the ``IBlockDeviceAPI.compute_instance_id``
+        method based on the underlying infrastructure services (for example, if
+        the cluster runs on AWS, this is very likely an EC2 instance id).
+    :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
+    """
+    blockdevice_id = field(type=unicode, mandatory=True)
+    size = field(type=int, mandatory=True)
+    attached_to = field(
+        type=(unicode, type(None)), initial=None, mandatory=True
+    )
+    dataset_id = field(type=UUID, mandatory=True)
+
+
 class AttachedVolume(PRecord):
     """
     A volume attached to an application to be deployed.
@@ -970,6 +994,8 @@ class DeploymentState(PRecord):
 
     :ivar PSet nodes: A set containing ``NodeState`` instances describing the
         state of each cooperating node.
+    :ivar PSet volumes: A set containing ``BlockDeviceVolume`` instances
+        describing the state of each known volume in the cluster.
     :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
         ``unicode``) to corresponding ``Dataset`` instances.  This mapping
         describes every ``Dataset`` which is known to exist as part of the
@@ -987,6 +1013,8 @@ class DeploymentState(PRecord):
     nodes = pset_field(NodeState)
 
     get_node = _get_node(NodeState)
+
+    volumes = pset_field(BlockDeviceVolume)
 
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
@@ -1050,18 +1078,39 @@ class NonManifestDatasets(PRecord):
     def get_information_wipe(self):
         """
         Result will wipe all information about non-manifest datasets.
+
+        There's no point in wiping this information. Even if no relevant
+        agents are connected the datasets probably still continue to exist
+        unchanged, since they're not node-specific.
         """
-        return _NonManifestDatasetsWipe()
+        return _NullWipe()
+
+
+@implementer(IClusterStateChange)
+class ClusterVolumes(PRecord):
+    """
+    A ``ClusterVolumes`` represents the present states of the tracked volumes in
+    the cluster in ``BlockDeviceVolume`` instances.
+    """
+    volumes = pset_field(BlockDeviceVolume)
+
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.set(volumes=self.volumes)
+
+    def get_information_wipe(self):
+        """
+        Result will wipe all information about non-manifest datasets.
+
+        There's no point in wiping this information. It will be updated with
+        every state discovery and is not node specific.
+        """
+        return _NullWipe()
 
 
 @implementer(IClusterStateWipe)
-class _NonManifestDatasetsWipe(object):
+class _NullWipe(object):
     """
     Wipe object that does nothing.
-
-    There's no point in wiping this information. Even if no relevant
-    agents are connected the datasets probably still continue to exist
-    unchanged, since they're not node-specific.
     """
     def key(self):
         return None
@@ -1073,7 +1122,7 @@ class _NonManifestDatasetsWipe(object):
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
-    RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState, NonManifestDatasets, Configuration,
-    Lease, Leases,
+    RestartOnFailure, Application, Dataset, Manifestation, BlockDeviceVolume,
+    AttachedVolume, NodeState, DeploymentState, NonManifestDatasets,
+    Configuration, Lease, Leases,
 ]
