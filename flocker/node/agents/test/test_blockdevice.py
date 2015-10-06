@@ -2556,8 +2556,13 @@ class DestroyBlockDeviceDatasetTests(
         make_filesystem(device, block_device=True)
         mount(device, mountpoint)
 
+        initial_list_volumes_calls = api._list_volumes_calls
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
+
+        total_list_volumes_calls = (
+            api._list_volumes_calls - initial_list_volumes_calls)
+        self.assertLess(total_list_volumes_calls, 8)
 
         # It's only possible to destroy a volume that's been detached.  It's
         # only possible to detach a volume that's been unmounted.  If the
