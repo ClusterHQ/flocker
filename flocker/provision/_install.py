@@ -16,6 +16,8 @@ from zope.interface import implementer
 from characteristic import attributes
 from pyrsistent import PRecord, field
 
+from twisted.internet.error import ProcessTerminated
+
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -756,12 +758,27 @@ def task_enable_docker_plugin(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def catch_exit_code(expected_exit_code):
+    """
+    :param int expected_exit_code: The expected exit code of the process.
+    :returns: An error handler function which accepts a 3-tuple(exception_type,
+        exception, None) and re-raises ``exception`` if the exit code is not
+        ``expected_exit_code`.
+    """
+    def error_handler(result):
+        exception_type, exception = result[:2]
+        if((exception_type is not ProcessTerminated) or
+           (exception.exitCode != expected_exit_code)):
+            raise exception
+    return error_handler
+
+
 def open_firewall_for_docker_api(distribution):
     """
     Open the firewall for remote access to Docker API.
     """
     if is_centos(distribution):
-        firewall_command = u'firewall-cmd'
+        firewall_command = b'firewall-cmd'
 
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
@@ -775,7 +792,7 @@ def open_firewall_for_docker_api(distribution):
                          """))
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
-        firewall_command = u'ufw'
+        firewall_command = b'ufw'
 
         upload = put(path="/etc/ufw/applications.d/docker",
                      content=dedent(
@@ -790,9 +807,10 @@ def open_firewall_for_docker_api(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
     # Only configure the firewall if the firewall command line is available.
-    return run_from_args(['which', firewall_command]).on(
+    return run_from_args([b'which', firewall_command]).on(
         success=lambda result: sequence([upload, open_firewall('docker')]),
-        # error=lambda exc_info: None,
+        # XXX: Is this the exit code of the SSH command or the remote command?
+        error=catch_exit_code(1),
     )
 
 
