@@ -1282,9 +1282,6 @@ def configure_cluster(cluster, dataset_backend_configuration):
                                 dataset_backend_configuration
                             ),
                         ),
-                        open_firewall_for_docker_api(
-                            distribution=cluster.control_node.distribution
-                        ),
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
