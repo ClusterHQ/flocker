@@ -120,7 +120,9 @@ class UnknownInstanceID(Exception):
     Could not compute instance ID for block device.
     """
     def __init__(self, blockdevice):
-        Exception.__init__(self, blockdevice)
+        Exception.__init__(
+            self,
+            'Could not find valid instance ID for {}'.format(blockdevice))
         self.blockdevice = blockdevice
 
 
