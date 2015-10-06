@@ -190,7 +190,7 @@ class FilesystemStoragePool(Service):
         size_path = root.child(b".size")
         if volume.size.maximum_size is not None:
             if volume.size.maximum_size < current_size:
-                raise MaximumSizeTooSmall
+                raise MaximumSizeTooSmall()
             size_path.setContent(
                 u"{0}".format(volume.size.maximum_size).encode("ascii"))
         elif size_path.exists():
