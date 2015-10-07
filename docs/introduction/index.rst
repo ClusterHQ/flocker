@@ -62,7 +62,7 @@ The Flocker plugin for Docker is a `Docker volumes plugin`_, connecting Docker o
 
 .. XXX FLOC 3156 will add an architecture diagram to this document.
 
-In contrast to the normal :ref:`Flocker container-centric architecture <flocker-containers-architecture>`, when using the Flocker plugin for Docker the Flocker volume manager (control service + dataset agents) is **being controlled by Docker**, rather than Flocker container manager controlling Docker.
+In contrast to the normal :ref:`Flocker container-centric architecture <flocker-containers-architecture>`, when using the Flocker plugin for Docker the Flocker volume manager (control service + dataset agents) is **being controlled by Docker**, rather than the Flocker container manager controlling Docker.
 This allows for easier integration with other Docker ecosystem tools.
 
 Also, please note that :ref:`Docker Swarm <labs-swarm>` and Flocker must be configured on the **same set of nodes**.
@@ -72,7 +72,7 @@ As a user of Docker, it means you can use Flocker directly via:
 * The ``docker run -v name:path --volume-driver=flocker`` syntax.
 * The ``VolumeDriver`` parameter on ``/containers/create`` in the Docker Remote API (set it to ``flocker``).
 
-See the `Docker documentation on volume plugins`_.
+For more information, see the :ref:`using-docker-plugin` documentation, and the `Docker documentation on volume plugins`_.
 
 The Flocker plugin for Docker depends on Docker 1.8 or later.
 
