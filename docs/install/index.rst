@@ -47,19 +47,7 @@ For more information, see the :ref:`MongoDB tutorial <tutorial-mongo>`.
 Full Installation
 =================
 
-These manual instructions take you through the full Flocker installation:
-
-* You will install the Flocker Client on your local machine, which provides the command line tools to control the cluster.
-
-  This includes the ``flocker-ca`` tool, which you will use to generate certificates for all the Flocker components.
-
-* You will install the Flocker Node services, on any number of nodes in the cluster where your containers will run.
-
-  The ``clusterhq-flocker-node`` package includes the Flocker agent software.
-
-* The Flocker control service is installed on one of the agent hosts, or on a separate machine.
-  
-  The Flocker control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in :ref:`enabling-control-service`.
+For a full Flocker installation, including the Flocker plugin for Docker, the following manual instructions take you through everything you need to do:
 
 .. XXX this introduction could be improved with an image. See FLOC-2077
 
