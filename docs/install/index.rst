@@ -9,13 +9,13 @@ There are several installation options with which you can get started with Flock
 No Installation!
 ================
 
-Take Flocker for a spin using a free, live demo environment. 
+Take Flocker for a spin using a free, live hosted environment. 
 No installation is required, and it’s great for getting a hands-on introduction to what Flocker is all about.
 
 * The live demo environment is hosted by ClusterHQ.
 * The demo environment will include a fully-installed and configured 2-node Flocker cluster and CLI.
-* You will have root access to this environment, and you can test Flocker however you want.
-* Follow a step-by-step tutorial that will show you how to deploy a multi-node application and migrate its data volumes between hosts.
+* You will have root access to this environment, so you can test Flocker however you want.
+* Follow a step-by-step tutorial.
 * To give you time to play, you’ll have access to the environment for 3 hours.
 
 For more information, see the `Try Flocker`_ page.
@@ -52,11 +52,13 @@ For a full Flocker installation, including the Flocker plugin for Docker, the fo
 .. XXX this introduction could be improved with an image. See FLOC-2077
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    install-client
    install-node
    docker-plugin
+
+Once you have Flocker installed, you will need to complete the :ref:`post-installation-configuration` steps in order to use Flocker.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
