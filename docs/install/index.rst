@@ -12,7 +12,7 @@ No Installation!
 Take Flocker for a spin using a free, live demo environment. 
 No installation is required, and it’s great for getting a hands-on introduction to what Flocker is all about.
 
-* The live demo enviroment is hosted by ClusterHQ.
+* The live demo environment is hosted by ClusterHQ.
 * The demo environment will include a fully-installed and configured 2-node Flocker cluster and CLI.
 * You will have root access to this environment, and you can test Flocker however you want.
 * Follow a step-by-step tutorial that will show you how to deploy a multi-node application and migrate its data volumes between hosts.
