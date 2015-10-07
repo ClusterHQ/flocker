@@ -124,7 +124,7 @@ class CloudKeyNotFound(Exception):
     Attribute('_image_names'),
     Attribute('_create_node_arguments'),
     Attribute('_provision'),
-    Attribute('default_size'),
+    Attribute('_default_size'),
     Attribute('_get_default_user'),
     Attribute('_use_private_addresses', instance_of=bool, default_value=False),
 ], apply_immutable=True)
@@ -139,7 +139,7 @@ class LibcloudProvisioner(object):
     :ivar callable _create_node_arguments: Extra arguments to pass to
         libcloud's ``create_node``.
     :ivar callable _provision: Function to call to provision a node.
-    :ivar str default_size: Name of the default size of node to create.
+    :ivar str _default_size: Name of the default size of node to create.
     :ivar callable get_default_user: Function to provide the default
         username on the node.
     :ivar bool _use_private_addresses: Whether the `private_address` of nodes
@@ -186,7 +186,7 @@ class LibcloudProvisioner(object):
         :return libcloud.compute.base.Node: The created node.
         """
         if size is None:
-            size = self.default_size
+            size = self._default_size
 
         image_name = self._image_names[distribution]
 

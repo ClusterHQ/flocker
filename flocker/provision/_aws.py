@@ -174,7 +174,7 @@ class AWSProvisioner(PClass):
     _keyname = field(type=bytes, mandatory=True)
     _security_groups = field(mandatory=True)
     _zone = field(type=bytes, mandatory=True)
-    default_size = field(type=bytes, mandatory=True)
+    _default_size = field(type=bytes, mandatory=True)
 
     def get_ssh_key(self):
         """
@@ -196,7 +196,7 @@ class AWSProvisioner(PClass):
             EBSBlockDeviceType, BlockDeviceMapping,
         )
         if size is None:
-            size = self.default_size
+            size = self._default_size
 
         with start_action(
             action_type=u"flocker:provision:aws:create_node",
@@ -280,9 +280,9 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         aws_secret_access_key=secret_access_token,
     )
     return AWSProvisioner(
-        connection=conn,
-        keyname=keyname,
-        security_groups=security_groups,
-        zone=zone,
-        default_size=b"m3.large",
+        _connection=conn,
+        _keyname=keyname,
+        _security_groups=security_groups,
+        _zone=zone,
+        _default_size=b"m3.large",
     )
