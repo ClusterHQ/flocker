@@ -259,7 +259,7 @@ class AWSProvisioner(PClass):
 def aws_provisioner(access_key, secret_access_token, keyname,
                     region, zone, security_groups):
     """
-    Create a IProvisioner for provisioning nodes on AWS EC2.
+    Create an IProvisioner for provisioning nodes on AWS EC2.
 
     :param bytes access_key: The access_key to connect to AWS with.
     :param bytes secret_access_token: The corresponding secret token.
