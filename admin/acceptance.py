@@ -87,17 +87,24 @@ def get_trial_environment(cluster):
     :param Cluster cluster: Description of the cluster to get environment
         variables for.
     """
+    address_map = {}
+    for node in cluster.agent_nodes:
+        if node.private_address is None:
+            address_map[node.address] = node.address
+        else:
+            address_map[node.private_address] = node.address
+
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
         'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': str(len(cluster.agent_nodes)),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
         'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH':
             cluster.certificates_path.path,
-        'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': json.dumps({
-            node.private_address: node.address
-            for node in cluster.agent_nodes
-            if node.private_address is not None
-        }),
+        # FLOC-3227 Would be more useful as a mapping from node UUID to public
+        # address. But that requires the node UUIDs to be generated upfront.
+        'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': json.dumps(
+            address_map
+        ),
         'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': bytes(
             cluster.default_volume_size
         ),
@@ -267,6 +274,10 @@ class ManagedRunner(object):
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
+                # FLOC-3227 If we could generate node UUIDs up-front and supply
+                # them to flocker-ca perhaps we could generate all the
+                # certificates here then we'd be able to populate a UUID ->
+                # public_address dictionary and export it to the environment.
                 generate_certificates(
                     make_cluster_id(
                         TestTypes.ACCEPTANCE,
@@ -353,7 +364,7 @@ def configured_cluster_for_nodes(
         default_volume_size=int(default_volume_size.to_Byte().value),
         certificates=certificates
     )
-
+    # FLOC-3227 The node certificates get installed here.
     configuring = perform(
         make_dispatcher(reactor),
         configure_cluster(cluster, dataset_backend_configuration)

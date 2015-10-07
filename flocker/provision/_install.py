@@ -623,6 +623,8 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         ])
 
 
+# FLOC-3227 Somehow extract the node UUID from the certificate that gets
+# generated here.
 def task_install_node_certificates(ca_cert, node_cert, node_key):
     """
     Install certificates and private key required by a node.
@@ -1315,6 +1317,8 @@ def configure_cluster(cluster, dataset_backend_configuration):
                     username='root',
                     address=node.address,
                     commands=sequence([
+                        # FLOC-3227 Somehow extract the node UUID from the
+                        # certificate that gets installed here.
                         task_install_node_certificates(
                             cluster.certificates.cluster.certificate,
                             certnkey.certificate,
