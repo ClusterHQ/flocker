@@ -13,7 +13,7 @@ This example will use a configured environment variable to set the root user pas
 Create the Virtual Machines
 ===========================
 
-You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutmongo>`.
+You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutorial-mongo>`.
 If you have since shutdown or destroyed those VMs, boot them up again:
 
 .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
