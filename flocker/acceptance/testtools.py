@@ -707,10 +707,9 @@ def _get_test_cluster(reactor, node_count):
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
     )
-
-    hostname_to_public_address_env_var = environ.get(
-        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
-    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
+    hostname_to_public_address = json.loads(
+        environ["FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS"]
+    )
 
     # Wait until nodes are up and running:
     def nodes_available():
