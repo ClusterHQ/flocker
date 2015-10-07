@@ -14,6 +14,11 @@ from zope.interface import implementer
 from effect.retry import retry
 from effect import Effect, Constant
 
+from boto.ec2 import connect_to_region
+from boto.ec2.blockdevicemapping import (
+    EBSBlockDeviceType, BlockDeviceMapping,
+)
+
 from ._common import INode, IProvisioner
 
 from ._install import (
@@ -190,11 +195,6 @@ class AWSProvisioner(PClass):
     def create_node(self, name, distribution,
                     size=None, disk_size=8,
                     metadata={}):
-        # Import these here, so that this can be imported without installng
-        # libcloud.
-        from boto.ec2.blockdevicemapping import (
-            EBSBlockDeviceType, BlockDeviceMapping,
-        )
         if size is None:
             size = self._default_size
 
@@ -271,9 +271,6 @@ def aws_provisioner(access_key, secret_access_token, keyname,
     :param list security_groups: List of security groups to put created nodes
         in.
     """
-    # Import these here, so that this can be imported without installng
-    # libcloud.
-    from boto.ec2 import connect_to_region
     conn = connect_to_region(
         region,
         aws_access_key_id=access_key,
