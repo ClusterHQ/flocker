@@ -110,7 +110,7 @@ class AWSNode(PClass):
         # installation for a few more seconds:
         start = []
 
-        def for_ten_seconds(*args, **kwargs):
+        def for_thirty_seconds(*args, **kwargs):
             if not start:
                 start.append(time())
             return Effect(Constant((time() - start[0]) < 30))
@@ -118,7 +118,7 @@ class AWSNode(PClass):
         commands.append(run_remotely(
             username=username,
             address=self.address,
-            commands=retry(task_install_ssh_key(), for_ten_seconds),
+            commands=retry(task_install_ssh_key(), for_thirty_seconds),
         ))
 
         commands.append(run_remotely(
