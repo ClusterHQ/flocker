@@ -4,6 +4,22 @@
 Installing Flocker
 ==================
 
+There are several installation options with which you can get started with Flocker:
+
+No Installation!
+================
+
+Take Flocker for a spin using a free, live demo environment. 
+No installation is required, and it’s great for understanding what Flocker’s all about.
+
+* The live demo enviroment is hosted by ClusterHQ.
+* The demo environment will include a fully-installed and configured 2-node Flocker cluster and CLI.
+* You will have root access to this environment, and you can test Flocker however you want.
+* Follow a step-by-step tutorial that will show you how to deploy a multi-node application and migrate its data volumes between hosts.
+* To give you time to play, you’ll have access to the environment for 3 hours.
+
+For more information, see the `Try Flocker`_ page.
+
 Quick Start
 ===========
 
@@ -50,3 +66,5 @@ It also describes how to get Vagrant nodes started which already have these serv
    :hidden:
 
    plugin-restrictions
+   
+.. _Try Flocker: https://clusterhq.com/flocker/try-flocker/live/
