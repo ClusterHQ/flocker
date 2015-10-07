@@ -10,7 +10,7 @@ No Installation!
 ================
 
 Take Flocker for a spin using a free, live demo environment. 
-No installation is required, and it’s great for understanding what Flocker’s all about.
+No installation is required, and it’s great for getting a hands-on introduction to what Flocker is all about.
 
 * The live demo enviroment is hosted by ClusterHQ.
 * The demo environment will include a fully-installed and configured 2-node Flocker cluster and CLI.
@@ -20,19 +20,18 @@ No installation is required, and it’s great for understanding what Flocker’s
 
 For more information, see the `Try Flocker`_ page.
 
-Quick Start
-===========
+Quick Start Flocker Installer
+=============================
 
-Want to get started with Flocker quickly?
-You can try the Labs Installer.
+If you want to get started with Flocker quickly, but in your own environment, you can use the Installer.
+The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currently experimental.
 
-* It makes it easy to set up and manage a Flocker cluster.
-* It runs inside a Docker container on your local machine.
-* The :ref:`Flocker plugin for Docker <using-docker-plugin>` is installed.
+* The Installer runs locally in a Docker container on your machine.
+* It provisions nodes on AWS, and then installs Flocker, Docker, and the Flocker plugin for Docker.
+* You can reconfigure the cluster at any time.
+* The :ref:`Labs Installer <labs-installer>` documentation includes several tutorials to make it easy to set up and manage a Flocker cluster.
 
-:ref:`Try the Labs installer <labs-installer>`.
-
-If you'd rather install Flocker manually, read on.
+For more information, see the :ref:`Labs Installer <labs-installer>` page.
 
 Manual Installation
 ===================

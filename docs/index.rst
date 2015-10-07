@@ -11,7 +11,7 @@ You'll be able to find concept and reference material, and our :ref:`Labs sectio
 Flocker is an open-source project, and in our :ref:`Getting Involved section<getting-involved>`, there is information about how you can collaborate with ClusterHQ.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    introduction/index
    install/index
