@@ -232,6 +232,8 @@ class LibcloudProvisioner(object):
             [node], wait_period=15)[0]
 
         public_address = addresses[0]
+        if isinstance(public_address, unicode):
+            public_address = public_address.encode("ascii")
 
         if self.use_private_addresses:
             private_address = node.private_ips[0]
