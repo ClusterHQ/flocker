@@ -3,6 +3,7 @@
 Run the acceptance tests.
 """
 
+from collections import Mapping
 import sys
 import os
 import yaml
@@ -205,10 +206,27 @@ class ManagedRunner(object):
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration):
-        self._nodes = pvector(
-            ManagedNode(address=address, distribution=distribution)
-            for address in node_addresses
-        )
+        """
+        :param list or dict node_addresses: A ``list`` of public IP addresses
+            or a ``dict`` of ``private_address`` -> ``public_address``.
+
+        See ``ManagedRunner`` and ``ManagedNode`` for other parameter
+        documentation.
+        """
+        if isinstance(node_addresses, Mapping):
+            self._nodes = pvector(
+                ManagedNode(
+                    address=address,
+                    private_address=private_address,
+                    distribution=distribution
+                )
+                for private_address, address in node_addresses.iteritems()
+            )
+        else:
+            self._nodes = pvector(
+                ManagedNode(address=address, distribution=distribution)
+                for address in node_addresses
+            )
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
