@@ -36,6 +36,8 @@ Software
 All Platforms
 *************
 
+`Docker <https://docs.docker.com/installation/>`_
+
 `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
 OS X
@@ -241,6 +243,9 @@ Release
       admin/publish-docs --production
 
 #. Check that the artifacts are set up correctly:
+
+   .. note:: Ensure that Docker is installed and running, and can be controlled from the current user account.
+      Run ``docker ps`` to check for any problems.
 
    The following command tests that the client packages can be installed on a number of platforms.
    This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
