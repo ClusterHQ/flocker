@@ -204,7 +204,19 @@ Managed
 ~~~~~~~
 
 You can also run acceptance tests on existing "managed" nodes.
-In this case the configuration file should include:
+
+This is a quicker way to run the acceptance tests as it avoids the slow process of provisioning new acceptance testing nodes.
+
+The ``managed`` provider:
+
+* re-installs the ``clusterhq-flocker-node`` and ``clusterhq-python-flocker`` packages,
+* creates and distributes new certificates and keys to all the nodes,
+* restarts the ``flocker-control`` on the first ``managed`` node, and
+* restarts the ``flocker-*-agent`` processes on all the nodes.
+
+This means that the ``managed`` provider can be used to quickly test different package versions and packages built from different branches.
+
+To use the ``managed`` provider, the configuration file should include:
 
 - **addresses**: A ``list`` of IP addresses of the nodes or a ``dict`` of ``{"<private_address>": "<public_address>"}`` if the public addresses are not configured on the node (see below).
 - **upgrade**: ``true`` to automatically upgrade Flocker before running the tests,
@@ -223,8 +235,7 @@ The nodes should be configured to allow key based SSH connections as user ``root
 
    admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
 
-If you are using the ``managed`` option on ``AWS`` nodes you  will need to supply both the private and public IP addresses for each node.
-
+If you are using the ``managed`` provider with ``AWS`` nodes, you  will need to supply both the private and public IP addresses for each node.
 AWS nodes do not have public IP addresses configured in the operating system; instead Amazon routes public IP traffic using NAT.
 In this case the acceptance tests need a hint in order to map the private IP address reported by the Flocker ``/state/nodes`` API to the public node address.
 E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
