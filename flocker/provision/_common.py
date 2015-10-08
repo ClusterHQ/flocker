@@ -29,7 +29,7 @@ class PackageSource(object):
     def os_version(self):
         """The version of the OS package of flocker to install."""
         if self.version:
-            rpm_version = make_rpm_version(self['flocker-version'])
+            rpm_version = make_rpm_version(self.version)
             os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
             if os_version.endswith('.dirty'):
                 os_version = os_version[:-len('.dirty')]
