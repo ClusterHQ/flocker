@@ -3,18 +3,26 @@
 """
 Check that published artifacts can be installed.
 """
+import argparse
 import os
 import unittest
+
+from flocker.common.version import make_rpm_version
+from flocker.provision import PackageSource
 
 from admin.client import (
     DockerContainer, get_steps_pkg, get_steps_pip, run_steps
 )
 
 
-class TestPackages(unittest.TestCase):
+class TestClientPackages(unittest.TestCase):
+
+    def __init__(self, method, package_source=PackageSource()):
+        unittest.TestCase.__init__(self, method)
+        self.package_source = package_source
 
     def install(self, distribution, get_steps):
-        steps = get_steps(distribution)
+        steps = get_steps(distribution, self.package_source)
         container = DockerContainer.from_distribution(distribution)
         filename = '{}.out'.format(self.id())
         with open(filename, 'w') as out:
@@ -63,10 +71,38 @@ class TestPackages(unittest.TestCase):
         """
         self.install('fedora-22', get_steps_pip)
 
+
+def package_source_from_args():
+    parser = argparse.ArgumentParser(description='Test published artifacts.')
+    parser.add_argument(
+        '--branch', default=None, help='install packages from a named branch')
+    parser.add_argument(
+        '--flocker-version', default=None,
+        help='install specific version of Flocker')
+    parser.add_argument(
+        '--build-server', default='http://build.clusterhq.com/',
+        help='base URL of build server for branch builds')
+
+    args = parser.parse_args()
+
+    if args.flocker_version:
+        rpm_version = make_rpm_version(args.flocker_version)
+        os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
+        if os_version.endswith('.dirty'):
+            os_version = os_version[:-len('.dirty')]
+    else:
+        os_version = None
+
+    package_source = PackageSource(
+        version=args.flocker_version, os_version=os_version,
+        branch=args.branch, build_server=args.build_server)
+    return package_source
+
 if __name__ == '__main__':
     # XXX Trial might provide a better interface
-    test_names = unittest.TestLoader().getTestCaseNames(TestPackages)
+    package_source = package_source_from_args()
+    test_names = unittest.TestLoader().getTestCaseNames(TestClientPackages)
     suite = unittest.TestSuite(
-        TestPackages(name) for name in test_names
+        TestClientPackages(name, package_source) for name in test_names
     )
     unittest.TextTestRunner(verbosity=2).run(suite)
