@@ -281,7 +281,7 @@ def install_commands_yum(package_name, distribution, package_source,
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
 
-    os_version = package_source.os_version
+    os_version = package_source.os_version()
     if os_version:
         package_name += '-%s' % (os_version,)
 
@@ -351,7 +351,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     # Update to read package info from new repos
     commands.append(run_from_args(["apt-get", "update"]))
 
-    os_version = package_source.os_version
+    os_version = package_source.os_version()
 
     if os_version:
         # Set the version of the top-level package

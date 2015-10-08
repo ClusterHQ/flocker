@@ -16,18 +16,18 @@ from ._ca import Certificates
 ])
 class PackageSource(object):
     """
-    Source for the installation of a flocker package.
+    Source for the installation of a Flocker package.
 
-    :ivar bytes version: The version of flocker to install. If not specified,
+    :ivar bytes version: The version of Flocker to install. If not specified,
         install the most recent version.
-    :ivar bytes branch: The branch from which to install flocker.
+    :ivar bytes branch: The branch from which to install Flocker.
         If not specified, install from the release repository.
-    :ivar bytes build_server: The builderver to install from.
+    :ivar bytes build_server: The buildserver to install from.
         Only meaningful if a branch is specified.
     """
-    @property
+
     def os_version(self):
-        """The version of the OS package of flocker to install."""
+        """The version of the OS package of Flocker to install."""
         if self.version:
             rpm_version = make_rpm_version(self.version)
             os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
