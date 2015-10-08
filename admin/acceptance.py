@@ -3,7 +3,6 @@
 Run the acceptance tests.
 """
 
-from collections import Mapping
 import sys
 import os
 import yaml
@@ -213,7 +212,7 @@ class ManagedRunner(object):
         See ``ManagedRunner`` and ``ManagedNode`` for other parameter
         documentation.
         """
-        if isinstance(node_addresses, Mapping):
+        if isinstance(node_addresses, dict):
             self._nodes = pvector(
                 ManagedNode(
                     address=address,
