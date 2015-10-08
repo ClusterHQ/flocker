@@ -473,6 +473,7 @@ class CinderBlockDeviceAPI(object):
         requested_volume = self.cinder_volume_manager.create(
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
+            display_name="flocker-{}".format(dataset_id),
         )
         Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
