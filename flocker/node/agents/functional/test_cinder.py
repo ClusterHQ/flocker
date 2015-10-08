@@ -140,7 +140,8 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         self.assertEqual(
-            cinder_client.get(flocker_volume.blockdevice_id).display_name,
+            cinder_client.volumes.get(
+                flocker_volume.blockdevice_id).display_name,
             u"flocker-{}".format(dataset_id))
 
 
