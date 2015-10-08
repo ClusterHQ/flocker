@@ -288,7 +288,7 @@ In this case you can copy and paste the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_
 
 And then run the acceptance tests on those nodes using the following command:
 
-.. code-block:: yaml
+.. code-block:: console
 
    ./admin/run-acceptance-tests \
      --distribution=centos-7 \
