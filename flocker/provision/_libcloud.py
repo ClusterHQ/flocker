@@ -232,11 +232,16 @@ class LibcloudProvisioner(object):
             [node], wait_period=15)[0]
 
         public_address = addresses[0]
+        if isinstance(public_address, unicode):
+            public_address = public_address.encode("ascii")
 
         if self.use_private_addresses:
             private_address = node.private_ips[0]
         else:
             private_address = None
+
+        if isinstance(private_address, unicode):
+            private_address = private_address.encode("ascii")
 
         return LibcloudNode(
             provisioner=self,
