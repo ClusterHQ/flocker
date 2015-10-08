@@ -264,7 +264,7 @@ Further reading
 
 Now that you've installed your own Flocker cluster, you may want to learn more about Flocker:
 
-* :ref:`Using Flocker <using>` (note that the ``flocker-deploy`` tool is installed on your system as ``uft-flocker-deploy``)
+* :ref:`controlling-flocker` (note that the ``flocker-deploy`` tool is installed on your system as ``uft-flocker-deploy``)
 * :ref:`Flocker concepts <concepts>`
 * :ref:`API reference <api>`
 * :ref:`Flocker plugin for Docker in detail <docker-plugin>`

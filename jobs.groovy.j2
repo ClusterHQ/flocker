@@ -141,7 +141,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {#
 
 #}
-{% macro triggers(_type, _value )                                                         -%}
+{% macro triggers(_type, _value, _branch )                                 -%}
 {# adds a list of triggers to the build job
 
    param  _type: type of job
@@ -149,8 +149,11 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 
 #}
     triggers {
-{#  the job_type 'cron' is used by the docker_build jobs running every 24h   #}
-{%      if _type == 'cron'                                                   %}
+{#  the job_type 'cron' is used by the docker_build jobs running every 24h
+    but we only configure the scheduler if the jobs is for the master branch.
+    If we were to schedule the job on every branch we would have multiple jobs
+    running at the same time                                                 #}
+{%      if _type == 'cron' and _branch == 'master'                           %}
 {#  the cron  string below is a common crontab style string                  #}
             cron("{{_value}}")
 {%      endif                                                                %}
@@ -435,7 +438,7 @@ branches.each {
 
 
 {# the multijob is responsible for running all configured jobs in parallel   #}
-  multiJob("${dashProject}/${dashBranchName}/_main_multijob") {
+  multiJob("${dashProject}/${dashBranchName}/__main_multijob") {
     wrappers {
       timestamps()
       colorizeOutput()
@@ -594,12 +597,13 @@ branches.each {
 {# apply config related to 'cronly_jobs' jobs                                #}
 {%    if job_type == 'cronly_jobs'                                          -%}
 {%        set _job_name = job_name                                          -%}
-{# lets place these jobs inside the 'master' branch folder, as its likely
-   people will be looking into that view when monitoring the master branch   #}
-  job("${dashProject}/master/_{{ _job_name }}") {
+  job("${dashProject}/${branchName}/_{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers(job_values, 'none') }}
-    {{ triggers('cron', job_values.at) }}
+    {{ triggers('cron', job_values.at, "${branchName}") }}
     {{ scm("${git_url}", "master") }}
     {{ steps(job_values.with_steps) }}
   }
