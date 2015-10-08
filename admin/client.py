@@ -119,13 +119,14 @@ class DockerContainer:
     """
 
     def __init__(self, image):
-        # See FLOC-3044 - these settings are to avoid problems on OSX
-        # with Boot2Docker and Homebrew Python
+        # Getting Docker to work correctly on any client platform can
+        # be tricky.  It may be necessary to run these tests in a Linux
+        # VM if they don't work on a non-Linux platform.  See FLOC-3044.
         params = docker.utils.kwargs_from_env(assert_hostname=False)
         tls_config = params.get('tls')
         if tls_config:
             tls_config.verify = False
-        self.docker = docker.Client(version='1.18', **params)
+        self.docker = docker.Client(version='1.16', **params)
         self.image = image
 
     @classmethod
