@@ -38,7 +38,7 @@ def provision_rackspace(node, package_source, distribution, variants):
     commands = []
     commands.append(run_remotely(
         username=get_default_username(distribution),
-        address=node.address,
+        address=node.address.encode('ascii'),
         commands=sequence([
             provision(
                 package_source=package_source,

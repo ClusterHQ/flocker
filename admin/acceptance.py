@@ -1004,7 +1004,7 @@ def main(reactor, args, base_path, top_level):
                 parallel([
                     run_remotely(
                         username='root',
-                        address=node.address,
+                        address=node.address.encode('ascii'),
                         commands=task_pull_docker_images()
                     ) for node in cluster.agent_nodes
                 ]),

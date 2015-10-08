@@ -1300,7 +1300,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
     return sequence([
         run_remotely(
             username='root',
-            address=cluster.control_node.address,
+            address=cluster.control_node.address.encode('ascii'),
             commands=sequence([
                 task_install_control_certificates(
                     cluster.certificates.cluster.certificate,
@@ -1313,7 +1313,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
             sequence([
                 run_remotely(
                     username='root',
-                    address=node.address,
+                    address=node.address.encode('ascii'),
                     commands=sequence([
                         task_install_node_certificates(
                             cluster.certificates.cluster.certificate,
