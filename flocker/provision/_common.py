@@ -4,12 +4,13 @@ from characteristic import attributes, Attribute
 from pyrsistent import PRecord, field
 from twisted.python.constants import Values, ValueConstant
 
+from flocker.common.version import make_rpm_version
+
 from ._ca import Certificates
 
 
 @attributes([
     Attribute('version', default_value=None),
-    Attribute('os_version', default_value=None),
     Attribute('branch', default_value=None),
     Attribute('build_server', default_value="http://build.clusterhq.com/"),
 ])
@@ -19,13 +20,22 @@ class PackageSource(object):
 
     :ivar bytes version: The version of flocker to install. If not specified,
         install the most recent version.
-    :ivar bytes os_version: The version of the OS package of flocker to
-        install.  If not specified, install the most recent version.
     :ivar bytes branch: The branch from which to install flocker.
         If not specified, install from the release repository.
     :ivar bytes build_server: The builderver to install from.
         Only meaningful if a branch is specified.
     """
+    @property
+    def os_version(self):
+        """The version of the OS package of flocker to install."""
+        if self.version:
+            rpm_version = make_rpm_version(self['flocker-version'])
+            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
+            if os_version.endswith('.dirty'):
+                os_version = os_version[:-len('.dirty')]
+        else:
+            os_version = None
+        return os_version
 
 
 class Variants(Values):
