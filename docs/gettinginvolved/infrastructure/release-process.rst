@@ -270,7 +270,7 @@ Release
 
    .. prompt:: bash (flocker-0.1.2)$
 
-      admin/test-artifacts
+      admin/test-artifacts --flocker-version ${TAG}
 
    If an error occurs for a single pip installation, create a JIRA issue to investigate it.
    If an error occurs for all pip installations, or if an error occurs for the RPM or DEB packages, create a fast-track JIRA issue to investigate the problem.
