@@ -38,8 +38,6 @@ class ContainerAPITests(TestCase):
             }, script)
 
         def check_result(response):
-            # FLOC-3227 With the managed runner, this public_address is the
-            # private address.
             dl = verify_socket(cluster.nodes[0].public_address, 8080)
             dl.addCallback(lambda _: response)
             return dl
