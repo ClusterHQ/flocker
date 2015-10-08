@@ -9,8 +9,11 @@ Debugging
 Logging
 -------
 
-Flocker processes use `eliot`_ for logging.
-These logs can be rendered as an ASCII tree using `eliottree`_.
+Flocker processes use the `Eliot`_ framework for logging.
+Eliot structures logs as a tree of actions, which means given an error you can see what Flocker actions caused the errors by finding the other messages in the tree.
+The tree of actions can also span processes; thus you can trace API calls from within the Docker plugin and see the effects in the control service logs.
+Messages can be rendered into a human-readable tree using the `eliot-tree`_ command-line tool, which is pre-installed with Flocker.
+Eliot also includes a tool called ``eliot-prettyprint`` which renders messages into a more human-readable format but does not present them in a tree structure.
 
 Logs from the Docker containers can be viewed using `the Docker CLI <https://docs.docker.com/reference/commandline/cli/#logs>`_.
 
@@ -34,9 +37,52 @@ It is possible to see the available unit names, and then view the logs with ``jo
    flocker-container-agent
    flocker-control
    [root@node1]# journalctl -u flocker-dataset-agent
-   [root@node1]# journalctl -u flocker-container-agent
-   [root@node1]# journalctl -u flocker-control
 
+When outputting logs to ``eliot-prettyprint`` or ``eliot-tree`` you will want to call ``journalctl`` with additional options ``--all --output cat`` to ensure the output can be read correctly by these tools.
+
+Using ``journalctl`` we can find all logged errors:
+
+.. prompt:: bash [root@node1]# auto
+
+   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent --priority=err | eliot-prettyprint
+   ce64eb77-bb7f-4e69-83f8-07d7cdaffaca -> /2
+   2015-09-23 21:26:37.972945Z
+      action_type: flocker:dataset:resize
+      action_status: failed
+      exception: exceptions.ZeroDivisionError
+      reason: integer division or modulo by zero
+
+The first part of the first line of each message, in this case ``ce64eb77-bb7f-4e69-83f8-07d7cdaffaca``, is an identifier shared by all actions in the particular tree (or "task") that led up to this error.
+We can use it to find all messages related to this particular error in an effort to figure out what caused it; we'll output to ``eliot-tree`` so we can see the structure of messages:
+
+.. prompt:: bash [root@node1]# auto
+
+   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=ce64eb77-bb7f-4e69-83f8-07d7cdaffaca | eliot-tree
+
+We can also find all messages of a particular type.
+Some useful messages types for agents include:
+
+* ``flocker:agent:converge``: The main entry point to the convergence algorithm, which will include the latest global cluster configuration and state known to the agent.
+* ``flocker:agent:send_to_control_service``: The locally discovered state that the agent will send to the control service and use to calculate the necessary changes to run locally.
+* ``flocker:agent:converge:actions``: The necessary changes to local state as calculated by the agent based on configuration and state.
+
+In the following example we find what actions the dataset agent decided it needed to run most recently:
+
+.. prompt:: bash [root@node1]# auto
+
+   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TYPE=flocker:agent:converge:actions | tail -1 | eliot-prettyprint
+   32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 -> /2/4
+   2015-09-02 13:42:28.943926Z
+     message_type: flocker:agent:converge:actions
+     calculated_actions: _InParallel(changes=pvector([CreateBlockDeviceDataset(mountpoint=FilePath('/flocker/ea7afeba-6179-4149-16c1-5724fd5c8fd7'), dataset=Dataset(deleted=False, dataset_id=u'ea7afeba-6179-4149-16c1-5724fd5c8fd7', maximum_size=80530636800, metadata=pmap({u'name': u'my-database'})))]))
+
+We can then find the full set of actions leading up to this decision, as well as the results of the block device creation, by searching for the task UUID:
+
+.. prompt:: bash [root@node1]# auto
+
+   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 | eliot-tree
+
+ 
 .. _flocker-bug-reporting:
 
 Bug Reporting
@@ -161,5 +207,5 @@ For example:
 
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
-.. _`eliot`: https://github.com/ClusterHQ/eliot
-.. _`eliottree`: https://github.com/jonathanj/eliottree
+.. _`Eliot`: https://eliot.readthedocs.org
+.. _`eliot-tree`: https://github.com/jonathanj/eliottree
