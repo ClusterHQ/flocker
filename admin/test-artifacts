@@ -65,4 +65,8 @@ class TestPackages(unittest.TestCase):
 
 if __name__ == '__main__':
     # XXX Trial might provide a better interface
-    unittest.main()
+    test_names = unittest.TestLoader().getTestCaseNames(TestPackages)
+    suite = unittest.TestSuite(
+        TestPackages(name) for name in test_names
+    )
+    unittest.TextTestRunner(verbosity=2).run(suite)
