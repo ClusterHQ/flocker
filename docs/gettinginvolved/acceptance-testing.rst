@@ -223,9 +223,17 @@ The nodes should be configured to allow key based SSH connections as user ``root
 
    admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
 
-If you have created nodes using the ``aws`` or ``rackspace`` runners and supplied the ``--keep`` option, ``run-acceptance-tests`` will print out the node addresses when it exits. E.g.
+If you are using the ``managed`` option on ``AWS`` nodes you  will need to supply both the private and public IP addresses for each node.
+
+AWS nodes do not have public IP addresses configured in the operating system; instead Amazon routes public IP traffic using NAT.
+In this case the acceptance tests need a hint in order to map the private IP address reported by the Flocker ``/state/nodes`` API to the public node address.
+E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
+The mapping is supplied to the tests in the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` environment variable.
+
+If you create nodes using ``run-acceptance-tests --runner=aws --keep`` the command will print out the node addresses when it exits. E.g.
 
 .. code-block:: console
+
    ./admin/run-acceptance-tests \
      --keep \
      --distribution=centos-7 \
@@ -266,10 +274,20 @@ In this case you can copy and paste the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_
        "10.69.174.223": "54.159.119.143"
      }
 
-This is especially important when using the managed runner with AWS acceptance nodes.
-AWS nodes do not have public IP addresses; instead Amazon routes public IP traffic using NAT.
-The acceptance tests need a hint (from the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` environment variable) in order to map the private IP address reported by the Flocker ``/state/nodes`` API to the public node address.
-E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
+
+And then run the acceptance tests on those nodes using the following command:
+
+.. code-block:: yaml
+
+   ./admin/run-acceptance-tests \
+     --distribution=centos-7 \
+     --provider=managed \
+     --dataset-backend=aws \
+     --config-file=$PWD/acceptance.yml
+     --branch=master \
+     --flocker-version='' \
+     flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
+
 
 Functional Testing
 ==================
