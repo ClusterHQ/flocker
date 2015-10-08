@@ -30,7 +30,8 @@ from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
 from .. import (
-    IDeployer, IStateChange, sequentially, in_parallel, run_state_change
+    IDeployer, IStateInfo, IStateChange, sequentially, in_parallel,
+    run_state_change
 )
 from .._deploy import NotInUseDatasets
 
@@ -1372,6 +1373,16 @@ def _manifestation_from_volume(volume):
     return Manifestation(dataset=dataset, primary=True)
 
 
+@implementer(IStateInfo)
+@attributes(["state_changes"])
+class BlockDeviceDeployerStateInfo(object):
+    """
+    The StateInfo object for the BlockDeviceDeployer.
+
+    :ivar state_changes: A collection of ``IClusterStateChange`` providers.
+    """
+
+
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
     """
@@ -1524,22 +1535,24 @@ class BlockDeviceDeployer(PRecord):
                 # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
-        state = (
-            NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                manifestations=manifestations,
-                paths=paths,
-                devices=devices,
-                # Discovering these is ApplicationNodeDeployer's job, we
-                # don't anything about these:
-                applications=None,
-            ),
-            NonManifestDatasets(datasets=nonmanifest),
-            ClusterVolumes(volumes=volumes),
+        state_info = BlockDeviceDeployerStateInfo(
+            state_changes = (
+                NodeState(
+                    uuid=self.node_uuid,
+                    hostname=self.hostname,
+                    manifestations=manifestations,
+                    paths=paths,
+                    devices=devices,
+                    # Discovering these is ApplicationNodeDeployer's job, we
+                    # don't anything about these:
+                    applications=None,
+                ),
+                NonManifestDatasets(datasets=nonmanifest),
+                ClusterVolumes(volumes=volumes),
+            )
         )
 
-        return succeed(state)
+        return succeed(state_info)
 
     def _mountpath_for_manifestation(self, manifestation):
         """
@@ -1563,7 +1576,7 @@ class BlockDeviceDeployer(PRecord):
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
 
-    def calculate_changes(self, configuration, cluster_state):
+    def calculate_changes(self, configuration, cluster_state, state_info):
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
         local_state = cluster_state.get_node(self.node_uuid,

@@ -39,11 +39,12 @@ from eliot.testing import (
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
-    BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI, UnknownVolume,
-    AlreadyAttachedVolume, CreateBlockDeviceDataset, UnattachedVolume,
-    DatasetExists, DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    AttachVolume, CreateFilesystem, DestroyVolume, MountBlockDevice,
-    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
+    BlockDeviceDeployerStateInfo, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
+    IBlockDeviceAPI, UnknownVolume, AlreadyAttachedVolume,
+    CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
+    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
+    CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
+    _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
@@ -338,7 +339,7 @@ def assert_discovered_state(case,
         devices=None,
     )
     discovering = deployer.discover_state(previous_state)
-    state = case.successResultOf(discovering)
+    state = case.successResultOf(discovering).state_changes
     expected_paths = {}
     for manifestation in expected_manifestations:
         dataset_id = manifestation.dataset.dataset_id
@@ -863,6 +864,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
         changes = deployer.calculate_changes(
             cluster_configuration, cluster_state,
+            BlockDeviceDeployerStateInfo(state_changes=())
         )
 
         self.assertEqual(
@@ -996,7 +998,9 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             }
         )
 
-        changes = deployer.calculate_changes(cluster_config, cluster_state)
+        changes = deployer.calculate_changes(
+            cluster_config, cluster_state,
+            BlockDeviceDeployerStateInfo(state_changes=()))
         self.assertEqual(
             in_parallel(changes=[
                 AttachVolume(
@@ -1189,7 +1193,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=node_uuid
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = deployer.calculate_changes(
+            configuration, state,
+            BlockDeviceDeployerStateInfo(state_changes=()))
         self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
@@ -1221,7 +1227,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = deployer.calculate_changes(
+            configuration, state,
+            BlockDeviceDeployerStateInfo(state_changes=()))
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
             in_parallel(
@@ -1258,7 +1266,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
 
         return deployer.calculate_changes(
-            desired_configuration, current_cluster_state
+            desired_configuration, current_cluster_state,
+            BlockDeviceDeployerStateInfo(state_changes=())
         )
 
     def test_match_configuration_to_state_of_datasets(self):
@@ -1357,7 +1366,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=node_address,
             node_uuid=node_id,
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = deployer.calculate_changes(
+            configuration, state,
+            BlockDeviceDeployerStateInfo(state_changes=())
+        )
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         expected_size = int(GiB(100).to_Byte().value)
         self.assertEqual(
@@ -1429,7 +1441,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=local_node_address,
             node_uuid=local_node_id,
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = deployer.calculate_changes(
+            configuration, state,
+            BlockDeviceDeployerStateInfo(state_changes=())
+        )
 
         self.assertEqual(in_parallel(changes=[]), changes)
 

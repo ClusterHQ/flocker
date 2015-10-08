@@ -10,6 +10,7 @@ from ._change import (
 
 from ._deploy import (
     IDeployer,
+    IStateInfo,
     P2PManifestationDeployer,
     ApplicationNodeDeployer,
 )
@@ -18,7 +19,7 @@ from .script import BackendDescription, DeployerType
 
 
 __all__ = [
-    'IDeployer', 'IStateChange',
+    'IDeployer', 'IStateInfo', 'IStateChange',
     'P2PManifestationDeployer',
     'ApplicationNodeDeployer',
     'run_state_change', 'in_parallel', 'sequentially',

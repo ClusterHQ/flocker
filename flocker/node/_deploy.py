@@ -51,6 +51,20 @@ def _to_volume_name(dataset_id):
     return VolumeName(namespace=u"default", dataset_id=dataset_id)
 
 
+class IStateInfo(Interface):
+    """
+    An ``IStateInfo`` is the result from discovering state. It must provide a
+    collection of ``IClusterStateChange`` providers, but can store additional
+    state that is useful in calculate_changes.
+
+    :ivar state_changes: An iterable of ``IClusterStateChange`` providers
+        describing local state. These objects will be passed to the control
+        service (see ``flocker.control._protocol``).
+    """
+    state_changes = Attribute(
+        "The ``IClusterStateChange`` providers describing local state.")
+
+
 class IDeployer(Interface):
     """
     An object that can discover local state and calculate necessary
@@ -75,14 +89,13 @@ class IDeployer(Interface):
             into the result; the return result should include only
             information discovered by this particular deployer.
 
-        :return: A ``Deferred`` which fires with a tuple of
-            ``IClusterStateChange`` providers describing
-            local state. These objects will be passed to the control
-            service (see ``flocker.control._protocol``) and may also be
+        :return: A ``Deferred`` which fires with a ``IStateInfo``. The
+            state_changes will be passed to the control service (see
+            ``flocker.control._protocol``), and the entire opaque object will be
             passed to this object's ``calculate_changes()`` method.
         """
 
-    def calculate_changes(configuration, cluster_state):
+    def calculate_changes(configuration, cluster_state, state_info):
         """
         Calculate the state changes necessary to make the local state match the
         desired cluster configuration.
@@ -92,6 +105,9 @@ class IDeployer(Interface):
 
         :param DeploymentState cluster_state: The current state of all nodes
             already updated with recent output of ``discover_state``.
+
+        :param IStateInfo state_info: The ``IStateInfo`` provider returned from
+            the most recent call to ``discover_state``.
 
         :return: An ``IStateChange`` provider.
         """
@@ -486,6 +502,16 @@ class NotInUseDatasets(object):
         return result
 
 
+@implementer(IStateInfo)
+@attributes(["state_changes"])
+class P2PManifestationDeployerStateInfo(object):
+    """
+    The StateInfo object for the P2PManifestationStateDeployer.
+
+    :ivar state_changes: A collection of ``IClusterStateChange`` providers.
+    """
+
+
 @implementer(IDeployer)
 class P2PManifestationDeployer(object):
     """
@@ -537,19 +563,21 @@ class P2PManifestationDeployer(object):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values())
 
-            return [NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=None,
-                manifestations={manifestation.dataset_id: manifestation
-                                for manifestation in manifestations},
-                paths=manifestation_paths,
-                devices={},
-            )]
+            return P2PManifestationDeployerStateInfo(
+                state_changes=[NodeState(
+                    uuid=self.node_uuid,
+                    hostname=self.hostname,
+                    applications=None,
+                    manifestations={manifestation.dataset_id: manifestation for
+                                    manifestation in manifestations},
+                    paths=manifestation_paths,
+                    devices={},
+                )]
+            )
         volumes.addCallback(got_volumes)
         return volumes
 
-    def calculate_changes(self, configuration, cluster_state):
+    def calculate_changes(self, configuration, cluster_state, state_info):
         """
         Calculate necessary changes to peer-to-peer manifestations.
 
@@ -599,6 +627,16 @@ class P2PManifestationDeployer(object):
                 for dataset in deleting
                 ]))
         return sequentially(changes=phases)
+
+
+@implementer(IStateInfo)
+@attributes(["state_changes"])
+class ApplicationNodeDeployerStateInfo(object):
+    """
+    The StateInfo object for the ApplicationNodeDeployer.
+
+    :ivar state_changes: A collection of ``IClusterStateChange`` providers.
+    """
 
 
 @implementer(IDeployer)
@@ -772,16 +810,20 @@ class ApplicationNodeDeployer(object):
         :param list applications: ``Application`` instances representing the
             applications on this node.
 
-        :return: A ``list`` of a single ``NodeState`` representing the
-            application state only of this node.
+        :return: An ApplicationNodeDeployerStateInfo with state_changes that is
+            a ``list`` of a single ``NodeState`` representing the application
+            state only of this node.
         """
-        return [NodeState(
-            uuid=self.node_uuid,
-            hostname=self.hostname,
-            applications=applications,
-            manifestations=None,
-            paths=None,
-        )]
+        return ApplicationNodeDeployerStateInfo(
+            state_changes=[
+                NodeState(
+                    uuid=self.node_uuid,
+                    hostname=self.hostname,
+                    applications=applications,
+                    manifestations=None,
+                    paths=None,
+                )]
+        )
 
     def discover_state(self, local_state):
         """
@@ -810,13 +852,18 @@ class ApplicationNodeDeployer(object):
             # convergence actions, just declare ignorance. Eventually the
             # convergence agent for datasets will discover the information
             # and then we can proceed.
-            return succeed([NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=None,
-                manifestations=None,
-                paths=None,
-            )])
+            return succeed(
+                ApplicationNodeDeployerStateInfo(
+                    state_changes=[
+                        NodeState(uuid=self.node_uuid,
+                                  hostname=self.hostname,
+                                  applications=None,
+                                  manifestations=None,
+                                  paths=None,
+                        ),
+                    ]
+                )
+            )
 
         path_to_manifestations = {
             path: local_state.manifestations[dataset_id]
@@ -967,7 +1014,8 @@ class ApplicationNodeDeployer(object):
             )
         )
 
-    def calculate_changes(self, desired_configuration, current_cluster_state):
+    def calculate_changes(self, desired_configuration, current_cluster_state,
+                          state_info):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.

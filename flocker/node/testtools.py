@@ -25,7 +25,7 @@ from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType, MessageType, fields
 
-from . import IDeployer, IStateChange, sequentially
+from . import IDeployer, IStateInfo, IStateChange, sequentially
 from ..testtools import loop_until, find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
@@ -141,6 +141,14 @@ class ControllableAction(object):
         return self.result
 
 
+@implementer(IStateInfo)
+@attributes(["state_changes"])
+class DummyStateInfo(object):
+    """
+    Simple StateInfo for use with tests.
+    """
+
+
 @implementer(IDeployer)
 class DummyDeployer(object):
     """
@@ -150,9 +158,10 @@ class DummyDeployer(object):
     node_uuid = uuid4()
 
     def discover_state(self, node_stat):
-        return succeed(())
+        return succeed(DummyStateInfo(state_changes=()))
 
-    def calculate_changes(self, desired_configuration, cluster_state):
+    def calculate_changes(self, desired_configuration, cluster_state,
+                          state_info):
         return sequentially(changes=[])
 
 
@@ -180,9 +189,11 @@ class ControllableDeployer(object):
         if isinstance(state, Exception):
             raise state
         else:
-            return state.addCallback(lambda val: (val,))
+            return state.addCallback(
+                lambda val: DummyStateInfo(state_changes=(val,)))
 
-    def calculate_changes(self, desired_configuration, cluster_state):
+    def calculate_changes(self, desired_configuration, cluster_state,
+                          state_info):
         self.calculate_inputs.append(
             (cluster_state.get_node(uuid=self.node_uuid,
                                     hostname=self.hostname),
@@ -230,7 +241,8 @@ def ideployer_tests_factory(fixture):
             The object's ``discover_state`` method returns a ``Deferred`` that
             fires with a ``list``.
             """
-            def discovered(changes):
+            def discovered(state_info):
+                changes = state_info.state_changes
                 self.assertEqual(tuple, type(changes))
             return self._discover_state().addCallback(discovered)
 
@@ -239,7 +251,8 @@ def ideployer_tests_factory(fixture):
             The elements of the ``list`` that ``discover_state``\ 's
             ``Deferred`` fires with provide ``IClusterStateChange``.
             """
-            def discovered(changes):
+            def discovered(state_info):
+                changes = state_info.state_changes
                 wrong = []
                 for obj in changes:
                     if not IClusterStateChange.providedBy(obj):
@@ -257,7 +270,8 @@ def ideployer_tests_factory(fixture):
             ``IStateChange`` provider.
             """
             deployer = fixture(self)
-            result = deployer.calculate_changes(EMPTY, EMPTY_STATE)
+            result = deployer.calculate_changes(
+                EMPTY, EMPTY_STATE, DummyStateInfo(state_changes=()))
             self.assertTrue(verifyObject(IStateChange, result))
 
     return IDeployerTests
@@ -278,7 +292,7 @@ def to_node(node_state):
 def assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
         cluster_volumes, additional_node_states, additional_node_config,
-        expected_changes, leases=Leases(),
+        expected_changes, leases=Leases(), state_info=None
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -300,7 +314,11 @@ def assert_calculated_changes_for_deployer(
     :param set additional_node_config: A set of ``Node`` for other nodes.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     :param Leases leases: Currently configured leases. By default none exist.
+    :param IStateInfo state_info: The state_info to pass into calculate_changes.
+        If None, an empty ``DummyStateInfo`` will be passed in.
     """
+    if state_info is None:
+        state_info = DummyStateInfo(state_changes=())
     cluster_state = DeploymentState(
         nodes={node_state} | additional_node_states,
         nonmanifest_datasets={
@@ -314,7 +332,7 @@ def assert_calculated_changes_for_deployer(
         leases=leases,
     )
     changes = deployer.calculate_changes(
-        cluster_configuration, cluster_state,
+        cluster_configuration, cluster_state, state_info
     )
     case.assertEqual(expected_changes, changes)
 
