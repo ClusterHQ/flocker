@@ -626,32 +626,50 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
     Tests for ``ApplicationNodeDeployer.discover_local_state``.
     """
     def setUp(self):
+        self.hostname = u"example.com"
         self.network = make_memory_network()
         self.node_uuid = uuid4()
         # https://clusterhq.atlassian.net/browse/FLOC-1926
         self.EMPTY_NODESTATE = NodeState(
-            hostname=u"example.com",
+            hostname=self.hostname,
             uuid=self.node_uuid,
             manifestations={}, devices={}, paths={},
             applications=[])
+
+    def _verify_discover_state_applications(
+            self, units, expected_applications,
+            current_state=None, start_applications=False):
+        """
+        Utility method for common code across the test cases in this class.
+        """
+        if current_state is None:
+            current_state = self.EMPTY_NODESTATE
+        fake_docker = FakeDockerClient(units=units)
+        api = ApplicationNodeDeployer(
+            self.hostname,
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        if start_applications:
+            for app in expected_applications:
+                StartApplication(
+                    node_state=NodeState(uuid=api.node_uuid,
+                                         hostname=api.hostname),
+                    application=app
+                ).run(api)
+        d = api.discover_state(current_state)
+
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
+                                    applications=expected_applications)],
+                         self.successResultOf(d))
 
     def test_discover_none(self):
         """
         ``ApplicationNodeDeployer.discover_state`` returns an empty
         ``NodeState`` if there are no Docker containers on the host.
         """
-        fake_docker = FakeDockerClient(units={})
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[])],
-                         self.successResultOf(d))
+        self._verify_discover_state_applications({}, [])
 
     def test_discover_one(self):
         """
@@ -659,18 +677,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         with a a list of running ``Application``\ s; one for each active
         container.
         """
-        fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[APP])],
-                         self.successResultOf(d))
+        self._verify_discover_state_applications({APP_NAME: UNIT_FOR_APP},
+                                                 [APP])
 
     def test_discover_multiple(self):
         """
@@ -679,19 +687,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         container on the host.
         """
         units = {APP_NAME: UNIT_FOR_APP, APP_NAME2: UNIT_FOR_APP2}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP, APP2]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d)[0].applications)
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_with_cpushares(self):
         """
@@ -700,19 +697,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         """
         unit1 = UNIT_FOR_APP.set("cpu_shares", 512)
         units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP.set("cpu_shares", 512)]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d)[0].applications))
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_with_memory_limit(self):
         """
@@ -722,19 +708,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         memory_limit = 104857600
         unit1 = UNIT_FOR_APP.set("mem_limit", memory_limit)
         units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP.set("memory_limit", memory_limit)]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d)[0].applications))
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_with_environment(self):
         """
@@ -748,19 +723,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         environment = Environment(variables=environment_variables)
         unit1 = UNIT_FOR_APP.set("environment", environment)
         units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP.set("environment", dict(environment_variables))]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d)[0].applications)
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_with_environment_and_links(self):
         """
@@ -784,50 +748,23 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         environment = Environment(variables=frozenset(unit_environment))
         unit1 = UNIT_FOR_APP.set("environment", environment)
         units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
         links = [
             Link(local_port=80, remote_port=8080, alias=u"APACHE")
         ]
         applications = [APP.set("links", links).set(
             "environment", dict(environment_variables))]
-
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d)[0].applications)
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_with_links(self):
         """
         An ``Application`` with ``Link`` objects is discovered from a ``Unit``
         with environment variables that correspond to an exposed link.
         """
-        fake_docker = FakeDockerClient()
         applications = [APP.set("links", [
             Link(local_port=80, remote_port=8080, alias=u'APACHE')
         ])]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        for app in applications:
-            StartApplication(
-                node_state=NodeState(uuid=api.node_uuid,
-                                     hostname=api.hostname),
-                application=app
-            ).run(api)
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertItemsEqual(applications,
-                              self.successResultOf(d)[0].applications)
+        self._verify_discover_state_applications(
+            {}, applications, start_applications=True)
 
     def test_discover_application_with_ports(self):
         """
@@ -837,20 +774,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ports = [PortMap(internal_port=80, external_port=8080)]
         unit1 = UNIT_FOR_APP.set("ports", ports)
         units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP.set("ports",
                                 [Port(internal_port=80, external_port=8080)])]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d)[0].applications))
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_attached_volume(self):
         """
@@ -890,23 +817,13 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             )]
         )
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [app.set("volume", AttachedVolume(
             manifestation=manifestations[respective_id],
             mountpoint=FilePath(b'/var/lib/data')
         )) for (app, respective_id) in [(APP, DATASET_ID),
                                         (APP2, DATASET_ID2)]]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(current_known_state)
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d)[0].applications)
+        self._verify_discover_state_applications(
+            units, applications, current_state=current_known_state)
 
     def test_ignore_unknown_volumes(self):
         """
@@ -919,20 +836,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             )],
         )
         units = {unit.name: unit}
-
-        fake_docker = FakeDockerClient(units=units)
-
         applications = [APP]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d)[0].applications))
+        self._verify_discover_state_applications(units, applications)
 
     def test_not_running_units(self):
         """
@@ -942,21 +847,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         unit1 = UNIT_FOR_APP.set("activation_state", u"inactive")
         unit2 = UNIT_FOR_APP2.set("activation_state", u'madeup')
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP.set("running", False), APP2.set("running", False)]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(EMPTY_NODESTATE)
-        result = self.successResultOf(d)
-
-        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=applications)],
-                         result)
+        self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_restart_policy(self):
         """
@@ -966,19 +858,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         policy = RestartAlways()
         unit1 = UNIT_FOR_APP.set("restart_policy", policy)
         units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
         applications = [APP.set("restart_policy", policy)]
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_state(self.EMPTY_NODESTATE)
-
-        self.assertEqual(applications,
-                         list(self.successResultOf(d)[0].applications))
+        self._verify_discover_state_applications(units, applications)
 
     def test_unknown_manifestations(self):
         """
@@ -986,28 +867,16 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ``ApplicationNodeDeployer`` doesn't bother doing any discovery and
         just indicates ignorance of applications.
         """
-        fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=fake_docker,
-            network=self.network
-        )
+        units = {APP_NAME: UNIT_FOR_APP}
+        applications = None
         # Apparently we know nothing about manifestations one way or the
         # other:
-        d = api.discover_state(NodeState(
-            uuid=api.node_uuid,
-            hostname=api.hostname,
-            manifestations=None, paths=None))
-
-        self.assertEqual([NodeState(hostname=api.hostname,
-                                    uuid=api.node_uuid,
-                                    # Can't do app discovery if don't know
-                                    # about manifestations:
-                                    applications=None,
-                                    manifestations=None,
-                                    paths=None)],
-                         self.successResultOf(d))
+        current_state = NodeState(
+            uuid=self.node_uuid,
+            hostname=self.hostname,
+            manifestations=None, paths=None)
+        self._verify_discover_state_applications(
+            units, applications, current_state=current_state)
 
 
 class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
