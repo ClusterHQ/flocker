@@ -208,7 +208,13 @@ def ensure_minimal_setup(package_manager):
 
 def cli_pkg_test(package_source=PackageSource()):
     """
-    Check that the CLI is working.
+    Check that the Flocker CLI is working and has the expected version.
+
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
     """
     expected = package_source.version
     if not expected:
@@ -500,6 +506,13 @@ def _get_wheel_version(package_source):
     If package source version is not set, the latest installable release
     will be installed.  Note, branch is never used for wheel
     installations, since the wheel file is not created for branches.
+
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: a string containing the previous installable version of
+        either the package version, or, if that is not specified, of the
+        current version.
     """
     return get_installable_version(package_source.version or version)
 

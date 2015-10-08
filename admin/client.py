@@ -247,6 +247,13 @@ class RunOptions(Options):
 def get_steps_pip(distribution, package_source=PackageSource()):
     """
     Get commands to run for testing client pip installation.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
     """
     if distribution not in PIP_DISTRIBUTIONS:
         raise UsageError(
@@ -266,6 +273,13 @@ def get_steps_pip(distribution, package_source=PackageSource()):
 def get_steps_pkg(distribution, package_source=PackageSource()):
     """
     Get commands to run for testing client package installation.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
     """
     if distribution not in PACKAGED_CLIENT_DISTRIBUTIONS:
         raise UsageError(
@@ -283,6 +297,12 @@ def get_steps_pkg(distribution, package_source=PackageSource()):
 def run_steps(container, steps, out=sys.stdout):
     """
     Run a sequence of commands in a container.
+
+    :param DockerContainer container: Container in which to run the test.
+    :param Effect steps: Steps to to run the test.
+    :param file out: Stream to write output.
+
+    :return int: Exit status of steps.
     """
     container.start()
     try:

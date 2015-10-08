@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Check that published artifacts work.
+Check that published artifacts can be installed.
 """
 import os
 import unittest
