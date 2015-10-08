@@ -240,6 +240,9 @@ class LibcloudProvisioner(object):
         else:
             private_address = None
 
+        if isinstance(private_address, unicode):
+            private_address = private_address.encode("ascii")
+
         return LibcloudNode(
             provisioner=self,
             node=node, address=public_address,
