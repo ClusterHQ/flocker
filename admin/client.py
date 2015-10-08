@@ -40,7 +40,13 @@ DOCKER_IMAGES = {
     'ubuntu-15.04': DockerImage(image='ubuntu:15.04', package_manager='apt'),
 }
 
+# No distribution is officially supported using pip, but the code can
+# test the pip instructions using any of the images.
 PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
+
+# Some distributions have packages created for them.
+# Although CentOS 7 is not a supported client distribution, the client
+# packages get built, and can be tested.
 PACKAGED_CLIENT_DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
 
 
