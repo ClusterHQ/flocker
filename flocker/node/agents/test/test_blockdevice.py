@@ -39,7 +39,7 @@ from eliot.testing import (
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
-    BlockDeviceDeployer, LoopbackBlockDeviceAPI,
+    BlockDeviceDeployerLocalState, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
@@ -62,7 +62,7 @@ from ..blockdevice import (
     FilesystemExists,
 )
 
-from ... import run_state_change, in_parallel, FullySharedLocalState
+from ... import run_state_change, in_parallel, ILocalState
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
 )
@@ -83,7 +83,12 @@ LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 # Enough space for the ext4 journal:
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
-EMPTY_LOCAL_STATE = FullySharedLocalState(cluster_state_changes=[])
+EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
+
+EMPTY_LOCAL_STATE = BlockDeviceDeployerLocalState(
+    node_state=EMPTY_NODE_STATE,
+    nonmanifest_datasets=NonManifestDatasets(datasets={}),
+    volumes=[])
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
@@ -252,6 +257,38 @@ def delete_manifestation(node_state, manifestation):
     node_state = node_state.transform(['paths', dataset_id], discard)
     node_state = node_state.transform(['devices', UUID(dataset_id)], discard)
     return node_state
+
+
+class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceDeployerLocalState``.
+    """
+    def setUp(self):
+        self.node_state = EMPTY_NODE_STATE
+        self.nonmanifest_datasets = NonManifestDatasets(datasets={})
+        self.volumes = []
+        self.local_state = BlockDeviceDeployerLocalState(
+            node_state=self.node_state,
+            nonmanifest_datasets=self.nonmanifest_datasets,
+            volumes=self.volumes
+        )
+
+    def test_provides_ilocalstate(self):
+        """
+        Verify that ``BlockDeviceDeployerLocalState`` instances provide the
+        ILocalState interface.
+        """
+        self.assertTrue(
+            verifyObject(ILocalState, self.local_state)
+        )
+
+    def test_shared_changes_are_shared(self):
+        """
+        Verify that the attributes of ``BlockDeviceDeployerLocalState`` that
+        are supposed to be shared are returned from shared_state_changes().
+        """
+        self.assertEqual((self.node_state, self.nonmanifest_datasets),
+                         self.local_state.shared_state_changes())
 
 
 class BlockDeviceDeployerTests(

@@ -19,7 +19,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, PClass, field
 from characteristic import attributes
 
 import psutil
@@ -30,12 +30,13 @@ from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
 from .. import (
-    IDeployer, FullySharedLocalState, IStateChange, sequentially, in_parallel,
+    IDeployer, ILocalState, IStateChange, sequentially, in_parallel,
     run_state_change
 )
 from .._deploy import NotInUseDatasets
 
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...control._model import pvector_field
 from ...common import auto_threaded
 
 
@@ -1389,6 +1390,33 @@ def _manifestation_from_volume(volume):
     return Manifestation(dataset=dataset, primary=True)
 
 
+@implementer(ILocalState)
+class BlockDeviceDeployerLocalState(PClass):
+    """
+    An ``ILocalState`` implementation for the ``BlockDeviceDeployer``.
+
+    :ivar NodeState node_state: The current ``NodeState`` for this node.
+
+    :ivar NonManifestDatasets nonmanifest_datasets: The current
+        ``NonManifestDatasets`` that this node is aware of but are not attached
+        to any node.
+
+    :ivar volumes: A ``PVector`` of ``BlockDeviceVolume`` instances for all
+        volumes in the cluster that this node is aware of.
+    """
+    node_state = field(type=NodeState, mandatory=True)
+    nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
+    volumes = pvector_field(BlockDeviceVolume)
+
+    def shared_state_changes(self):
+        """
+        Returns the NodeState and the NonManifestDatasets of the local state.
+        These are the only parts of the state that need to be sent to the
+        control service.
+        """
+        return (self.node_state, self.nonmanifest_datasets)
+
+
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
     """
@@ -1541,20 +1569,19 @@ class BlockDeviceDeployer(PRecord):
                 # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
-        local_state = FullySharedLocalState(
-            cluster_state_changes=(
-                NodeState(
-                    uuid=self.node_uuid,
-                    hostname=self.hostname,
-                    manifestations=manifestations,
-                    paths=paths,
-                    devices=devices,
-                    # Discovering these is ApplicationNodeDeployer's job, we
-                    # don't know anything about these:
-                    applications=None,
-                ),
-                NonManifestDatasets(datasets=nonmanifest),
-            )
+        local_state = BlockDeviceDeployerLocalState(
+            node_state=NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations=manifestations,
+                paths=paths,
+                devices=devices,
+                # Discovering these is ApplicationNodeDeployer's job, we
+                # don't know anything about these:
+                applications=None,
+            ),
+            nonmanifest_datasets=NonManifestDatasets(datasets=nonmanifest),
+            volumes=[],
         )
 
         return succeed(local_state)
