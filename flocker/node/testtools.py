@@ -25,7 +25,9 @@ from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType, MessageType, fields
 
-from . import IDeployer, IStateChange, sequentially
+from . import (
+    ILocalState, IDeployer, FullySharedLocalState, IStateChange, sequentially
+)
 from ..testtools import loop_until, find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
@@ -150,9 +152,10 @@ class DummyDeployer(object):
     node_uuid = uuid4()
 
     def discover_state(self, node_stat):
-        return succeed(())
+        return succeed(FullySharedLocalState(cluster_state_changes=()))
 
-    def calculate_changes(self, desired_configuration, cluster_state):
+    def calculate_changes(self, desired_configuration, cluster_state,
+                          local_state):
         return sequentially(changes=[])
 
 
@@ -180,9 +183,11 @@ class ControllableDeployer(object):
         if isinstance(state, Exception):
             raise state
         else:
-            return state.addCallback(lambda val: (val,))
+            return state.addCallback(
+                lambda val: FullySharedLocalState(cluster_state_changes=[val]))
 
-    def calculate_changes(self, desired_configuration, cluster_state):
+    def calculate_changes(self, desired_configuration, cluster_state,
+                          local_state):
         self.calculate_inputs.append(
             (cluster_state.get_node(uuid=self.node_uuid,
                                     hostname=self.hostname),
@@ -193,6 +198,7 @@ class ControllableDeployer(object):
 # A deployment with no information:
 EMPTY = Deployment(nodes=[])
 EMPTY_STATE = DeploymentState()
+EMPTY_LOCAL_STATE = FullySharedLocalState(cluster_state_changes=[])
 
 
 def ideployer_tests_factory(fixture):
@@ -225,13 +231,15 @@ def ideployer_tests_factory(fixture):
             result = deployer.discover_state(NodeState(hostname=b"10.0.0.1"))
             return result
 
-        def test_discover_state_list_result(self):
+        def test_discover_state_ilocalstate_result(self):
             """
             The object's ``discover_state`` method returns a ``Deferred`` that
-            fires with a ``list``.
+            fires with a ``ILocalState`` provider.
             """
-            def discovered(changes):
-                self.assertEqual(tuple, type(changes))
+            def discovered(local_state):
+                self.assertTrue(ILocalState.providedBy(local_state))
+                self.assertEqual(tuple,
+                                 type(local_state.shared_state_changes()))
             return self._discover_state().addCallback(discovered)
 
         def test_discover_state_iclusterstatechange(self):
@@ -239,7 +247,8 @@ def ideployer_tests_factory(fixture):
             The elements of the ``list`` that ``discover_state``\ 's
             ``Deferred`` fires with provide ``IClusterStateChange``.
             """
-            def discovered(changes):
+            def discovered(local_state):
+                changes = local_state.shared_state_changes()
                 wrong = []
                 for obj in changes:
                     if not IClusterStateChange.providedBy(obj):
@@ -257,7 +266,8 @@ def ideployer_tests_factory(fixture):
             ``IStateChange`` provider.
             """
             deployer = fixture(self)
-            result = deployer.calculate_changes(EMPTY, EMPTY_STATE)
+            result = deployer.calculate_changes(
+                EMPTY, EMPTY_STATE, EMPTY_LOCAL_STATE)
             self.assertTrue(verifyObject(IStateChange, result))
 
     return IDeployerTests
@@ -278,7 +288,7 @@ def to_node(node_state):
 def assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
         additional_node_states, additional_node_config, expected_changes,
-        leases=Leases(),
+        leases=Leases(), local_state=None
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -298,7 +308,12 @@ def assert_calculated_changes_for_deployer(
     :param set additional_node_config: A set of ``Node`` for other nodes.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     :param Leases leases: Currently configured leases. By default none exist.
+    :param ILocalState local_state: The local_state to pass into
+        calculate_changes.  If None, an empty ``FullySharedLocalState`` will be
+        passed in.
     """
+    if local_state is None:
+        local_state = EMPTY_LOCAL_STATE
     cluster_state = DeploymentState(
         nodes={node_state} | additional_node_states,
         nonmanifest_datasets={
@@ -311,7 +326,7 @@ def assert_calculated_changes_for_deployer(
         leases=leases,
     )
     changes = deployer.calculate_changes(
-        cluster_configuration, cluster_state,
+        cluster_configuration, cluster_state, local_state
     )
     case.assertEqual(expected_changes, changes)
 

@@ -14,6 +14,7 @@ from eliot.testing import validate_logging
 from ipaddr import IPAddress
 
 from pyrsistent import pset, pvector
+from pyrsistent._checked_types import InvariantException
 
 from bitmath import GiB
 
@@ -21,12 +22,15 @@ from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
+from zope.interface.verify import verifyObject
+
 from .. import (
     ApplicationNodeDeployer, P2PManifestationDeployer,
 )
 from ..testtools import (
-    ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
-    EMPTY_STATE, assert_calculated_changes_for_deployer, to_node,
+    ControllableAction, ControllableDeployer,
+    ideployer_tests_factory, EMPTY, EMPTY_STATE, EMPTY_LOCAL_STATE,
+    assert_calculated_changes_for_deployer, to_node,
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
@@ -36,15 +40,15 @@ from ...control import (
 from .. import sequentially, in_parallel
 
 from .._deploy import (
-    StartApplication, StopApplication,
-    CreateDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name,
+    ILocalState, ClusterStateChangePVector, FullySharedLocalState,
+    StartApplication, StopApplication, CreateDataset, HandoffDataset,
+    SetProxies, PushDataset, ResizeDataset, _link_environment, _to_volume_name,
     DeleteDataset, OpenPorts
 )
 from ...testtools import CustomException
 from .. import _deploy
 from ...control._model import (
-    AttachedVolume, Dataset, Manifestation, Leases
+    AttachedVolume, Dataset, Manifestation, Leases, NonManifestDatasets
 )
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -103,6 +107,8 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 # than requested application:
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
+ARBITRARY_CLUSTER_STATE_CHANGE = NonManifestDatasets(datasets={})
+
 
 def assert_application_calculated_changes(
     case, node_state, node_config, nonmanifest_datasets, expected_changes,
@@ -124,6 +130,71 @@ def assert_application_calculated_changes(
         case, deployer, node_state, node_config, nonmanifest_datasets,
         additional_node_states, additional_node_config, expected_changes,
     )
+
+
+class ClusterStateChangePVectorTests(SynchronousTestCase):
+    """
+    Tests for ClusterStateChangePVector.
+    """
+
+    def test_empty_vector_ok(self):
+        """
+        Empty vectors should not raise an Exception.
+        """
+        ClusterStateChangePVector.create([])
+
+    def test_vector_with_non_provider_errors(self):
+        """
+        Vectors with only objects that do not provide IClusterStateChange
+        should raise an Exception.
+        """
+        with self.assertRaises(InvariantException):
+            ClusterStateChangePVector.create([object()])
+
+    def test_vector_with_providers_ok(self):
+        """
+        Vectors with only objects that do provide IClusterStateChange should
+        not raise an Exception.
+        """
+        ClusterStateChangePVector.create([ARBITRARY_CLUSTER_STATE_CHANGE,
+                                          ARBITRARY_CLUSTER_STATE_CHANGE])
+
+    def test_vector_with_providers_and_nonproviders_errors(self):
+        """
+        Vectors with any objects that do not provide IClusterStateChange should
+        raise an Exception.
+        """
+        with self.assertRaises(InvariantException):
+            ClusterStateChangePVector.create(
+                [ARBITRARY_CLUSTER_STATE_CHANGE,
+                 object(),
+                 ARBITRARY_CLUSTER_STATE_CHANGE])
+
+
+class FullySharedLocalStateTests(SynchronousTestCase):
+    """
+    Tests for ``FullySharedLocalState``
+    """
+    def test_ilocalstate(self):
+        """
+        ``FullySharedLocalState`` instances provide ``ILocalState``
+        """
+        self.assertTrue(
+            verifyObject(ILocalState,
+                         FullySharedLocalState(cluster_state_changes=[]))
+        )
+
+    def test_all_state_reported(self):
+        """
+        ``FullySharedLocalState`` should return all state when
+        shared_state_changes() is called.
+        """
+        cluster_state_changes = ClusterStateChangePVector.create([
+            ARBITRARY_CLUSTER_STATE_CHANGE, ARBITRARY_CLUSTER_STATE_CHANGE])
+        object_under_test = FullySharedLocalState(
+            cluster_state_changes=cluster_state_changes)
+        self.assertItemsEqual(cluster_state_changes,
+                              object_under_test.shared_state_changes())
 
 
 class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
@@ -660,9 +731,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 ).run(api)
         d = api.discover_state(current_state)
 
-        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=expected_applications)],
-                         self.successResultOf(d))
+        self.assertEqual((NodeState(uuid=api.node_uuid, hostname=api.hostname,
+                                    applications=expected_applications),),
+                         self.successResultOf(d).shared_state_changes())
 
     def test_discover_none(self):
         """
@@ -901,11 +972,11 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com', self.volume_service, node_uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                self.EMPTY_NODESTATE)),
-            [NodeState(hostname=deployer.hostname,
+                self.EMPTY_NODESTATE)).shared_state_changes(),
+            (NodeState(hostname=deployer.hostname,
                        uuid=deployer.node_uuid,
                        manifestations={}, paths={}, devices={},
-                       applications=None)])
+                       applications=None),))
 
     def _setup_datasets(self):
         """
@@ -933,8 +1004,8 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         deployer.
         """
         deployer = self._setup_datasets()
-        nodes = self.successResultOf(
-            deployer.discover_state(self.EMPTY_NODESTATE))
+        nodes = self.successResultOf(deployer.discover_state(
+            self.EMPTY_NODESTATE)).shared_state_changes()
         self.assertEqual(nodes[0].uuid, deployer.node_uuid)
 
     def test_discover_datasets(self):
@@ -951,7 +1022,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
              self.DATASET_ID2: Manifestation(
                  dataset=Dataset(dataset_id=self.DATASET_ID2),
                  primary=True)},
-            self.successResultOf(d)[0].manifestations)
+            self.successResultOf(d).shared_state_changes()[0].manifestations)
 
     def test_discover_manifestation_paths(self):
         """
@@ -968,7 +1039,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
              self.DATASET_ID2:
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
-            self.successResultOf(d)[0].paths)
+            self.successResultOf(d).shared_state_changes()[0].paths)
 
     def test_discover_manifestation_with_size(self):
         """
@@ -997,7 +1068,8 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(
-            self.successResultOf(d)[0].manifestations[self.DATASET_ID],
+            self.successResultOf(d).shared_state_changes()[0].manifestations[
+                self.DATASET_ID],
             manifestation)
 
 
@@ -1325,7 +1397,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=[Node(uuid=uuid4(),
                                          applications=[application])])
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+            desired_configuration=desired, current_cluster_state=EMPTY_STATE,
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
@@ -1343,7 +1416,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
                                       network=network)
         desired = Deployment(nodes=frozenset())
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY)
+            desired_configuration=desired, current_cluster_state=EMPTY,
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[SetProxies(ports=frozenset())])
         self.assertEqual(expected, result)
 
@@ -1381,7 +1455,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=DeploymentState(nodes=[node_state]))
+            current_cluster_state=DeploymentState(nodes=[node_state]),
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[
             OpenPorts(ports=[OpenPort(port=expected_destination_port)]),
             in_parallel(changes=[
@@ -1403,7 +1478,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
                                       network=network)
         desired = Deployment(nodes=[])
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY)
+            desired_configuration=desired, current_cluster_state=EMPTY,
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[OpenPorts(ports=[])])
         self.assertEqual(expected, result)
 
@@ -1424,7 +1500,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=EMPTY,
             current_cluster_state=DeploymentState(nodes=[NodeState(
                 hostname=api.hostname, applications={to_stop.application},
-            )]))
+            )]),
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
@@ -1458,7 +1535,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=DeploymentState(nodes=[node_state]))
+            current_cluster_state=DeploymentState(nodes=[node_state]),
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[in_parallel(
             changes=[StartApplication(application=application,
                                       node_state=node_state)])])
@@ -1489,7 +1567,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY_STATE)
+            current_cluster_state=EMPTY_STATE,
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
@@ -1522,7 +1601,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications=[application])]))
+                          applications=[application])]),
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
@@ -1544,7 +1624,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications=[application])]))
+                          applications=[application])]),
+            local_state=EMPTY_LOCAL_STATE)
         to_stop = StopApplication(
             application=application,
         )
@@ -1580,7 +1661,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes_desired)
         result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=DeploymentState(nodes=[node_state]))
+            current_cluster_state=DeploymentState(nodes=[node_state]),
+            local_state=EMPTY_LOCAL_STATE)
 
         expected = sequentially(changes=[in_parallel(changes=[
             sequentially(changes=[
@@ -1608,7 +1690,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=EMPTY,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications={to_stop})]))
+                          applications={to_stop})]),
+            local_state=EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[in_parallel(changes=[
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, result)
@@ -1649,6 +1732,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes={node_state}),
+            local_state=EMPTY_LOCAL_STATE
         )
 
         expected = sequentially(changes=[in_parallel(changes=[
@@ -1709,6 +1793,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes={node_state}),
+            local_state=EMPTY_LOCAL_STATE,
         )
 
         expected = sequentially(changes=[
@@ -1772,6 +1857,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes={node_state}),
+            local_state=EMPTY_LOCAL_STATE,
         )
 
         expected = sequentially(changes=[in_parallel(changes=[
@@ -1816,6 +1902,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes={node_state}),
+            local_state=EMPTY_LOCAL_STATE,
         )
 
         expected = sequentially(changes=[in_parallel(changes=[
@@ -1847,7 +1934,9 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=[node])
 
         result = api.calculate_changes(desired, DeploymentState(nodes=[
-            NodeState(hostname=api.hostname, applications=None)]))
+            NodeState(hostname=api.hostname, applications=None)]),
+            local_state=EMPTY_LOCAL_STATE,
+        )
         self.assertEqual(result, sequentially(changes=[]))
 
     def test_missing_volume(self):
@@ -1884,7 +1973,9 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         result = api.calculate_changes(
             desired_configuration=desired,
             # No manifestations available!
-            current_cluster_state=EMPTY_STATE)
+            current_cluster_state=EMPTY_STATE,
+            local_state=EMPTY_LOCAL_STATE,
+        )
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
@@ -2045,7 +2136,7 @@ class P2PManifestationDeployerLeaseTests(SynchronousTestCase):
             self.NODE_HOSTNAMES[actual_node], create_volume_service(self),
             node_uuid=actual_node,
         )
-        return api.calculate_changes(desired, current)
+        return api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
 
     def test_no_deletion_if_leased(self):
         """
@@ -2129,7 +2220,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                  manifestations=node_state.manifestations.transform(
                      (DATASET_ID, "dataset", "deleted"), True))])
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[
             in_parallel(changes=[DeleteDataset(dataset=DATASET.set(
                 "deleted", True))])
@@ -2162,7 +2253,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         api = P2PManifestationDeployer(
             u"10.1.1.1", create_volume_service(self), node_uuid=node.uuid,
         )
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         self.assertEqual(sequentially(changes=[]), changes)
 
     def test_no_resize_if_in_use(self):
@@ -2191,7 +2282,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         api = P2PManifestationDeployer(current_node.hostname,
                                        create_volume_service(self))
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
 
         expected = sequentially(changes=[])
         self.assertEqual(expected, changes)
@@ -2228,7 +2319,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             node_state.hostname, create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         self.assertEqual(sequentially(changes=[]), changes)
 
     def test_no_handoff_if_destination_unknown(self):
@@ -2255,7 +2346,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             node_uuid=node_state.uuid,
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         self.assertEqual(sequentially(changes=[]), changes)
 
     def test_volume_handoff(self):
@@ -2287,7 +2378,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             node_state.hostname, create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         volume = APPLICATION_WITH_VOLUME.volume
 
         expected = sequentially(changes=[
@@ -2322,7 +2413,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             current_node.hostname, create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, changes)
 
@@ -2366,7 +2457,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         self.assertEqual(changes, sequentially(changes=[]))
 
     def test_dataset_created(self):
@@ -2394,7 +2485,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         )
         desired = Deployment(nodes=frozenset({node}))
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
 
         expected = sequentially(changes=[
             in_parallel(changes=[CreateDataset(
@@ -2429,7 +2520,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
 
         expected = sequentially(changes=[
             in_parallel(
@@ -2478,7 +2569,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             u"node1.example.com", create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
 
         dataset = MANIFESTATION_WITH_SIZE.dataset
 
@@ -2515,7 +2606,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                  manifestations=node_state.manifestations.transform(
                      (DATASET_ID, "dataset", "deleted"), True))])
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[])
         self.assertEqual(expected, changes)
 
@@ -2544,7 +2635,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                  manifestations=node_state.manifestations.transform(
                      (DATASET_ID, "dataset", "deleted"), True))])
 
-        changes = api.calculate_changes(desired, current)
+        changes = api.calculate_changes(desired, current, EMPTY_LOCAL_STATE)
         expected = sequentially(changes=[
             in_parallel(changes=[DeleteDataset(dataset=DATASET.set(
                 "deleted", True))])

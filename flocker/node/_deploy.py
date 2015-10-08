@@ -11,9 +11,10 @@ from uuid import UUID
 
 from zope.interface import Interface, implementer, Attribute
 
+
 from characteristic import attributes
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, CheckedPVector, PClass
 
 from eliot import Message, write_failure, Logger, start_action
 
@@ -24,8 +25,8 @@ from . import IStateChange, in_parallel, sequentially
 
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
-    NodeState, DockerImage, Port, Link, Manifestation, Dataset,
-    pset_field, ip_to_uuid, RestartNever,
+    IClusterStateChange, NodeState, DockerImage, Port, Link, Manifestation,
+    Dataset, pset_field, ip_to_uuid, RestartNever,
     )
 from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -49,6 +50,55 @@ def _to_volume_name(dataset_id):
     :return: ``VolumeName`` with default namespace.
     """
     return VolumeName(namespace=u"default", dataset_id=dataset_id)
+
+
+class ILocalState(Interface):
+    """
+    An ``ILocalState`` is the result from discovering state. It must provide
+    the state that will be sent to the control service, but can store
+    additional state that is useful in calculate_changes.
+    """
+
+    def shared_state_changes():
+        """
+        Calculate the part of the local state that needs to be sent to the
+        control service.
+
+        :return: A tuple of ``IClusterStateChange`` providers that describe
+            the local state that needs to be shared. These objects will be
+            passed to the control service (see ``flocker.control._protocol``).
+        """
+
+
+class ClusterStateChangePVector(CheckedPVector):
+    """
+    ``CheckedPVector`` for objects that provide ``IClusterStateChange``.
+    """
+    def __invariant__(o):
+        """
+        Invariant check for providing ``IClusterStateChange``.
+        """
+        return (IClusterStateChange.providedBy(o),
+                'Does not provide IClusterStateChange.')
+
+
+@implementer(ILocalState)
+class FullySharedLocalState(PClass):
+    """
+    An ``ILocalState`` provider that
+
+    :ivar cluster_state_changes: A ``ClusterStateChangePVector`` of
+        ``IClusterStateChange`` providers describing local state. These objects
+        will all be shared.
+    """
+    cluster_state_changes = field(type=ClusterStateChangePVector,
+                                  mandatory=True)
+
+    def shared_state_changes(self):
+        """
+        All state is shared in this implementation of LocalState.
+        """
+        return tuple(self.cluster_state_changes)
 
 
 class IDeployer(Interface):
@@ -75,14 +125,13 @@ class IDeployer(Interface):
             into the result; the return result should include only
             information discovered by this particular deployer.
 
-        :return: A ``Deferred`` which fires with a tuple of
-            ``IClusterStateChange`` providers describing
-            local state. These objects will be passed to the control
-            service (see ``flocker.control._protocol``) and may also be
-            passed to this object's ``calculate_changes()`` method.
+        :return: A ``Deferred`` which fires with a ``ILocalState``. The
+            state_changes will be passed to the control service (see
+            ``flocker.control._protocol``), and the entire opaque object will
+            be passed to this object's ``calculate_changes()`` method.
         """
 
-    def calculate_changes(configuration, cluster_state):
+    def calculate_changes(configuration, cluster_state, local_state):
         """
         Calculate the state changes necessary to make the local state match the
         desired cluster configuration.
@@ -92,6 +141,9 @@ class IDeployer(Interface):
 
         :param DeploymentState cluster_state: The current state of all nodes
             already updated with recent output of ``discover_state``.
+
+        :param ILocalState local_state: The ``ILocalState`` provider returned
+            from the most recent call to ``discover_state``.
 
         :return: An ``IStateChange`` provider.
         """
@@ -537,19 +589,21 @@ class P2PManifestationDeployer(object):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values())
 
-            return [NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=None,
-                manifestations={manifestation.dataset_id: manifestation
-                                for manifestation in manifestations},
-                paths=manifestation_paths,
-                devices={},
-            )]
+            return FullySharedLocalState(
+                cluster_state_changes=[NodeState(
+                    uuid=self.node_uuid,
+                    hostname=self.hostname,
+                    applications=None,
+                    manifestations={manifestation.dataset_id: manifestation for
+                                    manifestation in manifestations},
+                    paths=manifestation_paths,
+                    devices={},
+                )]
+            )
         volumes.addCallback(got_volumes)
         return volumes
 
-    def calculate_changes(self, configuration, cluster_state):
+    def calculate_changes(self, configuration, cluster_state, local_state):
         """
         Calculate necessary changes to peer-to-peer manifestations.
 
@@ -772,16 +826,20 @@ class ApplicationNodeDeployer(object):
         :param list applications: ``Application`` instances representing the
             applications on this node.
 
-        :return: A ``list`` of a single ``NodeState`` representing the
-            application state only of this node.
+        :return: A ``FullySharedLocalState`` with shared_state_changes() that
+            are composed of a single ``NodeState`` representing the application
+            state only of this node.
         """
-        return [NodeState(
-            uuid=self.node_uuid,
-            hostname=self.hostname,
-            applications=applications,
-            manifestations=None,
-            paths=None,
-        )]
+        return FullySharedLocalState(
+            cluster_state_changes=[
+                NodeState(
+                    uuid=self.node_uuid,
+                    hostname=self.hostname,
+                    applications=applications,
+                    manifestations=None,
+                    paths=None,
+                )]
+        )
 
     def discover_state(self, local_state):
         """
@@ -810,13 +868,19 @@ class ApplicationNodeDeployer(object):
             # convergence actions, just declare ignorance. Eventually the
             # convergence agent for datasets will discover the information
             # and then we can proceed.
-            return succeed([NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                applications=None,
-                manifestations=None,
-                paths=None,
-            )])
+            return succeed(
+                FullySharedLocalState(
+                    cluster_state_changes=[
+                        NodeState(
+                            uuid=self.node_uuid,
+                            hostname=self.hostname,
+                            applications=None,
+                            manifestations=None,
+                            paths=None,
+                        ),
+                    ]
+                )
+            )
 
         path_to_manifestations = {
             path: local_state.manifestations[dataset_id]
@@ -967,7 +1031,8 @@ class ApplicationNodeDeployer(object):
             )
         )
 
-    def calculate_changes(self, desired_configuration, current_cluster_state):
+    def calculate_changes(self, desired_configuration, current_cluster_state,
+                          local_state):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.

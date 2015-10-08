@@ -39,13 +39,12 @@ from eliot.testing import (
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
-    BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
-    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    BlockDeviceDeployer, LoopbackBlockDeviceAPI,
+    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
-    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    AttachVolume, CreateFilesystem,
-    DestroyVolume, MountBlockDevice,
-    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
+    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
+    CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
+    _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
@@ -63,7 +62,7 @@ from ..blockdevice import (
     FilesystemExists,
 )
 
-from ... import run_state_change, in_parallel
+from ... import run_state_change, in_parallel, FullySharedLocalState
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
 )
@@ -83,6 +82,8 @@ CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 # Enough space for the ext4 journal:
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
+
+EMPTY_LOCAL_STATE = FullySharedLocalState(cluster_state_changes=[])
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
@@ -336,7 +337,7 @@ def assert_discovered_state(case,
         devices=None,
     )
     discovering = deployer.discover_state(previous_state)
-    state = case.successResultOf(discovering)
+    state = case.successResultOf(discovering).shared_state_changes()
     expected_paths = {}
     for manifestation in expected_manifestations:
         dataset_id = manifestation.dataset.dataset_id
@@ -362,7 +363,7 @@ def assert_discovered_state(case,
             Dataset(dataset_id=unicode(dataset_id))
             for dataset_id in expected_nonmanifest_datasets
         }),)
-    case.assertEqual(expected, state)
+    case.assertItemsEqual(expected, state)
 
 
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
@@ -698,6 +699,17 @@ def add_application_with_volume(node_state):
                                   mountpoint=FilePath(b"/data")))})
 
 
+def _call_calculate_changes(deployer, cluster_configuration, cluster_state,
+                            local_state=None):
+    """
+    Wrapper for deployer.calculate_changes with sane defaults for testing.
+    """
+    if local_state is None:
+        local_state = EMPTY_LOCAL_STATE
+    return deployer.calculate_changes(cluster_configuration, cluster_state,
+                                      local_state)
+
+
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):
@@ -850,9 +862,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             block_device_api=api,
         )
 
-        changes = deployer.calculate_changes(
-            cluster_configuration, cluster_state,
-        )
+        changes = _call_calculate_changes(
+            deployer, cluster_configuration, cluster_state)
 
         self.assertEqual(
             in_parallel(changes=[]),
@@ -985,7 +996,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             }
         )
 
-        changes = deployer.calculate_changes(cluster_config, cluster_state)
+        changes = _call_calculate_changes(
+            deployer,  cluster_config, cluster_state)
         self.assertEqual(
             in_parallel(changes=[
                 AttachVolume(
@@ -1166,7 +1178,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=node_uuid
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = _call_calculate_changes(deployer, configuration, state)
         self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
@@ -1198,7 +1210,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = _call_calculate_changes(deployer, configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
             in_parallel(
@@ -1234,8 +1246,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             self, node_uuid=local_uuid, hostname=local_hostname,
         )
 
-        return deployer.calculate_changes(
-            desired_configuration, current_cluster_state
+        return _call_calculate_changes(
+            deployer, desired_configuration, current_cluster_state,
         )
 
     def test_match_configuration_to_state_of_datasets(self):
@@ -1334,7 +1346,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=node_address,
             node_uuid=node_id,
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = _call_calculate_changes(deployer, configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         expected_size = int(GiB(100).to_Byte().value)
         self.assertEqual(
@@ -1406,7 +1418,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=local_node_address,
             node_uuid=local_node_id,
         )
-        changes = deployer.calculate_changes(configuration, state)
+        changes = _call_calculate_changes(deployer, configuration, state)
 
         self.assertEqual(in_parallel(changes=[]), changes)
 
