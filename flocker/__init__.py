@@ -8,12 +8,15 @@ Dockerized applications.
 
 def _disable_pyrsistent_c_extensions():
     """
-    Pyrsistent sometimes segfaults. Disabling C extensions reduces the
+    Pyrsistent sometimes segfaults. Disabling the C extension reduces the
     likelihood of this happening.
 
     We do this first so it happens before pyrsistent is imported.
 
-    See https://github.com/tobgu/pyrsistent/issues/52 and FLOC-2913.
+    In theory this bug is fixed in pyrsistent 0.11.7, so this may no
+    longer be necessary and is likely worth risking for higher
+    performance. Once we have benchmarking framework we can assess
+    risk/benefit ratio better.
 
     The mechanism for disabling extensions is documented at
     https://github.com/tobgu/pyrsistent/blob/master/CHANGES.txt#L17-L19.

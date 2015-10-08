@@ -100,7 +100,7 @@ class _InParallel(PRecord):
         # Sort the changes for the benefit of comparison.  Stick with a vector
         # (rather than, say, a set) in case someone wants to run the same
         # change multiple times in parallel.
-        factory=lambda changes: pvector(sorted(changes)),
+        factory=lambda changes: pvector(sorted(changes, key=id)),
         mandatory=True
     )
 
