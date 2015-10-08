@@ -959,6 +959,20 @@ class AgentLoopServiceTests(SynchronousTestCase):
         self.assertEqual(fsm.inputted,
                          [_ConnectedToControlService(client=client)])
 
+    def test_connected_resets_factory_delay(self):
+        """
+        When ``connected()`` is called the reconnect delay on the client
+        factory is reset.
+        """
+        factory = self.service.reconnecting_factory
+        # A series of retries have caused the delay to grow (so that we
+        # don't hammer the server with reconnects):
+        factory.delay += 500000
+        # But now we successfully connect!
+        client = factory.buildProtocol(None)
+        self.service.connected(client)
+        self.assertEqual(factory.delay, factory.initialDelay)
+
     def test_disconnected(self):
         """
         When ``connnected()`` is called a
