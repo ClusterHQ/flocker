@@ -31,12 +31,13 @@ The :program:`admin/run-acceptance-tests` script has several options:
 .. option:: --branch <branch>
 
    Specifies the branch repository from which to install packages.
-   If this is not specified, packages will be installed from the release repository.
+   If this is not specified, packages will be installed from a release repository.
+   The release repository may be a stable or unstable repository, and will be selected depending on the version to be installed.
 
 .. option:: --flocker-version <version>
 
    Specifies the version of Flocker to install from the selected repository.
-   If this is not specified, the most recent version available in the repository will be installed.
+   If this is not specified (or is an empty string), the most recent version available in the repository will be installed.
 
    .. note::
 
