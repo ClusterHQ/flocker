@@ -26,6 +26,7 @@ from pyrsistent import (
     PRecord, field, discard, pmap, pvector,
 )
 
+from twisted.python.constants import NamedConstant
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -84,11 +85,6 @@ LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
-
-EMPTY_LOCAL_STATE = BlockDeviceDeployerLocalState(
-    node_state=EMPTY_NODE_STATE,
-    nonmanifest_datasets=NonManifestDatasets(datasets={}),
-    volumes=[])
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
@@ -750,16 +746,174 @@ def add_application_with_volume(node_state):
             volume=AttachedVolume(manifestation=manifestation,
                                   mountpoint=FilePath(b"/data")))})
 
+_BLOCKDEVICE_PREFIX = "blockdevice-"
 
-def _call_calculate_changes(deployer, cluster_configuration, cluster_state,
-                            local_state=None):
+def _get_dataset_id_for_test_blockdevice_id(test_blockdevice_id):
     """
-    Wrapper for deployer.calculate_changes with sane defaults for testing.
+    Determine the dataset_id that was used to create a test_blockdevice_id. For
+    use with _create_test_blockdevice_id_for_dataset_id for validation of
+    opaque test blockdevice_ids with the dataset_ids they were constructed
+    from.
+
+    :param unicode test_blockdevice_id: test blockdevice_id returned by
+        _create_test_blockdevice_id_for_dataset_id.
+
+    :returns: The dataset_id used to create the test blockdevice_id.
     """
-    if local_state is None:
-        local_state = EMPTY_LOCAL_STATE
-    return deployer.calculate_changes(cluster_configuration, cluster_state,
-                                      local_state)
+    return test_blockdevice_id[len(_BLOCKDEVICE_PREFIX):]
+
+def _create_test_blockdevice_id_for_dataset_id(dataset_id):
+    """
+    Creates a test-only blockdevice_id for a given dataset_id. Note, this is
+    only for use in tests that do not use the ``IBlockDeviceAPI`` as the test
+    blockdevice_ids that are returned will not work with any
+    ``IBlockDeviceAPI`` implementation. Tests that use the ``IBlockDeviceAPI``
+    should instead call api.list_volumes() to construct a ``BlockDeviceVolume``
+    from a dataset_id, and then get the blockdevice_id from that structure.
+
+    :param unicode dataset_id: the dataset_id to create a test blockdevice_id
+        for.
+
+    :returns: A test blockdevice_id unique to this dataset_id.
+    """
+    return "".join([_BLOCKDEVICE_PREFIX, dataset_id])
+
+def _create_test_blockdevice_volume_for_dataset_id(dataset_id,
+                                                   attached_to=None):
+    """
+    Creates a ``BlockDeviceVolume`` for a given dataset_id. Note, this is only
+    for use in tests that do not use the ``IBlockDeviceAPI`` as the test
+    blockdevice_ids that are returned will not work with any
+    ``IBlockDeviceAPI`` implementation. Tests that use the ``IBlockDeviceAPI``
+    should instead call api.list_volumes() to construct a ``BlockDeviceVolume``
+    from a dataset_id.
+
+    :param unicode dataset_id: The dataset_id for the ``BlockDeviceVolume``.
+
+    :param unicode attached_to: The attached_to value for the
+        ``BlockDeviceVolume``.
+
+    :returns: A ``BlockDeviceVolume`` for testing without ``IBlockDeviceAPI``
+        calls.
+    """
+    return BlockDeviceVolume(
+        blockdevice_id=_create_test_blockdevice_id_for_dataset_id(dataset_id),
+        size=REALISTIC_BLOCKDEVICE_SIZE,
+        attached_to=attached_to,
+        dataset_id=UUID(dataset_id))
+
+
+def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
+                            cluster_state):
+    """
+    Infer the current ``BlockDeviceVolume`` instances in the cluster. This is
+    for use by tests that create cluster_state by hand instead of using the API
+    to actually construct the cluster.  The ``BlockDeviceVolume`` instances
+    constructed with this function do not have test blockdevice_ids that can be
+    used with the ``IBlockDeviceAPI``.
+
+    If you are using the ``IBlockDeviceAPI`` to set up the cluster_state, just
+    use api.list_volumes() instead of calling this function.
+
+    :param UUID node_uuid: The uuid of the local node.
+
+    :param unicode node_hostname: The hostname of the local node.
+
+    :param unicode compute_instance_id: The value for the attached_to field of
+        the ``BlockDeviceVolume`` instances that are created for manifestions
+        on the local node.
+
+    :param DeploymentState cluster_state: The rest of the cluster_state. This
+        is inspected to determine the volumes that are not attached to any node
+        (nonmanifest_datasets) and the volumes that are attached to remote
+        nodes.
+
+    :returns: A list of ``BlockDeviceVolume`` instances for all the volumes in
+        cluster_state that is only suitable for use in tests that do not use
+        the ``IBlockDeviceAPI`` to set up the cluster_state.
+    """
+    node_state = cluster_state.get_node(node_uuid,
+                                        hostname=node_hostname)
+    local_volumes = [
+        _create_test_blockdevice_volume_for_dataset_id(
+            dataset_id, attached_to=compute_instance_id)
+        for dataset_id in (node_state.manifestations or {}).keys()]
+
+    nonmanifest_datasets = cluster_state.nonmanifest_datasets
+    unattached_volumes = [
+        _create_test_blockdevice_volume_for_dataset_id(dataset_id)
+        for dataset_id in (nonmanifest_datasets or {}).keys()]
+
+    volumes = local_volumes + unattached_volumes
+
+    for remote_node_state in cluster_state.nodes:
+        if remote_node_state == node_state:
+            # Skip this node for remote processing if it is the local node.
+            continue
+        # Construct a fake instance id for the attached_to field of the
+        # ``BlockDeviceVolume`` instances that are connected to remote nodes.
+        # This is an opaque identifier, and just needs to be different than
+        # compute_instance_id for the sake of testing this node.
+        fake_instance_id = u"remote_node_{}".format(
+            unicode(remote_node_state.uuid))
+        remote_volumes = [
+            _create_test_blockdevice_volume_for_dataset_id(
+                dataset_id, attached_to=fake_instance_id)
+            for dataset_id in (remote_node_state.manifestations or {}).keys()]
+
+        volumes.extend(remote_volumes)
+    return volumes
+
+
+# Constants for determining volumes in calculate_changes tests. See
+# _create_block_device_deployer_local_state for details.
+_GET_VOLUMES_FROM_API = NamedConstant()
+_INFER_VOLUMES_FROM_STATE = NamedConstant()
+
+
+def _create_block_device_deployer_local_state(block_device_deployer,
+                                              cluster_state,
+                                              volumes=_GET_VOLUMES_FROM_API):
+    """
+    Creates a BlockDeviceDeployerLocalState from the given cluster_state and
+    optional volumes.
+
+    :param BlockDeviceDeployer block_device_deployer: The
+        ``BlockDeviceDeployer`` instance to get the local state for.
+
+    :param DeploymentState cluster_state: The current state of the cluster.
+
+    :param volumes: A sequence of ``BlockDeviceVolume`` instances representing
+        all volumes in the cluster, _INFER_VOLUMES_FROM_STATE, or
+        _GET_VOLUMES_FROM_API. _GET_VOLUMES_FROM_API is the default, and gets
+        the volumes from the ``IBlockDeviceAPI`` that the block_device_deployer
+        is configured to use. _INFER_VOLUMES_FROM_STATE assumes that the
+        cluster_state was not set up using the API, and thus inspects
+        cluster_state to determine which volumes exist in the cluster. Note
+        that the blockdevice_ids of the volumes that are constructed in this
+        manner are not compatible with the ``IBlockDeviceAPI``.
+    """
+    node_state = cluster_state.get_node(
+        block_device_deployer.node_uuid,
+        hostname=block_device_deployer.hostname
+    )
+    nonmanifest_datasets = cluster_state.nonmanifest_datasets
+    api = block_device_deployer.block_device_api
+    if volumes is _INFER_VOLUMES_FROM_STATE:
+        compute_instance_id = api.compute_instance_id()
+        volumes = _infer_volumes_for_test(
+            block_device_deployer.node_uuid, block_device_deployer.hostname,
+            compute_instance_id, cluster_state)
+    elif volumes is _GET_VOLUMES_FROM_API:
+        volumes = api.list_volumes()
+
+    return BlockDeviceDeployerLocalState(
+        node_state=node_state,
+        nonmanifest_datasets=NonManifestDatasets(
+            datasets=nonmanifest_datasets
+        ),
+        volumes=volumes,
+    )
 
 
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
@@ -914,8 +1068,10 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             block_device_api=api,
         )
 
-        changes = _call_calculate_changes(
-            deployer, cluster_configuration, cluster_state)
+        local_state = _create_block_device_deployer_local_state(
+            deployer, cluster_state)
+        changes = deployer.calculate_changes(
+            cluster_configuration, cluster_state, local_state)
 
         self.assertEqual(
             in_parallel(changes=[]),
@@ -1048,8 +1204,10 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             }
         )
 
-        changes = _call_calculate_changes(
-            deployer,  cluster_config, cluster_state)
+        local_state = _create_block_device_deployer_local_state(
+            deployer, cluster_state, volumes=_INFER_VOLUMES_FROM_STATE)
+        changes = deployer.calculate_changes(
+            cluster_config, cluster_state, local_state)
         self.assertEqual(
             in_parallel(changes=[
                 AttachVolume(
@@ -1230,7 +1388,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=node_uuid
         )
-        changes = _call_calculate_changes(deployer, configuration, state)
+        local_state = _create_block_device_deployer_local_state(
+            deployer, state, volumes=_INFER_VOLUMES_FROM_STATE)
+        changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
@@ -1262,7 +1422,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        changes = _call_calculate_changes(deployer, configuration, state)
+        local_state = _create_block_device_deployer_local_state(
+            deployer, state, volumes=_INFER_VOLUMES_FROM_STATE)
+        changes = deployer.calculate_changes(configuration, state, local_state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
             in_parallel(
@@ -1278,8 +1440,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                            desired_configuration):
         """
         Create a ``BlockDeviceDeployer`` and call its
-        ``calculate_necessary_state_changes`` method with the given arguments
-        and an empty cluster state.
+        ``calculate_changes`` method with the given arguments and an empty
+        cluster state.
 
         :param UUID local_uuid: The node identifier to give the to the
             ``BlockDeviceDeployer``.
@@ -1298,9 +1460,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             self, node_uuid=local_uuid, hostname=local_hostname,
         )
 
-        return _call_calculate_changes(
-            deployer, desired_configuration, current_cluster_state,
-        )
+        local_state = _create_block_device_deployer_local_state(
+            deployer, current_cluster_state, volumes=_INFER_VOLUMES_FROM_STATE)
+        return deployer.calculate_changes(
+            desired_configuration, current_cluster_state, local_state)
 
     def test_match_configuration_to_state_of_datasets(self):
         """
@@ -1398,7 +1561,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=node_address,
             node_uuid=node_id,
         )
-        changes = _call_calculate_changes(deployer, configuration, state)
+        local_state = _create_block_device_deployer_local_state(
+            deployer, state, volumes=_INFER_VOLUMES_FROM_STATE)
+        changes = deployer.calculate_changes(
+            configuration, state, local_state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         expected_size = int(GiB(100).to_Byte().value)
         self.assertEqual(
@@ -1470,7 +1636,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=local_node_address,
             node_uuid=local_node_id,
         )
-        changes = _call_calculate_changes(deployer, configuration, state)
+        local_state = _create_block_device_deployer_local_state(
+            deployer, state, volumes=_INFER_VOLUMES_FROM_STATE)
+        changes = deployer.calculate_changes(configuration, state, local_state)
 
         self.assertEqual(in_parallel(changes=[]), changes)
 
