@@ -175,7 +175,7 @@ class DummyDeployer(object):
 @implementer(IDeployer)
 class ControllableDeployer(object):
     """
-    ``IDeployer`` whose results can be controlled.
+    ``IDeployer`` whose results can be controlled for any ``NodeLocalState``.
     """
     def __init__(self, hostname, local_states, calculated_actions):
         """
@@ -183,7 +183,8 @@ class ControllableDeployer(object):
             ``discover_state``.  Each call to ``discover_state`` pops the first
             element from this list and uses it as its result.  If the element
             is an exception, it is raised.  Otherwise it must be a
-            ``Deferred``.
+            ``Deferred`` that resolves to a ``NodeState``. This ``IDeployer``
+            always returns a ``NodeLocalState`` from ``discover_state``.
         """
         self.node_uuid = ip_to_uuid(hostname)
         self.hostname = hostname
