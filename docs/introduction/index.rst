@@ -160,12 +160,14 @@ Configuration details for each of the backends can be found in the :ref:`Configu
 
 .. XXX FLOC 3144 - add a link here to the instructions on how to create your own backend driver
 
+.. _get-started:
+
 Get Started with Flocker
 ========================
 
 Before you begin to install Flocker, there are a couple of ways in which you can try out Flocker without having to go through the full installation steps:
 
-Flocker in a Live Hosted Environment
+Flocker in a Live Hgosted Environment
 --------------------------------------
 
 You can take Flocker for a spin using a free, live hosted environment. 

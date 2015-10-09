@@ -4,7 +4,9 @@
 Installing Flocker
 ==================
 
-There are several installation options with which you can get up and running with Flocker:
+There are several installation options with which you can get up and running with Flocker.
+
+You can also try Flocker without installation, either in our live hosted environment or on virtual machines using our Vagrant image. For more information, see :ref:`get-started`.
 
 Quick Start Flocker Installer
 =============================
