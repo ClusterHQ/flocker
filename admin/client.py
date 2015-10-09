@@ -121,9 +121,6 @@ class DockerRunner:
         # http://doc-dev.clusterhq.com/gettinginvolved/client-testing.html
         # for details.
         params = docker.utils.kwargs_from_env(assert_hostname=False)
-        tls_config = params.get('tls')
-        if tls_config:
-            tls_config.verify = False
         self.docker = docker.Client(version='1.16', **params)
         self.image = image
 
