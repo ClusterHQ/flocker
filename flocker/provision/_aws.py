@@ -57,17 +57,12 @@ def _wait_until_running(instance):
         action_type=u"flocker:provision:aws:wait_until_running",
         instance_id=instance.id,
     ):
-        state = instance.state
-        while state != 'running':
+        while instance.state != 'running':
             with start_action(
                 action_type=u"flocker:provision:aws:wait_until_running:sleep",
                 instance_state=instance.state,
             ):
                 sleep(1)
-            instance.update()
-            new_state = instance.state
-            if new_state != state:
-                state = new_state
 
 
 @implementer(INode)
