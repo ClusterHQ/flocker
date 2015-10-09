@@ -4,21 +4,7 @@
 Installing Flocker
 ==================
 
-There are several installation options with which you can get started with Flocker:
-
-No Installation!
-================
-
-Take Flocker for a spin using a free, live hosted environment. 
-No installation is required, and it’s great for getting a hands-on introduction to what Flocker is all about.
-
-* The live demo environment is hosted by ClusterHQ.
-* The demo environment will include a fully-installed and configured 2-node Flocker cluster and CLI.
-* You will have root access to this environment, so you can test Flocker however you want.
-* Follow a step-by-step tutorial.
-* To give you time to play, you’ll have access to the environment for 3 hours.
-
-For more information, see the `Try Flocker`_ page.
+There are several installation options with which you can get up and running with Flocker:
 
 Quick Start Flocker Installer
 =============================
@@ -32,17 +18,6 @@ The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currentl
 * The :ref:`Labs Installer <labs-installer>` documentation includes several tutorials to make it easy to set up and manage a Flocker cluster.
 
 For more information, see the :ref:`Labs Installer <labs-installer>` page.
-
-.. _vagrant-install:
-
-Install Locally Using Vagrant
-=============================
-
-If you don’t want to use real servers, you can set up a cluster locally on virtual machines using our Vagrant image.
-
-Our MongoDB tutorial uses both VirtualBox and Vagrant to install Flocker and Docker, and walks you through an end-to-end example of using Flocker to create an application.
-
-For more information, see the :ref:`MongoDB tutorial <tutorial-mongo>`.
 
 Full Installation
 =================
