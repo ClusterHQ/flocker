@@ -669,7 +669,21 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             self, units, expected_applications,
             current_state=None, start_applications=False):
         """
-        Utility method for common code across the test cases in this class.
+        Given Docker units, verifies that the correct applications are
+        discovered on the node by ``discover_state``.
+
+        :param units: ``units`` to pass into the constructor of the
+            ``FakeDockerClient``.
+
+        :param expected_applications: A ``PSet`` of ``Application`` instances
+            expected to be in the ``NodeState`` returned by ``discover_state``
+            given the ``units`` in the ``FakeDockerClient``.
+
+        :param NodeState current_state: The local_state to pass into the call
+            of ``discover_state``.
+
+        :param bool start_applications: Whether to run ``StartApplication`` on
+            each of the applications before running ``discover_state``.
         """
         if current_state is None:
             current_state = self.EMPTY_NODESTATE
