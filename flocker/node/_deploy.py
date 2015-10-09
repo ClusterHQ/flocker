@@ -70,38 +70,21 @@ class ILocalState(Interface):
         """
 
 
-class ClusterStateChangePVector(CheckedPVector):
-    """
-    ``CheckedPVector`` for objects that provide ``IClusterStateChange``.
-    """
-    def __invariant__(o):
-        """
-        Invariant check for providing ``IClusterStateChange``.
-        """
-        return (IClusterStateChange.providedBy(o),
-                'Does not provide IClusterStateChange.')
-
-
 @implementer(ILocalState)
-class FullySharedLocalState(PClass):
+class NodeLocalState(PClass):
     """
-    An ``ILocalState`` provider that shares all of the state. This can be used
-    by ``IDeployer`` implementations that do not need to pass any data from
-    discover_state to calculate_changes that cannot also be sent to the control
-    service.
+    An ``ILocalState`` that is comprised solely of a node_state which is shared
+    with the control service.
 
-    :ivar cluster_state_changes: A ``ClusterStateChangePVector`` of
-        ``IClusterStateChange`` providers describing local state. These objects
-        will all be shared.
+    :ivar NodeState node_state: The current ``NodeState`` of this node.
     """
-    cluster_state_changes = field(type=ClusterStateChangePVector,
-                                  mandatory=True)
+    node_state = field(type=NodeState, mandatory=True)
 
     def shared_state_changes(self):
         """
-        All state is shared in this implementation of ``ILocalState``.
+        The node_state is shared in this implementation of ``ILocalState``.
         """
-        return tuple(self.cluster_state_changes)
+        return (self.node_state,)
 
 
 class IDeployer(Interface):
@@ -593,8 +576,8 @@ class P2PManifestationDeployer(object):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values())
 
-            return FullySharedLocalState(
-                cluster_state_changes=[NodeState(
+            return NodeLocalState(
+                node_state=NodeState(
                     uuid=self.node_uuid,
                     hostname=self.hostname,
                     applications=None,
@@ -602,7 +585,7 @@ class P2PManifestationDeployer(object):
                                     manifestation in manifestations},
                     paths=manifestation_paths,
                     devices={},
-                )]
+                )
             )
         volumes.addCallback(got_volumes)
         return volumes
@@ -830,19 +813,18 @@ class ApplicationNodeDeployer(object):
         :param list applications: ``Application`` instances representing the
             applications on this node.
 
-        :return: A ``FullySharedLocalState`` with shared_state_changes() that
+        :return: A ``NodeLocalState`` with shared_state_changes() that
             are composed of a single ``NodeState`` representing the application
             state only of this node.
         """
-        return FullySharedLocalState(
-            cluster_state_changes=[
-                NodeState(
-                    uuid=self.node_uuid,
-                    hostname=self.hostname,
-                    applications=applications,
-                    manifestations=None,
-                    paths=None,
-                )]
+        return NodeLocalState(
+            node_state=NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                applications=applications,
+                manifestations=None,
+                paths=None,
+            )
         )
 
     def discover_state(self, local_state):
@@ -873,16 +855,14 @@ class ApplicationNodeDeployer(object):
             # convergence agent for datasets will discover the information
             # and then we can proceed.
             return succeed(
-                FullySharedLocalState(
-                    cluster_state_changes=[
-                        NodeState(
-                            uuid=self.node_uuid,
-                            hostname=self.hostname,
-                            applications=None,
-                            manifestations=None,
-                            paths=None,
-                        ),
-                    ]
+                NodeLocalState(
+                    node_state=NodeState(
+                        uuid=self.node_uuid,
+                        hostname=self.hostname,
+                        applications=None,
+                        manifestations=None,
+                        paths=None,
+                    )
                 )
             )
 

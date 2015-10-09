@@ -11,7 +11,7 @@ from ._change import (
 from ._deploy import (
     IDeployer,
     ILocalState,
-    FullySharedLocalState,
+    NodeLocalState,
     P2PManifestationDeployer,
     ApplicationNodeDeployer,
 )
@@ -20,7 +20,7 @@ from .script import BackendDescription, DeployerType
 
 
 __all__ = [
-    'IDeployer', 'ILocalState', 'FullySharedLocalState', 'IStateChange',
+    'IDeployer', 'ILocalState', 'NodeLocalState', 'IStateChange',
     'P2PManifestationDeployer',
     'ApplicationNodeDeployer',
     'run_state_change', 'in_parallel', 'sequentially',

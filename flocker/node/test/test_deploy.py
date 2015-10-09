@@ -14,7 +14,6 @@ from eliot.testing import validate_logging
 from ipaddr import IPAddress
 
 from pyrsistent import pset, pvector
-from pyrsistent._checked_types import InvariantException
 
 from bitmath import GiB
 
@@ -28,8 +27,8 @@ from .. import (
     ApplicationNodeDeployer, P2PManifestationDeployer,
 )
 from ..testtools import (
-    ControllableAction, ControllableDeployer,
-    ideployer_tests_factory, EMPTY, EMPTY_STATE, EMPTY_LOCAL_STATE,
+    ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
+    EMPTY_STATE, EMPTY_NODE_STATE, EMPTY_LOCAL_STATE,
     assert_calculated_changes_for_deployer, to_node,
 )
 from ...control import (
@@ -40,10 +39,9 @@ from ...control import (
 from .. import sequentially, in_parallel
 
 from .._deploy import (
-    ILocalState, ClusterStateChangePVector, FullySharedLocalState,
-    StartApplication, StopApplication, CreateDataset, HandoffDataset,
-    SetProxies, PushDataset, ResizeDataset, _link_environment, _to_volume_name,
-    DeleteDataset, OpenPorts
+    ILocalState, NodeLocalState, StartApplication, StopApplication,
+    CreateDataset, HandoffDataset, SetProxies, PushDataset, ResizeDataset,
+    _link_environment, _to_volume_name, DeleteDataset, OpenPorts
 )
 from ...testtools import CustomException
 from .. import _deploy
@@ -132,69 +130,29 @@ def assert_application_calculated_changes(
     )
 
 
-class ClusterStateChangePVectorTests(SynchronousTestCase):
+class NodeLocalStateTests(SynchronousTestCase):
     """
-    Tests for ClusterStateChangePVector.
+    Tests for ``NodeLocalState``
     """
 
-    def test_empty_vector_ok(self):
-        """
-        Empty vectors should not raise an Exception.
-        """
-        ClusterStateChangePVector.create([])
-
-    def test_vector_with_non_provider_errors(self):
-        """
-        Vectors with only objects that do not provide IClusterStateChange
-        should raise an Exception.
-        """
-        with self.assertRaises(InvariantException):
-            ClusterStateChangePVector.create([object()])
-
-    def test_vector_with_providers_ok(self):
-        """
-        Vectors with only objects that do provide IClusterStateChange should
-        not raise an Exception.
-        """
-        ClusterStateChangePVector.create([ARBITRARY_CLUSTER_STATE_CHANGE,
-                                          ARBITRARY_CLUSTER_STATE_CHANGE])
-
-    def test_vector_with_providers_and_nonproviders_errors(self):
-        """
-        Vectors with any objects that do not provide IClusterStateChange should
-        raise an Exception.
-        """
-        with self.assertRaises(InvariantException):
-            ClusterStateChangePVector.create(
-                [ARBITRARY_CLUSTER_STATE_CHANGE,
-                 object(),
-                 ARBITRARY_CLUSTER_STATE_CHANGE])
-
-
-class FullySharedLocalStateTests(SynchronousTestCase):
-    """
-    Tests for ``FullySharedLocalState``
-    """
     def test_ilocalstate(self):
         """
-        ``FullySharedLocalState`` instances provide ``ILocalState``
+        ``NodeLocalState`` instances provide ``ILocalState``
         """
         self.assertTrue(
             verifyObject(ILocalState,
-                         FullySharedLocalState(cluster_state_changes=[]))
+                         NodeLocalState(node_state=EMPTY_NODE_STATE))
         )
 
-    def test_all_state_reported(self):
+    def test_node_state_reported(self):
         """
-        ``FullySharedLocalState`` should return all state when
+        ``NodeLocalState`` should return the node_state in a tuple when
         shared_state_changes() is called.
         """
-        cluster_state_changes = ClusterStateChangePVector.create([
-            ARBITRARY_CLUSTER_STATE_CHANGE, ARBITRARY_CLUSTER_STATE_CHANGE])
-        object_under_test = FullySharedLocalState(
-            cluster_state_changes=cluster_state_changes)
-        self.assertItemsEqual(cluster_state_changes,
-                              object_under_test.shared_state_changes())
+        node_state = EMPTY_NODE_STATE
+        object_under_test = NodeLocalState(node_state=node_state)
+        self.assertEqual((node_state,),
+                         object_under_test.shared_state_changes())
 
 
 class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):

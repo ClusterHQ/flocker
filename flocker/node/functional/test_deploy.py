@@ -56,13 +56,13 @@ class P2PNodeDeployer(object):
             def got_app_local_state(app_local_state):
                 app_state = app_local_state.shared_state_changes()
                 new_app_local_state = app_local_state.set(
-                    "cluster_state_changes",
-                    [app_state[0].evolver()
-                        .set("manifestations",
-                             manifestations_state.manifestations)
-                        .set("paths", manifestations_state.paths)
-                        .set("devices",
-                             manifestations_state.devices).persistent()])
+                    "node_state",
+                    app_state[0].evolver()
+                    .set("manifestations",
+                         manifestations_state.manifestations)
+                    .set("paths", manifestations_state.paths)
+                    .set("devices",
+                         manifestations_state.devices).persistent())
                 return new_app_local_state
             app_discovery.addCallback(got_app_local_state)
             return app_discovery

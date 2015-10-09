@@ -26,7 +26,7 @@ from zope.interface.verify import verifyObject
 from eliot import Logger, ActionType, MessageType, fields
 
 from . import (
-    ILocalState, IDeployer, FullySharedLocalState, IStateChange, sequentially
+    ILocalState, IDeployer, NodeLocalState, IStateChange, sequentially
 )
 from ..testtools import loop_until, find_free_port
 from ..control import (
@@ -143,6 +143,19 @@ class ControllableAction(object):
         return self.result
 
 
+@implementer(ILocalState)
+class DummyLocalState(object):
+    """
+    A non-implementation of ``ILocalState``.
+    """
+
+    def shared_state_changes(self):
+        """
+        A non-implementation that returns an empty tuple.
+        """
+        return ()
+
+
 @implementer(IDeployer)
 class DummyDeployer(object):
     """
@@ -152,7 +165,7 @@ class DummyDeployer(object):
     node_uuid = uuid4()
 
     def discover_state(self, node_state):
-        return succeed(FullySharedLocalState(cluster_state_changes=()))
+        return succeed(DummyLocalState())
 
     def calculate_changes(self, desired_configuration, cluster_state,
                           local_state):
@@ -184,7 +197,7 @@ class ControllableDeployer(object):
             raise state
         else:
             return state.addCallback(
-                lambda val: FullySharedLocalState(cluster_state_changes=[val]))
+                lambda val: NodeLocalState(node_state=val))
 
     def calculate_changes(self, desired_configuration, cluster_state,
                           local_state):
@@ -198,7 +211,8 @@ class ControllableDeployer(object):
 # A deployment with no information:
 EMPTY = Deployment(nodes=[])
 EMPTY_STATE = DeploymentState()
-EMPTY_LOCAL_STATE = FullySharedLocalState(cluster_state_changes=[])
+EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
+EMPTY_LOCAL_STATE = NodeLocalState(node_state=EMPTY_NODE_STATE)
 
 
 def ideployer_tests_factory(fixture):
@@ -309,7 +323,7 @@ def assert_calculated_changes_for_deployer(
     :param expected_changes: The ``IStateChange`` expected to be returned.
     :param Leases leases: Currently configured leases. By default none exist.
     :param ILocalState local_state: The local_state to pass into
-        calculate_changes.  If None, an empty ``FullySharedLocalState`` will be
+        calculate_changes.  If None, an empty ``NodeLocalState`` will be
         passed in.
     """
     if local_state is None:
