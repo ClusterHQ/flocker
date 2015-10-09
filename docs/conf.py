@@ -30,7 +30,6 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     'sphinx.ext.extlinks',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
     'flocker.docs.version_extensions',
@@ -305,10 +304,6 @@ texinfo_documents = [
 
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #texinfo_show_urls = 'footnote'
-
-intersphinx_mapping = {
-    'latest': ('http://doc-dev.clusterhq.com/', None),
-}
 
 # Don't check anchors because many websites use #! for AJAX magic
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors

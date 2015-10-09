@@ -5,7 +5,7 @@ Release Process
 
 .. note::
 
-   Make sure to follow the :ref:`latest documentation <latest:release-process>` when doing a release.
+   Make sure to follow the `latest documentation <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html>`_ when doing a release.
 
 Outcomes
 --------
@@ -174,7 +174,7 @@ So it is important to check that the code in the release branch is working befor
 
 .. note::
 
-   Make sure to follow the :ref:`latest review process <latest:pre-tag-review>` when reviewing a release.
+   Make sure to follow the `latest review process <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
 
 #. Check the changes in the Pull Request:
 
