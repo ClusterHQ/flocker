@@ -98,7 +98,7 @@ def get_docker_client(cluster, address):
         assert_hostname=False,
         verify=get_path(b"cluster.crt"))
     return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
-                  tls=tls, timeout=30)
+                  tls=tls, timeout=60)
 
 
 def get_mongo_application():
