@@ -115,14 +115,25 @@ class DockerRunner:
     """
 
     def __init__(self, image):
-        self.docker = docker.Client(version='1.18')
+        # Getting Docker to work correctly on any client platform can
+        # be tricky.  See
+        # http://doc-dev.clusterhq.com/gettinginvolved/client-testing.html
+        # for details.
+        params = docker.utils.kwargs_from_env(assert_hostname=False)
+        tls_config = params.get('tls')
+        if tls_config:
+            tls_config.verify = False
+        self.docker = docker.Client(version='1.16', **params)
         self.image = image
 
     def start(self):
         """
         Start the Docker container.
         """
-        self.tmpdir = tempfile.mkdtemp()
+        # On OS X, shared volumes must be in /Users, so use the home directory.
+        # See 'Mount a host directory as a data volume' at
+        # https://docs.docker.com/userguide/dockervolumes/
+        self.tmpdir = tempfile.mkdtemp(dir=os.path.expanduser('~'))
         try:
             self.docker.pull(self.image)
             container = self.docker.create_container(
