@@ -189,3 +189,5 @@ If you don’t want to use real servers, you can set up a cluster locally on vir
 Our MongoDB tutorial uses both VirtualBox and Vagrant to install Flocker and Docker, and walks you through an end-to-end example of using Flocker to create an application.
 
 For more information, see the :ref:`MongoDB tutorial <tutorial-mongo>`.
+
+.. _Try Flocker: https://clusterhq.com/flocker/try-flocker/live/
