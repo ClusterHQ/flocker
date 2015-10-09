@@ -167,8 +167,8 @@ Get Started with Flocker
 
 Before you begin to install Flocker, there are a couple of ways in which you can try out Flocker without having to go through the full installation steps:
 
-Flocker in a Live Hgosted Environment
---------------------------------------
+Flocker in a Live Hosted Environment
+------------------------------------
 
 You can take Flocker for a spin using a free, live hosted environment. 
 No installation is required, and it’s great for getting a hands-on introduction to what Flocker is all about.
