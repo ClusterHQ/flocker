@@ -151,7 +151,7 @@ class DummyDeployer(object):
     hostname = u"127.0.0.1"
     node_uuid = uuid4()
 
-    def discover_state(self, node_stat):
+    def discover_state(self, node_state):
         return succeed(FullySharedLocalState(cluster_state_changes=()))
 
     def calculate_changes(self, desired_configuration, cluster_state,

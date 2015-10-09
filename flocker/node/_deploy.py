@@ -85,7 +85,10 @@ class ClusterStateChangePVector(CheckedPVector):
 @implementer(ILocalState)
 class FullySharedLocalState(PClass):
     """
-    An ``ILocalState`` provider that
+    An ``ILocalState`` provider that shares all of the state. This can be used
+    by ``IDeployer`` implementations that do not need to pass any data from
+    discover_state to calculate_changes that cannot also be sent to the control
+    service.
 
     :ivar cluster_state_changes: A ``ClusterStateChangePVector`` of
         ``IClusterStateChange`` providers describing local state. These objects
@@ -96,7 +99,7 @@ class FullySharedLocalState(PClass):
 
     def shared_state_changes(self):
         """
-        All state is shared in this implementation of LocalState.
+        All state is shared in this implementation of ``ILocalState``.
         """
         return tuple(self.cluster_state_changes)
 
@@ -126,9 +129,10 @@ class IDeployer(Interface):
             information discovered by this particular deployer.
 
         :return: A ``Deferred`` which fires with a ``ILocalState``. The
-            state_changes will be passed to the control service (see
-            ``flocker.control._protocol``), and the entire opaque object will
-            be passed to this object's ``calculate_changes()`` method.
+            result of shared_state_changes() will be passed to the control
+            service (see ``flocker.control._protocol``), and the entire opaque
+            object will be passed to this object's ``calculate_changes()``
+            method.
         """
 
     def calculate_changes(configuration, cluster_state, local_state):
