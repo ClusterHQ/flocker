@@ -63,6 +63,7 @@ def _wait_until_running(instance):
                 instance_state=instance.state,
             ):
                 sleep(1)
+            instance.update()
 
 
 @implementer(INode)
