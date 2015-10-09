@@ -1581,7 +1581,7 @@ class BlockDeviceDeployer(PRecord):
                 applications=None,
             ),
             nonmanifest_datasets=NonManifestDatasets(datasets=nonmanifest),
-            volumes=[],
+            volumes=volumes,
         )
 
         return succeed(local_state)
