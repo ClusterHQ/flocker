@@ -66,6 +66,7 @@ from ..blockdevice import (
 from ... import run_state_change, in_parallel, ILocalState
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
+    compute_cluster_state
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
@@ -382,14 +383,14 @@ def assert_discovered_state(case,
         mountpath = deployer._mountpath_for_manifestation(manifestation)
         expected_paths[dataset_id] = mountpath
     case.assertEqual(NodeState(
-            applications=None,
-            uuid=deployer.node_uuid,
-            hostname=deployer.hostname,
-            manifestations={
-                m.dataset_id: m for m in expected_manifestations},
-            paths=expected_paths,
-            devices=expected_devices,
-        ), local_state.node_state
+        applications=None,
+        uuid=deployer.node_uuid,
+        hostname=deployer.hostname,
+        manifestations={
+            m.dataset_id: m for m in expected_manifestations},
+        paths=expected_paths,
+        devices=expected_devices,
+    ), local_state.node_state
     )
     # FLOC-1806 - Make this actually be a dictionary (callers pass a list
     # instead) and construct the ``NonManifestDatasets`` with the
@@ -684,10 +685,17 @@ def assert_calculated_changes(
         block_device_api=api,
     )
 
+    cluster_state = compute_cluster_state(node_state, additional_node_states,
+                                          nonmanifest_datasets)
+
+    local_state = _create_block_device_deployer_local_state(
+        deployer, cluster_state, volumes=_INFER_VOLUMES_FROM_STATE,
+        compute_instance_id=u"instance-".format(node_state.uuid))
+
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
         nonmanifest_datasets, additional_node_states, set(),
-        expected_changes, leases=leases,
+        expected_changes, local_state, leases=leases,
     )
 
 
@@ -874,7 +882,8 @@ _INFER_VOLUMES_FROM_STATE = NamedConstant()
 
 def _create_block_device_deployer_local_state(block_device_deployer,
                                               cluster_state,
-                                              volumes=_GET_VOLUMES_FROM_API):
+                                              volumes=_GET_VOLUMES_FROM_API,
+                                              compute_instance_id=None):
     """
     Creates a BlockDeviceDeployerLocalState from the given cluster_state and
     optional volumes.
@@ -893,6 +902,11 @@ def _create_block_device_deployer_local_state(block_device_deployer,
         cluster_state to determine which volumes exist in the cluster. Note
         that the blockdevice_ids of the volumes that are constructed in this
         manner are not compatible with the ``IBlockDeviceAPI``.
+
+    :param unicode compute_instance_id: The instance id for the current node.
+        This is only used in inferring volumes from the cluster_state. This
+        value will be in the attached_to field of the generated
+        ``BlockDeviceVolume`` instances.
     """
     node_state = cluster_state.get_node(
         block_device_deployer.node_uuid,
@@ -901,7 +915,8 @@ def _create_block_device_deployer_local_state(block_device_deployer,
     nonmanifest_datasets = cluster_state.nonmanifest_datasets
     api = block_device_deployer.block_device_api
     if volumes is _INFER_VOLUMES_FROM_STATE:
-        compute_instance_id = api.compute_instance_id()
+        if compute_instance_id is None:
+            compute_instance_id = api.compute_instance_id()
         volumes = _infer_volumes_for_test(
             block_device_deployer.node_uuid, block_device_deployer.hostname,
             compute_instance_id, cluster_state)

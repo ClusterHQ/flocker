@@ -46,7 +46,7 @@ from .._deploy import (
 from ...testtools import CustomException
 from .. import _deploy
 from ...control._model import (
-    AttachedVolume, Dataset, Manifestation, Leases, NonManifestDatasets
+    AttachedVolume, Dataset, Manifestation, Leases
 )
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -125,6 +125,7 @@ def assert_application_calculated_changes(
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
         additional_node_states, additional_node_config, expected_changes,
+        NodeLocalState(node_state=node_state)
     )
 
 
@@ -2257,8 +2258,8 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         api = P2PManifestationDeployer(current_node.hostname,
                                        create_volume_service(self))
 
-        changes = api.calculate_changes(desired, current,
-                                        NodeLocalState(node_state=current_node))
+        changes = api.calculate_changes(
+            desired, current, NodeLocalState(node_state=current_node))
 
         expected = sequentially(changes=[])
         self.assertEqual(expected, changes)
@@ -2392,8 +2393,8 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             current_node.hostname, create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current,
-                                        NodeLocalState(node_state=current_node))
+        changes = api.calculate_changes(
+            desired, current, NodeLocalState(node_state=current_node))
         expected = sequentially(changes=[])
         self.assertEqual(expected, changes)
 
@@ -2500,8 +2501,8 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             create_volume_service(self),
         )
 
-        changes = api.calculate_changes(desired, current,
-                                        NodeLocalState(node_state=current_node))
+        changes = api.calculate_changes(
+            desired, current, NodeLocalState(node_state=current_node))
 
         expected = sequentially(changes=[
             in_parallel(

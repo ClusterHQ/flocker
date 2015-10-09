@@ -14,7 +14,7 @@ from zope.interface import Interface, implementer, Attribute
 
 from characteristic import attributes
 
-from pyrsistent import PRecord, field, CheckedPVector, PClass
+from pyrsistent import PRecord, field, PClass
 
 from eliot import Message, write_failure, Logger, start_action
 
@@ -25,8 +25,8 @@ from . import IStateChange, in_parallel, sequentially
 
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
-    IClusterStateChange, NodeState, DockerImage, Port, Link, Manifestation,
-    Dataset, pset_field, ip_to_uuid, RestartNever,
+    NodeState, DockerImage, Port, Link, Manifestation, Dataset, pset_field,
+    ip_to_uuid, RestartNever,
     )
 from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node

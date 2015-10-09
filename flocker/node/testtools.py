@@ -212,7 +212,6 @@ class ControllableDeployer(object):
 EMPTY = Deployment(nodes=[])
 EMPTY_STATE = DeploymentState()
 EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
-EMPTY_LOCAL_STATE = NodeLocalState(node_state=EMPTY_NODE_STATE)
 
 
 def empty_node_local_state(ideployer):
@@ -225,7 +224,8 @@ def empty_node_local_state(ideployer):
         and uuid from.
     """
     return NodeLocalState(node_state=NodeState(uuid=ideployer.node_uuid,
-                                     hostname=ideployer.hostname))
+                          hostname=ideployer.hostname))
+
 
 def ideployer_tests_factory(fixture):
     """
@@ -317,10 +317,34 @@ def to_node(node_state):
                 manifestations=node_state.manifestations or {})
 
 
+def compute_cluster_state(node_state, additional_node_states,
+                          nonmanifest_datasets):
+    """
+    Computes the cluster_state from the passed in arguments.
+
+    :param NodeState node_state: The deployer will be asked to calculate
+        changes for a node that has this state.
+
+    :param set additional_node_states: A set of ``NodeState`` for other nodes.
+
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
+
+    :returns: A DeploymentState encoding all of the parameters.
+    """
+    return DeploymentState(
+        nodes={node_state} | additional_node_states,
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
+
+
 def assert_calculated_changes_for_deployer(
-        case, deployer, node_state, node_config, nonmanifest_datasets,
-        additional_node_states, additional_node_config, expected_changes,
-        leases=Leases(), local_state=None
+    case, deployer, node_state, node_config, nonmanifest_datasets,
+    additional_node_states, additional_node_config, expected_changes,
+    local_state, leases=Leases()
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -339,20 +363,13 @@ def assert_calculated_changes_for_deployer(
     :param set additional_node_states: A set of ``NodeState`` for other nodes.
     :param set additional_node_config: A set of ``Node`` for other nodes.
     :param expected_changes: The ``IStateChange`` expected to be returned.
+    :param ILocalState local_state: The ``local_state`` to pass into
+        ``calculate_changes``. Must be the correct type for the type of
+        ``IDeployer`` being tested.
     :param Leases leases: Currently configured leases. By default none exist.
-    :param ILocalState local_state: The local_state to pass into
-        calculate_changes.  If None, an empty ``NodeLocalState`` will be
-        passed in.
     """
-    if local_state is None:
-        local_state = EMPTY_LOCAL_STATE
-    cluster_state = DeploymentState(
-        nodes={node_state} | additional_node_states,
-        nonmanifest_datasets={
-            dataset.dataset_id: dataset
-            for dataset in nonmanifest_datasets
-        },
-    )
+    cluster_state = compute_cluster_state(node_state, additional_node_states,
+                                          nonmanifest_datasets)
     cluster_configuration = Deployment(
         nodes={node_config} | additional_node_config,
         leases=leases,
