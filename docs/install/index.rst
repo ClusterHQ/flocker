@@ -41,5 +41,3 @@ Once you have Flocker installed, you will need to complete the :ref:`post-instal
    :hidden:
 
    plugin-restrictions
-   
-.. _Try Flocker: https://clusterhq.com/flocker/try-flocker/live/
