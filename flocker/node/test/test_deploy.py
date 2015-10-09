@@ -689,9 +689,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 ).run(api)
         d = api.discover_state(current_state)
 
-        self.assertEqual((NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=expected_applications),),
-                         self.successResultOf(d).shared_state_changes())
+        self.assertEqual(NodeState(uuid=api.node_uuid, hostname=api.hostname,
+                                   applications=expected_applications),
+                         self.successResultOf(d).node_state)
 
     def test_discover_none(self):
         """
@@ -930,11 +930,11 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com', self.volume_service, node_uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                self.EMPTY_NODESTATE)).shared_state_changes(),
-            (NodeState(hostname=deployer.hostname,
-                       uuid=deployer.node_uuid,
-                       manifestations={}, paths={}, devices={},
-                       applications=None),))
+                self.EMPTY_NODESTATE)).node_state,
+            NodeState(hostname=deployer.hostname,
+                      uuid=deployer.node_uuid,
+                      manifestations={}, paths={}, devices={},
+                      applications=None))
 
     def _setup_datasets(self):
         """
@@ -962,9 +962,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         deployer.
         """
         deployer = self._setup_datasets()
-        nodes = self.successResultOf(deployer.discover_state(
-            self.EMPTY_NODESTATE)).shared_state_changes()
-        self.assertEqual(nodes[0].uuid, deployer.node_uuid)
+        node_state = self.successResultOf(deployer.discover_state(
+            self.EMPTY_NODESTATE)).node_state
+        self.assertEqual(node_state.uuid, deployer.node_uuid)
 
     def test_discover_datasets(self):
         """
@@ -980,7 +980,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
              self.DATASET_ID2: Manifestation(
                  dataset=Dataset(dataset_id=self.DATASET_ID2),
                  primary=True)},
-            self.successResultOf(d).shared_state_changes()[0].manifestations)
+            self.successResultOf(d).node_state.manifestations)
 
     def test_discover_manifestation_paths(self):
         """
@@ -997,7 +997,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
              self.DATASET_ID2:
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
-            self.successResultOf(d).shared_state_changes()[0].paths)
+            self.successResultOf(d).node_state.paths)
 
     def test_discover_manifestation_with_size(self):
         """
@@ -1026,7 +1026,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(
-            self.successResultOf(d).shared_state_changes()[0].manifestations[
+            self.successResultOf(d).node_state.manifestations[
                 self.DATASET_ID],
             manifestation)
 

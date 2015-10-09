@@ -376,14 +376,12 @@ def assert_discovered_state(case,
     )
     discovering = deployer.discover_state(previous_state)
     local_state = case.successResultOf(discovering)
-    shared_state = local_state.shared_state_changes()
     expected_paths = {}
     for manifestation in expected_manifestations:
         dataset_id = manifestation.dataset.dataset_id
         mountpath = deployer._mountpath_for_manifestation(manifestation)
         expected_paths[dataset_id] = mountpath
-    expected = (
-        NodeState(
+    case.assertEqual(NodeState(
             applications=None,
             uuid=deployer.node_uuid,
             hostname=deployer.hostname,
@@ -391,18 +389,17 @@ def assert_discovered_state(case,
                 m.dataset_id: m for m in expected_manifestations},
             paths=expected_paths,
             devices=expected_devices,
-        ),
+        ), local_state.node_state
     )
     # FLOC-1806 - Make this actually be a dictionary (callers pass a list
     # instead) and construct the ``NonManifestDatasets`` with the
     # ``Dataset`` instances that are present as values.
-    expected += (
+    case.assertEqual(
         NonManifestDatasets(datasets={
             unicode(dataset_id):
             Dataset(dataset_id=unicode(dataset_id))
             for dataset_id in expected_nonmanifest_datasets
-        }),)
-    case.assertItemsEqual(expected, shared_state)
+        }), local_state.nonmanifest_datasets)
 
     case.assertItemsEqual(expected_volumes, local_state.volumes)
 
@@ -746,7 +743,9 @@ def add_application_with_volume(node_state):
             volume=AttachedVolume(manifestation=manifestation,
                                   mountpoint=FilePath(b"/data")))})
 
+
 _BLOCKDEVICE_PREFIX = "blockdevice-"
+
 
 def _get_dataset_id_for_test_blockdevice_id(test_blockdevice_id):
     """
@@ -761,6 +760,7 @@ def _get_dataset_id_for_test_blockdevice_id(test_blockdevice_id):
     :returns: The dataset_id used to create the test blockdevice_id.
     """
     return test_blockdevice_id[len(_BLOCKDEVICE_PREFIX):]
+
 
 def _create_test_blockdevice_id_for_dataset_id(dataset_id):
     """
@@ -777,6 +777,7 @@ def _create_test_blockdevice_id_for_dataset_id(dataset_id):
     :returns: A test blockdevice_id unique to this dataset_id.
     """
     return "".join([_BLOCKDEVICE_PREFIX, dataset_id])
+
 
 def _create_test_blockdevice_volume_for_dataset_id(dataset_id,
                                                    attached_to=None):

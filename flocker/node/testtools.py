@@ -258,8 +258,8 @@ def ideployer_tests_factory(fixture):
 
         def test_discover_state_iclusterstatechange(self):
             """
-            The elements of the ``list`` that ``discover_state``\ 's
-            ``Deferred`` fires with provide ``IClusterStateChange``.
+            The elements of the ``tuple`` that ``shared_state_changes`` returns
+            will provide ``IClusterStateChange``.
             """
             def discovered(local_state):
                 changes = local_state.shared_state_changes()

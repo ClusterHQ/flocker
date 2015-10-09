@@ -13,7 +13,10 @@ from eliot import Message
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import P2PManifestationDeployer, ApplicationNodeDeployer, sequentially
+from .. import (
+    NodeLocalState, P2PManifestationDeployer, ApplicationNodeDeployer,
+    sequentially
+)
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
     Manifestation, Dataset, DeploymentState, NodeState)
@@ -48,21 +51,20 @@ class P2PNodeDeployer(object):
         d = self.manifestations_deployer.discover_state(local_state)
 
         def got_manifestations_state(manifestations_local_state):
-            manifestations_state = (
-                manifestations_local_state.shared_state_changes()[0])
+            manifestations_state = manifestations_local_state.node_state
             app_discovery = self.applications_deployer.discover_state(
                 manifestations_state)
 
             def got_app_local_state(app_local_state):
-                app_state = app_local_state.shared_state_changes()
-                new_app_local_state = app_local_state.set(
-                    "node_state",
-                    app_state[0].evolver()
-                    .set("manifestations",
-                         manifestations_state.manifestations)
-                    .set("paths", manifestations_state.paths)
-                    .set("devices",
-                         manifestations_state.devices).persistent())
+                app_state = app_local_state.node_state
+                new_app_local_state = NodeLocalState(
+                    node_state=(
+                        app_state.evolver()
+                        .set("manifestations",
+                             manifestations_state.manifestations)
+                        .set("paths", manifestations_state.paths)
+                        .set("devices",
+                             manifestations_state.devices).persistent()))
                 return new_app_local_state
             app_discovery.addCallback(got_app_local_state)
             return app_discovery
@@ -306,7 +308,6 @@ class DeployerTests(TestCase):
             NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
                       applications=[],
                       manifestations={}, paths={}, devices={})))
-        d.addCallback(lambda local_state: local_state.shared_state_changes())
         return d
 
     @if_docker_configured
@@ -327,7 +328,7 @@ class DeployerTests(TestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 pset([link]),
-                [app.links for app in results[0].applications]))
+                [app.links for app in results.node_state.applications]))
         return d
 
     @if_docker_configured
@@ -341,7 +342,7 @@ class DeployerTests(TestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 command_line,
-                [app.command_line for app in results[0].applications]))
+                [app.command_line for app in results.node_state.applications]))
         return d
 
     @if_docker_configured
