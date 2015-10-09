@@ -215,6 +215,18 @@ EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
 EMPTY_LOCAL_STATE = NodeLocalState(node_state=EMPTY_NODE_STATE)
 
 
+def empty_node_local_state(ideployer):
+    """
+    Constructs an ``NodeLocalState`` from an ideployer. Only uuid and
+    hostname of the ``node_state`` will be filled in, everything else will be
+    left as None to signify that we are ignorant of the proper value.
+
+    :param IDeployer ideployer: The ``IDeployer`` provider to get the hostname
+        and uuid from.
+    """
+    return NodeLocalState(node_state=NodeState(uuid=ideployer.node_uuid,
+                                     hostname=ideployer.hostname))
+
 def ideployer_tests_factory(fixture):
     """
     Create test case for IDeployer implementation.
@@ -241,8 +253,9 @@ def ideployer_tests_factory(fixture):
             :return: The return value of the object's ``discover_state``
                 method.
             """
-            deployer = fixture(self)
-            result = deployer.discover_state(NodeState(hostname=b"10.0.0.1"))
+            self._deployer = fixture(self)
+            result = self._deployer.discover_state(
+                NodeState(hostname=b"10.0.0.1"))
             return result
 
         def test_discover_state_ilocalstate_result(self):
@@ -279,10 +292,15 @@ def ideployer_tests_factory(fixture):
             The object's ``calculate_necessary_state_changes`` method returns a
             ``IStateChange`` provider.
             """
-            deployer = fixture(self)
-            result = deployer.calculate_changes(
-                EMPTY, EMPTY_STATE, EMPTY_LOCAL_STATE)
-            self.assertTrue(verifyObject(IStateChange, result))
+            # ``local_state`` (an argument to ``calculate_changes``) has an
+            # opaque type, specific to this implementation of ``IDeployer``.
+            # Rather than generating an arbitrary ``local_state`` generate one
+            # by calling ``discover_state``.
+            def discovered(local_state):
+                result = self._deployer.calculate_changes(
+                    EMPTY, EMPTY_STATE, local_state)
+                self.assertTrue(verifyObject(IStateChange, result))
+            return self._discover_state().addCallback(discovered)
 
     return IDeployerTests
 
