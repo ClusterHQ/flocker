@@ -12,7 +12,7 @@ Logging
 Flocker processes use the `Eliot`_ framework for logging.
 Eliot structures logs as a tree of actions, which means given an error you can see what Flocker actions caused the errors by finding the other messages in the tree.
 The tree of actions can also span processes; thus you can trace API calls from within the Docker plugin and see the effects in the control service logs.
-Messages can be rendered into a human-readable tree using the `eliot-tree`_ command-line tool, which is pre-installed with Flocker.
+Messages can be rendered into a human-readable tree using the `eliot-tree`_ command line tool, which is pre-installed with Flocker.
 Eliot also includes a tool called ``eliot-prettyprint`` which renders messages into a more human-readable format but does not present them in a tree structure.
 
 Logs from the Docker containers can be viewed using `the Docker CLI <https://docs.docker.com/reference/commandline/cli/#logs>`_.
