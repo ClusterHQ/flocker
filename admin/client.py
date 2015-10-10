@@ -16,7 +16,6 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 
 import flocker
-from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
@@ -220,17 +219,8 @@ class RunOptions(Options):
         else:
             self['config'] = {}
 
-        if self['flocker-version']:
-            rpm_version = make_rpm_version(self['flocker-version'])
-            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-            if os_version.endswith('.dirty'):
-                os_version = os_version[:-len('.dirty')]
-        else:
-            os_version = None
-
         self['package_source'] = PackageSource(
             version=self['flocker-version'],
-            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )
