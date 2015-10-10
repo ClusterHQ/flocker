@@ -4,15 +4,13 @@
 Tests for ``flocker.node.testtools``.
 """
 
-from zope.interface import implementer
-
 from twisted.internet.defer import succeed
 
 from .. import sequentially
 from ..testtools import (
     DummyDeployer, ControllableDeployer, ideployer_tests_factory,
 )
-from ...control import IClusterStateChange, NodeState
+from ...control import NodeState
 
 
 class DummyDeployerIDeployerTests(
@@ -22,7 +20,9 @@ class DummyDeployerIDeployerTests(
     Tests for the ``IDeployer`` implementation of ``DummyDeployer``.
     """
 
-_HOSTNAME=u"10.0.0.1"
+
+_HOSTNAME = u"10.0.0.1"
+
 
 class ControllableDeployerIDeployerTests(
     ideployer_tests_factory(
