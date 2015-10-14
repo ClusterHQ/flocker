@@ -4,12 +4,13 @@
 Helpers for using libcloud.
 """
 
-from zope.interface import (
-    Attribute as InterfaceAttribute, Interface, implementer)
+from zope.interface import implementer
 from characteristic import attributes, Attribute
 from twisted.conch.ssh.keys import Key
 
 from flocker.provision._ssh import run_remotely, run_from_args
+
+from ._common import INode, IProvisioner
 
 
 def get_size(driver, size_id):
@@ -34,34 +35,6 @@ def get_image(driver, image_name):
         return [s for s in driver.list_images() if s.name == image_name][0]
     except IndexError:
         raise ValueError("Unknown image.", image_name)
-
-
-class INode(Interface):
-    """
-    Interface for node for running acceptance tests.
-    """
-    address = InterfaceAttribute('Public IP address for node')
-    private_address = InterfaceAttribute('Private IP address for node')
-    distribution = InterfaceAttribute('distribution on node')
-
-    def get_default_username():
-        """
-        Return the username available by default on a system.
-
-        Some cloud systems (e.g. AWS) provide a specific username, which
-        depends on the OS distribution started.  This method returns
-        the username based on the node distribution.
-        """
-
-    def provision(package_source, variants):
-        """
-        Provision flocker on this node.
-
-        :param PackageSource package_source: The source from which to install
-            flocker.
-        :param set variants: The set of variant configurations to use when
-            provisioning
-        """
 
 
 @implementer(INode)
@@ -115,7 +88,7 @@ class LibcloudNode(object):
         """
         Return the default username on this provisioner.
         """
-        return self._provisioner.get_default_user(self.distribution)
+        return self._provisioner._get_default_user(self.distribution)
 
     def provision(self, package_source, variants=()):
         """
@@ -126,7 +99,7 @@ class LibcloudNode(object):
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        return self._provisioner.provision(
+        return self._provisioner._provision(
             node=self,
             package_source=package_source,
             distribution=self.distribution,
@@ -144,31 +117,32 @@ class CloudKeyNotFound(Exception):
     """
 
 
+@implementer(IProvisioner)
 @attributes([
     Attribute('_driver'),
     Attribute('_keyname'),
-    Attribute('image_names'),
+    Attribute('_image_names'),
     Attribute('_create_node_arguments'),
-    Attribute('provision'),
-    Attribute('default_size'),
-    Attribute('get_default_user'),
-    Attribute('use_private_addresses', instance_of=bool, default_value=False),
+    Attribute('_provision'),
+    Attribute('_default_size'),
+    Attribute('_get_default_user'),
+    Attribute('_use_private_addresses', instance_of=bool, default_value=False),
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
-    :ivar libcloud.compute.base.NodeDriver driver: The libcloud driver to use.
+    :ivar libcloud.compute.base.NodeDriver _driver: The libcloud driver to use.
     :ivar bytes _keyname: The name of an existing ssh public key configured
         with the cloud provider. The provision step assumes the corresponding
         private key is available from an agent.
-    :ivar dict image_names: Dictionary mapping distributions to cloud image
+    :ivar dict _image_names: Dictionary mapping distributions to cloud image
         names.
     :ivar callable _create_node_arguments: Extra arguments to pass to
         libcloud's ``create_node``.
-    :ivar callable provision: Function to call to provision a node.
-    :ivar str default_size: Name of the default size of node to create.
+    :ivar callable _provision: Function to call to provision a node.
+    :ivar str _default_size: Name of the default size of node to create.
     :ivar callable get_default_user: Function to provide the default
         username on the node.
-    :ivar bool use_private_addresses: Whether the `private_address` of nodes
+    :ivar bool _use_private_addresses: Whether the `private_address` of nodes
         should be populated. This should be specified if the cluster nodes
         use the private address for inter-node communication.
     """
@@ -212,9 +186,9 @@ class LibcloudProvisioner(object):
         :return libcloud.compute.base.Node: The created node.
         """
         if size is None:
-            size = self.default_size
+            size = self._default_size
 
-        image_name = self.image_names[distribution]
+        image_name = self._image_names[distribution]
 
         create_node_arguments = self._create_node_arguments(
             disk_size=disk_size)
@@ -235,7 +209,7 @@ class LibcloudProvisioner(object):
         if isinstance(public_address, unicode):
             public_address = public_address.encode("ascii")
 
-        if self.use_private_addresses:
+        if self._use_private_addresses:
             private_address = node.private_ips[0]
         else:
             private_address = None
