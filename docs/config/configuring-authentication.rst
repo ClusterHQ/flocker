@@ -47,19 +47,52 @@ Steps
 
    It is the cluster certificates which allow you (as the administrator of the cluster) to create new nodes on the cluster securely.
    
-   Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with the name you will use to uniquely identify this cluster:
+   Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``<mycluster>`` with the name you will use to uniquely identify this cluster:
    
    .. prompt:: bash $
 
-      flocker-ca initialize mycluster
+      flocker-ca initialize <mycluster>
 
    You should now find :file:`cluster.key` and :file:`cluster.crt` in your :file:`/etc/flocker` directory
 
    .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
              Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
-			 
-			 The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere. 
+
+             The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere. 
    
+#. Generate your control service certificates.
+
+   Now that you have your cluster certificates you can generate authentication certificates for the control service and each of your Flocker agent nodes.
+   
+   With the following command you will generate the control service certificates (you will create node certificates in a later step).
+   Before running the command though, you will need to note the following:
+   
+   * You should replace ``<hostname>`` with the hostname of your control service node; this hostname should match the hostname you will give to HTTP API clients.
+   * The ``<hostname>`` should be a valid DNS name that HTTPS clients can resolve, as they will use it as part of TLS validation.
+   * It is not recommended as an IP address for the ``<hostname>``, as it can break some HTTPS clients.
+
+   Run the following command from the directory containing your authority certificate (as generated in Step 1):
+   
+   .. prompt:: bash $
+
+      flocker-ca create-control-certificate <hostname>
+	  
+   You should now also find :file:`control-<hostname>.key` and :file:`control-<hostname>.crt` in your :file:`/etc/flocker` directory
+
+#. Copy certificates to the control service node.
+
+   You can now copy the following files to the control service node in directory :file:`/etc/flocker` via a secure communication medium, such as SSH, SCP or SFTP:
+   
+   * :file:`control-<hostname>.crt`
+   * :file:`control-<hostname>.key`
+   * :file:`cluster.crt`
+
+   .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file, which must kept only by the cluster administrator.
+
+
+
+
+
 
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
 
