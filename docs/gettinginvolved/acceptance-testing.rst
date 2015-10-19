@@ -275,11 +275,9 @@ In this case you can copy and paste the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_
 .. code-block:: yaml
 
    managed:
-     addresses: {
-       "10.230.191.121": "54.158.225.35",
-       "10.69.174.223": "54.159.119.143"
-     }
-
+     addresses:
+       - ["10.230.191.121", "54.158.225.35"]
+       - ["10.69.174.223", "54.159.119.143"]
 
 And then run the acceptance tests on those nodes using the following command:
 
