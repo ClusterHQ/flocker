@@ -48,7 +48,7 @@ OS X
 .. prompt:: bash $
 
    brew tap stepanstipl/noop
-   brew install createrepo dpkg
+   brew install createrepo dpkg libffi openssl
 
 Ubuntu
 ******
