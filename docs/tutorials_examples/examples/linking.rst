@@ -22,7 +22,7 @@ The three applications are connected as follows:
 Create the Virtual Machines
 ===========================
 
-You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutmongo>`.
+You can reuse the Virtual Machines defined in the Vagrant configuration for :ref:`the MongoDB tutorial <tutorial-mongo>`.
 If you have since shutdown or destroyed those VMs, boot them up again:
 
 .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto

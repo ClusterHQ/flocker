@@ -29,7 +29,6 @@ from effect import parallel
 from effect.twisted import perform
 
 from admin.vagrant import vagrant_version
-from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -681,17 +680,8 @@ class RunOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
-        if self['flocker-version']:
-            rpm_version = make_rpm_version(self['flocker-version'])
-            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-            if os_version.endswith('.dirty'):
-                os_version = os_version[:-len('.dirty')]
-        else:
-            os_version = None
-
         package_source = PackageSource(
             version=self['flocker-version'],
-            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )

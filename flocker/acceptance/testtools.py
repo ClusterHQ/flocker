@@ -5,11 +5,12 @@ Testing utilities for ``flocker.acceptance``.
 """
 from functools import wraps
 from json import dumps
-from os import environ
+from os import environ, close
 from unittest import SkipTest, skipUnless
 from uuid import uuid4
 from socket import socket
 from contextlib import closing
+from tempfile import mkstemp
 
 import json
 import ssl
@@ -35,6 +36,7 @@ from ..control import (
 )
 
 from ..common import gather_deferreds
+from ..common.runner import download_file
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
@@ -643,6 +645,22 @@ class Cluster(PRecord):
         d = cleanup_leases()
         d.addCallback(cleanup_containers)
         d.addCallback(cleanup_datasets)
+        return d
+
+    def get_file(self, node, path):
+        """
+        Retrieve the contents of a particular file on a particular node.
+
+        :param Node node: The node on which to find the file.
+        :param FilePath path: The path to the file on that node.
+        """
+        fd, name = mkstemp()
+        close(fd)
+        destination = FilePath(name)
+        d = download_file(
+            reactor, b"root", node.public_address, path, destination
+        )
+        d.addCallback(lambda ignored: destination)
         return d
 
 

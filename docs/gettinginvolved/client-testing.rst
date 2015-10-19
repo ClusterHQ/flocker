@@ -7,7 +7,18 @@ Automated Testing
 -----------------
 
 Flocker includes client installation tests and a tool for running them in Docker containers.
-It is called like this:
+
+.. note::
+
+   On OS X, use the system Python together with Homebrew's OpenSSL.
+
+   .. prompt:: bash $
+
+      brew install libffi openssl
+      env LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include" pip install -e .[dev]
+      mkvirtualenv --python=/usr/bin/python new_virtualenv
+
+The client tests are called like this:
 
 .. prompt:: bash $
 

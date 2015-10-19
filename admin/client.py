@@ -13,7 +13,6 @@ import docker
 from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
 
-from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
@@ -120,12 +119,10 @@ class DockerContainer:
 
     def __init__(self, image):
         # Getting Docker to work correctly on any client platform can
-        # be tricky.  It may be necessary to run these tests in a Linux
-        # VM if they don't work on a non-Linux platform.  See FLOC-3044.
+        # be tricky.  See
+        # http://doc-dev.clusterhq.com/gettinginvolved/client-testing.html
+        # for details.
         params = docker.utils.kwargs_from_env(assert_hostname=False)
-        tls_config = params.get('tls')
-        if tls_config:
-            tls_config.verify = False
         self.docker = docker.Client(version='1.16', **params)
         self.image = image
 
@@ -140,7 +137,10 @@ class DockerContainer:
         """
         Start the Docker container.
         """
-        self.tmpdir = tempfile.mkdtemp()
+        # On OS X, shared volumes must be in /Users, so use the home directory.
+        # See 'Mount a host directory as a data volume' at
+        # https://docs.docker.com/userguide/dockervolumes/
+        self.tmpdir = tempfile.mkdtemp(dir=os.path.expanduser('~'))
         try:
             self.docker.pull(self.image)
             container = self.docker.create_container(
@@ -228,17 +228,8 @@ class RunOptions(Options):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
-        if self['flocker-version']:
-            rpm_version = make_rpm_version(self['flocker-version'])
-            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-            if os_version.endswith('.dirty'):
-                os_version = os_version[:-len('.dirty')]
-        else:
-            os_version = None
-
         self['package_source'] = PackageSource(
             version=self['flocker-version'],
-            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )

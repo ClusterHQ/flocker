@@ -12,6 +12,7 @@ You can try the Labs Installer.
 
 * It makes it easy to set up and manage a Flocker cluster.
 * It runs inside a Docker container on your local machine.
+* The :ref:`Flocker plugin for Docker <using-docker-plugin>` is installed.
 
 :ref:`Try the Labs installer <labs-installer>`.
 
@@ -44,3 +45,8 @@ It also describes how to get Vagrant nodes started which already have these serv
    install-client
    install-node
    docker-plugin
+
+.. toctree::
+   :hidden:
+
+   plugin-restrictions
