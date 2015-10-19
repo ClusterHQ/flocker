@@ -2778,7 +2778,10 @@ class DestroyBlockDeviceDatasetTests(
         mount(device, mountpoint)
 
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
+        initial_list_volumes = api._list_volume_calls
         self.successResultOf(run_state_change(change, deployer))
+        list_volumes_calls = api._list_volume_calls - initial_list_volumes
+        self.assertLess(list_volumes_calls, 7)
 
         # It's only possible to destroy a volume that's been detached.  It's
         # only possible to detach a volume that's been unmounted.  If the
@@ -3196,10 +3199,7 @@ class UnmountBlockDeviceTests(
 
         change = UnmountBlockDevice(dataset_id=dataset_id,
                                     blockdevice_id=volume.blockdevice_id)
-        initial_list_volumes = api._list_volume_calls
         self.successResultOf(run_state_change(change, deployer))
-        list_volumes_calls = api._list_volume_calls - initial_list_volumes
-        self.assertLess(list_volumes_calls, 2)
         self.assertNotIn(
             device,
             list(
