@@ -96,12 +96,31 @@ Steps
 
 #. Change the permissions on the folder and key file.
 
-   You will need to change the permissions on the folder, and the :file:`control-service.key` file:
+   You will need to change the permissions on the :file:`/etc/flocker` directory, and the :file:`control-service.key` file:
    
    .. prompt:: bash root@linuxbox:~/#
 
       chmod 0700 /etc/flocker
       chmod 0600 /etc/flocker/control-service.key
+
+#. Generate node authentication certificates.
+
+   .. note:: You will need to run the following command as many times as you have nodes.
+
+			 For example, if you have two nodes in your cluster, you will need to run this command twice.
+			 This step should be repeated on all nodes on the cluster, including the machine running the control service.
+
+   Run the following command in the same directory containing the certificate authority files you generated in the Step 1:
+   
+   .. prompt:: bash $
+
+      flocker-ca create-node-certificate   
+
+   This will create a :file:`.key` and a :file:`.key` file, which will look like :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt` and :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key`.
+   The file names generated in this step will vary from these, as a UUID for a node is generated to uniquely identify it on the cluster and the files produced are named with that UUID. 
+
+
+
 
 
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
