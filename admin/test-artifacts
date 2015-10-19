@@ -16,12 +16,19 @@ from admin.client import (
 
 
 class TestClientPackages(unittest.TestCase):
+    """Client packages can be installed and run correctly."""
 
     def __init__(self, method, package_source=PackageSource()):
         unittest.TestCase.__init__(self, method)
         self.package_source = package_source
 
     def install(self, distribution, get_steps):
+        """Install a package into a Docker container and test.
+
+        :param distribution: The distribution on which to run the tests.
+        :param get_steps: a function to return the steps to install and test
+            packages for a given distribution and package source.
+        """
         steps = get_steps(distribution, self.package_source)
         container = DockerContainer.from_distribution(distribution)
         filename = '{}.out'.format(self.id())
@@ -36,8 +43,9 @@ class TestClientPackages(unittest.TestCase):
         """
         CentOS 7 client packaging works.
 
-        Although CentOS 7 is not a supported client, the client packages
-        get built, so it is installed here to test RPM packaging.
+        Although CentOS 7 is not a supported client, the client packages get
+        built, so it is installed here to test RPM packaging. See FLOC-3243 if
+        you'd like a more direct test for the CentOS node packages.
         """
         self.install('centos-7', get_steps_pkg)
 
