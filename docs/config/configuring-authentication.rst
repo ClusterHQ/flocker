@@ -94,7 +94,14 @@ Steps
    * Rename :file:`control-<hostname>.crt` to :file:`control-service.crt`
    * Rename :file:`control-<hostname>.key` to :file:`control-service.key`
 
+#. Change the permissions on the folder and key file.
 
+   You will need to change the permissions on the folder, and the :file:`control-service.key` file:
+   
+   .. prompt:: bash root@linuxbox:~/#
+
+      chmod 0700 /etc/flocker
+      chmod 0600 /etc/flocker/control-service.key
 
 
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
