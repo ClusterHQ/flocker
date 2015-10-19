@@ -700,11 +700,17 @@ def assert_calculated_changes(
     )
 
 
+# The prefix added to DATASET_IDs for test blockdevice_id's that are generated
+# in _infer_volumes_for_test.
+_BLOCKDEVICE_PREFIX = "blockdevice-"
+
+
 class ScenarioMixin(object):
     """
     A mixin for tests which defines some basic Flocker cluster state.
     """
     DATASET_ID = uuid4()
+    BLOCKDEVICE_ID = _BLOCKDEVICE_PREFIX + unicode(DATASET_ID)
     NODE = u"192.0.2.1"
     NODE_UUID = uuid4()
 
@@ -786,12 +792,10 @@ def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
         cluster_state that is only suitable for use in tests that do not use
         the ``IBlockDeviceAPI`` to set up the cluster_state.
     """
-    BLOCKDEVICE_PREFIX = "blockdevice-"
-
     def create_test_blockdevice_volume_for_dataset_id(dataset_id,
                                                       attached_to=None):
         return BlockDeviceVolume(
-            blockdevice_id=BLOCKDEVICE_PREFIX + dataset_id,
+            blockdevice_id=_BLOCKDEVICE_PREFIX + dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE,
             attached_to=attached_to,
             dataset_id=UUID(dataset_id))
@@ -1261,7 +1265,8 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, node_state, node_config, set(),
             in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ])
         )
 
@@ -1327,7 +1332,8 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         assert_calculated_changes(
             self, node_state, node_config, set(),
             in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ]), leases=leases,
         )
 
@@ -3136,7 +3142,8 @@ class MountBlockDeviceTests(
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
         record_type=UnmountBlockDevice,
-        kwargs=dict(dataset_id=uuid4()),
+        kwargs=dict(dataset_id=uuid4(),
+                    blockdevice_id=u'blockdevice_id_1'),
         expected_defaults=dict(),
     )
 ):
@@ -3148,8 +3155,8 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4(), blockdevice_id=u'blockdevice_id_1'),
+        dict(dataset_id=uuid4(), blockdevice_id=u'blockdevice_id_2'),
     )
 ):
     """
@@ -3187,7 +3194,8 @@ class UnmountBlockDeviceTests(
         make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
-        change = UnmountBlockDevice(dataset_id=dataset_id)
+        change = UnmountBlockDevice(dataset_id=dataset_id,
+                                    blockdevice_id=volume.blockdevice_id)
         initial_list_volumes = api._list_volume_calls
         self.successResultOf(run_state_change(change, deployer))
         list_volumes_calls = api._list_volume_calls - initial_list_volumes

@@ -214,7 +214,7 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
 
 UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
     u"agent:blockdevice:unmount:details",
-    [VOLUME, BLOCK_DEVICE_PATH],
+    [BLOCK_DEVICE_ID, BLOCK_DEVICE_PATH],
     u"The device file for a block-device-backed dataset has been discovered."
 )
 
@@ -372,7 +372,8 @@ class DestroyBlockDeviceDataset(PRecord):
         return run_state_change(
             sequentially(
                 changes=[
-                    UnmountBlockDevice(dataset_id=self.dataset_id),
+                    UnmountBlockDevice(dataset_id=self.dataset_id,
+                                       blockdevice_id=volume.blockdevice_id),
                     DetachVolume(dataset_id=self.dataset_id),
                     DestroyVolume(volume=volume),
                 ]
@@ -539,8 +540,11 @@ class UnmountBlockDevice(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to unmount.
+    :ivar unicode blockdevice_id: The unique identifier of the mounted
+        block_device.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
 
     @property
     def eliot_action(self):
@@ -553,28 +557,17 @@ class UnmountBlockDevice(PRecord):
         block device mounted.
         """
         api = deployer.async_block_device_api
-        listing = api.list_volumes()
-        listing.addCallback(
-            _blockdevice_volume_from_datasetid, self.dataset_id
-        )
+        deferred_device_path = api.get_device_path(self.blockdevice_id)
 
-        def found(volume):
-            if volume is None:
-                # It was not actually found.
-                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-            d = api.get_device_path(volume.blockdevice_id)
-            d.addCallback(lambda device: (volume, device))
-            return d
-        listing.addCallback(found)
-
-        def got_device((volume, device)):
+        def got_device(device):
             UNMOUNT_BLOCK_DEVICE_DETAILS(
-                volume=volume, block_device_path=device
+                block_device_id=self.blockdevice_id,
+                block_device_path=device
             ).write(_logger)
             # This should be asynchronous. FLOC-1797
             check_output([b"umount", device.path])
-        listing.addCallback(got_device)
-        return listing
+        deferred_device_path.addCallback(got_device)
+        return deferred_device_path
 
 
 @implementer(IStateChange)
@@ -1666,6 +1659,7 @@ class BlockDeviceDeployer(PRecord):
         ))
         unmounts = list(self._calculate_unmounts(
             local_node_state.paths, configured_manifestations,
+            local_state.volumes
         ))
 
         # XXX prevent the configuration of unsized datasets on blockdevice
@@ -1722,12 +1716,14 @@ class BlockDeviceDeployer(PRecord):
                     mountpoint=path,
                 )
 
-    def _calculate_unmounts(self, paths, configured):
+    def _calculate_unmounts(self, paths, configured, volumes):
         """
         :param PMap paths: The paths at which datasets' filesystems are mounted
             on this node.  This is the same as ``NodeState.paths``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
+        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
+            known to exist in the cluster.
 
         :return: A generator of ``UnmountBlockDevice`` instances, one for each
             dataset which exists, is attached to this node, has its filesystem
@@ -1735,7 +1731,11 @@ class BlockDeviceDeployer(PRecord):
         """
         for mounted_dataset_id in paths:
             if mounted_dataset_id not in configured:
-                yield UnmountBlockDevice(dataset_id=UUID(mounted_dataset_id))
+                dataset_id = UUID(mounted_dataset_id)
+                volume = _blockdevice_volume_from_datasetid(volumes,
+                                                            dataset_id)
+                yield UnmountBlockDevice(dataset_id=dataset_id,
+                                         blockdevice_id=volume.blockdevice_id)
 
     def _calculate_detaches(self, devices, paths, configured):
         """
