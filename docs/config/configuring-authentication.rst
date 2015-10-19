@@ -21,7 +21,7 @@ Summary
 Communication between the different parts of your cluster is secured and authenticated via TLS.
 This guide will show you how to generate and distribute the following:
 
-* A cluster certificate to authorise you as the cluster administrator to create new node certificates. 
+* A cluster certificate to authorize you as the cluster administrator to create new node certificates. 
 * A control service certificate and key file, to be copied to the machine running your control service.
   The control service certificate and key file are used to identify the control service node to any Flocker agent nodes in the cluster.
 * A node certificate and key file for each of your Flocker agent nodes, which identifies the node to the control service. 
