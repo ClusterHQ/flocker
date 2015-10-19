@@ -89,7 +89,10 @@ Steps
 
    .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file, which must kept only by the cluster administrator.
 
+#. Rename the files.
 
+   * Rename :file:`control-<hostname>.crt` to :file:`control-service.crt`
+   * Rename :file:`control-<hostname>.key` to :file:`control-service.key`
 
 
 
