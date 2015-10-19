@@ -87,6 +87,9 @@ LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
 
+ARBITRARY_BLOCKDEVICE_ID = u'blockdevice_id_1'
+ARBITRARY_BLOCKDEVICE_ID_2 = u'blockdevice_id_1'
+
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
 _logger = Logger()
@@ -1659,7 +1662,10 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         assert_calculated_changes(
             self, node_state, node_config,
             {Dataset(dataset_id=unicode(self.DATASET_ID))},
-            in_parallel(changes=[DetachVolume(dataset_id=self.DATASET_ID)])
+            in_parallel(changes=[
+                DetachVolume(dataset_id=self.DATASET_ID,
+                             blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
         )
 
 
@@ -3146,7 +3152,7 @@ class UnmountBlockDeviceInitTests(
     make_with_init_tests(
         record_type=UnmountBlockDevice,
         kwargs=dict(dataset_id=uuid4(),
-                    blockdevice_id=u'blockdevice_id_1'),
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         expected_defaults=dict(),
     )
 ):
@@ -3158,8 +3164,8 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(dataset_id=uuid4(), blockdevice_id=u'blockdevice_id_1'),
-        dict(dataset_id=uuid4(), blockdevice_id=u'blockdevice_id_2'),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3213,7 +3219,8 @@ class UnmountBlockDeviceTests(
 class DetachVolumeInitTests(
     make_with_init_tests(
         record_type=DetachVolume,
-        kwargs=dict(dataset_id=uuid4()),
+        kwargs=dict(dataset_id=uuid4(),
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         expected_defaults=dict(),
     )
 ):
@@ -3225,8 +3232,8 @@ class DetachVolumeInitTests(
 class DetachVolumeTests(
     make_istatechange_tests(
         DetachVolume,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3248,7 +3255,8 @@ class DetachVolumeTests(
             attach_to=api.compute_instance_id(),
         )
 
-        change = DetachVolume(dataset_id=dataset_id)
+        change = DetachVolume(dataset_id=dataset_id,
+                              blockdevice_id=volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
 
         [listed_volume] = api.list_volumes()
