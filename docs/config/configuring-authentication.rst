@@ -9,14 +9,26 @@ Prerequisites
 
 Before you begin to configure authentication for your cluster, you will need to have completed the following:
 
-* Installed the `flocker-cli` on your local machine.
-* Installed `flocker-node` on each of your nodes.
+* Installed the ``flocker-cli`` on your local machine.
+  For more information, see :ref:`installing-flocker-cli`.
+* Installed ``flocker-node`` on each of your nodes.
+  For more information, see :ref:`installing-flocker-node`.
 * Chosen on which of your nodes you want to host the Flocker control service.
 
 Summary
 =======
 
 Communication between the different parts of your cluster is secured and authenticated via TLS.
+This guide will show you how to generate and distribute the following:
+
+* A cluster certificate to authorise you as the cluster administrator to create new node certificates. 
+* A control service certificate and key file, to be copied to the machine running your control service.
+  The control service certificate and key file are used to identify the control service node to any Flocker agent nodes in the cluster.
+* A node certificate and key file for each of your Flocker agent nodes, which identifies the node to the control service. 
+* An API user certificate, which is used to identify yourself when sending instructions to the control service (by any method).
+
+.. XXX Add a diagram to illustrate the distribution of certificates across the cluster. See FLOC 3085
+
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
 
 #. Once you have installed the ``flocker-node`` package, you will need to generate:
