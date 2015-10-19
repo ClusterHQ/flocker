@@ -29,6 +29,38 @@ This guide will show you how to generate and distribute the following:
 
 .. XXX Add a diagram to illustrate the distribution of certificates across the cluster. See FLOC 3085
 
+Steps
+=====
+
+#. Create a directory for your certificates on all nodes.
+
+   First you need to create a :file:`/etc/flocker` directory on each node. 
+   This includes the control service node, and on all the Flocker agent nodes in your cluster.
+   
+   .. prompt:: bash root@linuxbox:~/#
+
+      mkdir /etc/flocker
+   
+   This directory is where you will place your certificates. 
+
+#. Generate your cluster certificates. 
+
+   It is the cluster certificates which allow you (as the administrator of the cluster) to create new nodes on the cluster securely.
+   
+   Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with the name you will use to uniquely identify this cluster:
+   
+   .. prompt:: bash $
+
+      flocker-ca initialize mycluster
+
+   You should now find :file:`cluster.key` and :file:`cluster.crt` in your :file:`/etc/flocker` directory
+
+   .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
+             Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
+			 
+			 The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere. 
+   
+
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
 
 #. Once you have installed the ``flocker-node`` package, you will need to generate:
@@ -49,7 +81,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
    You will find the files :file:`cluster.key` and :file:`cluster.crt` have been created in your working directory.
 
-#. The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere.
+#. 
 
    .. warning:: The cluster administrator needs this file to generate new control service, node and API certificates.
                 The security of your cluster depends on this file remaining private.
