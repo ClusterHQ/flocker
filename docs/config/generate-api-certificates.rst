@@ -29,6 +29,7 @@ Generating an API User Certificate
 
 			 If you intend on using ``flocker-deploy``, you will need to rename your files to :file:`user.crt` and :file:`user.key`.
 
+
 Using an API Certificate to Authenticate
 ========================================
 
