@@ -132,6 +132,20 @@ Steps
    * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt` to :file:`node.crt`
    * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key` to :file:`node.key`
 
+#. Change the permissions on the folder and key file.
+
+   You will need to change the permissions on the :file:`/etc/flocker` directory, and the :file:`node.key` file:
+   
+   .. prompt:: bash root@linuxbox:~/#
+
+      chmod 0700 /etc/flocker
+      chmod 0600 /etc/flocker/node.key
+
+#. Repeat the node authentication steps for each node.
+
+   If you haven't done this already, you'll need to repeat steps 7, 8, 9 and 10 for each node (including the control service node if it is acting as a Flocker agent node)
+
+
 
 
 
