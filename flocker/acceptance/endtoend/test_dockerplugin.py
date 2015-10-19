@@ -4,6 +4,8 @@
 Tests for the Flocker Docker plugin.
 """
 
+from requests.exceptions import ReadTimeout
+
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 
@@ -94,10 +96,19 @@ class DockerPluginTests(TestCase):
             ["python", "-c", script.getContent()] + list(script_arguments),
             volume_driver="flocker", **docker_arguments)
         cid = container["Id"]
-        client.start(container=cid)
         if cleanup:
             self.addCleanup(client.remove_container, cid, force=True)
-        return cid
+
+        def start_python_container():
+            try:
+                client.start(container=cid)
+                return True
+            except ReadTimeout:
+                return False
+
+        d = loop_until(start_python_container)
+        d.addCallback(lambda _: cid)
+        return d
 
     @require_cluster(1)
     def test_volume_persists_restart(self, cluster):
@@ -113,7 +124,7 @@ class DockerPluginTests(TestCase):
         host_port = find_free_port()[1]
 
         volume_name = random_name(self)
-        self.run_python_container(
+        d = self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
@@ -126,8 +137,9 @@ class DockerPluginTests(TestCase):
             [u"/data"])
 
         # write some data to it via POST
-        d = post_http_server(self, node.public_address, host_port,
-                             {"data": data})
+        d.addCallback(lambda _: post_http_server(
+            self, node.public_address, host_port, {"data": data})
+        )
         # assert the data has been written
         d.addCallback(lambda _: assert_http_server(
             self, node.public_address, host_port, expected_response=data))
@@ -174,7 +186,7 @@ class DockerPluginTests(TestCase):
         host_port = find_free_port()[1]
 
         volume_name = random_name(self)
-        self.run_python_container(
+        d = self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
@@ -186,8 +198,9 @@ class DockerPluginTests(TestCase):
             # and we want it to specifically use the volume:
             [u"/data"])
 
-        d = post_http_server(self, node.public_address, host_port,
-                             {"data": data})
+        d.addCallback(lambda _: post_http_server(
+            self, node.public_address, host_port, {"data": data})
+        )
         d.addCallback(lambda _: assert_http_server(
             self, node.public_address, host_port, expected_response=data))
         return d
@@ -208,29 +221,32 @@ class DockerPluginTests(TestCase):
         http_port = 8080
         host_port = find_free_port()[1]
         volume_name = random_name(self)
+        container_id = []
         container_args = {
             "host_config": create_host_config(
                 binds=["{}:/data".format(volume_name)],
                 port_bindings={http_port: host_port}),
             "ports": [http_port]}
 
-        cid = self.run_python_container(
+        d = self.run_python_container(
             cluster, origin_node.public_address, container_args,
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
             [u"/data"], cleanup=False)
 
+        d.addCallback(lambda cid: container_id.append(cid))
         # Post to container on origin node:
-        d = post_http_server(self, origin_node.public_address, host_port,
-                             {"data": data})
+        d.addCallback(lambda _: post_http_server(
+            self, origin_node.public_address, host_port, {"data": data})
+        )
 
         def posted(_):
             # Shutdown original container:
             client = get_docker_client(cluster, origin_node.public_address)
-            client.remove_container(cid, force=True)
+            client.remove_container(container_id[0], force=True)
             # Start container on destination node with same volume:
-            self.run_python_container(
+            return self.run_python_container(
                 cluster, destination_node.public_address, container_args,
                 SCRIPTS.child(b"datahttp.py"), [u"/data"])
         d.addCallback(posted)
