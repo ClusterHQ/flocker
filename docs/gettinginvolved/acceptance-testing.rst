@@ -207,12 +207,7 @@ You can also run acceptance tests on existing "managed" nodes.
 
 This is a quicker way to run the acceptance tests as it avoids the slow process of provisioning new acceptance testing nodes.
 
-The ``managed`` provider:
-
-* re-installs the ``clusterhq-flocker-node`` and ``clusterhq-python-flocker`` packages,
-* creates and distributes new certificates and keys to all the nodes,
-* restarts the ``flocker-control`` on the first ``managed`` node, and
-* restarts the ``flocker-*-agent`` processes on all the nodes.
+The ``managed`` provider re-installs and restarts node related ``clusterhq-*`` packages and distributes new certificates and keys to all the nodes.
 
 This means that the ``managed`` provider can be used to quickly test different package versions and packages built from different branches.
 
