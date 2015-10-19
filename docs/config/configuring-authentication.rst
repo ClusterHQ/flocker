@@ -117,8 +117,20 @@ Steps
       flocker-ca create-node-certificate   
 
    This will create a :file:`.key` and a :file:`.key` file, which will look like :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt` and :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key`.
-   The file names generated in this step will vary from these, as a UUID for a node is generated to uniquely identify it on the cluster and the files produced are named with that UUID. 
+   The actual file names you generate in this step will vary from these, as a UUID for a node is generated to uniquely identify it on the cluster and the files produced are named with that UUID. 
 
+#. Copy certificates onto the Flocker agent node.
+
+   You can now copy the following files to the Flocker agent node in directory :file:`/etc/flocker` via a secure communication medium, such as SSH, SCP or SFTP:
+   
+   * Your version of :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`
+   * Your version of :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key`
+   * :file:`cluster.crt`
+
+#. Rename the files.
+
+   * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt` to :file:`node.crt`
+   * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key` to :file:`node.key`
 
 
 
