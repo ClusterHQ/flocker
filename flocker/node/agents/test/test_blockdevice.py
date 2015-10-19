@@ -3188,7 +3188,10 @@ class UnmountBlockDeviceTests(
         check_output([b"mount", device.path, mountpoint.path])
 
         change = UnmountBlockDevice(dataset_id=dataset_id)
+        initial_list_volumes = api._list_volume_calls
         self.successResultOf(run_state_change(change, deployer))
+        list_volumes_calls = api._list_volume_calls - initial_list_volumes
+        self.assertLess(list_volumes_calls, 2)
         self.assertNotIn(
             device,
             list(
