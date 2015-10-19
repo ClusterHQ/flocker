@@ -4,9 +4,17 @@
 Configuring Cluster Authentication
 ==================================
 
-.. note:: 
-	The following steps describe how to configure authentication for your cluster.
-	These can only be completed once you have installed the Flocker client and node services, as described in the previous :ref:`Installing Flocker <installing-flocker>` section.
+Prerequisites
+=============
+
+Before you begin to configure authentication for your cluster, you will need to have completed the following:
+
+* Installed the `flocker-cli` on your local machine.
+* Installed `flocker-node` on each of your nodes.
+* Chosen on which of your nodes you want to host the Flocker control service.
+
+Summary
+=======
 
 Communication between the different parts of your cluster is secured and authenticated via TLS.
 The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
