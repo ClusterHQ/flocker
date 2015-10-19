@@ -267,13 +267,13 @@ Release
 
    The following command tests that the client packages can be installed on a number of platforms.
    This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
+   This test can take about 30 minutes, especially if Docker images need to be pulled.
 
    .. prompt:: bash (flocker-0.1.2)$
 
-      admin/test-artifacts --flocker-version ${TAG}
+      admin/test-artifacts
 
-   If an error occurs for a single pip installation, create a JIRA issue to investigate it.
-   If an error occurs for all pip installations, or if an error occurs for the RPM or DEB packages, create a fast-track JIRA issue to investigate the problem.
+   If an error occurs for any tests, create a JIRA issue and raise it with the team.
    In any case, continue with the release.
 
 #. Check that the documentation is set up correctly:
