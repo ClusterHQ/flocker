@@ -40,10 +40,9 @@ _usernames = {
 
 
 IMAGE_NAMES = {
-    'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
-                '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
-    'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20150325',  # noqa
-    'ubuntu-15.04': 'ubuntu/images/hvm-ssd/ubuntu-vivid-15.04-amd64-server-20150422',  # noqa
+    'centos-7': 'CentOS Linux 7 x86_64 HVM EBS 20150928_01-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-69327e0c.2',  # noqa
+    'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20151019',  # noqa
+    'ubuntu-15.04': 'ubuntu/images/hvm-ssd/ubuntu-vivid-15.04-amd64-server-20151015',  # noqa
 }
 
 
