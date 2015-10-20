@@ -6,7 +6,7 @@ Generating an API User Certificate
 
 #. Generate an API user certificate.
 
-   Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster. For more information, see <
+   Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster. For more information, see :ref:`authentication`.
 
    Replace ``<username>`` with a unique username for an API user.
 
