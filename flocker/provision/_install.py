@@ -843,7 +843,6 @@ def if_firewall_available(distribution, commands):
     # Only run the commands if the firewall command is available.
     return run_from_args([b'which', firewall_command]).on(
         success=lambda result: commands,
-        # XXX: Is this the exit code of the SSH command or the remote command?
         error=catch_exit_code(1),
     )
 
