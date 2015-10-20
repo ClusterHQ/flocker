@@ -4,173 +4,164 @@
 Configuring Cluster Authentication
 ==================================
 
-.. note:: 
-	The following steps describe how to configure authentication for your cluster.
-	These can only be completed once you have installed the Flocker client and node services, as described in the previous :ref:`Installing Flocker <installing-flocker>` section.
+Prerequisites
+=============
+
+Before you begin to configure authentication for your cluster, you will need to have completed the following:
+
+* Installed the ``flocker-cli`` on your local machine.
+  For more information, see :ref:`installing-flocker-cli`.
+* Installed ``flocker-node`` on each of your nodes.
+  For more information, see :ref:`installing-flocker-node`.
+* Chosen on which of your nodes you want to host the Flocker control service.
+
+Summary
+=======
 
 Communication between the different parts of your cluster is secured and authenticated via TLS.
-The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
+This guide will show you how to generate and distribute the following:
 
-#. Once you have installed the ``flocker-node`` package, you will need to generate:
+* A cluster certificate to authorize you as the cluster administrator to create new node certificates. 
+* A control service certificate and key file, to be copied to the machine running your control service.
+  The control service certificate and key file are used to identify the control service node to any Flocker agent nodes in the cluster.
+* A node certificate and key file for each of your Flocker agent nodes, which identifies the node to the control service. 
 
-   - A control service certificate and key file, to be copied over to the machine running your :ref:`control service <architecture>`.
-   - A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
+.. XXX Add a diagram to illustrate the distribution of certificates across the cluster. See FLOC 3085
 
-#. Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
+Steps
+=====
 
-#. Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
+#. Create a directory for your certificates on all nodes.
 
+   First you need to create a :file:`/etc/flocker` directory on each node. 
+   This includes the control service node, and on all the Flocker agent nodes in your cluster.
+   
+   .. prompt:: bash root@linuxbox:~/#
+
+      mkdir /etc/flocker
+   
+   This directory is where you will place your certificates. 
+
+#. Generate your cluster certificates. 
+
+   It is the cluster certificates which allow you (as the administrator of the cluster) to create new nodes on the cluster securely.
+   
+   Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``<mycluster>`` with the name you will use to uniquely identify this cluster:
+   
    .. prompt:: bash $
 
-      flocker-ca initialize mycluster
+      flocker-ca initialize <mycluster>
+
+   You should now find :file:`cluster.key` and :file:`cluster.crt` in your working directory.
 
    .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
              Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
 
-   You will find the files :file:`cluster.key` and :file:`cluster.crt` have been created in your working directory.
+             The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere. 
+   
+#. Generate your control service certificates.
 
-#. The file :file:`cluster.key` should be kept only by the cluster administrator; it does not need to be copied anywhere.
+   Now that you have your cluster certificates you can generate authentication certificates for the control service and each of your Flocker agent nodes.
+   
+   With the following command you will generate the control service certificates (you will create node certificates in a later step).
+   Before running the command though, you will need to note the following:
+   
+   * You should replace ``<hostname>`` with the hostname of your control service node; this hostname should match the hostname you will give to HTTP API clients.
+   * The ``<hostname>`` should be a valid DNS name that HTTPS clients can resolve, as they will use it as part of TLS validation.
+   * It is not recommended as an IP address for the ``<hostname>``, as it can break some HTTPS clients.
 
-   .. warning:: The cluster administrator needs this file to generate new control service, node and API certificates.
-                The security of your cluster depends on this file remaining private.
-                Do not lose the cluster private key file, or allow a copy to be obtained by any person other than the authorized cluster administrator.
+   Run the following command from the directory containing your authority certificate (as generated in Step 2):
+   
+   .. prompt:: bash $
 
-#. You are now able to generate authentication certificates for the control service and each of your nodes.
-   To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step:
+      flocker-ca create-control-certificate <hostname>
 
-   - Replace ``example.org`` with the hostname of your control service node; this hostname should match the hostname you will give to HTTP API clients.
-   - It should be a valid DNS name that HTTPS clients can resolve since they will use it as part of TLS validation.
-   - Using an IP address is not recommended as it may break some HTTPS clients.
+   You should now also find :file:`control-<hostname>.key` and :file:`control-<hostname>.crt` in your working directory.
 
-     .. prompt:: bash $
+#. Copy certificates to the control service node.
 
-        flocker-ca create-control-certificate example.org
+   You can now copy the following files to the :file:`/etc/flocker` directory on the control service node via a secure communication medium, such as SSH, SCP or SFTP:
+   
+   * :file:`control-<hostname>.crt`
+   * :file:`control-<hostname>.key`
+   * :file:`cluster.crt` (as created by the `flocker-ca initialize` step)
 
-#. At this point you will need to create a :file:`/etc/flocker` directory on each node:
+   For example:
+   
+   .. prompt:: bash $
+   
+      scp control-<hostname>.crt root@<hostname>:/etc/flocker/
+      scp control-<hostname>.key root@<hostname>:/etc/flocker/
+      scp cluster.crt root@<hostname>:/etc/flocker/
+   
+   .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file, which must kept only by the cluster administrator.
 
-   .. prompt:: bash root@linuxbox:~/#
+#. Rename the files that are now on the control service node.
 
-      mkdir /etc/flocker
+   * Rename :file:`control-<hostname>.crt` to :file:`control-service.crt`
+   * Rename :file:`control-<hostname>.key` to :file:`control-service.key`
 
-#. You will need to copy both :file:`control-example.org.crt` and :file:`control-example.org.key` over to the node that is running your control service, to the directory :file:`/etc/flocker` and rename the files to :file:`control-service.crt` and :file:`control-service.key` respectively.
-   You should also copy the cluster's public certificate, the :file:`cluster.crt` file.
+#. Change the permissions on the control service node folder and key file.
 
-#. On the server, the :file:`/etc/flocker` directory and private key file should be set to secure permissions via :command:`chmod`:
-
+   You will need to change the permissions on the :file:`/etc/flocker` directory, and the :file:`control-service.key` file:
+   
    .. prompt:: bash root@linuxbox:~/#
 
       chmod 0700 /etc/flocker
       chmod 0600 /etc/flocker/control-service.key
 
-   You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
+#. Generate node authentication certificates.
 
-   .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file; this must kept only by the cluster administrator.
+   .. note:: You will need to run the following command as many times as you have nodes.
 
-#. You will also need to generate authentication certificates for each of your nodes.
-   Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
+			 For example, if you have two nodes in your cluster, you will need to run this command twice.
+			 This step should be repeated on all nodes on the cluster, including the machine running the control service.
 
-   This step should be followed for all nodes on the cluster, as well as the machine running the control service.
-   Run the command in the same directory containing the certificate authority files you generated in the first step.
-
+   Run the following command in the same directory containing the certificate authority files you generated in the Step 2:
+   
    .. prompt:: bash $
 
       flocker-ca create-node-certificate
 
-   This creates :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`. Copy it over to :file:`/etc/flocker/node.crt` on your node machine, and make sure to chmod 0600 it.
+   This will create a :file:`.crt` file and a :file:`.key` file, which will look like:
+   
+   * :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`       
+   * :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key`
+   
+   The actual file names you generate in this step will vary from these, as a UUID for a node is generated to uniquely identify it on the cluster and the files produced are named with that UUID. 
 
-   The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
+#. Copy certificates onto the Flocker agent node.
 
-#. As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the :file:`cluster.crt` certificate.
+   You can now copy the following files to the Flocker agent node in directory :file:`/etc/flocker` via a secure communication medium, such as SSH, SCP or SFTP:
+   
+   * Your version of :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`
+   * Your version of :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key`
+   * :file:`cluster.crt` (as created by the `flocker-ca initialize` step)
 
-   - Copy the generated files to :file:`/etc/flocker` on the target node and name them :file:`node.crt` and :file:`node.key`.
-   - Perform the same :command:`chmod 600` commands on :file:`node.key` as you did for the control service in the instructions above.
-   - The :file:`/etc/flocker` directory should be set to ``chmod 700``.
+   For example:
+   
+   .. prompt:: bash $
+   
+      scp <yourUUID>.crt root@<hostname>:/etc/flocker/
+      scp <yourUUID>.key root@<hostname>:/etc/flocker/
+      scp cluster.crt root@<hostname>:/etc/flocker/
 
-You should now have :file:`cluster.crt`, :file:`node.crt`, and :file:`node.key` on each of your agent nodes, and :file:`cluster.crt`, :file:`control-service.crt`, and :file:`control-service.key` on your control node.
+#. Rename the files on the Flocker agent node.
 
-Before you can use Flocker's API you will need to generate a client certificate.
+   * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt` to :file:`node.crt`
+   * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key` to :file:`node.key`
 
-The Flocker REST API also uses TLS to secure and authenticate requests.
-This ensures an API request is both encrypted, and verified to have come from an authorized user, while the corresponding response is verified to have come from the genuine cluster control service.
+#. Change the permissions on the folder and key file.
 
-Certificates are used for both client and server authentication, entirely replacing the use of usernames and passwords commonly used in HTTPS.
+   You will need to change the permissions on the :file:`/etc/flocker` directory, and the :file:`node.key` file:
+   
+   .. prompt:: bash root@linuxbox:~/#
 
-Therefore to grant a user access to your cluster's REST API, you will need to use the ``flocker-ca`` tool, installed as part of the ``flocker-cli`` package, to generate a certificate and private key that is then given to the API end user.
-To give a user access to a cluster's REST API, use the ``flocker-ca`` tool to generate a certificate and private key for the user.
-The ``flocker-ca`` tool is installed as part of the flocker-cli package.
+      chmod 0700 /etc/flocker
+      chmod 0600 /etc/flocker/node.key
 
-.. _generate-api:
+#. Repeat the node authentication steps for each node.
 
-Generating an API User Certificate
-==================================
+   If you haven't done this already, you'll need to repeat steps 7, 8, 9 and 10 for each node (including the control service node if it is acting as a Flocker agent node).
 
-The CLI package includes the ``flocker-ca`` program which is used to generate certificate and key files.
-
-.. note:: You can run ``flocker-ca --help`` for a full list of available commands.
-
-For API user certificates, run the ``flocker-ca create-api-certificate`` command from the directory which contains the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
-
-Run ``flocker-ca create-api-certificate <username>`` where ``<username>`` is a unique username for an API user:
-
-.. prompt:: bash $ auto
-
-   $ flocker-ca create-api-certificate allison
-   Created allison.crt and allison.key. You can now give these to your API end user so they can access the control service API.
-
-.. note:: In this command ``<username>`` is a unique username for an API user.
-   Please note though that ``flocker-deploy`` requires these files to be named :file:`user.crt` and :file:`user.key`.
-   If you intend on using ``flocker-deploy``, you will need to rename your files to :file:`user.crt` and :file:`user.key`.
-
-The two files generated will correspond to the username you specified in the command, in this example :file:`allison.crt` and :file:`allison.key`.
-
-You should securely provide a copy of these files to the API end user, as well as a copy of the cluster's public certificate, the :file:`cluster.crt` file.
-
-Using an API Certificate to Authenticate
-========================================
-
-Once in possession of an API user certificate and the cluster certificate an end user must authenticate with those certificates in every request to the cluster REST API.
-The cluster certificate ensures the user is connecting to the genuine API of their cluster.
-The client certificate allows the API server to ensure the request is from a genuine, authorized user.
-
-The following is an example of an authenticated request to create a new container on a cluster, using ``cURL``.
-In this example, ``172.16.255.250`` represents the DNS IP address of the control service.
-If you used a DNS name when creating the control certificate, then replace the IP address with the DNS name.
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 1
-
-OS X
-----
-
-Make sure you know the common name of the client certificate you will use.
-If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
-If you're not sure what the username is, you can find the common name like this:
-
-.. prompt:: bash $ auto
-
-    $ openssl x509 -in user.crt -noout -subject
-    subject=/OU=164b81dd-7e5d-4570-99c7-8baf1ffb49d3/CN=user-allison
-
-In this example, ``user-allison`` is the common name.
-Import the client certificate into the ``Keychain`` and then refer to it by its common name:
-
-.. prompt:: bash $ auto
-
-    $ openssl pkcs12 -export -in user.crt -inkey user.key -out user.p12
-	Enter Export Password:
-	Verifying - Enter Export Password:
-    $ security import user.p12 -k ~/Library/Keychains/login.keychain
-    $ curl --cacert $PWD/cluster.crt --cert "<common name>" \
-         https://172.16.255.250:4523/v1/configuration/containers
-
-Linux
------
-
-.. prompt:: bash $
-
-    curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
-         https://172.16.255.250:4523/v1/configuration/containers
-
-You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+The next topic is :ref:`generate-api`, which is used to identify yourself when sending instructions to the control service (by any method).

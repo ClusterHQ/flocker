@@ -84,6 +84,12 @@ Make sure Homebrew has no issues:
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
+If you have a previous version of Flocker tapped, you can run the following to remove it:
+
+.. prompt:: bash alice@mercury:~$
+
+   brew uninstall flocker-<old version>
+
 Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
 .. task:: test_homebrew flocker-|latest-installable|
