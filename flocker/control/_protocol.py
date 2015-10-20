@@ -560,7 +560,7 @@ class ControlAMPService(Service):
                 for connection in elided_update:
                     AGENT_UPDATE_ELIDED(agent=connection).write()
 
-                for conection in delayed_update:
+                for connection in delayed_update:
                     self._delayed_update_connection(connection)
 
     def _update_connection(self, connection, configuration, state):
