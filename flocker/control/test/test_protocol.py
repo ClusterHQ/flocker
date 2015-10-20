@@ -749,6 +749,52 @@ class ControlAMPServiceTests(ControlTestCase):
         delayed_server = DelayedAMPClient(server)
         # Send first update
         service.connected(delayed_server)
+
+        first_agent_desired = agent.desired
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=configuration,
+                third=modified_configuration,
+            ),
+            dict(
+                first=first_agent_desired,
+                second=second_agent_desired,
+                third=third_agent_desired,
+            ),
+        )
+
+    def test_typo(self):
+        """
+        A second configuration change is only transmitted after acknowledgement
+        of the first configuration change is received.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        second_agent = FakeAgent()
+        second_client = AgentAMP(Clock(), second_agent)
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        second_server = LoopbackAMPClient(second_client.locator)
+        # Send first update
+        service.connected(delayed_server)
+        service.connected(second_server)
+
         first_agent_desired = agent.desired
 
         # Send second update
