@@ -52,6 +52,8 @@ Steps
 
       flocker-ca initialize <mycluster>
 
+   You should now find :file:`cluster.key` and :file:`cluster.crt` in your working directory.
+
    .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
              Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
 
@@ -73,8 +75,8 @@ Steps
    .. prompt:: bash $
 
       flocker-ca create-control-certificate <hostname>
-	  
-   You should now also find :file:`control-<hostname>.key` and :file:`control-<hostname>.crt` in your :file:`/etc/flocker` directory
+
+   You should now also find :file:`control-<hostname>.key` and :file:`control-<hostname>.crt` in your working directory.
 
 #. Copy certificates to the control service node.
 
