@@ -7,24 +7,21 @@ import os
 import shutil
 import sys
 import tempfile
-import yaml
 
 from characteristic import attributes
 import docker
 from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
-from twisted.python.filepath import FilePath
 
-import flocker
 from flocker.provision import PackageSource
 from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
     ensure_minimal_setup,
     task_cli_pkg_install,
-    task_cli_pkg_test,
+    cli_pkg_test,
     task_cli_pip_prereqs,
     task_cli_pip_install,
-    task_cli_pip_test,
+    cli_pip_test,
 )
 from flocker.provision._ssh import (
     Run, Sudo, Put, Comment, perform_sudo, perform_put)
@@ -42,8 +39,14 @@ DOCKER_IMAGES = {
     'ubuntu-15.04': DockerImage(image='ubuntu:15.04', package_manager='apt'),
 }
 
+# No distribution is officially supported using pip, but the code can
+# test the pip instructions using any of the images.
 PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
-PACKAGED_CLIENT_DISTRIBUTIONS = ('ubuntu-14.04', 'ubuntu-15.04')
+
+# Some distributions have packages created for them.
+# Although CentOS 7 is not a supported client distribution, the client
+# packages get built, and can be tested.
+PACKAGED_CLIENT_DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
 
 
 class ScriptBuilder(TypeDispatcher):
@@ -109,7 +112,7 @@ def make_script_file(dir, effects):
     return os.path.basename(filename)
 
 
-class DockerRunner:
+class DockerContainer:
     """
     Run commands in a Docker container.
     """
@@ -122,6 +125,13 @@ class DockerRunner:
         params = docker.utils.kwargs_from_env(assert_hostname=False)
         self.docker = docker.Client(version='1.16', **params)
         self.image = image
+
+    @classmethod
+    def from_distribution(cls, distribution):
+        """
+        Create a DockerContainer with a given distribution name.
+        """
+        return cls(DOCKER_IMAGES[distribution].image)
 
     def start(self):
         """
@@ -153,6 +163,7 @@ class DockerRunner:
         Stop the Docker container.
         """
         self.docker.stop(self.container_id)
+        self.docker.remove_container(self.container_id)
         shutil.rmtree(self.tmpdir)
 
     def execute(self, commands, out=sys.stdout):
@@ -193,13 +204,9 @@ class RunOptions(Options):
             ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
             ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
+        ['flocker-version', None, None, 'Flocker version to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
-        # XXX - remove the remaining flags once Buildbot is updated (FLOC-2813)
-        ['provider', None, None, 'No longer used.'],
-        ['config-file', None, None, 'No longer used.'],
     ]
 
     optFlags = [
@@ -221,26 +228,82 @@ class RunOptions(Options):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
-        if self['config-file'] is not None:
-            config_file = FilePath(self['config-file'])
-            self['config'] = yaml.safe_load(config_file.getContent())
-        else:
-            self['config'] = {}
-
         self['package_source'] = PackageSource(
             version=self['flocker-version'],
             branch=self['branch'],
             build_server=self['build-server'],
         )
 
-        if self['pip']:
-            supported = PIP_DISTRIBUTIONS
-        else:
-            supported = PACKAGED_CLIENT_DISTRIBUTIONS
-        if self['distribution'] not in supported:
-            raise UsageError(
-                "Distribution %r not supported. Available distributions: %s"
-                % (self['distribution'], ', '.join(supported)))
+
+def get_steps_pip(distribution, package_source=PackageSource()):
+    """
+    Get commands to run for testing client pip installation.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
+    """
+    if distribution not in PIP_DISTRIBUTIONS:
+        raise UsageError(
+            "Distribution %r not supported. Available distributions: %s"
+            % (distribution, ', '.join(PIP_DISTRIBUTIONS)))
+    package_manager = DOCKER_IMAGES[distribution].package_manager
+    virtualenv = 'flocker-client'
+    steps = [
+        ensure_minimal_setup(package_manager),
+        task_cli_pip_prereqs(package_manager),
+        task_cli_pip_install(virtualenv, package_source),
+        cli_pip_test(virtualenv, package_source),
+    ]
+    return steps
+
+
+def get_steps_pkg(distribution, package_source=PackageSource()):
+    """
+    Get commands to run for testing client package installation.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
+    """
+    if distribution not in PACKAGED_CLIENT_DISTRIBUTIONS:
+        raise UsageError(
+            "Distribution %r not supported. Available distributions: %s"
+            % (distribution, ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS)))
+    package_manager = DOCKER_IMAGES[distribution].package_manager
+    steps = [
+        ensure_minimal_setup(package_manager),
+        task_cli_pkg_install(distribution, package_source),
+        cli_pkg_test(package_source),
+    ]
+    return steps
+
+
+def run_steps(container, steps, out=sys.stdout):
+    """
+    Run a sequence of commands in a container.
+
+    :param DockerContainer container: Container in which to run the test.
+    :param Effect steps: Steps to to run the test.
+    :param file out: Stream to write output.
+
+    :return int: Exit status of steps.
+    """
+    container.start()
+    try:
+        for commands in steps:
+            status = container.execute(commands, out)
+            if status != 0:
+                return status
+    finally:
+        container.stop()
+    return 0
 
 
 def main(args, base_path, top_level):
@@ -257,28 +320,12 @@ def main(args, base_path, top_level):
         sys.exit("%s: %s\n" % (base_path.basename(), e))
 
     distribution = options['distribution']
-    package_manager = DOCKER_IMAGES[distribution].package_manager
     package_source = options['package_source']
     if options['pip']:
-        virtualenv = 'flocker-client'
-        steps = [
-            ensure_minimal_setup(package_manager),
-            task_cli_pip_prereqs(package_manager),
-            task_cli_pip_install(virtualenv, package_source),
-            task_cli_pip_test(virtualenv),
-        ]
+        get_steps = get_steps_pip
     else:
-        steps = [
-            ensure_minimal_setup(package_manager),
-            task_cli_pkg_install(distribution, package_source),
-            task_cli_pkg_test(),
-        ]
-    runner = DockerRunner(DOCKER_IMAGES[distribution].image)
-    runner.start()
-    try:
-        for commands in steps:
-            status = runner.execute(commands)
-            if status != 0:
-                sys.exit(status)
-    finally:
-        runner.stop()
+        get_steps = get_steps_pkg
+    steps = get_steps(distribution, package_source)
+    container = DockerContainer.from_distribution(distribution)
+    status = run_steps(container, steps)
+    sys.exit(status)

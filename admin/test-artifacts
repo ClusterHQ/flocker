@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Check that published artifacts can be installed.
+"""
+import argparse
+import os
+import unittest
+
+from flocker.common.version import make_rpm_version
+from flocker.provision import PackageSource
+
+from admin.client import (
+    DockerContainer, get_steps_pkg, get_steps_pip, run_steps
+)
+
+
+class TestClientPackages(unittest.TestCase):
+    """Client packages can be installed and run correctly."""
+
+    def __init__(self, method, package_source=PackageSource()):
+        unittest.TestCase.__init__(self, method)
+        self.package_source = package_source
+
+    def install(self, distribution, get_steps):
+        """Install a package into a Docker container and test.
+
+        :param distribution: The distribution on which to run the tests.
+        :param get_steps: a function to return the steps to install and test
+            packages for a given distribution and package source.
+        """
+        steps = get_steps(distribution, self.package_source)
+        container = DockerContainer.from_distribution(distribution)
+        filename = '{}.out'.format(self.id())
+        with open(filename, 'w') as out:
+            status = run_steps(container, steps, out)
+            self.assertEqual(
+                status, 0,
+                'Exit status = {}. See file {!r}'.format(status, filename))
+        os.remove(filename)
+
+    def test_centos_7_rpm(self):
+        """
+        CentOS 7 client packaging works.
+
+        Although CentOS 7 is not a supported client, the client packages get
+        built, so it is installed here to test RPM packaging. See FLOC-3243 if
+        you'd like a more direct test for the CentOS node packages.
+        """
+        self.install('centos-7', get_steps_pkg)
+
+    def test_ubuntu_14_04_deb(self):
+        """
+        Ubuntu 14.04 client packaging works.
+        """
+        self.install('ubuntu-14.04', get_steps_pkg)
+
+    def test_ubuntu_15_04_deb(self):
+        """
+        Ubuntu 15.04 client packaging works.
+        """
+        self.install('ubuntu-15.04', get_steps_pkg)
+
+    def test_pip_install_apt(self):
+        """
+        Pip client instructions work on an APT-based distribution.
+        """
+        self.install('debian-8', get_steps_pip)
+
+    def test_pip_install_yum(self):
+        """
+        Pip client instructions work on a YUM-based distribution.
+        """
+        self.install('centos-7', get_steps_pip)
+
+    def test_pip_install_dnf(self):
+        """
+        Pip client instructions work on a DNF-based distribution.
+        """
+        self.install('fedora-22', get_steps_pip)
+
+
+def package_source_from_args():
+    parser = argparse.ArgumentParser(description='Test published artifacts.')
+    parser.add_argument(
+        '--branch', default=None, help='install packages from a named branch')
+    parser.add_argument(
+        '--flocker-version', default=None,
+        help='install specific version of Flocker')
+    parser.add_argument(
+        '--build-server', default='http://build.clusterhq.com/',
+        help='base URL of build server for branch builds')
+
+    args = parser.parse_args()
+
+    package_source = PackageSource(
+        version=args.flocker_version, branch=args.branch,
+        build_server=args.build_server)
+    return package_source
+
+if __name__ == '__main__':
+    # XXX Trial might provide a better interface
+    package_source = package_source_from_args()
+    test_names = unittest.TestLoader().getTestCaseNames(TestClientPackages)
+    suite = unittest.TestSuite(
+        TestClientPackages(name, package_source) for name in test_names
+    )
+    unittest.TextTestRunner(verbosity=2).run(suite)

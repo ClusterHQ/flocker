@@ -30,7 +30,6 @@ from effect.twisted import perform
 
 from admin.vagrant import vagrant_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
-import flocker
 from flocker.provision._ssh import (
     run_remotely,
     ensure_agent_has_ssh_key,
@@ -590,8 +589,7 @@ class RunOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
     ]
