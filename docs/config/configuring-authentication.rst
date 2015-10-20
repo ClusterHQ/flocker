@@ -25,7 +25,6 @@ This guide will show you how to generate and distribute the following:
 * A control service certificate and key file, to be copied to the machine running your control service.
   The control service certificate and key file are used to identify the control service node to any Flocker agent nodes in the cluster.
 * A node certificate and key file for each of your Flocker agent nodes, which identifies the node to the control service. 
-* An API user certificate, which is used to identify yourself when sending instructions to the control service (by any method).
 
 .. XXX Add a diagram to illustrate the distribution of certificates across the cluster. See FLOC 3085
 
@@ -144,3 +143,5 @@ Steps
 #. Repeat the node authentication steps for each node.
 
    If you haven't done this already, you'll need to repeat steps 7, 8, 9 and 10 for each node (including the control service node if it is acting as a Flocker agent node).
+
+The next topic is :ref:`generate-api`, which is used to identify yourself when sending instructions to the control service (by any method).
