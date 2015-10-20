@@ -109,7 +109,7 @@ Steps
 			 For example, if you have two nodes in your cluster, you will need to run this command twice.
 			 This step should be repeated on all nodes on the cluster, including the machine running the control service.
 
-   Run the following command in the same directory containing the certificate authority files you generated in the Step 1:
+   Run the following command in the same directory containing the certificate authority files you generated in the Step 2:
    
    .. prompt:: bash $
 
