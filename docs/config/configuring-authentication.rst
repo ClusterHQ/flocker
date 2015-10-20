@@ -68,7 +68,7 @@ Steps
    * The ``<hostname>`` should be a valid DNS name that HTTPS clients can resolve, as they will use it as part of TLS validation.
    * It is not recommended as an IP address for the ``<hostname>``, as it can break some HTTPS clients.
 
-   Run the following command from the directory containing your authority certificate (as generated in Step 1):
+   Run the following command from the directory containing your authority certificate (as generated in Step 2):
    
    .. prompt:: bash $
 
@@ -78,7 +78,7 @@ Steps
 
 #. Copy certificates to the control service node.
 
-   You can now copy the following files to the control service node in directory :file:`/etc/flocker` via a secure communication medium, such as SSH, SCP or SFTP:
+   You can now copy the following files to the :file:`/etc/flocker` directory on the control service node via a secure communication medium, such as SSH, SCP or SFTP:
    
    * :file:`control-<hostname>.crt`
    * :file:`control-<hostname>.key`
