@@ -93,17 +93,9 @@ def package_source_from_args():
 
     args = parser.parse_args()
 
-    if args.flocker_version:
-        rpm_version = make_rpm_version(args.flocker_version)
-        os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-        if os_version.endswith('.dirty'):
-            os_version = os_version[:-len('.dirty')]
-    else:
-        os_version = None
-
     package_source = PackageSource(
-        version=args.flocker_version, os_version=os_version,
-        branch=args.branch, build_server=args.build_server)
+        version=args.flocker_version, branch=args.branch,
+        build_server=args.build_server)
     return package_source
 
 if __name__ == '__main__':
