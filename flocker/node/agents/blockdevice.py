@@ -1133,8 +1133,6 @@ class LoopbackBlockDeviceAPI(object):
         if allocation_unit is None:
             allocation_unit = 1
         self._allocation_unit = allocation_unit
-        # XXX: remove before PR-hacky count of calls to list_volumes.
-        self._list_volume_calls = 0
 
     @classmethod
     def from_path(
@@ -1306,7 +1304,6 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.list_volumes`` for parameter and return type
         documentation.
         """
-        self._list_volume_calls += 1
         volumes = []
         for child in self._root_path.child('unattached').children():
             blockdevice_id, size = self._parse_backing_file_name(
