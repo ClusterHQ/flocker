@@ -22,8 +22,8 @@ Generating an API User Certificate
    
    * :file:`<username>.crt`
    * :file:`<username>.key`
-   * :file:`cluster.crt`   
-   
+   * :file:`cluster.crt`
+
    .. note:: In this example ``<username>`` is a unique username for an API user.
 			 Please note though that ``flocker-deploy`` requires these files to be named :file:`user.crt` and :file:`user.key`.
 
