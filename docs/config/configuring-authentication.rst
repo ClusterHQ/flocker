@@ -146,7 +146,7 @@ Steps
       scp <yourUUID>.key root@<hostname>:/etc/flocker/
       scp cluster.crt root@<hostname>:/etc/flocker/
 
-#. Rename the files.
+#. Rename the files on the Flocker agent node.
 
    * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt` to :file:`node.crt`
    * Rename :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key` to :file:`node.key`
