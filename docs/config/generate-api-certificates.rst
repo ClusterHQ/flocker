@@ -12,7 +12,7 @@ Generating an API User Certificate
 
    .. prompt:: bash $
 
-      $ flocker-ca create-api-certificate <username>
+      flocker-ca create-api-certificate <username>
 
    You will now have the files :file:`<username>.crt` and :file:`<username>.key`.
 
