@@ -84,8 +84,16 @@ Steps
    
    * :file:`control-<hostname>.crt`
    * :file:`control-<hostname>.key`
-   * :file:`cluster.crt`
+   * :file:`cluster.crt` (as created by the `flocker-ca initialize` step)
 
+   For example:
+   
+   .. prompt:: bash $
+   
+      scp control-<hostname>.crt root@<hostname>:/etc/flocker/
+      scp control-<hostname>.key root@<hostname>:/etc/flocker/
+      scp cluster.crt root@<hostname>:/etc/flocker/
+   
    .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file, which must kept only by the cluster administrator.
 
 #. Rename the files that are now on the control service node.
@@ -128,7 +136,15 @@ Steps
    
    * Your version of :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt`
    * Your version of :file:`8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.key`
-   * :file:`cluster.crt`
+   * :file:`cluster.crt` (as created by the `flocker-ca initialize` step)
+
+   For example:
+   
+   .. prompt:: bash $
+   
+      scp <yourUUID>.crt root@<hostname>:/etc/flocker/
+      scp <yourUUID>.key root@<hostname>:/etc/flocker/
+      scp cluster.crt root@<hostname>:/etc/flocker/
 
 #. Rename the files.
 
