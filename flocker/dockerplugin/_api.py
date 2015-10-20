@@ -74,6 +74,7 @@ class VolumePlugin(object):
     outputs to ensure we output the documented requirements.
     """
     _POLL_INTERVAL = 0.05
+    _MAX_POLLS_TO_RETRY = 100
 
     app = Klein()
 
@@ -206,22 +207,31 @@ class VolumePlugin(object):
 
         :return: Result that includes the mountpoint.
         """
+        polls_remaining = self._MAX_POLLS_TO_RETRY
         dataset_id = UUID(dataset_id_from_name(Name))
         d = self._flocker_client.move_dataset(self._node_id, dataset_id)
 
-        def get_state(_=None):
+        def get_state(_, polls_remaining):
+            polls_remaining -= 1
             getting_path = self._get_path(Name)
 
             def got_path(path):
                 if path is None:
-                    return deferLater(
-                        self._reactor, self._POLL_INTERVAL, get_state)
+                    if polls_remaining > 0:
+                        return deferLater(
+                            self._reactor, self._POLL_INTERVAL,
+                            get_state, None, polls_remaining)
+                    else:
+                        return deferLater(
+                            self._reactor,
+                            self._POLL_INTERVAL,
+                            self.volumedriver_mount, Name)
                 else:
                     return {u"Err": None,
                             u"Mountpoint": path.path}
             getting_path.addCallback(got_path)
             return getting_path
-        d.addCallback(get_state)
+        d.addCallback(get_state, polls_remaining)
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])
