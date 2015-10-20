@@ -52,8 +52,6 @@ Steps
 
       flocker-ca initialize <mycluster>
 
-   You should now find :file:`cluster.key` and :file:`cluster.crt` in your :file:`/etc/flocker` directory
-
    .. note:: This command creates :file:`cluster.key` and :file:`cluster.crt`.
              Please keep :file:`cluster.key` secret, as anyone who can access it will be able to control your cluster.
 
