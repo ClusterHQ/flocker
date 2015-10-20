@@ -30,7 +30,7 @@ Generating an API User Certificate
 Using an API Certificate to Authenticate
 ========================================
 
-Once in possession of an API user certificate and the cluster certificate, an  API end user must authenticate with those certificates in every request to the cluster REST API.
+Once in possession of an API user certificate and the cluster certificate, an API end user must authenticate with those certificates in every request to the cluster REST API.
 The cluster certificate ensures the user is connecting to the genuine API of their cluster.
 The client certificate allows the API server to ensure the request is from a genuine, authorized user.
 
