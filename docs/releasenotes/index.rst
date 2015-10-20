@@ -15,7 +15,8 @@ Next Release
 
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
-
+* New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
+  Existing volumes created by older versions of Flocker will continue to have no name.
 
 v1.4.0
 ======
