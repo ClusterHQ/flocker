@@ -868,6 +868,7 @@ class OmnibusPackageBuilderTests(TestCase):
         flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
         flocker_docker_plugin_path = target_path.child('flocker-docker-plugin')
+        flocker_shared_path = target_path.child('flocker-shared')
         empty_path = target_path.child('empty')
 
         expected_virtualenv_path = FilePath('/opt/flocker')
@@ -898,11 +899,20 @@ class OmnibusPackageBuilderTests(TestCase):
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
                 ),
                 expected_package_version_step,
+                CreateLinks(
+                    links=[
+                        (FilePath('/opt/flocker/bin/eliot-prettyprint'),
+                         flocker_shared_path),
+                        (FilePath('/opt/flocker/bin/eliot-tree'),
+                         flocker_shared_path),
+                    ],
+                ),
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
                     source_paths={
-                        expected_virtualenv_path: expected_virtualenv_path
+                        expected_virtualenv_path: expected_virtualenv_path,
+                        flocker_shared_path: FilePath("/usr/bin"),
                     },
                     name='clusterhq-python-flocker',
                     prefix=expected_prefix,
