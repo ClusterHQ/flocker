@@ -88,7 +88,7 @@ LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
 
 ARBITRARY_BLOCKDEVICE_ID = u'blockdevice_id_1'
-ARBITRARY_BLOCKDEVICE_ID_2 = u'blockdevice_id_1'
+ARBITRARY_BLOCKDEVICE_ID_2 = u'blockdevice_id_2'
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
@@ -985,7 +985,8 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
+                                          blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             # Another node which is ignorant about its state:
             set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
@@ -1014,7 +1015,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
+                                          blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
         )
 
@@ -2696,6 +2698,7 @@ def _make_destroy_dataset():
     """
     return DestroyBlockDeviceDataset(
         dataset_id=_ARBITRARY_VOLUME.dataset_id,
+        blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id
     )
 
 
@@ -2725,7 +2728,7 @@ def multistep_change_log(parent, children):
 class DestroyBlockDeviceDatasetInitTests(
     make_with_init_tests(
         DestroyBlockDeviceDataset,
-        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         dict(),
     )
 ):
@@ -2738,8 +2741,10 @@ class DestroyBlockDeviceDatasetTests(
     make_istatechange_tests(
         DestroyBlockDeviceDataset,
         # Avoid using the same instance, just provide the same value.
-        lambda _uuid=uuid4(): dict(dataset_id=_uuid),
-        lambda _uuid=uuid4(): dict(dataset_id=_uuid),
+        lambda _uuid=uuid4(): dict(dataset_id=_uuid,
+                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        lambda _uuid=uuid4(): dict(dataset_id=_uuid,
+                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -2752,7 +2757,8 @@ class DestroyBlockDeviceDatasetTests(
         raised.
         """
         self.assertRaises(
-            TypeError, DestroyBlockDeviceDataset, dataset_id=object()
+            TypeError, DestroyBlockDeviceDataset, dataset_id=object(),
+            blockdevice_id=ARBITRARY_BLOCKDEVICE_ID
         )
 
     @validate_logging(multistep_change_log(
@@ -2783,7 +2789,8 @@ class DestroyBlockDeviceDatasetTests(
         make_filesystem(device, block_device=True)
         mount(device, mountpoint)
 
-        change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
+        change = DestroyBlockDeviceDataset(
+            dataset_id=dataset_id, blockdevice_id=volume.blockdevice_id)
         initial_list_volumes = api._list_volume_calls
         self.successResultOf(run_state_change(change, deployer))
         list_volumes_calls = api._list_volume_calls - initial_list_volumes
@@ -2793,23 +2800,6 @@ class DestroyBlockDeviceDatasetTests(
         # only possible to detach a volume that's been unmounted.  If the
         # volume doesn't exist, all three things we wanted to happen have
         # happened.
-        self.assertEqual([], api.list_volumes())
-
-    def test_destroy_nonexistent(self):
-        """
-        If there is no volume associated with the indicated ``dataset_id``,
-        ``DestroyBlockDeviceDataset.run`` does nothing.
-        """
-        node = u"192.0.2.3"
-        dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-        )
-        change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
-        self.successResultOf(run_state_change(change, deployer))
         self.assertEqual([], api.list_volumes())
 
 
@@ -3266,7 +3256,7 @@ class DetachVolumeTests(
 class DestroyVolumeInitTests(
     make_with_init_tests(
         DestroyVolume,
-        dict(volume=_ARBITRARY_VOLUME),
+        dict(blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         dict(),
     )
 ):
@@ -3278,8 +3268,8 @@ class DestroyVolumeInitTests(
 class DestroyVolumeTests(
     make_istatechange_tests(
         DestroyVolume,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        dict(blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3292,19 +3282,14 @@ class DestroyVolumeTests(
         """
         node = u"192.0.2.1"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-        )
-
-        change = DestroyVolume(volume=volume)
-        self.successResultOf(change.run(deployer))
+        change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
+        self.successResultOf(run_state_change(change, deployer))
 
         self.assertEqual([], api.list_volumes())
 
