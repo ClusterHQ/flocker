@@ -36,6 +36,8 @@ Software
 All Platforms
 *************
 
+`Docker <https://docs.docker.com/installation/>`_
+
 `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
 OS X
@@ -46,7 +48,7 @@ OS X
 .. prompt:: bash $
 
    brew tap stepanstipl/noop
-   brew install createrepo dpkg
+   brew install createrepo dpkg libffi openssl
 
 Ubuntu
 ******
@@ -103,17 +105,35 @@ Preparing For a Release
    This should be a "Feature" with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create an environment to do a release in:
+#. Create an environment for the release:
+
+   **Linux**
 
    .. prompt:: bash $,(flocker-0.1.2)$ auto
 
       $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      # Use system site packages e.g. so that "rpm" can be imported
+      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
       $ mkvirtualenv -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
       (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
-      (flocker-0.1.2)$ admin/create-release-branch --flocker-version=${VERSION}
-      (flocker-0.1.2)$ admin/update-license
-      (flocker-0.1.2)$ git commit -am "Updated copyright in LICENSE file"
+
+   **OS X**
+
+   .. prompt:: bash $,(flocker-0.1.2)$ auto
+
+      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
+      # Use system Python with Homebrew's OpenSSL libraries - see FLOC-3044.
+      $ mkvirtualenv --python=/usr/bin/python -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
+      (flocker-0.1.2)$ export LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include"
+      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
+
+#. Create a release branch, and check that the license is up-to-date:
+
+   .. prompt:: bash (flocker-0.1.2)$
+
+      admin/create-release-branch --flocker-version=${VERSION}
+      admin/update-license
+      git commit -am "Updated copyright in LICENSE file"
 
 #. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
@@ -239,6 +259,22 @@ Release
 
       admin/publish-artifacts
       admin/publish-docs --production
+
+#. Check that the artifacts are set up correctly:
+
+   .. note:: Ensure that Docker is installed and running, and can be controlled from the current user account.
+      Run ``docker ps`` to check for any problems.
+
+   The following command tests that the client packages can be installed on a number of platforms.
+   This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
+   This test can take about 30 minutes, especially if Docker images need to be pulled.
+
+   .. prompt:: bash (flocker-0.1.2)$
+
+      admin/test-artifacts
+
+   If an error occurs for any tests, create a JIRA issue and raise it with the team.
+   In any case, continue with the release.
 
 #. Check that the documentation is set up correctly:
 

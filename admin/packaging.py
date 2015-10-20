@@ -811,6 +811,8 @@ def omnibus_package_builder(
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
 
+    flocker_shared_path = target_dir.child('flocker-shared')
+    flocker_shared_path.makedirs()
     flocker_cli_path = target_dir.child('flocker-cli')
     flocker_cli_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
@@ -843,10 +845,19 @@ def omnibus_package_builder(
             # get_package_version_step must be run before steps that reference
             # rpm_version
             get_package_version_step,
+            CreateLinks(
+                links=[
+                    (FilePath('/opt/flocker/bin/eliot-prettyprint'),
+                     flocker_shared_path),
+                    (FilePath('/opt/flocker/bin/eliot-tree'),
+                     flocker_shared_path),
+                ],
+            ),
             BuildPackage(
                 package_type=distribution.package_type(),
                 destination_path=destination_path,
-                source_paths={virtualenv_dir: virtualenv_dir},
+                source_paths={virtualenv_dir: virtualenv_dir,
+                              flocker_shared_path: FilePath("/usr/bin")},
                 name='clusterhq-python-flocker',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,

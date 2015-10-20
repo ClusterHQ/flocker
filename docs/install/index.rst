@@ -4,47 +4,40 @@
 Installing Flocker
 ==================
 
-Quick Start
-===========
+There are several installation options with which you can get up and running with Flocker.
 
-Want to get started with Flocker quickly?
-You can try the Labs Installer.
+You can also try Flocker without installation, either in our live hosted environment or on virtual machines using our Vagrant image. For more information, see :ref:`get-started`.
 
-* It makes it easy to set up and manage a Flocker cluster.
-* It runs inside a Docker container on your local machine.
-* The :ref:`Flocker plugin for Docker <using-docker-plugin>` is installed.
+Quick Start Flocker Installer
+=============================
 
-:ref:`Try the Labs installer <labs-installer>`.
+If you want to get started with Flocker quickly, but in your own environment, you can use the Installer.
+The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currently experimental.
 
-If you'd rather install Flocker manually, read on.
+* The Installer runs locally in a Docker container on your machine.
+* It provisions nodes on AWS, and then installs Flocker, Docker, and the Flocker plugin for Docker.
+* You can reconfigure the cluster at any time.
+* The :ref:`Labs Installer <labs-installer>` documentation includes several tutorials to make it easy to set up and manage a Flocker cluster.
 
-Manual Installation
-===================
+For more information, see the :ref:`Labs Installer <labs-installer>` page.
 
-The Flocker Client is installed on your local machine and provides command line tools to control the cluster.
-This also includes the ``flocker-ca`` tool, which you use to generate certificates for all the Flocker components.
+Full Installation
+=================
 
-The Flocker agents are installed on any number of nodes in the cluster where your containers will run.
-The agent software is included in the ``clusterhq-flocker-node`` package.
+For a full Flocker installation, including the Flocker plugin for Docker, the following manual instructions take you through everything you need to do:
 
-There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine.
-The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
-
-.. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
-
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
-
-This document will describe how to install the client locally and install the agents and control service on cloud infrastructure.
-It also describes how to get Vagrant nodes started which already have these services running.
-
-.. XXX We will improve this introduction with an image. See FLOC-2077
+.. XXX this introduction could be improved with an image. See FLOC-2077
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    install-client
    install-node
    docker-plugin
+
+Once you have Flocker installed, you will need to complete the :ref:`post-installation-configuration` steps in order to use Flocker.
+
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
 .. toctree::
    :hidden:
