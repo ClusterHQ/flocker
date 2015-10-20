@@ -88,12 +88,12 @@ Steps
 
    .. warning:: Only copy the file :file:`cluster.crt` to the control service and node machines, not the :file:`cluster.key` file, which must kept only by the cluster administrator.
 
-#. Rename the files on the control service node.
+#. Rename the files that are now on the control service node.
 
    * Rename :file:`control-<hostname>.crt` to :file:`control-service.crt`
    * Rename :file:`control-<hostname>.key` to :file:`control-service.key`
 
-#. Change the permissions on the folder and key file.
+#. Change the permissions on the control service node folder and key file.
 
    You will need to change the permissions on the :file:`/etc/flocker` directory, and the :file:`control-service.key` file:
    
