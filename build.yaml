@@ -1,6 +1,5 @@
 # vim: ai ts=4 sts=4 et sw=4 ft=yaml fdm=indent et foldlevel=0
 #
-#
 # build.yaml
 #
 # This file contains the Jenkins job defintions for the Flocker project.
@@ -202,11 +201,17 @@ common_cli:
     # pass the exit code from the previous and return the the aggregated
     # exit status for the whole job.
     function updateExitStatus {
-      if [ "\${1}" !=  "0" ]; then
+      # if we had previous failures, we just fail here.
+      if [ "\${JOB_EXIT_STATUS}" != "0" ] && [ "\${JOB_EXIT_STATUS}" != "" ]; then
         echo 1
+      else
+         if [ "\$1" !=  "0" ]; then
+         # first failure on the job, lets return 1, which will set
+         # JOB_EXIT_STATUS to 1 and mark the job as failed.
+             echo 1
+         fi
       fi
     }
-
 
   # TODO: do we need to clean up old files on ubuntu and centos or
   # does the pre-scm plugin does this correctly for us ?
@@ -601,10 +606,21 @@ common_cli:
       vagrant/tutorial/flocker-tutorial-\${FLOCKER_VERSION}.box
 
   do_not_abort_on_errors: &do_not_abort_on_errors |
-    # make sure we don't abort the job on the first error we find
+    # make sure we don't abort the job on the first error we find.
+    #
+    # jenkins will execute our shellscript with -e, which will cause the
+    # script to terminate at the first error and mark the job as failed.
+    # This is fine for the majority of the build cases, but in some situations
+    # we don't want to terminate the job straight away. For example, a job
+    # which generates a new Virtual Machine where the tests are executed.
+    # With '-e' defined, jenkins would abort the job and leave an orphan VM
+    # behind.
+    # To avoid it, we set '+e' on this shell.
     set +e
 
-  new_vagrantfile_for_yosemite: &new_vagrantfile_for_yosemite |
+  new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
+    # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
+    # vagrant box built overnight.
     cat <<'EOF' >Vagrantfile
     Vagrant.configure(2) do |config|
        config.vm.box = 'jenkins-osx-yosemite'
@@ -617,7 +633,8 @@ common_cli:
 
   source_extra_vars: &source_extra_vars |
     # we use a script 'extra-vars.sh' to pass any variables from the host
-    # to our vagrant machine.
+    # to our vagrant machine. This file is copied and sourced as part of our
+    # build.sh run inside the virtual machine.
     chmod 755 extra-vars.sh
     . extra-vars.sh
 
@@ -627,15 +644,21 @@ common_cli:
     # vagrant base images which live under /root/.vagrant.d
     export HOME=/root
 
+  # this is a wrapper that we can use for building a script that will be
+  # populated with different cli actions.
+  # we copy the resulting build.sh file to the vagrant box for execution.
   begin_build_sh_EOF: &begin_build_sh_EOF cat <<'EOF' > build.sh
 
   end_build_sh_EOF: &end_build_sh_EOF |
      EOF
      chmod 755 build.sh
 
-  copy_files_to_yosemite_box: &copy_files_to_yosemite_box |
+  copy_files_to_osx_yosemite_box: &copy_files_to_osx_yosemite_box |
+    # this sets some variables used by the tests, since the tests run inside
+    # virtualbox we store them to a file and copy them to the vagrant box.
     echo "export GIT_COMMIT=\${GIT_COMMIT}" > extra-vars.sh
     chmod 755 extra-vars.sh
+    # gather the connection string for this vagrantbox
     vagrant ssh-config > ssh-config
     rsync -ave 'ssh -F ssh-config' . default:.
     vagrant scp /tmp/pip.sh /tmp/pip.sh
@@ -646,6 +669,7 @@ common_cli:
   run_build_sh_script_on_vagrant_box: &run_build_sh_script_on_vagrant_box |
     # make sure we don't abort on the first error
     set +e
+    # run the build.sh script inside our vagrant box
     vagrant ssh -c 'bash build.sh'
     JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
 
@@ -653,8 +677,10 @@ common_cli:
     vagrant destroy -f
     JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
 
-  install_pkgs_on_vanilla_yosemite_box: &install_pkgs_on_vanilla_yosemite_box |
+  install_pkgs_on_vanilla_osx_yosemite_box: &install_pkgs_on_vanilla_osx_yosemite_box |
+    # permissions are not right, lets fix them here
     sudo chown -R vagrant /users/vagrant
+    # do a bunch of steps before attempting to install Xcode command line tools
     xcode-select --install
     sudo xcodebuild -license accept
     sudo /usr/sbin/DevToolsSecurity --enable
@@ -665,6 +691,7 @@ common_cli:
      | awk -F"*" '{print \$2}' |sed -e 's/^ *//' |tr -d "\n")
     softwareupdate -i "\${PROD}" -v
 
+    # the basebox we use for OSX is missing quite a number of software pieces.
     brew update
     brew install rsync
     brew install python
@@ -673,6 +700,7 @@ common_cli:
     export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/; pip install bcrypt
 
   package_jenkins_osx_yosemite_box: &package_jenkins_osx_yosemite_box |
+    # we now proceed to package our vagrant box
     vagrant halt
     vagrant package --output jenkins-osx-yosemite.box
     JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
@@ -683,7 +711,8 @@ common_cli:
     JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
     exit \${JOB_EXIT_STATUS}
 
-  start_vanilla_yosemite_vagrant_box: &start_vanilla_yosemite_vagrant_box |
+  start_vanilla_osx_yosemite_vagrant_box: &start_vanilla_osx_yosemite_vagrant_box |
+    # gather the vanilla Vagrantfile from upstream and do a vagrant up
     rm -f Vagrantfile
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
     vagrant up
@@ -1030,7 +1059,8 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang,
-                   *new_vagrantfile_for_yosemite,
+                   *add_shell_functions,
+                   *new_vagrantfile_for_osx_yosemite,
 
                    *begin_build_sh_EOF,
                    *hashbang,
@@ -1051,7 +1081,7 @@ job_type:
                    *set_home_variable_on_mesos,
                    *do_not_abort_on_errors,
                    'vagrant up',
-                   *copy_files_to_yosemite_box,
+                   *copy_files_to_osx_yosemite_box,
                    *run_build_sh_script_on_vagrant_box,
                    *destroy_vagrant_box]
           }
@@ -1121,11 +1151,11 @@ job_type:
                    *add_shell_functions,
                    *set_home_variable_on_mesos,
                    *do_not_abort_on_errors,
-                   *start_vanilla_yosemite_vagrant_box,
+                   *start_vanilla_osx_yosemite_vagrant_box,
                    *begin_build_sh_EOF,
-                   *install_pkgs_on_vanilla_yosemite_box,
+                   *install_pkgs_on_vanilla_osx_yosemite_box,
                    *end_build_sh_EOF,
-                   *copy_files_to_yosemite_box,
+                   *copy_files_to_osx_yosemite_box,
                    *run_build_sh_script_on_vagrant_box,
                    *package_jenkins_osx_yosemite_box ]
           }

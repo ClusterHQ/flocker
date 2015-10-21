@@ -442,6 +442,8 @@ branches.each {
     wrappers {
       timestamps()
       colorizeOutput()
+      {# lock down the multijob to 45 minutes so that 'stuck' jobs won't
+          block future runs                                                  #}
       timeout {
           absolute(45)
           }
@@ -539,7 +541,7 @@ branches.each {
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
 {%  for job_name, job_values  in job_type_values.iteritems()                -%}
 {%    for _module in job_values.with_modules                                -%}
-{%       set _job_name = job_name + '_' + _module                            %}
+{%       set _job_name = job_name + '_' + _module.replace('/', '_')          %}
 
 {# no every job produces an artifact, so make sure wew don't try to fetch
    artifacts for jobs that don't produce them                                #}
