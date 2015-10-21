@@ -203,9 +203,16 @@ Managed
 ~~~~~~~
 
 You can also run acceptance tests on existing "managed" nodes.
-In this case the configuration file should include:
 
-- **addresses**: The IP addresses of two running nodes.
+This is a quicker way to run the acceptance tests as it avoids the slow process of provisioning new acceptance testing nodes.
+
+The ``managed`` provider re-installs and restarts node related ``clusterhq-*`` packages and distributes new certificates and keys to all the nodes.
+
+This means that the ``managed`` provider can be used to quickly test different package versions and packages built from different branches.
+
+To use the ``managed`` provider, the configuration file should include:
+
+- **addresses**: A ``list`` of IP addresses of the nodes or a ``dict`` of ``{"<private_address>": "<public_address>"}`` if the public addresses are not configured on the node (see below).
 - **upgrade**: ``true`` to automatically upgrade Flocker before running the tests,
   ``false`` or missing to rely on the version already installed.
 
@@ -221,6 +228,68 @@ The nodes should be configured to allow key based SSH connections as user ``root
 .. prompt:: bash $
 
    admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
+
+If you are using the ``managed`` provider with ``AWS`` nodes, you  will need to supply both the private and public IP addresses for each node.
+AWS nodes do not have public IP addresses configured in the operating system; instead Amazon routes public IP traffic using NAT.
+In this case the acceptance tests need a hint in order to map the private IP address reported by the Flocker ``/state/nodes`` API to the public node address.
+E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
+The mapping is supplied to the tests in the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` environment variable.
+
+If you create nodes using ``run-acceptance-tests --runner=aws --keep`` the command will print out the node addresses when it exits. E.g.
+
+.. code-block:: console
+
+   ./admin/run-acceptance-tests \
+     --keep \
+     --distribution=centos-7 \
+     --provider=aws \
+     --dataset-backend=aws \
+     --config-file=$PWD/acceptance.yml \
+     --branch=master \
+     --flocker-version='' \
+     flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
+
+   ...
+
+   flocker.acceptance.obsolete.test_containers
+     ContainerAPITests
+       test_create_container_with_ports ...                                   [OK]
+
+   -------------------------------------------------------------------------------
+   Ran 1 tests in 14.102s
+
+   PASSED (successes=1)
+   --keep specified, not destroying nodes.
+   To run acceptance tests against these nodes, set the following environment variables:
+
+   export FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE=1073741824;
+   export FLOCKER_ACCEPTANCE_CONTROL_NODE=54.159.119.143;
+   export FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS='{"10.230.191.121": "54.158.225.35", "10.69.174.223": "54.159.119.143"}';
+   export FLOCKER_ACCEPTANCE_VOLUME_BACKEND=aws;
+   export FLOCKER_ACCEPTANCE_NUM_AGENT_NODES=2;
+   export FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=/tmp/tmpfvb3xV;
+
+In this case you can copy and paste the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` value directly into the configuration file. E.g.
+
+.. code-block:: yaml
+
+   managed:
+     addresses:
+       - ["10.230.191.121", "54.158.225.35"]
+       - ["10.69.174.223", "54.159.119.143"]
+
+And then run the acceptance tests on those nodes using the following command:
+
+.. code-block:: console
+
+   ./admin/run-acceptance-tests \
+     --distribution=centos-7 \
+     --provider=managed \
+     --dataset-backend=aws \
+     --config-file=$PWD/acceptance.yml
+     --branch=master \
+     --flocker-version='' \
+     flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
 
 Functional Testing

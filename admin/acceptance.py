@@ -203,10 +203,31 @@ class ManagedRunner(object):
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration):
-        self._nodes = pvector(
-            ManagedNode(address=address, distribution=distribution)
-            for address in node_addresses
-        )
+        """
+        :param list: A ``list`` of public IP addresses or
+            ``[private_address, public_address]`` lists.
+
+        See ``ManagedRunner`` and ``ManagedNode`` for other parameter
+        documentation.
+        """
+        # Blow up if the list contains mixed types.
+        [address_type] = set(type(address) for address in node_addresses)
+        if address_type is list:
+            # A list of 2 item lists
+            self._nodes = pvector(
+                ManagedNode(
+                    address=address,
+                    private_address=private_address,
+                    distribution=distribution
+                )
+                for (private_address, address) in node_addresses
+            )
+        else:
+            # A list of strings.
+            self._nodes = pvector(
+                ManagedNode(address=address, distribution=distribution)
+                for address in node_addresses
+            )
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
