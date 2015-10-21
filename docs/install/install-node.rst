@@ -4,6 +4,21 @@
 Installing the Flocker Node Services
 ====================================
 
+Prerequisites
+=============
+
+You will require a minimum of 2 nodes in order to install and use Flocker:
+
+* These nodes can be on either CentOS 7 or Ubuntu 14.04.
+* We recommend a minimum of 16GB storage on each node.
+* You will need permission for SSH access from your laptop.
+* Depending on your usage of Flocker, you will require access to a range of ports.
+  For example, specifying which ports to make available are specified in the  :ref:`<aws-install>` documentation.
+* Flocker's container management features depend on Docker.
+  You will need to make sure `Docker (at least 1.8) is installed`_ and running.
+
+
+
 It is possible to deploy Flocker in the cloud, on a number of different providers.
 
 - :ref:`Using Amazon Web Services <aws-install>`
@@ -29,8 +44,7 @@ Paste them into a root console on the target node:
 .. task:: install_flocker centos-7
    :prompt: [root@centos]#
 
-Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed`_ and running.
+
 
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
