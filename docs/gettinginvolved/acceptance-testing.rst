@@ -28,23 +28,22 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies what dataset backend to use for the cluster.
 
+.. option:: --branch <branch>
+
+   Specifies the branch repository from which to install packages.
+   If this is not specified, packages will be installed from a release repository.
+   The release repository may be a stable or unstable repository, and will be selected depending on the version to be installed.
+
 .. option:: --flocker-version <version>
 
-   Specifies the version of flocker to install.
-   If this isn't specified, the most recent version will be installed.
-   If a branch is also specified, the most recent version from that branch will be installed.
-   If a branch is not specified, the most recent release will be installed.
+   Specifies the version of Flocker to install from the selected repository.
+   If this is not specified (or is an empty string), the most recent version available in the repository will be installed.
 
    .. note::
 
       The build server merges forward before building packages, except on release branches.
       If you want to run the acceptance tests against a branch in development,
       you probably only want to specify the branch.
-
-.. option:: --branch <branch>
-
-   Specifies the branch from which packages are installed.
-   If this isn't specified, packages will be installed from the release repository.
 
 .. option:: --build-server <buildserver>
 

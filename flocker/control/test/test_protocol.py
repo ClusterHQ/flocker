@@ -742,6 +742,13 @@ class ControlAMPServiceTests(ControlTestCase):
         service = build_control_amp_service(self)
         service.startService()
 
+        # Add a second agent, to ensure that the delayed logic interacts with
+        # the correct connection.
+        confounding_agent = FakeAgent()
+        confounding_client = AgentAMP(Clock(), confounding_agent)
+        confounding_server = LoopbackAMPClient(confounding_client.locator)
+        service.connected(confounding_server)
+
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
 
@@ -780,6 +787,13 @@ class ControlAMPServiceTests(ControlTestCase):
         client = AgentAMP(Clock(), agent)
         service = build_control_amp_service(self)
         service.startService()
+
+        # Add a second agent, to ensure that the delayed logic interacts with
+        # the correct connection.
+        confounding_agent = FakeAgent()
+        confounding_client = AgentAMP(Clock(), confounding_agent)
+        confounding_server = LoopbackAMPClient(confounding_client.locator)
+        service.connected(confounding_server)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)

@@ -33,7 +33,6 @@ class ManagedRunnerTests(SynchronousTestCase):
             node_addresses=[b'192.0.2.1'],
             package_source=PackageSource(
                 version=b"",
-                os_version=b"",
                 branch=b"",
                 build_server=b"",
             ),

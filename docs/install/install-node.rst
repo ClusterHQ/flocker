@@ -4,13 +4,7 @@
 Installing the Flocker Node Services
 ====================================
 
-There are a number of ways to install Flocker.
-
-These easiest way to get Flocker going is to use our Vagrant configuration.
-
-- :ref:`Vagrant <vagrant-install>`
-
-It is also possible to deploy Flocker in the cloud, on a number of different providers.
+It is possible to deploy Flocker in the cloud, on a number of different providers.
 
 - :ref:`Using Amazon Web Services <aws-install>`
 - :ref:`Using Rackspace <rackspace-install>`
@@ -19,14 +13,6 @@ It is also possible to install Flocker on any CentOS 7 or Ubuntu 14.04 machine.
 
 - :ref:`Installing on CentOS 7 <centos-7-install>`
 - :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
-
-.. _vagrant-install:
-
-Vagrant
-=======
-
-The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
-You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
 .. _aws-install:
 
@@ -178,6 +164,6 @@ Please continue onto the next section, with the cluster authentication instructi
 Next Step
 =========
 
-In the next step :ref:`the node control and agent services will be configured and started.<post-installation-configuration>`.
+In the next step :ref:`the node control and agent services will be configured and started<post-installation-configuration>`.
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/

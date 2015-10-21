@@ -65,8 +65,11 @@ To install ``flocker-cli`` in a Python virtualenv, run:
 
 Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 
-.. task:: cli_pip_test flocker-client
-   :prompt: alice@mercury:~$
+.. version-prompt:: bash alice@mercury:~$ auto
+
+   alice@mercury:~$ source flocker-client/bin/activate
+   alice@mercury:~$ flocker-deploy --version
+   |latest-installable|
 
 OS X
 ====
@@ -80,6 +83,12 @@ Make sure Homebrew has no issues:
    brew doctor
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
+
+If you have a previous version of Flocker tapped, you can run the following to remove it:
+
+.. prompt:: bash alice@mercury:~$
+
+   brew uninstall flocker-<old version>
 
 Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
