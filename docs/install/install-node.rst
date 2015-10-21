@@ -9,7 +9,7 @@ Installing the Flocker Node Services
 Prerequisites
 =============
 
-Before you begin to install the Flocker node services, you will the following:
+Before you begin to install the Flocker node services, you will need the following:
 
 * You will require a minimum of 2 nodes in order to install and use Flocker:
   
