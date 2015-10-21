@@ -10,5 +10,5 @@ Introduction to Flocker
    what-is-flocker
    flocker-basics
    flocker-plugin
-   flocker-suppports
+   flocker-supports
    get-started
