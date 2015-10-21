@@ -527,6 +527,7 @@ class GenericDockerClientTests(TestCase):
         """
         The Docker image is pulled if it is unavailable locally.
         """
+        # XXX: This test calls 'list'. But how?
         client = Client()
 
         path = FilePath(self.mktemp())

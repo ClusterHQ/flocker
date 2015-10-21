@@ -789,6 +789,7 @@ class DockerClient(object):
         return d
 
     def list(self):
+        # XXX: This should use flocker.common.auto_threaded
         def _list():
             result = set()
             ids = [d[u"Id"] for d in
