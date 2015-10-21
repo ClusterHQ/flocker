@@ -17,6 +17,8 @@ from zope.interface import implementer
 from characteristic import attributes
 from pyrsistent import PRecord, field
 
+from twisted.internet.error import ProcessTerminated
+
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -847,6 +849,56 @@ def task_open_control_firewall(distribution):
     Open the firewall for flocker-control.
     """
     if is_centos(distribution):
+        open_firewall = open_firewalld
+    elif distribution == 'ubuntu-14.04':
+        open_firewall = open_ufw
+    else:
+        raise DistributionNotSupported(distribution=distribution)
+    return sequence([
+        open_firewall(service)
+        for service in ['flocker-control-api', 'flocker-control-agent']
+    ])
+
+
+def catch_exit_code(expected_exit_code):
+    """
+    :param int expected_exit_code: The expected exit code of the process.
+    :returns: An error handler function which accepts a 3-tuple(exception_type,
+        exception, None) and re-raises ``exception`` if the exit code is not
+        ``expected_exit_code`.
+    """
+    def error_handler(result):
+        exception_type, exception = result[:2]
+        if((exception_type is not ProcessTerminated) or
+           (exception.exitCode != expected_exit_code)):
+            raise exception
+    return error_handler
+
+
+def if_firewall_available(distribution, commands):
+    """
+    Open the firewall for remote access to control service if firewall command
+    is available.
+    """
+    if is_centos(distribution):
+        firewall_command = b'firewall-cmd'
+    elif distribution == 'ubuntu-14.04':
+        firewall_command = b'ufw'
+    else:
+        raise DistributionNotSupported(distribution=distribution)
+
+    # Only run the commands if the firewall command is available.
+    return run_from_args([b'which', firewall_command]).on(
+        success=lambda result: commands,
+        error=catch_exit_code(1),
+    )
+
+
+def open_firewall_for_docker_api(distribution):
+    """
+    Open the firewall for remote access to Docker API.
+    """
+    if is_centos(distribution):
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
                          """\
@@ -871,11 +923,8 @@ def task_open_control_firewall(distribution):
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-    return sequence([upload] + [
-        open_firewall(service)
-        for service in ['flocker-control-api', 'flocker-control-agent',
-                        'docker']
-    ])
+    # Only configure the firewall if the firewall command line is available.
+    return sequence([upload, open_firewall('docker')])
 
 
 # Set of dataset fields which are *not* sensitive.  Only fields in this
@@ -1329,7 +1378,7 @@ def install_flocker(nodes, package_source):
             task_install_docker_plugin(
                 distribution=node.distribution,
                 package_source=package_source,
-            )
+            ),
         ]),
     )
 
@@ -1354,6 +1403,12 @@ def configure_cluster(cluster, dataset_backend_configuration):
                     cluster.certificates.control.certificate,
                     cluster.certificates.control.key),
                 task_enable_flocker_control(cluster.control_node.distribution),
+                if_firewall_available(
+                    cluster.control_node.distribution,
+                    task_open_control_firewall(
+                        cluster.control_node.distribution
+                    )
+                ),
                 ]),
         ),
         parallel([
@@ -1370,6 +1425,10 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.user.certificate,
                             cluster.certificates.user.key),
                         task_enable_docker(node.distribution),
+                        if_firewall_available(
+                            node.distribution,
+                            open_firewall_for_docker_api(node.distribution),
+                        ),
                         task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
@@ -1380,8 +1439,9 @@ def configure_cluster(cluster, dataset_backend_configuration):
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
-                        )]),
-                    ),
+                        ),
+                    ]),
+                ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
