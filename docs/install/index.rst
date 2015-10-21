@@ -22,3 +22,5 @@ Once you have Flocker installed, you will need to complete the :ref:`post-instal
    :hidden:
 
    plugin-restrictions
+   setup-aws
+   setup-rackspace
