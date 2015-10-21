@@ -19,7 +19,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, PClass, field
 from characteristic import attributes
 
 import psutil
@@ -30,11 +30,13 @@ from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
 from .. import (
-    IDeployer, IStateChange, sequentially, in_parallel, run_state_change
+    IDeployer, ILocalState, IStateChange, sequentially, in_parallel,
+    run_state_change
 )
 from .._deploy import NotInUseDatasets
 
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...control._model import pvector_field
 from ...common import auto_threaded
 
 
@@ -1388,6 +1390,33 @@ def _manifestation_from_volume(volume):
     return Manifestation(dataset=dataset, primary=True)
 
 
+@implementer(ILocalState)
+class BlockDeviceDeployerLocalState(PClass):
+    """
+    An ``ILocalState`` implementation for the ``BlockDeviceDeployer``.
+
+    :ivar NodeState node_state: The current ``NodeState`` for this node.
+
+    :ivar NonManifestDatasets nonmanifest_datasets: The current
+        ``NonManifestDatasets`` that this node is aware of but are not attached
+        to any node.
+
+    :ivar volumes: A ``PVector`` of ``BlockDeviceVolume`` instances for all
+        volumes in the cluster that this node is aware of.
+    """
+    node_state = field(type=NodeState, mandatory=True)
+    nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
+    volumes = pvector_field(BlockDeviceVolume)
+
+    def shared_state_changes(self):
+        """
+        Returns the NodeState and the NonManifestDatasets of the local state.
+        These are the only parts of the state that need to be sent to the
+        control service.
+        """
+        return (self.node_state, self.nonmanifest_datasets)
+
+
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
     """
@@ -1540,21 +1569,22 @@ class BlockDeviceDeployer(PRecord):
                 # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
-        state = (
-            NodeState(
+        local_state = BlockDeviceDeployerLocalState(
+            node_state=NodeState(
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 manifestations=manifestations,
                 paths=paths,
                 devices=devices,
                 # Discovering these is ApplicationNodeDeployer's job, we
-                # don't anything about these:
+                # don't know anything about these:
                 applications=None,
             ),
-            NonManifestDatasets(datasets=nonmanifest),
+            nonmanifest_datasets=NonManifestDatasets(datasets=nonmanifest),
+            volumes=volumes,
         )
 
-        return succeed(state)
+        return succeed(local_state)
 
     def _mountpath_for_manifestation(self, manifestation):
         """
@@ -1578,19 +1608,19 @@ class BlockDeviceDeployer(PRecord):
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
 
-    def calculate_changes(self, configuration, cluster_state):
+    def calculate_changes(self, configuration, cluster_state, local_state):
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
-        local_state = cluster_state.get_node(self.node_uuid,
-                                             hostname=self.hostname)
+        local_node_state = cluster_state.get_node(self.node_uuid,
+                                                  hostname=self.hostname)
 
         # We need to know applications (for now) to see if we should delay
         # deletion or handoffs. Eventually this will rely on leases instead.
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
-        if local_state.applications is None:
+        if local_node_state.applications is None:
             return in_parallel(changes=[])
 
-        not_in_use = NotInUseDatasets(local_state, configuration.leases)
+        not_in_use = NotInUseDatasets(local_node_state, configuration.leases)
 
         configured_manifestations = this_node_config.manifestations
 
@@ -1601,7 +1631,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
-        local_dataset_ids = set(local_state.manifestations.keys())
+        local_dataset_ids = set(local_node_state.manifestations.keys())
 
         manifestations_to_create = set()
         all_dataset_ids = list(
@@ -1623,15 +1653,16 @@ class BlockDeviceDeployer(PRecord):
                 manifestations_to_create.add(manifestation)
 
         attaches = list(self._calculate_attaches(
-            local_state.devices,
+            local_node_state.devices,
             configured_manifestations,
             cluster_state.nonmanifest_datasets
         ))
         mounts = list(self._calculate_mounts(
-            local_state.devices, local_state.paths, configured_manifestations,
+            local_node_state.devices, local_node_state.paths,
+            configured_manifestations,
         ))
         unmounts = list(self._calculate_unmounts(
-            local_state.paths, configured_manifestations,
+            local_node_state.paths, configured_manifestations,
         ))
 
         # XXX prevent the configuration of unsized datasets on blockdevice
@@ -1646,10 +1677,11 @@ class BlockDeviceDeployer(PRecord):
         )
 
         detaches = list(self._calculate_detaches(
-            local_state.devices, local_state.paths, configured_manifestations,
+            local_node_state.devices, local_node_state.paths,
+            configured_manifestations,
         ))
         deletes = self._calculate_deletes(
-            local_state, configured_manifestations)
+            local_node_state, configured_manifestations)
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
@@ -1750,7 +1782,7 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id=UUID(manifestation.dataset_id),
                 )
 
-    def _calculate_deletes(self, local_state, configured_manifestations):
+    def _calculate_deletes(self, local_node_state, configured_manifestations):
         """
         :param NodeState: The local state discovered immediately prior to
             calculation.
@@ -1776,7 +1808,7 @@ class BlockDeviceDeployer(PRecord):
             DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
             for dataset_id
             in delete_dataset_ids
-            if dataset_id in local_state.manifestations
+            if dataset_id in local_node_state.manifestations
         ]
 
 

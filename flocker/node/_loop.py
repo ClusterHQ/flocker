@@ -369,14 +369,15 @@ class ConvergenceLoop(object):
             d = DeferredContext(maybeDeferred(
                 self.deployer.discover_state, known_local_state))
 
-        def got_local_state(state_changes):
+        def got_local_state(local_state):
+            cluster_state_changes = local_state.shared_state_changes()
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
             #
             # XXX This somewhat side-steps the whole explicit-state-machine
             # thing we're aiming for here.  It would be better for these state
             # changes to arrive as an input to the state machine.
-            for state in state_changes:
+            for state in cluster_state_changes:
                 self.cluster_state = state.update_cluster_state(
                     self.cluster_state
                 )
@@ -384,10 +385,10 @@ class ConvergenceLoop(object):
             # XXX And for this update to be the side-effect of an output
             # resulting.
             sent_state = self._maybe_send_state_to_control_service(
-                state_changes)
+                cluster_state_changes)
 
             action = self.deployer.calculate_changes(
-                self.configuration, self.cluster_state
+                self.configuration, self.cluster_state, local_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
