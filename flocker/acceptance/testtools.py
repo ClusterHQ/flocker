@@ -599,7 +599,7 @@ class Cluster(PRecord):
             :return: A `Deferred` that fires when the entities have been
                 deleted.
             """
-            get_items = configuration_method()
+            get_items = DeferredContext(configuration_method())
 
             def delete_items(items):
                 return gather_deferreds(list(
@@ -614,7 +614,7 @@ class Cluster(PRecord):
                     )
                 )
             )
-            return get_items
+            return get_items.result
 
         def cleanup_containers(_):
             return api_clean_state(
@@ -631,7 +631,7 @@ class Cluster(PRecord):
             )
 
         def cleanup_leases():
-            get_items = self.client.list_leases()
+            get_items = DeferredContext(self.client.list_leases())
 
             def release_all(leases):
                 release_list = []
@@ -641,12 +641,12 @@ class Cluster(PRecord):
                 return gather_deferreds(release_list)
 
             get_items.addCallback(release_all)
-            return get_items
+            return get_items.result
 
-        d = cleanup_leases()
+        d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_containers)
         d.addCallback(cleanup_datasets)
-        return d
+        return d.result
 
     def get_file(self, node, path):
         """
