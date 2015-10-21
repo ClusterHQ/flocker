@@ -580,6 +580,7 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
+    @log_method
     def clean_nodes(self):
         """
         Clean containers and datasets via the API.
