@@ -14,7 +14,7 @@ You can also try Flocker without installation, either in our live hosted environ
    installer
    full-install
 
-Once you have Flocker installed, you will need to complete the :ref:`post-installation-configuration` steps in order to use Flocker.
+Once you have Flocker installed, you will need to complete the :ref:`post-installation-configuration`, starting with setting up authentication so the different parts of Flocker can communicate.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
