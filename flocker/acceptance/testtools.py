@@ -331,10 +331,18 @@ def log_method(function):
 
     @wraps(function)
     def wrapper(self, *args, **kwargs):
+
+        serializable_kwargs = kwargs.copy()
+        for kwarg in kwargs:
+            try:
+                json.dumps(kwargs[kwarg])
+            except TypeError:
+                serializable_kwargs[kwarg] = repr(kwargs[kwarg])
+
         context = start_action(
             Logger(),
             action_type=label,
-            args=args, kwargs=kwargs,
+            args=args, kwargs=serializable_kwargs,
         )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))

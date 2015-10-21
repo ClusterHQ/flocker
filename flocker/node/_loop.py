@@ -502,6 +502,9 @@ class AgentLoopService(MultiService, object):
     # IConvergenceAgent methods:
 
     def connected(self, client):
+        # Reduce reconnect delay back to normal, since we've successfully
+        # connected:
+        self.reconnecting_factory.resetDelay()
         self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):

@@ -7,7 +7,18 @@ Automated Testing
 -----------------
 
 Flocker includes client installation tests and a tool for running them in Docker containers.
-It is called like this:
+
+.. note::
+
+   On OS X, use the system Python together with Homebrew's OpenSSL.
+
+   .. prompt:: bash $
+
+      brew install libffi openssl
+      env LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include" pip install -e .[dev]
+      mkvirtualenv --python=/usr/bin/python new_virtualenv
+
+The client tests are called like this:
 
 .. prompt:: bash $
 
@@ -22,23 +33,21 @@ The :program:`admin/run-client-tests` script has several options:
 
    Specifies the distribution on which to run the installation test.
 
+.. option:: --branch <branch>
+
+   Specifies the branch repository from which to install packages.
+   If this is not specified, packages will be installed from the release repository.
+
 .. option:: --flocker-version <version>
 
-   Specifies the version of flocker to install.
-   If this isn't specified, the most recent version will be installed.
-   If a branch is also specified, the most recent version from that branch will be installed.
-   If a branch is not specified, the most recent release will be installed.
+   Specifies the version of Flocker to install from the selected repository.
+   If this is not specified, the most recent version available in the repository will be installed.
 
    .. note::
 
       The build server merges forward before building packages, except on release branches.
       If you want to run the client tests against a branch in development,
       you probably only want to specify the branch.
-
-.. option:: --branch <branch>
-
-   Specifies the branch from which packages are installed.
-   If this isn't specified, packages will be installed from the release repository.
 
 .. option:: --build-server <buildserver>
 
@@ -48,6 +57,8 @@ The :program:`admin/run-client-tests` script has several options:
 .. option:: --pip
 
    Use pip to install the client, rather than using packages.
+   The wheel files, used for pip installations, are only generated for releases.
+   Hence, for ``pip`` installations, the ``--branch`` value is ignored, and any non-release ``--flocker-version`` value is modified to the previous release.
 
 To see the supported values for each option, run:
 

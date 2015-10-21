@@ -16,6 +16,7 @@ from characteristic import with_init, with_cmp, with_repr
 from twisted.internet.defer import succeed, fail
 from twisted.application.service import Service
 
+from .errors import MaximumSizeTooSmall
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
@@ -177,8 +178,19 @@ class FilesystemStoragePool(Service):
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
         root = filesystem.get_path()
+
+        def get_size():
+            total_size = 0
+            for f in root.walk():
+                if not f.isdir():
+                    total_size += f.getsize()
+            return total_size
+
+        current_size = get_size()
         size_path = root.child(b".size")
         if volume.size.maximum_size is not None:
+            if volume.size.maximum_size < current_size:
+                raise MaximumSizeTooSmall()
             size_path.setContent(
                 u"{0}".format(volume.size.maximum_size).encode("ascii"))
         elif size_path.exists():
