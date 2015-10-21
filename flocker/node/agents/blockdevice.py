@@ -345,8 +345,8 @@ class DestroyBlockDeviceDataset(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset to which the
         volume to be destroyed belongs.
-    :ivar unicode blockdevice_id: The unique identifier of the mounted
-        block_device.
+    :ivar unicode blockdevice_id: The unique identifier of the block device to
+        be destroyed.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -533,7 +533,7 @@ class UnmountBlockDevice(PRecord):
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to unmount.
     :ivar unicode blockdevice_id: The unique identifier of the mounted
-        block_device.
+        block device to be unmounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -610,8 +610,8 @@ class DetachVolume(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to detach.
-    :ivar unicode blockdevice_id: The unique identifier of the mounted
-        block_device.
+    :ivar unicode blockdevice_id: The unique identifier of the block device to
+        be detached.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -634,8 +634,8 @@ class DestroyVolume(PRecord):
     """
     Destroy the storage (and therefore contents) of a volume.
 
-    :ivar unicode blockdevice_id: The unique identifier of the mounted
-        block_device.
+    :ivar unicode blockdevice_id: The unique identifier of the block device to
+        be destroyed.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
 
