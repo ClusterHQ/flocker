@@ -73,8 +73,7 @@ Setting Up Flocker-Ready Nodes Using Amazon Web Services
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 
-#. Follow the operating system specific installation instructions in :ref:`installing-flocker-node` for each node in your cluster.
+#. Return to the installation instructions specific to your operating system in :ref:`installing-flocker-node`, to install ``clusterhq-flocker-node`` on each node in your cluster:
 
-When you have all of your nodes set up, you need to return to the :ref:`Flocker node installation instructions<installing-flocker-node>` in order to install ``clusterhq-flocker-node`` on each node in your cluster.
-
-We support installing the Flocker node services on either :ref:`CentOS 7<centos-7-install>` or :ref:`Ubuntu 14.04<ubuntu-14.04-install>`.
+   * :ref:`centos-7-install`.
+   * :ref:`ubuntu-14.04-install`.
