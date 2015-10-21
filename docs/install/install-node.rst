@@ -103,6 +103,8 @@ Please continue onto the next section, with the cluster authentication instructi
 Next Step
 =========
 
-In the next step :ref:`the node control and agent services will be configured and started<post-installation-configuration>`.
+You are now ready to :ref:`install the Flocker plugin for Docker<install-docker-plugin>`, which allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
+
+Alternatively, you can go ahead to the next section, where you will need to complete the :ref:`post-installation-configuration` steps in order to use Flocker.
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
