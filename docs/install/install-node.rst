@@ -27,11 +27,8 @@ Helpful Guides
 
 If you do not have any nodes, the following guides will help you set some up, with either AWS or Rackspace:
 
-.. toctree::
-   :maxdepth: 1
-
-   setup-aws
-   setup-rackspace
+* :ref:`aws-install`
+* :ref:`rackspace-install`
 
 If you set up nodes with either AWS or Rackspace, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
 
