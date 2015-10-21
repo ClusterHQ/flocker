@@ -5,7 +5,7 @@ Introduction to Flocker
 =======================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    
    what-is-flocker
    flocker-basics
