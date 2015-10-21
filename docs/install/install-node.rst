@@ -95,11 +95,6 @@ Installing on Ubuntu 14.04
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
-
-Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
-Please continue onto the next section, with the cluster authentication instructions.
-
 Next Step
 =========
 
