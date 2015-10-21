@@ -1,7 +1,7 @@
 .. _rackspace-install:
 
 ==============================================
-Setting Up Flocker Ready Nodes Using Rackspace
+Setting Up Flocker-Ready Nodes Using Rackspace
 ==============================================
 
 You can get a Flocker cluster running using Rackspace.

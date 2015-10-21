@@ -1,7 +1,7 @@
 .. _aws-install:
 
 ========================================================
-Setting Up Flocker Ready Nodes Using Amazon Web Services
+Setting Up Flocker-Ready Nodes Using Amazon Web Services
 ========================================================
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
