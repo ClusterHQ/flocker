@@ -235,10 +235,12 @@ DEPENDENCIES = {
         'centos': (
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='openssh-clients'),
+            Dependency(package='lshw'),
         ),
         'ubuntu': (
             Dependency(package='iptables'),
             Dependency(package='openssh-client'),
+            Dependency(package='lshw'),
         ),
     },
     # For now the plan is to tell users to install Docker themselves,
