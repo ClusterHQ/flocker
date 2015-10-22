@@ -15,13 +15,15 @@ from boto.ec2.volume import (
 from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SkipTest, TestCase
 from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException, _should_finish, UnexpectedStateException
+    TimeoutException, _should_finish, UnexpectedStateException,
+    AttachedUnexpectedDevice
 )
 
 from .._logging import (
@@ -162,6 +164,14 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+    def test_attached_unexpected_device_exception(self):
+        """
+        AttachedUnexpectedDevice Exceptions logs expected and found devices.
+        """
+        expected_device = u'/dev/sdf'
+        found_device = FilePath(b'/dev/sdk')
+        raise AttachedUnexpectedDevice(expected_device, found_device)
 
 
 class VolumeStateTransitionTests(TestCase):
