@@ -54,7 +54,6 @@ from ..blockdevice import (
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
-    DatasetWithoutVolume,
     allocated_size,
     check_allocatable_size,
     get_blockdevice_volume,
@@ -1200,6 +1199,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             in_parallel(changes=[
                 AttachVolume(
                     dataset_id=UUID(dataset.dataset_id),
+                    blockdevice_id=(_BLOCKDEVICE_PREFIX +
+                                    unicode(dataset.dataset_id))
                 ),
             ]),
             changes
@@ -3507,7 +3508,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
 class AttachVolumeInitTests(
     make_with_init_tests(
         record_type=AttachVolume,
-        kwargs=dict(dataset_id=uuid4()),
+        kwargs=dict(dataset_id=uuid4(),
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         expected_defaults=dict(),
     )
 ):
@@ -3519,8 +3521,8 @@ class AttachVolumeInitTests(
 class AttachVolumeTests(
     make_istatechange_tests(
         AttachVolume,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3537,7 +3539,8 @@ class AttachVolumeTests(
         volume = api.create_volume(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
-        change = AttachVolume(dataset_id=dataset_id)
+        change = AttachVolume(dataset_id=dataset_id,
+                              blockdevice_id=volume.blockdevice_id)
         initial_list_volumes = api._list_volumes_count
         self.successResultOf(run_state_change(change, deployer))
         final_call_count = api._list_volumes_count - initial_list_volumes
@@ -3547,22 +3550,6 @@ class AttachVolumeTests(
             attached_to=api.compute_instance_id()
         )
         self.assertEqual([expected_volume], api.list_volumes())
-
-    def test_missing(self):
-        """
-        If no volume is associated with the ``AttachVolume`` instance's
-        ``dataset_id``, ``AttachVolume.run`` returns a ``Deferred`` that fires
-        with a ``Failure`` wrapping ``DatasetWithoutVolume``.
-        """
-        dataset_id = uuid4()
-        deployer = create_blockdevicedeployer(self)
-        change = AttachVolume(dataset_id=dataset_id)
-        failure = self.failureResultOf(
-            run_state_change(change, deployer), DatasetWithoutVolume
-        )
-        self.assertEqual(
-            DatasetWithoutVolume(dataset_id=dataset_id), failure.value
-        )
 
 
 class AllocatedSizeTypeTests(SynchronousTestCase):

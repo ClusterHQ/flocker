@@ -25,7 +25,7 @@ from characteristic import attributes
 import psutil
 
 from twisted.python.reflect import safe_repr
-from twisted.internet.defer import succeed, fail, gatherResults
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
@@ -233,15 +233,9 @@ MOUNT_BLOCK_DEVICE_DETAILS = MessageType(
 
 ATTACH_VOLUME = ActionType(
     u"agent:blockdevice:attach_volume",
-    [DATASET_ID],
+    [DATASET_ID, BLOCK_DEVICE_ID],
     [],
     u"The volume for a block-device-backed dataset is being attached."
-)
-
-ATTACH_VOLUME_DETAILS = MessageType(
-    u"agent:blockdevice:attach_volume:details",
-    [VOLUME],
-    u"The volume for a block-device-backed dataset has been discovered."
 )
 
 DETACH_VOLUME = ActionType(
@@ -569,36 +563,30 @@ class AttachVolume(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to attach.
+    :ivar unicode blockdevice_id: The unique identifier of the block_device to
+        be attached.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
 
     @property
     def eliot_action(self):
-        return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id)
+        return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
+                             blockdevice_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
         api = deployer.async_block_device_api
-        listing = api.list_volumes()
-        listing.addCallback(
-            _blockdevice_volume_from_datasetid, self.dataset_id
-        )
         getting_id = api.compute_instance_id()
 
-        d = gatherResults([listing, getting_id])
-
-        def found((volume, compute_instance_id)):
-            if volume is None:
-                # It was not actually found.
-                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-            ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
+        def got_compute_id(compute_instance_id):
             return api.attach_volume(
-                volume.blockdevice_id,
+                self.blockdevice_id,
                 attach_to=compute_instance_id,
             )
-        attaching = d.addCallback(found)
+        attaching = getting_id.addCallback(got_compute_id)
         return attaching
 
 
@@ -1634,7 +1622,8 @@ class BlockDeviceDeployer(PRecord):
         attaches = list(self._calculate_attaches(
             local_node_state.devices,
             configured_manifestations,
-            cluster_state.nonmanifest_datasets
+            cluster_state.nonmanifest_datasets,
+            local_state.volumes
         ))
         mounts = list(self._calculate_mounts(
             local_node_state.devices, local_node_state.paths,
@@ -1755,7 +1744,7 @@ class BlockDeviceDeployer(PRecord):
             yield DetachVolume(dataset_id=attached_dataset_id,
                                blockdevice_id=volume.blockdevice_id)
 
-    def _calculate_attaches(self, devices, configured, nonmanifest):
+    def _calculate_attaches(self, devices, configured, nonmanifest, volumes):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1764,19 +1753,25 @@ class BlockDeviceDeployer(PRecord):
             node.  This is the same as ``NodeState.manifestations``.
         :param PMap nonmanifest: The datasets which exist in the cluster but
             are not attached to any node.
+        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
+            known to exist in the cluster.
 
         :return: A generator of ``AttachVolume`` instances, one for each
                  dataset which exists, is unattached, and is configured to be
                  attached to this node.
         """
         for manifestation in configured.values():
-            if UUID(manifestation.dataset_id) in devices:
+            dataset_id = UUID(manifestation.dataset_id)
+            if dataset_id in devices:
                 # It's already attached here.
                 continue
             if manifestation.dataset_id in nonmanifest:
+                volume = _blockdevice_volume_from_datasetid(volumes,
+                                                            dataset_id)
                 # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
-                    dataset_id=UUID(manifestation.dataset_id),
+                    dataset_id=dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                 )
 
     def _calculate_deletes(self, local_node_state, configured_manifestations,
