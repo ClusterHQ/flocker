@@ -3541,10 +3541,7 @@ class AttachVolumeTests(
         )
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
-        initial_list_volumes = api._list_volumes_count
         self.successResultOf(run_state_change(change, deployer))
-        final_call_count = api._list_volumes_count - initial_list_volumes
-        self.assertLess(final_call_count, 2)
 
         expected_volume = volume.set(
             attached_to=api.compute_instance_id()
