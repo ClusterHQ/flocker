@@ -42,15 +42,15 @@ Installing on CentOS 7
 
 .. note:: You should ensure your nodes are Flocker-ready, either by checking the :ref:`prerequisites<installing-flocker-node-prereq>` above, or by following our guides on using :ref:`AWS<aws-install>` or :ref:`Rackspace<rackspace-install>`.
 
-#. **Log into the first node as root.**
+#. **Log into the first node as root:**
 
    .. prompt:: bash $
 
       ssh root@<your-first-node>
 
-#. **Install the** ``clusterhq-flocker-node`` **package.**
+#. **Install the** ``clusterhq-flocker-node`` **package:**
 
-   To install ``clusterhq-flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
+   To install ``clusterhq-flocker-node`` on CentOS 7 you must install the RPM package provided by the ClusterHQ repository.
    The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
    
    Paste the following commands into a root console on the target node:
@@ -58,7 +58,7 @@ Installing on CentOS 7
    .. task:: install_flocker centos-7
       :prompt: [root@centos]#
 
-#. **Repeat steps 1 and 2 on all other nodes.**
+#. **Repeat steps 1 and 2 for all other nodes:**
 
    If you haven't already, log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
 
