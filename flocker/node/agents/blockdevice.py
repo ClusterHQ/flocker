@@ -220,14 +220,14 @@ UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
 
 MOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:mount",
-    [DATASET_ID],
+    [DATASET_ID, BLOCK_DEVICE_ID],
     [],
     u"A block-device-backed dataset is being mounted.",
 )
 
 MOUNT_BLOCK_DEVICE_DETAILS = MessageType(
     u"agent:blockdevice:mount:details",
-    [VOLUME, BLOCK_DEVICE_PATH],
+    [BLOCK_DEVICE_PATH],
     u"The device file for a block-device-backed dataset has been discovered."
 )
 
@@ -465,15 +465,19 @@ class MountBlockDevice(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to mount.
+    :ivar unicode blockdevice_id: The unique identifier of the block_device to
+        be mounted.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
 
     @property
     def eliot_action(self):
-        return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
+        return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
+                                  block_device_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
@@ -481,13 +485,8 @@ class MountBlockDevice(PRecord):
         device.  The volume must be attached to this node.
         """
         api = deployer.block_device_api
-        volume = _blockdevice_volume_from_datasetid(
-            api.list_volumes(), self.dataset_id
-        )
-        device = api.get_device_path(volume.blockdevice_id)
-        MOUNT_BLOCK_DEVICE_DETAILS(
-            volume=volume, block_device_path=device,
-        ).write(_logger)
+        device = api.get_device_path(self.blockdevice_id)
+        MOUNT_BLOCK_DEVICE_DETAILS(block_device_path=device).write(_logger)
 
         # Create the directory where a device will be mounted.
         # The directory's parent's permissions will be set to only allow access
@@ -750,6 +749,7 @@ class CreateBlockDeviceDataset(PRecord):
         d = run_state_change(create, deployer)
 
         mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
+                                 blockdevice_id=volume.blockdevice_id,
                                  mountpoint=self.mountpoint)
         d.addCallback(lambda _: run_state_change(mount, deployer))
 
@@ -1102,7 +1102,7 @@ def _backing_file_name(volume):
     :param BlockDeviceVolume: The volume for which to generate a
         loopback file name.
     :returns: A filename containing the encoded
-        ``volume.blockdevic_id`` and ``volume.size``.
+        ``volume.blockdevice_id`` and ``volume.size``.
     """
     return volume.blockdevice_id.encode('ascii') + '_' + bytes(volume.size)
 
@@ -1638,7 +1638,7 @@ class BlockDeviceDeployer(PRecord):
         ))
         mounts = list(self._calculate_mounts(
             local_node_state.devices, local_node_state.paths,
-            configured_manifestations,
+            configured_manifestations, local_state.volumes
         ))
         unmounts = list(self._calculate_unmounts(
             local_node_state.paths, configured_manifestations,
@@ -1672,7 +1672,7 @@ class BlockDeviceDeployer(PRecord):
             creates + not_in_use(deletes)
         ))
 
-    def _calculate_mounts(self, devices, paths, configured):
+    def _calculate_mounts(self, devices, paths, configured, volumes):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1681,6 +1681,8 @@ class BlockDeviceDeployer(PRecord):
             on this node.  This is the same as ``NodeState.paths``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
+        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
+            known to exist in the cluster.
 
         :return: A generator of ``MountBlockDevice`` instances, one for each
             dataset which exists, is attached to this node, does not have its
@@ -1691,11 +1693,15 @@ class BlockDeviceDeployer(PRecord):
             if configured_dataset_id in paths:
                 # It's mounted already.
                 continue
-            if UUID(configured_dataset_id) in devices:
+            dataset_id = UUID(configured_dataset_id)
+            if dataset_id in devices:
                 # It's attached.
                 path = self._mountpath_for_dataset_id(configured_dataset_id)
+                volume = _blockdevice_volume_from_datasetid(volumes,
+                                                            dataset_id)
                 yield MountBlockDevice(
-                    dataset_id=UUID(configured_dataset_id),
+                    dataset_id=dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                     mountpoint=path,
                 )
 
