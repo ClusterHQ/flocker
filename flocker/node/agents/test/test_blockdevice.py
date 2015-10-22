@@ -3417,11 +3417,7 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             dataset=dataset, mountpoint=expected_mountpoint
         )
 
-        api = self.deployer.block_device_api
-        initial_list_volumes = api._list_volumes_count
         run_state_change(change, self.deployer)
-        final_call_count = api._list_volumes_count - initial_list_volumes
-        self.assertLess(final_call_count, 6)
 
         [volume] = self.api.list_volumes()
         device_path = self.api.get_device_path(volume.blockdevice_id)
@@ -3542,7 +3538,10 @@ class AttachVolumeTests(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         change = AttachVolume(dataset_id=dataset_id)
+        initial_list_volumes = api._list_volumes_count
         self.successResultOf(run_state_change(change, deployer))
+        final_call_count = api._list_volumes_count - initial_list_volumes
+        self.assertLess(final_call_count, 2)
 
         expected_volume = volume.set(
             attached_to=api.compute_instance_id()
