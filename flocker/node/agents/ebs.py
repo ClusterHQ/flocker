@@ -216,7 +216,7 @@ class AttachedUnexpectedDevice(Exception):
 
     def __init__(self, requested, discovered):
         """
-        :param FilePath requested: The requested device name.
+        :param unicode requested: The requested device name.
         :param FilePath discovered: The device which was discovered on the
             system.
         """
@@ -225,7 +225,7 @@ class AttachedUnexpectedDevice(Exception):
 
     def __str__(self):
         return self._template.format(
-            self.requested.path, self.discovered.path,
+            self.requested, self.discovered.path,
         )
 
     __repr__ = __str__
@@ -555,7 +555,7 @@ def _wait_for_new_device(base, size, time_limit=60):
                         new_devices_size=new_devices_size,
                         expected_size=size,
                         time_limit=time_limit).write()
-    return None
+    return FilePath(b"")
 
 
 def _is_cluster_volume(cluster_id, ebs_volume):
