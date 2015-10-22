@@ -11,7 +11,7 @@ Setting Up Nodes Using Amazon Web Services
 .. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
 
 #. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard.
-   These launch instances using CentOS 7 AMIs (in particular "CentOS 7 x86_64 (2014_09_29) EBS HVM") but it is possible to use any operating system supported by Flocker with AWS.
+   These launch instances using CentOS 7 AMIs (in particular "CentOS 7 x86_64 (2014_09_29) EBS HVM") but it is possible to use any :ref:`operating system supported by Flocker<supported-operating-systems>` with AWS.
 
    * `EU (Frankfurt) <https://console.aws.amazon.com/ec2/v2/home?region=eu-central-1#LaunchInstanceWizard:ami=ami-7cc4f661>`_
    * `South America (Sao Paulo) <https://console.aws.amazon.com/ec2/v2/home?region=sa-east-1#LaunchInstanceWizard:ami=ami-bf9520a2>`_
