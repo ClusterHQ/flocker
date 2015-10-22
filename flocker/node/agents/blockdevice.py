@@ -20,7 +20,6 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, PClass, field
-from characteristic import attributes
 
 import psutil
 
@@ -49,17 +48,6 @@ _logger = Logger()
 # maximum_size.
 # XXX: Make this configurable. FLOC-2679
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
-
-
-@attributes(["dataset_id"])
-class DatasetWithoutVolume(Exception):
-    """
-    An operation was attempted on a dataset that involves manipulating the
-    dataset's volume but that volume could not be found.
-
-    :ivar UUID dataset_id: The unique identifier of the dataset the operation
-        was meant to affect.
-    """
 
 
 class VolumeException(Exception):
