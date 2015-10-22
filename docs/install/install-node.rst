@@ -14,11 +14,11 @@ Before you begin to install the Flocker node services, you will need the followi
 * A minimum of 2 nodes:
   
   * We support installing the Flocker node services on either :ref:`CentOS 7<centos-7-install>` or :ref:`Ubuntu 14.04<ubuntu-14.04-install>`.
-  * We recommend a minimum of 16GB storage on each node.
+  * To avoid potential disk space problems (for example, when storing popular Docker images), we recommend a minimum of 16GB storage on each node.
 
 * You will need permission for SSH access from your laptop.
 * Depending on your usage of Flocker, you will require access to a range of ports.
-  For example, specifying which ports to make available are included in the  :ref:`aws-install` documentation.
+  For example, instructions on specifying which ports to make available are included in the :ref:`aws-install` documentation.
 * Flocker's container management features depend on Docker.
   You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
