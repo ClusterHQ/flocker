@@ -944,6 +944,42 @@ class IBlockDeviceAPI(Interface):
         """
 
 
+class IProfiledBlockDeviceAPI(IBlockDeviceAPI):
+    """
+    An interface for ``IBlockDeviceAPI`` implementers that are capable of
+    creating volumes with a specific profile.
+    """
+
+    def create_volume_with_profile(name, size, profile_name):
+        """
+        Create a new volume with the specified profile.
+
+        When called by ``IDeployer``, the supplied size will be
+        rounded up to the nearest
+        ``IBlockDeviceAPI.allocation_unit()``
+
+
+        :param UUID dataset_id: The Flocker dataset ID of the dataset on this
+            volume.
+        :param int size: The size of the new volume in bytes.
+        :param unicode profile_name: The name of the storage profile for this
+            volume.
+
+        :returns: A ``BlockDeviceVolume`` of the newly created volume.
+        """
+
+    def get_profile_for_volume(blockdevice_id):
+        """
+        Determine the name of the storage profile for a given blockdevice_id.
+
+        :param unicode blockdevice_id: The blockdevice_id of the volume to
+            query.
+
+        :returns unicode: The name of the profile that the volume currently
+            matches.
+        """
+
+
 @implementer(IBlockDeviceAsyncAPI)
 @auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
 class _SyncToThreadedAsyncAPIAdapter(PRecord):
