@@ -132,7 +132,7 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Create", methods=["POST"])
     @_endpoint(u"Create")
-    def volumedriver_create(self, Name):
+    def volumedriver_create(self, Name, Opts=None):
         """
         Create a volume with the given name.
 
