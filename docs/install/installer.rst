@@ -1,3 +1,5 @@
+.. _quick-start-installer:
+
 =============================
 Quick Start Flocker Installer
 =============================
@@ -11,3 +13,5 @@ The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currentl
 * The :ref:`Labs Installer <labs-installer>` documentation includes several tutorials to make it easy to set up and manage a Flocker cluster.
 
 For more information, see the :ref:`Labs Installer <labs-installer>` page.
+
+For a full Flocker installation, including the Flocker plugin for Docker, see the :ref:`full-installation` instructions.
