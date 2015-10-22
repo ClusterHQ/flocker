@@ -531,7 +531,8 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param int time_limit: Time, in seconds, to wait for
         new device to manifest. Defaults to 60s.
 
-    :returns: The path of the new block device file.
+    :returns: The path of the new block device file. ``/dev/null``
+              if no new device was found.
     :rtype: ``FilePath``
     """
     start_time = time.time()
@@ -555,7 +556,7 @@ def _wait_for_new_device(base, size, time_limit=60):
                         new_devices_size=new_devices_size,
                         expected_size=size,
                         time_limit=time_limit).write()
-    return FilePath(b"")
+    return FilePath(b'/dev/null')
 
 
 def _is_cluster_volume(cluster_id, ebs_volume):
@@ -675,7 +676,7 @@ class EBSBlockDeviceAPI(object):
         # Could not find any suitable device that is available
         # for attachment. Log to Eliot before giving up.
         NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
-        return None
+        return u'/dev/null'
 
     def create_volume(self, dataset_id, size):
         """
@@ -758,7 +759,7 @@ class EBSBlockDeviceAPI(object):
                 volumes = self.connection.get_all_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
 
-                if device is None:
+                if device == u'/dev/null':
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
                     # (https://clusterhq.atlassian.net/browse/FLOC-1887).
                     # No point in attempting an ``attach_volume``, return.

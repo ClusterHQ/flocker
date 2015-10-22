@@ -165,13 +165,61 @@ class EBSBlockDeviceAPIInterfaceTests(
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
-    def test_attached_unexpected_device_exception(self):
+    def test_next_device_in_use_end(self):
         """
-        AttachedUnexpectedDevice Exceptions logs expected and found devices.
+        ``_next_device`` returns ``/dev/null`` if all devices are in use.
         """
-        expected_device = u'/dev/sdf'
-        found_device = FilePath(b'/dev/sdk')
-        raise AttachedUnexpectedDevice(expected_device, found_device)
+        result = self.api._next_device(self.api.compute_instance_id(), [],
+                                       {u'/dev/sdf',
+                                        u'/dev/sdg',
+                                        u'/dev/sdh',
+                                        u'/dev/sdi',
+                                        u'/dev/sdj',
+                                        u'/dev/sdk',
+                                        u'/dev/sdl',
+                                        u'/dev/sdm',
+                                        u'/dev/sdn',
+                                        u'/dev/sdo',
+                                        u'/dev/sdp'})
+        self.assertEqual(result, u"/dev/null")
+
+    def test_attached_unexpected_device_repr(self):
+        """
+        AttachedUnexpectedDevice renders requested and discovered device names.
+        """
+        requested_device = self.api._next_device(
+            self.api.compute_instance_id(), [], {u"/dev/sdf"})
+        discovered_device = FilePath(b'/dev/sdk')
+        expected_repr = "AttachedUnexpectedDevice(requested={!r}, " \
+                        "discovered='/dev/sdk')".format(requested_device)
+        exception_repr = AttachedUnexpectedDevice(requested_device,
+                                                  discovered_device).__repr__()
+        self.assertEqual(expected_repr, exception_repr)
+
+    def test_attached_unexpected_device_null_discovered(self):
+        """
+        AttachedUnexpectedDevice handles null new device.
+        """
+        requested_device = self.api._next_device(
+            self.api.compute_instance_id(), [], {u"/dev/sdf"})
+        discovered_device = FilePath(b'/dev/null')
+        expected_repr = "AttachedUnexpectedDevice(requested={!r}, " \
+                        "discovered='/dev/null')".format(requested_device)
+        exception_repr = AttachedUnexpectedDevice(requested_device,
+                                                  discovered_device).__repr__()
+        self.assertEqual(expected_repr, exception_repr)
+
+    def test_attached_unexpected_device_null_requested(self):
+        """
+        AttachedUnexpectedDevice handles null requested device.
+        """
+        requested_device = u'/dev/null'
+        discovered_device = FilePath(b'/dev/sdf')
+        expected_repr = "AttachedUnexpectedDevice(requested=u'/dev/null', " \
+                        "discovered='/dev/sdf')"
+        exception_repr = AttachedUnexpectedDevice(requested_device,
+                                                  discovered_device).__repr__()
+        self.assertEqual(expected_repr, exception_repr)
 
 
 class VolumeStateTransitionTests(TestCase):
