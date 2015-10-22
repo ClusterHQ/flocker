@@ -9,8 +9,8 @@ Supported Operating Systems
 
 * CentOS 7
 * Ubuntu 14.04
-* Ubuntu 15.04 (Command Line only)
-* OS X (Command Line only)
+* Ubuntu 15.04 (Command line only)
+* OS X (Command line only)
 
 
 Supported Cloud Providers
