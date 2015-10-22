@@ -31,6 +31,14 @@ def gzip_file(source_path, archive_path):
                 copyfileobj(source, archive)
 
 
+def lshw():
+    """
+    :returns: ``bytes`` JSON encoded hardware inventory of the current host.
+    """
+    with open(os.devnull, 'w') as devnull:
+        return check_output(['lshw', '-quiet', '-json'], stderr=devnull)
+
+
 class FlockerDebugArchive(object):
     """
     Create a tar archive containing:
@@ -145,6 +153,9 @@ class FlockerDebugArchive(object):
                 ['lsblk', '--all'],
                 stdout=self._open_logfile('lsblk')
             )
+
+            # Hardware inventory
+            self._open_logfile('lshw').write(lshw())
 
             # Create a single archive file
             archive_path = make_archive(
