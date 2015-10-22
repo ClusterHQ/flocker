@@ -85,7 +85,7 @@ Flocker mounts the volume into the container as a normal Docker volume.
 Push and Handoff
 ****************
 
-Push and handoffs are currently done over SSH between nodes, with ad hoc calls to the ``flocker-volume`` command-line tool.
+Push and handoffs are currently done over SSH between nodes, with ad hoc calls to the ``flocker-volume`` command line tool.
 In future releases this will be switched to a real protocol and later on to communication between long-running daemons rather than short-lived scripts.
 (See :issue:`154`.)
 
