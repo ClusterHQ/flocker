@@ -47,13 +47,13 @@ Other Linux Distributions
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 
-To install these pre-requisites with the ``yum`` package manager, run:
+To install these prerequisites with the ``yum`` package manager, run:
 
 .. task:: cli_pip_prereqs yum
    :prompt: alice@mercury:~$
 
 
-To install these pre-requisites with the ``apt`` package manager, run:
+To install these prerequisites with the ``apt`` package manager, run:
 
 .. task:: cli_pip_prereqs apt
    :prompt: alice@mercury:~$
