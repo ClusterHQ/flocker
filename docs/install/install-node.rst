@@ -44,7 +44,7 @@ Installing on CentOS 7
 
 #. **Log into the first node as root:**
 
-   .. prompt:: bash $
+   .. prompt:: bash alice@mercury:~$
 
       ssh root@<your-first-node>
 
@@ -74,7 +74,7 @@ Installing on Ubuntu 14.04
 
 #. **Log into the first node as root:**
 
-   .. prompt:: bash $
+   .. prompt:: bash alice@mercury:~$
 
       ssh root@<your-first-node>
 
