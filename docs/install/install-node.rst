@@ -11,7 +11,7 @@ Prerequisites
 
 Before you begin to install the Flocker node services, you will need the following:
 
-* You will require a minimum of 2 nodes in order to install and use Flocker:
+* A minimum of 2 nodes:
   
   * We support installing the Flocker node services on either :ref:`CentOS 7<centos-7-install>` or :ref:`Ubuntu 14.04<ubuntu-14.04-install>`.
   * We recommend a minimum of 16GB storage on each node.
