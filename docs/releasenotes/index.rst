@@ -10,12 +10,15 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
-============
+v1.5.0
+======
 
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
-
+* journald logs are now easier to filter and read.
+  See the `Eliot documentation <https://eliot.readthedocs.org/en/0.9.0/journald.html>`_. for more information.
+* The control service uses much less CPU, allowing for larger clusters.
+* Flocker CLI now installs on OS X 10.11.
 
 v1.4.0
 ======
