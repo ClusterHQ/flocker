@@ -93,6 +93,8 @@ setup(
             'flocker.dockerplugin._script:docker_plugin_main',
             'flocker-diagnostics = ' +
             'flocker.node.script:flocker_diagnostics_main',
+            'flocker-benchmark = ' +
+            'flocker.node.benchmark:flocker_benchmark_main',
         ],
     },
 
