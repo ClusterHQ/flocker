@@ -53,14 +53,14 @@ Installing on CentOS 7
    To install ``clusterhq-flocker-node`` on CentOS 7 you must install the RPM package provided by the ClusterHQ repository.
    The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
    
-   Paste the following commands into a root console on the target node:
+   Run the following commands as root on the target node:
 
    .. task:: install_flocker centos-7
       :prompt: [root@centos]#
 
 #. **Repeat steps 1 and 2 for all other nodes:**
 
-   If you haven't already, log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
+   Log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
 
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
@@ -72,25 +72,25 @@ Installing on Ubuntu 14.04
 
 .. note:: You should ensure your nodes are Flocker-ready, either by checking the :ref:`prerequisites<installing-flocker-node-prereq>` above, or by following our guides on using :ref:`AWS<aws-install>` or :ref:`Rackspace<rackspace-install>`.
 
-#. **Log into the first node as root.**
+#. **Log into the first node as root:**
 
    .. prompt:: bash $
 
       ssh root@<your-first-node>
 
-#. **Install the** ``clusterhq-flocker-node`` **package.**
+#. **Install the** ``clusterhq-flocker-node`` **package:**
 
    To install ``clusterhq-flocker-node`` on Ubuntu 14.04 you must install the package provided by the ClusterHQ repository.
    The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
    
-   Paste the following commands into a root console on the target node:
+   Run the following commands as root on the target node:
    
    .. task:: install_flocker ubuntu-14.04
       :prompt: [root@ubuntu]#
 
-#. **Repeat steps 1 and 2 on all other nodes.**
+#. **Repeat steps 1 and 2 on all other nodes:**
 
-   If you haven't already, log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
+   Log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
 
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
