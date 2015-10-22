@@ -1,6 +1,6 @@
-==================================================================
-Supported Operating Systems, Cloud Providers, and Storage Backends
-==================================================================
+========================================================
+Operating Systems, Cloud Providers, and Storage Backends
+========================================================
 
 .. _supported-operating-systems:
 
