@@ -26,7 +26,7 @@ from ..packaging import (
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun,
-    PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
+    PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE, PACKAGE_DOCKER_PLUGIN,
     make_dependencies, available_distributions,
     LintPackage,
 )
@@ -542,19 +542,16 @@ class GetPackageVersionTests(TestCase):
         """
         ``GetPackageVersion`` assigns the exact version of a found package to
         its ``version`` attribute.
-
-        In particular, newer versions of pip/setuptools normalize the version
-        accoding to PEP440. We aren't prepared to handle that yet.
         """
         versions = [
             '0.3.2',
-            '0.3.3dev5',
-            '0.3.2+doc1',
-            '0.3.2-1-gf661a6a',
-            '0.3.2+doc1-1-gf661a6a',
-            '0.3.2pre1',
-            '0.3.2-1-gf661a6a-dirty'
-            '0.3.2+doc1-dirty'
+            '0.3.3.dev5',
+            '0.3.2.post1',
+            '0.3.2+1.gf661a6a',
+            '0.3.2.post1+1.gf661a6a',
+            '0.3.2rc1',
+            '0.3.2+1.gf661a6a.dirty'
+            '0.3.2.post1+1.gf661a6a.dirty'
         ]
         for version in versions:
             self.assert_version_found(version=version)
@@ -841,16 +838,9 @@ class OmnibusPackageBuilderTests(TestCase):
             expected_package_type=PackageTypes.DEB,
         )
 
-    def test_fedora_20(self):
-        self.assert_omnibus_steps(
-            distribution=Distribution(name='fedora', version='20'),
-            expected_category='Applications/System',
-            expected_package_type=PackageTypes.RPM,
-        )
-
     def assert_omnibus_steps(
             self,
-            distribution=Distribution(name='fedora', version='20'),
+            distribution=Distribution(name='centos', version='7'),
             expected_category='Applications/System',
             expected_package_type=PackageTypes.RPM,
             ):
@@ -862,6 +852,7 @@ class OmnibusPackageBuilderTests(TestCase):
         fake_dependencies = {
             'python': [Dependency(package='python-dep')],
             'node': [Dependency(package='node-dep')],
+            'docker-plugin': [Dependency(package='docker-plugin-dep')],
             'cli': [Dependency(package='cli-dep')],
         }
 
@@ -876,6 +867,8 @@ class OmnibusPackageBuilderTests(TestCase):
         target_path = FilePath(self.mktemp())
         flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
+        flocker_docker_plugin_path = target_path.child('flocker-docker-plugin')
+        flocker_shared_path = target_path.child('flocker-shared')
         empty_path = target_path.child('empty')
 
         expected_virtualenv_path = FilePath('/opt/flocker')
@@ -906,11 +899,20 @@ class OmnibusPackageBuilderTests(TestCase):
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
                 ),
                 expected_package_version_step,
+                CreateLinks(
+                    links=[
+                        (FilePath('/opt/flocker/bin/eliot-prettyprint'),
+                         flocker_shared_path),
+                        (FilePath('/opt/flocker/bin/eliot-tree'),
+                         flocker_shared_path),
+                    ],
+                ),
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
                     source_paths={
-                        expected_virtualenv_path: expected_virtualenv_path
+                        expected_virtualenv_path: expected_virtualenv_path,
+                        flocker_shared_path: FilePath("/usr/bin"),
                     },
                     name='clusterhq-python-flocker',
                     prefix=expected_prefix,
@@ -983,6 +985,8 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                          flocker_node_path),
+                        (FilePath('/opt/flocker/bin/flocker-diagnostics'),
+                         flocker_node_path),
                     ]
                 ),
                 BuildPackage(
@@ -1001,6 +1005,9 @@ class OmnibusPackageBuilderTests(TestCase):
                         # Upstart configuration
                         package_files.child('upstart'):
                             FilePath('/etc/init'),
+                        # rsyslog configuration
+                        package_files.child(b'rsyslog'):
+                            FilePath(b"/etc/rsyslog.d"),
                         # Flocker Control State dir
                         empty_path: FilePath('/var/lib/flocker/'),
                     },
@@ -1027,6 +1034,46 @@ class OmnibusPackageBuilderTests(TestCase):
                     package='clusterhq-flocker-node',
                     architecture="all",
                 ),
+                CreateLinks(
+                    links=[
+                        (FilePath('/opt/flocker/bin/flocker-docker-plugin'),
+                         flocker_docker_plugin_path),
+                    ]
+                ),
+                BuildPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    source_paths={
+                        flocker_docker_plugin_path: FilePath("/usr/sbin"),
+                        # SystemD configuration
+                        package_files.child('docker-plugin').child('systemd'):
+                            FilePath('/usr/lib/systemd/system'),
+                        # Upstart configuration
+                        package_files.child('docker-plugin').child('upstart'):
+                            FilePath('/etc/init'),
+                    },
+                    name='clusterhq-flocker-docker-plugin',
+                    prefix=FilePath('/'),
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    license=PACKAGE.LICENSE.value,
+                    url=PACKAGE.URL.value,
+                    vendor=PACKAGE.VENDOR.value,
+                    maintainer=PACKAGE.MAINTAINER.value,
+                    architecture="all",
+                    description=PACKAGE_DOCKER_PLUGIN.DESCRIPTION.value,
+                    category=expected_category,
+                    dependencies=[Dependency(package='docker-plugin-dep')],
+                ),
+                LintPackage(
+                    package_type=distribution.package_type(),
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-flocker-docker-plugin',
+                    architecture="all",
+                ),
+
             )
         )
         assert_equal_steps(
@@ -1418,7 +1465,7 @@ class MakeDependenciesTests(TestCase):
                 version=expected_version
             ),
             make_dependencies('node', expected_version,
-                              Distribution(name='fedora', version='20'))
+                              Distribution(name='centos', version='7'))
         )
 
     def test_cli(self):
@@ -1434,5 +1481,5 @@ class MakeDependenciesTests(TestCase):
                 version=expected_version
             ),
             make_dependencies('cli', expected_version,
-                              Distribution(name='fedora', version='20'))
+                              Distribution(name='centos', version='7'))
         )

@@ -1,4 +1,4 @@
-:tocdepth: 2
+.. _concepts:
 
 ================
 Flocker Concepts
@@ -8,6 +8,7 @@ Flocker Concepts
 .. toctree::
    :maxdepth: 2
 
+   security
    architecture
    volume
    clustering

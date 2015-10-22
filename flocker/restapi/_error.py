@@ -7,10 +7,9 @@ encountered by the implementation of the API.
 __all__ = [
     "BadRequest", "InvalidRequestJSON", "makeBadRequest",
 
-    "DECODING_ERROR_DESCRIPTION", "ILLEGAL_CONTENT_TYPE_DESCRIPTION",
+    "DECODING_ERROR_DESCRIPTION",
 
-    "DECODING_ERROR", "ILLEGAL_CONTENT_TYPE", "UNAUTHORIZED",
-    "ENTITY_NOT_FOUND",
+    "DECODING_ERROR", "UNAUTHORIZED", "ENTITY_NOT_FOUND",
 
     "NameCollision",
 
@@ -62,9 +61,6 @@ DECODING_ERROR_DESCRIPTION = cleandoc(u"""
     The request body could not be decoded according to the value of the
     Content-Type header.
     """)
-ILLEGAL_CONTENT_TYPE_DESCRIPTION = cleandoc(u"""
-    The request Content-Type was not a supported type (application/json).
-    """)
 NOT_FOUND_DESCRIPTION = cleandoc(u"""
     The specified entity either does not exist or you are not allowed to access
     it.
@@ -74,8 +70,6 @@ UNAUTHORIZED_DESCRIPTION = cleandoc("""
     """)
 
 DECODING_ERROR = makeBadRequest(description=DECODING_ERROR_DESCRIPTION)
-ILLEGAL_CONTENT_TYPE = makeBadRequest(
-    description=ILLEGAL_CONTENT_TYPE_DESCRIPTION)
 ENTITY_NOT_FOUND = makeBadRequest(
     code=NOT_FOUND, description=NOT_FOUND_DESCRIPTION)
 UNAUTHORIZED = makeBadRequest(

@@ -1,9 +1,30 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Flocker is a hypervisor that provides ZFS-based replication and fail-over
-functionality to a Linux-based user-space operating system.
+Flocker is an open-source container data volume manager for your
+Dockerized applications.
 """
+
+
+def _disable_pyrsistent_c_extensions():
+    """
+    Pyrsistent sometimes segfaults. Disabling the C extension reduces the
+    likelihood of this happening.
+
+    We do this first so it happens before pyrsistent is imported.
+
+    In theory this bug is fixed in pyrsistent 0.11.7, so this may no
+    longer be necessary and is likely worth risking for higher
+    performance. Once we have benchmarking framework we can assess
+    risk/benefit ratio better.
+
+    The mechanism for disabling extensions is documented at
+    https://github.com/tobgu/pyrsistent/blob/master/CHANGES.txt#L17-L19.
+    """
+    import os
+    os.environ[b"PYRSISTENT_NO_C_EXTENSION"] = b"1"
+_disable_pyrsistent_c_extensions()
+del _disable_pyrsistent_c_extensions
 
 
 def _suppress_warnings():

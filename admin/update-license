@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Update the Copyright years in the LICENSE file.
+"""
+
+from _preamble import TOPLEVEL
+
+import sys
+
+if __name__ == '__main__':
+    from admin.release import update_license_file as main
+    main(sys.argv[1:], top_level=TOPLEVEL)

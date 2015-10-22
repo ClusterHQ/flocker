@@ -4,111 +4,13 @@
 Helpers for using libcloud.
 """
 
-from zope.interface import (
-    Attribute as InterfaceAttribute, Interface, implementer)
+from zope.interface import implementer
 from characteristic import attributes, Attribute
+from twisted.conch.ssh.keys import Key
 
 from flocker.provision._ssh import run_remotely, run_from_args
 
-
-def _fixed_OpenStackNodeDriver_to_node(self, api_node):
-    """
-    This is a copy of
-    libcloud.compute.drivers.openstack.OpenStack_1_1_NodeDriver._to_node
-    from libcloud 0.16.0 to fix
-    https://github.com/apache/libcloud/pull/411
-    """
-    from libcloud.utils.networking import is_public_subnet
-    from libcloud.compute.base import Node
-    from libcloud.compute.types import NodeState
-
-    public_networks_labels = ['public', 'internet']
-
-    public_ips, private_ips = [], []
-
-    for label, values in api_node['addresses'].items():
-        for value in values:
-            ip = value['addr']
-
-            is_public_ip = False
-
-            try:
-                public_subnet = is_public_subnet(ip)
-            except:
-                # IPv6
-                public_subnet = False
-
-            # Openstack Icehouse sets 'OS-EXT-IPS:type' to 'floating' for
-            # public and 'fixed' for private
-            explicit_ip_type = value.get('OS-EXT-IPS:type', None)
-
-            if explicit_ip_type == 'floating':
-                is_public_ip = True
-            elif explicit_ip_type == 'fixed':
-                is_public_ip = False
-            elif label in public_networks_labels:
-                # Try label next
-                is_public_ip = True
-            elif public_subnet:
-                # Check for public subnet
-                is_public_ip = True
-
-            if is_public_ip:
-                public_ips.append(ip)
-            else:
-                private_ips.append(ip)
-
-    # Sometimes 'image' attribute is not present if the node is in an error
-    # state
-    image = api_node.get('image', None)
-    image_id = image.get('id', None) if image else None
-
-    if api_node.get("config_drive", "false").lower() == "true":
-        config_drive = True
-    else:
-        config_drive = False
-
-    return Node(
-        id=api_node['id'],
-        name=api_node['name'],
-        state=self.NODE_STATE_MAP.get(api_node['status'],
-                                      NodeState.UNKNOWN),
-        public_ips=public_ips,
-        private_ips=private_ips,
-        driver=self,
-        extra=dict(
-            hostId=api_node['hostId'],
-            access_ip=api_node.get('accessIPv4'),
-            # Docs says "tenantId", but actual is "tenant_id". *sigh*
-            # Best handle both.
-            tenantId=api_node.get('tenant_id') or api_node['tenantId'],
-            imageId=image_id,
-            flavorId=api_node['flavor']['id'],
-            uri=next(link['href'] for link in api_node['links'] if
-                     link['rel'] == 'self'),
-            metadata=api_node['metadata'],
-            password=api_node.get('adminPass', None),
-            created=api_node['created'],
-            updated=api_node['updated'],
-            key_name=api_node.get('key_name', None),
-            disk_config=api_node.get('OS-DCF:diskConfig', None),
-            config_drive=config_drive,
-            availability_zone=api_node.get('OS-EXT-AZ:availability_zone',
-                                           None),
-        ),
-    )
-
-
-def monkeypatch():
-    """
-    libcloud 0.16.0 has a broken OpenStackNodeDriver._to_node.
-
-    See https://github.com/apache/libcloud/pull/411
-    """
-    from libcloud import __version__
-    if __version__ == "0.16.0":
-        from libcloud.compute.drivers.openstack import OpenStack_1_1_NodeDriver
-        OpenStack_1_1_NodeDriver._to_node = _fixed_OpenStackNodeDriver_to_node
+from ._common import INode, IProvisioner
 
 
 def get_size(driver, size_id):
@@ -135,39 +37,13 @@ def get_image(driver, image_name):
         raise ValueError("Unknown image.", image_name)
 
 
-class INode(Interface):
-    """
-    Interface for node for running acceptance tests.
-    """
-    address = InterfaceAttribute('ip address for node')
-    distribution = InterfaceAttribute('distribution on node')
-
-    def get_default_username():
-        """
-        Return the username available by default on a system.
-
-        Some cloud systems (e.g. AWS) provide a specific username, which
-        depends on the OS distribution started.  This method returns
-        the username based on the node distribution.
-        """
-
-    def provision(package_source, variants):
-        """
-        Provision flocker on this node.
-
-        :param PackageSource package_source: The source from which to install
-            flocker.
-        :param set variants: The set of variant configurations to use when
-            provisioning
-        """
-
-
 @implementer(INode)
 @attributes([
     # _node gets updated, so we can't make this immutable.
     Attribute('_node'),
     Attribute('_provisioner'),
     'address',
+    'private_address',
     'distribution',
 ])
 class LibcloudNode(object):
@@ -198,7 +74,8 @@ class LibcloudNode(object):
         def do_reboot(_):
             self._node.reboot()
             self._node, self.addresses = (
-                self._node.driver.wait_until_running([self._node])[0])
+                self._node.driver.wait_until_running(
+                    [self._node], wait_period=15)[0])
             return
 
         return run_remotely(
@@ -211,7 +88,7 @@ class LibcloudNode(object):
         """
         Return the default username on this provisioner.
         """
-        return self._provisioner.get_default_user(self.distribution)
+        return self._provisioner._get_default_user(self.distribution)
 
     def provision(self, package_source, variants=()):
         """
@@ -222,7 +99,7 @@ class LibcloudNode(object):
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        return self._provisioner.provision(
+        return self._provisioner._provision(
             node=self,
             package_source=package_source,
             distribution=self.distribution,
@@ -234,34 +111,68 @@ class LibcloudNode(object):
         return self._node.name
 
 
+class CloudKeyNotFound(Exception):
+    """
+    Raised if the cloud provider doesn't have a ssh-key with a given name.
+    """
+
+
+@implementer(IProvisioner)
 @attributes([
     Attribute('_driver'),
     Attribute('_keyname'),
-    Attribute('image_names'),
+    Attribute('_image_names'),
     Attribute('_create_node_arguments'),
-    Attribute('provision'),
-    Attribute('default_size'),
-    Attribute('get_default_user'),
+    Attribute('_provision'),
+    Attribute('_default_size'),
+    Attribute('_get_default_user'),
+    Attribute('_use_private_addresses', instance_of=bool, default_value=False),
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
-    :ivar libcloud.compute.base.NodeDriver driver: The libcloud driver to use.
+    :ivar libcloud.compute.base.NodeDriver _driver: The libcloud driver to use.
     :ivar bytes _keyname: The name of an existing ssh public key configured
         with the cloud provider. The provision step assumes the corresponding
         private key is available from an agent.
-    :ivar dict image_names: Dictionary mapping distributions to cloud image
+    :ivar dict _image_names: Dictionary mapping distributions to cloud image
         names.
     :ivar callable _create_node_arguments: Extra arguments to pass to
         libcloud's ``create_node``.
-    :ivar callable provision: Function to call to provision a node.
-    :ivar str default_size: Name of the default size of node to create.
+    :ivar callable _provision: Function to call to provision a node.
+    :ivar str _default_size: Name of the default size of node to create.
     :ivar callable get_default_user: Function to provide the default
         username on the node.
+    :ivar bool _use_private_addresses: Whether the `private_address` of nodes
+        should be populated. This should be specified if the cluster nodes
+        use the private address for inter-node communication.
     """
+
+    def get_ssh_key(self):
+        """
+        Return the public key associated with the provided keyname.
+
+        :return Key: The ssh public key or ``None`` if it can't be determined.
+        """
+        try:
+            key_pair = self._driver.get_key_pair(self._keyname)
+        except Exception as e:
+            if "RequestLimitExceeded" in e.message:
+                # If we have run into API limits, we don't know if the key is
+                # available. Re-raise the the exception, so that we can
+                # accurately see the cause of the error.
+                raise
+            raise CloudKeyNotFound(self._keyname)
+        if key_pair.public_key is not None:
+            return Key.fromString(key_pair.public_key, type='public_openssh')
+        else:
+            # EC2 only provides the SSH2 fingerprint (for uploaded keys)
+            # or the SHA-1 hash of the private key (for EC2 generated keys)
+            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
+            return None
 
     def create_node(self, name, distribution,
                     size=None, disk_size=8,
-                    keyname=None, metadata={}):
+                    metadata={}):
         """
         Create a node.
 
@@ -271,19 +182,13 @@ class LibcloudProvisioner(object):
         :param str size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
-        :param bytes keyname: The name of an existing ssh public key configured
-            with the cloud provider. The provision step assumes the
-            corresponding private key is available from an agent.
 
         :return libcloud.compute.base.Node: The created node.
         """
-        if keyname is None:
-            keyname = self._keyname
-
         if size is None:
-            size = self.default_size
+            size = self._default_size
 
-        image_name = self.image_names[distribution]
+        image_name = self._image_names[distribution]
 
         create_node_arguments = self._create_node_arguments(
             disk_size=disk_size)
@@ -292,16 +197,28 @@ class LibcloudProvisioner(object):
             name=name,
             image=get_image(self._driver, image_name),
             size=get_size(self._driver, size),
-            ex_keyname=keyname,
+            ex_keyname=self._keyname,
             ex_metadata=metadata,
             **create_node_arguments
         )
 
-        node, addresses = self._driver.wait_until_running([node])[0]
+        node, addresses = self._driver.wait_until_running(
+            [node], wait_period=15)[0]
 
         public_address = addresses[0]
+        if isinstance(public_address, unicode):
+            public_address = public_address.encode("ascii")
+
+        if self._use_private_addresses:
+            private_address = node.private_ips[0]
+        else:
+            private_address = None
+
+        if isinstance(private_address, unicode):
+            private_address = private_address.encode("ascii")
 
         return LibcloudNode(
             provisioner=self,
             node=node, address=public_address,
+            private_address=private_address,
             distribution=distribution)

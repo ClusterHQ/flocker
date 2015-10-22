@@ -4,26 +4,23 @@
 """
 Record types for representing deployment models.
 
-There are different categories of classes:
-
-1. Those that involve information that can be both in configuration and state.
-   This includes ``Deployment`` and all classes on it.
-   (Metadata should really be configuration only, but that hasn't been
-   fixed yet on the model level.)
-2. State-specific classes, currently ``NodeState``.
-3. Configuration-specific classes, none implemented yet.
+**IMPORTANT:**
+If you change classes in this module that get serialized as part of the
+cluster configuration file you need to write upgrade code to support
+upgrading from older versions of Flocker.
 """
 
 from uuid import UUID
 from warnings import warn
 from hashlib import md5
+from datetime import datetime, timedelta
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
-    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type, CheckedPVector,
+    pmap, PClass, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
+    optional as optional_type, CheckedPVector
     )
 
 from zope.interface import Interface, implementer
@@ -325,11 +322,7 @@ class Dataset(PRecord):
 
     At some point we'll want a way of reserving metadata for ourselves.
 
-    :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
-        if this is coming out of human-supplied configuration, in which
-        case it will need to be looked up from actual state for existing
-        datasets, or a new one generated if a new dataset will need tbe
-        created.
+    :ivar dataset_id: A unique identifier, as ``unicode``.
 
     :ivar bool deleted: If ``True``, this dataset has been deleted and its
         data is unavailable, or will soon become unavailable.
@@ -503,6 +496,117 @@ def _get_node(default_factory):
     return get_node
 
 
+LEASE_ACTION_ACQUIRE = u"acquire"
+LEASE_ACTION_RELEASE = u"release"
+
+
+class LeaseError(Exception):
+    """
+    Exception raised when a ``Lease`` cannot be acquired.
+    """
+    def __init__(self, dataset_id, node_id, action):
+        """
+        :param UUID dataset_id: The dataset UUID.
+        :param UUID node_id: The node UUID.
+        :param unicode action: The action that failed.
+        """
+        message = (u"Cannot " + action + " lease " + unicode(dataset_id)
+                   + u" for node " + unicode(node_id)
+                   + u": Lease already held by another node")
+        return super(LeaseError, self).__init__(message)
+
+
+class Lease(PClass):
+    """
+    A lease mapping a dataset to a node, with optional expiry.
+
+    :ivar UUID dataset_id: The dataset this lease represents.
+    :ivar UUID node_id: The node holding this lease.
+    :ivar datetime expiration: The ``datetime`` at which this lease expires.
+    """
+    dataset_id = field(type=UUID)
+    node_id = field(type=UUID)
+    expiration = field(
+        type=(datetime, type(None)), mandatory=True, initial=None
+    )
+
+
+class Leases(CheckedPMap):
+    """
+    A representation of all leases in a cluster, mapped by dataset id.
+    """
+    __key_type__ = UUID
+    __value_type__ = Lease
+
+    def __invariant__(dataset_id, lease):
+        """
+        The UUID of the dataset (key) must match the dataset UUID of
+        the Lease instance (value).
+        """
+        if dataset_id != lease.dataset_id:
+            return (False, "dataset_id {} does not match lease {}".format(
+                dataset_id, lease.dataset_id
+            ))
+        return (True, "")
+
+    def _check_lease(self, dataset_id, node_id, action):
+        """
+        Check if a lease for a given dataset is already held by a
+        node other than the one given and raise an error if it is.
+
+        :param UUID dataset_id: The dataset to check.
+        :param UUID node_uuid: The node that should hold a lease
+            on the given dataset.
+        :param unicode action: The action we are attempting.
+        """
+        if dataset_id in self and self[dataset_id].node_id != node_id:
+            raise LeaseError(dataset_id, node_id, action)
+
+    def acquire(self, now, dataset_id, node_id, expires=None):
+        """
+        Acquire and renew a lease.
+
+        :param datetime now: The current date/time.
+        :param UUID dataset_id: The dataset on which to acquire a lease.
+        :param UUID node_uuid: The node which will hold this lease.
+        :param int expires: The number of seconds from ``now`` until the
+            lease expires.
+        :return: The updated ``Leases`` representation.
+        """
+        self._check_lease(dataset_id, node_id, LEASE_ACTION_ACQUIRE)
+        if expires is None:
+            expiration = None
+        else:
+            expiration = now + timedelta(seconds=expires)
+        lease = Lease(dataset_id=dataset_id, node_id=node_id,
+                      expiration=expiration)
+        return self.set(dataset_id, lease)
+
+    def release(self, dataset_id, node_id):
+        """
+        Release the lease, if given node is the owner.
+
+        :param UUID dataset_id: The dataset on which to release a lease.
+        :param UUID node_id: The node which currently holds the lease.
+        :return: The updated ``Leases`` representation.
+        """
+        self._check_lease(dataset_id, node_id, LEASE_ACTION_RELEASE)
+        return self.remove(dataset_id)
+
+    def expire(self, now):
+        """
+        Remove all expired leases.
+
+        :param datetime now: The current date/time.
+        :return: The updated ``Leases`` representation.
+        """
+        updated = self
+        for lease in self.values():
+            if lease.expiration is not None and lease.expiration < now:
+                updated = updated.release(lease.dataset_id, lease.node_id)
+        return updated
+
+
 class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
@@ -510,8 +614,10 @@ class Deployment(PRecord):
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
+    :ivar Leases leases: A map of ``Lease`` instances by dataset id.
     """
     nodes = pset_field(Node)
+    leases = field(type=Leases, mandatory=True, initial=Leases())
 
     get_node = _get_node(Node)
 
@@ -536,7 +642,7 @@ class Deployment(PRecord):
 
         :return Deployment: Updated with new ``Node``.
         """
-        return Deployment(nodes=frozenset(
+        return Deployment(leases=self.leases, nodes=frozenset(
             list(n for n in self.nodes if not same_node(n, node)) +
             [node]))
 
@@ -584,6 +690,15 @@ class Deployment(PRecord):
                         deployment = deployment.update_node(node)
                         deployment = deployment.update_node(target_node)
         return deployment
+
+
+class Configuration(PRecord):
+    """
+    A ``Configuration`` represents the persisted configured state of a
+    cluster.
+    """
+    version = field(mandatory=True, type=int)
+    deployment = field(mandatory=True, type=Deployment)
 
 
 @attributes(["dataset", "hostname"])
@@ -683,6 +798,44 @@ class IClusterStateWipe(Interface):
         """
 
 
+class IClusterStateSource(Interface):
+    """
+    Represents where some cluster state (``IClusterStateChange``) came from.
+    This is presently used for activity/inactivity tracking to inform change
+    wiping.
+    """
+    def last_activity():
+        """
+        :return: The point in time at which the last activity was observed from
+            this source.
+        :rtype: ``datetime.datetime`` (in UTC)
+        """
+
+
+@implementer(IClusterStateSource)
+class ChangeSource(object):
+    """
+    An ``IClusterStateSource`` which reports whatever time it was last told to
+    report.
+
+    :ivar float _last_activity: Recorded activity time.
+    """
+    def __init__(self):
+        self.set_last_activity(0)
+
+    def set_last_activity(self, since_epoch):
+        """
+        Set the time of the last activity.
+
+        :param float since_epoch: Number of seconds since the epoch at which
+            point the activity occurred.
+        """
+        self._last_activity = since_epoch
+
+    def last_activity(self):
+        return datetime.utcfromtimestamp(self._last_activity)
+
+
 def ip_to_uuid(ip):
     """
     Deterministically convert IP to UUID.
@@ -704,38 +857,34 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this
-        node, or ``None`` if the information is not known.
-    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
-        in use (by anything) on this node.
-    :ivar PMap manifestations: Mapping between dataset IDs and
-        corresponding ``Manifestation`` instances that are present on the
-        node. Includes both those attached as volumes to any applications,
-        and those that are unattached. ``None`` if this information is
-        unknown.
-    :ivar PMap paths: The filesystem paths of the manifestations on this
-        node. Maps ``dataset_id`` to a ``FilePath``.
+    :ivar applications: A ``PSet`` of ``Application`` instances on this node,
+        or ``None`` if the information is not known.
+    :ivar PMap manifestations: Mapping between dataset IDs and corresponding
+        ``Manifestation`` instances that are present on the node.  Includes
+        both those attached as volumes to any applications, and those that are
+        unattached.  ``None`` if this information is unknown.
+    :ivar PMap paths: The filesystem paths of the manifestations on this node.
+        Maps ``dataset_id`` to a ``FilePath``.
+    :ivar PMap devices: The OS devices by which datasets are made manifest.
+        Maps ``dataset_id`` (as a ``UUID``) to a ``FilePath``.
     """
     # Attributes that may be set to None to indicate ignorance:
-    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
+    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["applications",
                                         "manifestations", "paths",
                                         "devices"]
 
     # Dataset attributes that must all be non-None if one is non-None:
     _DATASET_ATTRIBUTES = {"manifestations", "paths", "devices"}
 
-    # Application attributes that must all be non-None if one is non-None:
-    _APPLICATION_ATTRIBUTES = {"applications", "used_ports"}
-
     def __invariant__(self):
         def _field_missing(fields):
             num_known_attributes = sum(getattr(self, name) is None
                                        for name in fields)
             return num_known_attributes not in (0, len(fields))
-        for fields in (self._APPLICATION_ATTRIBUTES, self._DATASET_ATTRIBUTES):
-            if _field_missing(fields):
-                return (False,
-                        "Either all or none of {} must be set.".format(fields))
+        if _field_missing(self._DATASET_ATTRIBUTES):
+            return (False,
+                    "Either all or none of {} must be set.".format(
+                        self._DATASET_ATTRIBUTES))
         return (True, "")
 
     def __new__(cls, **kwargs):
@@ -751,7 +900,6 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = pset_field(int, optional=True, initial=None)
     applications = pset_field(Application, optional=True, initial=None)
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
@@ -848,14 +996,15 @@ class DeploymentState(PRecord):
         """
         Create new ``DeploymentState`` based on this one which updates an
         existing ``NodeState`` with any known information from the given
-        ``NodeState``. Attributes which are set to ``None` on the given
+        ``NodeState``.  Attributes which are set to ``None` on the given
         update, indicating ignorance, will not be changed in the result.
 
-        The given ``NodeState`` will simply be added if no existing ones
-        have matching hostname.
+        The given ``NodeState`` will simply be added if it doesn't represent a
+        node that is already part of the ``DeploymentState`` (based on UUID
+        comparison).
 
-        :param NodeState node: An update for ``NodeState`` with same
-             hostname in this ``DeploymentState``.
+        :param NodeState node: An update for ``NodeState`` with same UUID in
+            this ``DeploymentState``.
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
@@ -870,6 +1019,21 @@ class DeploymentState(PRecord):
         return self.set(
             "nodes", self.nodes.discard(original_node).add(
                 updated_node.persistent()))
+
+    def all_datasets(self):
+        """
+        :returns: A generator of 2-tuple(``Dataset``, ``Nodestate`` or
+            ``None``) for all the primary manifest datasets and non-manifest
+            datasets in the ``DeploymentState``.
+        """
+        for node in self.nodes:
+            if node.manifestations is None:
+                continue
+            for manifestation in node.manifestations.values():
+                if manifestation.primary:
+                    yield manifestation.dataset, node
+        for dataset in self.nonmanifest_datasets.values():
+            yield dataset, None
 
 
 @implementer(IClusterStateChange)
@@ -910,5 +1074,6 @@ class _NonManifestDatasetsWipe(object):
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState, NonManifestDatasets,
+    NodeState, DeploymentState, NonManifestDatasets, Configuration,
+    Lease, Leases,
 ]

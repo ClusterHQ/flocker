@@ -5,10 +5,7 @@ Release Process
 
 .. note::
 
-   Make sure to follow the `latest documentation`_ when doing a release.
-
-.. _latest documentation: http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html
-
+   Make sure to follow the `latest documentation <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html>`_ when doing a release.
 
 Outcomes
 --------
@@ -17,17 +14,17 @@ By the end of the release process we will have:
 
 - a tag in version control,
 - a Python wheel on Amazon `S3`_,
-- Fedora 20 RPMs for software on the node and client,
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
+- Ubuntu 15.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
 - an updated Homebrew recipe.
 
 For a maintenance or documentation release, we will have:
 
 - a tag in version control,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
 
 
 Prerequisites
@@ -36,17 +33,38 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A web browser,
-- `Vagrant`_ (1.6.2 or newer),
-- `VirtualBox`_,
-- ``vagrant-scp`` plugin:
+All Platforms
+*************
 
-  .. prompt:: bash $
+`Docker <https://docs.docker.com/installation/>`_
 
-     vagrant plugin install vagrant-scp
+`virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
-.. _`Vagrant`: https://docs.vagrantup.com/
-.. _`VirtualBox`: https://www.virtualbox.org/
+OS X
+*****
+
+`Homebrew <http://brew.sh>`_
+
+.. prompt:: bash $
+
+   brew tap stepanstipl/noop
+   brew install createrepo dpkg libffi openssl
+
+Ubuntu
+******
+
+.. prompt:: bash $
+
+   sudo apt-get update
+   sudo apt-get install -y dpkg-dev createrepo
+
+Fedora
+******
+
+.. prompt:: bash $
+
+   sudo yum install -y dpkg-dev createrepo
+
 
 Access
 ~~~~~~
@@ -55,6 +73,13 @@ Access
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
 - SSH access to ClusterHQ's GitHub repositories.
+
+- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
+
+- The ability to force builds on ClusterHQ's BuildBot.
+  This requires an administrator password which can be found in ClusterHQ's LastPass.
+
+- Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
 
 .. _preparing-for-a-release:
 
@@ -68,235 +93,149 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number of the release being created as an environment variable for later use:
+
+#. Set the version number of the release being created as an environment variable for later use:
 
    .. prompt:: bash $
 
-      export VERSION=0.1.2
+      VERSION=0.1.2
 
 #. Create an issue in JIRA:
 
-   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   This should be a "Feature" with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
+#. Create an environment for the release:
 
-   This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+   **Linux**
 
-   Add your SSH key to the ``sshd`` agent.
-   Note that the ssh key you use must be linked to your GitHub account.
+   .. prompt:: bash $,(flocker-0.1.2)$ auto
 
-   .. prompt:: bash $
+      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
+      $ mkvirtualenv -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
+      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
 
-      [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent)
-      ssh-add $HOME/.ssh/id_rsa
+   **OS X**
 
-   This copies your local git configuration from ``~/.gitconfig``.
-   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
+   .. prompt:: bash $,(flocker-0.1.2)$ auto
 
-   This copies your local configuration for `S3`_ from ``~/.aws``.
-   If this does not exist, a later step will create it.
+      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
+      # Use system Python with Homebrew's OpenSSL libraries - see FLOC-3044.
+      $ mkvirtualenv --python=/usr/bin/python -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
+      (flocker-0.1.2)$ export LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include"
+      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
 
-   .. prompt:: bash $
+#. Create a release branch, and check that the license is up-to-date:
 
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
-      vagrant up
-      vagrant scp default:/home/vagrant/.bashrc vagrant_bashrc
-      echo export VERSION=${VERSION} >> vagrant_bashrc
-      vagrant scp vagrant_bashrc /home/vagrant/.bashrc
-      if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
-      vagrant ssh -- -A
+   .. prompt:: bash (flocker-0.1.2)$
 
-#. Create a release branch, and create and activate a virtual environment:
+      admin/create-release-branch --flocker-version=${VERSION}
+      admin/update-license
+      git commit -am "Updated copyright in LICENSE file"
 
-   .. prompt:: bash [vagrant@localhost]$
-
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
-      mkvirtualenv flocker-release-${VERSION}
-      pip install --editable .[release]
-      admin/create-release-branch --flocker-version="${VERSION}"
-
-#. Ensure the release notes in :file:`NEWS` are up-to-date:
-
-   XXX: Process to be decided, see :issue:`523`.
-
-   - The NEWS date format is YYYY-MM-DD.
-   - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
-     This means that in doing a release, you may have to remove the previous development release or pre-release header, merging the changes from that previous release into the current release.
+#. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash [vagrant@localhost]$
+      .. prompt:: bash (flocker-0.1.2)$
 
-          # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
-          export OLD_VERSION=0.3.0
-          git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+          # Choose the tag of the last version with a "Release Notes" entry to compare the latest version to.
+          OLD_VERSION=0.3.0
 
-   .. prompt:: bash [vagrant@localhost]$
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git log --first-parent ${OLD_VERSION}..${BRANCH}
 
-      git commit -am "Updated NEWS"
-
-#. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
-
-   - Update the "What's New" document.
+   - Update the "Release Notes" document.
    - (optional) Add a version heading.
-     If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
+     If this is a Major or Minor Marketing (pre-)release, the "Release Notes" document should have a heading corresponding to the release version.
      If this is a weekly development release, add a "Next Release" heading instead.
    - Refer to the appropriate internal release planning document on Google Drive for a list of features that were scheduled for this release, e.g. Product > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
-   - Add bullet points for any other *important* new features and improvements from the NEWS file above,
+   - Add bullet points for any other *important* new features and improvements from the ``git log`` above,
    - and add links (where appropriate) to documentation that has been added for those features.
 
    Finally, commit the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-0.1.2)$
 
-      git commit -am "Updated What's New"
-
-#. Ensure copyright dates in :file:`LICENSE` are up-to-date:
-
-   - The list of years near the end of :file:`LICENSE` should include each year in which commits were made to the project.
-   - This is already the case up to and including 2015.
-   - If any such years are not present in the list, add them and commit the changes:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      git commit -am "Updated copyright"
+      git commit -am "Updated Release Notes"
 
 #. Push the changes:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-0.1.2)$
 
-      git push --set-upstream origin release/flocker-${VERSION}
+      git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
 #. Ensure all the required tests pass on BuildBot:
 
-   Go to the `BuildBot web status`_ and force a build on the just-created branch.
+   Pushing the branch in the previous step should have started a build on BuildBot.
+   If not, you can force a build by logging in to BuildBot, entering the release branch name in to the box at the top right and clicking the ``Force`` button.
 
-   The next steps in this section can be done while waiting for BuildBot to run, unless otherwise stated.
-
-   Unfortunately it is acceptable or expected for some tests to fail.
-   Discuss with the team whether the release can continue given any failed tests.
+   Discuss with the team whether the release can continue given any failed tests outside of expected failures.
    Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
-   XXX This should be explicit in Buildbot, see :issue:`1700`.
-
-   At least the following builders do not have to pass in order to continue with the release process:
-
-   - ``flocker-vagrant-dev-box``
-   - Any ``docker-head`` builders.
-   - Any builders in the "Expected failures" section.
-
-#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
-
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      aws configure
-
-#. Update the staging documentation:
-
-   This requires the BuildBot step to have finished.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
-
 #. Make a pull request on GitHub:
-
-   This requires the BuildBot step to have finished.
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
    Add a note to the pull request why any failed tests were deemed acceptable.
 
    Wait for an accepted code review before continuing.
 
-   .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
-
-
 .. _pre-tag-review:
 
 Pre-tag Review Process
 ----------------------
 
-A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
+A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
 
 .. note::
 
-   Make sure to follow the latest version of this documentation when reviewing a release.
-
-#. Check that the staging documentation is set up correctly:
-
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
-
-   XXX This should be automated, see :issue:`1701`.
-
-   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
-
-   - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
-
-   - For a marketing release, the following URLs should redirect to the above URL.
-
-     - https://docs.staging.clusterhq.com/
-     - https://docs.staging.clusterhq.com/en/
-     - https://docs.staging.clusterhq.com/en/latest/
-
-     In addition, check that deep-links to `/en/latest/` work.
-     https://docs.staging.clusterhq.com/en/latest/authors.html
-     should redirect to
-     ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
-
-   - For a development release, the following redirects should work.
-
-     - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+   Make sure to follow the `latest review process <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
 
 #. Check the changes in the Pull Request:
 
-   The "Files changed" should include changes to NEWS and What's New.
-   For some releases it may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
-   These fixes or documentation changes may have to be merged into ``master`` in order to merge the release branch into ``master``.
-   This should either block the acceptance of the release branch, or the team should discuss a workaround for that particular situation.
+   * The release notes at :file:`docs/releasenotes/index.rst` should be up to date.
+   * The build should be passing to the team's satisfaction.
+     See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
 
-#. Update GitHub:
+   For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release branch was created,
+   for example a previous pre-release.
+   These fixes can be ignored in this review.
 
-   If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
-   Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
+#. Update GitHub and JIRA:
 
-#.  Reject the JIRA issue.
+   If there were no problems spotted while checking the changes, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>`.
+   Do not merge the Pull Request as this should happen after the branch has been tagged.
+   Accept the JIRA issue, and add a comment that the release process can continue.
 
-    This is necessary because the release branch will need another review.
+   If a problem was spotted, add comments to the Pull Request for each problem, and comment that they must be resolved before repeating this review process.
+   Reject the JIRA issue and assign it to the release engineer.
+
 
 .. _release:
 
 Release
 -------
 
-#. The following steps should be done in the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`.
-   If this is not running, start it again from the cloned Flocker repository created in :ref:`preparing-for-a-release`:
+.. note::
 
-   .. prompt:: bash $
-
-      vagrant up
-      vagrant ssh -- -A
+   The following commands must be run from within the virtualenv and directory created in :ref:`preparing-for-a-release`.
 
 #. Tag the version being released:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-0.1.2)$
 
-      cd flocker-${VERSION}
-      workon flocker-release-${VERSION}
-      git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
-      git push origin "${VERSION}"
+      BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      RELEASE_BRANCH_PREFIX="release\/flocker-"
+      TAG=${BRANCH/${RELEASE_BRANCH_PREFIX}}
+      git tag --annotate "${TAG}" "${BRANCH}" -m "Tag version ${TAG}"
+      git push origin "${TAG}"
 
-#. Go to the `BuildBot web status`_ and force a build on the tag.
+#. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
@@ -305,64 +244,63 @@ Release
 
    Wait for the build to complete successfully.
 
+#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
+
+   .. prompt:: bash (flocker-0.1.2)$
+
+      aws configure
+
+   Enter your access key and secret token when prompted.
+   The other configurable values may be left as their defaults.
+
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash (flocker-0.1.2)$
 
       admin/publish-artifacts
       admin/publish-docs --production
 
-#. Copy the AWS configuration to your local home directory:
+#. Check that the artifacts are set up correctly:
 
-   If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
+   .. note:: Ensure that Docker is installed and running, and can be controlled from the current user account.
+      Run ``docker ps`` to check for any problems.
 
-   .. prompt:: bash [vagrant@localhost]$,$ auto
+   The following command tests that the client packages can be installed on a number of platforms.
+   This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
+   This test can take about 30 minutes, especially if Docker images need to be pulled.
 
-      [vagrant@localhost]$ logout
-      Connection to 127.0.0.1 closed.
-      $ vagrant scp default:/home/vagrant/.aws ~/
+   .. prompt:: bash (flocker-0.1.2)$
 
-#. Submit the release pull request for review again.
+      admin/test-artifacts
 
-Post-Release Review Process
----------------------------
+   If an error occurs for any tests, create a JIRA issue and raise it with the team.
+   In any case, continue with the release.
 
 #. Check that the documentation is set up correctly:
 
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
+   The following command outputs error messages if the documentation does not redirect correctly.
+   It outputs a success message if the documentation does redirect correctly.
+   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
-   XXX This should be automated, see :issue:`1701`.
+   .. prompt:: bash (flocker-0.1.2)$
 
-   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
+      admin/test-redirects --production
 
-   - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
+#. Remove the release virtual environment:
 
-   - For a marketing release, the following URLs should redirect to the above URL.
+   .. prompt:: bash (flocker-0.1.2)$,$ auto
 
-     - https://docs.clusterhq.com/
-     - https://docs.clusterhq.com/en/
-     - https://docs.clusterhq.com/en/latest/
+      (flocker-0.1.2)$ VIRTUALENV_NAME=$(basename ${VIRTUAL_ENV})
+      (flocker-0.1.2)$ deactivate
+      $ rmvirtualenv ${VIRTUALENV_NAME}
 
-     In addition, check that deep-links to `/en/latest/` work.
-     https://docs.clusterhq.com/en/latest/authors.html
-     should redirect to
-     ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+#. Remove the release Flocker clone:
 
-   - For a development release, the following redirects should work.
+   .. warning:: ``rm -rf`` can be dangerous, run this at your own risk.
 
-     - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+   .. prompt:: bash $
 
-#. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
-
-   OS X and Ubuntu 14.04 instructions are tested by BuildBot automatically so they do not need to be manually tested.
-
-   Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
-
-   To create a testing environment for a supported platform, see :ref:`cli-testing`.
-
-   XXX: This step should be automated, see :issue:`1039`.
+      rm -rf ${PWD}
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
@@ -376,12 +314,5 @@ If there is no existing issue for the planned improvements then a new one should
 Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
-
-.. _wheel: https://pypi.python.org/pypi/wheel
-.. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenv: https://pypi.python.org/pypi/virtualenv
-.. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
-.. _BrowserStack: https://www.browserstack.com/

@@ -1,0 +1,617 @@
+{# jobs.groovy.j2
+
+  This jinja2 template is used to produce a jobs.groovy file containing the
+  jenkins job DSL plugin code to build all the required views, folders, and
+  jobs for a particular project in the Jenkins interface.
+
+   The full Jenkins job DSL reference can be found on the URL below:
+   https://github.com/jenkinsci/job-dsl-plugin/wiki/Job-reference
+
+   The file is consumed by the Jenkins job setup_ClusterHQ_Flocker. That job
+   contains two build steps, the first executes a python file 'render.py' which
+   reads the build.yaml file and expands this jobs.groovy.j2 template using
+   the contents of that yaml dictionary. The resulting jobs.groovy file is then
+   read by a second build step of type 'Process Job DSL' which produces all
+   the jenkins objects.
+
+   A typical jenkins job contains the following sections, this is just an
+   example of possible actions within a particular section:
+
+   * Parameters:
+        - parameters can be added to a job, these are used to pass environment
+          variables to the build steps or any other step in the job.
+
+   * Source Control defintions:
+        - repository URL
+        - what SCM tool git/svn/mercurial
+        - operations to do prior/after a git update/close
+
+    * Triggers:
+        - When to execute the build ?
+        - On a crontab style
+        - by pooling the repository for changes
+        - triggered by GitHub or others
+
+   * Wrappers which 'decorate' the build steps of the job
+        - adds stuff like timestamps to the log output
+        - sets a timeout and aborts the build when exceeded
+
+    * Build steps
+        - Commonly shell based steps, as in the cli to execute
+
+    * Post-Build actions also called Publishers:
+        - Archiving produced files so that they are made available in other
+          jobs
+        - Running coverage or test reports
+        - Triggering other jobs
+
+
+    The structure of this jinja2 file is as follows:
+
+    A set of Jinja2 macro definitions which produce job dsl text for the
+    different sections of the job:
+        - folder (creates a folder view in Jenkins to store the jobs)
+        - wrappers
+        - triggers
+        - scm (sets the Source Control section)
+        - publishers (set the post-build steps)
+        - steps (consumes the contentes of the build.yaml build steps, and
+            expands those as shell cli text'
+
+    A full set of job blocks follows the macro definitions, these iterate
+    over the build.yaml file for each job definition of a particular
+    'job_type' and create all the jobs related to that 'job_type':
+        - run_trial
+        - run_trial_for_storage_driver
+        - run_sphinx
+        - run_acceptance
+        - run_client
+        - omnibus
+
+    Then we have the multijob block, which collects all the defined jobs based
+    on 'job_type' and adds them to a 'multijob phase' that executes all the
+    jobs in parallel.
+    When a new 'job_type' is added to the configuration above, that job_type
+    configuration should be added into the multijob block so that it gets run
+    as part of the parallel execution phase.
+    This multijob after executing the different jobs, collects all the produced
+    artifacts (test reports, coverage reports) from the different jobs.
+    So that a aggregated view of all the results is made available within the
+    multijob details page for a completed job.
+
+    The last section in this file is a definition block for cron style job
+    type jobs which are not executed as part of the main multijob.
+    These follow a similar structure to the common 'job_type' definitions
+    above, except they include a trigger section specifying an daily schedulle.
+
+
+#}
+{% macro folder(folder, display_name)                                       -%}
+{# creates a folder structure to group jobs, these are the Jenkins folder views
+   in the Jenkins UI.
+
+   param folder:  '<clusterhq-flocker/branchname>'
+   param displayName: Name displayed in the jenkins view for this folder     #}
+
+println("creating {{folder}}...")
+folder("{{folder}}") { displayName("{{display_name}}") }
+{%- endmacro                                                                -%}
+{#
+
+#}
+{% macro wrappers(v, directory_to_delete)                                   -%}
+{# adds a list of common wrappers to the build jobs.
+
+   param v:  dictionary containing the values from the job
+   param directory_to_delete: directory to clean up
+#}
+    wrappers {
+{#    adds timestamps to the job log output                                  #}
+      timestamps()
+{#    colorizeOuptut allows for ascii coloured output in the logs of a job   #}
+      colorizeOutput()
+{#    define the max duration a running job should take, this prevents stuck
+      jobs for reserving jenkins slaves and preventing other jobs from running.
+      These timeouts will have to be adjusted as we work on improving the
+      execution time of the tests so that we can enforce a SLA of a maximum of
+      'n' minutes.
+      An improvement here (TODO) would be to receibe the timeout as a parameter
+      so that we can have different timeouts for different job types.        #}
+      timeout {
+          absolute({{v.timeout}})
+          failBuild()
+      }
+{#    Jobs that are executed with sudo can leave files behind that prevents
+      Jenkins from cleaning the git repository before a git merge.
+      The git cleanup process is run as the jenkins execution user which lacks
+      the priviledges to remove the root owned files created by the sudo tests.
+      To fix this issue, we use a preSCM plugin which allows us to execute a
+      step before cloning/checking the git reposity.
+      if the build.yaml contains a 'clean_repo' flag, then we will clean up
+      old root files from the repo.                                          #}
+{% if v.clean_repo %}
+      preScmSteps {
+          steps {
+          shell("sudo rm -rf {{ directory_to_delete }}")
+          }
+      }
+{% endif %}
+    }
+{%- endmacro                                                                -%}
+{#
+
+#}
+{% macro triggers(_type, _value, _branch )                                 -%}
+{# adds a list of triggers to the build job
+
+   param  _type: type of job
+   _value: the cron string
+
+#}
+    triggers {
+{#  the job_type 'cron' is used by the docker_build jobs running every 24h
+    but we only configure the scheduler if the jobs is for the master branch.
+    If we were to schedule the job on every branch we would have multiple jobs
+    running at the same time                                                 #}
+{%      if _type == 'cron' and _branch == 'master'                           %}
+{#  the cron  string below is a common crontab style string                  #}
+            cron("{{_value}}")
+{%      endif                                                                %}
+    }
+{%- endmacro                                                                -%}
+{#
+
+#}
+{% macro scm(git_url, branch) -%}
+{# configures a remote git repository, and merges 'branch' before build
+
+    param: git_url - example: https://github.com/clusterhq/flocker
+    param: branch - remote branch name to configure
+#}
+    scm {
+      git {
+        remote {
+{#  our remote will be called 'upstream'                                     #}
+          name("upstream")
+          url("{{git_url}}")
+        }
+{#  configure the git user merging the branches.
+    the job dsl scm/git doesn't contain a method to specify the local git user
+    or email address, so we use a configure/node block to insert the XML block
+    into the jenkins job config
+#}
+        configure { node ->
+            node / gitConfigName('Jenkins')
+            node / gitConfigEmail('jenkins@clusterhq.com')
+        }
+{#  the branch to be built                                                   #}
+        branch("{{branch}}")
+{#  clean the repository before merging (git reset --hard)                   #}
+        clean(true)
+        createTag(false)
+{#  merge our branch with the master branch                                  #}
+        mergeOptions {
+            remote('upstream')
+            branch('master')
+{#  there are a few merge strategies available, recursive is the default one #}
+            strategy('recursive')
+        }
+      }
+    }
+{%- endmacro                                                                -%}
+{#
+
+#}
+{% macro publishers(v)                                                      -%}
+{# adds a publishers block to the jenkins job configuration, containing:
+   an action for archiving artifacts
+   an action for archiving junit results
+   an action for publishing coverate reports
+
+   param v: dictionary containing the job keys
+#}
+    publishers {
+{% if v.archive_artifacts                                                   -%}
+{%        for artifact in v.archive_artifacts                                %}
+{# v.archive_artifacts typically contain:
+   'results.xml', 'coverage.xml', '_trial_temp/trial.log'                    #}
+      archiveArtifacts("{{artifact}}")
+{%        endfor                                                             %}
+{# archives the junit results and publish the test results                   #}
+      archiveJunit('results.xml') {
+        retainLongStdout(true)
+        testDataPublishers {
+             allowClaimingOfFailedTests()
+             publishTestAttachments()
+             publishTestStabilityData()
+             publishFlakyTestsReport()
+        }
+      }
+{%      endif                                                               -%}
+{%      if v.coverage_report                                                 %}
+{# publishes a coverage report, using junit and the cobertura plugin         #}
+        cobertura('coverage.xml') {
+{# don't publish coverage reports if the build is not stable.                #}
+           onlyStable(false)
+           failUnhealthy(true)
+           failUnstable(true)
+{# fail the build if we were expecting a coverage report from a build and
+   that report is not available                                              #}
+           failNoReports(true)
+        }
+{%      endif                                                               -%}
+    }
+{%- endmacro                                                                -%}
+{#                                                                           #}
+{% macro steps(v)                                                           -%}
+{#  builds a list of job steps based on the type of the job:
+    ( 'shell', others )
+    currently only shell has been implemented.
+
+    params v: dictionary containing the job values                           #}
+    steps {
+{%  for _step in v                                                          -%}
+{%    if _step.type=='shell'                                                 %}
+    shell("""
+{%      for line in _step.cli                                               -%}
+      {{ line }}
+{%      endfor                                                              -%}
+    """)
+{%    endif                                                                 -%}
+{%  endfor                                                                   %}
+    }
+{%- endmacro                                                                -%}
+{#
+
+
+#}
+{# groov lacks a loop...until ...                                            #}
+class Looper {
+   private Closure code
+
+   static Looper loop( Closure code ) {
+      new Looper(code:code)
+   }
+
+   void until( Closure test ) {
+      code()
+      while (!test()) {
+         code()
+      }
+   }
+}
+
+{#  the project name from the build yaml 'ClusterHQ/Flocker'                 #}
+def project = "{{ cfg.project }}"
+{#  the github https url for the project                                     #}
+def git_url = "{{ cfg.git_url }}"
+branches = []
+{# grab the GitHub token from the jenkins homedir.
+   this is the github api token for jenkins. We need to authenticate as github
+   limits the number of API calls that can be done withouth authenticating   #}
+String token = new File('/var/lib/jenkins/.github_token').text.trim()
+
+{# Lets's call it ClusterHQ-Flocker instead of ClusterHQ/Flocker             #}
+def dashProject = "{{ cfg.project }}".replace('/', '-')
+
+{# Create a basefolder for our project, it should look like:
+   '<github username>-<git repository>'                                      #}
+{{ folder("${dashProject}","${dashProject}") }}
+
+{# branches contains the passed parameter RECONFIGURE_BRANCH from jenkins    #}
+branches.add("${RECONFIGURE_BRANCH}")
+
+{# Iterate over every branch, and create folders, jobs                       #}
+branches.each {
+  println("iterating over branch... ${it}")
+
+{#  swap '/' with '-'                                                        #}
+  branchName = "${it}"
+  dashBranchName = "${branchName}".replace("/","-")
+  println("found branch... ${it}")
+
+{# create a folder for every branch: /git-username/git-repo/branch           #}
+  {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
+
+
+{# iterate over every job_type  #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{%  for job_name, job_values  in job_type_values.iteritems()                -%}
+
+{# apply config related to 'run_trial' jobs                                  #}
+{%    if job_type == 'run_trial'                                            -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+{# we pass the 'MODULE' parameter as the flocker module to test with trial   #}
+        textParam("MODULE", "{{ _module }}", "Module to test" )
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
+    {{ wrappers(job_values, directory_to_delete) }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
+  }
+{%      endfor                                                               %}
+{%    endif                                                                  %}
+
+{# apply config related to 'run_trial_storage_driver' jobs                   #}
+{%    if job_type == 'run_trial_for_storage_driver'                         -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module.replace('/', '_')        -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+{# we pass the 'MODULE' parameter as the flocker module to test with trial   #}
+        textParam("MODULE", "{{ _module }}", "Module to test" )
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
+    {{ wrappers(job_values, directory_to_delete) }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
+  }
+{%      endfor                                                               %}
+{%    endif                                                                  %}
+
+{# apply config related to 'run_sphinx' jobs                                 #}
+{%    if job_type == 'run_sphinx'                                           -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers(job_values, 'none') }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+
+{# apply config related to 'run_acceptance' jobs                             #}
+{%    if job_type == 'run_acceptance'                                       -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+{# we pass the 'MODULE' parameter as the flocker module to test with trial   #}
+        textParam("MODULE", "{{ _module }}", "Module to test" )
+{# the run_acceptance job produces a rpm/deb package which is made available
+   to the node/docker instance running in the at a particular address on the
+   jenkins slave (ex: http://jenkins_slave/$RECONFIGURE_BRANCH/repo)         #}
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+    {{ wrappers(job_values, directory_to_delete) }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
+  }
+{%      endfor                                                              -%}
+{%    endif                                                                  %}
+
+{# apply config related to 'run_client' jobs                                 #}
+{%    if job_type == 'run_client'                                           -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+    parameters {
+{# the run_acceptance job produces a rpm/deb package which is made available
+   to the node/docker instance running in the at a particular address on the
+   jenkins slave (ex: http://jenkins_slave/$RECONFIGURE_BRANCH/repo)         #}
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+
+{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
+    {{ wrappers(job_values, directory_to_delete) }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+    {{ publishers(job_values) }}
+  }
+{%    endif                                                                  %}
+
+
+{# apply config related to 'omnbibus' jobs                                   #}
+{%    if job_type == 'omnibus'                                              -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers(job_values, 'none') }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+{%  endfor                                                                   %}
+{% endfor                                                                    %}
+
+
+{# the multijob is responsible for running all configured jobs in parallel   #}
+  multiJob("${dashProject}/${dashBranchName}/__main_multijob") {
+    wrappers {
+      timestamps()
+      colorizeOutput()
+      {# lock down the multijob to 45 minutes so that 'stuck' jobs won't
+          block future runs                                                  #}
+      timeout {
+          absolute(45)
+          }
+    }
+      steps {
+{# make sure we are starting with a clean workspace                          #}
+          shell('rm -rf *')
+{# build 'parallel_tests' phase that will run all our jobs in parallel       #}
+          phase('parallel_tests') {
+{# and don't fail when a child job fails, as we want to collect the artifacts
+   from the jobs, especially those that have failed                          #}
+              continuationCondition('ALWAYS')
+{#
+   in order for the different job_types to be executed as part of the multijob
+   a block entry for that particular job_type needs to be added to the
+   multijob configuration below.
+#}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{# add the 'run_trial' style jobs                                            #}
+{%  if job_type == 'run_trial'                                              -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                           %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%      endfor                                                              -%}
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'run_trial_for_storage_driver' style jobs                         #}
+{%  if job_type == 'run_trial_for_storage_driver'                           -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module.replace('/', '_')         %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%      endfor                                                              -%}
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'run_sphinx' style jobs                                           #}
+{%  if job_type == 'run_sphinx'                                             -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'run_acceptance' style jobs                                       #}
+{%  if job_type == 'run_acceptance'                                         -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      for _module in job_values.with_modules                              -%}
+{%        set _job_name = job_name + '_' + _module                           %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%      endfor                                                                -%}
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'run_client' style jobs                                           #}
+{%  if job_type == 'run_client'                                             -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{# add the 'omnibus' style jobs                                              #}
+{%  if job_type == 'omnibus'                                                -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
+
+{% endfor                                                                    %}
+          }
+{# we've added the jobs to the multijob, we now need to fetch and archive all
+   the artifacts produced by the different jobs                              #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{%  for job_name, job_values  in job_type_values.iteritems()                -%}
+{%    for _module in job_values.with_modules                                -%}
+{%       set _job_name = job_name + '_' + _module.replace('/', '_')          %}
+
+{# no every job produces an artifact, so make sure wew don't try to fetch
+   artifacts for jobs that don't produce them                                #}
+{%      if job_values.archive_artifacts                                     -%}
+
+{%        for artifact in job_values.archive_artifacts                       %}
+          copyArtifacts("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+          optional(true)
+{# grab the files listed in artifact                                         #}
+          includePatterns("{{artifact}}")
+{# and place them under 'job name'/artifact on the multijob workspace, so that
+   we don't overwrite them.                                                  #}
+              targetDirectory('{{ _job_name }}')
+              fingerprintArtifacts(true)
+              buildSelector {
+                  workspace()
+              }
+          }
+{%        endfor                                                             %}
+{%      endif                                                                %}
+{%    endfor                                                                 %}
+{%  endfor                                                                   %}
+{% endfor                                                                    %}
+{# do an aggregation of all the test results                                 #}
+      }
+      publishers {
+          archiveJunit('**/results.xml') {
+              retainLongStdout(true)
+              testDataPublishers {
+{# allows a jenkins user to 'claim' a failed test, indicating that user is
+   'looking into it'                                                         #}
+                  allowClaimingOfFailedTests()
+                  publishTestAttachments()
+{# publish a percentage of failures for a particular test                    #}
+                  publishTestStabilityData()
+{# publish a report of tests that fail every so often                        #}
+                  publishFlakyTestsReport()
+              }
+          }
+{# do an aggregation of all the coverage results                             #}
+          cobertura('**/coverage.xml') {
+{# only produce coverage reports for stable builds                           #}
+            onlyStable(false)
+            failUnhealthy(true)
+            failUnstable(true)
+            failNoReports(false)
+          }
+      }
+  }
+}
+{# Configure cronly jobs, these are not part of the main branches loop       #}
+{# As we only run them from the master branch, they get executed a few       #}
+{# times a day based on a cron type schedule.                                #}
+
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{%  for job_name, job_values  in job_type_values.iteritems()                -%}
+
+{# apply config related to 'cronly_jobs' jobs                                #}
+{%    if job_type == 'cronly_jobs'                                          -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${branchName}/_{{ _job_name }}") {
+    parameters {
+        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    }
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers(job_values, 'none') }}
+    {{ triggers('cron', job_values.at, "${branchName}") }}
+    {{ scm("${git_url}", "master") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+{%  endfor                                                                     %}
+{% endfor                                                                     %}

@@ -11,6 +11,8 @@ import math
 import os
 import re
 import types
+
+from ipaddr import IPv4Address, AddressValueError
 from uuid import UUID
 from hashlib import md5
 
@@ -314,7 +316,7 @@ def dataset_id_from_name(name):
     :return unicode: UUID for the dataset. This will always be the
         same given the same name.
     """
-    return unicode(UUID(bytes=md5(name.encode("utf-8")).digest()))
+    return unicode(UUID(bytes=md5(name.encode("utf-8")).digest(), version=4))
 
 
 @implementer(IApplicationConfiguration)
@@ -1259,6 +1261,13 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
     seen_applications = set()
     for hostname, application_names in (
             deployment_configuration['nodes'].items()):
+        try:
+            IPv4Address(hostname)
+        except AddressValueError:
+            raise ConfigurationError(
+                ('Node "{node_name}" specified, but deployment configuration '
+                 'expects an IPv4 address.').format(node_name=hostname)
+            )
         if not isinstance(application_names, list):
             raise ConfigurationError(
                 "Node {node_name} has a config error. "

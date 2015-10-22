@@ -71,9 +71,9 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         self.assertEqual(options["agent-port"], b"tcp:1234")
 
 
-class ControlScriptEffectsTests(SynchronousTestCase):
+class ControlScriptTests(SynchronousTestCase):
     """
-    Tests for effects ``ControlScript``.
+    Tests for ``ControlScript``.
     """
     def setUp(self):
         """

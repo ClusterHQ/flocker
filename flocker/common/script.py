@@ -4,8 +4,10 @@
 
 import sys
 
-from eliot import MessageType, fields, Logger
-from eliot.logwriter import ThreadedFileWriter
+from bitmath import MiB
+
+from eliot import MessageType, fields, Logger, FileDestination
+from eliot.logwriter import ThreadedWriter
 
 from twisted.application.service import MultiService, Service
 from twisted.internet import task, reactor as global_reactor
@@ -13,11 +15,20 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
+from twisted.python.logfile import LogFile
+from twisted.python.filepath import FilePath
 
 from zope.interface import Interface
 
 from .. import __version__
 
+try:
+    from eliot.journald import JournaldDestination
+except ImportError as e:
+    # This platform doesn't have journald.
+    JournaldDestination = None
+    _missing_journald_reason = str(e)
+    del e
 
 __all__ = [
     'flocker_standard_options',
@@ -27,6 +38,10 @@ __all__ = [
 ]
 
 
+LOGFILE_LENGTH = int(MiB(100).to_Byte().value)
+LOGFILE_COUNT = 5
+
+
 def flocker_standard_options(cls):
     """Add various standard command line options to flocker commands.
 
@@ -34,6 +49,7 @@ def flocker_standard_options(cls):
     :return: The decorated `class`.
     """
     original_init = cls.__init__
+    original_postOptions = cls.postOptions
 
     def __init__(self, *args, **kwargs):
         """Set the default verbosity to `0`
@@ -45,6 +61,8 @@ def flocker_standard_options(cls):
         """
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
+        self['logfile'] = None
+        self['journald'] = False
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
 
@@ -60,6 +78,48 @@ def flocker_standard_options(cls):
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
 
+    def opt_logfile(self, logfile_path):
+        """
+        Log to a file. Log is written to ``stdout`` by default. The logfile
+        directory is created if it does not already exist.
+        """
+        self['logfile'] = logfile_path
+    cls.opt_logfile = opt_logfile
+
+    def opt_journald(self):
+        """
+        Log to journald.
+        """
+        if JournaldDestination is None:
+            raise usage.UsageError("Journald unavailable on this machine: "
+                                   + _missing_journald_reason)
+        # Log messages are written line by line, so pretend we're a file...
+        self['journald'] = True
+    cls.opt_journald = opt_journald
+
+    def postOptions(self):
+        if self['journald']:
+            destination = JournaldDestination()
+        else:
+            if self['logfile'] is None:
+                logfile = self._sys_module.stdout
+            else:
+                logfilepath = FilePath(self['logfile'])
+                logfilepath_directory = logfilepath.parent()
+                if not logfilepath_directory.exists():
+                    logfilepath_directory.makedirs()
+                # A twisted.python.logfile which has write and flush methods
+                # but which also rotates the log file.
+                logfile = LogFile.fromFullPath(
+                    logfilepath.path,
+                    rotateLength=LOGFILE_LENGTH,
+                    maxRotatedFiles=LOGFILE_COUNT,
+                )
+            destination = FileDestination(file=logfile)
+        self.eliot_destination = destination
+        original_postOptions(self)
+    cls.postOptions = postOptions
+
     return cls
 
 
@@ -73,9 +133,9 @@ class ICommandLineScript(Interface):
         """
 
 
-def eliot_logging_service(log_file, reactor, capture_stdout):
+def eliot_logging_service(destination, reactor, capture_stdout):
     service = MultiService()
-    ThreadedFileWriter(log_file, reactor).setServiceParent(service)
+    ThreadedWriter(destination, reactor).setServiceParent(service)
     EliotObserver(capture_stdout=capture_stdout).setServiceParent(service)
     return service
 
@@ -175,7 +235,8 @@ class FlockerScriptRunner(object):
 
         if self.logging:
             log_writer = eliot_logging_service(
-                self.sys_module.stdout, self._reactor, True)
+                options.eliot_destination, self._reactor, True
+            )
         else:
             log_writer = Service()
         log_writer.startService()

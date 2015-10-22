@@ -1,0 +1,1162 @@
+# vim: ai ts=4 sts=4 et sw=4 ft=yaml fdm=indent et foldlevel=0
+#
+# build.yaml
+#
+# This file contains the Jenkins job defintions for the Flocker project.
+#
+# We add new or reconfigure existing jobs in Jenkins using the Job DSL plugin.
+# https://github.com/jenkinsci/job-dsl-plugin
+#
+# That plugin consumes 'groovy Job DSL' code through FreeStyle Jenkins job
+# types which contain a 'Process Job DSLs' step.
+#
+# As part of the provisioning process for the Jenkins Master, we configure a
+# job called 'setup_ClusterHQ_Flocker' which is responsible for querying the
+# github clusterhq/flocker respository and retrieving this build.yaml file, as
+# well as the jobs.groovy.j2 jinja file.
+#
+# As part of the provisioning process for the Jenkins Master, we also deploy
+# a small python script '/usr/local/bin/render.py', this script simply contains
+# code to read a YAML file into a dictionary and expand a Jinja2 template using
+# the k,v in that dict.
+#
+# Our job 'setup_ClusterHQ_Flocker' when running, will run the 'render.py' with
+# this build.yaml file and produce a jobs.groovy file.
+# We do this, because we'd rather configure our jobs with YAML than with Groovy
+#
+# The next step in the job is a 'Process JOB DSL's' step which consumes the
+# jobs.groovy file, and generates all the jenkins folders and jobs.
+#
+#
+# We pass the branch name as a parameter to the setup_clusterhq_flocker job,
+# the parameter is shown as 'RECONFIGURE_BRANCH'.
+# The setup job only produces jobs for a single branch . We don't produce jobs
+# for every branch due to the large number of branches in the repository, which
+# would generate over 16000 jobs and take over an hour to run.
+#
+# The workflow is that, when a developer is working on a feature branch and is
+# happy to start testing some of his code they will execute the job
+# setup_clusterhq_flocker passing his branch as the parameter.
+#
+# Their jobs will then be available under the path:
+# /ClusterHQ-Flocker/<branch>/
+#
+# Inside that folder there will be a large number of jobs, where at the top
+# she/he can see a job called '_main_multijob'. This job is responsible for
+# executing all other jobs in parallel and collecting the produced artifacts
+# from each job after its execution.
+# The artifacts in this case are trial logs, coverage xml reports, subunit
+# reports.
+# Those artifacts are consumed by the _main_multijob to produce an overall
+# coverage report, and an aggregated summary of all the executed tests and
+# their failures/skips/successes.
+#
+
+# The project contains the github owner and repository to build
+project: 'ClusterHQ/flocker'
+
+# git_url, contains the full HTTPS url for the repository to build
+git_url: 'https://github.com/ClusterHQ/flocker.git'
+
+
+# We use a set of YAML aliases and anchors to define the different steps
+# in our jobs.
+# This helps us to keep some of the code DRY, we are not forced to use YAML
+# operators, a different approach could be used:
+#  - bash functions
+#  - python functions
+#  - Rust or D code
+#
+common_cli:
+  hashbang: &hashbang |
+    #!/bin/bash -l
+    set -x
+    set -e
+
+
+  # add_shell_functions, contains our the bash functions consumed by the
+  # the build script.
+  # We set the shebang to /bin/bash. Jenkins 'should' respect this.
+  # Note:
+  # We noticed that our Ubuntu /bin/bash call were being executed as /bin/sh.
+  # So we as part of the slave image build process symlinked
+  # /bin/sh -> /bin/bash.
+  # TODO: https://clusterhq.atlassian.net/browse/FLOC-2986
+  add_shell_functions: &add_shell_functions |
+
+    # The long directory names where we build our code cause pip to fail.
+    # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
+    # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
+    # https://github.com/spotify/dh-virtualenv/issues/10
+    # so we set our virtualenv dir to live in /tmp/<random number>
+    #
+    export venv=/tmp/\${RANDOM}
+    # make sure the virtualenv doesn't already exist
+    while [ -e \${venv} ]
+    do
+      export venv=/tmp/\${RANDOM}
+    done
+
+    function os {
+      # Let's figure out if this is OSX or Linux
+      # and return the OS type (or the distribution for a Linux OS)
+      _nix_flavour=\$(uname)
+      if [ 'Darwin' == "\${_nix_flavour}" ]; then
+        echo "OSX"
+      else
+        # Determine OS platform
+        source /etc/os-release
+        echo \${ID}
+      fi
+    }
+    function is_ubuntu {
+      if [ 'ubuntu' == "\$(os)" ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    function is_centos {
+      if [ 'centos' == "\$(os)" ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    function is_osx {
+      if [ 'OSX' == "\$(os)" ]; then
+        return 0
+      else
+        return 1
+      fi
+    }
+
+    # add a function that we can consume to colorise output
+    # This could be better, for now it is a simple parser based on keywords
+    # which will highlight 'errors, warnings' or other type of messages we
+    # choose to configured.
+    # The list of ASCII codes it uses can be found here.
+    # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
+    function parse_logs {
+      # ubuntu defaults to mawk, which causes some things to break
+      # it seems to be related to buffering, -W interactive seems to fix it.
+      if is_ubuntu; then
+        alias awk='mawk -W interactive'
+      fi
+
+      # The 'awk' parse_logs function consumes the standard output from a piped
+      # command, and returns PIPESTATUS of that command (return code).
+      #
+      # we configure 4 groups for parsing our logs.
+      # Exceptions at the top, which are always printed black.
+      # Errors, which are printed in Red
+      # Warnings, which are printed in Yellow
+      # Successes or other messages that we print in Green
+      # Everything else that doesn't match is printed in Black.
+      #
+      "\$@" | awk '
+        # exceptions to rules below, these are always printed black
+        /.*reading.sources.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
+        /.*writing.output.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
+        /.*errors.py.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
+
+        # red lines
+        /.*exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /.*Exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /.*fail.*/      {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /.* ERROR.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /.* error.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /build finished with problems./     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /return 1/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+        /Could not find valid repo at/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
+
+        # yellow lines
+        /.*Warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
+        /.*warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
+        /.*skip.*/      {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
+
+        # green lines
+        /.*succeeded.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
+        /.*Succeeded.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
+        /PASSED.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
+        /.*[OK]/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
+
+        # everything else, print in black
+        /.*/            {print "\\033[0;30m" \$0 "\\033[0;30m" ; }
+      '
+      return \${PIPESTATUS[0]}
+    }
+    # fix the docker permission issue, the base image doesn't have the correct
+    # permissions/owners.
+    # This is to be tackled as part of:
+    # https://clusterhq.atlassian.net/browse/FLOC-2689
+    test -e /var/run/docker.sock && sudo chmod 777 /var/run/docker.sock
+
+    # Returns the ip address for eth0
+    # We consume this as part or the vagrant build tests.
+    # Those tests run on our Mesos Cluster, the job connects to a local nginx
+    # instance running on the Mesos Slave where the job is running.
+    export eth0_ip=\$( ip -o -4 addr show eth0 |awk '{ print \$4 '} | cut -f 1 -d "/")
+
+    # pass the exit code from the previous and return the the aggregated
+    # exit status for the whole job.
+    function updateExitStatus {
+      # if we had previous failures, we just fail here.
+      if [ "\${JOB_EXIT_STATUS}" != "0" ] && [ "\${JOB_EXIT_STATUS}" != "" ]; then
+        echo 1
+      else
+         if [ "\$1" !=  "0" ]; then
+         # first failure on the job, lets return 1, which will set
+         # JOB_EXIT_STATUS to 1 and mark the job as failed.
+             echo 1
+         fi
+      fi
+    }
+
+  # TODO: do we need to clean up old files on ubuntu and centos or
+  # does the pre-scm plugin does this correctly for us ?
+  # https://clusterhq.atlassian.net/browse/FLOC-3139
+  cleanup: &cleanup |
+    export PATH=/usr/local/bin:\${PATH}
+    # clean up the stuff from previous runs
+    # due to the length of the jobname workspace, we are hitting limits in
+    # our sheebang path name in pip.
+    # https://github.com/spotify/dh-virtualenv/issues/10
+    # http://stackoverflow.com/questions/10813538/shebang-line-limit-in-bash-and-linux-kernel
+    # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
+    # So we will place the virtualenv in /tmp/v instead
+    #
+    if is_osx; then
+      # OSX doesn't allow us to sudo (no tty)
+      # we can't be certain that cloudbees will always gives us a new OSX slave
+      # so we make sure we remove any old files
+      rm -f results.xml
+      rm -f trial.log
+      rm -rf _trial_temp/
+      rm -rf \${venv}
+      rm -f "Flocker*.rb"
+      rm -f "dist/Flocker-*.tar.gz"
+    fi
+    if is_centos || is_ubuntu; then
+      # some of our tests (which run as root), leave some files behind when
+      # they abort or fail to complete.
+      # We use 'sudo' so that we can remove those files before a next job run.
+      sudo rm -rf \${venv}
+      sudo rm -f results.xml
+      sudo rm -f trial.log
+      sudo rm -rf _trial_temp/
+    fi
+
+  setup_venv: &setup_venv |
+    # setup the new venv
+    virtualenv -p python2.7 --clear \${venv}
+    . \${venv}/bin/activate
+
+  setup_pip_cache: &setup_pip_cache |
+    # exports the PIP_INDEX_URL, TRUSTED_HOST variables to the environment.
+    # The /tmp/pip.sh file is copied to the Jenkins Slave by the Jenkins Master
+    # during the bootstrapping of the slave.
+    # This file is located in /etc/jenkins_slave on the Master box.
+    # These variables contain the PIP URL and IP address of our caching server.
+    if [ -e /tmp/pip.sh ]; then
+      . /tmp/pip.sh
+    fi
+
+  setup_flocker_modules: &setup_flocker_modules |
+    # installs all the required python modules as well as the flocker code.
+    # But first, we need to upgrade pip to 7.1.
+    # We have a devpi cache in AWS which we will consume instead of going
+    # upstream to the PyPi servers.
+    # We specify that devpi caching server using -i \$PIP_INDEX_URL
+    # which requires as to include --trusted-host as we are not (yet) using
+    # SSL on our caching box.
+    # The --trusted-host option is only available with pip 7.
+    #
+    if [ \${PIP_INDEX_URL} ]; then
+        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} -i \${PIP_INDEX_URL} "
+    fi
+    if [ \${TRUSTED_HOST} ]; then
+        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} \
+                                --trusted-host \${TRUSTED_HOST} "
+    fi
+
+    # parse_logs() currently only works on Ubuntu or Centos builds
+    # due to a different awk implementation on OSX cloudbees servers
+    if is_ubuntu || is_centos; then
+        PARSE_LOGS="parse_logs "
+    fi
+
+    # using the caching-layer, install all the dependencies
+    \${PARSE_LOGS} pip install --upgrade pip
+    \${PARSE_LOGS} pip install . \${PIP_ADDITIONAL_OPTIONS}
+    # install Flocker
+    \${PARSE_LOGS} pip install  "Flocker[dev]" \${PIP_ADDITIONAL_OPTIONS}
+    # install junix for our coverage report
+    \${PARSE_LOGS} pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
+
+  setup_aws_env_vars: &setup_aws_env_vars |
+    # set vars and run tests
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
+    FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - \
+        http://169.254.169.254/latest/meta-data/placement/availability-zone`"
+    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+
+  setup_rackspace_env_vars: &setup_rackspace_env_vars |
+    # set vars and run tests
+    # The /tmp/acceptance.yaml file is deployed to the jenkins slave during
+    # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
+    # directory.
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack
+    export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
+
+  setup_coverage: &setup_coverage |
+    # we install the python coverage module so generate coverage.xml files
+    # which Jenkins will process through the Jenkins Cobertura plugin.
+    # https://wiki.jenkins-ci.org/display/JENKINS/Cobertura+Plugin
+    # This plugin allows for producing coverage reports over time for a
+    # particular job, or aggregated reports across a set of related jobs.
+    # This is achieved by downloading the coverage.xml artifacts from the
+    # downstream child jobs to the parent job and processing those files
+    # one last time through the cobertura plugin.
+    # The resulting report wil contain stats from every single job.
+    parse_logs pip install coverage  \${PIP_ADDITIONAL_OPTIONS}
+
+  run_coverage: &run_coverage |
+    # run coverage and produce a report
+    parse_logs coverage xml --include=flocker*
+
+  convert_results_to_junit: &convert_results_to_junit |
+    # pip the trial.log results through subunit and export them as junit in xml
+    cat trial.log | subunit-1to2 | subunit2junitxml \
+      --no-passthrough --output-to=results.xml
+
+  run_sphinx: &run_sphinx |
+    parse_logs python setup.py --version
+    cd docs
+    set +e #dont abort at the first failure
+    let status=0
+    # check spelling
+    parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
+    let status=status+\$?
+    # check links
+    parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    let status=status+\$?
+    # build html pages
+    parse_logs sphinx-build -d _build/doctree -b html . _build/html
+    exit \${status}
+    # TODO:
+    # upload html
+    #link-release-documentation
+    #upload-release-documentation
+    cd -
+
+  # flocker artifacts contains the list of files we want to collect from our
+  # _main_multijob. These are used to produce the coverage, test reports.
+  flocker_artifacts: &flocker_artifacts
+    - results.xml
+    - _trial_temp/test.log
+    - coverage.xml
+
+  run_trial_with_coverage: &run_trial_with_coverage |
+    # The jobs.groovy.j2 file produces jobs that contain a parameterized job
+    # type. These type of jobs always require a parameter to be passed on in
+    # order for they to be executed.
+    # We grab the value from the 'with_modules:' dictionary in the yaml job
+    # defintion, and feed it to the job configuration as the default value for
+    # the 'MODULE' parameter.
+    # This is how we tell trial which flocker module to call.
+    coverage run \${venv}/bin/trial \
+      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+
+  run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
+    # The jobs.groovy.j2 file produces jobs that contain a parameterized job
+    # type. These type of jobs always require a parameter to be passed on in
+    # order for they to be executed.
+    # We grab the value from the 'with_modules:' dictionary in the yaml job
+    # defintion, and feed it to the job configuration as the default value for
+    # the 'MODULE' parameter.
+    # This is how we tell trial which flocker module to call.
+    sudo \${venv}/bin/coverage run \${venv}/bin/trial \
+      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+
+  run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
+    # The jobs.groovy.j2 file produces jobs that contain a parameterized job
+    # type. These type of jobs always require a parameter to be passed on in
+    # order for they to be executed.
+    # We grab the value from the 'with_modules:' dictionary in the yaml job
+    # defintion, and feed it to the job configuration as the default value for
+    # Consume the MODULE parameter set in the job configuration
+    sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
+      --reporter=subunit --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
+
+  setup_authentication: &setup_authentication |
+    # acceptance tests rely on this file existing
+    touch \${HOME}/.ssh/known_hosts
+    # remove existing keys
+    rm -f \${HOME}/.ssh/id_rsa*
+    cp /tmp/id_rsa \${HOME}/.ssh/id_rsa
+    chmod -R 0700 \${HOME}/.ssh
+    ssh-keygen -N '' -f \${HOME}/.ssh/id_rsa_flocker
+    eval `ssh-agent -s`
+    ssh-add \${HOME}/.ssh/id_rsa
+
+  run_acceptance_aws_tests: &run_acceptance_aws_tests |
+    # We gather the return code but make sure we come out of these tests with 0
+    # we store that code and pass it to the end of the job execution,
+    # as part of the JOB_EXIT_STATUS variable.
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster of
+    # several nodes. These nodes will install the flocker packages (RPM/DEB)
+    # during the provisioning process by that tool. These packages are fetched
+    # from a repository on the network through a common apt-get/yum install.
+    # The jenkins slave will be the repository host containing those packages
+    # which are made available through a webserver running on port 80.
+    # We pass the URL of our Jenkins Slave to the acceptance test nodes
+    # through the --build-server parameter below.
+    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    --distribution \${DISTRIBUTION_NAME} \
+    --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    \${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
+    # We gather the return code but make sure we come out of these tests with 0
+    # we store that code and pass it to the end of the job execution,
+    # as part of the JOB_EXIT_STATUS variable.
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster of
+    # several nodes. These nodes will install the flocker packages (RPM/DEB)
+    # during the provisioning process by that tool. These packages are fetched
+    # from a repository on the network through a common apt-get/yum install.
+    # The jenkins slave will be the repository host containing those packages
+    # which are made available through a webserver running on port 80.
+    # We pass the URL of our Jenkins Slave to the acceptance test nodes
+    # through the --build-server parameter below.
+    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    --distribution \${DISTRIBUTION_NAME} \
+    --provider rackspace --dataset-backend rackspace \
+    --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    \${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  run_client_tests: &run_client_tests |
+    # We gather the return code but make sure we come out of these tests with 0
+    # we store that code and pass it to the end of the job execution,
+    # as part of the JOB_EXIT_STATUS variable.
+    parse_logs \${venv}/bin/python admin/run-client-tests \
+    --distribution \${DISTRIBUTION_NAME} \
+    --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  disable_selinux: &disable_selinux |
+    sudo /usr/sbin/setenforce 0
+
+  check_version: &check_version |
+    export FLOCKER_VERSION=\$(\${venv}/bin/python setup.py --version)
+
+  build_sdist: &build_sdist  |
+    # package the goodies
+    parse_logs \${venv}/bin/python setup.py sdist
+
+  build_package: &build_package  |
+    # and build a rpm/deb package using docker
+    parse_logs \${venv}/bin/python admin/build-package \
+    --destination-path repo \
+    --distribution \${DISTRIBUTION_NAME} \
+    /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+
+  build_homebrew_package: &build_homebrew_package  |
+    # and build a homebrew recipe and a package
+    SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
+    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
+      --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
+
+  install_homebrew_package: &install_homebrew_package |
+    # make sure we're no longer in our virtualenv
+    deactivate
+    # install the new freshly baked package
+    brew update
+    brew tap ClusterHQ/tap
+    brew install \${RECIPE_FILE}
+    brew test \${RECIPE_FILE}
+
+  build_repo_metadata: &build_repo_metadata |
+    # the acceptance tests look for a package in a yum repository,
+    # we provide one by starting a webserver and pointing the tests
+    # to look over there
+    REPO_PATH=/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    DOC_ROOT=/usr/share/nginx/html
+    sudo rm -rf \${DOC_ROOT}/\${REPO_PATH}
+    sudo mkdir -p \${DOC_ROOT}/\${REPO_PATH}
+    sudo cp repo/* \${DOC_ROOT}/\${REPO_PATH}
+    cd \${DOC_ROOT}/\${REPO_PATH}
+    # create a repo on either centos or ubuntu
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
+      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+    fi
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.04" ]; then
+      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+    fi
+    if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
+      sudo createrepo .
+    fi
+    cd -
+
+  clean_packages: &clean_packages |
+    # jenkins is unable to clean the git repository as some files are owned
+    # by root, so we make sure we delete the repo files we created
+    sudo rm -rf repo/
+
+  exit_with_return_code_from_test: &exit_with_return_code_from_test |
+    # this is where we make sure we exit with the correct return code
+    # from the tests we executed above.
+    exit \${JOB_EXIT_STATUS}
+
+  push_image_to_dockerhub: &push_image_to_dockerhub |
+    # the /tmp/dockerhub_creds is copied from the Jenkins Master on
+    # /etc/slave_config to the slave during the bootstrap process of the slave.
+    # This contains the login details for our dockerhub instance, which is
+    # deployed as part of our caching platform.
+    #
+    export D_USER=\$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
+    export D_PASSWORD=\$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
+    export D_EMAIL=\$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
+    docker login -u \${D_USER} -p \${D_PASSWORD} -e \${D_EMAIL}
+    echo y | docker push \${DOCKER_IMAGE}
+
+  build_docker_image: &build_docker_image |
+    # we want to make sure we are fetching the latest OS updates every time
+    # so we build the docker image using --no-cache, this way apt-get updates
+    # are actually executed.
+    # See: https://github.com/docker/docker/issues/3313
+    docker build --no-cache -t \$DOCKER_IMAGE .
+
+  # These are the docker images we will be using during our tests.
+  # We build them every 24 hours, making sure we have the latest OS updates
+  # installed on those images.
+  # By doing this we speed up the bootstrapping of our client/acceptance tests.
+  #
+  build_dockerfile_centos7: &build_dockerfile_centos7 |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "# URLGRABBER_DEBUG=1 to log low-level network info \
+          - see FLOC-2640" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum groupinstall \
+          --assumeyes 'Development Tools'" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install \
+          --assumeyes epel-release" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes \
+          git ruby-devel python-devel libffi-devel openssl-devel \
+          python-pip rpmlint" >> Dockerfile
+    echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
+          libffi-dev libssl-dev build-essential python-pip \
+          python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y \
+          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
+          python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
+    vagrant destroy -f
+    parse_logs \$venv/bin/python admin/build-vagrant-box --box tutorial \
+      --branch \${TRIGGERED_BRANCH} --build-server  http://\${eth0_ip}
+    parse_logs vagrant box add --force "clusterhq/flocker-tutorial" \
+      vagrant/tutorial/flocker-tutorial-\${FLOCKER_VERSION}.box
+
+  do_not_abort_on_errors: &do_not_abort_on_errors |
+    # make sure we don't abort the job on the first error we find.
+    #
+    # jenkins will execute our shellscript with -e, which will cause the
+    # script to terminate at the first error and mark the job as failed.
+    # This is fine for the majority of the build cases, but in some situations
+    # we don't want to terminate the job straight away. For example, a job
+    # which generates a new Virtual Machine where the tests are executed.
+    # With '-e' defined, jenkins would abort the job and leave an orphan VM
+    # behind.
+    # To avoid it, we set '+e' on this shell.
+    set +e
+
+  new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
+    # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
+    # vagrant box built overnight.
+    cat <<'EOF' >Vagrantfile
+    Vagrant.configure(2) do |config|
+       config.vm.box = 'jenkins-osx-yosemite'
+       config.vm.synced_folder '.', '/vagrant', disabled: true
+       config.vm.provider 'virtualbox' do |vb|
+          vb.memory = '1024'
+       end
+    end
+    EOF
+
+  source_extra_vars: &source_extra_vars |
+    # we use a script 'extra-vars.sh' to pass any variables from the host
+    # to our vagrant machine. This file is copied and sourced as part of our
+    # build.sh run inside the virtual machine.
+    chmod 755 extra-vars.sh
+    . extra-vars.sh
+
+  set_home_variable_on_mesos: &set_home_variable_on_mesos |
+    # mesos is not setting HOME, so we set it here.
+    # it needs to be set to /root, so that we can re-use the existing
+    # vagrant base images which live under /root/.vagrant.d
+    export HOME=/root
+
+  # this is a wrapper that we can use for building a script that will be
+  # populated with different cli actions.
+  # we copy the resulting build.sh file to the vagrant box for execution.
+  begin_build_sh_EOF: &begin_build_sh_EOF cat <<'EOF' > build.sh
+
+  end_build_sh_EOF: &end_build_sh_EOF |
+     EOF
+     chmod 755 build.sh
+
+  copy_files_to_osx_yosemite_box: &copy_files_to_osx_yosemite_box |
+    # this sets some variables used by the tests, since the tests run inside
+    # virtualbox we store them to a file and copy them to the vagrant box.
+    echo "export GIT_COMMIT=\${GIT_COMMIT}" > extra-vars.sh
+    chmod 755 extra-vars.sh
+    # gather the connection string for this vagrantbox
+    vagrant ssh-config > ssh-config
+    rsync -ave 'ssh -F ssh-config' . default:.
+    vagrant scp /tmp/pip.sh /tmp/pip.sh
+    vagrant scp build.sh build.sh
+    vagrant ssh -c 'chmod 755 /tmp/pip.sh'
+    vagrant ssh -c 'chmod 755 build.sh'
+
+  run_build_sh_script_on_vagrant_box: &run_build_sh_script_on_vagrant_box |
+    # make sure we don't abort on the first error
+    set +e
+    # run the build.sh script inside our vagrant box
+    vagrant ssh -c 'bash build.sh'
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  destroy_vagrant_box: &destroy_vagrant_box |
+    vagrant destroy -f
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  install_pkgs_on_vanilla_osx_yosemite_box: &install_pkgs_on_vanilla_osx_yosemite_box |
+    # permissions are not right, lets fix them here
+    sudo chown -R vagrant /users/vagrant
+    # do a bunch of steps before attempting to install Xcode command line tools
+    xcode-select --install
+    sudo xcodebuild -license accept
+    sudo /usr/sbin/DevToolsSecurity --enable
+    # installs XCode CommandLineTools from the CLI
+    # https://github.com/chcokr/osx-init/blob/master/install.sh#L25
+    touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+    PROD=\$(softwareupdate -l |grep '\\*.*Command Line' |head -n 1 \
+     | awk -F"*" '{print \$2}' |sed -e 's/^ *//' |tr -d "\n")
+    softwareupdate -i "\${PROD}" -v
+
+    # the basebox we use for OSX is missing quite a number of software pieces.
+    brew update
+    brew install rsync
+    brew install python
+    pip install virtualenv
+    brew install libffi
+    export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/; pip install bcrypt
+
+  package_jenkins_osx_yosemite_box: &package_jenkins_osx_yosemite_box |
+    # we now proceed to package our vagrant box
+    vagrant halt
+    vagrant package --output jenkins-osx-yosemite.box
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    vagrant box add --force 'jenkins-osx-yosemite'   jenkins-osx-yosemite.box
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    rm -f jenkins-osx-yosemite.box
+    vagrant destroy -f
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    exit \${JOB_EXIT_STATUS}
+
+  start_vanilla_osx_yosemite_vagrant_box: &start_vanilla_osx_yosemite_vagrant_box |
+    # gather the vanilla Vagrantfile from upstream and do a vagrant up
+    rm -f Vagrantfile
+    wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
+    vagrant up
+
+
+#-----------------------------------------------------------------------------#
+# Job Definitions below this point
+#-----------------------------------------------------------------------------#
+# Job Types:
+#
+# * run_trial
+# * run_trial_for_storage_driver (ebs/cinder)
+# * run_sphinx (old docs job)
+# * run_acceptance (tests)
+# * cronly_jobs (builds docker images every 24 hours)
+#
+# Toggles:
+#   * archive_artifacts: ( define if there are files to be archived)
+#   * coverage_report: ( enable if this job produces a coverage report file)
+#   * clean_repo: (enable if we need to clean old files owned by root)
+#
+
+# run_trial_modules contains a list of all the modules we want to execute
+# through trial.
+run_trial_modules: &run_trial_modules
+  - admin
+  - flocker.acceptance
+  - flocker.apiclient
+  - flocker.ca.functional
+  - flocker.ca.test
+  - flocker.cli
+  - flocker.common
+  - flocker.control
+  - flocker.dockerplugin
+  - flocker.node.agents
+  - flocker.node.test
+  # TODO:
+  # one of the functional tests is hanging, so we split the functional
+  # tests and comment out the subset that is hanging
+  # - flocker.node.functional
+  # - flocker.node.functional.test_docker
+  - flocker.node.functional.test_script
+  - flocker.node.functional.test_deploy
+  - flocker.provision
+  - flocker.restapi
+  - flocker.route
+  - flocker.test
+  - flocker.testtools
+  # flocker.volume needs to run as root due to ZFS calls
+  # - flocker.volume
+
+# run_trial_cli contains a list of all the CLI yaml anchors we want to
+# execute as part of our run_trial_tasks
+run_trial_cli: &run_trial_cli [
+  *hashbang,
+  *add_shell_functions,
+  *setup_pip_cache,
+  *cleanup,
+  *setup_venv,
+  *setup_flocker_modules,
+  *setup_coverage,
+  *setup_aws_env_vars,
+  *run_trial_with_coverage,
+  *run_coverage,
+  *convert_results_to_junit ]
+
+run_trial_cli_as_root: &run_trial_cli_as_root [
+  *hashbang,
+  *add_shell_functions,
+  *setup_pip_cache,
+  *cleanup,
+  *setup_venv,
+  *setup_flocker_modules,
+  *setup_coverage,
+  *setup_aws_env_vars,
+  *run_trial_with_coverage_as_root,
+  *run_coverage,
+  *convert_results_to_junit ]
+
+# run_acceptance_modules contains the list of Flocker modules to be executed
+# during the acceptance tests
+run_acceptance_modules: &run_acceptance_modules
+  - flocker.acceptance.endtoend.test_dataset
+  - flocker.acceptance.integration.test_mongodb
+  - flocker.acceptance.integration.test_postgres
+  - flocker.acceptance.obsolete.test_cli
+  - flocker.acceptance.obsolete.test_containers
+
+# flocker.node.functional is hanging, so we don't run it
+job_type:
+  run_trial:
+    # http://build.clusterhq.com/builders/flocker-centos-7
+    run_trial_on_AWS_CentOS_7:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      with_modules: *run_trial_modules
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+    run_trial_on_AWS_CentOS_7_as_root:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      with_modules:
+        - flocker.volume
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli_as_root }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+    # http://build.clusterhq.com/builders/flocker-admin
+    # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
+    run_trial_on_AWS_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      with_modules: *run_trial_modules
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+    run_trial_on_AWS_Ubuntu_Trusty_as_root:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      with_modules:
+        - flocker.volume
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli_as_root }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+
+  run_trial_for_storage_driver:
+    run_trial_for_ebs_storage_driver_on_CentOS_7:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      with_modules:
+        - flocker/node/agents/ebs.py
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_aws_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+    run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      with_modules:
+        - flocker/node/agents/ebs.py
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_aws_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+
+    run_trial_for_cinder_storage_driver_on_CentOS_7:
+      on_nodes_with_labels: 'rackspace-jenkins-slave-centos7-selinux-standard-4-dfw'
+      with_modules:
+        - flocker/node/agents/cinder.py
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_rackspace_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+    run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
+      on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu14-standard-4-dfw'
+      with_modules:
+        - flocker/node/agents/cinder.py
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_rackspace_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+
+
+  # http://build.clusterhq.com/builders/flocker-docs
+  run_sphinx:
+    run_sphinx:
+      on_nodes_with_labels: 'aws-centos-7-T2Small'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *run_sphinx ]
+          }
+      timeout: 30
+
+
+  # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
+  run_acceptance:
+    run_acceptance_on_AWS_CentOS_7_for:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_aws_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+    run_acceptance_on_AWS_Ubuntu_Trusty_for:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_aws_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+    run_acceptance_on_Rackspace_CentOS_7_for:
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_rackspace_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+    run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_rackspace_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+
+  run_client:
+    run_client_installation_on_Ubuntu_Trusty:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *run_client_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+    run_client_installation_on_Ubuntu_Vivid:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-15.04',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *run_client_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+    run_client_installation_on_OSX:
+      on_nodes_with_labels: 'mesos-1GB'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *add_shell_functions,
+                   *new_vagrantfile_for_osx_yosemite,
+
+                   *begin_build_sh_EOF,
+                   *hashbang,
+                   *add_shell_functions,
+                   *setup_pip_cache,
+                   *cleanup,
+                   *setup_venv,
+                   *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=OSX',
+                   *source_extra_vars,
+                   *check_version,
+                   *build_sdist,
+                   *build_homebrew_package,
+                   *install_homebrew_package,
+                   *end_build_sh_EOF,
+
+                   '# Execution starts here:',
+                   *set_home_variable_on_mesos,
+                   *do_not_abort_on_errors,
+                   'vagrant up',
+                   *copy_files_to_osx_yosemite_box,
+                   *run_build_sh_script_on_vagrant_box,
+                   *destroy_vagrant_box]
+          }
+      clean_repo: false
+      timeout: 30
+
+  cronly_jobs:
+    run_docker_build_centos7_fpm:
+      at: '0 0 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-centos-7',
+                   *build_dockerfile_centos7,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+      timeout: 30
+    run_docker_build_ubuntu_trusty_fpm:
+      at: '0 1 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-trusty',
+                   *build_dockerfile_ubuntu_trusty,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+      timeout: 30
+    run_docker_build_ubuntu_vivid_fpm:
+      at: '0 2 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
+                   *build_dockerfile_ubuntu_vivid,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+      timeout: 30
+    build_vagrant_basebox_for_flocker_tutorial:
+      at: '0 2 * * *'
+      on_nodes_with_labels: 'mesos-512MB'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *check_version,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   'export HOME=/root',
+                   *build_vagrant_tutorial_basebox,
+                   *clean_packages
+                ]
+          }
+      timeout: 60
+    build_vagrant_basebox_for_osx_yosemite:
+      at: '0 3 * * *'
+      on_nodes_with_labels: 'mesos-1GB'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *add_shell_functions,
+                   *set_home_variable_on_mesos,
+                   *do_not_abort_on_errors,
+                   *start_vanilla_osx_yosemite_vagrant_box,
+                   *begin_build_sh_EOF,
+                   *install_pkgs_on_vanilla_osx_yosemite_box,
+                   *end_build_sh_EOF,
+                   *copy_files_to_osx_yosemite_box,
+                   *run_build_sh_script_on_vagrant_box,
+                   *package_jenkins_osx_yosemite_box ]
+          }
+      timeout: 60

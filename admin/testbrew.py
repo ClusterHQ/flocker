@@ -35,7 +35,7 @@ from flocker.provision._effect import sequence
 from effect.twisted import perform
 from flocker import __version__
 
-from .runner import run
+from flocker.common.runner import run
 
 YOSEMITE_VMX_PATH = os.path.expanduser((
     "~/Documents/Virtual Machines.localized/"
@@ -86,9 +86,9 @@ MESSAGE_FORMATS = {
         "[%(username)s@%(address)s]: Running %(command)s\n",
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
-    "admin.runner:run":
+    "flocker.common.runner:run":
         "Running %(command)s\n",
-    "admin.runner:run:output":
+    "flocker.common.runner:run:stdout":
         "%(line)s\n",
 }
 

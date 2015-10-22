@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Various utilities to help with unit and functional testing.
@@ -16,16 +16,19 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
 import shutil
-from functools import wraps
+from functools import wraps, partial
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
+from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GiB
+from bitmath import GiB, MiB
 
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
+from eliot import ActionType, Message, MessageType, start_action, fields, Field
+from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -34,18 +37,17 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import prefixedMethodNames
+from twisted.python.reflect import prefixedMethodNames, safe_repr
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred, Deferred, succeed
+from twisted.internet.defer import maybeDeferred, Deferred
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
-from twisted.internet.protocol import Factory, Protocol
+from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
-from twisted.protocols.amp import AMP, InvalidSignature
-from twisted.python.log import msg
+from twisted.python.logfile import LogFile
 
 from .. import __version__
 from ..common.script import (
@@ -124,16 +126,16 @@ def assertNoFDsLeaked(test_case):
     """Context manager that asserts no file descriptors are leaked.
 
     :param test_case: The ``TestCase`` running this unit test.
-    :raise SkipTest: when /proc virtual filesystem is not available.
+    :raise SkipTest: when /dev/fd virtual filesystem is not available.
     """
     # Make sure there's no file descriptors that will be cleared by GC
     # later on:
     gc.collect()
 
     def process_fds():
-        path = FilePath(b"/proc/self/fd")
+        path = FilePath(b"/dev/fd")
         if not path.exists():
-            raise SkipTest("/proc is not available.")
+            raise SkipTest("/dev/fd is not available.")
 
         return set([child.basename() for child in path.children()])
 
@@ -192,33 +194,67 @@ def assert_not_equal_comparison(case, a, b):
             "Expected a and b to be not-equal: " + "; ".join(messages))
 
 
-def loop_until(predicate):
+def function_serializer(function):
+    """
+    Serialize the given function for logging by eliot.
+
+    :param function: Function to serialize.
+
+    :return: Serialized version of function for inclusion in logs.
+    """
+    try:
+        return {
+            "function": str(function),
+            "file": getfile(function),
+            "line": getsourcelines(function)[1]
+        }
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        return {
+            "function": str(function),
+        }
+
+LOOP_UNTIL_ACTION = ActionType(
+    action_type="flocker:testtools:loop_until",
+    startFields=[Field("predicate", function_serializer)],
+    successFields=[Field("result", serializer=safe_repr)],
+    description="Looping until predicate is true.")
+
+LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
+    message_type="flocker:testtools:loop_until:iteration",
+    fields=[Field("result", serializer=safe_repr)],
+    description="Predicate failed, trying again.")
+
+
+def loop_until(predicate, reactor=reactor):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
 
+    :param reactor: The reactor implementation to use to delay.
+    :type reactor: ``IReactorTime``.
+
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    try:
-        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                       getsourcelines(predicate)[1]))
-    except IOError:
-        # One debugging method involves changing .py files and is incompatible
-        # with inspecting the source.
-        msg("Looping on %s" % (predicate,))
+    action = LOOP_UNTIL_ACTION(predicate=predicate)
 
-    d = maybeDeferred(predicate)
+    d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
 
     def loop(result):
         if not result:
-            d = deferLater(reactor, 0.1, predicate)
-            d.addCallback(loop)
+            LOOP_UNTIL_ITERATION_MESSAGE(
+                result=result
+            ).write()
+            d = deferLater(reactor, 0.1, action.run, predicate)
+            d.addCallback(partial(action.run, loop))
             return d
+        action.addSuccessFields(result=result)
         return result
     d.addCallback(loop)
-    return d
+    return d.addActionFinish()
 
 
 def random_name(case):
@@ -341,10 +377,10 @@ class StandardOptionsTestsMixin(object):
         ``flocker_standard_options`` adds a ``sys_module`` argument to the
         initialiser which is assigned to ``_sys_module``.
         """
-        dummy_sys_module = object()
+        fake_sys_module = FakeSysModule()
         self.assertIs(
-            dummy_sys_module,
-            self.options(sys_module=dummy_sys_module)._sys_module
+            fake_sys_module,
+            self.options(sys_module=fake_sys_module)._sys_module
         )
 
     def test_version(self):
@@ -411,6 +447,41 @@ class StandardOptionsTestsMixin(object):
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+    def test_logfile_default(self):
+        """
+        `--logfile` is optional and if ommited, logs will be directed to
+        ``stdout``.
+        """
+        sys = FakeSysModule()
+        options = self.options(sys_module=sys)
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions([])
+        self.assertIs(sys.stdout, options.eliot_destination.file)
+
+    def test_logfile_override(self):
+        """
+        If `--logfile` is supplied, the Eliot logging destination wraps
+        ``twisted.python.logfile.LogFile``.
+        """
+        options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
+        expected_path = FilePath(self.mktemp()).path
+        options.parseOptions(['--logfile={}'.format(expected_path)])
+        logfile = options.eliot_destination.file
+        self.assertEqual(
+            (LogFile, expected_path, int(MiB(100).to_Byte().value), 5),
+            (logfile.__class__, logfile.path,
+             logfile.rotateLength, logfile.maxRotatedFiles)
+        )
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
@@ -594,7 +665,8 @@ class DockerImageBuilder(PRecord):
             will be applied to a `Dockerfile.in` template file if such a file
             exists.
 
-        :return: ``bytes`` with the tag name applied to the built image.
+        :return: ``Deferred bytes`` with the tag name applied to the built
+            image.
         """
         if dockerfile_variables is None:
             dockerfile_variables = {}
@@ -622,7 +694,7 @@ class DockerImageBuilder(PRecord):
             b'--tag=%s' % (tag,),
             docker_dir.path
         ]
-        run_process(command)
+        d = logged_run_process(reactor, command)
         if self.cleanup:
             def remove_image():
                 client = DockerClient(version="1.15")
@@ -631,7 +703,7 @@ class DockerImageBuilder(PRecord):
                         client.remove_container(container[u"Names"][0])
                 client.remove_image(tag, force=True)
             self.test.addCleanup(remove_image)
-        return tag
+        return d.addCallback(lambda ignored: tag)
 
 
 def skip_on_broken_permissions(test_method):
@@ -776,75 +848,36 @@ def make_script_tests(executable):
     return ScriptTests
 
 
-class FakeAMPClient(object):
-    """
-    Emulate an AMP client's ability to send commands.
-
-    A minimal amount of validation is done on registered responses and sent
-    requests, but this should not be relied upon.
-
-    :ivar list calls: ``(command, kwargs)`` tuples of commands that have
-        been sent using ``callRemote``.
-    """
-
-    def __init__(self):
-        self._responses = {}
-        self.calls = []
-
-    def _makeKey(self, command, kwargs):
-        """
-        Create a key for the responses dictionary.
-
-        @param commandType: a subclass of C{amp.Command}.
-
-        @param kwargs: a dictionary.
-
-        @return: A value that can be used as a dictionary key.
-        """
-        return (command, tuple(sorted(kwargs.items())))
-
-    def register_response(self, command, kwargs, response):
-        """
-        Register a response to a L{callRemote} command.
-
-        @param commandType: a subclass of C{amp.Command}.
-
-        @param kwargs: Keyword arguments taken by the command, a C{dict}.
-
-        @param response: The response to the command.
-        """
-        try:
-            command.makeResponse(response, AMP())
-        except KeyError:
-            raise InvalidSignature("Bad registered response")
-        self._responses[self._makeKey(command, kwargs)] = response
-
-    def callRemote(self, command, **kwargs):
-        """
-        Return a previously registered response.
-
-        @param commandType: a subclass of C{amp.Command}.
-
-        @param kwargs: Keyword arguments taken by the command, a C{dict}.
-
-        @return: A C{Deferred} that fires with the registered response for
-            this particular combination of command and arguments.
-        """
-        self.calls.append((command, kwargs))
-        command.makeArguments(kwargs, AMP())
-        # if an eliot_context is present, disregard it, because we cannot
-        # reliably determine this in advance in order to include it in the
-        # response register
-        if 'eliot_context' in kwargs:
-            kwargs.pop('eliot_context')
-        return succeed(self._responses[self._makeKey(command, kwargs)])
-
-
 class CustomException(Exception):
     """
     An exception that will never be raised by real code, useful for
     testing.
     """
+
+
+TWISTED_CHILD_PROCESS_ACTION = ActionType(
+    u'flocker:testtools:logged_run_process',
+    fields(command=list),
+    [],
+    u'A child process is spawned using Twisted',
+)
+
+STDOUT_RECEIVED = MessageType(
+    u'flocker:testtools:logged_run_process:stdout',
+    fields(output=str),
+    u'A chunk of stdout received from a child process',
+)
+
+STDERR_RECEIVED = MessageType(
+    u'flocker:testtools:logged_run_process:stdout',
+    fields(output=str),
+    u'A chunk of stderr received from a child process',
+)
+
+PROCESS_ENDED = MessageType(
+    u'flocker:testtools:logged_run_process:process_ended',
+    fields(status=int),
+    u'The process terminated')
 
 
 class _ProcessResult(PRecord):
@@ -868,6 +901,81 @@ class _CalledProcessError(CalledProcessError):
         return base + " and output:\n" + lines
 
 
+class _LoggingProcessProtocol(ProcessProtocol):
+    """
+    A ``ProcessProtocol`` that both stores and logs output from the
+    subprocess. Output is logged as it is received.
+
+    Intended to be used by ``logged_run_process``.
+    """
+
+    def __init__(self, deferred, action):
+        """
+        Construct a ``_LoggingProcessProtocol``.
+
+        :param deferred: A ``Deferred`` that will fire with
+            ``(reason, output)``
+            when the process ends, where ``reason`` is a ``Failure`` with the
+            reason for the process ending (see ``IProcessProtocol``), and
+            ``output`` are the bytes outputted by the process (both to stdout
+            and stderr).
+        :param action: The Eliot ``Action`` under which this process is being
+            run.
+        """
+        self._deferred = deferred
+        self._action = action
+        self._output_buffer = StringIO()
+
+    def outReceived(self, data):
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDOUT_RECEIVED(output=data).write()
+
+    def errReceived(self, data):
+        with self._action.context():
+            self._output_buffer.write(data)
+            STDERR_RECEIVED(output=data).write()
+
+    def processExited(self, reason):
+        with self._action.context():
+            PROCESS_ENDED(status=reason.value.status).write()
+            self._deferred.callback((reason, self._output_buffer.getvalue()))
+
+
+def logged_run_process(reactor, command):
+    """
+    Run a child process, and log the output as we get it.
+
+    :param reactor: An ``IReactorProcess`` to spawn the process on.
+    :param command: An argument list specifying the child process to run.
+
+    :return: A ``Deferred`` that calls back with ``_ProcessResult`` if the
+        process exited successfully, or errbacks with
+        ``_CalledProcessError`` otherwise.
+    """
+    d = Deferred()
+    action = TWISTED_CHILD_PROCESS_ACTION(command=command)
+    with action.context():
+        d2 = DeferredContext(d)
+        protocol = _LoggingProcessProtocol(d, action)
+        reactor.spawnProcess(protocol, command[0], command)
+
+        def process_ended((reason, output)):
+            status = reason.value.status
+            if status:
+                raise _CalledProcessError(
+                    returncode=status, cmd=command, output=output)
+            return _ProcessResult(
+                command=command,
+                status=status,
+                output=output,
+            )
+
+        d2.addCallback(process_ended)
+        d2.addActionFinish()
+        return d2.result
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -881,14 +989,23 @@ def run_process(command, *args, **kwargs):
     """
     kwargs["stdout"] = PIPE
     kwargs["stderr"] = STDOUT
-    process = Popen(command, *args, **kwargs)
-    output = process.stdout.read()
-    status = process.wait()
-    result = _ProcessResult(command=command, output=output, status=status)
-    if result.status:
-        raise _CalledProcessError(
-            returncode=status, cmd=command, output=output,
-        )
+    action = start_action(
+        action_type="run_process", command=command, args=args, kwargs=kwargs)
+    with action:
+        process = Popen(command, *args, **kwargs)
+        output = process.stdout.read()
+        status = process.wait()
+        result = _ProcessResult(command=command, output=output, status=status)
+        # TODO: We should be using a specific logging type for this.
+        Message.new(
+            command=result.command,
+            output=result.output,
+            status=result.status,
+        ).write()
+        if result.status:
+            raise _CalledProcessError(
+                returncode=status, cmd=command, output=output,
+            )
     return result
 
 

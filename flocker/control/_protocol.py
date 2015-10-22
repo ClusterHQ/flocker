@@ -10,23 +10,36 @@ node-specific, but that will likely change and involve additinal commands.
 Interactions:
 
 * The control service knows the desired configuration for the cluster.
-  Every time it changes it notifies the convergence agents using the
-  ClusterStatusCommand.
-* The convergence agents know the state of nodes. Whenever node state
-  changes they notify the control service with a NodeStateCommand.
-* The control service caches the current state of all nodes. Whenever the
-  control service receives an update to the state of a specific node via a
-  NodeStateCommand, the control service then aggregates that update with
-  the rest of the nodes' state and sends a ClusterStatusCommand to all
-  convergence agents.
+  Every time the configuration changes the control service notifies the
+  convergence agents using the ``ClusterStatusCommand``.
+
+* The convergence agents can determine part of the state of the cluster
+  (usually their own local state).  Whenever node state changes they notify
+  the control service with a ``NodeStateCommand``.
+
+* The control service caches the most recent state from all nodes.  Whenever
+  the control service receives an update to the state of a specific node via a
+  ``NodeStateCommand``, the control service integrates that update into a
+  cluster-wide state representation (the state of all of the nodes) and sends a
+  ``ClusterStatusCommand`` to all convergence agents.
 
 Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
+
+:var _caching_encoder: ``CachingEncoder`` used by
+    ``SerializableArgument``, allowing for cached serialization.
 """
 
-from eliot import Logger, ActionType, Action, Field
+from datetime import timedelta
+from io import BytesIO
+from itertools import count
+from contextlib import contextmanager
+
+from eliot import Logger, ActionType, Action, Field, MessageType
 from eliot.twisted import DeferredContext
+
+from pyrsistent import PClass, field
 
 from characteristic import with_cmp
 
@@ -34,14 +47,118 @@ from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode,
+    MAX_VALUE_LENGTH,
 )
+from twisted.internet.task import LoopingCall
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ._persistence import wire_encode, wire_decode
-from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
+from ._model import (
+    Deployment, DeploymentState, ChangeSource,
+)
+
+PING_INTERVAL = timedelta(seconds=30)
+
+
+class Big(Argument):
+    """
+    An ``Argument`` type which can handle objects which are larger than AMP's
+    MAX_VALUE_LENGTH when serialized.
+
+    Thanks to Glyph Lefkowitz for the idea:
+    * http://bazaar.launchpad.net/~glyph/+junk/amphacks/view/head:/python/amphacks/mediumbox.py  # noqa
+    """
+    def __init__(self, another_argument):
+        """
+        :param Argument another_argument: The wrapped AMP ``Argument``.
+        """
+        self.another_argument = another_argument
+
+    def toBox(self, name, strings, objects, proto):
+        """
+        During serialization, the wrapped ``Argument`` is serialized in full
+        and then popped out of the supplied ``strings`` dictionary, broken into
+        chunks <= MAX_VALUE_LENGTH which are added back to the ``strings``
+        dictionary with indexed key names so that the chunks can be put back
+        together in the correct order during deserialization.
+
+        See ``IArgumentType`` for argument and return type documentation.
+        """
+        self.another_argument.toBox(name, strings, objects, proto)
+        value = BytesIO(strings.pop(name))
+        counter = 0
+        while True:
+            nextChunk = value.read(MAX_VALUE_LENGTH)
+            if not nextChunk:
+                break
+            strings["%s.%d" % (name, counter)] = nextChunk
+            counter += 1
+
+    def fromBox(self, name, strings, objects, proto):
+        """
+        During deserialization, the indexed chunks are re-assembled from the
+        ``strings`` dictionary and the combined value is then placed back into
+        the strings dictionary using the expected key name. The ``fromBox``
+        method of the wrapped ``Argument`` is then called supplied with the
+        updated ``strings`` dictionary, deserializes the large value and
+        populates the ``objects`` dictionary with the result.
+
+        See ``IArgumentType`` for argument and return type documentation.
+        """
+
+        value = BytesIO()
+        for counter in count(0):
+            chunk = strings.get("%s.%d" % (name, counter))
+            if chunk is None:
+                break
+            value.write(chunk)
+            strings[name] = value.getvalue()
+        self.another_argument.fromBox(name, strings, objects, proto)
+
+
+class CachingEncoder(object):
+    """
+    Cache results of ``wire_encode`` and re-use them, relying on the fact
+    we're encoding immutable objects.
+
+    Not thread-safe, so should only be used by a single thread (the
+    Twisted reactor thread, presumably).
+
+    :attr _cache: Either ``None`` indicating no caching or a dicitonary
+        with objects mapped to cached wire encoded values.
+    """
+    def __init__(self):
+        self._cache = None
+
+    def encode(self, obj):
+        """
+        Encode an object to bytes using ``wire_encode``, or return cached
+        result if available and running in context of ``cache()`` context
+        manager.
+
+        :param obj: Object to encode.
+        :return: Resulting ``bytes``.
+        """
+        if self._cache is None:
+            return wire_encode(obj)
+
+        if obj not in self._cache:
+            self._cache[obj] = wire_encode(obj)
+        return self._cache[obj]
+
+    @contextmanager
+    def cache(self):
+        """
+        While in context of this context manager results will be cached.
+        """
+        self._cache = {}
+        yield
+        self._cache = None
+
+_caching_encoder = CachingEncoder()
 
 
 class SerializableArgument(Argument):
@@ -52,7 +169,8 @@ class SerializableArgument(Argument):
     def __init__(self, *classes):
         """
         :param *classes: The type or types of the objects we expect to
-            (de)serialize.
+            (de)serialize. Only immutable types should be used if encoding
+            caching will be enabled.
         """
         Argument.__init__(self)
         self._expected_classes = classes
@@ -70,7 +188,7 @@ class SerializableArgument(Argument):
             raise TypeError(
                 "{} is none of {}".format(obj, self._expected_classes)
             )
-        return wire_encode(obj)
+        return _caching_encoder.encode(obj)
 
 
 class _EliotActionArgument(Unicode):
@@ -96,6 +214,17 @@ class VersionCommand(Command):
     response = [('major', Integer())]
 
 
+class NoOp(Command):
+    """
+    Do nothing.  Return nothing.  This merely generates some traffic on the
+    connection to support timely disconnection notification.
+
+    No-ops are one-way to force both sides to send them of their own volition
+    so that both sides will receive timely disconnection notification.
+    """
+    requiresAnswer = False
+
+
 class ClusterStatusCommand(Command):
     """
     Used by the control service to inform a convergence agent of the
@@ -104,8 +233,8 @@ class ClusterStatusCommand(Command):
     Having both as a single command simplifies the decision making process
     in the convergence agent during startup.
     """
-    arguments = [('configuration', SerializableArgument(Deployment)),
-                 ('state', SerializableArgument(DeploymentState)),
+    arguments = [('configuration', Big(SerializableArgument(Deployment))),
+                 ('state', Big(SerializableArgument(DeploymentState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
@@ -116,27 +245,73 @@ class NodeStateCommand(Command):
     status of a particular node.
     """
     arguments = [
-        ('state_changes', ListOf(
-            SerializableArgument(NodeState, NonManifestDatasets))),
-        ('eliot_context', _EliotActionArgument())]
+        # A state change might be large enough not to fit into a single AMP
+        # value so use Big to split it across multiple values if necessary.
+        #
+        # The protocol specifies that a sequence of changes is always sent so
+        # the type required by ``SerializableArgument`` is either ``list`` or
+        # ``tuple`` (the implementation mostly or always uses a ``tuple`` but
+        # ``SerializableArgument`` converts ``tuple`` to ``list`` so we have to
+        # allow both types so the *receiving* side, where that conversion has
+        # happened, accepts the value).
+        #
+        # The sequence items will be some other serializable type (and should
+        # be a type that implements ``IClusterStateSource`` - such as
+        # ``NodeState`` or ``NonManifestDatasets``) and ``wire_encode`` will
+        # enforce that for us.
+        #
+        # Note that Big is not a great way to deal with large quantities of
+        # data.  See FLOC-3113.
+        ('state_changes', Big(SerializableArgument(list, tuple))),
+        ('eliot_context', _EliotActionArgument()),
+    ]
     response = []
 
 
 class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
+
+    :ivar IClusterStateSource _source: The change source uniquely representing
+        the AMP connection for which this locator is being used.
+    :ivar _reactor: See ``reactor`` parameter of ``__init__``
     """
-    def __init__(self, control_amp_service):
+    def __init__(self, reactor, control_amp_service):
         """
+        :param IReactorTime reactor: A reactor to use to tell the time for
+            activity/inactivity reporting.
         :param ControlAMPService control_amp_service: The service managing AMP
-             connections to the control service.
+            connections to the control service.
         """
         CommandLocator.__init__(self)
+
+        # Create a brand new source to associate with changes from this
+        # particular connection from an agent.  The lifetime of the source
+        # exactly matches the lifetime of the protocol.  This is good since
+        # after the connection is lost we can't receive any more changes from
+        # it.
+        self._source = ChangeSource()
+
+        self._reactor = reactor
         self.control_amp_service = control_amp_service
+
+    def locateResponder(self, name):
+        """
+        Do normal responder lookup and also record this activity.
+        """
+        self._source.set_last_activity(self._reactor.seconds())
+        return CommandLocator.locateResponder(self, name)
 
     @property
     def logger(self):
         return self.control_amp_service.logger
+
+    @NoOp.responder
+    def noop(self):
+        """
+        Perform no operation.
+        """
+        return {}
 
     @VersionCommand.responder
     def version(self):
@@ -145,43 +320,71 @@ class ControlServiceLocator(CommandLocator):
     @NodeStateCommand.responder
     def node_changed(self, eliot_context, state_changes):
         with eliot_context:
-            self.control_amp_service.node_changed(state_changes)
+            self.control_amp_service.node_changed(
+                self._source, state_changes,
+            )
             return {}
 
 
 class ControlAMP(AMP):
     """
     AMP protocol for control service server.
+
+    :ivar Pinger _pinger: Helper which periodically pings this protocol's peer
+        to verify it's still alive.
     """
-    def __init__(self, control_amp_service):
+    def __init__(self, reactor, control_amp_service):
         """
+        :param reactor: See ``ControlServiceLocator.__init__``.
         :param ControlAMPService control_amp_service: The service managing AMP
-             connections to the control service.
+            connections to the control service.
         """
-        AMP.__init__(self, locator=ControlServiceLocator(control_amp_service))
+        locator = ControlServiceLocator(reactor, control_amp_service)
+        AMP.__init__(self, locator=locator)
         self.control_amp_service = control_amp_service
+        self._pinger = Pinger(reactor)
 
     def connectionMade(self):
         AMP.connectionMade(self)
         self.control_amp_service.connected(self)
+        self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)
         self.control_amp_service.disconnected(self)
+        self._pinger.stop()
 
 
-DEPLOYMENT_CONFIG = Field(u"configuration", repr,
+# These two logging fields use wire_encode as the serializer so that they can
+# share the encoding cache with the network code related to this logging.  This
+# reduces the overhead of logging these (potentially quite large) data
+# structures.
+DEPLOYMENT_CONFIG = Field(u"configuration", _caching_encoder.encode,
                           u"The cluster configuration")
-CLUSTER_STATE = Field(u"state", repr,
-                      u"The cluster state")
+CLUSTER_STATE = Field(u"state", _caching_encoder.encode, u"The cluster state")
 
 LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
-    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
     [],
+    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
     "Send the configuration and state of the cluster to all agents.")
 
-AGENT = Field(u"agent", repr, u"The agent we're sending to")
+
+def _serialize_agent(controlamp):
+    """
+    Serialize a connected ``ControlAMP`` to the address of its peer.
+
+    :return: A string representation of the Twisted address object describing
+        the remote address of the connection of the given protocol.
+
+    :rtype str:
+    """
+    return str(controlamp.transport.getPeer())
+
+
+AGENT = Field(
+    u"agent", _serialize_agent, u"The agent we're sending to",
+)
 
 LOG_SEND_TO_AGENT = ActionType(
     "flocker:controlservice:send_state_to_agent",
@@ -189,18 +392,57 @@ LOG_SEND_TO_AGENT = ActionType(
     [],
     "Send the configuration and state of the cluster to a specific agent.")
 
+AGENT_CONNECTED = ActionType(
+    "flocker:controlservice:agent_connected",
+    [AGENT],
+    [],
+    "An agent connected to the control service."
+)
+
+AGENT_UPDATE_ELIDED = MessageType(
+    "flocker:controlservice:agent_update_elided",
+    [AGENT],
+    u"An update to an agent was elided because a subsequent update supercedes "
+    u"it.",
+)
+
+AGENT_UPDATE_DELAYED = MessageType(
+    "flocker:controlservice:agent_update_delayed",
+    [AGENT],
+    u"An update to an agent was delayed because an earlier update is still in "
+    u"progress.",
+)
+
+
+class _UpdateState(PClass):
+    """
+    Represent the state related to sending a ``ClusterStatusCommand`` to an
+    agent.
+
+    :ivar response: The pending result of an update that is in progress.
+    :ivar scheduled: ``True`` if another update should be performed as soon as
+        the current one is done, ``False`` otherwise.
+    """
+    response = field()
+    next_scheduled = field()
+
 
 class ControlAMPService(Service):
     """
     Control Service AMP server.
 
     Convergence agents connect to this server.
+
+    :ivar dict _current_command: A dictionary containing information about
+        connections to which state updates are currently in progress.  The keys
+        are protocol instances.  The values are ``_UpdateState`` instances.
     """
     logger = Logger()
 
-    def __init__(self, cluster_state, configuration_service,
-                 endpoint, context_factory):
+    def __init__(self, reactor, cluster_state, configuration_service, endpoint,
+                 context_factory):
         """
+        :param reactor: See ``ControlServiceLocator.__init__``.
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         :param ConfigurationPersistenceService configuration_service:
@@ -209,6 +451,7 @@ class ControlAMPService(Service):
         :param context_factory: TLS context factory.
         """
         self.connections = set()
+        self._current_command = {}
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
@@ -216,7 +459,7 @@ class ControlAMPService(Service):
             TLSMemoryBIOFactory(
                 context_factory,
                 False,
-                ServerFactory.forProtocol(lambda: ControlAMP(self))
+                ServerFactory.forProtocol(lambda: ControlAMP(reactor, self))
             )
         )
         # When configuration changes, notify all connected clients:
@@ -239,20 +482,133 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        with LOG_SEND_CLUSTER_STATE(self.logger,
-                                    configuration=configuration,
-                                    state=state):
-            for connection in connections:
-                action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
-                with action.context():
-                    d = DeferredContext(connection.callRemote(
-                        ClusterStatusCommand,
-                        configuration=configuration,
-                        state=state,
-                        eliot_context=action
-                    ))
-                    d.addActionFinish()
-                    d.result.addErrback(lambda _: None)
+
+        # Connections are separated into three groups to support a scheme which
+        # lets us avoid sending certain updates which we know are not
+        # necessary.  This reduces traffic and associated costs (CPU, memory).
+        #
+        # Other schemes are possible and might produce even better performance.
+        # See https://clusterhq.atlassian.net/browse/FLOC-3140 for some
+        # brainstorming.
+
+        # Collect connections for which there is currently no unacknowledged
+        # update.  These can receive a new update right away.
+        can_update = []
+
+        # Collect connections for which there is an unacknowledged update.
+        # Since something has changed, these should receive another update once
+        # that acknowledgement is received.
+        delayed_update = []
+
+        # Collect connections which were already set to receive a delayed
+        # update and still haven't sent an acknowledgement.  These will still
+        # receive a delayed update but we'll also note that we're going to skip
+        # sending one intermediate update to them.
+        elided_update = []
+
+        for connection in connections:
+            try:
+                update = self._current_command[connection]
+            except KeyError:
+                # There's nothing in the tracking state for this connection.
+                # That means there's no unacknowledged update.  That means we
+                # can send another update right away.
+                can_update.append(connection)
+            else:
+                # These connections do currently have an unacknowledged update
+                # outstanding.
+                if update.next_scheduled:
+                    # And these connections are also already scheduled to
+                    # receive another update after the one they're currently
+                    # processing.  That update will include the most up-to-date
+                    # information so we're effectively skipping an update
+                    # that's no longer useful.
+                    elided_update.append(connection)
+                else:
+                    # These don't have another update scheduled yet so we'll
+                    # schedule one.
+                    delayed_update.append(connection)
+
+        # Do all of the update work inside this caching context.  This makes
+        # multiple encodings of the same piece of state much less expensive by
+        # saving the first result and re-using it.  The cache is only
+        # maintained for the duration of the block.
+        with _caching_encoder.cache():
+            # Make sure to run the logging action inside the caching block.
+            # This lets encoding for logging share the cache with encoding for
+            # network traffic.
+            with LOG_SEND_CLUSTER_STATE() as action:
+                if can_update:
+                    # If there are any protocols that can be updated right now,
+                    # we also want to see what updates they receive.  Since
+                    # logging shares the caching context, it shouldn't be any
+                    # more expensive to serialize this information into the log
+                    # now.  We specifically avoid logging this information if
+                    # no protocols are being updated because the serializing is
+                    # more expensive in that case and at the same time that
+                    # information isn't actually useful.
+                    action.add_success_fields(
+                        configuration=configuration, state=state
+                    )
+                else:
+                    # Eliot wants those fields though.
+                    action.add_success_fields(configuration=None, state=None)
+
+                for connection in can_update:
+                    self._update_connection(connection, configuration, state)
+
+                for connection in elided_update:
+                    AGENT_UPDATE_ELIDED(agent=connection).write()
+
+                for connection in delayed_update:
+                    self._delayed_update_connection(connection)
+
+    def _update_connection(self, connection, configuration, state):
+        """
+        Send a ``ClusterStatusCommand`` to an agent.
+
+        :param ControlAMP connection: The connection to use to send the
+            command.
+
+        :param Deployment configuration: The cluster configuration to send.
+        :param DeploymentState state: The current cluster state to send.
+        """
+        action = LOG_SEND_TO_AGENT(agent=connection)
+        with action.context():
+            d = DeferredContext(connection.callRemote(
+                ClusterStatusCommand,
+                configuration=configuration,
+                state=state,
+                eliot_context=action
+            ))
+            d.addActionFinish()
+            d.result.addErrback(lambda _: None)
+
+        update = self._current_command[connection] = _UpdateState(
+            response=d.result,
+            next_scheduled=False,
+        )
+
+        def finished_update(ignored):
+            del self._current_command[connection]
+        update.response.addCallback(finished_update)
+
+    def _delayed_update_connection(self, connection):
+        """
+        Send a ``ClusterStatusCommand`` to an agent after it has acknowledged
+        the last one.
+
+        :param ControlAMP connection: The connection to use to send the
+            command.  This connection is expected to have previously been sent
+            such a command and to not yet have acknowledged it.  Internal state
+            related to this will be used and then updated.
+        """
+        AGENT_UPDATE_DELAYED(agent=connection).write()
+        update = self._current_command[connection]
+        update.response.addCallback(
+            lambda ignored: self._send_state_to_connections([connection]),
+        )
+        self._current_command[connection] = update.set(next_scheduled=True)
 
     def connected(self, connection):
         """
@@ -260,8 +616,9 @@ class ControlAMPService(Service):
 
         :param ControlAMP connection: The new connection.
         """
-        self.connections.add(connection)
-        self._send_state_to_connections([connection])
+        with AGENT_CONNECTED(agent=connection):
+            self.connections.add(connection)
+            self._send_state_to_connections([connection])
 
     def disconnected(self, connection):
         """
@@ -271,15 +628,16 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    def node_changed(self, state_changes):
+    def node_changed(self, source, state_changes):
         """
         We've received a node state update from a connected client.
 
-        :param bytes hostname: The hostname of the node.
+        :param IClusterStateSource source: Representation of where these
+            changes were received from.
         :param list state_changes: One or more ``IClusterStateChange``
             providers representing the state change which has taken place.
         """
-        self.cluster_state.apply_changes(state_changes)
+        self.cluster_state.apply_changes_from_source(source, state_changes)
         self._send_state_to_connections(self.connections)
 
 
@@ -327,6 +685,13 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
 
+    @NoOp.responder
+    def noop(self):
+        """
+        Perform no operation.
+        """
+        return {}
+
     @property
     def logger(self):
         """
@@ -346,19 +711,57 @@ class AgentAMP(AMP):
     AMP protocol for convergence agent side of the protocol.
 
     This is the client protocol that will connect to the control service.
+
+    :ivar Pinger _pinger: Helper which periodically pings this protocol's peer
+        to verify it's still alive.
     """
-    def __init__(self, agent):
+    def __init__(self, reactor, agent):
         """
+        :param IReactorTime reactor: A reactor to use to schedule periodic ping
+            operations.
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         locator = _AgentLocator(agent)
         AMP.__init__(self, locator=locator)
         self.agent = agent
+        self._pinger = Pinger(reactor)
 
     def connectionMade(self):
         AMP.connectionMade(self)
         self.agent.connected(self)
+        self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)
         self.agent.disconnected()
+        self._pinger.stop()
+
+
+class Pinger(object):
+    """
+    An periodic AMP ping helper.
+    """
+    def __init__(self, reactor):
+        """
+        :param IReactorTime reactor: The reactor to use to schedule the pings.
+        """
+        self.reactor = reactor
+
+    def start(self, protocol, interval):
+        """
+        Start sending some pings.
+
+        :param AMP protocol: The protocol over which to send the pings.
+        :param timedelta interval: The interval at which to send the pings.
+        """
+        def ping():
+            protocol.callRemote(NoOp)
+        self._pinging = LoopingCall(ping)
+        self._pinging.clock = self.reactor
+        self._pinging.start(interval.total_seconds(), now=False)
+
+    def stop(self):
+        """
+        Stop sending the pings.
+        """
+        self._pinging.stop()

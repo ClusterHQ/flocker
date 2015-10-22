@@ -6,6 +6,9 @@ The command-line ``flocker-*-agent`` tools.
 """
 
 from socket import socket
+from contextlib import closing
+import sys
+from time import sleep
 
 import yaml
 
@@ -13,13 +16,17 @@ from jsonschema import FormatChecker, Draft4Validator
 
 from pyrsistent import PRecord, field, PMap, pmap, pvector
 
+from eliot import ActionType, fields
+
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
-from twisted.python.usage import Options
+from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
+from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
+from twisted.python.reflect import namedAny
 
 from ..volume.filesystems import zfs
 from ..volume.service import (
@@ -30,13 +37,20 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
-from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
+from ._diagnostics import (
+    current_distribution, FlockerDebugArchive, DISTRIBUTION_BY_LABEL,
+    lookup_distribution,
+)
+from .agents.blockdevice import (
+    LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
+)
 from ..ca import ControlServicePolicy, NodeCredential
 
 
 __all__ = [
     "flocker_dataset_agent_main",
     "flocker_container_agent_main",
+    "flocker_diagnostics_main",
 ]
 
 
@@ -77,24 +91,38 @@ def flocker_container_agent_main():
     ).main()
 
 
+LOG_GET_EXTERNAL_IP = ActionType(u"flocker:node:script:get_external_ip",
+                                 fields(host=unicode, port=int),
+                                 fields(local_ip=unicode),
+                                 "An attempt to discover the local IP.")
+
+
 def _get_external_ip(host, port):
     """
     Get an external IP address for this node that can in theory connect to
     the given host and port.
 
-    See https://clusterhq.atlassian.net/browse/FLOC-1751 for better solution.
+    Failures are retried until a successful connect.
+
+    See https://clusterhq.atlassian.net/browse/FLOC-1751 for a possibly
+    better solution.
+
     :param host: A host to connect to.
     :param port: The port to connect to.
 
     :return bytes: IP address of external interface on this node.
     """
-    sock = socket()
-    try:
-        sock.setblocking(False)
-        sock.connect_ex((host, port))
-        return sock.getsockname()[0]
-    finally:
-        sock.close()
+    while True:
+        try:
+            with LOG_GET_EXTERNAL_IP(host=unicode(host), port=port) as ctx:
+                with closing(socket()) as sock:
+                    sock.connect((host, port))
+                    result = unicode(sock.getsockname()[0], "ascii")
+                    ctx.addSuccessFields(local_ip=result)
+                    return result
+        except:
+            # Error is logged by LOG_GET_EXTERNAL_IP.
+            sleep(0.1)
 
 
 class _TLSContext(PRecord):
@@ -257,10 +285,13 @@ class AgentServiceFactory(PRecord):
         ``IDeployer`` provider for this script.  The arguments are a
         ``hostname`` keyword argument, a ``cluster_uuid`` keyword and a
         ``node_uuid`` keyword argument. They must be passed by keyword.
+    :ivar get_external_ip: Typically ``_get_external_ip``, but
+        overrideable for tests.
     """
     # This should have an explicit interface:
     # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
+    get_external_ip = field(initial=_get_external_ip, mandatory=True)
 
     def get_service(self, reactor, options):
         """
@@ -281,7 +312,7 @@ class AgentServiceFactory(PRecord):
         configuration = get_configuration(options)
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
-        ip = configuration.get('hostname', _get_external_ip(host, port))
+        ip = configuration.get('hostname', self.get_external_ip(host, port))
 
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
@@ -439,7 +470,8 @@ _DEFAULT_DEPLOYERS = {
     DeployerType.p2p: lambda api, **kw:
         P2PManifestationDeployer(volume_service=api, **kw),
     DeployerType.block: lambda api, **kw:
-        BlockDeviceDeployer(block_device_api=api, **kw),
+        BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
+                            **kw),
 }
 
 
@@ -456,6 +488,8 @@ class AgentService(PRecord):
     :ivar backend_name: The name of the storage driver to instantiate.  This
         must name one of the items in ``backends``.
     :ivar api_args: Extra arguments to pass to the factory from ``backends``.
+    :ivar get_external_ip: Typically ``_get_external_ip``, but
+        overrideable for tests.
     """
     backends = field(
         factory=pvector, initial=_DEFAULT_BACKENDS, mandatory=True,
@@ -527,9 +561,13 @@ class AgentService(PRecord):
         for backend in self.backends:
             if backend.name == self.backend_name:
                 return backend
-        raise ValueError(
-            "Backend named {!r} not available".format(self.backend_name),
-        )
+        try:
+            return namedAny(self.backend_name + ".FLOCKER_BACKEND")
+        except (AttributeError, ValueError):
+            raise ValueError(
+                "'{!s}' is neither a built-in backend nor a 3rd party "
+                "module.".format(self.backend_name),
+            )
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):
@@ -635,3 +673,65 @@ class DatasetServiceFactory(PRecord):
         loop_service = agent_service.get_loop_service(deployer)
 
         return loop_service
+
+
+@flocker_standard_options
+class DiagnosticsOptions(Options):
+    """
+    Command line options for ``flocker-diagnostics``.
+    """
+    longdesc = """\
+    Exports Flocker log files and diagnostic data. Run this script as root, on
+    an Ubuntu 14.04 or Centos 7 server where the clusterhq-flocker-node package
+    has been installed.
+    """
+
+    synopsis = "Usage: flocker-diagnostics [OPTIONS]"
+
+    optParameters = [
+        ["distribution-name", "d", "auto",
+         "Force the use of ``distribution`` specific tools "
+         "when gathering diagnostic information. "
+         "One of {}".format(
+             ', '.join(['auto'] + DISTRIBUTION_BY_LABEL.keys())
+         )],
+    ]
+
+    def postOptions(self):
+        distribution_name = self['distribution-name']
+        if distribution_name is 'auto':
+            distribution_name = current_distribution()
+
+        distribution = lookup_distribution(distribution_name)
+
+        if distribution is None:
+            raise UsageError(
+                "flocker-diagnostics "
+                "is not supported on this distribution ({!r}).\n"
+                "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
+                "for alternative ways to export Flocker logs "
+                "and diagnostic data.\n".format(distribution_name)
+            )
+        self.distribution = distribution
+
+
+@implementer(ICommandLineScript)
+class DiagnosticsScript(PRecord):
+    """
+    Implement top-level logic for the ``flocker-diagnostics``.
+    """
+    def main(self, reactor, options):
+        archive_path = FlockerDebugArchive(
+            service_manager=options.distribution.service_manager(),
+            log_exporter=options.distribution.log_exporter()
+        ).create()
+        sys.stdout.write(archive_path + '\n')
+        return succeed(None)
+
+
+def flocker_diagnostics_main():
+    return FlockerScriptRunner(
+        script=DiagnosticsScript(),
+        options=DiagnosticsOptions(),
+        logging=False,
+    ).main()

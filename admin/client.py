@@ -1,175 +1,197 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Run the acceptance tests.
+Run the client installation tests.
 """
 
+import os
+import shutil
 import sys
-import yaml
+import tempfile
 
-from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination
-from twisted.internet.error import ProcessTerminated
+import docker
+from effect import TypeDispatcher, sync_performer, perform
 from twisted.python.usage import Options, UsageError
-from twisted.python.filepath import FilePath
-from twisted.internet.defer import inlineCallbacks, returnValue
 
-from flocker.common.version import make_rpm_version
-from flocker.provision import PackageSource, CLOUD_PROVIDERS
-import flocker
-from flocker.provision._ssh import (
-    run_remotely)
+from flocker.provision import PackageSource
+from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
-    task_client_installation_test,
-    install_cli,
+    ensure_minimal_setup,
+    task_cli_pkg_install,
+    cli_pkg_test,
+    task_cli_pip_prereqs,
+    task_cli_pip_install,
+    cli_pip_test,
 )
-from effect.twisted import perform
-from flocker.provision._ssh._conch import make_dispatcher
-
-from .runner import run
+from flocker.provision._ssh import (
+    Run, Sudo, Put, Comment, perform_sudo, perform_put)
 
 
-def remove_known_host(reactor, hostname):
+@attributes(['image', 'package_manager'])
+class DockerImage(object):
+    """Holder for Docker image information."""
+
+DOCKER_IMAGES = {
+    'centos-7': DockerImage(image='centos:7', package_manager='yum'),
+    'debian-8': DockerImage(image='debian:8', package_manager='apt'),
+    'fedora-22': DockerImage(image='fedora:22', package_manager='dnf'),
+    'ubuntu-14.04': DockerImage(image='ubuntu:14.04', package_manager='apt'),
+    'ubuntu-15.04': DockerImage(image='ubuntu:15.04', package_manager='apt'),
+}
+
+# No distribution is officially supported using pip, but the code can
+# test the pip instructions using any of the images.
+PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
+
+# Some distributions have packages created for them.
+# Although CentOS 7 is not a supported client distribution, the client
+# packages get built, and can be tested.
+PACKAGED_CLIENT_DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.04')
+
+
+class ScriptBuilder(TypeDispatcher):
     """
-    Remove all keys belonging to hostname from a known_hosts file.
+    Convert an Effect sequence to a shell script.
 
-    :param reactor: Reactor to use.
-    :param bytes hostname: Remove all keys belonging to this hostname from
-        known_hosts.
-    """
-    return run(reactor, ['ssh-keygen', '-R', hostname])
-
-
-def run_client_tests(reactor, node):
-    """
-    Run the client acceptance tests.
-
-    :param INode node: The node to run client acceptance tests against.
-
-    :return int: The exit-code of trial.
-    """
-    def check_result(f):
-        f.trap(ProcessTerminated)
-        if f.value.exitCode is not None:
-            return f.value.exitCode
-        else:
-            return f
-
-    return perform(make_dispatcher(reactor), run_remotely(
-        username=node.get_default_username(),
-        address=node.address,
-        commands=task_client_installation_test()
-        )).addCallbacks(
-            callback=lambda _: 0,
-            errback=check_result,
-            )
-
-
-class INodeRunner(Interface):
-    """
-    Interface for starting and stopping nodes for acceptance testing.
+    The effects are those defined in flocker.provision._effect and
+    flocker.provision._ssh._model.
     """
 
-    def start_nodes(reactor):
+    def __init__(self, effects):
+        self.lines = [
+            '#!/bin/bash',
+            'set -ex'
+        ]
+        TypeDispatcher.__init__(self, {
+            Run: self.perform_run,
+            Sudo: perform_sudo,
+            Put: perform_put,
+            Comment: self.perform_comment,
+            Sequence: perform_sequence
+        })
+        perform(self, effects)
+        # Add blank line to terminate script with a newline
+        self.lines.append('')
+        self._script = '\n'.join(self.lines)
+
+    @sync_performer
+    def perform_run(self, dispatcher, intent):
         """
-        Start nodes for running acceptance tests.
-
-        :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires with a list of nodes to run
-            tests against.
+        For Run effects, add the command line.
         """
+        self.lines.append(intent.command)
 
-    def stop_nodes(reactor):
+    @sync_performer
+    def perform_comment(self, dispatcher, intent):
         """
-        Stop the nodes started by `start_nodes`.
-
-        :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires when the nodes have been
-            stopped.
+        For Comment effects, prefix the comment with #
         """
+        self.lines.append('# ' + intent.comment)
+
+    def script(self):
+        """
+        Return the generated shell script.
+        """
+        return self._script
 
 
-RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source'
-]
-
-
-@implementer(INodeRunner)
-@attributes(RUNNER_ATTRIBUTES + [
-    'provisioner',
-], apply_immutable=True)
-class LibcloudRunner(object):
+def make_script_file(dir, effects):
     """
-    Start and stop cloud nodes for acceptance testing.
+    Create a shell script file from a sequence of effects.
 
-    :ivar LibcloudProvioner provisioner: The provisioner to use to create the
-        nodes.
-    :ivar VolumeBackend volume_backend: The volume backend the nodes are
-        configured with.
+    :param bytes dir: The directory in which to create the script.
+    :param Effect effects: An effect which contains the commands,
+        typically a Sequence containing multiple commands.
+    :return: The base filename of the script.
     """
-    def __init__(self):
-        self.nodes = []
+    builder = ScriptBuilder(effects)
+    fd, filename = tempfile.mkstemp(dir=dir, text=True)
+    os.write(fd, builder.script())
+    os.close(fd)
+    os.chmod(filename, 0555)
+    return os.path.basename(filename)
 
-        self.metadata = self.config.get('metadata', {})
+
+class DockerContainer:
+    """
+    Run commands in a Docker container.
+    """
+
+    def __init__(self, image):
+        # Getting Docker to work correctly on any client platform can
+        # be tricky.  See
+        # http://doc-dev.clusterhq.com/gettinginvolved/client-testing.html
+        # for details.
+        params = docker.utils.kwargs_from_env(assert_hostname=False)
+        self.docker = docker.Client(version='1.16', **params)
+        self.image = image
+
+    @classmethod
+    def from_distribution(cls, distribution):
+        """
+        Create a DockerContainer with a given distribution name.
+        """
+        return cls(DOCKER_IMAGES[distribution].image)
+
+    def start(self):
+        """
+        Start the Docker container.
+        """
+        # On OS X, shared volumes must be in /Users, so use the home directory.
+        # See 'Mount a host directory as a data volume' at
+        # https://docs.docker.com/userguide/dockervolumes/
+        self.tmpdir = tempfile.mkdtemp(dir=os.path.expanduser('~'))
         try:
-            creator = self.metadata['creator']
-        except KeyError:
-            raise UsageError("Must specify creator metadata.")
-
-        if not creator.isalnum():
-            raise UsageError(
-                "Creator must be alphanumeric. Found {!r}".format(creator)
+            self.docker.pull(self.image)
+            container = self.docker.create_container(
+                image=self.image, command='/bin/bash', tty=True,
+                volumes=['/mnt/script'],
             )
-        self.creator = creator
+            self.container_id = container[u'Id']
+            self.docker.start(
+                self.container_id,
+                binds={
+                    self.tmpdir: {'bind': '/mnt/script', 'ro': True},
+                }
+            )
+        except:
+            os.rmdir(self.tmpdir)
+            raise
 
-    @inlineCallbacks
-    def start_nodes(self, reactor, node_count):
+    def stop(self):
         """
-        Start cloud nodes for client tests.
-
-        :return list: List of addresses of nodes to connect to, for client
-            tests.
+        Stop the Docker container.
         """
-        metadata = {
-            'purpose': 'client-testing',
-            'distribution': self.distribution,
-        }
-        metadata.update(self.metadata)
+        self.docker.stop(self.container_id)
+        self.docker.remove_container(self.container_id)
+        shutil.rmtree(self.tmpdir)
 
-        for index in range(node_count):
-            name = "client-test-%s-%d" % (self.creator, index)
-            try:
-                print "Creating node %d: %s" % (index, name)
-                node = self.provisioner.create_node(
-                    name=name,
-                    distribution=self.distribution,
-                    metadata=metadata,
-                )
-            except:
-                print "Error creating node %d: %s" % (index, name)
-                print "It may have leaked into the cloud."
-                raise
-
-            yield remove_known_host(reactor, node.address)
-            self.nodes.append(node)
-            del node
-
-        returnValue(self.nodes)
-
-    def stop_nodes(self, reactor):
+    def execute(self, commands, out=sys.stdout):
         """
-        Deprovision the nodes provisioned by ``start_nodes``.
+        Execute a set of commands in the Docker container.
+
+        The set of commands provided to one call of ``execute`` will be
+        executed in a single session. This means commands will see the
+        environment created by previous commands.
+
+        The output of the commands is sent to the ``out`` file object,
+        which must have a ``write`` method.
+
+        :param Effect commands: An Effect containing the commands to run,
+            probably a Sequence of Effects, one for each command to run.
+        :param out: Where to send command output. Any object with a
+            ``write`` method.
+        :return int: The exit status of the commands.  If all commands
+            succeed, this will be zero. If any command fails, this will
+            be non-zero.
         """
-        for node in self.nodes:
-            try:
-                print "Destroying %s" % (node.name,)
-                node.destroy()
-            except Exception as e:
-                print "Failed to destroy %s: %s" % (node.name, e)
-
-
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
-PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
+        script_file = make_script_file(self.tmpdir, commands)
+        script = '/mnt/script/{}'.format(script_file)
+        session = self.docker.exec_create(self.container_id, script)
+        session_id = session[u'Id']
+        for output in self.docker.exec_start(session, stream=True):
+            out.write(output)
+        return self.docker.exec_inspect(session_id)[u'ExitCode']
 
 
 class RunOptions(Options):
@@ -178,27 +200,22 @@ class RunOptions(Options):
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
-         'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['provider', None, 'rackspace',
-         'The target provider to test against. '
-         'One of {}.'.format(', '.join(PROVIDERS))],
-        ['config-file', None, None,
-         'Configuration for providers.'],
+         'One of {}.  With --pip, one of {}'.format(
+            ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
+            ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
+        ['flocker-version', None, None, 'Flocker version to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
     ]
 
     optFlags = [
-        ["keep", "k", "Keep VMs around, if the tests fail."],
+        ['pip', None, 'Install using pip rather than packages.'],
     ]
 
     synopsis = ('Usage: run-client-tests --distribution <distribution> '
-                '[--provider <provider>]')
+                '[--branch <branch>] [--flocker-version <version>] '
+                '[--build-server <url>] [--pip]')
 
     def __init__(self, top_level):
         """
@@ -211,106 +228,104 @@ class RunOptions(Options):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
-        if self['config-file'] is not None:
-            config_file = FilePath(self['config-file'])
-            self['config'] = yaml.safe_load(config_file.getContent())
-        else:
-            self['config'] = {}
-
-        if self['flocker-version']:
-            rpm_version = make_rpm_version(self['flocker-version'])
-            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-            if os_version.endswith('.dirty'):
-                os_version = os_version[:-len('.dirty')]
-        else:
-            os_version = None
-
-        package_source = PackageSource(
+        self['package_source'] = PackageSource(
             version=self['flocker-version'],
-            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )
 
-        if self['provider'] not in PROVIDERS:
-            raise UsageError(
-                "Provider %r not supported. Available providers: %s"
-                % (self['provider'], ', '.join(PROVIDERS)))
 
-        if self['provider'] in CLOUD_PROVIDERS:
-            # Configuration must include credentials etc for cloud providers.
-            try:
-                provider_config = self['config'][self['provider']]
-            except KeyError:
-                raise UsageError(
-                    "Configuration file must include a "
-                    "{!r} config stanza.".format(self['provider'])
-                )
-
-            provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
-
-            self.runner = LibcloudRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
-                package_source=package_source,
-                provisioner=provisioner,
-            )
-
-MESSAGE_FORMATS = {
-    "flocker.provision.ssh:run":
-        "[%(username)s@%(address)s]: Running %(command)s\n",
-    "flocker.provision.ssh:run:output":
-        "[%(username)s@%(address)s]: %(line)s\n",
-    "admin.runner:run":
-        "Running %(command)s\n",
-    "admin.runner:run:output":
-        "%(line)s\n",
-}
-
-
-def eliot_output(message):
+def get_steps_pip(distribution, package_source=PackageSource()):
     """
-    Write pretty versions of eliot log messages to stdout.
+    Get commands to run for testing client pip installation.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
     """
-    message_type = message.get('message_type', message.get('action_type'))
-    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
-    sys.stdout.flush()
+    if distribution not in PIP_DISTRIBUTIONS:
+        raise UsageError(
+            "Distribution %r not supported. Available distributions: %s"
+            % (distribution, ', '.join(PIP_DISTRIBUTIONS)))
+    package_manager = DOCKER_IMAGES[distribution].package_manager
+    virtualenv = 'flocker-client'
+    steps = [
+        ensure_minimal_setup(package_manager),
+        task_cli_pip_prereqs(package_manager),
+        task_cli_pip_install(virtualenv, package_source),
+        cli_pip_test(virtualenv, package_source),
+    ]
+    return steps
 
 
-@inlineCallbacks
-def main(reactor, args, base_path, top_level):
+def get_steps_pkg(distribution, package_source=PackageSource()):
     """
-    :param reactor: Reactor to use.
+    Get commands to run for testing client package installation.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
+    """
+    if distribution not in PACKAGED_CLIENT_DISTRIBUTIONS:
+        raise UsageError(
+            "Distribution %r not supported. Available distributions: %s"
+            % (distribution, ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS)))
+    package_manager = DOCKER_IMAGES[distribution].package_manager
+    steps = [
+        ensure_minimal_setup(package_manager),
+        task_cli_pkg_install(distribution, package_source),
+        cli_pkg_test(package_source),
+    ]
+    return steps
+
+
+def run_steps(container, steps, out=sys.stdout):
+    """
+    Run a sequence of commands in a container.
+
+    :param DockerContainer container: Container in which to run the test.
+    :param Effect steps: Steps to to run the test.
+    :param file out: Stream to write output.
+
+    :return int: Exit status of steps.
+    """
+    container.start()
+    try:
+        for commands in steps:
+            status = container.execute(commands, out)
+            if status != 0:
+                return status
+    finally:
+        container.stop()
+    return 0
+
+
+def main(args, base_path, top_level):
+    """
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
+    :param FilePath top_level: The top-level of the Flocker repository.
     """
     options = RunOptions(top_level=top_level)
 
-    add_destination(eliot_output)
     try:
         options.parseOptions(args)
     except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
+        sys.exit("%s: %s\n" % (base_path.basename(), e))
 
-    runner = options.runner
-
-    try:
-        nodes = yield runner.start_nodes(reactor, node_count=1)
-        yield perform(
-            make_dispatcher(reactor),
-            install_cli(runner.package_source, nodes[0]))
-        result = yield run_client_tests(reactor=reactor, node=nodes[0])
-    except:
-        result = 1
-        raise
-    finally:
-        # Unless the tests failed, and the user asked to keep the nodes, we
-        # delete them.
-        if not (result != 0 and options['keep']):
-            runner.stop_nodes(reactor)
-        elif options['keep']:
-            print "--keep specified, not destroying nodes."
-    raise SystemExit(result)
+    distribution = options['distribution']
+    package_source = options['package_source']
+    if options['pip']:
+        get_steps = get_steps_pip
+    else:
+        get_steps = get_steps_pkg
+    steps = get_steps(distribution, package_source)
+    container = DockerContainer.from_distribution(distribution)
+    status = run_steps(container, steps)
+    sys.exit(status)

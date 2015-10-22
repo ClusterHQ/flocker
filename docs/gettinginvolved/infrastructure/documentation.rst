@@ -48,7 +48,7 @@ obsolete releases that are no longer hosted are permanently redirected to the la
        <Redirect>
          <HostName>docs.clusterhq.com</HostName>
          <Protocol>https</Protocol>
-         <ReplaceKeyPrefixWith>en/0.3.3dev3/</ReplaceKeyPrefixWith>
+         <ReplaceKeyPrefixWith>en/0.3.3.dev3/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
      </RoutingRule>

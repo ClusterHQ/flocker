@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.node.test.test_loop -*-
 
 """
 Convergence loop for a node-specific dataset agent.
@@ -23,18 +24,20 @@ from characteristic import attributes
 from machinist import (
     trivialInput, TransitionTable, constructFiniteStateMachine,
     MethodSuffixOutputer,
-    )
+)
 
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
+from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change
 
-from ..control._protocol import (
+from ..common import gather_deferreds
+from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
-    )
+)
 
 
 class ClusterStatusInputs(Names):
@@ -288,6 +291,11 @@ class ConvergenceLoop(object):
         ``None``.
 
     :ivar fsm: The finite state machine this is part of.
+
+    :ivar _last_acknowledged_state: The last state that was sent to and
+        acknowledged by the control service over the most recent connection
+        to the control service.
+    :type _last_acknowledged_state: tuple of IClusterStateChange
     """
     def __init__(self, reactor, deployer):
         """
@@ -299,10 +307,58 @@ class ConvergenceLoop(object):
         self.reactor = reactor
         self.deployer = deployer
         self.cluster_state = None
+        self.client = None
+        self._last_acknowledged_state = None
 
     def output_STORE_INFO(self, context):
+        old_client = self.client
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
+        if old_client is not self.client:
+            # State updates are now being sent somewhere else.  At least send
+            # one update using the new client.
+            self._last_acknowledged_state = None
+
+    def _send_state_to_control_service(self, state_changes):
+        context = LOG_SEND_TO_CONTROL_SERVICE(
+            self.fsm.logger, connection=self.client,
+            local_changes=list(state_changes),
+        )
+        with context.context():
+            d = DeferredContext(self.client.callRemote(
+                NodeStateCommand,
+                state_changes=state_changes,
+                eliot_context=context)
+            )
+
+            def record_acknowledged_state(ignored):
+                self._last_acknowledged_state = state_changes
+
+            def clear_acknowledged_state(failure):
+                # We don't know if the control service has processed the update
+                # or not. So we clear the last acknowledged state so that we
+                # always send the state on the next iteration.
+                self._last_acknowledged_state = None
+                return failure
+
+            d.addCallbacks(record_acknowledged_state, clear_acknowledged_state)
+            d.addErrback(
+                writeFailure, self.fsm.logger,
+                u"Failed to send local state to control node.")
+            return d.addActionFinish()
+
+    def _maybe_send_state_to_control_service(self, state_changes):
+        """
+        If the given ``state_changes`` differ from those last acknowledged by
+        the control service, send them to the control service.
+
+        :param state_changes: State to send to the control service.
+        :type state_changes: tuple of IClusterStateChange
+        """
+        if self._last_acknowledged_state != state_changes:
+            return self._send_state_to_control_service(state_changes)
+        else:
+            return succeed(None)
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
@@ -310,32 +366,43 @@ class ConvergenceLoop(object):
 
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
-            d = DeferredContext(
-                self.deployer.discover_state(known_local_state))
+            d = DeferredContext(maybeDeferred(
+                self.deployer.discover_state, known_local_state))
 
         def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
+            #
+            # XXX This somewhat side-steps the whole explicit-state-machine
+            # thing we're aiming for here.  It would be better for these state
+            # changes to arrive as an input to the state machine.
             for state in state_changes:
                 self.cluster_state = state.update_cluster_state(
                     self.cluster_state
                 )
-            with LOG_SEND_TO_CONTROL_SERVICE(
-                    self.fsm.logger, connection=self.client,
-                    local_changes=list(state_changes)) as context:
-                self.client.callRemote(NodeStateCommand,
-                                       state_changes=state_changes,
-                                       eliot_context=context)
+
+            # XXX And for this update to be the side-effect of an output
+            # resulting.
+            sent_state = self._maybe_send_state_to_control_service(
+                state_changes)
+
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
-            return run_state_change(action, self.deployer)
+            ran_state_change = run_state_change(action, self.deployer)
+            DeferredContext(ran_state_change).addErrback(
+                writeFailure, self.fsm.logger)
+
+            # Wait for the control node to acknowledge the new
+            # state, and for the convergence actions to run.
+            return gather_deferreds([sent_state, ran_state_change])
         d.addCallback(got_local_state)
+
         # If an error occurred we just want to log it and then try
         # converging again; hopefully next time we'll have more success.
-        d.addErrback(writeFailure, self.fsm.logger, u"")
+        d.addErrback(writeFailure, self.fsm.logger)
 
         # It would be better to have a "quiet time" state in the FSM and
         # transition to that next, then have a timeout input kick the machine
@@ -392,7 +459,7 @@ def build_convergence_loop_fsm(reactor, deployer):
 
 @implementer(IConvergenceAgent)
 @attributes(["reactor", "deployer", "host", "port"])
-class AgentLoopService(object, MultiService):
+class AgentLoopService(MultiService, object):
     """
     Service in charge of running the convergence loop.
 
@@ -418,7 +485,8 @@ class AgentLoopService(object, MultiService):
         self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.reconnecting_factory = ReconnectingClientFactory.forProtocol(
-            lambda: AgentAMP(self))
+            lambda: AgentAMP(self.reactor, self)
+        )
         self.factory = TLSMemoryBIOFactory(context_factory, True,
                                            self.reconnecting_factory)
 
@@ -434,6 +502,9 @@ class AgentLoopService(object, MultiService):
     # IConvergenceAgent methods:
 
     def connected(self, client):
+        # Reduce reconnect delay back to normal, since we've successfully
+        # connected:
+        self.reconnecting_factory.resetDelay()
         self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):

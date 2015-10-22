@@ -3,8 +3,12 @@
 A HTTP REST API for controlling the Dataset Manager.
 """
 
-import yaml
 from uuid import uuid4, UUID
+from datetime import datetime
+
+from pytz import UTC
+
+import yaml
 
 from pyrsistent import pmap, thaw
 
@@ -18,6 +22,7 @@ from twisted.web.http import (
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
+from twisted.internet import reactor
 
 from klein import Klein
 
@@ -36,6 +41,8 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
+from ._persistence import update_leases
+from ._model import LeaseError
 
 from .. import __version__
 
@@ -80,7 +87,10 @@ DATASET_ON_DIFFERENT_NODE = make_bad_request(
 DATASET_IN_USE = make_bad_request(
     code=CONFLICT,
     description=u"The dataset is being used by another container.")
-
+LEASE_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Lease not found.")
+LEASE_HELD = make_bad_request(
+    code=CONFLICT, description=u"Lease already held.")
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
@@ -95,22 +105,28 @@ class ConfigurationAPIUserV1(object):
     """
     app = Klein()
 
-    def __init__(self, persistence_service, cluster_state_service):
+    def __init__(self, persistence_service, cluster_state_service,
+                 clock=reactor):
         """
         :param ConfigurationPersistenceService persistence_service: Service
             for retrieving and setting desired configuration.
 
         :param ClusterStateService cluster_state_service: Service that
             knows about the current state of the cluster.
+
+        :param IReactorTime clock: The clock to use for time. By default
+            global reactor.
         """
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
+        self.clock = clock
 
     @app.route("/version", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Get the version of Flocker being run.
         """,
+        section=u"common",
         header=u"Get Flocker version",
         examples=[u"get version"])
     @structured(
@@ -126,11 +142,12 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Get the cluster's dataset configuration.
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
+        section=u"dataset",
     )
     @structured(
         inputSchema={},
@@ -151,7 +168,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         Create a new dataset.
         """,
         header=u"Create new dataset",
@@ -161,7 +178,8 @@ class ConfigurationAPIUserV1(object):
             u"create dataset with duplicate dataset_id",
             u"create dataset with maximum_size",
             u"create dataset with metadata",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={
@@ -245,7 +263,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
-        """
+        u"""
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
         """,
@@ -253,7 +271,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"delete dataset",
             u"delete dataset with unknown dataset id",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={},
@@ -297,7 +316,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         This can be used to:
 
         * Move a dataset from one node to another by changing the
@@ -309,7 +328,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
-        ]
+        ],
+        section=u"dataset",
     )
     @structured(
         inputSchema={
@@ -369,13 +389,15 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         The result reflects the control service's knowledge, which may be
         out of date or incomplete. E.g. a dataset agent has not connected
         or updated the control service yet.
         """,
         header=u"Get current cluster datasets",
-        examples=[u"get state datasets"])
+        examples=[u"get state datasets"],
+        section=u"dataset",
+    )
     @structured(
         inputSchema={},
         outputSchema={
@@ -385,29 +407,48 @@ class ConfigurationAPIUserV1(object):
     )
     def state_datasets(self):
         """
-        Return the current primary datasets in the cluster.
+        Return all primary manifest datasets and all non-manifest datasets in
+        the cluster.
 
         :return: A ``list`` containing all datasets in the cluster.
         """
+        # XXX This duplicates code in datasets_from_deployment, but that
+        # function is designed to operate on a Deployment rather than a
+        # DeploymentState instance and the dataset configuration result
+        # includes metadata and deleted flags which should not be part of the
+        # dataset state response.
+        # Refactor. See FLOC-2207.
+        response = []
         deployment_state = self.cluster_state_service.as_deployment()
-        datasets = list(datasets_from_deployment(deployment_state))
-        for dataset in datasets:
-            node_uuid = UUID(hex=dataset[u"primary"])
-            dataset[u"path"] = self.cluster_state_service.manifestation_path(
-                node_uuid, dataset[u"dataset_id"]).path.decode(
-                    "utf-8")
-            del dataset[u"metadata"]
-            del dataset[u"deleted"]
-        return datasets
+        get_manifestation_path = self.cluster_state_service.manifestation_path
+
+        for dataset, node in deployment_state.all_datasets():
+            response_dataset = dict(
+                dataset_id=dataset.dataset_id,
+            )
+
+            if node is not None:
+                response_dataset[u"primary"] = unicode(node.uuid)
+                response_dataset[u"path"] = get_manifestation_path(
+                    node.uuid,
+                    dataset[u"dataset_id"]
+                ).path.decode("utf-8")
+
+            if dataset.maximum_size is not None:
+                response_dataset[u"maximum_size"] = dataset.maximum_size
+
+            response.append(response_dataset)
+        return response
 
     @app.route("/configuration/containers", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         These containers may or may not actually exist on the
         cluster.
         """,
         header=u"Get the cluster's container configuration",
         examples=[u"get configured containers"],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -428,13 +469,14 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         This reflects the control service's knowledge of the cluster,
         which may be out of date or incomplete, e.g. if a container agent
         has not connected or updated the control service yet.
         """,
         header=u"Get the cluster's actual containers",
         examples=[u"get actual containers"],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -459,7 +501,6 @@ class ConfigurationAPIUserV1(object):
             for application in node.applications:
                 container = container_configuration_response(
                     application, node.uuid)
-                container[u"host"] = node.hostname
                 container[u"running"] = application.running
                 result.append(container)
         return result
@@ -495,7 +536,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         The container will be automatically started once it is created on
         the cluster.
         """,
@@ -505,13 +546,16 @@ class ConfigurationAPIUserV1(object):
             u"create container with duplicate name",
             u"create container with ports",
             u"create container with environment",
-            u"create container with restart policy",
             u"create container with attached volume",
             u"create container with cpu shares",
             u"create container with memory limit",
             u"create container with links",
             u"create container with command line",
-        ]
+            # No example of creating a container with a different restart
+            # policy because only the "never" policy is supported.  See
+            # FLOC-2449.
+        ],
+        section=u"container",
     )
     @structured(
         inputSchema={
@@ -669,13 +713,14 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers/<name>", methods=['POST'])
     @user_documentation(
-        """
+        u"""
         This will lead to the container being relocated to the specified host
         and restarted. This will also update the primary host of any attached
         datasets.
         """,
         header=u"Update a named container's configuration",
         examples=[u"move container"],
+        section=u"container",
     )
     @structured(
         inputSchema={
@@ -726,7 +771,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/configuration/containers/<name>", methods=['DELETE'])
     @user_documentation(
-        """
+        u"""
         This will lead to the container being stopped and not being
         restarted again. Any datasets that were attached as volumes will
         continue to exist on the cluster.
@@ -735,7 +780,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"remove a container",
             u"remove a container with unknown name",
-        ]
+        ],
+        section=u"container",
     )
     @structured(
         inputSchema={},
@@ -768,7 +814,7 @@ class ConfigurationAPIUserV1(object):
 
     @app.route("/state/nodes", methods=['GET'])
     @user_documentation(
-        """
+        u"""
         Some nodes may not be listed if their agents are disconnected from
         the cluster. IP addresses may be private IP addresses that are not
         publicly routable.
@@ -776,7 +822,8 @@ class ConfigurationAPIUserV1(object):
         header=u"List known nodes in the cluster",
         examples=[
             u"list known nodes",
-        ]
+        ],
+        section=u"common",
     )
     @structured(
         inputSchema={},
@@ -820,6 +867,139 @@ class ConfigurationAPIUserV1(object):
                 deployment_configuration=deployment))
         except ConfigurationError as e:
             raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
+
+    @app.route("/configuration/leases", methods=['GET'])
+    @user_documentation(
+        u"""
+        List the currently existing leases on datasets, including which
+        node the lease is for and when if ever the lease will expire.
+        """,
+        header=u"List all leases on datasets",
+        examples=[
+            u"list leases",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/list_leases'
+        },
+        schema_store=SCHEMAS
+    )
+    def list_leases(self):
+        """
+        List the current leases in the configuration.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        result = []
+        for lease in self.persistence_service.get().leases.values():
+            result.append(lease_response(lease, now))
+        return result
+
+    @app.route("/configuration/leases/<dataset_id>", methods=['DELETE'])
+    @user_documentation(
+        u"""
+        This will release a lease on a dataset, allowing the dataset to be
+        moved elsewhere, deleted and otherwise modified. Releasing the
+        lease does not modify the dataset in any way, it simply allows
+        other operations to do so.
+        """,
+        header=u"Release a lease on a dataset",
+        examples=[
+            u"release a lease",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        schema_store=SCHEMAS
+    )
+    def delete_lease(self, dataset_id):
+        """
+        Remove a lease from the cluster configuration.
+
+        :param unicode dataset_id: The dataset whose lease is being
+            removed.
+
+        :return: A ``Deferred`` firing with an ``EndpointResponse`` or
+            serializable JSON.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        leases = self.persistence_service.get().leases
+        dataset_id = UUID(dataset_id)
+
+        lease = leases.get(dataset_id, None)
+        if lease is not None:
+            d = update_leases(
+                # We could choose to design a REST endpoint that requires
+                # taking the node UUID, but it's not clear what particular
+                # safety that adds... so just accept all releases.
+                lambda leases: leases.release(dataset_id, lease.node_id),
+                self.persistence_service)
+            d.addCallback(lambda _: lease_response(lease, now))
+            return d
+        else:
+            # Didn't find the lease:
+            raise LEASE_NOT_FOUND
+
+    @app.route("/configuration/leases", methods=['POST'])
+    @user_documentation(
+        u"""
+        Acquire a lease on a particular dataset on a particular
+        node. Until the lease is released or expires the dataset will not
+        be deleted or moved to other nodes.
+        """,
+        header=u"Acquire a lease on a dataset",
+        examples=[
+            u"acquire a lease without expiration",
+            u"acquire a lease with expiration",
+            u"acquire a lease that is already held",
+            u"renew a lease",
+        ],
+        section=u"dataset",
+    )
+    @structured(
+        inputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/lease'},
+        schema_store=SCHEMAS
+    )
+    def acquire_lease(self, dataset_id, node_uuid, expires):
+        """
+        Acquire a lease on a dataset.
+
+        :param unicode dataset_id: The dataset whose lease is being
+            acquired.
+        :param unicode node_uuid: The node on which the lease is being aquired.
+        :param expires: ``None`` if no expiration, otherwise number of
+            seconds to expiration.
+
+        :return: A ``Deferred`` firing with an ``EndpointResponse`` or
+            serializable JSON.
+        """
+        now = datetime.fromtimestamp(self.clock.seconds(), UTC)
+        dataset_id = UUID(dataset_id)
+        node_uuid = UUID(node_uuid)
+
+        # Check if already exists or not:
+        if self.persistence_service.get().leases.get(dataset_id) is None:
+            response_code = CREATED
+        else:
+            response_code = OK
+
+        def acquire(leases):
+            try:
+                return leases.acquire(now, dataset_id, node_uuid, expires)
+            except LeaseError:
+                raise LEASE_HELD
+
+        d = update_leases(acquire, self.persistence_service)
+        d.addCallback(
+            lambda leases: EndpointResponse(
+                response_code, lease_response(leases[dataset_id], now)))
+        return d
 
 
 def _find_manifestation_and_node(deployment, dataset_id):
@@ -1018,7 +1198,7 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       context_factory):
+                       context_factory, clock=reactor):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1032,10 +1212,14 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     :param context_factory: TLS context factory.
 
+    :param IReactorTime clock: The clock to use for time. By default
+        global reactor.
+
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
+    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service,
+                                  clock)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
 
@@ -1047,3 +1231,21 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
             Site(api_root)
         )
     )
+
+
+def lease_response(lease, now):
+    """
+    Convert a ``Lease`` to the corresponding objects for JSON
+    serialization.
+
+    :param Lease lease: The lease to serialize.
+    :param datetime now: The current time.
+    :return: ``dict`` form that matches the lease schema.
+    """
+    if lease.expiration is None:
+        expires = None
+    else:
+        expires = (lease.expiration - now).total_seconds()
+    return {u"dataset_id": unicode(lease.dataset_id),
+            u"node_uuid": unicode(lease.node_id),
+            u"expires": expires}

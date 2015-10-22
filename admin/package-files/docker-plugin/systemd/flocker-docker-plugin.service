@@ -1,0 +1,10 @@
+[Unit]
+Description=Flocker Docker Plugin
+Before=docker.service
+
+[Service]
+ExecStart=/usr/sbin/flocker-docker-plugin --journald
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

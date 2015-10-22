@@ -10,9 +10,10 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 
 from requests.exceptions import HTTPError
+from pkg_resources import Requirement
 
 from admin.homebrew import (
-    HomebrewOptions, get_checksum, get_dependency_graph, get_class_name,
+    HomebrewOptions, get_checksum, get_requirements, get_class_name,
     format_resource_stanzas, get_recipe,
 )
 
@@ -28,8 +29,8 @@ class HomebrewOptionsTests(SynchronousTestCase):
         """
         options = HomebrewOptions()
         self.assertRaises(
-             UsageError,
-             options.parseOptions, ['--sdist', 'mysdist'])
+            UsageError,
+            options.parseOptions, ['--sdist', 'mysdist'])
 
     def test_sdist_required(self):
         """
@@ -99,26 +100,29 @@ class GetChecksumTests(SynchronousTestCase):
         self.assertEqual(404, exception.exception.response.status_code)
 
 
-class GetDependencyGraphTests(SynchronousTestCase):
+class GetRequirementsTests(SynchronousTestCase):
     """
-    Tests for :func:`get_dependency_graph`.
+    Tests for :func:`get_requirements`.
     """
-    def test_get_dependency_graph(self):
+    def test_get_requirements(self):
         """
-        It is possible to get a tl.eggdeps graph for a given application.
+        It is possible to get a list of requirements from a requirements.txt
+        file.
         """
-        graph = get_dependency_graph(u'flocker')
-        # We can be sure that flocker is installed if we are running this,
-        # and pretty sure that setuptools is a dependency with no dependencies
-        # of its own.
-        # Perhaps a better test would install a canned package.
-        self.assertEqual(graph['setuptools'], {})
+        requirements_path = FilePath(self.mktemp())
+        requirements_path.setContent(
+            '\n'.join(["eliot==0.7.0", "Twisted==15.2.0"])
+        )
 
-    def test_application_removed(self):
-        """
-        Applications cannot depend on themselves so they are not in the graph.
-        """
-        self.assertNotIn(u'flocker', get_dependency_graph(u'flocker'))
+        requirements = get_requirements(requirements_path)
+
+        self.assertEqual(
+            requirements,
+            [
+                Requirement.parse("eliot==0.7.0"),
+                Requirement.parse("Twisted==15.2.0"),
+            ],
+        )
 
 
 class GetClassNameTests(SynchronousTestCase):
@@ -127,11 +131,11 @@ class GetClassNameTests(SynchronousTestCase):
     """
     def test_disallowed_characters_removed(self):
         """
-        Hyphens and periods are removed.
+        Hyphens, periods and + signs are removed.
         """
         self.assertEqual(
-            get_class_name(version='0.3.0-444-05215b'),
-            'Flocker03044405215b')
+            get_class_name(version='0.3.0.dev1+444-05215b'),
+            'Flocker030Dev144405215b')
 
     def test_caps_after_disallowed(self):
         """
@@ -159,16 +163,17 @@ class FormatResourceStanzasTests(SynchronousTestCase):
         """
         Newline separated resource stanzas are returned.
         """
-        resources = [{
-            "project_name": "six",
-            "url": "https://example.com/six/six-1.9.0.tar.gz",
-            "checksum": "d168e6d01f0900875c6ecebc97da72d0fda31129",
-        },
-        {
-            "project_name": "treq",
-            "url": "https://example.com/treq/treq-0.2.1.tar.gz",
-            "checksum": "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a",
-        },
+        resources = [
+            {
+                "project_name": "six",
+                "url": "https://example.com/six/six-1.9.0.tar.gz",
+                "checksum": "d168e6d01f0900875c6ecebc97da72d0fda31129",
+            },
+            {
+                "project_name": "treq",
+                "url": "https://example.com/treq/treq-0.2.1.tar.gz",
+                "checksum": "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a",
+            },
         ]
         expected = u"""
   resource "six" do
@@ -211,6 +216,7 @@ class Flocker030 < Formula
   url "https://example.com/flocker_sdist"
   sha1 "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a"
   depends_on :python if MacOS.version <= :snow_leopard
+  depends_on "openssl"
 
   resource "six" do
     url "https://example.com/six/six-1.9.0.tar.gz"
@@ -218,6 +224,12 @@ class Flocker030 < Formula
   end
 
   def install
+    # XXX These environment variables are necessary until cryptography has
+    # wheels for OS X 10.11.
+    # See https://github.com/pyca/cryptography/issues/2350
+    ENV["LDFLAGS"] = "-L#{opt_prefix}/openssl/lib"
+    ENV["CFLAGS"] = "-I#{opt_prefix}/openssl/include"
+
     ENV.prepend_create_path "PYTHONPATH", "#{libexec}/vendor/lib/python2.7/site-packages"
     %w[six].each do |r|
       resource(r).stage do

@@ -13,20 +13,45 @@ from zope.interface import implementer
 
 from ipaddr import IPAddress
 
+from twisted.python.components import registerAdapter
 from twisted.internet import reactor
 from twisted.cred.portal import IRealm, Portal
 
 try:
     from twisted.conch.ssh.keys import Key
     from twisted.conch.checkers import SSHPublicKeyDatabase
+    from twisted.conch.interfaces import ISession
     from twisted.conch.openssh_compat.factory import OpenSSHFactory
-    from twisted.conch.unix import UnixConchUser
+    from twisted.conch.unix import (
+        SSHSessionForUnixConchUser,
+        UnixConchUser,
+    )
     _have_conch = True
 except ImportError:
     SSHPublicKeyDatabase = UnixConchUser = object
     _have_conch = False
 
 if_conch = skipIf(not _have_conch, "twisted.conch must be useable.")
+
+
+@if_conch
+def generate_ssh_key(key_file):
+    """
+    Generate a ssh key.
+
+    :param FilePath key_file: Path to create ssh key at.
+
+    :return Key: The generated key.
+    """
+    check_call(
+        [b"ssh-keygen",
+         # Specify the path where the generated key is written.
+         b"-f", key_file.path,
+         # Specify an empty passphrase.
+         b"-N", b"",
+         # Generate as little output as possible.
+         b"-q"])
+    return Key.fromFile(key_file.path)
 
 
 class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
@@ -81,6 +106,23 @@ class _FixedHomeConchUser(UnixConchUser):
         return None, None
 
 
+@implementer(ISession)
+class _EnvironmentSSHSessionForUnixConchUser(SSHSessionForUnixConchUser):
+    """
+    SSH Session that correctly sets HOME.
+
+    Work-around for https://twistedmatrix.com/trac/ticket/7936.
+    """
+
+    def execCommand(self, proto, cmd):
+        self.environ['HOME'] = self.avatar.getHomeDir()
+        return SSHSessionForUnixConchUser.execCommand(self, proto, cmd)
+
+
+registerAdapter(
+    _EnvironmentSSHSessionForUnixConchUser, _FixedHomeConchUser, ISession)
+
+
 @implementer(IRealm)
 class _UnixSSHRealm(object):
     """
@@ -128,25 +170,12 @@ class _ConchServer(object):
         ssh_path = base_path.child(b"ssh")
         ssh_path.makedirs()
         self.key_path = ssh_path.child(b"key")
-        check_call(
-            [b"ssh-keygen",
-             # Specify the path where the generated key is written.
-             b"-f", self.key_path.path,
-             # Specify an empty passphrase.
-             b"-N", b"",
-             # Generate as little output as possible.
-             b"-q"])
-        key = Key.fromFile(self.key_path.path)
+        key = generate_ssh_key(self.key_path)
 
         sshd_path = base_path.child(b"sshd")
         sshd_path.makedirs()
         self.host_key_path = sshd_path.child(b"ssh_host_key")
-        check_call(
-            [b"ssh-keygen",
-             # See above for option explanations.
-             b"-f", self.host_key_path.path,
-             b"-N", b"",
-             b"-q"])
+        generate_ssh_key(self.host_key_path)
 
         factory = OpenSSHFactory()
         realm = _UnixSSHRealm(self.home)
@@ -184,9 +213,6 @@ def create_ssh_server(base_path):
 class _SSHAgent(object):
     """
     A helper for a test fixture to run an `ssh-agent` process.
-
-    :ivar FilePath key_path: The path of an SSH private key which can be used
-        to authenticate against the server.
     """
     def __init__(self, key_file):
         """

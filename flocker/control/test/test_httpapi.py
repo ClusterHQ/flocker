@@ -3,11 +3,13 @@
 Tests for ``flocker.control.httpapi``.
 """
 
-from io import BytesIO
 from uuid import uuid4
 from copy import deepcopy
+from datetime import datetime
 
 from pyrsistent import pmap, thaw
+
+from pytz import UTC
 
 from zope.interface.verify import verifyObject
 
@@ -20,20 +22,20 @@ from twisted.web.http import (
     CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
     NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
-from twisted.web.http_headers import Headers
-from twisted.web.client import FileBodyProducer, readBody
+from twisted.web.client import readBody
 from twisted.application.service import IService
 from twisted.python.filepath import FilePath
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from ...restapi.testtools import (
-    buildIntegrationTests, dumps, loads)
+    buildIntegrationTests, loads, APIAssertionsMixin)
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways, RestartNever, Link, same_node, DeploymentState
+    RestartAlways, RestartNever, Link, same_node, DeploymentState,
+    NonManifestDatasets, Leases, Lease,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -47,7 +49,7 @@ from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
 
 
-class APITestsMixin(object):
+class APITestsMixin(APIAssertionsMixin):
     """
     Helpers for writing integration tests for the Dataset Manager API.
     """
@@ -68,98 +70,9 @@ class APITestsMixin(object):
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(Clock())
         self.cluster_state_service.startService()
+        self.clock = Clock()
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
-
-    def assertResponseCode(self, method, path, request_body, expected_code):
-        """
-        Issue an HTTP request and make an assertion about the response code.
-
-        :param bytes method: The HTTP method to use in the request.
-        :param bytes path: The resource path to use in the request.
-        :param dict request_body: A JSON-encodable object to encode (as JSON)
-            into the request body.  Or ``None`` for no request body.
-        :param int expected_code: The status code expected in the response.
-
-        :return: A ``Deferred`` that will fire when the response has been
-            received.  It will fire with a failure if the status code is
-            not what was expected.  Otherwise it will fire with an
-            ``IResponse`` provider representing the response.
-        """
-        if request_body is None:
-            headers = None
-            body_producer = None
-        else:
-            headers = Headers({b"content-type": [b"application/json"]})
-            body_producer = FileBodyProducer(BytesIO(dumps(request_body)))
-
-        requesting = self.agent.request(
-            method, path, headers, body_producer
-        )
-
-        def check_code(response):
-            self.assertEqual(expected_code, response.code)
-            return response
-        requesting.addCallback(check_code)
-        return requesting
-
-    def assertResult(self, method, path, request_body,
-                     expected_code, expected_result):
-        """
-        Assert a particular JSON response for the given API request.
-
-        :param bytes method: HTTP method to request.
-        :param bytes path: HTTP path.
-        :param unicode request_body: Body of HTTP request.
-        :param int expected_code: The code expected in the response.
-            response.
-        :param list|dict expected_result: The body expected in the response.
-
-        :return: A ``Deferred`` that fires when test is done.
-        """
-        requesting = self.assertResponseCode(
-            method, path, request_body, expected_code)
-        requesting.addCallback(readBody)
-        requesting.addCallback(loads)
-
-        def assertEqualAndReturn(expected, actual):
-            """
-            Assert that ``expected`` is equal to ``actual`` and return
-            ``actual`` for further processing.
-            """
-            self.assertEqual(expected, actual)
-            return actual
-
-        requesting.addCallback(
-            lambda actual_result: assertEqualAndReturn(
-                expected_result, actual_result)
-        )
-        return requesting
-
-    def assertResultItems(self, method, path, request_body,
-                          expected_code, expected_result):
-        """
-        Assert a JSON array response for the given API request.
-
-        The API returns a JSON array, which matches a Python list, by
-        comparing that matching items exist in each sequence, but may
-        appear in a different order.
-
-        :param bytes method: HTTP method to request.
-        :param bytes path: HTTP path.
-        :param unicode request_body: Body of HTTP request.
-        :param int expected_code: The code expected in the response.
-        :param list expected_result: A list of items expects in a
-            JSON array response.
-
-        :return: A ``Deferred`` that fires when test is done.
-        """
-        requesting = self.assertResponseCode(
-            method, path, request_body, expected_code)
-        requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertItemsEqual(
-            expected_result, loads(body)))
-        return requesting
 
 
 class VersionTestsMixin(APITestsMixin):
@@ -178,7 +91,8 @@ class VersionTestsMixin(APITestsMixin):
 def _build_app(test):
     test.initialize()
     return ConfigurationAPIUserV1(test.persistence_service,
-                                  test.cluster_state_service).app
+                                  test.cluster_state_service,
+                                  test.clock).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
 
@@ -2639,6 +2553,78 @@ class DatasetsStateTestsMixin(APITestsMixin):
     Tests for the service datasets state description endpoint at
     ``/state/datasets``.
     """
+    def test_nonmanifest_listed(self):
+        """
+        Non-manifest datasets are listed.  The result does not include
+        ``primary`` and ``path`` values.
+        """
+        expected_dataset = Dataset(dataset_id=unicode(uuid4()))
+        self.cluster_state_service.apply_changes([
+            NonManifestDatasets(
+                datasets={
+                    expected_dataset.dataset_id: expected_dataset
+                }
+            )
+        ])
+        expected_dict = dict(
+            dataset_id=expected_dataset.dataset_id,
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+    def test_nonmanifest_and_manifest(self):
+        """
+        Manifest and non-manifest datasets are listed.
+        """
+        expected_nonmanifest_dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifest_dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation = Manifestation(
+            dataset=expected_manifest_dataset, primary=True
+        )
+        expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
+        self.cluster_state_service.apply_changes([
+            NodeState(
+                hostname=expected_hostname,
+                uuid=expected_uuid,
+                manifestations={
+                    expected_manifest_dataset.dataset_id:
+                    expected_manifestation},
+                paths={
+                    expected_manifest_dataset.dataset_id:
+                    FilePath(b"/path/dataset")
+                },
+                devices={
+
+                },
+            ),
+            NonManifestDatasets(
+                datasets={
+                    expected_nonmanifest_dataset.dataset_id:
+                    expected_nonmanifest_dataset
+                }
+            )
+        ])
+        expected_nonmanifest_dict = dict(
+            dataset_id=expected_nonmanifest_dataset.dataset_id,
+        )
+
+        expected_manifest_dict = dict(
+            dataset_id=expected_manifest_dataset.dataset_id,
+            primary=unicode(expected_uuid),
+            path=u"/path/dataset",
+        )
+
+        response = [
+            expected_manifest_dict,
+            expected_nonmanifest_dict
+        ]
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
     def test_empty(self):
         """
         When the cluster state includes no datasets, the endpoint
@@ -3041,14 +3027,12 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 uuid=expected_uuid,
                 applications={expected_application},
-                used_ports=[],
                 manifestations={manifestation.dataset_id: manifestation},
                 devices={}, paths={},
             )
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
@@ -3091,14 +3075,12 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 uuid=expected_uuid,
                 applications={expected_application},
-                used_ports=[],
                 manifestations={manifestation.dataset_id: manifestation},
                 devices={}, paths={},
             )
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
@@ -3127,12 +3109,10 @@ class ContainerStateTestsMixin(APITestsMixin):
                 uuid=expected_uuid,
                 hostname=expected_hostname,
                 applications={expected_application},
-                used_ports=[],
             )
         ])
         expected_dict = dict(
             name=u"myapp",
-            host=expected_hostname,
             node_uuid=unicode(expected_uuid),
             image=u"busybox:latest",
             running=False,
@@ -3161,18 +3141,15 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 uuid=expected_uuid1,
                 applications={expected_application1},
-                used_ports=[],
             ),
             NodeState(
                 hostname=expected_hostname2,
                 uuid=expected_uuid2,
                 applications={expected_application2},
-                used_ports=[],
             )
         ])
         expected_dict1 = dict(
             name=u"myapp",
-            host=expected_hostname1,
             node_uuid=unicode(expected_uuid1),
             image=u"busybox:latest",
             running=True,
@@ -3180,7 +3157,6 @@ class ContainerStateTestsMixin(APITestsMixin):
         )
         expected_dict2 = dict(
             name=u"myapp2",
-            host=expected_hostname2,
             node_uuid=unicode(expected_uuid2),
             image=u"busybox2:latest",
             running=True,
@@ -3239,8 +3215,8 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
     """
     # Match COMPLEX_DEPLOYMENT_YAML:
     DEPLOYMENT_STATE = DeploymentState(nodes=[
-        NodeState(uuid=uuid4(), hostname=u"node1.example.com"),
-        NodeState(uuid=uuid4(), hostname=u"node2.example.com"),
+        NodeState(uuid=uuid4(), hostname=u"172.16.255.250"),
+        NodeState(uuid=uuid4(), hostname=u"172.16.255.251"),
         ])
 
     def configuration_test(self):
@@ -3371,3 +3347,199 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
 RealTestsConfigurationAPI, MemoryTestsConfigurationAPI = (
     buildIntegrationTests(ConfigurationComposeTestsMixin, "ConfigurationAPI",
                           _build_app))
+
+
+class LeasesTestsMixin(APITestsMixin):
+    """
+    Tests for the leases endpoints at ``/configuration/leases``.
+    """
+    dataset1 = uuid4()
+    dataset2 = uuid4()
+    dataset3 = uuid4()
+    node1 = uuid4()
+    node2 = uuid4()
+    node3 = uuid4()
+    # Current "time":
+    now = 2132154
+    # Seconds until first lease will expire:
+    expires = 15
+    # Time that passed since the leases were created:
+    time_passed = 3
+
+    # JSON representation of lease 1:
+    expected_lease1 = {u"dataset_id": unicode(dataset1),
+                       u"node_uuid": unicode(node1),
+                       u"expires": expires - time_passed}
+    # JSON representation of lease 2:
+    expected_lease2 = {u"dataset_id": unicode(dataset2),
+                       u"node_uuid": unicode(node2),
+                       u"expires": None}
+
+    def save_leases(self):
+        """
+        Store some leases in the persistence service.
+
+        :return: ``Deferred`` that fires when done.
+        """
+        self.clock.advance(self.now)
+
+        leases = Leases().acquire(
+            datetime.fromtimestamp(self.now, tz=UTC), self.dataset1,
+            self.node1, self.expires)
+        leases = leases.acquire(
+            datetime.fromtimestamp(self.now, tz=UTC), self.dataset2,
+            self.node2, None)
+        # Time has passed since leases were stored:
+        self.time_passed = 3
+        self.clock.advance(self.time_passed)
+
+        return self.persistence_service.save(Deployment(leases=leases))
+
+    def test_get(self):
+        """
+        GET ``/configuration/leases`` returns all leases.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResultItems(
+            method=b"GET",
+            path=b"/configuration/leases",
+            request_body=None,
+            expected_code=OK,
+            expected_result=[self.expected_lease1, self.expected_lease2],
+        ))
+        return d
+
+    def test_delete_existing(self):
+        """
+        DELETE ``/configuration/leases/<dataset_id>`` releases that lease.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE", b"/configuration/leases/" + bytes(self.dataset1),
+            request_body=None, expected_code=OK,
+            expected_result=self.expected_lease1))
+
+        def deleted(_):
+            # Dataset 1 was removed:
+            self.assertEqual(self.persistence_service.get().leases.keys(),
+                             [self.dataset2])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_non_existent(self):
+        """
+        DELETE ``/configuration/leases/<dataset_id>`` releases that lease.
+        """
+        d = self.save_leases()
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE", b"/configuration/leases/" + bytes(uuid4()),
+            request_body=None, expected_code=NOT_FOUND,
+            expected_result={u"description": u"Lease not found."}))
+
+        def not_deleted(_):
+            # No datasets were removed.
+            self.assertItemsEqual(self.persistence_service.get().leases.keys(),
+                                  [self.dataset1, self.dataset2])
+        d.addCallback(not_deleted)
+        return d
+
+    def acquire_lease(self, expires, response_code=CREATED):
+        """
+        Acquire a lease for ``dataset3`` and ``node3`` with given expiration.
+
+        :param expires: ``None`` or seconds to expire.
+        :param response_code: Expected response code.
+        :return: ``Deferred`` that fires once lease is acquired.
+        """
+        lease_json = {u"dataset_id": unicode(self.dataset3),
+                      u"node_uuid": unicode(self.node3),
+                      u"expires": expires}
+
+        return self.assertResult(
+            b"POST", b"/configuration/leases",
+            request_body=lease_json, expected_code=response_code,
+            expected_result=lease_json)
+
+    def test_acquire_no_expiration(self):
+        """
+        POST ``/configuration/leases`` can acquire a lease without expiration.
+        """
+        d = self.acquire_lease(None)
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=None))
+        d.addCallback(acquired)
+        return d
+
+    def test_acquire_with_expiration(self):
+        """
+        POST ``/configuration/leases`` can acquire a lease that expires
+        appropriately.
+        """
+        self.clock.advance(self.now)
+        expires = 60
+        expected_expiration = datetime.fromtimestamp(
+            self.clock.seconds() + expires, UTC)
+        d = self.acquire_lease(expires)
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=expected_expiration))
+        d.addCallback(acquired)
+        return d
+
+    def test_acquire_already_exists_different_node(self):
+        """
+        Acquiring a lease on node A if a lease already exits for that dataset
+        on node B will fail.
+        """
+        d = self.acquire_lease(None)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/leases",
+            request_body={
+                u"dataset_id": unicode(self.dataset3),
+                # We already have lease on node 3:
+                u"node_uuid": unicode(self.node2),
+                u"expires": None,
+            }, expected_code=CONFLICT,
+            expected_result={u"description": u"Lease already held."}))
+
+        def no_update(_):
+            # Node was not modified:
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3].node_id,
+                self.node3)
+        d.addCallback(no_update)
+        return d
+
+    def test_renew(self):
+        """
+        Acquiring a lease on node A if a lease already exits for that dataset
+        on node A will override the timeout.
+        """
+        self.clock.advance(self.now)
+        expires = 40
+        expected_expiration = datetime.fromtimestamp(
+            self.clock.seconds() + expires, UTC)
+
+        # Acquire with no expiration:
+        d = self.acquire_lease(None)
+        # Re-acquire with expiration:
+        d.addCallback(lambda _: self.acquire_lease(expires, OK))
+
+        def acquired(_):
+            self.assertEqual(
+                self.persistence_service.get().leases[self.dataset3],
+                Lease(dataset_id=self.dataset3, node_id=self.node3,
+                      expiration=expected_expiration))
+        d.addCallback(acquired)
+        return d
+
+
+RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
+    LeasesTestsMixin, "Leases", _build_app)

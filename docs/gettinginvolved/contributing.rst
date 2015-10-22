@@ -85,8 +85,8 @@ Testing Code on Nodes
 =====================
 
 
-Fedora 20 / CentOS 7
-^^^^^^^^^^^^^^^^^^^^
+CentOS 7
+^^^^^^^^
 
 Start with some nodes which are configured correctly for Flocker.
 A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.

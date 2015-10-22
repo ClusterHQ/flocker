@@ -4,10 +4,13 @@
 Tests for ``flocker.node._loop``.
 """
 
+from itertools import repeat
 from uuid import uuid4
 
 from eliot.testing import validate_logging, assertHasAction, assertHasMessage
 from machinist import LOG_FSM_TRANSITION
+
+from pyrsistent import pset
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
@@ -17,7 +20,8 @@ from twisted.internet.task import Clock
 from twisted.internet.ssl import ClientContextFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
-from ...testtools import FakeAMPClient
+from ...testtools.amp import FakeAMPClient, DelayedAMPClient
+from ...testtools import CustomException
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
@@ -28,6 +32,7 @@ from .._loop import (
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
+    Application, DockerImage,
 )
 from ...control._protocol import NodeStateCommand, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
@@ -234,6 +239,13 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.assertConvergenceLoopInputted([])
 
 
+def no_action():
+    """
+    Return an ``IStateChange`` that immediately does nothing.
+    """
+    return ControllableAction(result=succeed(None))
+
+
 class ConvergenceLoopFSMTests(SynchronousTestCase):
     """
     Tests for FSM created by ``build_convergence_loop_fsm``.
@@ -258,20 +270,35 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                                          state=DeploymentState()))
         self.assertEqual(len(deployer.local_states), 0)  # Discovery started
 
-    def successful_amp_client(self, local_states):
+    def make_amp_client(self, local_states, successes=None):
         """
         Create AMP client that can respond successfully to a
         ``NodeStateCommand``.
 
         :param local_states: The node states we expect to be able to send.
+        :param successes: List indicating whether the response to the
+            corresponding states should fail.  ``True`` to make a client which
+            responds to requests with results, ``False`` to make a client which
+            response with failures. Defaults to always succeeding.
+        :type successes: ``None`` or ``list`` of ``bool``
 
         :return FakeAMPClient: Fake AMP client appropriately setup.
         """
         client = FakeAMPClient()
-        for local_state in local_states:
-            client.register_response(
-                NodeStateCommand, dict(state_changes=(local_state,)),
-                {"result": None})
+        command = NodeStateCommand
+        if successes is None:
+            successes = repeat(True)
+        for local_state, success in zip(local_states, successes):
+            kwargs = dict(state_changes=(local_state,))
+            if success:
+                client.register_response(
+                    command=command, kwargs=kwargs, response={"result": None},
+                )
+            else:
+                client.register_response(
+                    command=command, kwargs=kwargs,
+                    response=Exception("Simulated request problem"),
+                )
         return client
 
     @validate_logging(assertHasAction, LOG_SEND_TO_CONTROL_SERVICE, True)
@@ -282,7 +309,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         client.
         """
         local_state = NodeState(hostname=u"192.0.2.123")
-        client = self.successful_amp_client([local_state])
+        client = self.make_amp_client([local_state])
         action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state)], [action]
@@ -302,6 +329,185 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(state_changes=(local_state,)))])
+
+    def test_convergence_done_unchanged_notify(self):
+        """
+        An FSM doing convergence that discovers state unchanged from the last
+        state acknowledged by the control service does not re-send that state.
+        """
+        local_state = NodeState(hostname=u'192.0.2.123')
+        configuration = Deployment(nodes=[to_node(local_state)])
+        state = DeploymentState(nodes=[local_state])
+        deployer = ControllableDeployer(
+            local_state.hostname,
+            [succeed(local_state), succeed(local_state.copy())],
+            [no_action(), no_action()]
+        )
+        client = self.make_amp_client([local_state])
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
+
+        # Calculating actions happened, result was run... and then we did
+        # whole thing again:
+        self.assertEqual(
+            (deployer.calculate_inputs, client.calls),
+            (
+                # Check that the loop has run twice
+                [(local_state, configuration, state),
+                 (local_state, configuration, state)],
+                # But that state was only sent once.
+                [(NodeStateCommand, dict(state_changes=(local_state,)))],
+            )
+        )
+
+    def test_convergence_done_changed_notify(self):
+        """
+        A FSM doing convergence that gets a discovery result that is changed
+        from the last time it sent data does send the discoverd state to
+        the control service.
+        """
+        local_state = NodeState(hostname=u'192.0.2.123')
+        changed_local_state = local_state.set(
+            applications=pset([Application(
+                name=u"app",
+                image=DockerImage.from_string(u"nginx"))]),
+        )
+        configuration = Deployment(nodes=[to_node(local_state)])
+        state = DeploymentState(nodes=[local_state])
+        changed_state = DeploymentState(nodes=[changed_local_state])
+        deployer = ControllableDeployer(
+            local_state.hostname,
+            [succeed(local_state), succeed(changed_local_state)],
+            [no_action(), no_action()])
+        client = self.make_amp_client([local_state, changed_local_state])
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
+
+        # Calculating actions happened, result was run... and then we did
+        # whole thing again:
+        self.assertEqual(
+            (deployer.calculate_inputs, client.calls),
+            (
+                # Check that the loop has run twice
+                [(local_state, configuration, state),
+                 (changed_local_state, configuration, changed_state)],
+                # And the state was sent twice
+                [(NodeStateCommand, dict(state_changes=(local_state,))),
+                 (NodeStateCommand,
+                  dict(state_changes=(changed_local_state,)))],
+            )
+        )
+
+    def test_convergence_sent_state_fail_resends(self):
+        """
+        If sending state to the control node fails the next iteration will send
+        state even if the state hasn't changed.
+        """
+        local_state = NodeState(hostname=u'192.0.2.123')
+        configuration = Deployment(nodes=[to_node(local_state)])
+        state = DeploymentState(nodes=[local_state])
+        deployer = ControllableDeployer(
+            local_state.hostname,
+            [succeed(local_state), succeed(local_state.copy())],
+            [no_action(), no_action()])
+        client = self.make_amp_client(
+            [local_state], successes=[False],
+        )
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
+
+        # Calculating actions happened, result was run... and then we did
+        # whole thing again:
+        self.assertTupleEqual(
+            (deployer.calculate_inputs, client.calls),
+            (
+                # Check that the loop has run twice
+                [(local_state, configuration, state),
+                 (local_state, configuration, state)],
+                # And that state was re-sent even though it remained unchanged
+                [(NodeStateCommand, dict(state_changes=(local_state,))),
+                 (NodeStateCommand, dict(state_changes=(local_state,)))],
+            )
+        )
+
+    def test_convergence_sent_state_fail_resends_alternating(self):
+        """
+        If sending state to the control node fails the next iteration will send
+        state even if the state is the same as the last acknowledge state.
+
+        The situation this is intended to model is the following sequence:
+        1. Agent sends original state to control node, which records and
+           acknowledges it.
+        2. Agent sends changed state to control node, which records it, but
+           errors out before acknowledging it.
+        3. State returns to original state. If we don't clear the acknowledged
+           state, the agent won't send a state update, but the control node
+           will think the state is still the changed state.
+        """
+        local_state = NodeState(
+            hostname=u'192.0.2.123',
+            applications=pset(),
+        )
+        changed_local_state = local_state.set(
+            applications={Application(
+                name=u"app",
+                image=DockerImage.from_string(u"nginx"))},
+        )
+        configuration = Deployment(nodes=[to_node(local_state)])
+        state = DeploymentState(nodes=[local_state])
+        changed_state = DeploymentState(nodes=[changed_local_state])
+        deployer = ControllableDeployer(
+            local_state.hostname,
+            [
+                # Discover current state
+                succeed(local_state),
+                # Discover changed state, this won't be acknowledged
+                succeed(changed_local_state),
+                # Discover last acknowledge state again.
+                succeed(local_state)
+            ],
+            [no_action(), no_action(), no_action()])
+        client = self.make_amp_client(
+            [local_state, changed_local_state],
+            # local_state will be acknowledge
+            # changed_local_state will result in an error.
+            successes=[True, False],
+        )
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+
+        # Wait for all three iterations to occur.
+        reactor.advance(1.0)
+        reactor.advance(1.0)
+
+        # Calculating actions happened, result was run... and then we did
+        # whole thing again:
+        self.assertTupleEqual(
+            (deployer.calculate_inputs, client.calls),
+            (
+                # Check that the loop has run thrice
+                [(local_state, configuration, state),
+                 (changed_local_state, configuration, changed_state),
+                 (local_state, configuration, state)],
+                # And that state was re-sent even though it matched the last
+                # acknowledged state
+                [(NodeStateCommand, dict(state_changes=(local_state,))),
+                 (NodeStateCommand,
+                  dict(state_changes=(changed_local_state,))),
+                 (NodeStateCommand, dict(state_changes=(local_state,)))],
+            )
+        )
 
     @validate_logging(assertHasMessage, LOG_CALCULATED_ACTIONS)
     def test_convergence_done_update_local_state(self, logger):
@@ -323,7 +529,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                             discovered_manifestation},
             devices={}, paths={},
         )
-        client = self.successful_amp_client([local_node_state])
+        client = self.make_amp_client([local_node_state])
         action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             local_node_hostname, [succeed(local_node_state)], [action]
@@ -371,7 +577,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(
-            client=self.successful_amp_client([local_state]),
+            client=self.make_amp_client([local_state]),
             configuration=configuration, state=received_state))
 
         expected_local_state = DeploymentState(nodes=[local_state])
@@ -413,7 +619,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state)], [action]
         )
-        client = self.successful_amp_client([local_state])
+        client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         self.patch(loop, "logger", logger)
@@ -423,45 +629,43 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         expected_cluster_state = DeploymentState(
             nodes=[local_state])
 
-        # Calculating actions happened and the result was run.
+        # Only one iteration of the covergence loop was run.
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             ([(local_state, configuration, expected_cluster_state)],
              [(NodeStateCommand, dict(state_changes=(local_state,)))])
         )
 
-    def test_convergence_done_start_new_iteration(self):
+    def test_convergence_done_delays_new_iteration_ack(self):
         """
-        After a short delay, an FSM completing the changes from one convergence
-        iteration starts another iteration.
+        A state update isn't sent if the control node hasn't acknowledged the
+        last state update.
         """
-        local_state = NodeState(hostname=u'192.0.2.123')
-        local_state2 = NodeState(hostname=u'192.0.2.123')
-        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
-        state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=succeed(None))
-        # Because the second action result is unfired Deferred, the second
-        # iteration will never finish; applying its changes waits for this
-        # Deferred to fire.
-        action2 = ControllableAction(result=Deferred())
+        self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
+        self.configuration = configuration = Deployment()
+        self.cluster_state = received_state = DeploymentState(nodes=[])
+        self.action = action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
-            local_state.hostname,
-            [succeed(local_state), succeed(local_state2)],
-            [action, action2])
-        client = self.successful_amp_client([local_state, local_state2])
+            local_state.hostname, [succeed(local_state)], [action]
+        )
+        client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
-            client=client, configuration=configuration, state=state))
+            # We don't want to receive the acknowledgment of the
+            # state update.
+            client=DelayedAMPClient(client),
+            configuration=configuration,
+            state=received_state))
+
+        # Wait for the delay in the convergence loop to pass.  This won't do
+        # anything, since we are also waiting for state to be acknowledged.
         reactor.advance(1.0)
-        # Calculating actions happened, result was run... and then we did
-        # whole thing again:
-        self.assertTupleEqual(
-            (deployer.calculate_inputs, client.calls),
-            ([(local_state, configuration, state),
-              (local_state2, configuration, state)],
-             [(NodeStateCommand, dict(state_changes=(local_state,))),
-              (NodeStateCommand, dict(state_changes=(local_state2,)))])
+
+        # Only one status update was sent.
+        self.assertListEqual(
+            client.calls,
+            [(NodeStateCommand, dict(state_changes=(local_state,)))],
         )
 
     @validate_logging(lambda test_case, logger: test_case.assertEqual(
@@ -473,7 +677,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
-        action = ControllableAction(result=fail(RuntimeError()))
+        action = ControllableAction(result=fail(RuntimeError("Failed action")))
         # First discovery succeeds, leading to failing action; second
         # discovery will just wait for Deferred to fire. Thus we expect to
         # finish test in discovery state.
@@ -481,7 +685,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             local_state.hostname,
             [succeed(local_state), Deferred()],
             [action])
-        client = self.successful_amp_client([local_state])
+        client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         self.patch(loop, "logger", logger)
@@ -493,6 +697,68 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # which we can tell because all faked local states have been
         # consumed:
         self.assertEqual(len(deployer.local_states), 0)
+
+    def _discover_state_error_test(self, logger, error):
+        """
+        Verify that an error from ``IDeployer.discover_state`` does not prevent
+        a subsequent loop iteration from re-trying state discovery.
+
+        :param logger: The ``MemoryLogger`` where log messages are going.
+        :param error: The first state to pass to the
+            ``ControllableDeployer``, a ``CustomException`` or a ``Deferred``
+            that fails with ``CustomException``.
+        """
+        local_state = NodeState(hostname=u"192.0.1.2")
+        configuration = Deployment(nodes=frozenset([to_node(local_state)]))
+        state = DeploymentState(nodes=[local_state])
+
+        client = self.make_amp_client([local_state])
+        local_states = [error, succeed(local_state)]
+
+        actions = [no_action(), no_action()]
+        deployer = ControllableDeployer(
+            hostname=local_state.hostname,
+            local_states=local_states,
+            calculated_actions=actions,
+        )
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        self.patch(loop, "logger", logger)
+
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
+
+        # If the loop kept running then the good state following the error
+        # state should have been sent via the AMP client on a subsequent
+        # iteration.
+        self.assertEqual(
+            [(NodeStateCommand, dict(state_changes=(local_state,)))],
+            client.calls
+        )
+
+    def _assert_simulated_error(self, logger):
+        """
+        Verify that the error used by ``_discover_state_error_test`` has been
+        logged to ``logger``.
+        """
+        self.assertEqual(len(logger.flush_tracebacks(CustomException)), 1)
+
+    @validate_logging(_assert_simulated_error)
+    def test_discover_state_async_error_start_new_iteration(self, logger):
+        """
+        If the discovery of local state fails with a ``Deferred`` that fires
+        with a ``Failure``, a new iteration is started anyway.
+        """
+        self._discover_state_error_test(logger, fail(CustomException()))
+
+    @validate_logging(_assert_simulated_error)
+    def test_discover_state_sync_error_start_new_iteration(self, logger):
+        """
+        If the discovery of local state raises a synchronous exception, a new
+        iteration is started anyway.
+        """
+        self._discover_state_error_test(logger, CustomException())
 
     def test_convergence_status_update(self):
         """
@@ -512,7 +778,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             local_state.hostname,
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
-        client = self.successful_amp_client([local_state])
+        client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
@@ -520,7 +786,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         # Calculating actions happened, action is run, but waits for
         # Deferred to be fired... Meanwhile a new status update appears!
-        client2 = self.successful_amp_client([local_state2])
+        client2 = self.make_amp_client([local_state2])
         configuration2 = Deployment(nodes=frozenset([to_node(local_state)]))
         state2 = DeploymentState(nodes=[local_state])
         loop.receive(_ClientStatusUpdate(
@@ -555,7 +821,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             local_state.hostname, [succeed(local_state)],
             [action]
         )
-        client = self.successful_amp_client([local_state])
+        client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
@@ -590,8 +856,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     def test_convergence_stop_then_status_update(self):
         """
         A FSM doing convergence that receives a stop input and then a status
-        update continues on to to next convergence iteration (i.e. stop
+        update continues on to next convergence iteration (i.e. stop
         ends up being ignored).
+
+        Note: A stop input implies that the client has changed.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
         local_state2 = NodeState(hostname=u'192.0.2.123')
@@ -607,7 +875,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             [succeed(local_state), succeed(local_state2)],
             [action, action2]
         )
-        client = self.successful_amp_client([local_state])
+        client = self.make_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
@@ -615,7 +883,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         # Calculating actions happened, action is run, but waits for
         # Deferred to be fired... Meanwhile a new status update appears!
-        client2 = self.successful_amp_client([local_state2])
+        client2 = self.make_amp_client([local_state2])
         configuration2 = Deployment(nodes=frozenset([to_node(local_state)]))
         state2 = DeploymentState(nodes=[local_state])
         loop.receive(ConvergenceLoopInputs.STOP)
@@ -690,6 +958,20 @@ class AgentLoopServiceTests(SynchronousTestCase):
         service.connected(client)
         self.assertEqual(fsm.inputted,
                          [_ConnectedToControlService(client=client)])
+
+    def test_connected_resets_factory_delay(self):
+        """
+        When ``connected()`` is called the reconnect delay on the client
+        factory is reset.
+        """
+        factory = self.service.reconnecting_factory
+        # A series of retries have caused the delay to grow (so that we
+        # don't hammer the server with reconnects):
+        factory.delay += 500000
+        # But now we successfully connect!
+        client = factory.buildProtocol(None)
+        self.service.connected(client)
+        self.assertEqual(factory.delay, factory.initialDelay)
 
     def test_disconnected(self):
         """

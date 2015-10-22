@@ -4,6 +4,8 @@
 Tests for ``flocker.node._model``.
 """
 
+import datetime
+
 from uuid import uuid4, UUID
 
 from pyrsistent import (
@@ -24,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link,
+    Link, Lease, Leases, LeaseError
 )
 
 
@@ -289,7 +291,7 @@ class NodeStateTests(SynchronousTestCase):
             applications=None,
             manifestations=None,
         )
-        app_state = node.set(applications=apps, used_ports=[])
+        app_state = node.set(applications=apps)
         data_state = node.set(manifestations=manifestations,
                               devices={}, paths={})
         cluster = DeploymentState(nodes={app_state})
@@ -300,7 +302,7 @@ class NodeStateTests(SynchronousTestCase):
                     hostname=hostname,
                     applications=apps,
                     manifestations=manifestations,
-                    devices={}, paths={}, used_ports={},
+                    devices={}, paths={},
                 )
             }),
             changed_cluster
@@ -342,25 +344,16 @@ class NodeStateTests(SynchronousTestCase):
             NodeState(hostname=u"1.2.3.4", paths=None).paths,
             None)
 
-    def test_no_used_ports(self):
-        """
-        A ``NodeState`` may have ``used_ports`` set to ``None``, indicating
-        ignorance of the correct value.
-        """
-        self.assertEqual(
-            NodeState(hostname=u"1.2.3.4", used_ports=None).used_ports,
-            None)
-
     def test_completely_ignorant_by_default(self):
         """
         A newly created ``NodeState`` is completely ignorant.
         """
         node_state = NodeState(hostname=u"1.2.3.4", uuid=uuid4())
         self.assertEqual(
-            [node_state.used_ports, node_state.applications,
+            [node_state.applications,
              node_state.manifestations, node_state.paths, node_state.devices,
              node_state._provides_information()],
-            [None, None, None, None, None, False])
+            [None, None, None, None, False])
 
     def assert_required_field_set(self, **fields):
         """
@@ -381,13 +374,6 @@ class NodeStateTests(SynchronousTestCase):
             self.assertRaises(InvariantException, NodeState,
                               hostname=u"127.0.0.1", uuid=uuid4(),
                               **remaining_fields)
-
-    def test_application_fields(self):
-        """
-        Both ``applications`` and ``used_ports`` must be set if one of them is
-        set.
-        """
-        self.assert_required_field_set(applications=[], used_ports={})
 
     def test_dataset_fields(self):
         """
@@ -538,9 +524,34 @@ class DeploymentTests(SynchronousTestCase):
                 image=DockerImage.from_string(u"image"))}),
         )
         deployment = Deployment(nodes=frozenset([node, another_node]))
-        self.assertEqual(sorted(list(deployment.applications())),
-                         sorted(list(node.applications) +
-                                list(another_node.applications)))
+        self.assertItemsEqual(set(deployment.applications()),
+                              set(node.applications) |
+                              set(another_node.applications))
+
+    def test_update_node_retains_leases(self):
+        """
+        ``update_node()`` retains the existing ``Deployment``'s leases
+        and does not transform them.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))}))
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
+        )
+        dataset_id = uuid4()
+        leases = Leases()
+        leases = leases.acquire(
+            datetime.datetime.now(), dataset_id, node.uuid, 60
+        )
+        original = Deployment(nodes=frozenset([node]), leases=leases)
+        updated = original.update_node(another_node)
+        self.assertEqual(original.leases, updated.leases)
 
     def test_update_node_new(self):
         """
@@ -1145,7 +1156,6 @@ class DeploymentStateTests(SynchronousTestCase):
             applications={Application(
                 name=u'postgresql-clusterhq',
                 image=DockerImage.from_string(u"image"))},
-            used_ports=[],
             manifestations={dataset_id: manifestation},
             devices={}, paths={})
         another_node = NodeState(
@@ -1153,7 +1163,6 @@ class DeploymentStateTests(SynchronousTestCase):
             applications=frozenset({Application(
                 name=u'site-clusterhq.com',
                 image=DockerImage.from_string(u"image"))}),
-            used_ports=[],
         )
         original = DeploymentState(nodes=[node])
         updated = original.update_node(another_node)
@@ -1175,7 +1184,6 @@ class DeploymentStateTests(SynchronousTestCase):
             applications=frozenset({Application(
                 name=u'site-clusterhq.com',
                 image=DockerImage.from_string(u"image"))}),
-            used_ports=[1, 2],
             paths={dataset_id: FilePath(b"/xxx")},
             devices={},
             manifestations={dataset_id: manifestation})
@@ -1186,7 +1194,6 @@ class DeploymentStateTests(SynchronousTestCase):
         ))
         update_manifestations = end_node.update(dict(
             applications=None,
-            used_ports=None,
         ))
 
         original = DeploymentState(
@@ -1203,6 +1210,83 @@ class DeploymentStateTests(SynchronousTestCase):
         self.assertRaises(InvariantException,
                           DeploymentState,
                           nonmanifest_datasets={u"123": MANIFESTATION.dataset})
+
+    def test_all_datasets(self):
+        """
+        ``all_datasets`` returns an iterator of
+        2-tuple(``Dataset``, ``Node`` or ``None``)
+        for all primary manifest datasets and all non-manifest datasets in the
+        ``DeploymentState``.
+        """
+        nonmanifest_id = unicode(uuid4())
+
+        expected_nodestate = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.5",
+            applications={},
+            manifestations={
+                MANIFESTATION.dataset_id: MANIFESTATION,
+            },
+            paths={
+                MANIFESTATION.dataset_id: FilePath(b"/foo/bar"),
+            },
+            devices={
+                UUID(MANIFESTATION.dataset_id): FilePath(b"/dev/foo"),
+            },
+        )
+
+        deployment = DeploymentState(
+            nodes={
+                # A node for which we are ignorant of manifestations, should
+                # contribute nothing to the result.
+                NodeState(
+                    uuid=uuid4(), hostname=u"192.0.2.4",
+                    applications={},
+                    manifestations=None, paths=None, devices=None,
+                ),
+                # A node with a manifestation.
+                expected_nodestate,
+            },
+            nonmanifest_datasets={
+                # And one dataset with no manifestation anywhere.
+                nonmanifest_id: Dataset(dataset_id=nonmanifest_id),
+            },
+        )
+        self.assertEqual(
+            [
+                (MANIFESTATION.dataset, expected_nodestate),
+                (Dataset(dataset_id=nonmanifest_id), None),
+            ],
+            list(deployment.all_datasets()),
+        )
+
+    def test_all_datasets_excludes_replicas(self):
+        """
+        ``all_datasets`` does not return replica manifestations.
+        """
+        replica = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+        deployment = DeploymentState(
+            nodes={
+                # A node with a replica manifestation only.
+                NodeState(
+                    uuid=uuid4(), hostname=u"192.0.2.5",
+                    applications={},
+                    manifestations={
+                        replica.dataset_id: replica,
+                    },
+                    paths={
+                        replica.dataset.dataset_id: FilePath(b"/foo/replica"),
+                    },
+                    devices={
+                        UUID(replica.dataset.dataset_id):
+                        FilePath(b"/dev/replica"),
+                    },
+                )
+            },
+        )
+        self.assertEqual([], list(deployment.all_datasets()))
 
 
 class SameNodeTests(SynchronousTestCase):
@@ -1248,7 +1332,6 @@ class NodeStateWipingTests(SynchronousTestCase):
     """
     NODE_FROM_APP_AGENT = NodeState(hostname=u"1.2.3.4", uuid=uuid4(),
                                     applications={APP1},
-                                    used_ports={1, 2, 3},
                                     manifestations=None,
                                     paths=None,
                                     devices=None)
@@ -1256,7 +1339,7 @@ class NodeStateWipingTests(SynchronousTestCase):
 
     NODE_FROM_DATASET_AGENT = NodeState(hostname=NODE_FROM_APP_AGENT.hostname,
                                         uuid=NODE_FROM_APP_AGENT.uuid,
-                                        applications=None, used_ports=None,
+                                        applications=None,
                                         manifestations={
                                             MANIFESTATION.dataset_id:
                                             MANIFESTATION},
@@ -1290,8 +1373,7 @@ class NodeStateWipingTests(SynchronousTestCase):
         The ``IClusterStateWipe`` has the same key if it is wiping same
         attributes on same node.
         """
-        different_apps_node = self.NODE_FROM_APP_AGENT.set(
-            "applications", {APP2}, "used_ports", {4, 5})
+        different_apps_node = self.NODE_FROM_APP_AGENT.set(applications={APP2})
 
         self.assertEqual(self.APP_WIPE.key(),
                          different_apps_node.get_information_wipe().key())
@@ -1383,3 +1465,176 @@ class LinkTests(SynchronousTestCase):
         link = Link(alias=u'myLINK', local_port=1, remote_port=1)
         link2 = link.set('alias', u'MYlink')
         self.assertEqual(link, link2)
+
+
+class LeaseTests(SynchronousTestCase):
+    """
+    Tests for ``Leases``.
+    """
+    def setUp(self):
+        """
+        Setup for each test.
+        """
+        self.leases = Leases()
+        self.now = datetime.datetime.now()
+        self.dataset_id = uuid4()
+        self.node_id = uuid4()
+        self.dataset = Dataset(dataset_id=unicode(self.dataset_id))
+        self.node = Node(uuid=self.node_id)
+        self.lease_duration = 60 * 60
+
+    def test_lease_expiry_datetime(self):
+        """
+        An lease has an expiry date/time after the specified number
+        of seconds from the time of acquisition.
+        """
+        expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration)
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, expected_expiration)
+
+    def test_indefinite_lease(self):
+        """
+        An acquired lease can be set to never expire.
+        """
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        lease = leases.get(self.dataset_id)
+        self.assertIsNone(lease.expiration)
+
+    def test_lease_expires(self):
+        """
+        An acquired lease expires after the specified number of seconds and
+        is removed from the ``Leases`` map.
+        """
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        # Assert the lease has been acquired successfully.
+        self.assertIn(self.dataset_id, leases)
+        # Fake a time the first lease has expired.
+        now = self.now + datetime.timedelta(seconds=self.lease_duration + 1)
+        leases = leases.expire(now)
+        # Assert the lease has been removed successfully.
+        self.assertNotIn(self.dataset_id, leases)
+
+    def test_indefinite_lease_never_expires(self):
+        """
+        An acquired lease set to never expire is not removed from ``Leases``
+        map.
+        """
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        self.assertIn(self.dataset_id, leases)
+        now = self.now + datetime.timedelta(seconds=self.lease_duration)
+        leases = leases.expire(now)
+        self.assertIn(self.dataset_id, leases)
+
+    def test_lease_renewable(self):
+        """
+        A lease that is renewed is updated in the Leases map with its new
+        expiry date/time.
+        """
+        # Acquire a lease on a node with an expiration time.
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration
+        )
+        # Assert that the lease has the expected expiration time.
+        expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration)
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, expected_expiration)
+        # Acquire the same lease with a different expiration time.
+        leases = leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration * 2
+        )
+        # Assert the lease's expiration time has been updated.
+        new_expected_expiration = self.now + datetime.timedelta(
+            seconds=self.lease_duration * 2)
+        lease = leases.get(self.dataset_id)
+        self.assertEqual(lease.expiration, new_expected_expiration)
+
+    def test_lease_release(self):
+        """
+        A lease that has been released is removed from the Leases map.
+        """
+        # Acquire a lease.
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Assert the lease was acquired successfully.
+        self.assertIn(self.dataset_id, leases)
+        # Release the lease.
+        leases = leases.release(self.dataset_id, self.node_id)
+        # Assert the lease has been released successfully.
+        self.assertNotIn(self.dataset_id, leases)
+
+    def test_error_on_release_lease_held_by_other_node(self):
+        """
+        A ``LeaseReleaseError`` is raised when attempting to release a lease
+        held by another node.
+        """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(
+            self.now, self.dataset_id, self.node_id, self.lease_duration)
+        # Create a second node
+        node2 = Node(uuid=uuid4())
+        # Attempt to release a lease on node2 for the existing dataset
+        exception = self.assertRaises(
+            LeaseError, leases.release,
+            self.dataset_id, node2.uuid
+        )
+        expected_error = (
+            u"Cannot release lease " + unicode(self.dataset_id)
+            + " for node " + unicode(node2.uuid)
+            + u": Lease already held by another node"
+        )
+        self.assertEqual(
+            exception.message, expected_error
+        )
+
+    def test_error_on_acquire_lease_held_by_other_node(self):
+        """
+        A ``LeaseAcquisitionError`` is raised when attempting to acquire
+        a lease held by another node.
+        """
+        # Acquire a lease on a node
+        leases = self.leases.acquire(self.now, self.dataset_id, self.node_id)
+        # Create a second node
+        node2 = Node(uuid=uuid4())
+        # Attempt to acquire the lease for node2 for the existing dataset
+        exception = self.assertRaises(
+            LeaseError, leases.acquire,
+            self.now, self.dataset_id, node2.uuid
+        )
+        expected_error = (
+            u"Cannot acquire lease " + unicode(self.dataset_id)
+            + " for node " + unicode(node2.uuid)
+            + u": Lease already held by another node"
+        )
+        self.assertEqual(
+            exception.message, expected_error
+        )
+
+    def test_invariant_success(self):
+        """
+        A lease's ID (key in the ``Leases`` map) must match its dataset ID.
+        """
+        lease = Lease(
+            dataset_id=self.dataset_id, node_id=self.node_id, expiration=None
+        )
+        # This test's "assertion" is that this does not raise an exception.
+        self.leases.set(self.dataset_id, lease)
+
+    def test_invariant_fail(self):
+        """
+        An ``InvariantException`` is raised if a lease's ID (key in the
+        ``Leases`` map) does not match its dataset ID.
+        """
+        lease = Lease(
+            dataset_id=self.dataset_id, node_id=self.node_id, expiration=None
+        )
+        # Try to map this lease to a different UUID.
+        self.assertRaises(
+            InvariantException,
+            self.leases.set, uuid4(), lease
+        )

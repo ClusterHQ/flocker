@@ -4,13 +4,18 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
+from datetime import datetime
+
+from pytz import UTC
 
 from eliot.testing import validate_logging
 
 from ipaddr import IPAddress
 
 from pyrsistent import pset, pvector
+
+from bitmath import GiB
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -21,11 +26,12 @@ from .. import (
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
-    EMPTY_STATE
+    EMPTY_STATE, assert_calculated_changes_for_deployer, to_node,
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState, DeploymentState, RestartAlways)
+    NodeState, DeploymentState, RestartNever, RestartAlways, RestartOnFailure
+)
 
 from .. import sequentially, in_parallel
 
@@ -37,7 +43,9 @@ from .._deploy import (
 )
 from ...testtools import CustomException
 from .. import _deploy
-from ...control._model import AttachedVolume, Dataset, Manifestation
+from ...control._model import (
+    AttachedVolume, Dataset, Manifestation, Leases
+)
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
@@ -50,6 +58,12 @@ from ...volume._ipc import RemoteVolumeManager, standard_node
 
 from .istatechange import make_istatechange_tests
 
+# This models an application without a volume.
+APPLICATION_WITHOUT_VOLUME = Application(
+    name=u"stateless",
+    image=DockerImage.from_string(u"clusterhq/testing-stateless"),
+    volume=None,
+)
 
 # This models an application that has a volume.
 APPLICATION_WITH_VOLUME_NAME = u"psql-clusterhq"
@@ -88,6 +102,28 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 # Placeholder in case at some point discovered application is different
 # than requested application:
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
+
+
+def assert_application_calculated_changes(
+    case, node_state, node_config, nonmanifest_datasets, expected_changes,
+    additional_node_states=frozenset(), additional_node_config=frozenset(),
+):
+    """
+    Assert that ``ApplicationNodeDeployer`` calculates certain changes in a
+    certain circumstance.
+
+    :see: ``assert_calculated_changes_for_deployer``.
+    """
+    deployer = ApplicationNodeDeployer(
+        hostname=node_state.hostname,
+        node_uuid=node_state.uuid,
+        docker_client=FakeDockerClient(),
+        network=make_memory_network(),
+    )
+    return assert_calculated_changes_for_deployer(
+        case, deployer, node_state, node_config, nonmanifest_datasets,
+        additional_node_states, additional_node_config, expected_changes,
+    )
 
 
 class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
@@ -434,10 +470,13 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_restart_policy(self):
         """
-        ``StartApplication.run()`` passes an ``Application``'s restart_policy
-        to ``DockerClient.add`` which is used when creating a Unit.
+        ``StartApplication.run()`` passes ``RestartNever`` to
+        ``DockerClient.add`` which is used when creating a Unit.
+
+        It doesn't pass the ``Application``\ 's ``restart_policy`` because
+        ``RestartNever`` is the only implemented policy.  See FLOC-2449.
         """
-        policy = object()
+        policy = RestartAlways()
         fake_docker = FakeDockerClient()
         deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
@@ -452,10 +491,7 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          node_state=EMPTY_NODESTATE).run(deployer)
 
-        self.assertIs(
-            policy,
-            fake_docker._units[application_name].restart_policy,
-        )
+        self.assertEqual(policy, RestartNever())
 
     def test_command_line(self):
         """
@@ -560,46 +596,6 @@ class StopApplicationTests(SynchronousTestCase):
 
         self.assertIs(None, result)
 
-
-# This models an application that has a volume.
-
-APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
-DATASET_ID = unicode(uuid4())
-DATASET = Dataset(dataset_id=DATASET_ID)
-APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
-APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
-APPLICATION_WITH_VOLUME = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-    volume=AttachedVolume(
-        manifestation=Manifestation(dataset=DATASET, primary=True),
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
-
-DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
-                            metadata=DATASET.metadata,
-                            maximum_size=1024 * 1024 * 100)
-
-APPLICATION_WITH_VOLUME_SIZE = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-    volume=AttachedVolume(
-        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
-                                    primary=True),
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-
-MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
-
-# Placeholder in case at some point discovered application is different
-# than requested application:
-DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
-
 APP_NAME = u"site-example.com"
 UNIT_FOR_APP = Unit(name=APP_NAME,
                     container_name=APP_NAME,
@@ -619,9 +615,9 @@ APP2 = Application(
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
 )
 # https://clusterhq.atlassian.net/browse/FLOC-1926
-EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+EMPTY_NODESTATE = NodeState(hostname=u"example.com", uuid=uuid4(),
                             manifestations={}, devices={}, paths={},
-                            applications=[], used_ports=[])
+                            applications=[])
 
 
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
@@ -637,7 +633,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             hostname=u"example.com",
             uuid=self.node_uuid,
             manifestations={}, devices={}, paths={},
-            applications=[], used_ports=[])
+            applications=[])
 
     def test_discover_none(self):
         """
@@ -654,7 +650,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[], used_ports=[])],
+                                    applications=[])],
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -673,7 +669,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[APP], used_ports=[])],
+                                    applications=[APP])],
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -696,6 +692,49 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
+
+    def test_discover_application_with_cpushares(self):
+        """
+        An ``Application`` with a cpu_shares value is discovered from a
+        ``Unit`` with a cpu_shares value.
+        """
+        unit1 = UNIT_FOR_APP.set("cpu_shares", 512)
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [APP.set("cpu_shares", 512)]
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_state(self.EMPTY_NODESTATE)
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d)[0].applications))
+
+    def test_discover_application_with_memory_limit(self):
+        """
+        An ``Application`` with a memory_limit value is discovered from a
+        ``Unit`` with a mem_limit value.
+        """
+        memory_limit = 104857600
+        unit1 = UNIT_FOR_APP.set("mem_limit", memory_limit)
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [APP.set("memory_limit", memory_limit)]
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            node_uuid=self.node_uuid,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_state(self.EMPTY_NODESTATE)
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d)[0].applications))
 
     def test_discover_application_with_environment(self):
         """
@@ -916,31 +955,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         result = self.successResultOf(d)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=applications, used_ports=[])],
+                                    applications=applications)],
                          result)
-
-    def test_discover_used_ports(self):
-        """
-        Any ports in use, as reported by the deployer's ``INetwork`` provider,
-        are reported in the ``used_ports`` attribute of the ``NodeState``
-        returned by ``discover_state``.
-        """
-        used_ports = frozenset([1, 3, 5, 1000])
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            node_uuid=self.node_uuid,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network(used_ports=used_ports)
-        )
-
-        discovering = api.discover_state(self.EMPTY_NODESTATE)
-        states = self.successResultOf(discovering)
-
-        self.assertEqual(
-            [NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                       used_ports=used_ports, applications=[])],
-            states
-        )
 
     def test_discover_application_restart_policy(self):
         """
@@ -989,7 +1005,6 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                     # Can't do app discovery if don't know
                                     # about manifestations:
                                     applications=None,
-                                    used_ports=None,
                                     manifestations=None,
                                     paths=None)],
                          self.successResultOf(d))
@@ -1021,7 +1036,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             [NodeState(hostname=deployer.hostname,
                        uuid=deployer.node_uuid,
                        manifestations={}, paths={}, devices={},
-                       applications=None, used_ports=None)])
+                       applications=None)])
 
     def _setup_datasets(self):
         """
@@ -1117,6 +1132,252 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             manifestation)
 
 
+def restart(old, new, node_state):
+    """
+    Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
+    returns when it wants to restart a particular application on a particular
+    node.
+    """
+    return sequentially(changes=[
+        in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old),
+                StartApplication(
+                    application=new, node_state=node_state,
+                ),
+            ]),
+        ]),
+    ])
+
+
+def no_change():
+    """
+    Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
+    returns when it doesn't want to make any changes.
+    """
+    return sequentially(changes=[])
+
+
+class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
+    """
+    Tests for ``ApplicationNodeDeployer.calculate_changes`` specifically as it
+    relates to volume state and configuration.
+    """
+    def test_no_volume_no_changes(self):
+        """
+        If an ``Application`` with no volume is configured and exists, no
+        changes are calculated.
+        """
+        local_state = EMPTY_NODESTATE.set(
+            applications=[APPLICATION_WITHOUT_VOLUME],
+        )
+        local_config = to_node(local_state)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_has_volume_no_changes(self):
+        """
+        If an ``Application`` with a volume (with a maximum size) is configured
+        and exists with that configuration, no changes are calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        local_config = to_node(local_state)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_has_volume_cant_change_yet(self):
+        """
+        If an ``Application`` is configured with a volume but exists without it
+        and the dataset for the volume isn't present on the node, no changes
+        are calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            applications=[application.set("volume", None)],
+        )
+        local_config = to_node(local_state).set(
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_has_volume_needs_changes(self):
+        """
+        If an ``Application`` is configured with a volume but exists without
+        the volume and the dataset for the volume is present on the node, a
+        change to restart that application is calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        application_without_volume = application.set(volume=None)
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application_without_volume],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            restart(application_without_volume, application, local_state),
+        )
+
+    def test_no_volume_needs_changes(self):
+        """
+        If an ``Application`` is configured with no volume but exists with one,
+        a change to restart that application is calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        application_without_volume = application.set(volume=None)
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application_without_volume],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            restart(application, application_without_volume, local_state),
+        )
+
+    def _resize_no_changes(self, state_size, config_size):
+        application_state = APPLICATION_WITH_VOLUME.transform(
+            ["volume", "manifestation", "dataset", "maximum_size"],
+            state_size,
+        )
+        application_config = application_state.transform(
+            ["volume", "manifestation", "dataset", "maximum_size"],
+            config_size,
+        )
+        manifestation_state = application_state.volume.manifestation
+        manifestation_config = application_config.volume.manifestation
+
+        # Both objects represent the same dataset so the id is the same on
+        # each.
+        dataset_id = manifestation_state.dataset_id
+
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(dataset_id): FilePath(b"/dev/foo")},
+            paths={dataset_id: FilePath(b"/foo/bar")},
+            manifestations={dataset_id: manifestation_state},
+            applications=[application_state],
+        )
+        local_config = to_node(local_state).set(
+            applications=[application_config],
+            manifestations={dataset_id: manifestation_config},
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(), no_change(),
+        )
+
+    def test_resized_volume_no_changes(self):
+        """
+        If an ``Application`` is configured with a volume and exists with that
+        volume but the volume is a different size than configured, no changes
+        are calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(GiB(1).to_Byte().value, GiB(2).to_Byte().value)
+
+    def test_maximum_volume_size_applied_no_changes(self):
+        """
+        If an ``Application``\ 's volume exists without a maximum size and the
+        configuration for that volume indicates a size, no changes are
+        calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(None, GiB(1).to_Byte().value)
+
+    def test_maximum_volume_size_removed_no_changes(self):
+        """
+        If an ``Application``\ 's volume exists with a maximum size and the
+        configuration for that volume indicates no maximum size, no changes are
+        calculated because ``ApplicationNodeDeployer`` doesn't trust the
+        dataset agent to be able to resize volumes.
+        """
+        self._resize_no_changes(GiB(1).to_Byte().value, None)
+
+    def test_moved_volume_needs_changes(self):
+        """
+        If an ``Application`` is configured with a volume on a node but is no
+        longer configured to on that node, a change to stop that application is
+        calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        local_state = EMPTY_NODESTATE.set(
+            devices={UUID(manifestation.dataset_id): FilePath(b"/dev/foo")},
+            paths={manifestation.dataset_id: FilePath(b"/foo/bar")},
+            manifestations={manifestation.dataset_id: manifestation},
+            applications=[application],
+        )
+        local_config = to_node(EMPTY_NODESTATE)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            sequentially(changes=[
+                in_parallel(changes=[
+                    StopApplication(application=application),
+                ]),
+            ]),
+        )
+
+    def test_different_volume_needs_change(self):
+        """
+        If an ``Application`` is configured with a volume but exists with a
+        different volume, a change to restart that application is calculated.
+        """
+        application = APPLICATION_WITH_VOLUME_SIZE
+        manifestation = application.volume.manifestation
+        another_manifestation = manifestation.transform(
+            ["dataset", "dataset_id"], uuid4(),
+        )
+        changed_application = application.transform(
+            ["volume", "manifestation"], another_manifestation,
+        )
+        local_state = EMPTY_NODESTATE.set(
+            devices={
+                UUID(manifestation.dataset_id): FilePath(b"/dev/foo"),
+                UUID(another_manifestation.dataset_id): FilePath(b"/dev/bar"),
+            },
+            paths={
+                manifestation.dataset_id: FilePath(b"/foo/bar"),
+                another_manifestation.dataset_id: FilePath(b"/bar/baz"),
+            },
+            manifestations={
+                manifestation.dataset_id: manifestation,
+                another_manifestation.dataset_id: another_manifestation,
+            },
+            applications=[application],
+        )
+        local_config = to_node(local_state).set(
+            applications=[
+                changed_application,
+            ],
+        )
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            restart(application, changed_application, local_state),
+        )
+
+
 class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
     """
     Tests for ``ApplicationNodeDeployer.calculate_changes``.
@@ -1129,14 +1390,10 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         applications running or desired, and no proxies exist or are
         desired.
         """
-        api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
-        result = api.calculate_changes(
-            desired_configuration=EMPTY,
-            current_cluster_state=EMPTY_STATE)
-        expected = sequentially(changes=[])
-        self.assertEqual(expected, result)
+        assert_application_calculated_changes(
+            self, EMPTY_NODESTATE, to_node(EMPTY_NODESTATE), set(),
+            sequentially(changes=[]),
+        )
 
     def test_proxy_needs_creating(self):
         """
@@ -1145,43 +1402,38 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        api = ApplicationNodeDeployer(u'192.168.1.1',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network(),
-                                      node_uuid=uuid4())
-        expected_destination_port = 1001
-        expected_destination_host = u'192.168.1.2'
-        destination_node_uuid = uuid4()
-        port = Port(internal_port=3306,
-                    external_port=expected_destination_port)
+        port = Port(
+            internal_port=3306, external_port=1001,
+        )
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/mysql',
                               tag=u'release-14.0'),
             ports=frozenset([port]),
         )
+        local_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.100",
+            applications=[],
+            manifestations={}, devices={}, paths={},
+        )
+        destination_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.101",
+            applications=[application],
+            manifestations={}, devices={}, paths={},
+        )
+        local_config = to_node(local_state)
 
-        nodes = frozenset([
-            Node(
-                uuid=destination_node_uuid,
-                applications=frozenset([application])
-            )
-        ])
-
-        desired = Deployment(nodes=nodes)
-        current = DeploymentState(nodes=[
-            NodeState(
-                uuid=api.node_uuid, hostname=api.hostname, applications=[],
-                used_ports=[]),
-            NodeState(uuid=destination_node_uuid,
-                      hostname=expected_destination_host, manifestations={},
-                      devices={}, paths={}, applications=[], used_ports=[])])
-        result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=current)
-        proxy = Proxy(ip=expected_destination_host,
-                      port=expected_destination_port)
+        proxy = Proxy(
+            ip=destination_state.hostname,
+            port=port.external_port,
+        )
         expected = sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
-        self.assertEqual(expected, result)
+        assert_application_calculated_changes(
+            self, local_state, local_config, set(),
+            additional_node_states={destination_state},
+            additional_node_config={to_node(destination_state)},
+            expected_changes=expected,
+        )
 
     def test_no_proxy_if_node_state_unknown(self):
         """
@@ -1256,7 +1508,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         node_state = NodeState(
             hostname=api.hostname, uuid=api.node_uuid,
-            applications=[], used_ports=[])
+            applications=[])
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1303,7 +1555,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=EMPTY,
             current_cluster_state=DeploymentState(nodes=[NodeState(
                 hostname=api.hostname, applications={to_stop.application},
-                used_ports=[])]))
+            )]))
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
@@ -1332,7 +1584,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         node_state = NodeState(
             hostname=api.hostname, uuid=api.node_uuid,
-            applications=[], used_ports=[])
+            applications=[])
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
@@ -1401,7 +1653,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications=[application], used_ports=[])]))
+                          applications=[application])]))
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
@@ -1423,45 +1675,50 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          applications=[application], used_ports=[])]))
+                          applications=[application])]))
         to_stop = StopApplication(
             application=application,
         )
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
-    def test_local_not_running_applications_not_restarted(self):
+    def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
-        node are not restarted by Flocker (we rely on Docker restart
-        policies to do so).
+        node are restarted by Flocker (we cannot rely on Docker restart
+        policies to do so because FLOC-3148).
         """
         api = ApplicationNodeDeployer(u'n.example.com',
                                       docker_client=FakeDockerClient(),
                                       network=make_memory_network(),
                                       node_uuid=uuid4())
-        application = Application(
+        application_desired = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
         )
-        nodes = frozenset([
+        application_stopped = application_desired.set("running", False)
+        nodes_desired = frozenset([
             Node(
                 uuid=api.node_uuid,
-                applications=frozenset([application])
+                applications=frozenset([application_desired])
             )
         ])
         node_state = NodeState(
             hostname=api.hostname,
             uuid=api.node_uuid,
-            used_ports=[],
-            applications=[application.set("running", False)])
-        desired = Deployment(nodes=nodes)
+            applications=[application_stopped])
+        desired = Deployment(nodes=nodes_desired)
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]))
 
-        expected = sequentially(changes=[])
+        expected = sequentially(changes=[in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=application_stopped),
+                StartApplication(
+                    application=application_desired, node_state=node_state),
+            ])])])
         self.assertEqual(expected, result)
 
     def test_not_local_not_running_applications_stopped(self):
@@ -1482,7 +1739,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             desired_configuration=EMPTY,
             current_cluster_state=DeploymentState(nodes=[
                 NodeState(hostname=api.hostname,
-                          used_ports=[],
                           applications={to_stop})]))
         expected = sequentially(changes=[in_parallel(changes=[
             StopApplication(application=to_stop)])])
@@ -1520,7 +1776,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         node_state = NodeState(
             uuid=api.node_uuid,
             hostname=api.hostname,
-            used_ports=[],
             applications={old_postgres_app})
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1575,7 +1830,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         node_state = NodeState(
             hostname=api.hostname,
-            used_ports=[],
             applications={old_postgres_app},
         )
 
@@ -1645,7 +1899,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
                  applications=frozenset({new_wordpress_app, postgres_app})),
         }))
         node_state = NodeState(hostname=api.hostname,
-                               used_ports=[],
                                applications={postgres_app, old_wordpress_app})
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1690,7 +1943,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         node_state = NodeState(
             uuid=api.node_uuid,
             hostname=api.hostname,
-            used_ports=[],
             applications={old_postgres_app})
         result = api.calculate_changes(
             desired_configuration=desired,
@@ -1767,6 +2019,213 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
+    def _app_restart_policy_test(self, restart_state, restart_config,
+                                 expect_restart):
+        """
+        Verify that an application with a particular restart policy in its
+        state and in another (or the same) policy in its configuration is
+        either restarted or not.
+
+        :param IRestartPolicy restart_state: The policy to put into the
+            application state.
+        :param IRestartPolicy restart_config: The policy to put into the
+            application configuration.
+        :param bool expect_restart: ``True`` if the given combination must
+            provoke an application restart.  ``False`` if it must not.
+
+        :raise: A test-failing exception if the restart expection is not met.
+        """
+        app_state = APPLICATION_WITHOUT_VOLUME.set(
+            restart_policy=restart_state,
+        )
+        node_state = NodeState(
+            uuid=uuid4(), hostname=u"192.0.2.10",
+            applications={app_state},
+        )
+        app_config = app_state.set(
+            restart_policy=restart_config,
+        )
+        node_config = to_node(node_state.set(applications={app_config}))
+        if expect_restart:
+            expected_changes = restart(app_state, app_config, node_state)
+        else:
+            expected_changes = no_change()
+        assert_application_calculated_changes(
+            self, node_state, node_config, set(),
+            expected_changes,
+        )
+
+    def test_app_state_always_and_config_always_restarted(self):
+        """
+        Restart policies interact poorly with containers with volumes.  If an
+        application state is found with a restart policy other than "never",
+        even if the application configuration matches that restart policy, it
+        is restarted with the "never" policy.  See FLOC-2449.
+        """
+        self._app_restart_policy_test(RestartAlways(), RestartAlways(), True)
+
+    def test_app_state_always_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartAlways(), RestartOnFailure(maximum_retry_count=2), True,
+        )
+
+    def test_app_state_always_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartAlways(), RestartNever(), True)
+
+    def test_app_state_never_and_config_never_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartNever(), False)
+
+    def test_app_state_never_and_config_always_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(RestartNever(), RestartAlways(), False)
+
+    def test_app_state_never_and_config_failure_not_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartNever(), RestartOnFailure(maximum_retry_count=2), False,
+        )
+
+    def test_app_state_failure_and_config_never_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartNever(), True,
+        )
+
+    def test_app_state_failure_and_config_always_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2), RestartAlways(), True,
+        )
+
+    def test_app_state_failure_and_config_failure_restarted(self):
+        """
+        See ``test_app_state_always_and_config_always_restarted``
+        """
+        self._app_restart_policy_test(
+            RestartOnFailure(maximum_retry_count=2),
+            RestartOnFailure(maximum_retry_count=2),
+            True,
+        )
+
+
+class P2PManifestationDeployerLeaseTests(SynchronousTestCase):
+    """
+    Tests for impact of leases on
+    ``P2PManifestationDeployer.calculate_changes``.
+    """
+    NODE_ID = uuid4()
+    NODE_ID2 = uuid4()
+    NODE_HOSTNAMES = {NODE_ID: u"10.1.1.1", NODE_ID2: u"10.1.2.3"}
+    NOW = datetime.now(tz=UTC)
+
+    def changes_when_leased(self, configured, actual,
+                            lease_node=NODE_ID,
+                            configured_node=NODE_ID,
+                            actual_node=NODE_ID):
+        """
+        Given a lease on a dataset and configuration and state, return
+        calculated changes.
+
+        :param Manifestation configured: The configured ``Manifestation``.
+        :param Manifestation actual: The ``Manifestation`` in the node's state.
+        :param UUID lease_node: Node for which we have lease.
+        :param UUID configured_node: Node for which we have configuration.
+        :param UUID actual_node: Node for which we have state.
+
+        :return: Result of ``P2PManifestationDeployer.calculate_changes``.
+        """
+        node = Node(
+            uuid=configured_node,
+            manifestations={configured.dataset_id: configured})
+        desired = Deployment(nodes=[node], leases=Leases().acquire(
+            self.NOW, UUID(configured.dataset_id), lease_node))
+        other_actual_node = (self.NODE_ID if actual_node is self.NODE_ID2
+                             else self.NODE_ID2)
+        current = DeploymentState(nodes=[
+            NodeState(
+                uuid=actual_node,
+                hostname=self.NODE_HOSTNAMES[actual_node],
+                applications={}, devices={}, paths={},
+                manifestations={actual.dataset_id: actual}),
+            # We have state for other node too, so handoffs aren't
+            # prevented:
+            NodeState(
+                uuid=other_actual_node,
+                hostname=self.NODE_HOSTNAMES[other_actual_node],
+                applications={}, devices={}, paths={},
+                manifestations={})])
+
+        api = P2PManifestationDeployer(
+            self.NODE_HOSTNAMES[actual_node], create_volume_service(self),
+            node_uuid=actual_node,
+        )
+        return api.calculate_changes(desired, current)
+
+    def test_no_deletion_if_leased(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        deletion does not happens if there is a lease on the dataset.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION.transform(("dataset", "deleted"), True),
+            MANIFESTATION)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_resize_if_leased(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        resize does not happens if there is a lease on the dataset.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION_WITH_SIZE, MANIFESTATION)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_handoff_if_leased_on_different_node(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset handoff
+        does not happens if there is a lease on the dataset and that lease
+        is on a different node than the destination.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION, MANIFESTATION,
+            # lease:       destination:  origin:
+            self.NODE_ID2, self.NODE_ID, self.NODE_ID2)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_handoff_if_leased_on_destination_node(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` results in dataset
+        handoff even if there is a lease on the dataset as long as that
+        lease is for the same node as the destination.
+        """
+        changes = self.changes_when_leased(
+            MANIFESTATION, MANIFESTATION,
+            # lease:       destination:  origin:
+            self.NODE_ID, self.NODE_ID, self.NODE_ID2)
+        expected = sequentially(changes=[
+            in_parallel(changes=[HandoffDataset(
+                dataset=MANIFESTATION.dataset,
+                hostname=self.NODE_HOSTNAMES[self.NODE_ID])]),
+        ])
+        self.assertEqual(expected, changes)
+
 
 class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
     """
@@ -1788,7 +2247,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
             devices={}, paths={},
-            applications=[], used_ports=[],
+            applications=[],
         )
 
         api = P2PManifestationDeployer(
@@ -1827,7 +2286,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         current = DeploymentState(nodes=[NodeState(
             uuid=node.uuid,
             hostname=u"10.1.1.1",
-            used_ports=[],
             applications={APPLICATION_WITH_VOLUME},
             devices={}, paths={},
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION})])
@@ -1852,7 +2310,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             devices={}, paths={},
             applications={APPLICATION_WITH_VOLUME},
-            used_ports=[],
         )
         desired_node = Node(
             hostname=u"node1.example.com",
@@ -1885,7 +2342,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                             MANIFESTATION},
             paths={}, devices={},
             applications={APPLICATION_WITH_VOLUME},
-            used_ports=[],
         )
         another_node_state = NodeState(
             hostname=u"node2.example.com", manifestations={},
@@ -1943,7 +2399,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
-            devices={}, paths={}, used_ports=[],
+            devices={}, paths={},
             applications=[],
         )
         another_node_state = NodeState(
@@ -1980,7 +2436,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         current_node = NodeState(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
-            used_ports=[],
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
             devices={}, paths={},
@@ -2015,7 +2470,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             NodeState(
                 hostname=u"node1.example.com",
                 applications={APPLICATION_WITH_VOLUME},
-                used_ports=[],
                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
                 devices={}, paths={},
             ),
@@ -2057,7 +2511,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
         current = DeploymentState(nodes=frozenset({
             NodeState(hostname=hostname, applications=[], manifestations={},
-                      used_ports=[], devices={}, paths={}),
+                      devices={}, paths={}),
         }))
 
         api = P2PManifestationDeployer(
@@ -2089,7 +2543,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             paths={}, devices={},
-            applications=[], used_ports=[],
+            applications=[],
         )
         desired_node = Node(
             hostname=u"node1.example.com",
@@ -2129,12 +2583,12 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                 hostname=u"node1.example.com",
                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
                 devices={}, paths={},
-                applications=[], used_ports=[],
+                applications=[],
             ),
             NodeState(
                 hostname=u"node2.example.com",
                 manifestations={}, devices={}, paths={},
-                applications=[], used_ports=[],
+                applications=[],
             )
         ]
         desired_nodes = [
@@ -2208,7 +2662,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
             devices={}, paths={},
-            applications=[], used_ports=[],
+            applications=[],
         )
         another_node_state = NodeState(hostname=u"10.1.2.3", uuid=uuid4())
 

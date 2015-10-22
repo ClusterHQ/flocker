@@ -44,6 +44,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 _trial_temp*
+.hypothesis
 
 # Translations
 *.mo
@@ -76,3 +77,4 @@ vagrant/dev/*.box
 .Trashes
 ehthumbs.db
 Thumbs.db
+jobs.groovy

@@ -1,6 +1,18 @@
 $schema: http://json-schema.org/draft-04/schema#
 id: http://api.clusterhq.com/v1/types.json
 definitions:
+  uuid:
+    title: "Unique identifer"
+    description: |
+      An opaque identifier, unique across a cluster, identifying a
+      particular dataset or node.  If not specified when creating a dataset, a new
+      identifier will be generated and returned.
+    type: string
+    minLength: 36
+    maxLength: 36
+    # UUIDv4, as defined by RFC 4122. See http://tools.ietf.org/html/rfc4122.html#section-4.1
+    pattern: "^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-4[A-Fa-f0-9]{3}-[89abAB][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}$"
+
   dataset_id:
     title: "Unique identifier"
     description: |
@@ -8,9 +20,8 @@ definitions:
       particular dataset.  If not given, a new identifier will be generated
       and returned.
     type: string
-    # The length of a stringified uuid
-    minLength: 36
-    maxLength: 36
+    allOf:
+      - "$ref": "#/definitions/uuid"
 
   deleted:
     title: "Deleted"
@@ -208,18 +219,16 @@ definitions:
     description: |
       The UUID of a node in the cluster.
     type: string
-    # The length of a stringified uuid
-    minLength: 36
-    maxLength: 36
+    allOf:
+      - "$ref": "#/definitions/uuid"
 
   container_node_uuid:
     title: "Node"
     description: |
       The UUID of a node in the cluster where the container will run.
     type: string
-    # The length of a stringified uuid
-    minLength: 36
-    maxLength: 36
+    allOf:
+      - "$ref": "#/definitions/uuid"
 
   primary:
     title: "Primary manifestation (node UUID)"
@@ -227,9 +236,8 @@ definitions:
       The UUID of the node which will be given the primary manifestation
       of the newly created dataset.
     type: string
-    # The length of a stringified uuid
-    minLength: 36
-    maxLength: 36
+    allOf:
+      - "$ref": "#/definitions/uuid"
 
   maximum_size:
     title: "Maximum size"
@@ -281,3 +289,36 @@ definitions:
         '$ref': '#/definitions/primary'
     additionalProperties: false
 
+  lease_expiration:
+    title: "Lease Expiration"
+    description: |
+      The number of seconds until a lease expires, or null to indicate no expiration.
+    type:
+      - "number"
+      - "null"
+
+  lease_dataset_id:
+    title: "Dataset"
+    description: |
+      An opaque identifier, unique across the cluster, identifying a
+      particular dataset.
+    type: string
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
+
+  lease:
+    type: object
+    description: "A lease on a dataset indicating it is in use on a particular node."
+    properties:
+      dataset_id:
+        '$ref': '#/definitions/lease_dataset_id'
+      node_uuid:
+        '$ref': '#/definitions/node_uuid'
+      expires:
+        '$ref': '#/definitions/lease_expiration'
+    required:
+      - 'dataset_id'
+      - 'node_uuid'
+      - 'expires'
+    additionalProperties: false

@@ -1,3 +1,5 @@
+.. _getting-involved:
+
 ================
 Getting Involved
 ================
@@ -6,6 +8,7 @@ Getting Involved
    :maxdepth: 2
 
    contributing
+   plugins/index
    acceptance-testing
    client-testing
    infrastructure/index

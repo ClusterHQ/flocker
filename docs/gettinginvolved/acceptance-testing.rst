@@ -28,23 +28,22 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies what dataset backend to use for the cluster.
 
+.. option:: --branch <branch>
+
+   Specifies the branch repository from which to install packages.
+   If this is not specified, packages will be installed from a release repository.
+   The release repository may be a stable or unstable repository, and will be selected depending on the version to be installed.
+
 .. option:: --flocker-version <version>
 
-   Specifies the version of flocker to install.
-   If this isn't specified, the most recent version will be installed.
-   If a branch is also specified, the most recent version from that branch will be installed.
-   If a branch is not specified, the most recent release will be installed.
+   Specifies the version of Flocker to install from the selected repository.
+   If this is not specified (or is an empty string), the most recent version available in the repository will be installed.
 
    .. note::
 
       The build server merges forward before building packages, except on release branches.
       If you want to run the acceptance tests against a branch in development,
       you probably only want to specify the branch.
-
-.. option:: --branch <branch>
-
-   Specifies the branch from which packages are installed.
-   If this isn't specified, packages will be installed from the release repository.
 
 .. option:: --build-server <buildserver>
 
@@ -85,7 +84,7 @@ It may optionally contain a ``metadata`` key.
 If it does and if the provider supports it,
 the value should be a mapping and the contents will be added as metadata of the created nodes.
 
-The top-level mapping must contain a ``dataset-backends`` item.
+The top-level mapping must contain a ``storage-drivers`` item.
 The value should be another mapping from names to dataset backend configuration mappings.
 The names are primarily human-readable and meant for easy use with the ``--dataset-backend`` option.
 In some cases,
@@ -127,7 +126,7 @@ Ensure that they all pass, with no skips:
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider vagrant
+  admin/run-acceptance-tests --distribution centos-7 --provider vagrant
 
 
 .. _acceptance-testing-rackspace-config:
@@ -154,13 +153,13 @@ You will need a ssh agent running with access to the corresponding private key.
 
 Rackspace can use these dataset backends:
 
-  * :ref:`OpenStack<openstack-dataset-backend>`.
-  * :ref:`ZFS<zfs-dataset-backend>`.
-  * :ref:`Loopback<loopback-dataset-backend>`.
+* :ref:`OpenStack<openstack-dataset-backend>`.
+* :ref:`ZFS<zfs-dataset-backend>`.
+* :ref:`Loopback<loopback-dataset-backend>`.
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider rackspace --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider rackspace --config-file config.yml
 
 
 .. _acceptance-testing-aws-config:
@@ -178,6 +177,7 @@ To run the acceptance tests on AWS, you need:
 
    aws:
      region: <aws region, e.g. "us-west-2">
+     zone: <aws zone, e.g. "us-west-2a">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
@@ -187,13 +187,15 @@ You will need a ssh agent running with access to the corresponding private key.
 
 AWS can use these dataset backends:
 
-  * :ref:`AWS<aws-dataset-backend>`.
-  * :ref:`ZFS<zfs-dataset-backend>`.
-  * :ref:`Loopback<loopback-dataset-backend>`.
+* :ref:`AWS<aws-dataset-backend>`.
+* :ref:`ZFS<zfs-dataset-backend>`.
+* :ref:`Loopback<loopback-dataset-backend>`.
+
+If you're using the AWS dataset backend make sure the regions and zones are the same both here and there!
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file config.yml
 
 .. _acceptance-testing-managed-config:
 
@@ -201,9 +203,16 @@ Managed
 ~~~~~~~
 
 You can also run acceptance tests on existing "managed" nodes.
-In this case the configuration file should include:
 
-- **addresses**: The IP addresses of two running nodes.
+This is a quicker way to run the acceptance tests as it avoids the slow process of provisioning new acceptance testing nodes.
+
+The ``managed`` provider re-installs and restarts node related ``clusterhq-*`` packages and distributes new certificates and keys to all the nodes.
+
+This means that the ``managed`` provider can be used to quickly test different package versions and packages built from different branches.
+
+To use the ``managed`` provider, the configuration file should include:
+
+- **addresses**: A ``list`` of IP addresses of the nodes or a ``dict`` of ``{"<private_address>": "<public_address>"}`` if the public addresses are not configured on the node (see below).
 - **upgrade**: ``true`` to automatically upgrade Flocker before running the tests,
   ``false`` or missing to rely on the version already installed.
 
@@ -220,72 +229,67 @@ The nodes should be configured to allow key based SSH connections as user ``root
 
    admin/run-acceptance-tests --distribution centos-7 --provider managed --config-file config.yml
 
+If you are using the ``managed`` provider with ``AWS`` nodes, you  will need to supply both the private and public IP addresses for each node.
+AWS nodes do not have public IP addresses configured in the operating system; instead Amazon routes public IP traffic using NAT.
+In this case the acceptance tests need a hint in order to map the private IP address reported by the Flocker ``/state/nodes`` API to the public node address.
+E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
+The mapping is supplied to the tests in the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` environment variable.
 
-.. _client-acceptance-tests:
+If you create nodes using ``run-acceptance-tests --runner=aws --keep`` the command will print out the node addresses when it exits. E.g.
 
-Client Testing
-==============
+.. code-block:: console
 
-Flocker includes client installation tests and a tool for running them.
-It is called like this:
+   ./admin/run-acceptance-tests \
+     --keep \
+     --distribution=centos-7 \
+     --provider=aws \
+     --dataset-backend=aws \
+     --config-file=$PWD/acceptance.yml \
+     --branch=master \
+     --flocker-version='' \
+     flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
-.. prompt:: bash $
+   ...
 
-   admin/run-cluster-tests <options> [<test-cases>]
+   flocker.acceptance.obsolete.test_containers
+     ContainerAPITests
+       test_create_container_with_ports ...                                   [OK]
 
+   -------------------------------------------------------------------------------
+   Ran 1 tests in 14.102s
 
-The :program:`admin/run-client-tests` script has several options:
+   PASSED (successes=1)
+   --keep specified, not destroying nodes.
+   To run acceptance tests against these nodes, set the following environment variables:
 
-.. program:: admin/run-client-tests
+   export FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE=1073741824;
+   export FLOCKER_ACCEPTANCE_CONTROL_NODE=54.159.119.143;
+   export FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS='{"10.230.191.121": "54.158.225.35", "10.69.174.223": "54.159.119.143"}';
+   export FLOCKER_ACCEPTANCE_VOLUME_BACKEND=aws;
+   export FLOCKER_ACCEPTANCE_NUM_AGENT_NODES=2;
+   export FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=/tmp/tmpfvb3xV;
 
-.. option:: --distribution <distribution>
+In this case you can copy and paste the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` value directly into the configuration file. E.g.
 
-   Specifies what distribution to use on the created nodes.
+.. code-block:: yaml
 
-.. option:: --provider <provider>
+   managed:
+     addresses:
+       - ["10.230.191.121", "54.158.225.35"]
+       - ["10.69.174.223", "54.159.119.143"]
 
-   Specifies what provider to use to create the nodes.
+And then run the acceptance tests on those nodes using the following command:
 
-.. option:: --flocker-version <version>
+.. code-block:: console
 
-   Specifies the version of flocker to install.
-   If this isn't specified, the most recent version will be installed.
-   If a branch is also specified, the most recent version from that branch will be installed.
-   If a branch is not specified, the most recent release will be installed.
-
-   .. note::
-
-      The build server merges forward before building packages, except on release branches.
-      If you want to run the acceptance tests against a branch in development,
-      you probably only want to specify the branch.
-
-.. option:: --branch <branch>
-
-   Specifies the branch from which packages are installed.
-   If this isn't specified, packages will be installed from the release repository.
-
-.. option:: --build-server <buildserver>
-
-   Specifies the base URL of the build server to install from.
-   This is probably only useful when testing changes to the build server.
-
-.. option:: --config-file <config-file>
-
-   Specifies a YAML configuration file that contains provider specific configuration.
-   See the acceptance testing section above for the required configuration options.
-   If the configuration contains a ``metadata`` key,
-   the contents will be added as metadata of the created nodes,
-   if the provider supports it.
-
-.. option:: --keep
-
-   Keep VMs around, if the tests fail.
-
-To see the supported values for each option, run:
-
-.. prompt:: bash $
-
-   admin/run-client-tests --help
+   ./admin/run-acceptance-tests \
+     --distribution=centos-7 \
+     --provider=managed \
+     --dataset-backend=aws \
+     --config-file=$PWD/acceptance.yml
+     --branch=master \
+     --flocker-version='' \
+     flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
 
 Functional Testing

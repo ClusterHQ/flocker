@@ -62,36 +62,35 @@
     {% endif %}
 </head>
 <body>
-
-    <!-- Menu -->
+    <!-- Menu area -->
     <div class="menubar">
-        <div class="container">
+        <div class="container menu">
             <div class="row">
-                <div class="col-sm-12 col-md-3 col-xs-6 logo">
-                    <a href="https://clusterhq.com/">
+                <div class="col-xs-9 col-md-3 logo">
+                    <a title="ClusterHQ" href="https://clusterhq.com/">
                         <img src="{{ pathto('_static/images/logo@2x.png', 1) }}" width="200" height="50">
                     </a>
                 </div>
-                <div class="visible-xs-block col-xs-6 mob-nav">
+                <div class="visible-xs-block col-xs-3 mob-nav">
                     <a href="javascript:$('nav ul').toggleClass('hidden-xs');">
                         <img src="{{ pathto('_static/images/menu@2x.png', 1) }}" width="60" height="47" class="pull-right"/>
                     </a>
                 </div>
-                <nav class="clearfix">
-                    <div class="col-sm-12 col-md-9">
-                        <ul class="menu hidden-xs">
-                            <li><a href="{{ pathto('gettingstarted/index') }}">Getting Started</a></li>
-                            <li class="current-menu-item"><a href="{{ pathto('index') }}">Docs</a></li>
-                            <li><a href="https://clusterhq.com/storage-solutions-docker/">Solutions</a></li>
-                            <li><a href="https://clusterhq.com/about/">About</a></li>
-                            <li><a href="https://clusterhq.com/careers/">Careers</a></li>
-                            <li class="button menu hidden-xs"><a href="{{ pathto('gettingstarted/index') }}">Try Flocker</a></li>
-                        </ul>
-                    </div>
+                <nav class="col-xs-12 col-md-9">
+                    <ul class="menu hidden-xs">
+                        <li><a href="https://clusterhq.com/flocker/introduction">About Flocker</a></li>
+                        <li><a href="https://clusterhq.com/flocker/getting-started">Getting Started</a></li>
+                        <li><a href="https://clusterhq.com/flocker/use-cases">Use Cases</a></li>
+                        <li><a class="active" href="https://docs.clusterhq.com/en/latest/">Install &amp; Docs</a></li>
+                        <li><a href="https://clusterhq.com/flocker/support/">Support</a></li>
+                        <li><a href="https://clusterhq.com/blog/">Blog</a></li>
+                        <li><a href="https://clusterhq.com/flocker/try-flocker/">Try Flocker</a></li>
+                    </ul>
                 </nav>
             </div>
         </div>
     </div>
+    <!-- End of menu area -->
 
     <!-- Contents -->
     <div class="container contents">
@@ -105,7 +104,7 @@
                     </div>
                 </div>
                 <!-- Menu area start -->
-                {{ toctree(collapse=true, maxdepth=3) }}
+                {{ toctree(collapse=true, maxdepth=2) }}
                 <!-- Menu area end -->
             </div>
 
@@ -204,5 +203,41 @@
             })();
         </script>
     {% endif %}
+
+    <!-- 
+        Optimizely: AB Testing tool
+        Snippet generated from:
+        https://app.optimizely.com/projects/2309470232/implementation
+    -->
+    <script src="https://cdn.optimizely.com/js/2309470232.js"></script>
+
+    <!-- Heatmap.me snippet -->
+    <script type="text/javascript">
+    (function() {
+    var hm = document.createElement('script'); hm.type ='text/javascript'; hm.async = true;
+    hm.src = ('++u-heatmap-it+log-js').replace(/[+]/g,'/').replace(/-/g,'.');
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(hm, s);
+    })();
+    </script>
+
+    <!-- Display out-of-date documentation notice -->
+    <script>
+        // Do an AJAX request to check latest version
+        var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+
+        request.done(function( msg ) {
+            // Trim HTML from returned contents
+            currentversion = $(msg).text();
+
+            // Is version equal to this documentation release?
+            if (currentversion !== DOCUMENTATION_OPTIONS.VERSION) {
+                $('.section:first').prepend('<div class="admonition note warning"> \
+                    <p class="last"> \
+                        You are currently viewing a different version of the documentation to the latest release of Flocker. \
+                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '.</p> \
+                    </div>');
+            }
+        });
+    </script>
   </body>
 </html>

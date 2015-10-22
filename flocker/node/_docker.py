@@ -12,12 +12,16 @@ from time import sleep
 from zope.interface import Interface, implementer
 
 from docker import Client
-from docker.errors import APIError
+from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
-from eliot import Message
+from eliot import Message, MessageType, Field, start_action
 
-from pyrsistent import field, PRecord
+from repoze.lru import LRUCache
+
+from pyrsistent import field, PRecord, pset
+from requests import Response
+from characteristic import with_cmp
 
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -29,8 +33,34 @@ from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
 
+LOG_CACHED_IMAGE = MessageType(
+    u"flocker:node:docker:image_from_cache",
+    [Field.for_types(u"image", [unicode], "The image ID.")],
+    "An image was retrieved from the cache."
+)
+
+
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
+
+
+@with_cmp(["address", "apierror"])
+class AddressInUse(Exception):
+    """
+    The listen address for an exposed port was in use and could not be bound.
+    """
+    def __init__(self, address, apierror):
+        """
+        :param tuple address: The conventional Python representation of the
+            address which could not be bound (eg, an (ipv4 address, port
+            number) pair for IPv4 addresses).
+        :param APIError apierror: The original Docker API error indicating this
+            problem.  Or ``None`` if the error was not derived from the result
+            of a Docker API call.
+        """
+        Exception.__init__(self, address, apierror)
+        self.address = address
+        self.apierror = apierror
 
 
 class Environment(PRecord):
@@ -76,6 +106,19 @@ class PortMap(PRecord):
     """
     internal_port = field(mandatory=True, type=int)
     external_port = field(mandatory=True, type=int)
+
+
+class ImageDataCache(PRecord):
+    """
+    A record representing cached image data. The cache only stores
+    the data we care about from an inspected image.
+
+    :ivar list command: The image command.
+    :ivar list environment: A list of unicode strings representing
+        the image's environment variables.
+    """
+    command = field(mandatory=True, type=(list, type(None)))
+    environment = field(mandatory=True, type=(list, type(None)))
 
 
 class Unit(PRecord):
@@ -157,44 +200,38 @@ class IDockerClient(Interface):
         Install and start a new unit.
 
         Note that callers should not assume success indicates the unit has
-        finished starting up. In addition to asynchronous nature of Docker,
-        even if container is up and running the application within it
-        might still be starting up, e.g. it may not have bound the
-        external ports yet. As a result the final success of application
-        startup is out of scope for this method.
+        finished starting up.  In addition to asynchronous nature of Docker,
+        even if container is up and running the application within it might
+        still be starting up, e.g. it may not have bound the external ports
+        yet.  As a result the final success of application startup is out of
+        scope for this method.
 
         :param unicode unit_name: The name of the unit to create.
-
         :param unicode image_name: The Docker image to use for the unit.
-
         :param list ports: A list of ``PortMap``\ s mapping ports exposed in
-            the container to ports exposed on the host. Default ``None`` means
-            that no port mappings will be configured for this unit.
-
+            the container to ports exposed on the host.  Default ``None`` means
+            that no port mappings will be configured for this unit.  If a
+            ``PortMap`` instance's ``external_port`` is set to ``0`` a free
+            port will automatically be assigned.  The assigned port will be
+            reported for the container in the result of ``IDockerClient.list``.
         :param Environment environment: Environment variables for the
-            container. Default ``None`` means that no environment
-            variables will be supplied to the unit.
-
+            container.  Default ``None`` means that no environment variables
+            will be supplied to the unit.
         :param volumes: A sequence of ``Volume`` instances to mount.
-
         :param int mem_limit: The number of bytes to which to limit the in-core
             memory allocations of the new unit.  Or ``None`` to apply no
             limits.
-
         :param int cpu_shares: The number of CPU shares to allocate to the new
             unit.  Or ``None`` to let it have the default number of shares.
             Docker maps this value onto the cgroups ``cpu.shares`` value (the
             default of which is probably 1024).
-
         :param IRestartPolicy restart_policy: The restart policy of the
             container.
-
-        :ivar command_line: Custom command to run using the image, a sequence
+        :param command_line: Custom command to run using the image, a sequence
             of ``unicode``, or ``None`` to use default image command line.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
-
         """
 
     def exists(unit_name):
@@ -228,13 +265,31 @@ class IDockerClient(Interface):
         """
 
 
+def make_response(code, message):
+    """
+    Create a ``requests.Response`` with the given response code and message.
+
+    :param int code: The HTTP response code to include in the fake response.
+    :param unicode message: The HTTP response message to include in the fake
+        response.  The message will be encoded using ASCII.
+    """
+    response = Response()
+    response.status_code = code
+    response.reason = message
+    return response
+
+
 @implementer(IDockerClient)
 class FakeDockerClient(object):
-    """In-memory fake that simulates talking to a docker daemon.
+    """
+    In-memory fake that simulates talking to a docker daemon.
 
     The state the the simulated units is stored in memory.
 
     :ivar dict _units: See ``units`` of ``__init__``\ .
+    :ivar pset _used_ports: A set of integers giving the port numbers which
+        will be considered in use.  Attempts to add containers which use these
+        ports will fail.
     """
 
     def __init__(self, units=None):
@@ -247,17 +302,37 @@ class FakeDockerClient(object):
         if units is None:
             units = {}
         self._units = units
+        self._used_ports = pset()
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
+        for port in ports:
+            if port.external_port in self._used_ports:
+                raise AddressInUse(
+                    address=(b"0.0.0.0", port.external_port),
+                    apierror=APIError(
+                        'fake api response from server',
+                        response=make_response(500, 'fake response')),
+                )
+
+        all_ports = set(range(2 ** 15, 2 ** 16))
+        assigned_ports = []
+        for port in ports:
+            if port.external_port == 0:
+                available_ports = pset(all_ports) - self._used_ports
+                assigned = next(iter(available_ports))
+                port = port.set(external_port=assigned)
+            assigned_ports.append(port)
+            self._used_ports = self._used_ports.add(port.external_port)
+
         self._units[unit_name] = Unit(
             name=unit_name,
             container_name=unit_name,
             container_image=image_name,
-            ports=frozenset(ports),
+            ports=frozenset(assigned_ports),
             environment=environment,
             volumes=frozenset(volumes),
             activation_state=u'active',
@@ -283,7 +358,6 @@ class FakeDockerClient(object):
 
 # Basic namespace for Flocker containers:
 BASE_NAMESPACE = u"flocker--"
-BASE_DOCKER_API_URL = u'unix://var/run/docker.sock'
 
 
 class TimeoutClient(Client):
@@ -327,13 +401,15 @@ class DockerClient(object):
     :ivar str base_url: URL for connection to the Docker server.
     :ivar int long_timeout: Maximum time in seconds to wait for
         long-running operations, particularly pulling an image.
+    :ivar LRUCache _image_cache: Mapped cache of image IDs to their data.
     """
     def __init__(
-            self, namespace=BASE_NAMESPACE, base_url=BASE_DOCKER_API_URL,
+            self, namespace=BASE_NAMESPACE, base_url=None,
             long_timeout=600):
         self.namespace = namespace
         self._client = TimeoutClient(
             version="1.15", base_url=base_url, long_timeout=long_timeout)
+        self._image_cache = LRUCache(100)
 
     def _to_container_name(self, unit_name):
         """
@@ -434,6 +510,91 @@ class DockerClient(object):
         except KeyError:
             raise ValueError("Unknown restart policy: %r" % (restart_policy,))
 
+    def _image_not_found(self, apierror):
+        """
+        Inspect a ``docker.errors.APIError`` to determine if it represents a
+        failure to start a container because the container's image wasn't
+        found.
+
+        :return: ``True`` if this is the case, ``False`` if the error has
+            another cause.
+        :rtype: ``bool``
+        """
+        return apierror.response.status_code == NOT_FOUND
+
+    def _address_in_use(self, apierror):
+        """
+        Inspect a ``docker.errors.APIError`` to determine if it represents a
+        failure to start a container because the container is configured to use
+        ports that are already in use on the system.
+
+        :return: If this is the reason, an exception to raise describing the
+            problem.  Otherwise, ``None``.
+        """
+        # Recognize an error (without newline) like:
+        #
+        # Cannot start container <name>: Error starting userland proxy:
+        # listen tcp <ip>:<port>: bind: address already in use
+        #
+        # Or (without newline) like:
+        #
+        # Cannot start container <name>: Bind for <ip>:<port> failed:
+        # port is already allocated
+        #
+        # because Docker can't make up its mind about which format to use.
+        parts = apierror.explanation.split(b": ")
+        if parts[-1] == b"address already in use":
+            ip, port = parts[-3].split()[-1].split(b":")
+        elif parts[-1] == b"port is already allocated":
+            ip, port = parts[-2].split()[2].split(b":")
+        else:
+            return None
+        return AddressInUse(address=(ip, int(port)), apierror=apierror)
+
+    def _image_data(self, image):
+        """
+        Supply data about an image, by either inspecting it or returning
+        cached data if available.
+
+        :param unicode image: The ID of the image.
+
+        :return: ``dict`` representing data about the image properties.
+        """
+        cached_image = self._image_cache.get(image)
+        if cached_image is not None:
+            LOG_CACHED_IMAGE(image=image).write()
+            return cached_image
+        try:
+            image_data = self._client.inspect_image(image)
+            Message.new(
+                message_type="flocker:node:docker:image_inspected",
+                image=image
+            ).write()
+        except APIError as e:
+            if e.response.status_code == NOT_FOUND:
+                # Image has been deleted, so just fill in some
+                # stub data so we can return *something*. This
+                # should happen only for stopped containers so
+                # some inaccuracy is acceptable.
+                # We won't cache stub data though.
+                Message.new(
+                    message_type="flocker:node:docker:image_not_found",
+                    image=image
+                ).write()
+                image_data = {u"Config": {u"Env": [], u"Cmd": []}}
+            else:
+                raise
+        cached_data = ImageDataCache(
+            command=image_data[u"Config"][u"Cmd"],
+            environment=image_data[u"Config"][u"Env"]
+        )
+        self._image_cache.put(image, cached_data)
+        Message.new(
+            message_type="flocker:node:docker:image_data_cached",
+            image=image
+        ).write()
+        return cached_data
+
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None):
@@ -447,13 +608,17 @@ class DockerClient(object):
         restart_policy_dict = self._serialize_restart_policy(restart_policy)
 
         def _create():
-            binds = {
-                volume.node_path.path: {
-                    'bind': volume.container_path.path,
-                    'ro': False,
-                }
+            binds = list(
+                # The "Z" mode tells Docker to "relabel file objects" on the
+                # volume.  This makes things work when SELinux is enabled, at
+                # least in the default configuration on CentOS 7.  See
+                # <https://docs.docker.com/reference/commandline/run/>, in the
+                # `--volumes-from` section (or just search for SELinux).
+                u"{}:{}:Z".format(
+                    volume.node_path.path, volume.container_path.path
+                )
                 for volume in volumes
-            }
+            )
             port_bindings = {
                 p.internal_port: p.external_port
                 for p in ports
@@ -484,21 +649,27 @@ class DockerClient(object):
             try:
                 _create()
             except APIError as e:
-                if e.response.status_code == NOT_FOUND:
-                    # Image was not found, so we need to pull it first:
+                if self._image_not_found(e):
+                    # Pull it and try again
                     self._client.pull(image_name)
                     _create()
                 else:
+                    # Unrecognized, just raise it.
                     raise
+
             # Just because we got a response doesn't mean Docker has
             # actually updated any internal state yet! So if e.g. we did a
-            # stop on this container Docker might well complain it knows
+            # start on this container Docker might well complain it knows
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
-            while not self._blocking_exists(container_name):
-                sleep(0.001)
-                continue
-            self._client.start(container_name)
+            while True:
+                try:
+                    self._client.start(container_name)
+                except NotFound:
+                    sleep(0.01)
+                else:
+                    break
+
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -506,6 +677,15 @@ class DockerClient(object):
             code = failure.value.response.status_code
             if code == 409:
                 raise AlreadyExists(unit_name)
+
+            in_use = self._address_in_use(failure.value)
+            if in_use is not None:
+                # We likely can't start the container because its
+                # configuration conflicts with something else happening on
+                # the system.  Reflect this failure condition in a more
+                # easily recognized way.
+                raise in_use
+
             return failure
         d.addErrback(_extract_error)
         return d
@@ -528,23 +708,6 @@ class DockerClient(object):
     def exists(self, unit_name):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
-
-    def _blocking_container_runs(self, container_name):
-        """
-        Blocking API to check if container is running.
-
-        :param unicode container_name: The name of the container whose
-            state we're checking.
-
-        :return: ``True`` if container is running, otherwise ``False``.
-        """
-        result = self._client.inspect_container(container_name)
-        Message.new(
-            message_type="flocker:docker:container_state",
-            container=container_name,
-            state=result
-        ).write()
-        return result['State']['Running']
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
@@ -601,8 +764,7 @@ class DockerClient(object):
                 # attempting removal or use -f")'
                 # This code should probably be removed once the above
                 # issue has been resolved. See [FLOC-1850]
-                while self._blocking_container_runs(container_name):
-                    sleep(0.01)
+                self._client.wait(container_name)
 
                 Message.new(
                     message_type="flocker:docker:container_remove",
@@ -651,24 +813,15 @@ class DockerClient(object):
                 image = data[u"Image"]
                 image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                try:
-                    image_data = self._client.inspect_image(image)
-                except APIError as e:
-                    if e.response.status_code == NOT_FOUND:
-                        # Image has been deleted, so just fill in some
-                        # stub data so we can return *something*. This
-                        # should happen only for stopped containers so
-                        # some inaccuracy is acceptable.
-                        Message.new(
-                            message_type="flocker:docker:image_not_found",
-                            container=i, running=data[u"State"][u"Running"]
-                        ).write()
-                        image_data = {u"Config": {u"Env": [], u"Cmd": []}}
-                    else:
-                        raise
-                if image_data[u"Config"][u"Cmd"] == command:
+                with start_action(
+                    action_type=u"flocker:node:docker:inspect_image",
+                    container=i,
+                    running=data[u"State"][u"Running"]
+                ):
+                    image_data = self._image_data(image)
+                if image_data.command == command:
                     command = None
-                port_bindings = data[u"HostConfig"][u"PortBindings"]
+                port_bindings = data[u"NetworkSettings"][u"Ports"]
                 if port_bindings is not None:
                     ports = self._parse_container_ports(port_bindings)
                 else:
@@ -692,10 +845,10 @@ class DockerClient(object):
                 # of the image, rather than supplied in the configuration.
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
-                if image_data[u"Config"]["Env"] is None:
+                if image_data.environment is None:
                     image_environment = []
                 else:
-                    image_environment = image_data[u"Config"]["Env"]
+                    image_environment = image_data.environment
                 if container_environment is not None:
                     for environment in container_environment:
                         if environment not in image_environment:
@@ -744,7 +897,7 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
     containers in ``/flocker/`` and this class would look at containers in
     in ``/flocker/<namespace>/``.
     """
-    def __init__(self, namespace, base_url=BASE_DOCKER_API_URL):
+    def __init__(self, namespace, base_url=None):
         """
         :param unicode namespace: Namespace to restrict containers to.
         """

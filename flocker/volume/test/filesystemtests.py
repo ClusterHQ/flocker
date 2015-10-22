@@ -349,14 +349,8 @@ def make_istoragepool_tests(fixture, snapshot_factory):
                 volume_with_size.size = resized
                 return pool.set_maximum_size(volume_with_size)
 
-            def resized_filesystem(filesystem):
-                self.assertEqual(resized, filesystem.size)
-
-            def maximum_too_small(reason):
-                self.assertTrue(isinstance(reason.value, MaximumSizeTooSmall))
-
             d.addCallback(created_filesystem)
-            d.addErrback(maximum_too_small)
+            self.assertFailure(d, MaximumSizeTooSmall)
             return d
 
         def test_two_names_create_different_filesystems(self):
@@ -614,16 +608,23 @@ def make_istoragepool_tests(fixture, snapshot_factory):
                 path.child(b"anotherfile").setContent(b"hello")
 
                 to_filesystem = volume2.get_filesystem()
-                try:
-                    with from_filesystem.reader() as reader:
-                        with to_filesystem.writer() as writer:
-                            data = reader.read()
-                            writer.write(data[1:])
-                            raise ZeroDivisionError()
-                except ZeroDivisionError:
-                    pass
-                to_path = volume2.get_filesystem().get_path()
-                self.assertFalse(to_path.child(b"anotherfile").exists())
+                getting_snapshots = to_filesystem.snapshots()
+
+                def got_snapshots(snapshots):
+                    try:
+                        with from_filesystem.reader(snapshots) as reader:
+                            with to_filesystem.writer() as writer:
+                                data = reader.read()
+                                writer.write(data[:-1])
+                                raise ZeroDivisionError()
+                    except ZeroDivisionError:
+                        pass
+                    to_path = volume2.get_filesystem().get_path()
+                    self.assertFalse(to_path.child(b"anotherfile").exists())
+
+                getting_snapshots.addCallback(got_snapshots)
+                return getting_snapshots
+
             d.addCallback(got_volumes)
             return d
 

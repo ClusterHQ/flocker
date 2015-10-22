@@ -9,12 +9,13 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message, MessageType, Field, start_action
+from eliot import Message
 
 from pyrsistent import PRecord, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
+    HttpError as KeystoneHttpError,
 )
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
@@ -22,17 +23,22 @@ from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
+from novaclient.exceptions import ClientException as NovaClientException
 
 from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
 from ...common import (
-    auto_openstack_logging, get_all_ips, ipaddress_from_string
+    interface_decorator, get_all_ips, ipaddress_from_string
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
+)
+from ._logging import (
+    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
+    OPENSTACK_ACTION, CINDER_CREATE
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -43,23 +49,79 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-LOCAL_IPS = Field(
-    u"local_ips",
-    repr,
-    u"The IP addresses found on the target node."
-)
+# The longest time we're willing to wait for a Cinder API call to complete.
+CINDER_TIMEOUT = 600
 
-API_IPS = Field(
-    u"api_ips",
-    repr,
-    u"The IP addresses and instance_ids for all nodes."
-)
 
-COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
-    u"blockdevice:cinder:compute_instance_id:not_found",
-    [LOCAL_IPS, API_IPS],
-    u"Unable to determine the instance ID of this node.",
-)
+def _openstack_logged_method(method_name, original_name):
+    """
+    Run a method and log additional information about any exceptions that are
+    raised.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
+        with OPENSTACK_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except NovaClientException as e:
+                NOVA_CLIENT_EXCEPTION(
+                    code=e.code,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                ).write()
+                raise
+            except KeystoneHttpError as e:
+                KEYSTONE_HTTP_ERROR(
+                    code=e.http_status,
+                    message=e.message,
+                    details=e.details,
+                    request_id=e.request_id,
+                    url=e.url,
+                    method=e.method,
+                    response=e.response.text,
+                ).write()
+                raise
+    return _run_with_logging
+
+
+def auto_openstack_logging(interface, original):
+    """
+    Create a class decorator which will add OpenStack-specific exception
+    logging versions versions of all of the methods on ``interface``.
+    Specifically, some Nova and Cinder client exceptions will have all of their
+    details logged any time they are raised.
+
+    :param zope.interface.InterfaceClass interface: The interface from which to
+        take methods.
+    :param str original: The name of an attribute on instances of the decorated
+        class.  The attribute should refer to a provider of ``interface``.
+        That object will have all of its methods called with additional
+        exception logging to make more details of the underlying OpenStack API
+        calls available.
+
+    :return: The class decorator.
+    """
+    return interface_decorator(
+        "auto_openstack_logging",
+        interface,
+        _openstack_logged_method,
+        original,
+    )
 
 
 class ICinderVolumeManager(Interface):
@@ -168,46 +230,142 @@ class INovaServerManager(Interface):
         """
 
 
-def wait_for_volume(volume_manager, expected_volume,
-                    expected_status=u'available',
-                    time_limit=60):
+class TimeoutException(Exception):
     """
-    Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
-    listed and to have a ``status`` value of ``expected_status``.
+    A timeout on waiting for volume to reach destination end state.
+    """
+    def __init__(self, expected_volume, desired_state, elapsed_time):
+        self.expected_volume = expected_volume
+        self.desired_state = desired_state
+        self.elapsed_time = elapsed_time
 
-    :param ICinderVolumeManager volume_manager: An API for listing volumes.
-    :param Volume expected_volume: The ``Volume`` to wait for.
-    :param unicode expected_status: The ``Volume.status`` to wait for.
-    :param int time_limit: The maximum time, in seconds, to wait for the
-        ``expected_volume`` to have ``expected_status``.
-    :raises Exception: If ``expected_volume`` with ``expected_status`` is not
-        listed within ``time_limit``.
+    def __str__(self):
+        return (
+            'Timed out while waiting for volume. '
+            'Expected Volume: {!r}, '
+            'Expected State: {!r}, '
+            'Elapsed Time: {!r}'.format(
+                self.expected_volume, self.desired_state, self.elapsed_time)
+            )
+
+
+class UnexpectedStateException(Exception):
+    """
+    An unexpected state was encountered by a volume as a result of operation.
+    """
+    def __init__(self, expected_volume, desired_state, unexpected_state):
+        self.expected_volume = expected_volume
+        self.desired_state = desired_state
+        self.unexpected_state = unexpected_state
+
+    def __str__(self):
+        return (
+            'Unexpected state while waiting for volume. '
+            'Expected Volume: {!r}, '
+            'Expected State: {!r}, '
+            'Reached State: {!r}'.format(
+                self.expected_volume, self.desired_state,
+                self.unexpected_state)
+            )
+
+
+class VolumeStateMonitor:
+    """
+    Monitor a volume until it reaches a nominated state.
+    :ivar ICinderVolumeManager volume_manager: An API for listing volumes.
+    :ivar Volume expected_volume: The ``Volume`` to wait for.
+    :ivar unicode desired_state: The ``Volume.status`` to wait for.
+    :ivar transient_states: A sequence of valid intermediate states.
+        The states must be listed in the order that are expected to occur.
+    :ivar int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``desired_state``.
+    :raises: UnexpectedStateException: If ``expected_volume`` enters an
+        invalid state.
+    :raises TimeoutException: If ``expected_volume`` with
+        ``desired_state`` is not listed within ``time_limit``.
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
-    start_time = time.time()
-    # Log stuff happening in this loop.  FLOC-1833.
-    while True:
+    def __init__(self, volume_manager, expected_volume,
+                 desired_state, transient_states=(),
+                 time_limit=CINDER_TIMEOUT):
+        self.volume_manager = volume_manager
+        self.expected_volume = expected_volume
+        self.desired_state = desired_state
+        self.transient_states = transient_states
+        self.time_limit = time_limit
+        self.start_time = time.time()
+
+    def reached_desired_state(self):
+        """
+        Test whether the desired state has been reached.
+
+        Raise an exception if a non-valid state is reached or if the
+        desired state is not reached within the supplied time limit.
+        """
         # Could be more efficient.  FLOC-1831
-        for listed_volume in volume_manager.list():
-            if listed_volume.id == expected_volume.id:
+        for listed_volume in self.volume_manager.list():
+            if listed_volume.id == self.expected_volume.id:
                 # Could miss the expected status because race conditions.
                 # FLOC-1832
-                if listed_volume.status == expected_status:
+                current_state = listed_volume.status
+                if current_state == self.desired_state:
                     return listed_volume
+                elif current_state in self.transient_states:
+                    # Once an intermediate state is reached, the prior
+                    # states become invalid.
+                    idx = self.transient_states.index(current_state)
+                    if idx > 0:
+                        self.transient_states = self.transient_states[idx:]
+                else:
+                    raise UnexpectedStateException(
+                        self.expected_volume, self.desired_state,
+                        current_state)
+        elapsed_time = time.time() - self.start_time
+        if elapsed_time > self.time_limit:
+            raise TimeoutException(
+                self.expected_volume, self.desired_state, elapsed_time)
 
-        elapsed_time = time.time() - start_time
-        if elapsed_time < time_limit:
-            time.sleep(0.1)
-        else:
-            raise Exception(
-                'Timed out while waiting for volume. '
-                'Expected Volume: {!r}, '
-                'Expected Status: {!r}, '
-                'Elapsed Time: {!r}, '
-                'Time Limit: {!r}.'.format(
-                    expected_volume, expected_status, elapsed_time, time_limit
-                )
-            )
+
+def poll_until(predicate, interval):
+    """
+    Perform steps until a non-false result is returned.
+
+    This differs from ``loop_until`` in that it does not require a
+    Twisted reactor and it allows the interval to be set.
+
+    :param predicate: a function to be called until it returns a
+        non-false result.
+    :param interval: time in seconds between calls to the function.
+    :returns: the non-false result from the final call.
+    """
+    result = predicate()
+    while not result:
+        time.sleep(interval)
+        result = predicate()
+    return result
+
+
+def wait_for_volume_state(volume_manager, expected_volume, desired_state,
+                          transient_states=(), time_limit=CINDER_TIMEOUT):
+    """
+    Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
+    listed and to have a ``status`` value of ``desired_state``.
+    :param ICinderVolumeManager volume_manager: An API for listing volumes.
+    :param Volume expected_volume: The ``Volume`` to wait for.
+    :param unicode desired_state: The ``Volume.status`` to wait for.
+    :param transient_states: A sequence of valid intermediate states.
+    :param int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``desired_state``.
+    :raises: UnexpectedStateException: If ``expected_volume`` enters an
+        invalid state.
+    :raises TimeoutException: If ``expected_volume`` with
+        ``desired_state`` is not listed within ``time_limit``.
+    :returns: The listed ``Volume`` that matches ``expected_volume``.
+    """
+    waiter = VolumeStateMonitor(
+        volume_manager, expected_volume, desired_state, transient_states,
+        time_limit)
+    return poll_until(waiter.reached_desired_state, 1)
 
 
 def _extract_nova_server_addresses(addresses):
@@ -269,22 +427,35 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Find the Nova API server with a subset of the IPv4 and IPv6
+        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
         addresses on this node.
         """
         local_ips = get_all_ips()
         api_ip_map = {}
+        matching_instances = []
         for server in self.nova_server_manager.list():
+            # Servers which are not active will not have any IP addresses
+            if server.status != u'ACTIVE':
+                continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            if api_addresses.issubset(local_ips):
-                return server.id
+            # Only do subset comparison if there were *some* IP addresses;
+            # non-ACTIVE servers will have an empty list of IP addresses and
+            # lead to incorrect matches.
+            if api_addresses and api_addresses.issubset(local_ips):
+                matching_instances.append(server.id)
             else:
                 for ip in api_addresses:
                     api_ip_map[ip] = server.id
 
-        # If there was no match, log an error containing all the local
-        # and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
+        # If we've got this correct there should only be one matching instance.
+        # But we don't currently test this directly. See FLOC-2281.
+        if len(matching_instances) == 1:
+            return matching_instances[0]
+        # If there was no match, or if multiple matches were found, log an
+        # error containing all the local and remote IPs.
+        COMPUTE_INSTANCE_ID_NOT_FOUND(
+            local_ips=local_ips, api_ips=api_ip_map
+        ).write()
 
     def create_volume(self, dataset_id, size):
         """
@@ -299,17 +470,18 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        action_type = u"blockdevice:cinder:create_volume"
-        with start_action(action_type=action_type):
-            requested_volume = self.cinder_volume_manager.create(
-                size=int(Byte(size).to_GiB().value),
-                metadata=metadata,
-            )
-            Message.new(blockdevice_id=requested_volume.id).write()
-            created_volume = wait_for_volume(
-                volume_manager=self.cinder_volume_manager,
-                expected_volume=requested_volume,
-            )
+        requested_volume = self.cinder_volume_manager.create(
+            size=int(Byte(size).to_GiB().value),
+            metadata=metadata,
+        )
+        Message.new(message_type=CINDER_CREATE,
+                    blockdevice_id=requested_volume.id).write()
+        created_volume = wait_for_volume_state(
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=requested_volume,
+            desired_state=u'available',
+            transient_states=(u'creating',),
+        )
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=created_volume,
         )
@@ -331,9 +503,6 @@ class CinderBlockDeviceAPI(object):
                 )
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
-
-    def resize_volume(self, blockdevice_id, size):
-        pass
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -358,10 +527,11 @@ class CinderBlockDeviceAPI(object):
             # Have Nova assign a device file for us.
             device=None,
         )
-        attached_volume = wait_for_volume(
+        attached_volume = wait_for_volume_state(
             volume_manager=self.cinder_volume_manager,
             expected_volume=nova_volume,
-            expected_status=u'in-use',
+            desired_state=u'in-use',
+            transient_states=(u'available', u'attaching',),
         )
 
         attached_volume = unattached_volume.set('attached_to', attach_to)
@@ -384,10 +554,11 @@ class CinderBlockDeviceAPI(object):
             raise UnattachedVolume(blockdevice_id)
 
         # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
-        wait_for_volume(
+        wait_for_volume_state(
             volume_manager=self.cinder_volume_manager,
             expected_volume=cinder_volume,
-            expected_status=u'available',
+            desired_state=u'available',
+            transient_states=(u'in-use', u'detaching')
         )
 
     def destroy_volume(self, blockdevice_id):
@@ -402,24 +573,103 @@ class CinderBlockDeviceAPI(object):
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 break
+            time.sleep(1.0)
+
+    def _get_device_path_virtio_blk(self, volume):
+        """
+        The virtio_blk driver allows a serial number to be assigned to virtual
+        blockdevices.
+        OpenStack will set a serial number containing the first 20
+        characters of the Cinder block device ID.
+
+        This was introduced in
+        * https://github.com/openstack/nova/commit/3a47c02c58cefed0e230190b4bcef14527c82709  # noqa
+        * https://bugs.launchpad.net/nova/+bug/1004328
+
+        The udev daemon will read the serial number and create a
+        symlink to the canonical virtio_blk device path.
+
+        We do this because libvirt does not return the correct device path when
+        additional disks have been attached using a client other than
+        cinder. This is expected behaviour within Cinder and libvirt See
+        https://bugs.launchpad.net/cinder/+bug/1387945 and
+        http://libvirt.org/formatdomain.html#elementsDisks (target section)
+
+        :param volume: The Cinder ``Volume`` which is attached.
+        :returns: ``FilePath`` of the device created by the virtio_blk
+            driver.
+        """
+        expected_path = FilePath(
+            "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
+        )
+        if expected_path.exists():
+            return expected_path.realpath()
+        else:
+            raise UnattachedVolume(volume.id)
+
+    def _get_device_path_api(self, volume):
+        """
+        Return the device path reported by the Cinder API.
+
+        :param volume: The Cinder ``Volume`` which is attached.
+        :returns: ``FilePath`` of the device created by the virtio_blk
+            driver.
+        """
+        if volume.attachments:
+            attachment = volume.attachments[0]
+            if len(volume.attachments) > 1:
+                # As far as we know you can not have more than one attachment,
+                # but, perhaps we're wrong and there should be a test for the
+                # multiple attachment case.  FLOC-1854.
+                # Log a message if this ever happens.
+                Message.new(
+                    message_type=(
+                        u'flocker:node:agents:blockdevice:openstack:'
+                        u'get_device_path:'
+                        u'unexpected_multiple_attachments'
+                    ),
+                    volume_id=unicode(volume.id),
+                    attachment_devices=u','.join(
+                        unicode(a['device']) for a in volume.attachments
+                    ),
+                ).write()
+        else:
+            raise UnattachedVolume(volume.id)
+
+        return FilePath(attachment['device'])
 
     def get_device_path(self, blockdevice_id):
+        """
+        On Xen hypervisors (e.g. Rackspace) the Cinder API reports the correct
+        device path. On Qemu / virtio_blk the actual device path may be
+        different. So when we detect ``virtio_blk`` style device paths, we
+        check the virtual disk serial number, which should match the first
+        20 characters of the Cinder Volume UUID on platforms that we support.
+        """
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
 
-        # As far as we know you can not have more than one attachment,
-        # but, perhaps we're wrong and there should be a test for the
-        # multiple attachment case.  FLOC-1854.
-        try:
-            [attachment] = cinder_volume.attachments
-        except ValueError:
-            raise UnattachedVolume(blockdevice_id)
+        device_path = self._get_device_path_api(cinder_volume)
+        if _is_virtio_blk(device_path):
+            device_path = self._get_device_path_virtio_blk(cinder_volume)
 
-        # It could be attached somewher else...
-        # https://clusterhq.atlassian.net/browse/FLOC-1830
-        return FilePath(attachment['device'])
+        return device_path
+
+
+def _is_virtio_blk(device_path):
+    """
+    Check whether the supplied device path is a virtio_blk device.
+
+    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    Xen devices begin with `xvd`.
+    See https://www.kernel.org/doc/Documentation/devices.txt
+
+    :param FilePath device_path: The device path returned by the Cinder API.
+    :returns: ``True`` if it's a ``virtio_blk`` device, else ``False``.
+    """
+    return device_path.basename().startswith('vd')
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):
@@ -475,35 +725,6 @@ class _LoggingNovaServerManager(PRecord):
     _nova_servers = field(mandatory=True)
 
 
-def cinder_api(cinder_client, nova_client, cluster_id):
-    """
-    :param cinderclient.v1.client.Client cinder_client: The Cinder API client
-        whose ``volumes`` attribute will be supplied as the
-        ``cinder_volume_manager`` parameter of ``CinderBlockDeviceAPI``.
-    :param novaclient.v2.client.Client nova_client: The Nova API client whose
-        ``volumes`` attribute will be supplied as the ``nova_volume_manager``
-        parameter of ``CinderBlockDeviceAPI``.
-    :param UUID cluster_id: A Flocker cluster ID.
-
-    :returns: A ``CinderBlockDeviceAPI``.
-    """
-    logging_cinder = _LoggingCinderVolumeManager(
-        _cinder_volumes=cinder_client.volumes
-    )
-    logging_nova_volume_manager = _LoggingNovaVolumeManager(
-        _nova_volumes=nova_client.volumes
-    )
-    logging_nova_server_manager = _LoggingNovaServerManager(
-        _nova_servers=nova_client.servers
-    )
-    return CinderBlockDeviceAPI(
-        cinder_volume_manager=logging_cinder,
-        nova_volume_manager=logging_nova_volume_manager,
-        nova_server_manager=logging_nova_server_manager,
-        cluster_id=cluster_id,
-    )
-
-
 def _openstack_auth_from_config(auth_plugin='password', **config):
     """
     Create an OpenStack authentication plugin from the given configuration.
@@ -531,26 +752,116 @@ def _openstack_auth_from_config(auth_plugin='password', **config):
     return plugin_class(**plugin_kwargs)
 
 
-def cinder_from_configuration(region, cluster_id, **config):
+def _openstack_verify_from_config(
+        verify_peer=True, verify_ca_path=None, **config):
     """
-    Build a ``CinderBlockDeviceAPI`` using configuration and credentials in
-    ``config``.
+    Create an OpenStack session from the given configuration.
 
-    :param str region: The region "slug" for which to configure the object.
-    :param cluster_id: The unique cluster identifier for which to configure the
-        object.
+    This turns a pair of options (a boolean indicating whether to
+    verify, and a string for the path to the CA bundle) into a
+    requests-style single value.
+
+    If the ``verify_peer`` parameter is False, then no verification of
+    the certificate will occur.  This setting is insecure!  Although the
+    connections will be confidential, there is no authentication of the
+    peer.  We're having a private conversation, but we don't know to
+    whom we are speaking.
+
+    If the ``verify_peer`` parameter is True (the default), then the
+    certificate will be verified.
+
+    If the ``verify_ca_path`` parameter is set, the certificate will be
+    verified against the CA bundle at the path given by the
+    ``verify_ca_path`` parameter.  This is useful for systems using
+    self-signed certificates or private CA's.
+
+    Otherwise, the certificate will be verified against the system CA's.
+    This is useful for systems using well-known public CA's.
+
+    :param bool verify_peer: Whether to check the peer's certificate.
+    :param str verify_ca_path: Path to CA bundle.
+    :param config: Other parameters in the config.
+
+    :return: A verify option that can be passed to requests (and also to
+        keystoneclient.session.Session)
     """
-    auth = _openstack_auth_from_config(**config)
-    session = Session(auth=auth)
-    cinder_client = CinderClient(
+    if verify_peer:
+        if verify_ca_path:
+            verify = verify_ca_path
+        else:
+            verify = True
+    else:
+        verify = False
+
+    return verify
+
+
+def get_keystone_session(**config):
+    """
+    Create a Keystone session from a configuration stanza.
+
+    :param dict config: Configuration necessary to authenticate a
+        session for use with the CinderClient and NovaClient.
+
+    :return: keystoneclient.Session
+    """
+    return Session(
+        auth=_openstack_auth_from_config(**config),
+        verify=_openstack_verify_from_config(**config)
+        )
+
+
+def get_cinder_v1_client(session, region):
+    """
+    Create a Cinder (volume) client from a Keystone session.
+
+    :param keystoneclient.Session session: Authenticated Keystone session.
+    :param str region: Openstack region.
+    :return: A cinderclient.Client
+    """
+    return CinderClient(
         session=session, region_name=region, version=1
     )
-    nova_client = NovaClient(
+
+
+def get_nova_v2_client(session, region):
+    """
+    Create a Nova (compute) client from a Keystone session.
+
+    :param keystoneclient.Session session: Authenticated Keystone session.
+    :param str region: Openstack region.
+    :return: A novaclient.Client
+    """
+    return NovaClient(
         session=session, region_name=region, version=2
     )
 
-    return cinder_api(
-        cinder_client=cinder_client,
-        nova_client=nova_client,
+
+def cinder_from_configuration(region, cluster_id, **config):
+    """
+    Build a ``CinderBlockDeviceAPI`` using configuration and credentials
+    in ``config``.
+
+    :param str region: The Openstack region to access.
+    :param cluster_id: The unique identifier for the cluster to access.
+    :param config: A dictionary of configuration options for Openstack.
+    """
+    session = get_keystone_session(**config)
+    cinder_client = get_cinder_v1_client(session, region)
+    nova_client = get_nova_v2_client(session, region)
+
+    logging_cinder = _LoggingCinderVolumeManager(
+        _cinder_volumes=cinder_client.volumes
+    )
+    logging_nova_volume_manager = _LoggingNovaVolumeManager(
+        _nova_volumes=nova_client.volumes
+    )
+    logging_nova_server_manager = _LoggingNovaServerManager(
+        _nova_servers=nova_client.servers
+    )
+    return CinderBlockDeviceAPI(
+        cinder_volume_manager=logging_cinder,
+        nova_volume_manager=logging_nova_volume_manager,
+        nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )

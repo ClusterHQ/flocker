@@ -159,7 +159,7 @@ class UserCertificateOptions(PrettyOptions):
                 self._sys_module.stdout.write(
                     u"Created {user}.crt. You can now give it to your "
                     u"API enduser so they can access the control service "
-                    u"API.".format(user=uc.username).encode("utf-8")
+                    u"API.\n".format(user=uc.username).encode("utf-8")
                 )
             except PathError as e:
                 raise UsageError(str(e))

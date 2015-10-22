@@ -13,14 +13,15 @@ from functools import wraps
 
 from json import loads, dumps
 
+from pyrsistent import PRecord, field, pvector
+
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
-from eliot import Logger, writeFailure
+from eliot import Logger, writeFailure, Action
 from eliot.twisted import DeferredContext
 
-from ._error import (
-    ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
+from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
 
@@ -109,6 +110,36 @@ def _logging(original):
     return logger
 
 
+def _remote_logging(original):
+    """
+    Decorate a method which implements an API endpoint to do Eliot-based log
+    tracing; that is, the ability to continue a remote task.
+
+    The remote task's context will be extracted from a C{X-Eliot-Task-Id}
+    HTTP header.
+
+    :param original: Function to wrap.
+
+    :return: Wrapped function.
+    """
+    @wraps(original)
+    def logger(self, request, **routeArguments):
+        serialized_remote_task = request.requestHeaders.getRawHeaders(
+            "X-Eliot-Task-Id", [None])[0]
+        if serialized_remote_task is None:
+            return original(self, request, **routeArguments)
+
+        try:
+            action = Action.continue_task(task_id=serialized_remote_task)
+        except ValueError:
+            return original(self, request, **routeArguments)
+        with action.context():
+            d = DeferredContext(original(self, request, **routeArguments))
+            d.addActionFinish()
+            return d.result
+    return logger
+
+
 def _serialize(outputValidator):
     """
     Decorate a function so that its return value is automatically JSON encoded
@@ -140,7 +171,8 @@ def _serialize(outputValidator):
     return deco
 
 
-def structured(inputSchema, outputSchema, schema_store=None):
+def structured(inputSchema, outputSchema, schema_store=None,
+               ignore_body=False):
     """
     Decorate a Klein-style endpoint method so that the request body is
     automatically decoded and the response body is automatically encoded.
@@ -163,6 +195,9 @@ def structured(inputSchema, outputSchema, schema_store=None):
     :param schema_store: A mapping between schema paths
         (e.g. ``b/v1/types.json``) and the JSON schema structure, allowing
         input/output schemas to just be references.
+    :param ignore_body: If true, the body is not passed to the endpoint
+        regardless of HTTP method, in particular including ``POST``. By
+        default the body is only ignored for ``GET`` and ``HEAD``.
     """
     if schema_store is None:
         schema_store = {}
@@ -171,17 +206,13 @@ def structured(inputSchema, outputSchema, schema_store=None):
 
     def deco(original):
         @wraps(original)
+        @_remote_logging
         @_logging
         @_serialize(outputValidator)
         def loadAndDispatch(self, request, **routeArguments):
-            if request.method in (b"GET", b"DELETE"):
+            if request.method in (b"GET", b"DELETE") or ignore_body:
                 objects = {}
             else:
-                contentType = request.requestHeaders.getRawHeaders(
-                    b"content-type", [None])[0]
-                if contentType != b"application/json":
-                    raise ILLEGAL_CONTENT_TYPE
-
                 body = request.content.read()
                 try:
                     objects = loads(body)
@@ -223,26 +254,37 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def user_documentation(doc, examples=None, header=None):
+class UserDocumentation(PRecord):
+    """
+    """
+    text = field(type=unicode, mandatory=True)
+    header = field(type=unicode, mandatory=True)
+    section = field(type=unicode, mandatory=True)
+    examples = field(mandatory=True)
+
+
+def user_documentation(text, header, section, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 
-    @param doc: The documentation to be included in the generated API
+    :param unicode text: The documentation to be included in the generated API
         documentation along with the decorated endpoint.
-    @type doc: L{str}
 
-    @param examples: The identifiers of any examples demonstrating the use of
-        this example to include in the generated API documentation along with
-        the decorated endpoint.
-    @type examples: L{list} of L{unicode}
+    :param unicode header: The header to be included in the generated API docs.
 
-    @param header: The header to be included in the generated API docs.
-    @type header: L{str}
+    :param unicode section: The section of the docs to include this route in.
+
+    :param list examples: The identifiers of any examples demonstrating the use
+        of this example to include in the generated API documentation along
+        with the decorated endpoint.
     """
+    if examples is None:
+        examples = []
+
     def deco(f):
-        f.userDocumentation = doc
-        f.header = header
-        f.examples = examples
+        f.user_documentation = UserDocumentation(
+            text=text, examples=pvector(examples),
+            header=header, section=section)
         return f
     return deco
 

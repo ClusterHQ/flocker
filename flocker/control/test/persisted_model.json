@@ -1,0 +1,192 @@
+{
+    "model": {
+        "classes": {
+            "__builtin__.NoneType": null,
+            "__builtin__.bool": null,
+            "__builtin__.int": null,
+            "__builtin__.unicode": null,
+            "datetime.datetime": null,
+            "flocker.control._model.Application": {
+                "category": "record",
+                "fields": {
+                    "command_line": [
+                        "__builtin__.NoneType",
+                        "flocker.control._model.UnicodePVector"
+                    ],
+                    "cpu_shares": [],
+                    "environment": [
+                        "pyrsistent._pmap.PMap"
+                    ],
+                    "image": [
+                        "flocker.control._model.DockerImage"
+                    ],
+                    "links": [
+                        "flocker.control._model.LinkPSet"
+                    ],
+                    "memory_limit": [],
+                    "name": [],
+                    "ports": [
+                        "flocker.control._model.PortPSet"
+                    ],
+                    "restart_policy": [],
+                    "running": [
+                        "__builtin__.bool"
+                    ],
+                    "volume": []
+                }
+            },
+            "flocker.control._model.ApplicationPSet": {
+                "category": "set",
+                "type": [
+                    "flocker.control._model.Application"
+                ]
+            },
+            "flocker.control._model.Dataset": {
+                "category": "record",
+                "fields": {
+                    "dataset_id": [
+                        "__builtin__.unicode"
+                    ],
+                    "deleted": [
+                        "__builtin__.bool"
+                    ],
+                    "maximum_size": [],
+                    "metadata": [
+                        "pyrsistent._pmap.PMap"
+                    ]
+                }
+            },
+            "flocker.control._model.Deployment": {
+                "category": "record",
+                "fields": {
+                    "leases": [
+                        "flocker.control._model.Leases"
+                    ],
+                    "nodes": [
+                        "flocker.control._model.NodePSet"
+                    ]
+                }
+            },
+            "flocker.control._model.DockerImage": {
+                "category": "record",
+                "fields": {
+                    "repository": [],
+                    "tag": []
+                }
+            },
+            "flocker.control._model.Lease": {
+                "category": "record",
+                "fields": {
+                    "dataset_id": [
+                        "uuid.UUID"
+                    ],
+                    "expiration": [
+                        "__builtin__.NoneType",
+                        "datetime.datetime"
+                    ],
+                    "node_id": [
+                        "uuid.UUID"
+                    ]
+                }
+            },
+            "flocker.control._model.Leases": {
+                "category": "map",
+                "fields": {
+                    "key": [
+                        "uuid.UUID"
+                    ],
+                    "value": [
+                        "flocker.control._model.Lease"
+                    ]
+                }
+            },
+            "flocker.control._model.Link": {
+                "category": "record",
+                "fields": {
+                    "alias": [],
+                    "local_port": [
+                        "__builtin__.int"
+                    ],
+                    "remote_port": [
+                        "__builtin__.int"
+                    ]
+                }
+            },
+            "flocker.control._model.LinkPSet": {
+                "category": "set",
+                "type": [
+                    "flocker.control._model.Link"
+                ]
+            },
+            "flocker.control._model.Manifestation": {
+                "category": "record",
+                "fields": {
+                    "dataset": [
+                        "flocker.control._model.Dataset"
+                    ],
+                    "primary": [
+                        "__builtin__.bool"
+                    ]
+                }
+            },
+            "flocker.control._model.Node": {
+                "category": "record",
+                "fields": {
+                    "applications": [
+                        "flocker.control._model.ApplicationPSet"
+                    ],
+                    "manifestations": [
+                        "flocker.control._model.UnicodeManifestationPMap"
+                    ],
+                    "uuid": [
+                        "uuid.UUID"
+                    ]
+                }
+            },
+            "flocker.control._model.NodePSet": {
+                "category": "set",
+                "type": [
+                    "flocker.control._model.Node"
+                ]
+            },
+            "flocker.control._model.Port": {
+                "category": "record",
+                "fields": {
+                    "external_port": [
+                        "__builtin__.int"
+                    ],
+                    "internal_port": [
+                        "__builtin__.int"
+                    ]
+                }
+            },
+            "flocker.control._model.PortPSet": {
+                "category": "set",
+                "type": [
+                    "flocker.control._model.Port"
+                ]
+            },
+            "flocker.control._model.UnicodeManifestationPMap": {
+                "category": "map",
+                "fields": {
+                    "key": [
+                        "__builtin__.unicode"
+                    ],
+                    "value": [
+                        "flocker.control._model.Manifestation"
+                    ]
+                }
+            },
+            "flocker.control._model.UnicodePVector": {
+                "category": "list",
+                "type": [
+                    "__builtin__.unicode"
+                ]
+            },
+            "pyrsistent._pmap.PMap": null,
+            "uuid.UUID": null
+        },
+        "root": "flocker.control._model.Deployment"
+    },
+    "version": "1.2.0+60.g7e31395.dirty"
+}
