@@ -26,9 +26,12 @@ Setting Up Nodes Using Amazon Web Services
 #. Configure the instance.
    Complete the configuration wizard; in general the default configuration should suffice.   
 
-   * Choose instance type. We recommend at least the ``m3.large`` instance size.
-   * Configure instance details. You will need to configure a minimum of 2 instances.
-   * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
+   * Choose instance type.
+     We recommend at least the ``m3.large`` instance size.
+   * Configure instance details.
+     You will need to configure a minimum of 2 instances.
+   * Add storage.
+     It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
    * Tag instance.
    * Configure security group.
       
