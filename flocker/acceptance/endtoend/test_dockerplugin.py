@@ -29,6 +29,9 @@ class DockerPluginTests(TestCase):
     Tests for the Docker plugin.
     """
     def require_docker(self, required_version, cluster):
+        """
+        Check for a specific minimum version of Docker on a remote node.
+        """
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
         client_version = LooseVersion(client.version()['Version'])
         minimum_version = LooseVersion(required_version)
@@ -113,6 +116,11 @@ class DockerPluginTests(TestCase):
         return cid
 
     def _test_create_container(self, cluster):
+        """
+        Create a container running a simple HTTP server that writes to
+        its volume on POST and reads the same data back from the volume
+        on GET.
+        """
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
