@@ -28,6 +28,7 @@ from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
+from twisted.python.constants import Values, ValueConstant
 
 from .. import (
     IDeployer, ILocalState, IStateChange, sequentially, in_parallel,
@@ -944,10 +945,27 @@ class IBlockDeviceAPI(Interface):
         """
 
 
-class IProfiledBlockDeviceAPI(IBlockDeviceAPI):
+class MandatoryProfiles(Values):
     """
-    An interface for ``IBlockDeviceAPI`` implementers that are capable of
-    creating volumes with a specific profile.
+    Mandatory Storage Profiles to be implemented by ``IProfiledBlockDeviceAPI``
+    implementers.  These will have driver-specific meaning, with the following
+    desired meaning:
+
+    :ivar GOLD: The profile for fast storage.
+    :ivar SILVER: The profile for intermediate/default storage.
+    :ivar BRONZE: The profile for cheap storage.
+    :ivar DEFAULT: The default profile if none is specified.
+    """
+    GOLD = ValueConstant(u'gold')
+    SILVER = ValueConstant(u'silver')
+    BRONZE = ValueConstant(u'bronze')
+    DEFAULT = SILVER
+
+
+class IProfiledBlockDeviceAPI(Interface):
+    """
+    An interface for drivers that are capable of creating volumes with a
+    specific profile.
     """
 
     def create_volume_with_profile(name, size, profile_name):
@@ -955,8 +973,7 @@ class IProfiledBlockDeviceAPI(IBlockDeviceAPI):
         Create a new volume with the specified profile.
 
         When called by ``IDeployer``, the supplied size will be
-        rounded up to the nearest
-        ``IBlockDeviceAPI.allocation_unit()``
+        rounded up to the nearest ``IBlockDeviceAPI.allocation_unit()``.
 
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this

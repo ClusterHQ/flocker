@@ -41,11 +41,12 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
-    IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
-    AlreadyAttachedVolume, CreateBlockDeviceDataset, UnattachedVolume,
-    DatasetExists, DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    AttachVolume, CreateFilesystem, DestroyVolume, MountBlockDevice,
-    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
+    IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
+    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
+    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
+    CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
+    _losetup_list, _blockdevicevolume_from_dataset_id,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
@@ -2295,27 +2296,26 @@ class IProfiledBlockDeviceAPITestsMixin(object):
 
     def test_profile_respected(self):
         """
-        Verify that the profile for a volume created with one of the mandatory
-        profiles is respected.
+        Verify no errors are raised when constructing volumes with the
+        mandatory profiles.
         """
-        for profile in [u'gold', u'silver', u'bronze']:
-            volume = self.api.create_volume_with_profile(profile)
-            self.assertEqual(profile, self.api.get_profile_for_volume(
-                volume.blockdevice_id))
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            self.api.create_volume_with_profile(profile)
 
 
-def make_iprofiledblockdeviceapi_tests(*args, **kwargs):
+def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
     """
     Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
 
-    See make_iblockdeviceapi_tests for args.
+    :param profiled_blockdevice_api_factory: A factory that generates the
+        ``IProfiledBlockDeviceAPI`` provider to test.
 
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IProfiledBlockDeviceAPI`` provider.
     """
-    class Tests(IProfiledBlockDeviceAPITestsMixin,
-                make_iblockdeviceapi_tests(*args, **kwargs)):
-        pass
+    class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.api = profiled_blockdevice_api_factory()
 
     return Tests
 
