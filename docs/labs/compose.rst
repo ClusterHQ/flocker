@@ -4,9 +4,9 @@
 Flocker with Compose
 ====================
 
-With the :ref:`Flocker Docker plugin <docker-plugin>`, and with Compose support for the ``volume_driver`` field, you can use Flocker together with Docker Compose.
+With the :ref:`docker-plugin`, and with Compose support for the ``volume_driver`` field, you can use Flocker together with Docker Compose.
 
-First, you need to :ref:`install Flocker <labs-installer>` and the :ref:`Flocker Docker plugin <docker-plugin>`.
+First, you need to :ref:`install Flocker <labs-installer>` and the :ref:`docker-plugin`.
 You can use our experimental  :ref:`Flocker Installer <labs-installer>` to do this.
 
 Then, you need a version of Compose that supports Flocker volumes.

@@ -349,14 +349,8 @@ def make_istoragepool_tests(fixture, snapshot_factory):
                 volume_with_size.size = resized
                 return pool.set_maximum_size(volume_with_size)
 
-            def resized_filesystem(filesystem):
-                self.assertEqual(resized, filesystem.size)
-
-            def maximum_too_small(reason):
-                self.assertTrue(isinstance(reason.value, MaximumSizeTooSmall))
-
             d.addCallback(created_filesystem)
-            d.addErrback(maximum_too_small)
+            self.assertFailure(d, MaximumSizeTooSmall)
             return d
 
         def test_two_names_create_different_filesystems(self):

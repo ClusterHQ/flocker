@@ -29,9 +29,7 @@ from effect import parallel
 from effect.twisted import perform
 
 from admin.vagrant import vagrant_version
-from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
-import flocker
 from flocker.provision._ssh import (
     run_remotely,
     ensure_agent_has_ssh_key,
@@ -205,10 +203,31 @@ class ManagedRunner(object):
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration):
-        self._nodes = pvector(
-            ManagedNode(address=address, distribution=distribution)
-            for address in node_addresses
-        )
+        """
+        :param list: A ``list`` of public IP addresses or
+            ``[private_address, public_address]`` lists.
+
+        See ``ManagedRunner`` and ``ManagedNode`` for other parameter
+        documentation.
+        """
+        # Blow up if the list contains mixed types.
+        [address_type] = set(type(address) for address in node_addresses)
+        if address_type is list:
+            # A list of 2 item lists
+            self._nodes = pvector(
+                ManagedNode(
+                    address=address,
+                    private_address=private_address,
+                    distribution=distribution
+                )
+                for (private_address, address) in node_addresses
+            )
+        else:
+            # A list of strings.
+            self._nodes = pvector(
+                ManagedNode(address=address, distribution=distribution)
+                for address in node_addresses
+            )
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
@@ -591,8 +610,7 @@ class RunOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
     ]
@@ -683,17 +701,8 @@ class RunOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
-        if self['flocker-version']:
-            rpm_version = make_rpm_version(self['flocker-version'])
-            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-            if os_version.endswith('.dirty'):
-                os_version = os_version[:-len('.dirty')]
-        else:
-            os_version = None
-
         package_source = PackageSource(
             version=self['flocker-version'],
-            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )

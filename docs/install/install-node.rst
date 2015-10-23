@@ -4,180 +4,100 @@
 Installing the Flocker Node Services
 ====================================
 
-There are a number of ways to install Flocker.
+.. _installing-flocker-node-prereq:
 
-These easiest way to get Flocker going is to use our Vagrant configuration.
+Prerequisites
+=============
 
-- :ref:`Vagrant <vagrant-install>`
+Before you begin to install the Flocker node services, you will need the following:
 
-It is also possible to deploy Flocker in the cloud, on a number of different providers.
+* A minimum of 2 nodes:
+  
+  * We support installing the Flocker node services on either :ref:`CentOS 7<centos-7-install>` or :ref:`Ubuntu 14.04<ubuntu-14.04-install>`.
+  * If you do not have any nodes, see our :ref:`helpful-guides` which can be used to help you set up nodes using either :ref:`Amazon Web Services<aws-install>` or :ref:`Rackspace<rackspace-install>`.
+  * To avoid potential disk space problems (for example, when storing popular Docker images), we recommend a minimum of 16GB storage on each node.
 
-- :ref:`Using Amazon Web Services <aws-install>`
-- :ref:`Using Rackspace <rackspace-install>`
+* You will need permission for SSH access from your laptop.
+* Depending on your usage of Flocker, you will require access to a range of ports.
+  For example, instructions on specifying which ports to make available are included in the :ref:`aws-install` documentation.
+* Flocker's container management features depend on Docker.
+  You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
-It is also possible to install Flocker on any CentOS 7 or Ubuntu 14.04 machine.
+.. _helpful-guides:
 
-- :ref:`Installing on CentOS 7 <centos-7-install>`
-- :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
+Helpful Guides for Setting Up Nodes
+===================================
 
-.. _vagrant-install:
+If you do not have any nodes, the following guides will help you set some up, with either AWS or Rackspace:
 
-Vagrant
-=======
+* :ref:`aws-install`
+* :ref:`rackspace-install`
 
-The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
-You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
-
-.. _aws-install:
-
-Using Amazon Web Services
-=========================
-
-.. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
-          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
-
-
-.. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
-
-#. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard.
-   These launch instances using CentOS 7 AMIs (in particular "CentOS 7 x86_64 (2014_09_29) EBS HVM") but it is possible to use any operating system supported by Flocker with AWS.
-
-   * `EU (Frankfurt) <https://console.aws.amazon.com/ec2/v2/home?region=eu-central-1#LaunchInstanceWizard:ami=ami-7cc4f661>`_
-   * `South America (Sao Paulo) <https://console.aws.amazon.com/ec2/v2/home?region=sa-east-1#LaunchInstanceWizard:ami=ami-bf9520a2>`_
-   * `Asia Pacific (Tokyo) <https://console.aws.amazon.com/ec2/v2/home?region=ap-northeast-1#LaunchInstanceWizard:ami=ami-89634988>`_
-   * `EU (Ireland) <https://console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:ami=ami-e4ff5c93>`_
-   * `US East (Northern Virginia) <https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-96a818fe>`_
-   * `US East (Northern California) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-1#LaunchInstanceWizard:ami=ami-6bcfc42e>`_
-   * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-c7d092f7>`_
-   * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-bd523087>`_
-   * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
-
-#. Configure the instance.
-   Complete the configuration wizard; in general the default configuration should suffice.   
-
-   * Choose instance type. We recommend at least the ``m3.large`` instance size.
-   * Configure instance details. You will need to configure a minimum of 2 instances.
-   * Add storage. It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16GB to avoid potential disk space problems.
-   * Tag instance.
-   * Configure security group.
-      
-     * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
-     * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
-     * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
-     * For example, if you run the MongoDB tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
-     * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
-     * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
-     * If you run the MongoDB tutorial using AWS, you will need to open port 27017 to allow your MongoDB client to connect to the database.
-
-   * Review to ensure your instances have sufficient storage and your security groups have the required ports.
-
-   Launch when you are ready to proceed.
-
-#. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
-
-   .. prompt:: bash alice@mercury:~$
-
-      mv ~/Downloads/my-instance.pem ~/.ssh/
-      chmod 600 ~/.ssh/my-instance.pem
-      ssh-add ~/.ssh/my-instance.pem
-
-#. Look up the public DNS name or public IP address of each new instance.
-   Log in as user ``centos`` (or the relevant user if you are using another AMI).
-   For example:
-
-   .. prompt:: bash alice@mercury:~$
-
-      ssh centos@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
-
-#. Allow SSH access for the ``root`` user on each node, then log out.
-
-   .. task:: install_ssh_key
-      :prompt: [user@aws]$
-
-#. Log back into the instances as user "root" on each node.
-   For example:
-
-   .. prompt:: bash alice@mercury:~$
-
-      ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
-
-
-#. Follow the operating system specific installation instructions below on each node.
-
-.. _rackspace-install:
-
-Using Rackspace
-===============
-
-Another way to get a Flocker cluster running is to use Rackspace.
-You'll probably want to setup at least two nodes.
-
-#. Create a new cloud server:
-
-   * Visit https://mycloud.rackspace.com
-   * Click "Create Server".
-   * Choose a supported Linux distribution (either CentOS 7 or Ubuntu 14.04) as your image.
-   * Choose a Flavor.
-     We recommend at least "8 GB General Purpose v1".
-   * Add your SSH key
-
-#. SSH in:
-
-   You can find the IP in the Server Details page after it is created.
-
-   .. prompt:: bash alice@mercury:~$
-
-      ssh root@203.0.113.109
-
-#. Follow the installation instructions for your chosen distribution:
-
-   * :ref:`centos-7-install`
-   * :ref:`ubuntu-14.04-install`
+If you set up nodes with either AWS or Rackspace, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
 
 .. _centos-7-install:
 
 Installing on CentOS 7
 ======================
 
-.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the :ref:`prerequisites<installing-flocker-node-prereq>` above, or by following our guides on using :ref:`AWS<aws-install>` or :ref:`Rackspace<rackspace-install>`.
 
-First, install the ``flocker-node`` package.
-To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
-The following commands will install the two repositories and the ``flocker-node`` package.
-Paste them into a root console on the target node:
+#. **Log into the first node as root:**
 
-.. task:: install_flocker centos-7
-   :prompt: [root@centos]#
+   .. prompt:: bash alice@mercury:~$
 
-Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed`_ and running.
+      ssh root@<your-first-node>
 
-Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
-Please see the :ref:`cluster authentication <authentication>` instructions.
+#. **Install the** ``clusterhq-flocker-node`` **package:**
 
+   To install ``clusterhq-flocker-node`` on CentOS 7 you must install the RPM package provided by the ClusterHQ repository.
+   The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
+   
+   Run the following commands as root on the target node:
+
+   .. task:: install_flocker centos-7
+      :prompt: [root@centos]#
+
+#. **Repeat steps 1 and 2 for all other nodes:**
+
+   Log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
+
+.. note:: Flocker's container management features depend on Docker.
+          You will need to make sure `Docker (at least 1.8) is installed`_ and running.
+   
 .. _ubuntu-14.04-install:
 
 Installing on Ubuntu 14.04
 ==========================
 
-.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the :ref:`prerequisites<installing-flocker-node-prereq>` above, or by following our guides on using :ref:`AWS<aws-install>` or :ref:`Rackspace<rackspace-install>`.
 
-Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` package.
+#. **Log into the first node as root:**
 
-.. task:: install_flocker ubuntu-14.04
-   :prompt: [root@ubuntu]#
+   .. prompt:: bash alice@mercury:~$
 
-Flocker's container management features depend on Docker.
-Make sure `Docker (at least 1.8) is installed`_  and running.
+      ssh root@<your-first-node>
 
-Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
-This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes.
-Please continue onto the next section, with the cluster authentication instructions.
+#. **Install the** ``clusterhq-flocker-node`` **package:**
+
+   To install ``clusterhq-flocker-node`` on Ubuntu 14.04 you must install the package provided by the ClusterHQ repository.
+   The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
+   
+   Run the following commands as root on the target node:
+   
+   .. task:: install_flocker ubuntu-14.04
+      :prompt: [root@ubuntu]#
+
+#. **Repeat steps 1 and 2 on all other nodes:**
+
+   Log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
+
+.. note:: Flocker's container management features depend on Docker.
+          You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
 Next Step
 =========
 
-In the next step :ref:`the node control and agent services will be configured and started.<post-installation-configuration>`.
+You are now ready to :ref:`install the Flocker plugin for Docker<install-docker-plugin>`, which allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/

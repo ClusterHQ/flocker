@@ -1,3 +1,5 @@
+.. _enabling-control-service:
+
 ====================================
 Enabling the Flocker control service 
 ====================================

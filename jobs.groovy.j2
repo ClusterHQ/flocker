@@ -99,7 +99,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {#
 
 #}
-{% macro wrappers(v, directory_to_delete)                                              -%}
+{% macro wrappers(v, directory_to_delete)                                   -%}
 {# adds a list of common wrappers to the build jobs.
 
    param v:  dictionary containing the values from the job
@@ -118,7 +118,7 @@ folder("{{folder}}") { displayName("{{display_name}}") }
       An improvement here (TODO) would be to receibe the timeout as a parameter
       so that we can have different timeouts for different job types.        #}
       timeout {
-          absolute(30)
+          absolute({{v.timeout}})
           failBuild()
       }
 {#    Jobs that are executed with sudo can leave files behind that prevents
@@ -442,6 +442,11 @@ branches.each {
     wrappers {
       timestamps()
       colorizeOutput()
+      {# lock down the multijob to 45 minutes so that 'stuck' jobs won't
+          block future runs                                                  #}
+      timeout {
+          absolute(45)
+          }
     }
       steps {
 {# make sure we are starting with a clean workspace                          #}
@@ -536,7 +541,7 @@ branches.each {
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
 {%  for job_name, job_values  in job_type_values.iteritems()                -%}
 {%    for _module in job_values.with_modules                                -%}
-{%       set _job_name = job_name + '_' + _module                            %}
+{%       set _job_name = job_name + '_' + _module.replace('/', '_')          %}
 
 {# no every job produces an artifact, so make sure wew don't try to fetch
    artifacts for jobs that don't produce them                                #}
