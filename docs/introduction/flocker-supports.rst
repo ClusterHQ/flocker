@@ -40,6 +40,7 @@ The following backends can be used with Flocker:
 
 Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
 
-.. XXX FLOC 3144 - add a link here to the instructions on how to create your own backend driver
+.. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
+          For more information, see :ref:`contribute-flocker-driver`.
 
 .. XXX add link to 3rd party orchestration docs. See FLOC 2229
