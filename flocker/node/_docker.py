@@ -788,6 +788,8 @@ class DockerClient(object):
                     # Sometimes Docker returns a 500 error when trying to
                     # remove a container which it is already removing.
                     # This has been resolved in https://github.com/docker/docker/commit/c4e49d10143178c718178ff7ce857f4f8ed46a0b  # noqa
+                    # This code should be removed once we drop support for
+                    # Docker versions older than 1.9.0. See FLOC-3284.
                     if e.response.status_code == INTERNAL_SERVER_ERROR:
                         Message.new(
                             message_type="flocker:docker:container_remove_internal_error",  # noqa
