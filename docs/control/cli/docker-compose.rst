@@ -6,10 +6,9 @@ Docker-compose Compatible Application Configuration
 
 As an alternative to Flocker's configuration syntax, you may also use `Docker-compose`_'s configuration syntax to define applications.
 
-.. note::
-
-   Flocker does not yet support the entire range of configuration directives available in ``docker-compose`` (formerly known as `Fig`_).
-   The parameters currently supported to define an application in ``docker-compose`` syntax are:
+.. note:: Flocker does not yet support the entire range of configuration directives available in ``docker-compose`` (formerly known as `Fig`_).
+   
+The parameters currently supported to define an application in ``docker-compose`` syntax are:
 
 - ``image``
 
