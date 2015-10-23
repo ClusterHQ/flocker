@@ -17,6 +17,7 @@ from twisted.internet.ssl import Certificate
 
 from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
+from ._etcd import EtcdFilePath
 from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -36,6 +37,8 @@ class ControlOptions(Options):
     optParameters = [
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
+        ["etcd", "e", None,
+         "use etcd for persistence? if so, specify hostname[:port]", bytes],
         ["port", "p", 'tcp:%d' % (REST_API_PORT,),
          "The external API port to listen on."],
         ["agent-port", "a", 'tcp:4524',
@@ -45,6 +48,23 @@ class ControlOptions(Options):
           "root certificate (cluster.crt) and control service certificate "
           "and private key (control-service.crt and control-service.key).")],
     ]
+
+
+def _get_persistence_path(options):
+    """
+    Inject a fake FilePath-like object to provide prototypical etcd
+    persistency.
+    """
+    if options["etcd"]:
+        host = options["etcd"]
+        port = 4001
+        if ":" in options["etcd"]:
+            host, port = options["etcd"].split(":")
+            port = int(port)
+        persistence_path = EtcdFilePath(host, port)
+    else:
+        persistence_path = options["data-path"]
+    return persistence_path
 
 
 class ControlScript(object):
@@ -63,7 +83,7 @@ class ControlScript(object):
 
         top_service = MultiService()
         persistence = ConfigurationPersistenceService(
-            reactor, options["data-path"])
+            reactor, self._get_persistence_path(options))
         persistence.setServiceParent(top_service)
         cluster_state = ClusterStateService(reactor)
         cluster_state.setServiceParent(top_service)

@@ -38,6 +38,7 @@ pycrypto==2.6.1
 pyOpenSSL==0.15.1
 pyrsistent==0.11.7
 python-cinderclient==1.1.1
+python-etcd==0.4.2
 python-keystoneclient==1.4.0
 python-keystoneclient-rackspace==0.1.3
 python-novaclient==2.24.1
