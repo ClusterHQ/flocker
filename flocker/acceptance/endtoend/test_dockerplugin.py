@@ -9,9 +9,10 @@ from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
-from ...common.runner import run_ssh
+from distutils.version import LooseVersion
+from twisted.trial.unittest import SkipTest
 
-from ...node.testtools import require_docker_version
+from ...common.runner import run_ssh
 
 from ...testtools import (
     random_name, find_free_port, loop_until
@@ -101,10 +102,6 @@ class DockerPluginTests(TestCase):
             self.addCleanup(client.remove_container, cid, force=True)
         return cid
 
-    @require_docker_version(
-        '1.9.0',
-        'This test uses the v2 plugin API, which requires Docker >=1.9.0'
-    )
     @require_cluster(1)
     def test_create_container_with_volume_opts(self, cluster):
         """
@@ -112,6 +109,15 @@ class DockerPluginTests(TestCase):
         the request body received by the Flocker plugin results in a
         successful running container.
         """
+        required_version = '1.9.0'
+        client = get_docker_client(cluster, cluster.nodes[0].public_address)
+        client_version = LooseVersion(client._client.version()['Version'])
+        minimum_version = LooseVersion(required_version)
+        if client_version < minimum_version:
+            raise SkipTest(
+                'This test requires at least Docker {}. '
+                'Actual version: {}'.format(minimum_version, client_version)
+            )
         self.fail("not implemented yet")
 
     @require_cluster(1)
