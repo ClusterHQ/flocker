@@ -68,6 +68,6 @@ More information on these integrations is :ref:`available in the Labs section <l
 Get Started with the Flocker Plugin for Docker
 ==============================================
 
-Before you can install the plugin, you'll need to complete the :ref:`full-installation` instructions.
+Before you install the plugin, you'll need to :ref:`install the Flocker node services<installing-flocker-node>`.
 
 For instructions specific to installing the plugin, see :ref:`install-docker-plugin`.
