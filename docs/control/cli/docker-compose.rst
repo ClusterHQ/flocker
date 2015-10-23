@@ -8,7 +8,7 @@ As an alternative to Flocker's configuration syntax, you may also use `Docker-co
 
 .. note::
 
-   Flocker does not yet support the entire range of configuration directives available in ``docker-compose``.
+   Flocker does not yet support the entire range of configuration directives available in ``docker-compose`` (formerly known as `Fig`_).
    The parameters currently supported to define an application in ``docker-compose`` syntax are:
 
 - ``image``
@@ -129,3 +129,4 @@ Here's a complete example of a ``docker-compose`` compatible application configu
        - "/var/lib/mysql"
 
 .. _`Docker-compose`: http://docs.docker.com/compose/yml/
+.. _`Fig`: http://www.fig.sh/yml.html
