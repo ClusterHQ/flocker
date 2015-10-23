@@ -692,6 +692,9 @@ class EBSBlockDeviceAPI(object):
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
+            # EC2 convention for naming objects, e.g. as used in EC2 web
+            # console (http://stackoverflow.com/a/12798180).
+            "Name": u"flocker-{}".format(dataset_id),
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)

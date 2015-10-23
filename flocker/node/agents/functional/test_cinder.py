@@ -83,9 +83,9 @@ class CinderBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
     """
-    def test_foreign_volume(self):
+    def cinder_client(self):
         """
-        Non-Flocker Volumes are not listed.
+        :return: A ``cinderclient.Cinder`` instance.
         """
         try:
             config = get_blockdevice_config(ProviderType.openstack)
@@ -93,7 +93,13 @@ class CinderBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_v1_client(session, region)
+        return get_cinder_v1_client(session, region)
+
+    def test_foreign_volume(self):
+        """
+        Non-Flocker Volumes are not listed.
+        """
+        cinder_client = self.cinder_client()
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
@@ -122,6 +128,21 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)
+
+    def test_name(self):
+        """
+        New volumes get a human-readable name.
+        """
+        cinder_client = self.cinder_client()
+        dataset_id = uuid4()
+        flocker_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size,
+        )
+        self.assertEqual(
+            cinder_client.volumes.get(
+                flocker_volume.blockdevice_id).display_name,
+            u"flocker-{}".format(dataset_id))
 
 
 class CinderHttpsTests(SynchronousTestCase):

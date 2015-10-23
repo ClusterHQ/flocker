@@ -870,6 +870,12 @@ class IBlockDeviceAPI(Interface):
         rounded up to the nearest
         ``IBlockDeviceAPI.allocation_unit()``
 
+        If the backend supports human-facing volumes names (i.e. names
+        that show up in management UIs) then it is recommended that the
+        newly created volume should be given a name that contains the
+        dataset_id in order to ease debugging. Some implementations may
+        choose not to do so or may not be able to do so.
+
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
         :param int size: The size of the new volume in bytes.
