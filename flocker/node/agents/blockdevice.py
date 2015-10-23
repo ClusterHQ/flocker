@@ -20,12 +20,11 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, PClass, field
-from characteristic import attributes
 
 import psutil
 
 from twisted.python.reflect import safe_repr
-from twisted.internet.defer import succeed, fail, gatherResults
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
@@ -51,22 +50,12 @@ _logger = Logger()
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
 
-@attributes(["dataset_id"])
-class DatasetWithoutVolume(Exception):
-    """
-    An operation was attempted on a dataset that involves manipulating the
-    dataset's volume but that volume could not be found.
-
-    :ivar UUID dataset_id: The unique identifier of the dataset the operation
-        was meant to affect.
-    """
-
-
 class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.
 
-    :param unicode blockdevice_id: The unique identifier of the block device.
+    :param unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume.
     """
     def __init__(self, blockdevice_id):
         if not isinstance(blockdevice_id, unicode):
@@ -220,28 +209,22 @@ UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
 
 MOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:mount",
-    [DATASET_ID],
+    [DATASET_ID, BLOCK_DEVICE_ID],
     [],
     u"A block-device-backed dataset is being mounted.",
 )
 
 MOUNT_BLOCK_DEVICE_DETAILS = MessageType(
     u"agent:blockdevice:mount:details",
-    [VOLUME, BLOCK_DEVICE_PATH],
+    [BLOCK_DEVICE_PATH],
     u"The device file for a block-device-backed dataset has been discovered."
 )
 
 ATTACH_VOLUME = ActionType(
     u"agent:blockdevice:attach_volume",
-    [DATASET_ID],
+    [DATASET_ID, BLOCK_DEVICE_ID],
     [],
     u"The volume for a block-device-backed dataset is being attached."
-)
-
-ATTACH_VOLUME_DETAILS = MessageType(
-    u"agent:blockdevice:attach_volume:details",
-    [VOLUME],
-    u"The volume for a block-device-backed dataset has been discovered."
 )
 
 DETACH_VOLUME = ActionType(
@@ -345,8 +328,8 @@ class DestroyBlockDeviceDataset(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset to which the
         volume to be destroyed belongs.
-    :ivar unicode blockdevice_id: The unique identifier of the block device to
-        be destroyed.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be destroyed.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -465,15 +448,19 @@ class MountBlockDevice(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to mount.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be mounted.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
 
     @property
     def eliot_action(self):
-        return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
+        return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
+                                  block_device_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
@@ -481,13 +468,8 @@ class MountBlockDevice(PRecord):
         device.  The volume must be attached to this node.
         """
         api = deployer.block_device_api
-        volume = _blockdevice_volume_from_datasetid(
-            api.list_volumes(), self.dataset_id
-        )
-        device = api.get_device_path(volume.blockdevice_id)
-        MOUNT_BLOCK_DEVICE_DETAILS(
-            volume=volume, block_device_path=device,
-        ).write(_logger)
+        device = api.get_device_path(self.blockdevice_id)
+        MOUNT_BLOCK_DEVICE_DETAILS(block_device_path=device).write(_logger)
 
         # Create the directory where a device will be mounted.
         # The directory's parent's permissions will be set to only allow access
@@ -533,7 +515,7 @@ class UnmountBlockDevice(PRecord):
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to unmount.
     :ivar unicode blockdevice_id: The unique identifier of the mounted
-        block device to be unmounted.
+        ``IBlockDeviceAPI``-managed volume to be unmounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -570,36 +552,30 @@ class AttachVolume(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to attach.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be attached.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
 
     @property
     def eliot_action(self):
-        return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id)
+        return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
+                             blockdevice_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
         api = deployer.async_block_device_api
-        listing = api.list_volumes()
-        listing.addCallback(
-            _blockdevice_volume_from_datasetid, self.dataset_id
-        )
         getting_id = api.compute_instance_id()
 
-        d = gatherResults([listing, getting_id])
-
-        def found((volume, compute_instance_id)):
-            if volume is None:
-                # It was not actually found.
-                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
-            ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
+        def got_compute_id(compute_instance_id):
             return api.attach_volume(
-                volume.blockdevice_id,
+                self.blockdevice_id,
                 attach_to=compute_instance_id,
             )
-        attaching = d.addCallback(found)
+        attaching = getting_id.addCallback(got_compute_id)
         return attaching
 
 
@@ -610,8 +586,8 @@ class DetachVolume(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to detach.
-    :ivar unicode blockdevice_id: The unique identifier of the block device to
-        be detached.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be detached.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -634,8 +610,8 @@ class DestroyVolume(PRecord):
     """
     Destroy the storage (and therefore contents) of a volume.
 
-    :ivar unicode blockdevice_id: The unique identifier of the block device to
-        be destroyed.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be destroyed.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
 
@@ -750,6 +726,7 @@ class CreateBlockDeviceDataset(PRecord):
         d = run_state_change(create, deployer)
 
         mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
+                                 blockdevice_id=volume.blockdevice_id,
                                  mountpoint=self.mountpoint)
         d.addCallback(lambda _: run_state_change(mount, deployer))
 
@@ -1108,7 +1085,7 @@ def _backing_file_name(volume):
     :param BlockDeviceVolume: The volume for which to generate a
         loopback file name.
     :returns: A filename containing the encoded
-        ``volume.blockdevic_id`` and ``volume.size``.
+        ``volume.blockdevice_id`` and ``volume.size``.
     """
     return volume.blockdevice_id.encode('ascii') + '_' + bytes(volume.size)
 
@@ -1638,11 +1615,12 @@ class BlockDeviceDeployer(PRecord):
         attaches = list(self._calculate_attaches(
             local_node_state.devices,
             configured_manifestations,
-            cluster_state.nonmanifest_datasets
+            cluster_state.nonmanifest_datasets,
+            local_state.volumes
         ))
         mounts = list(self._calculate_mounts(
             local_node_state.devices, local_node_state.paths,
-            configured_manifestations,
+            configured_manifestations, local_state.volumes
         ))
         unmounts = list(self._calculate_unmounts(
             local_node_state.paths, configured_manifestations,
@@ -1676,7 +1654,7 @@ class BlockDeviceDeployer(PRecord):
             creates + not_in_use(deletes)
         ))
 
-    def _calculate_mounts(self, devices, paths, configured):
+    def _calculate_mounts(self, devices, paths, configured, volumes):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1685,6 +1663,8 @@ class BlockDeviceDeployer(PRecord):
             on this node.  This is the same as ``NodeState.paths``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
+        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
+            known to exist in the cluster.
 
         :return: A generator of ``MountBlockDevice`` instances, one for each
             dataset which exists, is attached to this node, does not have its
@@ -1695,11 +1675,15 @@ class BlockDeviceDeployer(PRecord):
             if configured_dataset_id in paths:
                 # It's mounted already.
                 continue
-            if UUID(configured_dataset_id) in devices:
+            dataset_id = UUID(configured_dataset_id)
+            if dataset_id in devices:
                 # It's attached.
                 path = self._mountpath_for_dataset_id(configured_dataset_id)
+                volume = _blockdevice_volume_from_datasetid(volumes,
+                                                            dataset_id)
                 yield MountBlockDevice(
-                    dataset_id=UUID(configured_dataset_id),
+                    dataset_id=dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                     mountpoint=path,
                 )
 
@@ -1753,7 +1737,7 @@ class BlockDeviceDeployer(PRecord):
             yield DetachVolume(dataset_id=attached_dataset_id,
                                blockdevice_id=volume.blockdevice_id)
 
-    def _calculate_attaches(self, devices, configured, nonmanifest):
+    def _calculate_attaches(self, devices, configured, nonmanifest, volumes):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1762,19 +1746,25 @@ class BlockDeviceDeployer(PRecord):
             node.  This is the same as ``NodeState.manifestations``.
         :param PMap nonmanifest: The datasets which exist in the cluster but
             are not attached to any node.
+        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
+            known to exist in the cluster.
 
         :return: A generator of ``AttachVolume`` instances, one for each
                  dataset which exists, is unattached, and is configured to be
                  attached to this node.
         """
         for manifestation in configured.values():
-            if UUID(manifestation.dataset_id) in devices:
+            dataset_id = UUID(manifestation.dataset_id)
+            if dataset_id in devices:
                 # It's already attached here.
                 continue
             if manifestation.dataset_id in nonmanifest:
+                volume = _blockdevice_volume_from_datasetid(volumes,
+                                                            dataset_id)
                 # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
-                    dataset_id=UUID(manifestation.dataset_id),
+                    dataset_id=dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                 )
 
     def _calculate_deletes(self, local_node_state, configured_manifestations,
