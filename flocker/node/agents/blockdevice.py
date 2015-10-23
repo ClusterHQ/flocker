@@ -985,17 +985,6 @@ class IProfiledBlockDeviceAPI(Interface):
         :returns: A ``BlockDeviceVolume`` of the newly created volume.
         """
 
-    def get_profile_for_volume(blockdevice_id):
-        """
-        Determine the name of the storage profile for a given blockdevice_id.
-
-        :param unicode blockdevice_id: The blockdevice_id of the volume to
-            query.
-
-        :returns unicode: The name of the profile that the volume currently
-            matches.
-        """
-
 
 @implementer(IBlockDeviceAsyncAPI)
 @auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
