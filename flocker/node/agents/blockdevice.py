@@ -54,7 +54,8 @@ class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.
 
-    :param unicode blockdevice_id: The unique identifier of the block device.
+    :param unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume.
     """
     def __init__(self, blockdevice_id):
         if not isinstance(blockdevice_id, unicode):
@@ -327,8 +328,8 @@ class DestroyBlockDeviceDataset(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset to which the
         volume to be destroyed belongs.
-    :ivar unicode blockdevice_id: The unique identifier of the block device to
-        be destroyed.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be destroyed.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -447,8 +448,8 @@ class MountBlockDevice(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to mount.
-    :ivar unicode blockdevice_id: The unique identifier of the block_device to
-        be mounted.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be mounted.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
@@ -514,7 +515,7 @@ class UnmountBlockDevice(PRecord):
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to unmount.
     :ivar unicode blockdevice_id: The unique identifier of the mounted
-        block device to be unmounted.
+        ``IBlockDeviceAPI``-managed volume to be unmounted.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -551,8 +552,8 @@ class AttachVolume(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to attach.
-    :ivar unicode blockdevice_id: The unique identifier of the block_device to
-        be attached.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be attached.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -585,8 +586,8 @@ class DetachVolume(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to detach.
-    :ivar unicode blockdevice_id: The unique identifier of the block device to
-        be detached.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be detached.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -609,8 +610,8 @@ class DestroyVolume(PRecord):
     """
     Destroy the storage (and therefore contents) of a volume.
 
-    :ivar unicode blockdevice_id: The unique identifier of the block device to
-        be destroyed.
+    :ivar unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume to be destroyed.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
 

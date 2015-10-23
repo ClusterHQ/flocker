@@ -702,9 +702,15 @@ def assert_calculated_changes(
     )
 
 
-# The prefix added to DATASET_IDs for test blockdevice_id's that are generated
-# in _infer_volumes_for_test.
-_BLOCKDEVICE_PREFIX = "blockdevice-"
+def _create_blockdevice_id_for_test(dataset_id):
+    """
+    Generates a blockdevice_id from a dataset_id for tests that do not use an
+    ``IBlockDeviceAPI``.
+
+    :param dataset_id: A unicode or uuid dataset_id to generate the
+        blockdevice_id for.
+    """
+    return "blockdevice-" + unicode(dataset_id)
 
 
 class ScenarioMixin(object):
@@ -712,7 +718,7 @@ class ScenarioMixin(object):
     A mixin for tests which defines some basic Flocker cluster state.
     """
     DATASET_ID = uuid4()
-    BLOCKDEVICE_ID = _BLOCKDEVICE_PREFIX + unicode(DATASET_ID)
+    BLOCKDEVICE_ID = _create_blockdevice_id_for_test(DATASET_ID)
     NODE = u"192.0.2.1"
     NODE_UUID = uuid4()
 
@@ -797,7 +803,7 @@ def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
     def create_test_blockdevice_volume_for_dataset_id(dataset_id,
                                                       attached_to=None):
         return BlockDeviceVolume(
-            blockdevice_id=_BLOCKDEVICE_PREFIX + dataset_id,
+            blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
             size=REALISTIC_BLOCKDEVICE_SIZE,
             attached_to=attached_to,
             dataset_id=UUID(dataset_id))
@@ -1199,8 +1205,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             in_parallel(changes=[
                 AttachVolume(
                     dataset_id=UUID(dataset.dataset_id),
-                    blockdevice_id=(_BLOCKDEVICE_PREFIX +
-                                    unicode(dataset.dataset_id))
+                    blockdevice_id=_create_blockdevice_id_for_test(
+                        dataset.dataset_id)
                 ),
             ]),
             changes
@@ -3547,6 +3553,25 @@ class AttachVolumeTests(
             attached_to=api.compute_instance_id()
         )
         self.assertEqual([expected_volume], api.list_volumes())
+
+    def test_missing(self):
+        """
+        If no volume is associated with the ``AttachVolume`` instance's
+        ``blockdevice_id``, the underlying ``IBlockDeviceAPI`` should fail with
+        an ``UnknownVolume`` exception, and ``AttachVolume.run`` should return
+        a ``Deferred`` that fires with a ``Failure`` wrapping that exception.
+        """
+        dataset_id = uuid4()
+        deployer = create_blockdevicedeployer(self)
+        bad_blockdevice_id = u'incorrect_blockdevice_id'
+        change = AttachVolume(dataset_id=dataset_id,
+                              blockdevice_id=bad_blockdevice_id)
+        failure = self.failureResultOf(
+            run_state_change(change, deployer), UnknownVolume
+        )
+        self.assertEqual(
+            bad_blockdevice_id, failure.value.blockdevice_id
+        )
 
 
 class AllocatedSizeTypeTests(SynchronousTestCase):
