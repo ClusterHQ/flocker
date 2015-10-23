@@ -64,3 +64,10 @@ This is the "ultimate integration demo", a pre-built demo environment that inclu
 
 Flocker also has planned integrations with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos.
 More information on these integrations is :ref:`available in the Labs section <labs-projects>`.
+
+Get Started with the Flocker Plugin for Docker
+==============================================
+
+Before you can install the plugin, you'll need to complete the :ref:`full-installation` instructions.
+
+For instructions specific to installing the plugin, see :ref:`install-docker-plugin`.
