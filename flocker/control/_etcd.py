@@ -41,7 +41,7 @@ class EtcdFileNode(object):
 
     def exists(self):
         try:
-            self.client.get(self.path)
+            self.client.get(FLOCKER_ETCD_PATH + self.path)
             return True
         except KeyError:
             return False
