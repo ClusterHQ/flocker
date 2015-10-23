@@ -11,6 +11,8 @@ from docker.utils import create_host_config
 
 from ...common.runner import run_ssh
 
+from ...node.testtools import require_docker_version
+
 from ...testtools import (
     random_name, find_free_port, loop_until
 )
@@ -98,6 +100,19 @@ class DockerPluginTests(TestCase):
         if cleanup:
             self.addCleanup(client.remove_container, cid, force=True)
         return cid
+
+    @require_docker_version(
+        '1.9.0',
+        'This test uses the v2 plugin API, which requires Docker >=1.9.0'
+    )
+    @require_cluster(1)
+    def test_create_container_with_volume_opts(self, cluster):
+        """
+        Creating a container with a volume and an ``Opts`` value in
+        the request body received by the Flocker plugin results in a
+        successful running container.
+        """
+        self.fail("not implemented yet")
 
     @require_cluster(1)
     def test_volume_persists_restart(self, cluster):

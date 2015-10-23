@@ -151,6 +151,12 @@ class VolumePlugin(object):
 
         :param unicode Name: The name of the volume.
 
+        :param dict Opts: Options passed from Docker for the volume
+            at creation. ``None`` if not supplied in the request body.
+            Currently ignored. ``Opts`` is a parameter introduced in the
+            v2 plugins API introduced in Docker 1.9, it is not supplied
+            in earlier Docker versions.
+
         :return: Result indicating success.
         """
         listing = self._flocker_client.list_datasets_configuration()
