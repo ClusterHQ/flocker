@@ -28,6 +28,16 @@ class DockerPluginTests(TestCase):
     """
     Tests for the Docker plugin.
     """
+    def require_docker(self, required_version, cluster):
+        client = get_docker_client(cluster, cluster.nodes[0].public_address)
+        client_version = LooseVersion(client.version()['Version'])
+        minimum_version = LooseVersion(required_version)
+        if client_version < minimum_version:
+            raise SkipTest(
+                'This test requires at least Docker {}. '
+                'Actual version: {}'.format(minimum_version, client_version)
+            )
+
     def docker_service(self, address, action):
         """
         Restart the Docker daemon on the specified address.
@@ -109,15 +119,7 @@ class DockerPluginTests(TestCase):
         the request body received by the Flocker plugin results in a
         successful running container.
         """
-        required_version = '1.9.0'
-        client = get_docker_client(cluster, cluster.nodes[0].public_address)
-        client_version = LooseVersion(client._client.version()['Version'])
-        minimum_version = LooseVersion(required_version)
-        if client_version < minimum_version:
-            raise SkipTest(
-                'This test requires at least Docker {}. '
-                'Actual version: {}'.format(minimum_version, client_version)
-            )
+        self.require_docker('1.9.0', cluster)
         self.fail("not implemented yet")
 
     @require_cluster(1)
