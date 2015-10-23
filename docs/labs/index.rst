@@ -39,8 +39,8 @@ The goals of ClusterHQ Labs are to make it possible to:
 
 **We believe that Flocker will be more successful if, as well as focusing on making it useful for managing data volumes, we work on integrating it with other components in the emerging Docker and container ecosystem.**
 
-Our biggest step towards this goal so far is the Flocker Docker plugin, which enables you to integrate Flocker with tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, and pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
-The Flocker Docker plugin started out as an unofficial labs project, but is now supported in the :ref:`official Flocker Docker plugin <docker-plugin>` documentation.
+Our biggest step towards this goal so far is the Flocker plugin for Docker, which enables you to integrate Flocker with tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, and pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
+The Flocker plugin for Docker started out as an unofficial labs project, but is now supported in the :ref:`official Flocker plugin for Docker <docker-plugin>` documentation.
 
 Mega demo
 =========

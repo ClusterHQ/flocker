@@ -80,7 +80,7 @@ Upgrading is strongly recommended for all users of v1.0.0.
 
 * The EBS storage driver now more reliably selects the correct OS device file corresponding to an EBS volume being used.
 * Additional safety checks were added to ensure only empty volumes are formatted.
-* ClusterHQ Labs projects, including the Flocker Docker Plugin and an experimental Volumes CLI and GUI are now documented in the :ref:`Labs section <labs-projects>`.
+* ClusterHQ Labs projects, including the Flocker plugin for Docker and an experimental Volumes CLI and GUI are now documented in the :ref:`Labs section <labs-projects>`.
 
 v1.0
 ====
