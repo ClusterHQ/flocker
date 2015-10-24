@@ -290,11 +290,10 @@ Release
       git pull origin master
 
    Merging this pull-request will also close the release pull request.
+   The ``merge-release-*-FLOC-XXX`` branch should be deleted once the pull-request has been merged.
 
    Unless this is a development release,
    do not delete the release branch because it may be used as a base branch for future releases.
-   If a branch was needed to resolve conflicts before merging into master,
-   that branch should be deleted once the corresponding pull-request is merged.
 
 
 Improving the Release Process
