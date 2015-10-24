@@ -279,7 +279,7 @@ Release
 
       rm -rf ${PWD}
 
-#. Merge the release branch into master.
+#. Merge the release branch into master:
 
    If there are no conflicts, merge the pull request.
    If there are conflicts; create a new branch, merge forward and create a pull-request of that branch against master.
