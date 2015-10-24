@@ -587,10 +587,13 @@ class Cluster(PRecord):
 
         :return: A `Deferred` that fires when the cluster is clean.
         """
-        def api_clean_state(configuration_method, state_method, delete_method):
+        def api_clean_state(
+            name, configuration_method, state_method, delete_method,
+        ):
             """
             Clean entities from the cluster.
 
+            :param unicode name: The name of the entities to clean.
             :param configuration_method: The function to obtain the configured
                 entities.
             :param state_method: The function to get the current entities.
@@ -599,25 +602,30 @@ class Cluster(PRecord):
             :return: A `Deferred` that fires when the entities have been
                 deleted.
             """
-            get_items = DeferredContext(configuration_method())
+            context = start_action(
+                action_type=u"acceptance:cleanup_" + name,
+            )
+            with context.context():
+                get_items = DeferredContext(configuration_method())
 
-            def delete_items(items):
-                return gather_deferreds(list(
-                    delete_method(item)
-                    for item in items
-                ))
-            get_items.addCallback(delete_items)
-            get_items.addCallback(
-                lambda ignored: loop_until(
-                    lambda: state_method().addCallback(
-                        lambda result: [] == result
+                def delete_items(items):
+                    return gather_deferreds(list(
+                        delete_method(item)
+                        for item in items
+                    ))
+                get_items.addCallback(delete_items)
+                get_items.addCallback(
+                    lambda ignored: loop_until(
+                        lambda: state_method().addCallback(
+                            lambda result: [] == result
+                        )
                     )
                 )
-            )
-            return get_items.result
+                return get_items.addActionFinish()
 
         def cleanup_containers(_):
             return api_clean_state(
+                u"containers",
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
@@ -625,23 +633,26 @@ class Cluster(PRecord):
 
         def cleanup_datasets(_):
             return api_clean_state(
+                u"datasets",
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
         def cleanup_leases():
-            get_items = DeferredContext(self.client.list_leases())
+            context = start_action(action_type="acceptance:cleanup_leases")
+            with context.context():
+                get_items = DeferredContext(self.client.list_leases())
 
-            def release_all(leases):
-                release_list = []
-                for lease in leases:
-                    release_list.append(
-                        self.client.release_lease(lease.dataset_id))
-                return gather_deferreds(release_list)
+                def release_all(leases):
+                    release_list = []
+                    for lease in leases:
+                        release_list.append(
+                            self.client.release_lease(lease.dataset_id))
+                    return gather_deferreds(release_list)
 
-            get_items.addCallback(release_all)
-            return get_items.result
+                get_items.addCallback(release_all)
+                return get_items.addActionFinish()
 
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_containers)
