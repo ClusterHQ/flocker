@@ -41,7 +41,8 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
+    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
@@ -2286,6 +2287,44 @@ def make_iblockdeviceapi_tests(
             self.minimum_allocatable_size = minimum_allocatable_size
             self.device_allocation_unit = device_allocation_unit
             self.this_node = self.api.compute_instance_id()
+
+    return Tests
+
+
+class IProfiledBlockDeviceAPITestsMixin(object):
+    """
+    Tests to perform on ``IProfiledBlockDeviceAPI`` providers.
+    """
+    def test_interface(self):
+        """
+        The API object provides ``IProfiledBlockDeviceAPI``.
+        """
+        self.assertTrue(
+            verifyObject(IProfiledBlockDeviceAPI, self.api)
+        )
+
+    def test_profile_respected(self):
+        """
+        Verify no errors are raised when constructing volumes with the
+        mandatory profiles.
+        """
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            self.api.create_volume_with_profile(profile)
+
+
+def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
+    """
+    Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
+
+    :param profiled_blockdevice_api_factory: A factory that generates the
+        ``IProfiledBlockDeviceAPI`` provider to test.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IProfiledBlockDeviceAPI`` provider.
+    """
+    class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.api = profiled_blockdevice_api_factory()
 
     return Tests
 
