@@ -12,6 +12,7 @@ import socket
 import sys
 import os
 import pwd
+import time
 from collections import namedtuple
 from contextlib import contextmanager
 from itertools import repeat
@@ -54,6 +55,8 @@ from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
+from effect import Effect, Constant
+from effect.retry import retry
 
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
@@ -297,6 +300,28 @@ def retry_failure(function, expected=None, reactor=reactor, steps=None):
     d.addErrback(loop)
 
     return d
+
+
+def retry_effect_with_timeout(effect, timeout):
+    """
+    If ``effect`` fails, retry it until ``timeout`` expires.
+
+    :param Effect effect: The Effect to retry.
+    :param int timeout: Timeout in seconds.
+    """
+
+    end_time = time.time() + timeout
+
+    def ret(e):
+        if time.time() > end_time:
+            return Effect(Constant(False))
+        else:
+            time.sleep(ret.wait_secs)
+            ret.wait_secs *= 2
+            return Effect(Constant(True))
+    ret.wait_secs = 1
+
+    return retry(effect, ret)
 
 
 def random_name(case):

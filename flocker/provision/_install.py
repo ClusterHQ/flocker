@@ -34,6 +34,7 @@ from flocker.cli import configure_ssh
 from flocker.common.version import (
     get_installable_version, get_package_key_suffix, is_release,
 )
+from flocker.testtools import retry_effect_with_timeout
 
 # A systemctl sub-command to start or restart a service.  We use restart here
 # so that if it is already running it gets restart (possibly necessary to
@@ -590,10 +591,12 @@ def task_test_homebrew(recipe):
     :return Effect: Commands used to install a Homebrew recipe for Flocker and
         test it.
     """
+
     return sequence([
         run_from_args(['brew', 'tap', 'ClusterHQ/tap']),
         run("brew update"),
-        run("brew install {recipe}".format(recipe=recipe)),
+        retry_effect_with_timeout(
+            run("brew install {recipe}".format(recipe=recipe)), 160),
         run("brew test {recipe}".format(recipe=recipe)),
     ])
 
