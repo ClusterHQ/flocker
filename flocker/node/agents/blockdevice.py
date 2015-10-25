@@ -183,7 +183,7 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 # context).  Or maybe this is fine as-is.
 BLOCK_DEVICE_DATASET_CREATED = MessageType(
     u"agent:blockdevice:created",
-    [DEVICE_PATH, BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
+    [BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
      BLOCK_DEVICE_COMPUTE_INSTANCE_ID],
     u"A block-device-backed dataset has been created.",
 )
@@ -244,7 +244,7 @@ DESTROY_VOLUME = ActionType(
 
 CREATE_FILESYSTEM = ActionType(
     u"agent:blockdevice:create_filesystem",
-    [VOLUME, FILESYSTEM_TYPE],
+    [BLOCK_DEVICE_ID, FILESYSTEM_TYPE],
     [],
     u"A block device is being initialized with a filesystem.",
 )
@@ -368,20 +368,19 @@ class CreateFilesystem(PRecord):
     :ivar unicode filesystem: The name of the filesystem type to create.  For
         example, ``u"ext4"``.
     """
-    volume = _volume_field()
+    blockdevice_id = field(type=unicode, mandatory=True)
     filesystem = field(type=unicode, mandatory=True)
 
     @property
     def eliot_action(self):
         return CREATE_FILESYSTEM(
-            _logger, volume=self.volume, filesystem_type=self.filesystem
+            blockdevice_id=self.blockdevice_id, filesystem_type=self.filesystem
         )
 
     def run(self, deployer):
+        api = deployer.block_device_api
+        device = api.get_device_path(self.blockdevice_id)
         # FLOC-1816 Make this asynchronous
-        device = deployer.block_device_api.get_device_path(
-            self.volume.blockdevice_id
-        )
         try:
             _ensure_no_filesystem(device)
             check_output([
@@ -393,6 +392,9 @@ class CreateFilesystem(PRecord):
                 b"-F",
                 device.path
             ])
+        except FilesystemExists:
+            # XXX Idempotent for spike
+            return succeed(None)
         except:
             return fail()
         return succeed(None)
@@ -708,7 +710,8 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
-        volume = api.create_volume(
+        async_api = deployer.async_block_device_api
+        d = async_api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
             size=allocated_size(
                 allocation_unit=api.allocation_unit(),
@@ -716,31 +719,15 @@ class CreateBlockDeviceDataset(PRecord):
             ),
         )
 
-        # This duplicates AttachVolume now.
-        volume = api.attach_volume(
-            volume.blockdevice_id,
-            attach_to=api.compute_instance_id(),
-        )
-        device = api.get_device_path(volume.blockdevice_id)
-
-        create = CreateFilesystem(volume=volume, filesystem=u"ext4")
-        d = run_state_change(create, deployer)
-
-        mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
-                                 blockdevice_id=volume.blockdevice_id,
-                                 mountpoint=self.mountpoint)
-        d.addCallback(lambda _: run_state_change(mount, deployer))
-
-        def passthrough(result):
+        def log_creation(volume):
             BLOCK_DEVICE_DATASET_CREATED(
-                block_device_path=device,
                 block_device_id=volume.blockdevice_id,
                 dataset_id=volume.dataset_id,
                 block_device_size=volume.size,
                 block_device_compute_instance_id=volume.attached_to,
             ).write(_logger)
-            return result
-        d.addCallback(passthrough)
+            return None
+        d.addCallback(log_creation)
         return d
 
 
@@ -1723,11 +1710,17 @@ class BlockDeviceDeployer(PRecord):
                 path = self._mountpath_for_dataset_id(configured_dataset_id)
                 volume = _blockdevice_volume_from_datasetid(volumes,
                                                             dataset_id)
-                yield MountBlockDevice(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
-                    mountpoint=path,
-                )
+                yield sequentially([
+                    CreateFilesystem(
+                        blockdevice_id=volume.blockdevice_id,
+                        filesystem=u"ext4",
+                    ),
+                    MountBlockDevice(
+                        dataset_id=dataset_id,
+                        blockdevice_id=volume.blockdevice_id,
+                        mountpoint=path,
+                    ),
+                ])
 
     def _calculate_unmounts(self, paths, configured, volumes):
         """

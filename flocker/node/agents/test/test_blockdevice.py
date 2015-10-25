@@ -2851,7 +2851,7 @@ class DestroyBlockDeviceDatasetTests(
 class CreateFilesystemInitTests(
     make_with_init_tests(
         CreateFilesystem,
-        dict(volume=_ARBITRARY_VOLUME, filesystem=u"ext4"),
+        dict(blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id, filesystem=u"ext4"),
         dict(),
     )
 ):
@@ -2863,8 +2863,8 @@ class CreateFilesystemInitTests(
 class CreateFilesystemTests(
     make_istatechange_tests(
         CreateFilesystem,
-        dict(volume=_ARBITRARY_VOLUME, filesystem=u"ext4"),
-        dict(volume=_ARBITRARY_VOLUME, filesystem=u"btrfs"),
+        dict(blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id, filesystem=u"ext4"),
+        dict(blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id, filesystem=u"btrfs"),
     )
 ):
     """
