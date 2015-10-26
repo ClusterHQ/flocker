@@ -883,6 +883,8 @@ class IBlockDeviceAPI(Interface):
 
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
+            Note that the ebs and cinder implementation can raise a
+            TimeoutException
 
         :return: ``None``
         """

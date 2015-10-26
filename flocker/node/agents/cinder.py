@@ -563,19 +563,35 @@ class CinderBlockDeviceAPI(object):
             transient_states=(u'in-use', u'detaching')
         )
 
-    def destroy_volume(self, blockdevice_id):
+    def destroy_volume(self, blockdevice_id, timeout=300):
+        """
+        Detach Cinder volume identified by blockdevice_id.
+
+        :raises TimeoutException: If the volume is not deleted
+        within the expected time
+        """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
-
-        while True:
-            # Don't loop forever here.  FLOC-1853
+        start_time = time.time()
+        #NOTE: maybe we could share the ''VOLUME_STATE_CHANGE_TIMEOUT''
+        #in the ebs implementation
+        #TODO do we need to check the state instead of waiting until the volume
+        #is deleted?
+        #Does it go to "deleting" state or something?
+        #Is it worth it? (how much time is there between going to "deleting"
+        #state and actually deleting the volume?
+        #We would need to find out all the possible states of a Cinder volume
+        #and put a list here
+        while(time.time() - start_time < timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
-                break
+                return
             time.sleep(1.0)
+        #If the volume is not deleted, raise an exception
+        raise TimeoutException(unicode(blockdevice_id), None, timeout)
 
     def _get_device_path_virtio_blk(self, volume):
         """
