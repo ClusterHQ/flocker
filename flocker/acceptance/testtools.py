@@ -39,6 +39,7 @@ from ..common import gather_deferreds
 from ..common.runner import download_file
 
 from ..control.httpapi import REST_API_PORT
+from ..control._persistence import wire_encode
 from ..ca import treq_with_authentication
 from ..testtools import loop_until, random_name
 from ..apiclient import FlockerClient, DatasetState
@@ -357,7 +358,7 @@ def _ensure_encodeable(value):
     If normal encoding fails, return ``repr(value)``.
     """
     try:
-        json.dumps(value)
+        wire_encode(value)
     except (ValueError, TypeError):
         return repr(value)
     return value
