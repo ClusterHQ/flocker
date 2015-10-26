@@ -358,7 +358,7 @@ def _ensure_encodeable(value):
     """
     try:
         json.dumps(value)
-    except TypeError:
+    except (ValueError, TypeError):
         return repr(value)
     return value
 
