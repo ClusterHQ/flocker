@@ -14,6 +14,7 @@ import os
 import pwd
 from collections import namedtuple
 from contextlib import contextmanager
+from itertools import repeat
 from random import randrange
 import shutil
 from functools import wraps, partial
@@ -255,6 +256,46 @@ def loop_until(predicate, reactor=reactor):
         return result
     d.addCallback(loop)
     return d.addActionFinish()
+
+
+def retry_failure(function, expected=None, reactor=reactor, steps=None):
+    """
+    Retry ``function`` until it returns successfully.
+
+    If it raises one of the expected exceptions, then retry.
+
+    :param callable function: A callable that returns a value.
+    :param expected: The exceptions that trigger a retry.
+    :param reactor reactor: The reactor implementation to use to delay.
+    :param [float] steps: An iterable of delay intervals, measured in seconds.
+        If not provided, will default to retrying every 0.1 seconds.
+
+    :return: A ``Deferred`` that fires with the first successful return value
+        of ``function``.
+    """
+    if steps is None:
+        steps = repeat(0.1)
+    else:
+        steps = iter(steps)
+
+    d = maybeDeferred(function)
+
+    def loop(failure):
+        if expected and not failure.check(*expected):
+            return failure
+
+        try:
+            interval = steps.next()
+        except StopIteration:
+            return failure
+
+        d = deferLater(reactor, interval, function)
+        d.addErrback(loop)
+        return d
+
+    d.addErrback(loop)
+
+    return d
 
 
 def random_name(case):
