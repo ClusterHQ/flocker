@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node.agents.blockdevice``.
@@ -61,6 +61,7 @@ from ..blockdevice import (
     _backing_file_name,
     ProcessLifetimeCache,
     FilesystemExists,
+    UnknownInstanceID,
 )
 
 from ... import run_state_change, in_parallel, ILocalState
@@ -2626,6 +2627,17 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             None,
             self.api.get_device_path(volume.blockdevice_id),
         )
+
+    def test_missing_instance_id(self):
+        """
+        ``compute_instance_id`` raises an error when it cannot return a valid
+        instance ID.
+        """
+        root_path = None  # Unused in this code.
+        api = LoopbackBlockDeviceAPI(root_path, compute_instance_id=None)
+        e = self.assertRaises(UnknownInstanceID, api.compute_instance_id)
+        self.assertEqual(
+            'Could not find valid instance ID for %r' % (api,), str(e))
 
 
 class LosetupListTests(SynchronousTestCase):

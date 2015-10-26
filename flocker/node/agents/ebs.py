@@ -29,7 +29,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    UnattachedVolume, UnknownInstanceID,
 )
 from ...control import pmap_field
 
@@ -609,7 +609,10 @@ class EBSBlockDeviceAPI(object):
         """
         Look up the EC2 instance ID for this node.
         """
-        return get_instance_metadata()['instance-id'].decode("ascii")
+        instance_id = get_instance_metadata().get('instance-id', None)
+        if instance_id is None:
+            raise UnknownInstanceID(self)
+        return instance_id.decode("ascii")
 
     def _get_ebs_volume(self, blockdevice_id):
         """

@@ -107,6 +107,17 @@ class FilesystemExists(Exception):
         self.device = device
 
 
+class UnknownInstanceID(Exception):
+    """
+    Could not compute instance ID for block device.
+    """
+    def __init__(self, blockdevice):
+        Exception.__init__(
+            self,
+            'Could not find valid instance ID for {}'.format(blockdevice))
+        self.blockdevice = blockdevice
+
+
 DATASET = Field(
     u"dataset",
     lambda dataset: dataset.dataset_id,
@@ -763,7 +774,8 @@ class IBlockDeviceAsyncAPI(Interface):
 
         :returns: A ``Deferred`` that fires with ``unicode`` of a
             provider-specific node identifier which identifies the node where
-            the method is run.
+            the method is run, or fails with ``UnknownInstanceID`` if we cannot
+            determine the identifier.
         """
 
     def create_volume(dataset_id, size):
@@ -836,6 +848,8 @@ class IBlockDeviceAPI(Interface):
         to determine which volumes are locally attached and it will be used
         with ``attach_volume`` to locally attach volumes.
 
+        :raise UnknownInstanceID: If we cannot determine the identifier of the
+            node.
         :returns: A ``unicode`` object giving a provider-specific node
             identifier which identifies the node where the method is run.
         """
@@ -1210,6 +1224,8 @@ class LoopbackBlockDeviceAPI(object):
         return self._allocation_unit
 
     def compute_instance_id(self):
+        if not self._compute_instance_id:
+            raise UnknownInstanceID(self)
         return self._compute_instance_id
 
     def _parse_backing_file_name(self, filename):
