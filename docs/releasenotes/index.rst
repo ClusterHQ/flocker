@@ -13,6 +13,7 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
+* The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
 * New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
   Existing volumes created by older versions of Flocker will continue to have no name.
 
