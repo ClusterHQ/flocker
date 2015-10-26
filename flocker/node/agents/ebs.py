@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap, thaw
+from pyrsistent import PClass, PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -29,7 +29,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, UnknownInstanceID,
+    UnattachedVolume, UnknownInstanceID, MandatoryProfiles
 )
 from ...control import pmap_field
 
@@ -49,6 +49,77 @@ MAX_ATTACH_RETRIES = 3
 # http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
+
+
+class EBSVolumeTypes(Values):
+    """
+    Constants for the different types of volumes that can be created on EBS.
+    These are taken from the documentation at:
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+
+    ivar STANDARD: Magnetic
+
+    ivar IO1: Provisioned IOPS (SSD)
+
+    ivar GP2: General Purpose (SSD)
+    """
+    STANDARD = ValueConstant(u"standard")
+    IO1 = ValueConstant(u"io1")
+    GP2 = ValueConstant(u"gp2")
+
+
+class EBSProfileAttributes(PClass):
+    """
+
+    if both iops_per_size_gib and min_iops are specified, then.
+    requested iops will be max(size * iops_per_size_gib, min_iops)
+
+    :ivar volume_type: The volume_type for the boto create_volume call.
+        Valid values are EBSVolumeTypes.
+
+    :ivar iops_per_size_gib: The desired IOs per second per GiB of disk size.
+    """
+    volume_type = field(mandatory=False, type=ValueConstant)
+    iops_per_size_gib = field(mandatory=False, type=int)
+    min_iops = field(mandatory=False, type=int)
+
+    def requested_iops(self, size_gib):
+        """
+        Returns the requested IOs per second for this profile.
+
+        :param int size_gib: The size in GiB of the volume being created.
+
+        :returns: The requested IOs per second for this profile for a disk of
+            the given size.
+        """
+        if self.iops_per_size_gib is not None:
+            if self.min_iops is not None:
+                return max(size_gib * self.iops_per_size_gib,
+                           self.min_iops)
+            return size_gib * self.iops_per_size_gib
+        return None
+
+
+class EBSMandatoryProfileAttributes(Values):
+    GOLD = ValueConstant(EBSProfile(volume_type=EBSVolumeTypes.IO1,
+                                    iops_per_size_gib=30,
+                                    min_iops=100))
+    SILVER = ValueConstant(EBSProfile(volume_type=EBSVolumeTypes.GP2))
+    BRONZE = ValueConstant(EBSProfile(volume_type=EBSVolumeTypes.STANDARD))
+
+
+def _get_ebs_profile_attributes_for_profile_name(profile_name):
+    """
+
+    :raises: ValueError if profile_name is not valid.
+    """
+    return EBSMandatoryProfileAttributes.lookupByName(
+        MandatoryProfiles.lookupByValue(profile_name)).value
+
+
+#    GOLD = EBSProfile(volume_type="io1", iops_per_size_gib=30, min_iops=100)
+#    SILVER = EBSProfile(volume_type="gp2", iops_per_size_gib=3)
+#    BRONZE = EBSProfile(volume_type="standard")
 
 
 class VolumeOperations(Names):
@@ -681,6 +752,10 @@ class EBSBlockDeviceAPI(object):
         return None
 
     def create_volume(self, dataset_id, size):
+        return self.create_volume_with_profile(
+            dataset_id, size, MandatoryProfiles.DEFAULT.value)
+
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
         """
         Create a volume on EBS. Store Flocker-specific
         {metadata version, cluster id, dataset id} for the volume

@@ -18,10 +18,13 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
 from eliot.testing import LoggedMessage, capture_logging
 
+from ..blockdevice import MandatoryProfiles
+
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException, _should_finish, UnexpectedStateException
+    TimeoutException, _should_finish, UnexpectedStateException,
+    EBSMandatoryProfileAttributes
 )
 
 from .._logging import (
@@ -182,6 +185,23 @@ class EBSBlockDeviceAPIInterfaceTests(
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
+
+    def test_create_volume_gold_profile(self):
+        """
+        Volume created with ``gold`` profile has the attributes
+        expected from the profile.
+        """
+        size_GiB = 40
+        volume1 = self.api.create_volume_with_profile(
+            dataset_id=uuid4(),
+            size=size_GiB,
+            profile=MandatoryProfiles.GOLD.value)
+
+        A = EBSManadatoryProfileAttributes.GOLD.value
+        self.assertEqual([ebs_volume.type,
+                          ebs_volume.iops],
+                         [A.volume_type,
+                          A.requested_iops()])
 
 class VolumeStateTransitionTests(TestCase):
     """
