@@ -483,7 +483,7 @@ class ConvergenceLoop(object):
                 cluster_state_changes)
 
             action = self.deployer.calculate_changes(
-                self.configuration, self.cluster_state, local_state
+                self.configuration, self.cluster_state, self.register, local_state
             )
             if action == NoOp():
                 # We've converged, we can sleep for deployer poll
@@ -674,7 +674,7 @@ class AgentLoopService(MultiService, object):
         self.cluster_status.receive(
             ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
 
-    def cluster_updated(self, configuration, cluster_state):
+    def cluster_updated(self, configuration, cluster_state, register):
         # Filter out state for this node if the era doesn't match. Since
         # the era doesn't match ours that means it's old pre-reboot state
         # that hasn't expired yet and is likely wrong, so we don't want to
@@ -683,4 +683,5 @@ class AgentLoopService(MultiService, object):
         if self.era != cluster_state.node_uuid_to_era.get(node_uuid):
             cluster_state = cluster_state.remove_node(node_uuid)
         self.cluster_status.receive(_StatusUpdate(configuration=configuration,
-                                                  state=cluster_state))
+                                                  state=cluster_state,
+                                                  register=register))

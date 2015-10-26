@@ -898,7 +898,13 @@ class CreateBlockDeviceDataset(PClass):
         except:
             return fail()
 
-        return self._create_volume(deployer)
+        volume = self._create_volume(deployer)
+        # XXX send dataset_id and blockdevice_id over AMP to control service
+        # in next iteration calcualte_changes will get that info and rely on
+        # it; until we hear back official word from control service registry
+        # about ownership we can't actually proceed in rest of creation.
+
+        return volume
 
 
 class IBlockDeviceAsyncAPI(Interface):
@@ -1791,6 +1797,7 @@ class BlockDeviceDeployer(PClass):
         return desired_datasets
 
     def calculate_changes(self, configuration, cluster_state, local_state):
+        # XXX use register for dataset_id <-> blockdevice_id mapping
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 

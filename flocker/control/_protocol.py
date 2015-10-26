@@ -221,6 +221,8 @@ class ClusterStatusCommand(Command):
     """
     arguments = [('configuration', Big(SerializableArgument(Deployment))),
                  ('state', Big(SerializableArgument(DeploymentState))),
+                 # XXX block-device specificity will need to be fixed:
+                 ('registry', Big(SerializableArgument(BlockDeviceOwnership))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
@@ -266,6 +268,15 @@ class NodeStateCommand(Command):
         ('eliot_context', _EliotActionArgument()),
     ]
     response = []
+
+
+class SetBlockDeviceIdForDatasetId(Command):
+    """
+    Indicate a specific block device id is the one for given dataset id.
+    """
+    arguments = [
+        # dataset id and block device id
+    ]
 
 
 class Timeout(object):
@@ -319,6 +330,7 @@ class ControlServiceLocator(CommandLocator):
 
         self._reactor = reactor
         self.control_amp_service = control_amp_service
+        # XXX need reference to Registry?
 
     def locateResponder(self, name):
         """
@@ -362,6 +374,11 @@ class ControlServiceLocator(CommandLocator):
         # command will immediately be followed by a ``NodeStateCommand``
         # with more interesting information.
         return {}
+
+
+    @SetBlockDeviceIdForDatasetId.responder
+    def set_blockdevice_id(self, dataset_id, blockdevice_id):
+        return self.registry.record_ownership(dataset_id, blockdevice_id)
 
 
 def timeout_for_protocol(reactor, protocol):
@@ -536,6 +553,7 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
+        register = self.registry.get_ownership()
 
         # Connections are separated into three groups to support a scheme which
         # lets us avoid sending certain updates which we know are not
@@ -597,14 +615,14 @@ class ControlAMPService(Service):
                 # more expensive in that case and at the same time that
                 # information isn't actually useful.
                 action.add_success_fields(
-                    configuration=configuration, state=state
+                    configuration=configuration, state=state, register=register,
                 )
             else:
                 # Eliot wants those fields though.
                 action.add_success_fields(configuration=None, state=None)
 
             for connection in can_update:
-                self._update_connection(connection, configuration, state)
+                self._update_connection(connection, configuration, state, register)
 
             for connection in elided_update:
                 AGENT_UPDATE_ELIDED(agent=connection).write()
@@ -711,7 +729,7 @@ class IConvergenceAgent(Interface):
         The client has disconnected from the control service.
         """
 
-    def cluster_updated(configuration, cluster_state):
+    def cluster_updated(configuration, cluster_state, register):
         """
         The cluster's desired configuration or actual state have changed.
 
@@ -722,6 +740,8 @@ class IConvergenceAgent(Interface):
             cluster. Mostly useful for what it tells the agent about
             non-local state, since the agent's knowledge of local state is
             canonical.
+
+        :param XXX register: Info from registry.
         """
 
 
@@ -762,9 +782,9 @@ class _AgentLocator(CommandLocator):
         return self.agent.logger
 
     @ClusterStatusCommand.responder
-    def cluster_updated(self, eliot_context, configuration, state):
+    def cluster_updated(self, eliot_context, configuration, state, register):
         with eliot_context:
-            self.agent.cluster_updated(configuration, state)
+            self.agent.cluster_updated(configuration, state, register)
             return {}
 
 
