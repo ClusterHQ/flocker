@@ -79,9 +79,11 @@ class EBSProfileAttributes(PClass):
 
     :ivar iops_per_size_gib: The desired IOs per second per GiB of disk size.
     """
-    volume_type = field(mandatory=False, type=ValueConstant)
-    iops_per_size_gib = field(mandatory=False, type=int)
-    min_iops = field(mandatory=False, type=int)
+    volume_type = field(mandatory=False, type=ValueConstant,
+                        initial=EBSVolumeTypes.STANDARD)
+    iops_per_size_gib = field(mandatory=False,
+                              type=(int, type(None)), initial=None)
+    min_iops = field(mandatory=False, type=(int, type(None)), initial=None)
 
     def requested_iops(self, size_gib):
         """
@@ -102,10 +104,12 @@ class EBSProfileAttributes(PClass):
 
 class EBSMandatoryProfileAttributes(Values):
     GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
-                                    iops_per_size_gib=30,
-                                    min_iops=100))
-    SILVER = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.GP2))
-    BRONZE = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.STANDARD))
+                                              iops_per_size_gib=30,
+                                              min_iops=100))
+    SILVER = ValueConstant(EBSProfileAttributes(
+        volume_type=EBSVolumeTypes.GP2))
+    BRONZE = ValueConstant(EBSProfileAttributes(
+        volume_type=EBSVolumeTypes.STANDARD))
 
 
 def _get_ebs_profile_attributes_for_profile_name(profile_name):
@@ -114,7 +118,7 @@ def _get_ebs_profile_attributes_for_profile_name(profile_name):
     :raises: ValueError if profile_name is not valid.
     """
     return EBSMandatoryProfileAttributes.lookupByName(
-        MandatoryProfiles.lookupByValue(profile_name)).value
+        MandatoryProfiles.lookupByValue(profile_name).name).value
 
 
 #    GOLD = EBSProfile(volume_type="io1", iops_per_size_gib=30, min_iops=100)

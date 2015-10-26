@@ -185,23 +185,50 @@ class EBSBlockDeviceAPIInterfaceTests(
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
+    def test_create_volume_with_gold_profile(self):
+        """
+        Requesting ``gold`` profile during volume creation honors
+        ``gold`` attributes.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.GOLD)
 
-    def test_create_volume_gold_profile(self):
+    def test_create_volume_with_silver_profile(self):
+        """
+        Requesting ``silver`` profile during volume creation honors
+        ``silver`` attributes.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.SILVER)
+
+    def test_create_volume_with_bronze_profile(self):
+        """
+        Requesting ``bronze`` profile during volume creation honors
+        ``bronze`` attributes.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.BRONZE)
+
+    def _assert_create_volume_with_mandatory_profile(self, profile):
         """
         Volume created with ``gold`` profile has the attributes
         expected from the profile.
+
+        :param ValueConstant profile: Name of profile to use for creation.
         """
-        size_GiB = 40
+        size_GiB = 4
         volume1 = self.api.create_volume_with_profile(
             dataset_id=uuid4(),
-            size=size_GiB,
-            profile=MandatoryProfiles.GOLD.value)
+            size=self.minimum_allocatable_size * size_GiB,
+            profile_name=profile.value)
 
-        A = EBSManadatoryProfileAttributes.GOLD.value
+        A = EBSMandatoryProfileAttributes.lookupByName(profile.name).value
+        ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
         self.assertEqual([ebs_volume.type,
                           ebs_volume.iops],
-                         [A.volume_type,
-                          A.requested_iops()])
+                         [A.volume_type.value,
+                          A.requested_iops(ebs_volume.size)])
+
 
 class VolumeStateTransitionTests(TestCase):
     """
