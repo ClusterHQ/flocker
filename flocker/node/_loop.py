@@ -201,6 +201,8 @@ class ConvergenceLoopInputs(Names):
     # Finished applying necessary changes to local state, a single
     # iteration of the convergence loop:
     ITERATION_DONE = NamedConstant()
+    # Sleep has ended due to hitting its timeout:
+    SLEEP_TIMEOUT = NamedConstant()
 
 
 @attributes(["client", "configuration", "state"])
@@ -216,6 +218,17 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
+class _IterationDone(trivialInput(ConvergenceLoopInputs.ITERATION_DONE)):
+    """
+    Iteration is done, sleep for given amount.
+
+    :ivar float delay_seconds: How many seconds to delay until next iteration.
+    """
+    # For now this is hard coded, will become more flexible in followup
+    # parts of FLOC-3205:
+    delay_seconds = 1.0
+
+
 class ConvergenceLoopStates(Names):
     """
     Convergence loop FSM states.
@@ -227,6 +240,8 @@ class ConvergenceLoopStates(Names):
     # Local state is being converged, and once that is done we will
     # immediately stop:
     CONVERGING_STOPPING = NamedConstant()
+    # The loop is sleeping until the next iteration occurs:
+    SLEEPING = NamedConstant()
 
 
 class ConvergenceLoopOutputs(Names):
@@ -238,6 +253,10 @@ class ConvergenceLoopOutputs(Names):
     STORE_INFO = NamedConstant()
     # Start an iteration of the covergence loop:
     CONVERGE = NamedConstant()
+    # Schedule timeout for sleep so we don't sleep forever:
+    SCHEDULE_SLEEP_TIMEOUT = NamedConstant()
+    # Cancel the sleep timeout:
+    CANCEL_TIMEOUT = NamedConstant()
 
 
 _FIELD_CONNECTION = Field(
@@ -296,6 +315,9 @@ class ConvergenceLoop(object):
         acknowledged by the control service over the most recent connection
         to the control service.
     :type _last_acknowledged_state: tuple of IClusterStateChange
+
+    :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
+        ``None`` if not in SLEEPING state.
     """
     def __init__(self, reactor, deployer):
         """
@@ -309,6 +331,7 @@ class ConvergenceLoop(object):
         self.cluster_state = None
         self.client = None
         self._last_acknowledged_state = None
+        self._sleep_timeout = None
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -405,20 +428,18 @@ class ConvergenceLoop(object):
         # converging again; hopefully next time we'll have more success.
         d.addErrback(writeFailure, self.fsm.logger)
 
-        # It would be better to have a "quiet time" state in the FSM and
-        # transition to that next, then have a timeout input kick the machine
-        # back around to the beginning of the loop in the FSM.  However, we're
-        # not going to keep this sleep-for-a-bit solution in the long term.
-        # Instead, we'll be more event driven.  So just going with the simple
-        # solution and inserting a side-effect-y delay directly here.
-
-        d.addCallback(
-            lambda _:
-                self.reactor.callLater(
-                    1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
-                )
-        )
+        # We're done with the iteration:
+        d.addCallback(lambda _: self.fsm.receive(_IterationDone()))
         d.addActionFinish()
+
+    def output_SCHEDULE_SLEEP_TIMEOUT(self, context):
+        self._sleep_timeout = self.reactor.callLater(
+            context.delay_seconds,
+            lambda: self.fsm.receive(ConvergenceLoopInputs.SLEEP_TIMEOUT))
+
+    def output_CANCEL_TIMEOUT(self, context):
+        self._sleep_timeout.cancel()
+        self._sleep_timeout = None
 
 
 def build_convergence_loop_fsm(reactor, deployer):
@@ -441,18 +462,27 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.CONVERGING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
             I.STOP: ([], S.CONVERGING_STOPPING),
-            I.ITERATION_DONE: ([O.CONVERGE], S.CONVERGING),
+            I.ITERATION_DONE: ([O.SCHEDULE_SLEEP_TIMEOUT], S.SLEEPING),
         })
     table = table.addTransitions(
         S.CONVERGING_STOPPING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
             I.ITERATION_DONE: ([], S.STOPPED),
         })
+    table = table.addTransitions(
+        S.SLEEPING, {
+            I.SLEEP_TIMEOUT: ([O.CONVERGE], S.CONVERGING),
+            I.STOP: ([O.CANCEL_TIMEOUT], S.STOPPED),
+            # At some point in FLOC-3205 might want to make this interrupt
+            # sleep, but at the moment that would increase polling which
+            # we don't want.
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.SLEEPING),
+            })
 
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate], inputContext={},
+        richInputs=[_ClientStatusUpdate, _IterationDone], inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm

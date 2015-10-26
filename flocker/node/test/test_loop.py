@@ -607,20 +607,22 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertIn(calculate, converge.children)
 
     @validate_logging(assert_full_logging)
-    def test_convergence_done_delays_new_iteration(self, logger):
+    def convergence_iteration(self, logger):
         """
-        An FSM completing the changes from one convergence iteration doesn't
-        instantly start another iteration.
+        Do one iteration of a convergence loop.
+
+        :return: ``ConvergenceLoop`` in SLEEPING state.
         """
         self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
         self.configuration = configuration = Deployment()
         self.cluster_state = received_state = DeploymentState(nodes=[])
         self.action = action = ControllableAction(result=succeed(None))
-        deployer = ControllableDeployer(
-            local_state.hostname, [succeed(local_state)], [action]
+        self.deployer = deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state), succeed(local_state)],
+            [action, action]
         )
         client = self.make_amp_client([local_state])
-        reactor = Clock()
+        self.reactor = reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         self.patch(loop, "logger", logger)
         loop.receive(_ClientStatusUpdate(
@@ -635,6 +637,46 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             ([(local_state, configuration, expected_cluster_state)],
              [(NodeStateCommand, dict(state_changes=(local_state,)))])
         )
+        self.assertEqual(loop.state, ConvergenceLoopStates.SLEEPING)
+        return loop
+
+    def test_convergence_done_delays_new_iteration(self):
+        """
+        An FSM completing the changes from one convergence iteration doesn't
+        instantly start another iteration.
+        """
+        self.convergence_iteration()
+
+    def test_convergence_iteration_sleeping_stop(self):
+        """
+        If after a convergence iteration in the sleeping state a STOP is
+        received the loop stops.
+        """
+        loop = self.convergence_iteration()
+        loop.receive(ConvergenceLoopInputs.STOP)
+        # Stopped with no scheduled calls left hanging:
+        self.assertEqual((loop.state, self.reactor.getDelayedCalls()),
+                         (ConvergenceLoopStates.STOPPED, []))
+
+    def test_convergence_iteration_status_update(self):
+        """
+        If after a convergence iteration in the sleeping state a status update
+        is received the next iteration of the event loop uses it.
+        """
+        loop = self.convergence_iteration()
+        node_state = NodeState(hostname=u'192.0.3.5')
+        configuration2 = Deployment(nodes=frozenset([to_node(node_state)]))
+        state2 = DeploymentState(nodes=[node_state, self.local_state])
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=configuration2, state=state2))
+        # Action finally finishes, and we can move on to next iteration,
+        # which happens with second set of client, desired configuration
+        # and cluster state:
+        self.reactor.advance(1.1)
+
+        self.assertEqual(self.deployer.calculate_inputs[-1],
+                         (self.local_state, configuration2, state2))
 
     def test_convergence_done_delays_new_iteration_ack(self):
         """
