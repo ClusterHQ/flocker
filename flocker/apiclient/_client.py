@@ -194,8 +194,9 @@ class IFlockerAPIV1Client(Interface):
         """
         Return current version.
 
-        :return: ``Deferred`` firing with a ``dict`` containing the version
-            reported by the Flocker Control service.
+        :return: ``Deferred`` firing with a ``dict`` containing the key
+            ``flocker`` and the version reported by the Flocker Control
+            service.
         """
 
 
