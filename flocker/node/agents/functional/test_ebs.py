@@ -96,6 +96,25 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         self.assert_foreign_volume(flocker_volume)
 
+    def test_naming(self):
+        """
+        Newly created volumes get the "Name" tag set to a human-readable name.
+        """
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+
+        dataset_id = uuid4()
+        flocker_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size,
+        )
+        ec2_client = get_ec2_client_for_test(config)
+        name = ec2_client.connection.get_all_volumes(
+            volume_ids=[flocker_volume.blockdevice_id])[0].tags[u"Name"]
+        self.assertEqual(name, u"flocker-{}".format(dataset_id))
+
     @capture_logging(lambda self, logger: None)
     def test_boto_ec2response_error(self, logger):
         """

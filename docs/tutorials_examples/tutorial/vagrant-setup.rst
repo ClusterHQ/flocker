@@ -19,7 +19,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * `Vagrant`_ (1.6.2 or newer)
 * `VirtualBox`_
 * At least 10GB disk space available for the two virtual machines
-* The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
+* The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command line programs)
 * bash
 * The ``mongo`` MongoDB interactive shell (see below for installation instructions)
 

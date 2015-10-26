@@ -302,8 +302,21 @@ Release
 
       rm -rf ${PWD}
 
-#. Merge the release pull request.
-   Do not delete the release branch because it may be used as a base branch for future releases.
+#. Merge the release branch into master:
+
+   If there are no conflicts, merge the pull request.
+   If there are conflicts; create a new branch, merge forward and create a pull-request of that branch against master.
+
+   .. prompt:: bash $
+
+      git checkout -b merge-release-${VERSION}-FLOC-XXX release/flocker-${VERSION}
+      git pull origin master
+
+   Merging this pull-request will also close the release pull request.
+   The ``merge-release-*-FLOC-XXX`` branch should be deleted once the pull-request has been merged.
+
+   Unless this is a development release,
+   do not delete the release branch because it may be used as a base branch for future releases.
 
 
 Improving the Release Process

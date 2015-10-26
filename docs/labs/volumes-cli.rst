@@ -8,7 +8,7 @@ Flocker includes a powerful volumes API.
 However it does not yet include a native CLI.
 
 This prototype demonstrates such a CLI, which has simple commands for listing nodes, creating volumes, and moving them around.
-This can be used in conjunction with the Flocker Docker plugin, see :ref:`this demo <labs-demo>` (the volumes CLI makes an appearance at the end).
+This can be used in conjunction with the Flocker plugin for Docker, see :ref:`this demo <labs-demo>` (the volumes CLI makes an appearance at the end).
 
 Install & Configure
 ===================
