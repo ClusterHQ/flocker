@@ -17,7 +17,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface, provider
 
-from pyrsistent import PClass, field, pmap_field, pset_field, thaw, CheckedPMap
+from pyrsistent import PClass, field, pmap_field, pset_field, thaw, CheckedPMap, optional
 
 from characteristic import with_cmp
 
@@ -450,14 +450,19 @@ class BlockDeviceVolume(PClass):
         identifier is supplied by the ``IBlockDeviceAPI.compute_instance_id``
         method based on the underlying infrastructure services (for example, if
         the cluster runs on AWS, this is very likely an EC2 instance id).
-    :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
+    :ivar UUID dataset_id: The Flocker dataset ID which the backend
+         believes is associated with this volume, or C{None} if
+         unknown. If set this is merely a hint (used for upgrades and
+         crash recovery), and not to be relied on given contrary
+         information in the contorl service which is the canonical
+         location.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
     size = field(type=int, mandatory=True)
     attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
-    dataset_id = field(type=UUID, mandatory=True)
+    dataset_id = field(type=optional(UUID), mandatory=True)
 
 
 def _blockdevice_volume_from_datasetid(volumes, dataset_id):
@@ -1055,6 +1060,10 @@ class IBlockDeviceAPI(Interface):
         newly created volume should be given a name that contains the
         dataset_id in order to ease debugging. Some implementations may
         choose not to do so or may not be able to do so.
+
+        The dataset_id *can* be stored by backend for debugging/human
+        readability, but it is not the canonical location of information
+        (which is the control service registry).
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
@@ -1798,6 +1807,17 @@ class BlockDeviceDeployer(PClass):
 
     def calculate_changes(self, configuration, cluster_state, local_state):
         # XXX use register for dataset_id <-> blockdevice_id mapping
+
+        # XXX also, if we have in output of list_volumes()
+        # (i.e. local_state.volumes) a volume with a mapping between
+        # dataset_id and blockdevice_id that is not in registry, send AMP
+        # command to control service indicating this mapping. Since
+        # control service registry won't allow more than one mapping, if
+        # there are two block device volumes we end up picking one,
+        # ensuring no ambiguity. This is both the crash recovery
+        # optimization (allowing us to reuse already created block
+        # devices) and also the upgrade mechanism from time when registry
+        # didn't exist.
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 
