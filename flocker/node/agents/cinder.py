@@ -603,6 +603,17 @@ class CinderBlockDeviceAPI(object):
         expected_path = FilePath(
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
+        # Return the real path instead of the symlink to avoid two problems:
+        #
+        # 1. flocker-dataset-agent mounting volumes before udev has populated
+        #    the by-id symlinks.
+        # 2. Even if we mount with `/dev/disk/by-id/xxx`, the mounted
+        #    filesystems are listed (in e.g. `/proc/mounts`) with the
+        #    **target** (i.e. the real path) of the `/dev/disk/by-id/xxx`
+        #    symlinks. This confuses flocker-dataset-agent (which assumes path
+        #    equality is string equality), causing it to believe that
+        #    `/dev/disk/by-id/xxx` has not been mounted, leading it to
+        #    repeatedly attempt to mount the device.
         if expected_path.exists():
             return expected_path.realpath()
         else:
@@ -663,7 +674,7 @@ def _is_virtio_blk(device_path):
     """
     Check whether the supplied device path is a virtio_blk device.
 
-    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    We assume that virtio_blk device name always begin with `vd` whereas
     Xen devices begin with `xvd`.
     See https://www.kernel.org/doc/Documentation/devices.txt
 

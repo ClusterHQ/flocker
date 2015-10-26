@@ -47,9 +47,35 @@ from ..cinder import (
     wait_for_volume_state, UnexpectedStateException, UnattachedVolume
 )
 
-# Tests requiring virsh can currently only be run on a devstack installation
+# Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
-require_virsh = skipIf(
+#
+# In the meantime, you can do the following (provided you have access):
+#
+# Connect to the devstack host:
+#   ssh -A root@104.130.19.104
+#
+# From the devstack host, connect to the guest:
+#   ssh -A ubuntu@10.0.0.3
+#
+# This is a shared machine that only ClusterHQ employees have access to. Make
+# sure that no one else is using it at the same time.
+#
+# On the devstack guest do the following:
+#   cd flocker
+#   workon flocker
+#
+# Then update the branch to match the code you want to test.
+#
+# Then run these tests:
+#
+#   sudo /usr/bin/env \
+#     FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$PWD/acceptance.yml \
+#     FLOCKER_FUNCTIONAL_TEST=TRUE \
+#     FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
+#     $(type -p trial) \
+#     flocker.node.agents.functional.test_cinder.CinderAttachmentTests
+require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
@@ -363,7 +389,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_correct_with_attached_disk(self):
         """
         get_device_path returns the correct device name even when a non-Cinder
@@ -408,7 +434,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virsh
+    @require_virtio
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
@@ -446,7 +472,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver raises
@@ -491,7 +517,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume.id,
         )
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_virtio_blk_symlink(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver
