@@ -101,11 +101,11 @@ class EBSProfileAttributes(PClass):
 
 
 class EBSMandatoryProfileAttributes(Values):
-    GOLD = ValueConstant(EBSProfile(volume_type=EBSVolumeTypes.IO1,
+    GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
                                     iops_per_size_gib=30,
                                     min_iops=100))
-    SILVER = ValueConstant(EBSProfile(volume_type=EBSVolumeTypes.GP2))
-    BRONZE = ValueConstant(EBSProfile(volume_type=EBSVolumeTypes.STANDARD))
+    SILVER = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.GP2))
+    BRONZE = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.STANDARD))
 
 
 def _get_ebs_profile_attributes_for_profile_name(profile_name):
