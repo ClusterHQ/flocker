@@ -332,6 +332,7 @@ def log_method(function):
     @wraps(function)
     def wrapper(self, *args, **kwargs):
 
+        serializable_args = tuple(_ensure_encodeable(a) for a in args)
         serializable_kwargs = {}
         for kwarg in kwargs:
             serializable_kwargs[kwarg] = _ensure_encodeable(kwargs[kwarg])
@@ -339,7 +340,7 @@ def log_method(function):
         context = start_action(
             Logger(),
             action_type=label,
-            args=args, kwargs=serializable_kwargs,
+            args=serializable_args, kwargs=serializable_kwargs,
         )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))
