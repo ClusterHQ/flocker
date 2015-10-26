@@ -726,7 +726,11 @@ class CreateBlockDeviceDataset(PRecord):
                 requested_size=self.dataset.maximum_size,
             ),
         )
+        # XXX send dataset_id and blockdevice_id over AMP to control service
+        # in next iteration calcualte_changes will get that info and rely on it; until we hear back official word from control service registry about ownership we can't actually proceed in rest of creation.
 
+        # XXX The rest is going to be removed in FLOC-1771, which is prerequisite for above.
+        
         # This duplicates AttachVolume now.
         volume = api.attach_volume(
             volume.blockdevice_id,
@@ -1626,7 +1630,8 @@ class BlockDeviceDeployer(PRecord):
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
 
-    def calculate_changes(self, configuration, cluster_state, local_state):
+    def calculate_changes(self, configuration, cluster_state, register, local_state):
+        # XXX use register for dataset_id <-> blockdevice_id mapping
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
         local_node_state = cluster_state.get_node(self.node_uuid,

@@ -388,7 +388,7 @@ class ConvergenceLoop(object):
                 cluster_state_changes)
 
             action = self.deployer.calculate_changes(
-                self.configuration, self.cluster_state, local_state
+                self.configuration, self.cluster_state, self.register, local_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
@@ -512,6 +512,7 @@ class AgentLoopService(MultiService, object):
         self.cluster_status.receive(
             ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
 
-    def cluster_updated(self, configuration, cluster_state):
+    def cluster_updated(self, configuration, cluster_state, register):
         self.cluster_status.receive(_StatusUpdate(configuration=configuration,
-                                                  state=cluster_state))
+                                                  state=cluster_state,
+                                                  register=register))

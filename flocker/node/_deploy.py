@@ -118,7 +118,7 @@ class IDeployer(Interface):
             method.
         """
 
-    def calculate_changes(configuration, cluster_state, local_state):
+    def calculate_changes(configuration, cluster_state, register, local_state):
         """
         Calculate the state changes necessary to make the local state match the
         desired cluster configuration.
@@ -131,6 +131,8 @@ class IDeployer(Interface):
 
         :param ILocalState local_state: The ``ILocalState`` provider returned
             from the most recent call to ``discover_state``.
+
+        :param XXX: Info from registry.
 
         :return: An ``IStateChange`` provider.
         """
