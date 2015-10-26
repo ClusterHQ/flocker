@@ -28,8 +28,10 @@ from ..ebs import (
 )
 
 from .._logging import (
-    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER
+    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
+    CREATE_VOLUME_FAILURE
 )
+from ..blockdevice import DATASET_ID
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
@@ -185,7 +187,7 @@ class EBSBlockDeviceAPIInterfaceTests(
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
-    def test_create_volume_with_gold_profile(self):
+    def test_create_volume_gold_profile(self):
         """
         Requesting ``gold`` profile during volume creation honors
         ``gold`` attributes.
@@ -193,7 +195,25 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.GOLD)
 
-    def test_create_volume_with_silver_profile(self):
+    # @validate_logging(assertHasMessage, CREATE_VOLUME_FAILURE)
+    @capture_logging(lambda self, logger: None)
+    def test_create_too_small_volume_gold_profile(self, logger):
+        """
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.GOLD, created_profile=MandatoryProfiles.DEFAULT,
+            size_GiB=1)
+        expected_message_keys = {AWS_CODE.key, AWS_MESSAGE.key,
+                                 DATASET_ID.key}
+        self.assertEqual(len(LoggedMessage.of_type(logger.messages,
+                         CREATE_VOLUME_FAILURE,)), 1)
+        for logged in LoggedMessage.of_type(logger.messages,
+                                            CREATE_VOLUME_FAILURE,):
+            key_subset = set(key for key in expected_message_keys
+                             if key in logged.message.keys())
+            self.assertEqual(expected_message_keys, key_subset)
+
+    def test_create_volume_silver_profile(self):
         """
         Requesting ``silver`` profile during volume creation honors
         ``silver`` attributes.
@@ -201,7 +221,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.SILVER)
 
-    def test_create_volume_with_bronze_profile(self):
+    def test_create_volume_bronze_profile(self):
         """
         Requesting ``bronze`` profile during volume creation honors
         ``bronze`` attributes.
@@ -209,25 +229,29 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.BRONZE)
 
-    def _assert_create_volume_with_mandatory_profile(self, profile):
+    def _assert_create_volume_with_mandatory_profile(self, profile,
+                                                     created_profile=None,
+                                                     size_GiB=4):
         """
         Volume created with ``gold`` profile has the attributes
         expected from the profile.
 
         :param ValueConstant profile: Name of profile to use for creation.
         """
-        size_GiB = 4
+        if created_profile is None:
+            created_profile = profile
         volume1 = self.api.create_volume_with_profile(
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size * size_GiB,
             profile_name=profile.value)
 
-        A = EBSMandatoryProfileAttributes.lookupByName(profile.name).value
+        A = EBSMandatoryProfileAttributes.lookupByName(
+            created_profile.name).value
         ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
-        self.assertEqual([ebs_volume.type,
-                          ebs_volume.iops],
-                         [A.volume_type.value,
-                          A.requested_iops(ebs_volume.size)])
+        self.assertEqual(ebs_volume.type, A.volume_type.value)
+        requested_iops = A.requested_iops(ebs_volume.size)
+        if requested_iops is not None:
+            self.assertEqual(ebs_volume.iops, requested_iops)
 
 
 class VolumeStateTransitionTests(TestCase):

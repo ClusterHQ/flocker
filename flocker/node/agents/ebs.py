@@ -36,7 +36,7 @@ from ...control import pmap_field
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER, IN_USE_DEVICES,
+    BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -104,21 +104,33 @@ class EBSProfileAttributes(PClass):
 
 class EBSMandatoryProfileAttributes(Values):
     GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
-                                              iops_per_size_gib=30,
-                                              min_iops=100))
+                                              iops_per_size_gib=30))
+    #                                         min_iops=100))
+    # ``gp2`` volume type cannot take IOPS request since it defaults to
+    # baseline performance of 3 IOPS/GiB (up to 10,000 IOPS)
+    # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_gp2
     SILVER = ValueConstant(EBSProfileAttributes(
         volume_type=EBSVolumeTypes.GP2))
     BRONZE = ValueConstant(EBSProfileAttributes(
         volume_type=EBSVolumeTypes.STANDARD))
 
 
-def _get_ebs_profile_attributes_for_profile_name(profile_name):
+def _get_ebs_profile_attributes_for_profile_name(profile_name, size):
     """
 
     :raises: ValueError if profile_name is not valid.
     """
-    return EBSMandatoryProfileAttributes.lookupByName(
-        MandatoryProfiles.lookupByValue(profile_name).name).value
+    volume_type = None
+    iops = None
+    try:
+        A = EBSMandatoryProfileAttributes.lookupByName(
+            MandatoryProfiles.lookupByValue(profile_name).name).value
+    except ValueError:
+        pass
+    else:
+        volume_type = A.volume_type.value
+        iops = A.requested_iops(size)
+    return volume_type, iops
 
 
 #    GOLD = EBSProfile(volume_type="io1", iops_per_size_gib=30, min_iops=100)
@@ -560,7 +572,8 @@ def _wait_for_volume_state_change(operation,
         time.sleep(1.0)
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
                                          status=volume.status,
-                                         wait_time=(time.time() - start_time))
+                                         wait_time=(time.time() -
+                                                    start_time))
 
 
 def _get_device_size(device):
@@ -766,8 +779,26 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GiB().value), zone=self.zone)
+        requested_size = int(Byte(size).to_GiB().value)
+        try:
+            volume_type, iops = _get_ebs_profile_attributes_for_profile_name(
+                profile_name, requested_size)
+            requested_volume = self.connection.create_volume(
+                size=requested_size,
+                zone=self.zone,
+                volume_type=volume_type,
+                iops=iops)
+        except EC2ResponseError as e:
+            CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
+                                  aws_code=e.code,
+                                  aws_message=e.message).write()
+            volume_type, iops = _get_ebs_profile_attributes_for_profile_name(
+                MandatoryProfiles.DEFAULT.value, requested_size)
+            requested_volume = self.connection.create_volume(
+                size=requested_size,
+                zone=self.zone,
+                volume_type=volume_type,
+                iops=iops)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
