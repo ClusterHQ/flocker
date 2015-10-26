@@ -332,12 +332,9 @@ def log_method(function):
     @wraps(function)
     def wrapper(self, *args, **kwargs):
 
-        serializable_kwargs = kwargs.copy()
+        serializable_kwargs = {}
         for kwarg in kwargs:
-            try:
-                json.dumps(kwargs[kwarg])
-            except TypeError:
-                serializable_kwargs[kwarg] = repr(kwargs[kwarg])
+            serializable_kwargs[kwarg] = _ensure_encodeable(kwargs[kwarg])
 
         context = start_action(
             Logger(),
@@ -350,6 +347,19 @@ def log_method(function):
             d.addActionFinish()
             return d.result
     return wrapper
+
+
+def _ensure_encodeable(value):
+    """
+    Return a version of ``value`` that is guaranteed to be able to be logged.
+
+    If normal encoding fails, return ``repr(value)``.
+    """
+    try:
+        json.dumps(value)
+    except TypeError:
+        return repr(value)
+    return value
 
 
 class Cluster(PRecord):
