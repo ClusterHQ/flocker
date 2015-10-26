@@ -265,7 +265,8 @@ def retry_failure(function, expected=None, reactor=reactor, steps=None):
     If it raises one of the expected exceptions, then retry.
 
     :param callable function: A callable that returns a value.
-    :param expected: The exceptions that trigger a retry.
+    :param expected: Iterable of exceptions that trigger a retry. Passed
+        through to ``Failure.check``.
     :param reactor reactor: The reactor implementation to use to delay.
     :param [float] steps: An iterable of delay intervals, measured in seconds.
         If not provided, will default to retrying every 0.1 seconds.
