@@ -128,3 +128,4 @@ Here's a complete example of a Fig compatible application configuration for Floc
      volumes:
        - "/var/lib/mysql"
 
+.. _`Fig`: http://www.fig.sh/yml.html
