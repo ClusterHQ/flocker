@@ -202,7 +202,7 @@ class ConvergenceLoopInputs(Names):
     # iteration of the convergence loop:
     ITERATION_DONE = NamedConstant()
     # Sleep has ended due to hitting its timeout:
-    SLEEP_TIMEOUT = NamedConstant()
+    WAKEUP = NamedConstant()
 
 
 @attributes(["client", "configuration", "state"])
@@ -254,7 +254,7 @@ class ConvergenceLoopOutputs(Names):
     # Start an iteration of the covergence loop:
     CONVERGE = NamedConstant()
     # Schedule timeout for sleep so we don't sleep forever:
-    SCHEDULE_SLEEP_TIMEOUT = NamedConstant()
+    SCHEDULE_WAKEUP = NamedConstant()
     # Cancel the sleep timeout:
     CANCEL_TIMEOUT = NamedConstant()
 
@@ -432,10 +432,10 @@ class ConvergenceLoop(object):
         d.addCallback(lambda _: self.fsm.receive(_IterationDone()))
         d.addActionFinish()
 
-    def output_SCHEDULE_SLEEP_TIMEOUT(self, context):
+    def output_SCHEDULE_WAKEUP(self, context):
         self._sleep_timeout = self.reactor.callLater(
             context.delay_seconds,
-            lambda: self.fsm.receive(ConvergenceLoopInputs.SLEEP_TIMEOUT))
+            lambda: self.fsm.receive(ConvergenceLoopInputs.WAKEUP))
 
     def output_CANCEL_TIMEOUT(self, context):
         self._sleep_timeout.cancel()
@@ -462,7 +462,7 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.CONVERGING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
             I.STOP: ([], S.CONVERGING_STOPPING),
-            I.ITERATION_DONE: ([O.SCHEDULE_SLEEP_TIMEOUT], S.SLEEPING),
+            I.ITERATION_DONE: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
         })
     table = table.addTransitions(
         S.CONVERGING_STOPPING, {
@@ -471,7 +471,7 @@ def build_convergence_loop_fsm(reactor, deployer):
         })
     table = table.addTransitions(
         S.SLEEPING, {
-            I.SLEEP_TIMEOUT: ([O.CONVERGE], S.CONVERGING),
+            I.WAKEUP: ([O.CONVERGE], S.CONVERGING),
             I.STOP: ([O.CANCEL_TIMEOUT], S.STOPPED),
             # At some point in FLOC-3205 might want to make this interrupt
             # sleep, but at the moment that would increase polling which
