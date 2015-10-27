@@ -368,14 +368,10 @@ def make_clientv1_tests():
             ``Node``s.
             """
             d = self.client.list_nodes()
-
-            def verify_nodes(nodes):
-                self.assertEqual(
-                    sorted([self.node_1, self.node_2]),
-                    sorted(nodes)
-                )
-            d.addCallback(verify_nodes)
-
+            d.addCallback(
+                self.assertItemsEqual,
+                [self.node_1, self.node_2]
+            )
             return d
 
     return InterfaceTests
