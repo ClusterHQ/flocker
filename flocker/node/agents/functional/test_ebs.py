@@ -16,7 +16,7 @@ from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging
+from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 
 from ..blockdevice import MandatoryProfiles
 
@@ -31,7 +31,6 @@ from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
     CREATE_VOLUME_FAILURE
 )
-from ..blockdevice import DATASET_ID
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
@@ -195,23 +194,32 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.GOLD)
 
-    # @validate_logging(assertHasMessage, CREATE_VOLUME_FAILURE)
-    @capture_logging(lambda self, logger: None)
+    @capture_logging(assertHasMessage, CREATE_VOLUME_FAILURE)
     def test_create_too_small_volume_gold_profile(self, logger):
         """
+        Too small volume for ``gold`` attributes creates volume with
+        ``default`` profile.
         """
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.GOLD, created_profile=MandatoryProfiles.DEFAULT,
             size_GiB=1)
-        expected_message_keys = {AWS_CODE.key, AWS_MESSAGE.key,
-                                 DATASET_ID.key}
-        self.assertEqual(len(LoggedMessage.of_type(logger.messages,
-                         CREATE_VOLUME_FAILURE,)), 1)
-        for logged in LoggedMessage.of_type(logger.messages,
-                                            CREATE_VOLUME_FAILURE,):
-            key_subset = set(key for key in expected_message_keys
-                             if key in logged.message.keys())
-            self.assertEqual(expected_message_keys, key_subset)
+
+    def test_create_largest_volume_gold_profile(self):
+        """
+        Largest volume with ``gold`` profile.
+        """
+        raise SkipTest(u'This test is expensive (money).')
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.GOLD, size_GiB=16*1024)
+
+    def test_create_too_large_volume_gold_profile(self):
+        """
+        Too large volume (> 16TiB) for ``gold`` profile.
+        """
+        self.assertRaises(EC2ResponseError,
+                          self._assert_create_volume_with_mandatory_profile,
+                          MandatoryProfiles.GOLD,
+                          size_GiB=1024*1024)
 
     def test_create_volume_silver_profile(self):
         """
@@ -221,6 +229,23 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.SILVER)
 
+    def test_create_too_large_volume_silver_profile(self):
+        """
+        Too large volume (> 16TiB) for ``silver`` profile.
+        """
+        self.assertRaises(EC2ResponseError,
+                          self._assert_create_volume_with_mandatory_profile,
+                          MandatoryProfiles.SILVER,
+                          size_GiB=1024*1024)
+
+    def test_create_largest_volume_silver_profile(self):
+        """
+        Largest volume with ``silver`` profile.
+        """
+        raise SkipTest(u'This test is expensive (money).')
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.SILVER, size_GiB=16*1024)
+
     def test_create_volume_bronze_profile(self):
         """
         Requesting ``bronze`` profile during volume creation honors
@@ -228,6 +253,23 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.BRONZE)
+
+    def test_create_too_large_volume_bronze_profile(self):
+        """
+        Too large volume for ``bronze`` profile.
+        """
+        self.assertRaises(EC2ResponseError,
+                          self._assert_create_volume_with_mandatory_profile,
+                          MandatoryProfiles.SILVER,
+                          size_GiB=1024*1024)
+
+    def test_create_largest_volume_bronze_profile(self):
+        """
+        Largest volume with ``bronze`` profile.
+        """
+        raise SkipTest(u'This test is expensive (money).')
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.BRONZE, size_GiB=1024)
 
     def _assert_create_volume_with_mandatory_profile(self, profile,
                                                      created_profile=None,
@@ -245,8 +287,10 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size * size_GiB,
             profile_name=profile.value)
 
+        cannonical_profile = MandatoryProfiles.lookupByValue(
+            created_profile.value)
         A = EBSMandatoryProfileAttributes.lookupByName(
-            created_profile.name).value
+            cannonical_profile.name).value
         ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
         self.assertEqual(ebs_volume.type, A.volume_type.value)
         requested_iops = A.requested_iops(ebs_volume.size)

@@ -71,8 +71,8 @@ class EBSVolumeTypes(Values):
 class EBSProfileAttributes(PClass):
     """
 
-    if both iops_per_size_gib and min_iops are specified, then.
-    requested iops will be max(size * iops_per_size_gib, min_iops)
+    if both iops_per_size_gib and max_iops are specified, then.
+    requested iops will be min(size * iops_per_size_gib, max_iops)
 
     :ivar volume_type: The volume_type for the boto create_volume call.
         Valid values are EBSVolumeTypes.
@@ -83,7 +83,7 @@ class EBSProfileAttributes(PClass):
                         initial=EBSVolumeTypes.STANDARD)
     iops_per_size_gib = field(mandatory=False,
                               type=(int, type(None)), initial=None)
-    min_iops = field(mandatory=False, type=(int, type(None)), initial=None)
+    max_iops = field(mandatory=False, type=(int, type(None)), initial=None)
 
     def requested_iops(self, size_gib):
         """
@@ -95,17 +95,17 @@ class EBSProfileAttributes(PClass):
             the given size.
         """
         if self.iops_per_size_gib is not None:
-            if self.min_iops is not None:
-                return max(size_gib * self.iops_per_size_gib,
-                           self.min_iops)
+            if self.max_iops is not None:
+                return min(size_gib * self.iops_per_size_gib,
+                           self.max_iops)
             return size_gib * self.iops_per_size_gib
         return None
 
 
 class EBSMandatoryProfileAttributes(Values):
     GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
-                                              iops_per_size_gib=30))
-    #                                         min_iops=100))
+                                              iops_per_size_gib=30,
+                                              max_iops=20000))
     # ``gp2`` volume type cannot take IOPS request since it defaults to
     # baseline performance of 3 IOPS/GiB (up to 10,000 IOPS)
     # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_gp2
@@ -131,11 +131,6 @@ def _get_ebs_profile_attributes_for_profile_name(profile_name, size):
         volume_type = A.volume_type.value
         iops = A.requested_iops(size)
     return volume_type, iops
-
-
-#    GOLD = EBSProfile(volume_type="io1", iops_per_size_gib=30, min_iops=100)
-#    SILVER = EBSProfile(volume_type="gp2", iops_per_size_gib=3)
-#    BRONZE = EBSProfile(volume_type="standard")
 
 
 class VolumeOperations(Names):
