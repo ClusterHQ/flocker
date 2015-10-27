@@ -52,7 +52,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 # The longest time we're willing to wait for a Cinder API call to complete.
 CINDER_TIMEOUT = 600
 
-# The longest ti9me we're willing to wait for a Cinder volume to be destroyed
+# The longest time we're willing to wait for a Cinder volume to be destroyed
 CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
 def _openstack_logged_method(method_name, original_name):
@@ -571,7 +571,7 @@ class CinderBlockDeviceAPI(object):
         Detach Cinder volume identified by blockdevice_id.
 
         :raises TimeoutException: If the volume is not deleted
-        within the expected time
+            within the expected time
         """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
