@@ -2310,7 +2310,12 @@ class IProfiledBlockDeviceAPITestsMixin(object):
         mandatory profiles.
         """
         for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            self.api.create_volume_with_profile(profile)
+            size = GiB(1).to_Byte().value
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            self.api.create_volume_with_profile(dataset_id=dataset_id,
+                                                size=size,
+                                                profile_name=profile)
 
 
 def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
@@ -2325,7 +2330,7 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
     """
     class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
-            self.api = profiled_blockdevice_api_factory()
+            self.api = profiled_blockdevice_api_factory(test_case=self)
 
     return Tests
 
