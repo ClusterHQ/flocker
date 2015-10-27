@@ -355,6 +355,10 @@ def _ensure_encodeable(value):
     """
     Return a version of ``value`` that is guaranteed to be able to be logged.
 
+    Catches ``TypeError``, which is raised for intrinsically unserializable
+    values, and ``ValueError``, which catches ValueError, which is raised on
+    circular references and also invalid dates.
+
     If normal encoding fails, return ``repr(value)``.
     """
     try:
