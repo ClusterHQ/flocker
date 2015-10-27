@@ -16,8 +16,8 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
-from twisted.internet.task import Clock
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.task import Clock
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
 from ...testtools.amp import FakeAMPClient, DelayedAMPClient
@@ -28,7 +28,7 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
-    _IterationDone,
+    _Sleep,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
@@ -677,7 +677,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Action finally finishes, and we can move on to next iteration,
         # which happens with second set of client, desired configuration
         # and cluster state:
-        self.reactor.advance(_IterationDone.delay_seconds)
+        self.reactor.advance(_Sleep.delay_seconds)
 
         self.assertEqual(
             self.deployer.calculate_inputs[-1],
