@@ -121,6 +121,9 @@ def in_parallel(changes):
     The order in which execution of the changes is started is unspecified.
     Comparison of the resulting object disregards the ordering of the changes.
     """
+    changes = [c for c in changes if c != NoOp()]
+    if not changes:
+        return NoOp()
     return _InParallel(changes=changes)
 
 
@@ -142,4 +145,13 @@ def sequentially(changes):
 
     Failures in earlier changes stop later changes.
     """
+    changes = [c for c in changes if c != NoOp()]
+    if not changes:
+        return NoOp()
     return _Sequentially(changes=changes)
+
+
+@implementer(IStateChange):
+class NoOp(object):
+    def run(self, deployer):
+        return succeed(None)
