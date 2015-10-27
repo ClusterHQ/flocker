@@ -650,8 +650,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_iteration_sleeping_stop(self):
         """
-        If after a convergence iteration in the sleeping state a STOP is
-        received the loop stops.
+        When a convergence loop in the sleeping state receives a STOP the loop
+        stops.
         """
         loop = self.convergence_iteration()
         loop.receive(ConvergenceLoopInputs.STOP)
@@ -662,8 +662,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_iteration_status_update(self):
         """
-        If after a convergence iteration in the sleeping state a status update
-        is received the next iteration of the event loop uses it.
+        When a convergence loop in the sleeping state receives a status update
+        the next iteration of the event loop uses it.
         """
         loop = self.convergence_iteration()
         node_state = NodeState(hostname=u'192.0.3.5')
