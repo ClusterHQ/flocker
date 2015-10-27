@@ -256,6 +256,8 @@ class ConvergenceLoopOutputs(Names):
     SCHEDULE_WAKEUP = NamedConstant()
     # Clear/cancel the sleep wakeup timeout:
     CLEAR_WAKEUP = NamedConstant()
+    # Check if we need to wakeup due to update from AMP client:
+    UPDATE_MAYBE_WAKEUP = NamedConstant()
 
 
 _FIELD_CONNECTION = Field(
@@ -341,6 +343,15 @@ class ConvergenceLoop(object):
             # one update using the new client.
             self._last_acknowledged_state = None
 
+    def output_UPDATE_MAYBE_WAKEUP(self, context):
+        # External configuration and state has changed. Let's pretend
+        # local state hasn't changed. If when we calculate changes that
+        # still indicates some action should be taken that means we should
+        # wake up:
+        if self.deployer.calculate_changes(
+            self.configuration, self.state, self._last_discovered_local_state) != NoOp():
+            self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
+
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
             self.fsm.logger, connection=self.client,
@@ -392,6 +403,7 @@ class ConvergenceLoop(object):
                 self.deployer.discover_state, known_local_state))
 
         def got_local_state(local_state):
+            self._last_discovered_local_state = local_state
             cluster_state_changes = local_state.shared_state_changes()
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
@@ -476,7 +488,7 @@ def build_convergence_loop_fsm(reactor, deployer):
             # At some point in FLOC-3205 might want to make this interrupt
             # sleep, but at the moment that would increase polling which
             # we don't want.
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.SLEEPING),
+            I.STATUS_UPDATE: ([O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
             })
 
     loop = ConvergenceLoop(reactor, deployer)
