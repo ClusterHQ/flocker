@@ -234,7 +234,10 @@ def make_clientv1_tests():
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(
-                lambda _: self.client.move_dataset(self.node_2.uuid, dataset_id))
+                lambda _: self.client.move_dataset(
+                    self.node_2.uuid, dataset_id
+                )
+            )
 
             def got_result(dataset):
                 listed = self.client.list_datasets_configuration()
@@ -312,8 +315,15 @@ def make_clientv1_tests():
             d.addCallback(lambda _: self.client.list_leases())
             d.addCallback(
                 self.assertItemsEqual,
-                [Lease(dataset_id=d1, node_uuid=self.node_1.uuid, expires=10),
-                 Lease(dataset_id=d3, node_uuid=self.node_2.uuid, expires=10.5)])
+                [
+                    Lease(
+                        dataset_id=d1, node_uuid=self.node_1.uuid, expires=10
+                    ),
+                    Lease(
+                        dataset_id=d3, node_uuid=self.node_2.uuid, expires=10.5
+                    )
+                ]
+            )
             return d
 
         def test_renew_lease(self):
