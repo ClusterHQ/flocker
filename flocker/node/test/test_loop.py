@@ -655,8 +655,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = self.convergence_iteration()
         loop.receive(ConvergenceLoopInputs.STOP)
         # Stopped with no scheduled calls left hanging:
-        self.assertEqual((loop.state, self.reactor.getDelayedCalls()),
-                         (ConvergenceLoopStates.STOPPED, []))
+        self.assertEqual(
+            dict(state=loop.state, calls=self.reactor.getDelayedCalls()),
+            dict(state=ConvergenceLoopStates.STOPPED, calls=[]))
 
     def test_convergence_iteration_status_update(self):
         """
