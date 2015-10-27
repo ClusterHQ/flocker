@@ -40,13 +40,12 @@ from eliot.testing import (
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
-    BlockDeviceDeployerLocalState, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
+    BlockDeviceDeployerLocalState, BlockDeviceDeployer,
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
-    _losetup_list, _blockdevicevolume_from_dataset_id,
+    CreateFilesystem, DestroyVolume, MountBlockDevice,
 
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
@@ -56,13 +55,20 @@ from ..blockdevice import (
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
     allocated_size,
-    check_allocatable_size,
-    get_blockdevice_volume,
-    _backing_file_name,
     ProcessLifetimeCache,
     FilesystemExists,
     UnknownInstanceID,
+    get_blockdevice_volume,
 )
+
+from ..loopback import (
+    check_allocatable_size,
+    LoopbackBlockDeviceAPI,
+    _losetup_list_parse,
+    _losetup_list, _blockdevicevolume_from_dataset_id,
+    _backing_file_name,
+)
+
 
 from ... import run_state_change, in_parallel, ILocalState
 from ...testtools import (

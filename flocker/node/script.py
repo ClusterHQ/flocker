@@ -42,7 +42,10 @@ from ._diagnostics import (
     lookup_distribution,
 )
 from .agents.blockdevice import (
-    LoopbackBlockDeviceAPI, BlockDeviceDeployer, ProcessLifetimeCache,
+    BlockDeviceDeployer, ProcessLifetimeCache,
+)
+from .agents.loopback import (
+    LoopbackBlockDeviceAPI,
 )
 from ..ca import ControlServicePolicy, NodeCredential
 
