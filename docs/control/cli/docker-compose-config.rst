@@ -1,4 +1,4 @@
-.. _compose-compatible-config:
+.. _fig-compatible-config:
 
 ===================================================
 Docker-compose Compatible Application Configuration
