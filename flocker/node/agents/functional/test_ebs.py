@@ -31,7 +31,9 @@ from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
     CREATE_VOLUME_FAILURE
 )
-from ..test.test_blockdevice import make_iblockdeviceapi_tests
+from ..test.test_blockdevice import (
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests
+)
 
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
@@ -296,6 +298,21 @@ class EBSBlockDeviceAPIInterfaceTests(
         requested_iops = A.requested_iops(ebs_volume.size)
         if requested_iops is not None:
             self.assertEqual(ebs_volume.iops, requested_iops)
+
+
+class EBSProfiledBlockDeviceAPIInterfaceTests(
+        make_iprofiledblockdeviceapi_tests(
+            profiled_blockdevice_api_factory=(
+                lambda test_case: ebsblockdeviceapi_for_test(
+                    test_case=test_case,
+                )
+            ),
+        )
+):
+    """
+    Interface adherence tests for ``IProfiledBlockDeviceAPI``.
+    """
+    pass
 
 
 class VolumeStateTransitionTests(TestCase):

@@ -28,8 +28,9 @@ from twisted.python.filepath import FilePath
 from eliot import Message
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, UnknownInstanceID, MandatoryProfiles
+    IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
+    AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
+    MandatoryProfiles
 )
 from ...control import pmap_field
 
@@ -70,14 +71,15 @@ class EBSVolumeTypes(Values):
 
 class EBSProfileAttributes(PClass):
     """
-
-    if both iops_per_size_gib and max_iops are specified, then.
-    requested iops will be min(size * iops_per_size_gib, max_iops)
+    Sets of profile attributes for the mandatory EBS volume profiles.
 
     :ivar volume_type: The volume_type for the boto create_volume call.
         Valid values are EBSVolumeTypes.
 
     :ivar iops_per_size_gib: The desired IOs per second per GiB of disk size.
+
+    :ivar max_iops: The maximum number of IOs per second that EBS will accept
+        for this type of volume.
     """
     volume_type = field(mandatory=False, type=ValueConstant,
                         initial=EBSVolumeTypes.STANDARD)
@@ -87,7 +89,9 @@ class EBSProfileAttributes(PClass):
 
     def requested_iops(self, size_gib):
         """
-        Returns the requested IOs per second for this profile.
+        Returns the requested IOs per second for this profile or None if you
+        cannot request a rate of IOs per second for this volume type. This will
+        be iops_per_size_gib * size_gib unless this value exceeds max_iops.
 
         :param int size_gib: The size in GiB of the volume being created.
 
@@ -103,22 +107,39 @@ class EBSProfileAttributes(PClass):
 
 
 class EBSMandatoryProfileAttributes(Values):
+    """
+    These constants are the ``EBSProfileAttributes`` for the mandatory
+    profiles. Many of the values for these were gotten from the documentation
+    at:
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+
+    :ivar GOLD: The high performing Provisioned IOPS disks.
+    :ivar SILVER: The medium performing SSD disks.
+    :ivar BRONZE: The cheap magnetic disks.
+    """
+    # Values here are gotten from:
     GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
                                               iops_per_size_gib=30,
                                               max_iops=20000))
     # ``gp2`` volume type cannot take IOPS request since it defaults to
     # baseline performance of 3 IOPS/GiB (up to 10,000 IOPS)
-    # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_gp2
     SILVER = ValueConstant(EBSProfileAttributes(
         volume_type=EBSVolumeTypes.GP2))
     BRONZE = ValueConstant(EBSProfileAttributes(
         volume_type=EBSVolumeTypes.STANDARD))
 
 
-def _get_ebs_profile_attributes_for_profile_name(profile_name, size):
+def _volume_type_and_iops_for_profile_name(profile_name, size):
     """
+    Determines and returns the volume_type and iops for a boto create_volume
+    call for a given profile_name.
 
-    :raises: ValueError if profile_name is not valid.
+    :param profile_name: The name of the profile.
+
+    :param size: The size of the volume to create in GiB.
+
+    :returns: A tuple of (volume_type, iops) to be passed to a create_volume
+        call.
     """
     volume_type = None
     iops = None
@@ -567,8 +588,7 @@ def _wait_for_volume_state_change(operation,
         time.sleep(1.0)
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
                                          status=volume.status,
-                                         wait_time=(time.time() -
-                                                    start_time))
+                                         wait_time=(time.time() - start_time))
 
 
 def _get_device_size(device):
@@ -663,6 +683,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(IProfiledBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
     """
     An EBS implementation of ``IBlockDeviceAPI`` which creates
@@ -764,6 +785,9 @@ class EBSBlockDeviceAPI(object):
         return None
 
     def create_volume(self, dataset_id, size):
+        """
+        Create a volume on EBS backend.
+        """
         return self.create_volume_with_profile(
             dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
@@ -776,7 +800,7 @@ class EBSBlockDeviceAPI(object):
         """
         requested_size = int(Byte(size).to_GiB().value)
         try:
-            volume_type, iops = _get_ebs_profile_attributes_for_profile_name(
+            volume_type, iops = _volume_type_and_iops_for_profile_name(
                 profile_name, requested_size)
             requested_volume = self.connection.create_volume(
                 size=requested_size,
@@ -787,7 +811,7 @@ class EBSBlockDeviceAPI(object):
             CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
                                   aws_code=e.code,
                                   aws_message=e.message).write()
-            volume_type, iops = _get_ebs_profile_attributes_for_profile_name(
+            volume_type, iops = _volume_type_and_iops_for_profile_name(
                 MandatoryProfiles.DEFAULT.value, requested_size)
             requested_volume = self.connection.create_volume(
                 size=requested_size,
