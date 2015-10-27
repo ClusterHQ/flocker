@@ -52,6 +52,8 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 # The longest time we're willing to wait for a Cinder API call to complete.
 CINDER_TIMEOUT = 600
 
+# The longest ti9me we're willing to wait for a Cinder volume to be destroyed
+CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
 def _openstack_logged_method(method_name, original_name):
     """
@@ -411,6 +413,7 @@ class CinderBlockDeviceAPI(object):
         self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
+        self.timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT
 
     def allocation_unit(self):
         """
@@ -563,7 +566,7 @@ class CinderBlockDeviceAPI(object):
             transient_states=(u'in-use', u'detaching')
         )
 
-    def destroy_volume(self, blockdevice_id, timeout=300):
+    def destroy_volume(self, blockdevice_id):
         """
         Detach Cinder volume identified by blockdevice_id.
 
@@ -575,23 +578,16 @@ class CinderBlockDeviceAPI(object):
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
         start_time = time.time()
-        #NOTE: maybe we could share the ''VOLUME_STATE_CHANGE_TIMEOUT''
-        #in the ebs implementation
-        #TODO do we need to check the state instead of waiting until the volume
-        #is deleted?
-        #Does it go to "deleting" state or something?
-        #Is it worth it? (how much time is there between going to "deleting"
-        #state and actually deleting the volume?
-        #We would need to find out all the possible states of a Cinder volume
-        #and put a list here
-        while(time.time() - start_time < timeout):
+        # Wait until the volume is not there or until the operation
+        #timesout
+        while(time.time() - start_time < self.timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 return
             time.sleep(1.0)
         #If the volume is not deleted, raise an exception
-        raise TimeoutException(unicode(blockdevice_id), None, timeout)
+        raise TimeoutException(unicode(blockdevice_id), None, self.timeout)
 
     def _get_device_path_virtio_blk(self, volume):
         """

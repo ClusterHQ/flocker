@@ -71,6 +71,12 @@ class VerifyTests(SynchronousTestCase):
 
 @implementer(ICinderVolumeManager)
 class FakeCinderClient(object):
+    """"
+    Mock implementation of the ``ICinderVolumeManager`` to use in the Cinder
+    Destroy tests.
+    This class will actually do nothing as we want to emulate a non-responsive
+    cinder volume.
+    """
     def delete(self, volume_id):
         """
         A no-op delete
@@ -83,11 +89,21 @@ class FakeCinderClient(object):
 
 
 class CinderDestroyTests(SynchronousTestCase):
+    """
+    Tests for destroy_volume.
+    """
+    #Change currentTimeout if you want to change the time the test will wait
+    #for the delete operation to complete
+    currentTimeout = 1
+
     def test_timeout(self):
         """
         ``CinderBlockDeviceAPI.destroy_volume`` raises
-        ``TimeoutException`` if the volume is not removed in 60s.
+        ``TimeoutException`` if the volume is not removed within
+        some time (``_currentTimeout`` will define how long it will wait).
         """
+        # Use the mock implementation of the Cinder Volume that will
+        # be unresponsive.
         fake_cinder = FakeCinderClient()
         cluster_id = uuid4()
         api = CinderBlockDeviceAPI(
@@ -96,10 +112,12 @@ class CinderDestroyTests(SynchronousTestCase):
             nova_server_manager=object(),
             cluster_id=cluster_id,
         )
+        # Timeout = 1 because the default timeout is 300 secods, and
+        # it is a bit too long for a test that runs regularly under CI
+        api.timeout = self.currentTimeout
         self.assertRaises(
             TimeoutException,
             api.destroy_volume,
-            blockdevice_id=u'aaa-bbbb-cccc',
-            timeout=1
+            blockdevice_id=u'aaa-bbbb-cccc'
         )
 
