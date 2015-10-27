@@ -218,6 +218,8 @@ class IFlockerAPIV1Client(Interface):
     def list_nodes():
         """
         Get information about active cluster nodes.
+
+        :return: ``Deferred`` firing with a ``list`` of ``Node``.
         """
 
 
