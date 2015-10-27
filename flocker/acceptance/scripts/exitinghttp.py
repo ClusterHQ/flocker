@@ -3,8 +3,6 @@ HTTP server that exits after responding to a GET request.
 """
 
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import os
-import time
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -15,9 +13,7 @@ class Handler(BaseHTTPRequestHandler):
         s.wfile.write(b"hi")
         s.wfile.flush()
         s.wfile.close()
-        # Try to ensure enough time for bytes to make it out before exiting:
-        time.sleep(0.1)
-        os._exit(1)
+        raise SystemExit()
 
 httpd = HTTPServer((b"0.0.0.0", 8080), Handler)
 httpd.serve_forever()
