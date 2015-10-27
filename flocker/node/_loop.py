@@ -198,10 +198,9 @@ class ConvergenceLoopInputs(Names):
     STATUS_UPDATE = NamedConstant()
     # Stop the convergence loop:
     STOP = NamedConstant()
-    # Finished applying necessary changes to local state, a single
-    # iteration of the convergence loop:
-    ITERATION_DONE = NamedConstant()
-    # Sleep has ended due to hitting its timeout:
+    # Sleep for a while (so we don't poll in a busy-loop).
+    SLEEP = NamedConstant()
+    # Stop sleeping:
     WAKEUP = NamedConstant()
 
 
@@ -218,11 +217,11 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
-class _IterationDone(trivialInput(ConvergenceLoopInputs.ITERATION_DONE)):
+class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
     """
-    Iteration is done, sleep for given amount.
+    Sleep for given number of seconds.
 
-    :ivar float delay_seconds: How many seconds to delay until next iteration.
+    :ivar float delay_seconds: How many seconds to sleep.
     """
     # For now this is hard coded, will become more flexible in followup
     # parts of FLOC-3205:
@@ -429,7 +428,7 @@ class ConvergenceLoop(object):
         d.addErrback(writeFailure, self.fsm.logger)
 
         # We're done with the iteration:
-        d.addCallback(lambda _: self.fsm.receive(_IterationDone()))
+        d.addCallback(lambda _: self.fsm.receive(_Sleep()))
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):
@@ -463,12 +462,12 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.CONVERGING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
             I.STOP: ([], S.CONVERGING_STOPPING),
-            I.ITERATION_DONE: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
+            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
         })
     table = table.addTransitions(
         S.CONVERGING_STOPPING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.ITERATION_DONE: ([], S.STOPPED),
+            I.SLEEP: ([], S.STOPPED),
         })
     table = table.addTransitions(
         S.SLEEPING, {
@@ -483,7 +482,7 @@ def build_convergence_loop_fsm(reactor, deployer):
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate, _IterationDone], inputContext={},
+        richInputs=[_ClientStatusUpdate, _Sleep], inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
