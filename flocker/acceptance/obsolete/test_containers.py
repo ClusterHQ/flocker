@@ -58,6 +58,7 @@ class ContainerAPITests(TestCase):
         A container is restarted if it is stopped.
         """
         responses = []
+
         def query_and_save():
             querying = query_http_server(
                 cluster.nodes[0].public_address, 8080
