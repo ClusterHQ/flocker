@@ -217,15 +217,13 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
+@attributes(["delay_seconds"])
 class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
     """
     Sleep for given number of seconds.
 
     :ivar float delay_seconds: How many seconds to sleep.
     """
-    # For now this is hard coded, will become more flexible in followup
-    # parts of FLOC-3205:
-    delay_seconds = 1.0
 
 
 class ConvergenceLoopStates(Names):
@@ -412,6 +410,11 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state, local_state
             )
+            if action == NoOp():
+                # Make sure _Sleep (see below) gets created with delay of self.deployer.poll_interval
+            else:
+                # Make sure _Sleep gets created with delay of 0.01 seconds
+
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
             ran_state_change = run_state_change(action, self.deployer)

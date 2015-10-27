@@ -1454,6 +1454,7 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
+    poll_interval = 60.0
 
     @property
     def async_block_device_api(self):

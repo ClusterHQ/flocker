@@ -99,6 +99,8 @@ class IDeployer(Interface):
     """
     node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
     hostname = Attribute("The public IP address of this node.")
+    poll_interval = Attribute(
+        "How often should the convergence loop call discover_state()?")
 
     def discover_state(local_state):
         """
@@ -534,6 +536,8 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
+    poll_interval = 1.0
+
     def __init__(self, hostname, volume_service, node_uuid=None):
         if node_uuid is None:
             # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
@@ -654,6 +658,8 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
+    poll_interval = 1.0
+
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):
         if node_uuid is None:
