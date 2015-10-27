@@ -18,7 +18,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * Linux, FreeBSD, or OS X
 * `Vagrant`_ (1.6.2 or newer)
 * `VirtualBox`_
-* At least 10GB disk space available for the two virtual machines
+* At least 10 GB disk space available for the two virtual machines
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command line programs)
 * bash
 * The ``mongo`` MongoDB interactive shell (see below for installation instructions)
@@ -94,9 +94,9 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    On some versions of Vagrant and VirtualBox, restarting the tutorial virtual machines via the ``vagrant halt`` and ``vagrant up`` commands can result in losing the static IP configuration, making the nodes unreachable on the assigned ``172.15.255.25x`` addresses.
    In this case you should destroy and recreate the machines with the ``vagrant destroy`` and ``vagrant up`` commands.
 
-.. note:: The two virtual machines are each assigned a 10GB virtual disk.
-          The underlying disk files grow to about 5GB.
-          So you will need at least 10GB of free disk space on your workstation.
+.. note:: The two virtual machines are each assigned a 10 GB virtual disk.
+          The underlying disk files grow to about 5 GB.
+          So you will need at least 10 GB of free disk space on your workstation.
 
 #. Create a tutorial directory:
 
