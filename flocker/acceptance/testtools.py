@@ -968,7 +968,12 @@ def query_http_server(host, port, path=b""):
         req = get(
             "http://{host}:{port}{path}".format(
                 host=host, port=port, path=path),
-            persistent=False
+            # Sometimes the TCP connection to the HTTP server gets stuck
+            # somewhere.  Avoid having to wait the full TCP timeout period
+            # before failing.  The query happens in a loop so it's better to
+            # give up early and try again.
+            timeout=2,
+            persistent=False,
         )
 
         def failed(failure):
