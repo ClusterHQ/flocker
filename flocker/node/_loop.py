@@ -255,8 +255,8 @@ class ConvergenceLoopOutputs(Names):
     CONVERGE = NamedConstant()
     # Schedule timeout for sleep so we don't sleep forever:
     SCHEDULE_WAKEUP = NamedConstant()
-    # Cancel the sleep timeout:
-    CANCEL_TIMEOUT = NamedConstant()
+    # Clear/cancel the sleep wakeup timeout:
+    CLEAR_WAKEUP = NamedConstant()
 
 
 _FIELD_CONNECTION = Field(
@@ -437,8 +437,9 @@ class ConvergenceLoop(object):
             context.delay_seconds,
             lambda: self.fsm.receive(ConvergenceLoopInputs.WAKEUP))
 
-    def output_CANCEL_TIMEOUT(self, context):
-        self._sleep_timeout.cancel()
+    def output_CLEAR_WAKEUP(self, context):
+        if self._sleep_timeout.active():
+            self._sleep_timeout.cancel()
         self._sleep_timeout = None
 
 
@@ -471,8 +472,8 @@ def build_convergence_loop_fsm(reactor, deployer):
         })
     table = table.addTransitions(
         S.SLEEPING, {
-            I.WAKEUP: ([O.CONVERGE], S.CONVERGING),
-            I.STOP: ([O.CANCEL_TIMEOUT], S.STOPPED),
+            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
+            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
             # At some point in FLOC-3205 might want to make this interrupt
             # sleep, but at the moment that would increase polling which
             # we don't want.
