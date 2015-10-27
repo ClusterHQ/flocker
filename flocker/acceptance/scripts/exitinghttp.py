@@ -8,6 +8,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 PROCESS_UNIQUE_VALUE = urandom(32).encode("hex")
 
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(s):
         s.send_response(200)
