@@ -16,8 +16,8 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
-from twisted.internet.task import Clock
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.task import Clock
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
 from ...testtools.amp import FakeAMPClient, DelayedAMPClient
@@ -28,6 +28,7 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
+    _Sleep,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
@@ -607,20 +608,22 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertIn(calculate, converge.children)
 
     @validate_logging(assert_full_logging)
-    def test_convergence_done_delays_new_iteration(self, logger):
+    def convergence_iteration(self, logger):
         """
-        An FSM completing the changes from one convergence iteration doesn't
-        instantly start another iteration.
+        Do one iteration of a convergence loop.
+
+        :return: ``ConvergenceLoop`` in SLEEPING state.
         """
         self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
         self.configuration = configuration = Deployment()
         self.cluster_state = received_state = DeploymentState(nodes=[])
         self.action = action = ControllableAction(result=succeed(None))
-        deployer = ControllableDeployer(
-            local_state.hostname, [succeed(local_state)], [action]
+        self.deployer = deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state), succeed(local_state)],
+            [action, action]
         )
         client = self.make_amp_client([local_state])
-        reactor = Clock()
+        self.reactor = reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         self.patch(loop, "logger", logger)
         loop.receive(_ClientStatusUpdate(
@@ -635,6 +638,50 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             ([(local_state, configuration, expected_cluster_state)],
              [(NodeStateCommand, dict(state_changes=(local_state,)))])
         )
+        self.assertEqual(loop.state, ConvergenceLoopStates.SLEEPING)
+        return loop
+
+    def test_convergence_done_delays_new_iteration(self):
+        """
+        An FSM completing the changes from one convergence iteration doesn't
+        instantly start another iteration.
+        """
+        self.convergence_iteration()
+
+    def test_convergence_iteration_sleeping_stop(self):
+        """
+        If after a convergence iteration in the sleeping state a STOP is
+        received the loop stops.
+        """
+        loop = self.convergence_iteration()
+        loop.receive(ConvergenceLoopInputs.STOP)
+        # Stopped with no scheduled calls left hanging:
+        self.assertEqual(
+            dict(state=loop.state, calls=self.reactor.getDelayedCalls()),
+            dict(state=ConvergenceLoopStates.STOPPED, calls=[]))
+
+    def test_convergence_iteration_status_update(self):
+        """
+        If after a convergence iteration in the sleeping state a status update
+        is received the next iteration of the event loop uses it.
+        """
+        loop = self.convergence_iteration()
+        node_state = NodeState(hostname=u'192.0.3.5')
+        changed_configuration = Deployment(
+            nodes=frozenset([to_node(node_state)]))
+        changed_state = DeploymentState(
+            nodes=[node_state, self.local_state])
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=changed_configuration, state=changed_state))
+        # Action finally finishes, and we can move on to next iteration,
+        # which happens with second set of client, desired configuration
+        # and cluster state:
+        self.reactor.advance(_Sleep.delay_seconds)
+
+        self.assertEqual(
+            self.deployer.calculate_inputs[-1],
+            (self.local_state, changed_configuration, changed_state))
 
     def test_convergence_done_delays_new_iteration_ack(self):
         """
