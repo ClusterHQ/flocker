@@ -28,6 +28,7 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
+    _IterationDone,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
@@ -666,18 +667,21 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         loop = self.convergence_iteration()
         node_state = NodeState(hostname=u'192.0.3.5')
-        configuration2 = Deployment(nodes=frozenset([to_node(node_state)]))
-        state2 = DeploymentState(nodes=[node_state, self.local_state])
+        changed_configuration = Deployment(
+            nodes=frozenset([to_node(node_state)]))
+        changed_state = DeploymentState(
+            nodes=[node_state, self.local_state])
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
-            configuration=configuration2, state=state2))
+            configuration=changed_configuration, state=changed_state))
         # Action finally finishes, and we can move on to next iteration,
         # which happens with second set of client, desired configuration
         # and cluster state:
-        self.reactor.advance(1.1)
+        self.reactor.advance(_IterationDone.delay_seconds)
 
-        self.assertEqual(self.deployer.calculate_inputs[-1],
-                         (self.local_state, configuration2, state2))
+        self.assertEqual(
+            self.deployer.calculate_inputs[-1],
+            (self.local_state, changed_configuration, changed_state))
 
     def test_convergence_done_delays_new_iteration_ack(self):
         """
