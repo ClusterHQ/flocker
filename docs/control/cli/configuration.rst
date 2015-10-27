@@ -11,5 +11,5 @@ Together these configurations define a deployment.
    :maxdepth: 2
    
    application-config
-   fig-config
+   docker-compose-config
    deployment-config
