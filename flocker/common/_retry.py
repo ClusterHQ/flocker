@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from functools import partial
 from inspect import getfile, getsourcelines
 from itertools import repeat
+import time
 
 from eliot import ActionType, MessageType, Field
 from eliot.twisted import DeferredContext
@@ -148,3 +149,22 @@ def retry_failure(function, expected=None, reactor=reactor, steps=None):
     d.addErrback(loop)
 
     return d
+
+
+def poll_until(predicate, interval):
+    """
+    Perform steps until a non-false result is returned.
+
+    This differs from ``loop_until`` in that it does not require a
+    Twisted reactor and it allows the interval to be set.
+
+    :param predicate: a function to be called until it returns a
+        non-false result.
+    :param interval: time in seconds between calls to the function.
+    :returns: the non-false result from the final call.
+    """
+    result = predicate()
+    while not result:
+        time.sleep(interval)
+        result = predicate()
+    return result
