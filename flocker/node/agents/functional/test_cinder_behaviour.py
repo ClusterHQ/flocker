@@ -38,9 +38,11 @@ def cinder_volume_manager():
     return get_cinder_v1_client(session, region).volumes
 
 
-def fakeGet(volume_id):
+def fake_get(volume_id):
     """
-
+    fake get that will just return a fake instance of a ``BlockDeviceVolume``.
+    It is used in the timeout test for destroy cinder volume,
+    see ``BlockDeviceAPIDestroyTests``
     """
     return BlockDeviceVolume(
         size=100, attached_to=None,
@@ -143,8 +145,8 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         """
         # Adding a fake get that will always return a volume, so we
         # timeout waiting for the volume to be deleted
-        self.patch(self.cinder_volumes, "get", fakeGet)
-        # Using a fake no-op delete so it doens't actually delete anything
+        self.patch(self.cinder_volumes, "get", fake_get)
+        # Using a fake no-op delete so it doesn't actually delete anything
         # (we don't need any actual volumes here, as we only need to verify
         # the timeout)
         self.patch(self.cinder_volumes, "delete", lambda *args, **kwargs: None)
@@ -153,11 +155,12 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
             cinder_volume_manager=self.cinder_volumes,
             nova_volume_manager=object(),
             nova_server_manager=object(),
-            cluster_id=uuid4()
+            cluster_id=uuid4(),
+            # Setting the timeut to 1, as the default is quite high,
+            # and we do not want to wait that much in a test
+            timeout=1
             )
-        # Setting the timeut to 1, as the default is quite high, and we do not
-        # want to wait that much in a test
-        api.timeout = 1
+
         self.assertRaises(
             TimeoutException,
             api.destroy_volume,

@@ -236,6 +236,10 @@ class INovaServerManager(Interface):
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
+    :param expected_volume: the volume we were waiting on
+    :param desired_state: the new state we wanted the volume to have
+    :param elapsed_time: how much time we had been waiting for the volume
+        to change the state
     """
     def __init__(self, expected_volume, desired_state, elapsed_time):
         self.expected_volume = expected_volume
@@ -398,7 +402,8 @@ class CinderBlockDeviceAPI(object):
     def __init__(self,
                  cinder_volume_manager,
                  nova_volume_manager, nova_server_manager,
-                 cluster_id):
+                 cluster_id,
+                 timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
@@ -414,7 +419,7 @@ class CinderBlockDeviceAPI(object):
         self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
-        self.timeout = CINDER_VOLUME_DESTRUCTION_TIMEOUT
+        self._timeout = timeout
 
     def allocation_unit(self):
         """
@@ -581,14 +586,18 @@ class CinderBlockDeviceAPI(object):
         start_time = time.time()
         # Wait until the volume is not there or until the operation
         # timesout
-        while(time.time() - start_time < self.timeout):
+        while(time.time() - start_time < self._timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 return
             time.sleep(1.0)
         # If the volume is not deleted, raise an exception
-        raise TimeoutException(unicode(blockdevice_id), None, self.timeout)
+        raise TimeoutException(
+            unicode(blockdevice_id),
+            None,
+            time.time() - start_time
+        )
 
     def _get_device_path_virtio_blk(self, volume):
         """
