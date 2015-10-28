@@ -214,15 +214,20 @@ class IFlockerAPIV1Client(Interface):
             service.
         """
 
-    def create_container(primary, name, image):
+    def create_container(node_uuid, name, image):
         """
-        :param UUID primary: The ``UUID`` of the node where the container will
-            be started.
+        :param UUID node_uuid: The ``UUID`` of the node where the container
+            will be started.
         :param unicode name: The name to assign to the container.
         :param unicode image: The name of ``Docker`` image which will be used.
         :return: ``Deferred`` firing with the configured ``Container`` or
             ``ContainerAlreadyExists`` if the supplied container name already
             exists.
+        """
+
+    def list_containers_configuration():
+        """
+        :return: ``Deferred`` firing with ``iterable`` of ``Container``.
         """
 
 
@@ -236,6 +241,7 @@ class FakeFlockerClient(object):
 
     def __init__(self):
         self._configured_datasets = pmap()
+        self._configured_containers = pmap()
         self._leases = LeasesModel()
         self.synchronize_state()
 
@@ -313,6 +319,18 @@ class FakeFlockerClient(object):
         return succeed(
             {u"flocker": __version__}
         )
+
+    def create_container(self, node_uuid, name, image):
+        if name in self._configured_containers:
+            return fail(ContainerAlreadyExists())
+        result = Container(node_uuid=node_uuid, name=name, image=image)
+        self._configured_containers = self._configured_containers.set(
+            name, result
+        )
+        return succeed(result)
+
+    def list_containers_configuration(self):
+        return succeed(self._configured_containers.values())
 
 
 class ResponseError(Exception):
@@ -512,3 +530,9 @@ class FlockerClient(object):
         return self._request(
             b"GET", b"/version", None, {OK}
         )
+
+    def create_container(self, node_uuid, name, image):
+        return succeed(None)
+
+    def list_containers_configuration(self):
+        return succeed(None)

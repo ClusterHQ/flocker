@@ -353,13 +353,39 @@ def make_clientv1_tests():
                 image=u'nginx',
             )
             d = self.client.create_container(
-                primary=expected_container.node_uuid,
+                node_uuid=expected_container.node_uuid,
                 name=expected_container.name,
                 image=expected_container.image,
             )
             d.addCallback(
                 self.assertEqual,
                 expected_container,
+            )
+            return d
+
+        def test_create_container_listed(self):
+            """
+            The ``Container`` returned by ``create_container`` is included in
+            the result of ``list_containers``.
+            """
+            expected_container = Container(
+                node_uuid=uuid4(),
+                name=random_name(case=self),
+                image=u'nginx',
+            )
+            d = self.client.create_container(
+                node_uuid=expected_container.node_uuid,
+                name=expected_container.name,
+                image=expected_container.image,
+            )
+            d.addCallback(
+                lambda ignored: self.client.list_containers_configuration()
+            )
+            d.addCallback(
+                lambda containers: self.assertIn(
+                    expected_container,
+                    containers
+                )
             )
             return d
 
@@ -375,14 +401,14 @@ def make_clientv1_tests():
                 image=u'nginx',
             )
             d = self.client.create_container(
-                primary=expected_container.node_uuid,
+                node_uuid=expected_container.node_uuid,
                 name=expected_container.name,
                 image=expected_container.image,
             )
 
             def create_same_name_container(first_container):
                 return self.client.create_container(
-                    primary=uuid4(),
+                    node_uuid=uuid4(),
                     name=first_container.name,
                     image=u'not_nginx',
                 )
