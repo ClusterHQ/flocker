@@ -709,82 +709,107 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
 
+    def _stop_container(self, container_name):
+        """Attempt to stop the given container.
+
+        There is a race condition between a process dying and
+        Docker noticing that fact:
+
+        https://github.com/docker/docker/issues/5165#issuecomment-65753753
+
+        If we get an error indicating that this race condition happened,
+        return False. This means the caller should try again. If we *do*
+        successfully stop the container, return True.
+
+        :raise APIError: If the container failed to stop for some unknown
+            reason.
+        :return: True if we stopped the container, False otherwise.
+
+        """
+        try:
+            Message.new(
+                message_type="flocker:docker:container_stop",
+                container=container_name
+            ).write()
+            self._client.stop(container_name)
+        except APIError as e:
+            if e.response.status_code == NOT_FOUND:
+                # If the container doesn't exist, we swallow the error,
+                # since this method is supposed to be idempotent.
+                Message.new(
+                    message_type="flocker:docker:container_not_found",
+                    container=container_name
+                ).write()
+                return True
+            elif e.response.status_code == INTERNAL_SERVER_ERROR:
+                # Docker returns this if the process had died, but
+                # hasn't noticed it yet.
+                Message.new(
+                    message_type="flocker:docker:container_stop_internal_error",  # noqa
+                    container=container_name
+                ).write()
+                return False
+            else:
+                raise
+        else:
+            Message.new(
+                message_type="flocker:docker:container_stopped",
+                container=container_name
+            ).write()
+            return True
+
+    def _remove_container(self, container_name):
+        """
+        Attempt to remove a container.
+
+        Assumes the given container has already been stopped.
+
+        :param unicode container_name: The fully-namespaced name of the
+            container.
+        """
+        try:
+            # The ``docker.Client.stop`` method sometimes returns a
+            # 404 error, even though the container exists.
+            # See https://github.com/docker/docker/issues/13088
+            # Wait until the container has actually stopped running
+            # before attempting to remove it.  Otherwise we are
+            # likely to see: 'docker.errors.APIError: 409 Client
+            # Error: Conflict ("Conflict, You cannot remove a
+            # running container. Stop the container before
+            # attempting removal or use -f")'
+            # This code should probably be removed once the above
+            # issue has been resolved. See [FLOC-1850]
+            self._client.wait(container_name)
+
+            Message.new(
+                message_type="flocker:docker:container_remove",
+                container=container_name
+            ).write()
+            self._client.remove_container(container_name)
+            Message.new(
+                message_type="flocker:docker:container_removed",
+                container=container_name
+            ).write()
+        except APIError as e:
+            # If the container doesn't exist, we swallow the error,
+            # since this method is supposed to be idempotent.
+            if e.response.status_code == NOT_FOUND:
+                Message.new(
+                    message_type="flocker:docker:container_not_found",
+                    container=container_name
+                ).write()
+                return
+            raise
+
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
 
         def _remove():
-            while True:
-                # There is a race condition between a process dying and
-                # docker noticing that fact.
-                # https://github.com/docker/docker/issues/5165#issuecomment-65753753  # noqa
-                # We loop here to let docker notice that the process is dead.
-                # Docker will return NOT_MODIFIED (which isn't an error) in
-                # that case.
-                try:
-                    Message.new(
-                        message_type="flocker:docker:container_stop",
-                        container=container_name
-                    ).write()
-                    self._client.stop(container_name)
-                except APIError as e:
-                    if e.response.status_code == NOT_FOUND:
-                        # If the container doesn't exist, we swallow the error,
-                        # since this method is supposed to be idempotent.
-                        Message.new(
-                            message_type="flocker:docker:container_not_found",
-                            container=container_name
-                        ).write()
-                        break
-                    elif e.response.status_code == INTERNAL_SERVER_ERROR:
-                        # Docker returns this if the process had died, but
-                        # hasn't noticed it yet.
-                        Message.new(
-                            message_type="flocker:docker:container_stop_internal_error",  # noqa
-                            container=container_name
-                        ).write()
-                        continue
-                    else:
-                        raise
-                else:
-                    Message.new(
-                        message_type="flocker:docker:container_stopped",
-                        container=container_name
-                    ).write()
-                    break
+            container_stopped = False
+            while not container_stopped:
+                container_stopped = self._stop_container(container_name)
+            self._remove_container(container_name)
 
-            try:
-                # The ``docker.Client.stop`` method sometimes returns a
-                # 404 error, even though the container exists.
-                # See https://github.com/docker/docker/issues/13088
-                # Wait until the container has actually stopped running
-                # before attempting to remove it.  Otherwise we are
-                # likely to see: 'docker.errors.APIError: 409 Client
-                # Error: Conflict ("Conflict, You cannot remove a
-                # running container. Stop the container before
-                # attempting removal or use -f")'
-                # This code should probably be removed once the above
-                # issue has been resolved. See [FLOC-1850]
-                self._client.wait(container_name)
-
-                Message.new(
-                    message_type="flocker:docker:container_remove",
-                    container=container_name
-                ).write()
-                self._client.remove_container(container_name)
-                Message.new(
-                    message_type="flocker:docker:container_removed",
-                    container=container_name
-                ).write()
-            except APIError as e:
-                # If the container doesn't exist, we swallow the error,
-                # since this method is supposed to be idempotent.
-                if e.response.status_code == NOT_FOUND:
-                    Message.new(
-                        message_type="flocker:docker:container_not_found",
-                        container=container_name
-                    ).write()
-                    return
-                raise
         d = deferToThread(_remove)
         return d
 
