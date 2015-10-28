@@ -179,7 +179,7 @@ If you already have a tutorial environment from a previous release, you'll need 
       ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
       ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
-#. Delete the original :file:`Vagrantfile` and complete the steps in :ref:`creating-vagrant-VMs` to download the latest versions of the downloadable files (:file:`Vagrantfile`, :file:`cluster.crt`, :file:`user.crt`, and :file:`user.key`) and run ``vagrant-up``.
+#. Delete the original :file:`Vagrantfile` and complete the steps in :ref:`creating-vagrant-VMs` to download the latest versions of the files (:file:`Vagrantfile`, :file:`cluster.crt`, :file:`user.crt`, and :file:`user.key`) and run ``vagrant-up``.
 
 If you do not have an older versions of the :file:`Vagrantfile`, or if the ``vagrant destroy`` command fails, you can remove existing nodes `directly from VirtualBox`_.
 
