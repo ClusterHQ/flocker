@@ -58,11 +58,11 @@ class EBSVolumeTypes(Values):
     These are taken from the documentation at:
     http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
 
-    ivar STANDARD: Magnetic
+    :ivar STANDARD: Magnetic
 
-    ivar IO1: Provisioned IOPS (SSD)
+    :ivar IO1: Provisioned IOPS (SSD)
 
-    ivar GP2: General Purpose (SSD)
+    :ivar GP2: General Purpose (SSD)
     """
     STANDARD = ValueConstant(u"standard")
     IO1 = ValueConstant(u"io1")
@@ -117,7 +117,6 @@ class EBSMandatoryProfileAttributes(Values):
     :ivar SILVER: The medium performing SSD disks.
     :ivar BRONZE: The cheap magnetic disks.
     """
-    # Values here are gotten from:
     GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
                                               iops_per_size_gib=30,
                                               max_iops=20000))
@@ -808,6 +807,11 @@ class EBSBlockDeviceAPI(object):
                 volume_type=volume_type,
                 iops=iops)
         except EC2ResponseError as e:
+            # If we failed to create a volume with attributes complying
+            # with requested profile, make a second attempt at volume
+            # creation with default profile.
+            # Compliance violation of the volume's requested profile
+            # will be detected and remediated in a future release (FLOC-3275).
             CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
                                   aws_code=e.code,
                                   aws_message=e.message).write()

@@ -197,10 +197,11 @@ class EBSBlockDeviceAPIInterfaceTests(
             MandatoryProfiles.GOLD)
 
     @capture_logging(assertHasMessage, CREATE_VOLUME_FAILURE)
-    def test_create_too_small_volume_gold_profile(self, logger):
+    def test_create_volume_violate_requested_profile(self, logger):
         """
-        Too small volume for ``gold`` attributes creates volume with
-        ``default`` profile.
+        Volume creation request that cannot satisfy attributes of requested
+        profile makes a second (successful) attempt to create the volume with
+        default profile.
         """
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.GOLD, created_profile=MandatoryProfiles.DEFAULT,
@@ -214,9 +215,10 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.GOLD, size_GiB=16*1024)
 
-    def test_create_too_large_volume_gold_profile(self):
+    def test_create_too_large_volume_with_profile(self):
         """
-        Too large volume (> 16TiB) for ``gold`` profile.
+        Create a volume so large that none of the ``MandatoryProfiles``
+        can be assigned to it.
         """
         self.assertRaises(EC2ResponseError,
                           self._assert_create_volume_with_mandatory_profile,
@@ -256,15 +258,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.BRONZE)
 
-    def test_create_too_large_volume_bronze_profile(self):
-        """
-        Too large volume for ``bronze`` profile.
-        """
-        self.assertRaises(EC2ResponseError,
-                          self._assert_create_volume_with_mandatory_profile,
-                          MandatoryProfiles.SILVER,
-                          size_GiB=1024*1024)
-
     def test_create_largest_volume_bronze_profile(self):
         """
         Largest volume with ``bronze`` profile.
@@ -277,10 +270,13 @@ class EBSBlockDeviceAPIInterfaceTests(
                                                      created_profile=None,
                                                      size_GiB=4):
         """
-        Volume created with ``gold`` profile has the attributes
+        Volume created with given profile has the attributes
         expected from the profile.
 
         :param ValueConstant profile: Name of profile to use for creation.
+        :param ValueConstant created_profile: Name of the profile volume is
+            expected to be created with.
+        :param int size_GiB: Size of volume to be created.
         """
         if created_profile is None:
             created_profile = profile
