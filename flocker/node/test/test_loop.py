@@ -681,19 +681,32 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             nodes=frozenset([to_node(node_state)]))
         changed_state = DeploymentState(
             nodes=[node_state, self.local_state])
+        num_calls_pre_loop = {
+            'discover': len(self.deployer.discover_inputs),
+            'calculate': len(self.deployer.calculate_inputs)
+        }
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=changed_configuration, state=changed_state))
-        num_calculations_pre_sleep = len(self.deployer.calculate_inputs)
+        num_calls_pre_sleep = {
+            'discover': len(self.deployer.discover_inputs),
+            'calculate': len(self.deployer.calculate_inputs)
+        }
         # Action finally finishes, and we can move on to next iteration,
         # but only after sleep.
         self.reactor.advance(_Sleep.delay_seconds)
-        num_calculations_after_sleep = len(self.deployer.calculate_inputs)
+        num_calls_after_sleep = {
+            'discover': len(self.deployer.discover_inputs),
+            'calculate': len(self.deployer.calculate_inputs)
+        }
         self.assertEqual(
-            dict(pre=num_calculations_pre_sleep,
-                 post=num_calculations_after_sleep),
-            dict(pre=2,  # initial calculate, extra calculate on delivery
-                 post=3),  # the above plus next iteration)
+            dict(pre=num_calls_pre_loop,
+                 mid=num_calls_pre_sleep,
+                 post=num_calls_after_sleep),
+            dict(pre={'discover': 1, 'calculate': 1},  # initial calls
+                 mid={'discover': 1, 'calculate': 2},  # calculate on delivery
+                                                       # no discovery
+                 post={'discover': 2, 'calculate': 3}),  # next iteration
         )
 
     def test_convergence_iteration_status_update_wakeup(self):

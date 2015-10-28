@@ -191,8 +191,10 @@ class ControllableDeployer(object):
         self.local_states = local_states
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
+        self.discover_inputs = []
 
     def discover_state(self, node_state):
+        self.discover_inputs.append(node_state)
         state = self.local_states.pop(0)
         if isinstance(state, Exception):
             raise state
