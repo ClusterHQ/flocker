@@ -8,10 +8,12 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from ..cinder import (
     _openstack_verify_from_config, CinderBlockDeviceAPI,
-    TimeoutException, ICinderVolumeManager
+    TimeoutException
     )
 
 from uuid import uuid4
+from ..blockdevice import BlockDeviceVolume
+
 
 class VerifyTests(SynchronousTestCase):
     """
@@ -71,8 +73,12 @@ class FakeCinderClient(object):
     """"
     Mock implementation of the cinder volume manager to use in the Cinder
     Destroy tests.
-    This class will actually do nothing as we want to emulate a non-responsive
-    cinder volume.
+    Right now, we don't need a full mock of the class, we just need the
+    get not to raise any exception so the destroy volume timeout test
+    actually times out - it will be trying to get the volume in a loop
+    after deleting it, expecting a ``CinderNotFound`` exception that will
+    never happen, so we can verify that the timeout exception is rised
+    (see FLOC-1853)
     """
     def delete(self, volume_id):
         """
@@ -83,13 +89,13 @@ class FakeCinderClient(object):
     def get(self, volume_id):
         """
         A no-op get.
-        Right now, we don't need a full mock of the get, we just need the
-        get not to raise any exception so the destroy volume timeout test
-        actually times out - it will be trying to get the volume in a loop
-        after deleting it, expecting a ``CinderNotFound`` exception that will
-        never happen, so we can verify that the timeout exception is rised
-        (see FLOC-1853)
+        Return a mock BlockDeviceVolume
         """
+        return BlockDeviceVolume(
+            size=100, attached_to=None,
+            dataset_id=uuid4(),
+            blockdevice_id=unicode(volume_id),
+        )
 
 
 class CinderDestroyTests(SynchronousTestCase):
@@ -114,10 +120,12 @@ class CinderDestroyTests(SynchronousTestCase):
         )
         # Timeout = 1 because the default timeout is 300 secods, and
         # it is a bit too long for a test that runs regularly under CI
+        returnedBlockDevice = FakeCinderClient().get(uuid4())
+        if(not isinstance(returnedBlockDevice, BlockDeviceVolume)):
+            self.fail("returned block device is not a BlockDeviceVolume")
         api.timeout = 1
         self.assertRaises(
             TimeoutException,
             api.destroy_volume,
             blockdevice_id=unicode(uuid4())
         )
-

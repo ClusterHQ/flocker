@@ -55,6 +55,7 @@ CINDER_TIMEOUT = 600
 # The longest time we're willing to wait for a Cinder volume to be destroyed
 CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
+
 def _openstack_logged_method(method_name, original_name):
     """
     Run a method and log additional information about any exceptions that are
@@ -413,7 +414,7 @@ class CinderBlockDeviceAPI(object):
         self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
-        self.timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT
+        self.timeout = CINDER_VOLUME_DESTRUCTION_TIMEOUT
 
     def allocation_unit(self):
         """
@@ -579,14 +580,14 @@ class CinderBlockDeviceAPI(object):
             raise UnknownVolume(blockdevice_id)
         start_time = time.time()
         # Wait until the volume is not there or until the operation
-        #timesout
+        # timesout
         while(time.time() - start_time < self.timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 return
             time.sleep(1.0)
-        #If the volume is not deleted, raise an exception
+        # If the volume is not deleted, raise an exception
         raise TimeoutException(unicode(blockdevice_id), None, self.timeout)
 
     def _get_device_path_virtio_blk(self, volume):
