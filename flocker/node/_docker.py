@@ -709,6 +709,36 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
 
+    # COPIED FROM TESTTOOLS
+    def loop_until(predicate, reactor=reactor):
+        """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
+
+        :param predicate: Callable returning termination condition.
+        :type predicate: 0-argument callable returning a Deferred.
+
+        :param reactor: The reactor implementation to use to delay.
+        :type reactor: ``IReactorTime``.
+
+        :return: A ``Deferred`` firing with the first ``Truthy`` response from
+            ``predicate``.
+        """
+        action = LOOP_UNTIL_ACTION(predicate=predicate)
+
+        d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
+
+        def loop(result):
+            if not result:
+                LOOP_UNTIL_ITERATION_MESSAGE(
+                    result=result
+                ).write()
+                d = deferLater(reactor, 0.1, action.run, predicate)
+                d.addCallback(partial(action.run, loop))
+                return d
+            action.addSuccessFields(result=result)
+            return result
+        d.addCallback(loop)
+        return d.addActionFinish()
+
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
 
@@ -752,50 +782,54 @@ class DockerClient(object):
                     ).write()
                     break
 
-            try:
-                # The ``docker.Client.stop`` method sometimes returns a
-                # 404 error, even though the container exists.
-                # See https://github.com/docker/docker/issues/13088
-                # Wait until the container has actually stopped running
-                # before attempting to remove it.  Otherwise we are
-                # likely to see: 'docker.errors.APIError: 409 Client
-                # Error: Conflict ("Conflict, You cannot remove a
-                # running container. Stop the container before
-                # attempting removal or use -f")'
-                # This code should probably be removed once the above
-                # issue has been resolved. See [FLOC-1850]
-                self._client.wait(container_name)
+            def _remove_part_two():
+                try:
+                    # The ``docker.Client.stop`` method sometimes returns a
+                    # 404 error, even though the container exists.
+                    # See https://github.com/docker/docker/issues/13088
+                    # Wait until the container has actually stopped running
+                    # before attempting to remove it.  Otherwise we are
+                    # likely to see: 'docker.errors.APIError: 409 Client
+                    # Error: Conflict ("Conflict, You cannot remove a
+                    # running container. Stop the container before
+                    # attempting removal or use -f")'
+                    # This code should probably be removed once the above
+                    # issue has been resolved. See [FLOC-1850]
+                    self._client.wait(container_name)
 
-                Message.new(
-                    message_type="flocker:docker:container_remove",
-                    container=container_name
-                ).write()
-                self._client.remove_container(container_name)
-                Message.new(
-                    message_type="flocker:docker:container_removed",
-                    container=container_name
-                ).write()
-            except APIError as e:
-                # If the container doesn't exist, we swallow the error,
-                # since this method is supposed to be idempotent.
-                if e.response.status_code == NOT_FOUND:
                     Message.new(
-                        message_type="flocker:docker:container_not_found",
+                        message_type="flocker:docker:container_remove",
                         container=container_name
                     ).write()
-                    return
-                # Sometimes Docker returns a 500 error when trying to
-                # remove a container which it is already removing.
-                # This has been resolved in https://github.com/docker/docker/commit/c4e49d10143178c718178ff7ce857f4f8ed46a0b  # noqa
-                # This code should be removed once we drop support for
-                # Docker versions older than 1.9.0. See FLOC-3284.
-                if e.response.status_code == INTERNAL_SERVER_ERROR:
+                    self._client.remove_container(container_name)
                     Message.new(
-                        message_type="flocker:docker:container_remove_internal_error",  # noqa
+                        message_type="flocker:docker:container_removed",
                         container=container_name
                     ).write()
-                    continue
-                raise
+                except APIError as e:
+                    # If the container doesn't exist, we swallow the error,
+                    # since this method is supposed to be idempotent.
+                    if e.response.status_code == NOT_FOUND:
+                        Message.new(
+                            message_type="flocker:docker:container_not_found",
+                            container=container_name
+                        ).write()
+                        return True
+                    # Sometimes Docker returns a 500 error when trying to
+                    # remove a container which it is already removing.
+                    # This has been resolved in https://github.com/docker/docker/commit/c4e49d10143178c718178ff7ce857f4f8ed46a0b  # noqa
+                    # This code should be removed once we drop support for
+                    # Docker versions older than 1.9.0. See FLOC-3284.
+                    if e.response.status_code == INTERNAL_SERVER_ERROR:
+                        Message.new(
+                            message_type="flocker:docker:container_remove_internal_error",  # noqa
+                            container=container_name
+                        ).write()
+                        return False
+                    raise
+
+            loop_until(_remove_part_two)
+
         d = deferToThread(_remove)
         return d
 
