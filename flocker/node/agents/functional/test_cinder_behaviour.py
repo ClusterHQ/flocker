@@ -38,19 +38,6 @@ def cinder_volume_manager():
     return get_cinder_v1_client(session, region).volumes
 
 
-def fake_get(volume_id):
-    """
-    fake get that will just return a fake instance of a ``BlockDeviceVolume``.
-    It is used in the timeout test for destroy cinder volume,
-    see ``BlockDeviceAPIDestroyTests``
-    """
-    return BlockDeviceVolume(
-        size=100, attached_to=None,
-        dataset_id=uuid4(),
-        blockdevice_id=unicode(volume_id),
-    )
-
-
 # All of the following tests could be part of the suite returned by
 # ``make_icindervolumemanager_tests`` instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1846
@@ -143,14 +130,20 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         If the cinder cannot delete the volume, we should timeout
         after waiting some time
         """
-        # Adding a fake get that will always return a volume, so we
-        # timeout waiting for the volume to be deleted
-        self.patch(self.cinder_volumes, "get", fake_get)
+        new_volume = self.cinder_volumes.create(size=100)
+        self.addCleanup(self.cinder_volumes.delete, new_volume)
+        listed_volume = wait_for_volume_state(
+            volume_manager=self.cinder_volumes,
+            expected_volume=new_volume,
+            desired_state=u'available',
+            transient_states=(u'creating',),
+        )
+
         # Using a fake no-op delete so it doesn't actually delete anything
         # (we don't need any actual volumes here, as we only need to verify
         # the timeout)
         self.patch(self.cinder_volumes, "delete", lambda *args, **kwargs: None)
-
+        # Now try to delete it
         api = CinderBlockDeviceAPI(
             cinder_volume_manager=self.cinder_volumes,
             nova_volume_manager=object(),
@@ -164,5 +157,5 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         self.assertRaises(
             TimeoutException,
             api.destroy_volume,
-            blockdevice_id=unicode(uuid4())
+            blockdevice_id=listed_volume.id
         )

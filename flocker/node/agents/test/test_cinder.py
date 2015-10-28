@@ -73,7 +73,7 @@ class FakeCinderClient(object):
     """"
     Fake implementation of the cinder volume manager to use in the Cinder
     Destroy tests.
-    Right now, we don't need a full mock of the class, we just need the
+    Right now, we don't need a full fake of the class, we just need the
     get not to raise any exception so the destroy volume timeout test
     actually times out - it will be trying to get the volume in a loop
     after deleting it, expecting a ``CinderNotFound`` exception that will
