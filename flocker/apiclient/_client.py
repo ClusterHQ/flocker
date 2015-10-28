@@ -88,6 +88,15 @@ class Lease(PClass):
     expires = field(type=(float, int, NoneType), mandatory=True)
 
 
+class Container(PClass):
+    """
+    A container in the configuration.
+    """
+    node_uuid = field()
+    name = field()
+    image = field()
+
+
 class DatasetAlreadyExists(Exception):
     """
     The suggested dataset ID already exists.
@@ -97,6 +106,12 @@ class DatasetAlreadyExists(Exception):
 class LeaseAlreadyHeld(Exception):
     """
     A lease exists for the specified dataset ID on a different node.
+    """
+
+
+class ContainerAlreadyExists(Exception):
+    """
+    The specified container name is in use by another container.
     """
 
 
@@ -197,6 +212,17 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with a ``dict`` containing the key
             ``flocker`` and the version reported by the Flocker Control
             service.
+        """
+
+    def create_container(primary, name, image):
+        """
+        :param UUID primary: The ``UUID`` of the node where the container will
+            be started.
+        :param unicode name: The name to assign to the container.
+        :param unicode image: The name of ``Docker`` image which will be used.
+        :return: ``Deferred`` firing with the configured ``Container`` or
+            ``ContainerAlreadyExists`` if the supplied container name already
+            exists.
         """
 
 

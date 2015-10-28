@@ -26,11 +26,11 @@ from twisted.internet.defer import gatherResults
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
-    Lease, LeaseAlreadyHeld,
+    Lease, LeaseAlreadyHeld, Container, ContainerAlreadyExists,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port
+from ...testtools import find_free_port, random_name
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
@@ -341,6 +341,54 @@ def make_clientv1_tests():
                 {"flocker": __version__},
             )
             return d
+
+        def test_create_container(self):
+            """
+            ``create_container`` returns a ``Deferred`` firing with the
+            configured ``Container``.
+            """
+            expected_container = Container(
+                node_uuid=uuid4(),
+                name=random_name(case=self),
+                image=u'nginx',
+            )
+            d = self.client.create_container(
+                primary=expected_container.node_uuid,
+                name=expected_container.name,
+                image=expected_container.image,
+            )
+            d.addCallback(
+                self.assertEqual,
+                expected_container,
+            )
+            return d
+
+        def test_create_container_exists(self):
+            """
+            When supplied with the name of an existing container,
+            ``create_container`` returns a ``Deferred`` firing with a
+            ``ContainerAlreadyExists``.
+            """
+            expected_container = Container(
+                node_uuid=uuid4(),
+                name=random_name(case=self),
+                image=u'nginx',
+            )
+            d = self.client.create_container(
+                primary=expected_container.node_uuid,
+                name=expected_container.name,
+                image=expected_container.image,
+            )
+
+            def create_same_name_container(first_container):
+                return self.client.create_container(
+                    primary=uuid4(),
+                    name=first_container.name,
+                    image=u'not_nginx',
+                )
+            d.addCallback(create_same_name_container)
+
+            return self.assertFailure(d, ContainerAlreadyExists)
 
     return InterfaceTests
 
