@@ -25,7 +25,7 @@ from treq import json_content, content
 
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError
-
+from .. import __version__
 
 _LOG_HTTP_REQUEST = ActionType(
     "flocker:apiclient:http_request",
@@ -190,6 +190,15 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with a list of ``Lease`` instance.
         """
 
+    def version():
+        """
+        Return current version.
+
+        :return: ``Deferred`` firing with a ``dict`` containing the key
+            ``flocker`` and the version reported by the Flocker Control
+            service.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
@@ -273,6 +282,11 @@ class FakeFlockerClient(object):
                   expires=((l.expiration - self._NOW).total_seconds()
                            if l.expiration is not None else None))
             for l in self._leases.values()])
+
+    def version(self):
+        return succeed(
+            {u"flocker": __version__}
+        )
 
 
 class ResponseError(Exception):
@@ -467,3 +481,8 @@ class FlockerClient(object):
         request.addCallback(
             lambda results: [self._parse_lease(l) for l in results])
         return request
+
+    def version(self):
+        return self._request(
+            b"GET", b"/version", None, {OK}
+        )
