@@ -19,12 +19,13 @@ It is important to note the following:
 
 These instructions include a :file:`Vagrantfile` to download, which will boot the necessary virtual machines.
 Flocker and its dependencies will be installed on these virtual machines the first time you start them.
-One important thing to note is that these virtual machines are statically assigned the following IPs:
+
+These virtual machines are statically assigned the following IPs:
 
 * node1: ``172.16.255.250``
 * node2: ``172.16.255.251``
 
-These two IP addresses will be used throughout the tutorial and configuration files.
+These two IP addresses are used throughout the :ref:`MongoDB tutorial<tutorial-mongo>`.
 
 .. warning::
 
