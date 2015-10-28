@@ -1,8 +1,8 @@
 .. _vagrant-setup:
 
-=============================================
-Creating Vagrant Virtual Machines for Flocker
-=============================================
+========================================
+Using Vagrant to Create Virtual Machines
+========================================
 
 .. note:: If you already followed these instructions from a previous Flocker release, see :ref:`upgrading-vagrant-environment`.
 
@@ -34,6 +34,11 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    
    This will also require you to start the node services manually.
    For more information, see :ref:`authentication`.
+
+.. _creating-vagrant-VMs:
+
+Creating Vagrant Virtual Machines for Flocker
+=============================================
 
 #. Create a tutorial directory, for example:
 
@@ -173,7 +178,7 @@ If you already have a tutorial environment from a previous release, you'll need 
       ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
       ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
-#. Delete the original :file:`Vagrantfile` and complete the steps in :ref:`vagrant-setup` to download the latest versions of the downloadable files (:file:`Vagrantfile`, :file:`cluster.crt`, :file:`user.crt`, and :file:`user.key`) and run ``vagrant-up``.
+#. Delete the original :file:`Vagrantfile` and complete the steps in :ref:`creating-vagrant-VMs` to download the latest versions of the downloadable files (:file:`Vagrantfile`, :file:`cluster.crt`, :file:`user.crt`, and :file:`user.key`) and run ``vagrant-up``.
 
 If you do not have an older versions of the :file:`Vagrantfile`, or if the ``vagrant destroy`` command fails, you can remove existing nodes `directly from VirtualBox`_.
 
