@@ -99,6 +99,8 @@ def get_trial_environment(cluster):
         'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': bytes(
             cluster.default_volume_size
         ),
+        'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
+            cluster.dataset_backend_config_file
     }
 
 
@@ -339,10 +341,30 @@ def generate_certificates(cluster_id, nodes):
     )
     return certificates
 
+def _save_backend_configuration(dataset_backend_name,
+                                dataset_backend_configuration):
+    """
+    Saves the backend configuration to a local file for consumption by the
+    trial process.
+
+    :param dataset_backend_name: The name of the dataset_backend.
+
+    :param dataset_backend_configuration: The configuration of the
+        dataset_backend.
+
+    :returns: The filepath in a string to the temporary file where the dataset
+        backend configuration was saved.
+    """
+    dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
+    print("Saving dataset backend config to: {}".format(dataset_path.path))
+    dataset_path.setContent(yaml.safe_dump(
+            {dataset_backend_name.name: dataset_backend_configuration}))
+    return dataset_path.path
+
 
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
-    dataset_backend_configuration
+    dataset_backend_configuration, dataset_backend_config_file
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -356,6 +378,8 @@ def configured_cluster_for_nodes(
         use when they are "started".
     :param dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
+    :param str dataset_backend_config_file: A file that has the dataset_backend
+        info stored.
 
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
@@ -386,7 +410,8 @@ def configured_cluster_for_nodes(
         agent_nodes=nodes,
         dataset_backend=dataset_backend,
         default_volume_size=int(default_volume_size.to_Byte().value),
-        certificates=certificates
+        certificates=certificates,
+        dataset_backend_config_file=dataset_backend_config_file
     )
 
     configuring = perform(
@@ -583,6 +608,8 @@ class LibcloudRunner(object):
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
+            _save_backend_configuration(self.dataset_backend,
+                                        self.dataset_backend_configuration)
         )
 
         returnValue(cluster)
