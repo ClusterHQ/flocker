@@ -276,7 +276,8 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
                                        aws_access_key_id=access_key_id,
-                                       aws_secret_access_key=secret_access_key)
+                                       aws_secret_access_key=secret_access_key,
+                                       debug=2)
     return _EC2(zone=zone,
                 connection=_LoggedBotoConnection(connection=connection))
 
