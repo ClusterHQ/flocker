@@ -26,7 +26,6 @@ from characteristic import with_cmp
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
-from flocker.testtools import loop_until
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
@@ -753,54 +752,39 @@ class DockerClient(object):
                     ).write()
                     break
 
-            def _remove_part_two():
-                try:
-                    # The ``docker.Client.stop`` method sometimes returns a
-                    # 404 error, even though the container exists.
-                    # See https://github.com/docker/docker/issues/13088
-                    # Wait until the container has actually stopped running
-                    # before attempting to remove it.  Otherwise we are
-                    # likely to see: 'docker.errors.APIError: 409 Client
-                    # Error: Conflict ("Conflict, You cannot remove a
-                    # running container. Stop the container before
-                    # attempting removal or use -f")'
-                    # This code should probably be removed once the above
-                    # issue has been resolved. See [FLOC-1850]
-                    self._client.wait(container_name)
+            try:
+                # The ``docker.Client.stop`` method sometimes returns a
+                # 404 error, even though the container exists.
+                # See https://github.com/docker/docker/issues/13088
+                # Wait until the container has actually stopped running
+                # before attempting to remove it.  Otherwise we are
+                # likely to see: 'docker.errors.APIError: 409 Client
+                # Error: Conflict ("Conflict, You cannot remove a
+                # running container. Stop the container before
+                # attempting removal or use -f")'
+                # This code should probably be removed once the above
+                # issue has been resolved. See [FLOC-1850]
+                self._client.wait(container_name)
 
+                Message.new(
+                    message_type="flocker:docker:container_remove",
+                    container=container_name
+                ).write()
+                self._client.remove_container(container_name)
+                Message.new(
+                    message_type="flocker:docker:container_removed",
+                    container=container_name
+                ).write()
+            except APIError as e:
+                # If the container doesn't exist, we swallow the error,
+                # since this method is supposed to be idempotent.
+                if e.response.status_code == NOT_FOUND:
                     Message.new(
-                        message_type="flocker:docker:container_remove",
+                        message_type="flocker:docker:container_not_found",
                         container=container_name
                     ).write()
-                    self._client.remove_container(container_name)
-                    Message.new(
-                        message_type="flocker:docker:container_removed",
-                        container=container_name
-                    ).write()
-                except APIError as e:
-                    # If the container doesn't exist, we swallow the error,
-                    # since this method is supposed to be idempotent.
-                    if e.response.status_code == NOT_FOUND:
-                        Message.new(
-                            message_type="flocker:docker:container_not_found",
-                            container=container_name
-                        ).write()
-                        return True
-                    # Sometimes Docker returns a 500 error when trying to
-                    # remove a container which it is already removing.
-                    # This has been resolved in https://github.com/docker/docker/commit/c4e49d10143178c718178ff7ce857f4f8ed46a0b  # noqa
-                    # This code should be removed once we drop support for
-                    # Docker versions older than 1.9.0. See FLOC-3284.
-                    if e.response.status_code == INTERNAL_SERVER_ERROR:
-                        Message.new(
-                            message_type="flocker:docker:container_remove_internal_error",  # noqa
-                            container=container_name
-                        ).write()
-                        return False
-                    raise
-
-            loop_until(_remove_part_two)
-
+                    return
+                raise
         d = deferToThread(_remove)
         return d
 
