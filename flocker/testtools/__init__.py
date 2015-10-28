@@ -216,6 +216,18 @@ def function_serializer(function):
             "function": str(function),
         }
 
+
+class LoopExceeded(Exception):
+    """
+    Raised when ``loop_until`` looped too many times.
+    """
+
+    def __init__(self, predicate, last_result):
+        super(LoopExceeded, self).__init__(
+            '%r never True in loop_until, last result: %r'
+            % (predicate, last_result))
+
+
 LOOP_UNTIL_ACTION = ActionType(
     action_type="flocker:testtools:loop_until",
     startFields=[Field("predicate", function_serializer)],
@@ -228,8 +240,8 @@ LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
     description="Predicate failed, trying again.")
 
 
-def loop_until(predicate, reactor=reactor):
-    """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
+def loop_until(predicate, reactor=reactor, steps=None):
+    """Repeatedly call ``predicate``, until it returns something ``Truthy``.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
@@ -237,9 +249,20 @@ def loop_until(predicate, reactor=reactor):
     :param reactor: The reactor implementation to use to delay.
     :type reactor: ``IReactorTime``.
 
+    :param steps: An iterable of delay intervals, measured in seconds.
+        If not provided, will default to retrying every 0.1 seconds forever.
+
+    :raise LoopExceeded: If given a finite sequence of steps, and we exhaust
+        that sequence waiting for predicate to be truthy.
+
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
+    if steps is None:
+        steps = repeat(0.1)
+    else:
+        steps = iter(steps)
+
     action = LOOP_UNTIL_ACTION(predicate=predicate)
 
     d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
@@ -249,7 +272,11 @@ def loop_until(predicate, reactor=reactor):
             LOOP_UNTIL_ITERATION_MESSAGE(
                 result=result
             ).write()
-            d = deferLater(reactor, 0.1, action.run, predicate)
+            try:
+                delay = steps.next()
+            except StopIteration:
+                raise LoopExceeded(predicate, result)
+            d = deferLater(reactor, delay, action.run, predicate)
             d.addCallback(partial(action.run, loop))
             return d
         action.addSuccessFields(result=result)

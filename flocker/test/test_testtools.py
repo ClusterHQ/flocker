@@ -20,7 +20,7 @@ from twisted.python.failure import Failure
 from flocker.testtools import (
     run_process,
     loop_until, LOOP_UNTIL_ACTION, LOOP_UNTIL_ITERATION_MESSAGE,
-    retry_failure,
+    LoopExceeded, retry_failure,
 )
 
 
@@ -190,6 +190,50 @@ class LoopUntilTests(SynchronousTestCase):
             [messages[0].message['result'], messages[1].message['result']],
             expected_results,
         )
+
+    @capture_logging(None)
+    def test_custom_time_steps(self, logger):
+        """
+        loop_until can be passed a generator of intervals to wait on.
+        """
+        result = object()
+        results = [None, False, result]
+
+        def predicate():
+            return results.pop(0)
+        clock = Clock()
+
+        d = loop_until(predicate, reactor=clock, steps=[1, 2, 3])
+
+        clock.advance(1)
+        self.assertNoResult(d)
+        clock.advance(1)
+        self.assertNoResult(d)
+        clock.advance(1)
+
+        self.assertEqual(self.successResultOf(d), result)
+
+    @capture_logging(None)
+    def test_fewer_steps_than_repeats(self, logger):
+        """
+        loop_until can be given fewer steps than it needs for the predicate to
+        return True. In that case, something something.
+        """
+        results = [False] * 5
+        steps = [0.1] * 2
+
+        def predicate():
+            return results.pop(0)
+        clock = Clock()
+
+        d = loop_until(predicate, reactor=clock, steps=steps)
+
+        clock.advance(0.1)
+        self.assertNoResult(d)
+        clock.advance(0.1)
+        self.assertEqual(
+            str(self.failureResultOf(d).value),
+            str(LoopExceeded(predicate, False)))
 
 
 class RetryFailureTests(SynchronousTestCase):
