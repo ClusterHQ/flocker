@@ -100,7 +100,7 @@ def get_trial_environment(cluster):
             cluster.default_volume_size
         ),
         'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
-            cluster.dataset_backend_config_file
+            cluster.dataset_backend_config_file.path
     }
 
 
@@ -297,6 +297,8 @@ class ManagedRunner(object):
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
+                _save_backend_configuration(self.dataset_backend,
+                                            self.dataset_backend_configuration)
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -341,6 +343,7 @@ def generate_certificates(cluster_id, nodes):
     )
     return certificates
 
+
 def _save_backend_configuration(dataset_backend_name,
                                 dataset_backend_configuration):
     """
@@ -352,14 +355,14 @@ def _save_backend_configuration(dataset_backend_name,
     :param dataset_backend_configuration: The configuration of the
         dataset_backend.
 
-    :returns: The filepath in a string to the temporary file where the dataset
-        backend configuration was saved.
+    :returns: The FilePath to the temporary file where the dataset backend
+        configuration was saved.
     """
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
     dataset_path.setContent(yaml.safe_dump(
             {dataset_backend_name.name: dataset_backend_configuration}))
-    return dataset_path.path
+    return dataset_path
 
 
 def configured_cluster_for_nodes(
@@ -378,8 +381,8 @@ def configured_cluster_for_nodes(
         use when they are "started".
     :param dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
-    :param str dataset_backend_config_file: A file that has the dataset_backend
-        info stored.
+    :param FilePath dataset_backend_config_file: A FilePath that has the
+        dataset_backend info stored.
 
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
@@ -437,7 +440,8 @@ class VagrantRunner(object):
     NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
-        self.vagrant_path = self._get_vagrant_path(self.top_level, self.distribution)
+        self.vagrant_path = self._get_vagrant_path(self.top_level,
+                                                   self.distribution)
 
         self.certificates_path = self.top_level.descendant([
             'vagrant', 'tutorial', 'credentials'])
@@ -982,7 +986,6 @@ def journald_json_formatter(output_file):
     Eliot JSON with extra fields to identify the log origin.
     """
     accumulated = {}
-
 
     # XXX Factoring the parsing code separately from the IO would make this
     # whole thing nicer.

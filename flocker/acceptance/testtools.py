@@ -844,8 +844,8 @@ def require_cluster(num_nodes, required_backend=None):
                 if backend_type != required_backend:
                     raise SkipTest(
                         'This test requires backend type {} but is being run '
-                        'on {}.'.format(backend_type.name,
-                                        required_backend.name))
+                        'on {}.'.format(required_backend.name,
+                                        backend_type.name))
                 kwargs['backend'] = get_backend_api(test_case,
                                                     cluster.cluster_uuid)
             return test_method(test_case, *args, **kwargs)
@@ -930,10 +930,11 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         dataset_id = uuid4()
     if metadata is None:
         metadata = {}
-    metadata[u"name"] = metadata.get(u"name", u"my_volume")
+    metadata_arg = {u"name": u"my_volume"}
+    metadata_arg.update(metadata)
     configuring_dataset = cluster.client.create_dataset(
         cluster.nodes[0].uuid, maximum_size=maximum_size,
-        dataset_id=dataset_id, metadata=metadata
+        dataset_id=dataset_id, metadata=metadata_arg
     )
 
     # Wait for the dataset to be created
