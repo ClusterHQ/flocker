@@ -593,8 +593,8 @@ def task_test_homebrew(recipe):
     """
 
     return sequence([
-        run_from_args(['brew', 'tap', 'ClusterHQ/tap']),
-        run("brew update"),
+        retry_effect_with_timeout(run_from_args(['brew', 'tap', 'ClusterHQ/tap']), 160),
+        retry_effect_with_timeout(run("brew update"), 160),
         retry_effect_with_timeout(
             run("brew install {recipe}".format(recipe=recipe)), 160),
         run("brew test {recipe}".format(recipe=recipe)),
