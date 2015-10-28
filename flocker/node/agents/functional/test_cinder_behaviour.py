@@ -8,7 +8,8 @@ basic assumptions/understandings of how Cinder works in the real world.
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..cinder import (
-    get_keystone_session, get_cinder_v1_client, wait_for_volume_state
+    get_keystone_session, get_cinder_v1_client, wait_for_volume_state,
+    CinderBlockDeviceAPI, TimeoutException
 )
 from ..test.blockdevicefactory import (
     InvalidConfig,
@@ -17,6 +18,9 @@ from ..test.blockdevicefactory import (
     get_blockdevice_config,
 )
 from ....testtools import random_name
+
+from uuid import uuid4
+from ..blockdevice import BlockDeviceVolume
 
 
 def cinder_volume_manager():
@@ -32,6 +36,17 @@ def cinder_volume_manager():
     region = get_openstack_region_for_test()
     session = get_keystone_session(**config)
     return get_cinder_v1_client(session, region).volumes
+
+
+def fakeGet(volume_id):
+    """
+
+    """
+    return BlockDeviceVolume(
+        size=100, attached_to=None,
+        dataset_id=uuid4(),
+        blockdevice_id=unicode(volume_id),
+    )
 
 
 # All of the following tests could be part of the suite returned by
@@ -112,3 +127,39 @@ class VolumesSetMetadataTests(SynchronousTestCase):
         missing_items = expected_items - actual_items
 
         self.assertEqual(set(), missing_items)
+
+
+class BlockDeviceAPIDestroyTests(SynchronousTestCase):
+    """
+    Test for ``cinder.CinderBlockDeviceAPI.destroy_volume``
+    """
+    def setUp(self):
+        self.cinder_volumes = cinder_volume_manager()
+
+    def test_destroy_timesout(self):
+        """
+        If the cinder cannot delete the volume, we should timeout
+        after waiting some time
+        """
+        # Adding a fake get that will always return a volume, so we
+        # timeout waiting for the volume to be deleted
+        self.patch(self.cinder_volumes, "get", fakeGet)
+        # Using a fake no-op delete so it doens't actually delete anything
+        # (we don't need any actual volumes here, as we only need to verify
+        # the timeout)
+        self.patch(self.cinder_volumes, "delete", lambda *args, **kwargs: None)
+
+        api = CinderBlockDeviceAPI(
+            cinder_volume_manager=self.cinder_volumes,
+            nova_volume_manager=object(),
+            nova_server_manager=object(),
+            cluster_id=uuid4()
+            )
+        # Setting the timeut to 1, as the default is quite high, and we do not
+        # want to wait that much in a test
+        api.timeout = 1
+        self.assertRaises(
+            TimeoutException,
+            api.destroy_volume,
+            blockdevice_id=unicode(uuid4())
+        )

@@ -71,7 +71,7 @@ class VerifyTests(SynchronousTestCase):
 
 class FakeCinderClient(object):
     """"
-    Mock implementation of the cinder volume manager to use in the Cinder
+    Fake implementation of the cinder volume manager to use in the Cinder
     Destroy tests.
     Right now, we don't need a full mock of the class, we just need the
     get not to raise any exception so the destroy volume timeout test
@@ -89,7 +89,7 @@ class FakeCinderClient(object):
     def get(self, volume_id):
         """
         A no-op get.
-        Return a mock BlockDeviceVolume
+        Return a fake BlockDeviceVolume
         """
         return BlockDeviceVolume(
             size=100, attached_to=None,
@@ -110,7 +110,7 @@ class CinderDestroyTests(SynchronousTestCase):
         ``TimeoutException`` if the volume is not removed within
         some time (``_currentTimeout`` will define how long it will wait).
         """
-        # Use the mock implementation of the Cinder Volume that will
+        # Uses the fake implementation of the Cinder Volume that will
         # be unresponsive.
         api = CinderBlockDeviceAPI(
             cinder_volume_manager=FakeCinderClient(),
