@@ -21,7 +21,7 @@ You can use the following commands to install swarm from our uploaded binary.
 
 Alternatively - you can `compile swarm from master <https://github.com/docker/swarm#development-installation>`_ and the resulting binary will also have ``--volume-driver`` support.
 
-Running a Container Via Swarm
+Running a container via swarm
 =============================
 
 Here is an example of a docker run command that provisions a Flocker volume via Swarm.
@@ -34,7 +34,7 @@ Here is an example of a docker run command that provisions a Flocker volume via 
     docker run -v demo:/data --volume-driver flocker redis
 
 
-Targeting Specific Hosts
+Targeting specific hosts
 ========================
 
 You can use Swarm constraints to target containers to specific hosts.

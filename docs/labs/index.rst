@@ -42,7 +42,7 @@ The goals of ClusterHQ Labs are to make it possible to:
 Our biggest step towards this goal so far is the Flocker plugin for Docker, which enables you to integrate Flocker with tools like :ref:`Swarm <labs-swarm>` and :ref:`Compose <labs-compose>`, and pluggable directly into the Docker Engine and directly usable from the ``docker run`` CLI.
 The Flocker plugin for Docker started out as an unofficial labs project, but is now supported in the :ref:`docker-plugin` documentation.
 
-Mega Demo
+Mega demo
 =========
 
 Also check out the `DockerCon Plugin Demos <https://plugins-demo-2015.github.io/>`_ site to see a joint project between ClusterHQ and Weaveworks.
@@ -50,14 +50,14 @@ This is the "ultimate integration demo" — a pre-built demo environment that in
 
 .. _labs-contact:
 
-ClusterHQ Labs Feedback
-=======================
+Getting in touch with ClusterHQ Labs
+====================================
 
 Come and talk to us on our IRC channel which is on Freenode ``#clusterhq``.
 
 Or, file an issue on GitHub for the `Unofficial Flocker Tools <https://github.com/clusterhq/unofficial-flocker-tools>`_ for CLI, GUI, or installer issues.
 
-List of Labs Projects
+List of Labs projects
 =====================
 
 .. toctree::
