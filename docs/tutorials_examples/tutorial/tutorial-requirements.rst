@@ -64,3 +64,4 @@ See the official `MongoDB installation guide`_ for your system.
 .. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/v2/
 .. _`VirtualBox`: https://www.virtualbox.org/
+.. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/

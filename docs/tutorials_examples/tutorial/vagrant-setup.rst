@@ -204,5 +204,5 @@ Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile``
 Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can remove the existing nodes `directly from VirtualBox`_.
 The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
 
-.. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
+.. _`Vagrant`: https://docs.vagrantup.com/v2/
 .. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568
