@@ -32,7 +32,7 @@ from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from . import run_state_change
+from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
 from ..control import (
@@ -317,6 +317,9 @@ class ConvergenceLoop(object):
         to the control service.
     :type _last_acknowledged_state: tuple of IClusterStateChange
 
+    :ivar _last_discovered_local_state: The discovered local state from
+        last iteration done.
+
     :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
         ``None`` if not in SLEEPING state.
     """
@@ -331,6 +334,7 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
         self.client = None
+        self._last_discovered_local_state = None
         self._last_acknowledged_state = None
         self._sleep_timeout = None
 
@@ -348,8 +352,9 @@ class ConvergenceLoop(object):
         # local state hasn't changed. If when we calculate changes that
         # still indicates some action should be taken that means we should
         # wake up:
+        discovered = self._last_discovered_local_state
         if self.deployer.calculate_changes(
-            self.configuration, self.state, self._last_discovered_local_state) != NoOp():
+                self.configuration, self.cluster_state, discovered) != NoOp():
             self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
 
     def _send_state_to_control_service(self, state_changes):
@@ -457,6 +462,27 @@ class ConvergenceLoop(object):
 def build_convergence_loop_fsm(reactor, deployer):
     """
     Create a convergence loop FSM.
+
+    Once cluster config+cluster state updates from control service are
+    received the basic loop is:
+
+    1. Discover local state.
+    2. Calculate ``IStateChanges`` based on local state and cluster
+       configuration and cluster state we received from control service.
+    3. Execute the change.
+    4. Sleep.
+
+    However, if an update is received during sleep then we calculate based
+    on that updated config+state whether a ``IStateChange`` needs to
+    happen. If it does that means this change will have impact on what we
+    do, so we interrupt the sleep. If calculation suggests a no-op then we
+    keep sleeping. Notably we do **not** do a discovery of local state
+    when an update is received while sleeping, since that is an expensive
+    operation that can involve talking to external resources. Moreover an
+    external update only implies external state/config changed, so we're
+    not interested in the latest local state in trying to decide if this
+    update requires us to do something; a recently cached version should
+    suffice.
 
     :param IReactorTime reactor: Used to schedule delays in the loop.
 
