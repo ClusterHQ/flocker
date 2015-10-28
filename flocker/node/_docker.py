@@ -26,6 +26,7 @@ from characteristic import with_cmp
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
+from flocker.testtools import loop_until
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
@@ -708,36 +709,6 @@ class DockerClient(object):
     def exists(self, unit_name):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
-
-    # COPIED FROM TESTTOOLS
-    def loop_until(predicate, reactor=reactor):
-        """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
-
-        :param predicate: Callable returning termination condition.
-        :type predicate: 0-argument callable returning a Deferred.
-
-        :param reactor: The reactor implementation to use to delay.
-        :type reactor: ``IReactorTime``.
-
-        :return: A ``Deferred`` firing with the first ``Truthy`` response from
-            ``predicate``.
-        """
-        action = LOOP_UNTIL_ACTION(predicate=predicate)
-
-        d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
-
-        def loop(result):
-            if not result:
-                LOOP_UNTIL_ITERATION_MESSAGE(
-                    result=result
-                ).write()
-                d = deferLater(reactor, 0.1, action.run, predicate)
-                d.addCallback(partial(action.run, loop))
-                return d
-            action.addSuccessFields(result=result)
-            return result
-        d.addCallback(loop)
-        return d.addActionFinish()
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
