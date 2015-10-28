@@ -1,10 +1,10 @@
 .. _vagrant-setup:
 
-=======================================
-Creating Vagrant VMs Needed for Flocker
-=======================================
+=============================================
+Creating Vagrant Virtual Machines for Flocker
+=============================================
 
-.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+.. note:: If you already have a Vagrant environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
