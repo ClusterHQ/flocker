@@ -403,7 +403,8 @@ class CinderBlockDeviceAPI(object):
                  cinder_volume_manager,
                  nova_volume_manager, nova_server_manager,
                  cluster_id,
-                 timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT):
+                 timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT,
+                 time_module=None):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
@@ -420,6 +421,9 @@ class CinderBlockDeviceAPI(object):
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
         self._timeout = timeout
+        if time_module is None:
+            time_module = time
+        self._time = time_module
 
     def allocation_unit(self):
         """
@@ -583,20 +587,20 @@ class CinderBlockDeviceAPI(object):
             self.cinder_volume_manager.delete(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
-        start_time = time.time()
+        start_time = self._time.time()
         # Wait until the volume is not there or until the operation
         # timesout
-        while(time.time() - start_time < self._timeout):
+        while(self._time.time() - start_time < self._timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
                 return
-            time.sleep(1.0)
+            self._time.sleep(1.0)
         # If the volume is not deleted, raise an exception
         raise TimeoutException(
             unicode(blockdevice_id),
             None,
-            time.time() - start_time
+            self._time.time() - start_time
         )
 
     def _get_device_path_virtio_blk(self, volume):

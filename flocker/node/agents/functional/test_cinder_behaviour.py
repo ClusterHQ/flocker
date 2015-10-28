@@ -118,6 +118,18 @@ class VolumesSetMetadataTests(SynchronousTestCase):
         self.assertEqual(set(), missing_items)
 
 
+class FakeTime(object):
+    def __init__(self, initial_time):
+        self._current_time = initial_time
+
+    def time(self):
+        return self._current_time
+
+    def sleep(self, interval):
+        self._current_time += interval
+        print "Sleeping. Time now is %d"%self._current_time
+
+
 class BlockDeviceAPIDestroyTests(SynchronousTestCase):
     """
     Test for ``cinder.CinderBlockDeviceAPI.destroy_volume``
@@ -138,12 +150,13 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
             desired_state=u'available',
             transient_states=(u'creating',),
         )
-
+        expected_timeout = 8
         # Using a fake no-op delete so it doesn't actually delete anything
         # (we don't need any actual volumes here, as we only need to verify
         # the timeout)
         self.patch(self.cinder_volumes, "delete", lambda *args, **kwargs: None)
         # Now try to delete it
+        time_module = FakeTime(initial_time=0)
         api = CinderBlockDeviceAPI(
             cinder_volume_manager=self.cinder_volumes,
             nova_volume_manager=object(),
@@ -151,11 +164,22 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
             cluster_id=uuid4(),
             # Setting the timeut to 1, as the default is quite high,
             # and we do not want to wait that much in a test
-            timeout=1
+            timeout=expected_timeout,
+            time_module=time_module
             )
 
-        self.assertRaises(
+        exception = self.assertRaises(
             TimeoutException,
             api.destroy_volume,
             blockdevice_id=listed_volume.id
+        )
+
+        self.assertEqual(
+            expected_timeout,
+            exception.elapsed_time
+        )
+
+        self.assertEqual(
+            expected_timeout,
+            time_module._current_time
         )
