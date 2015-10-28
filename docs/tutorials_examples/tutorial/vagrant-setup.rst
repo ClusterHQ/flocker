@@ -7,15 +7,15 @@ Creating Vagrant Virtual Machines for Flocker
 .. note:: If you already have a Vagrant environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
-To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
+To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox virtual machines.
 
-These VMs serve as hosts on which Flocker can run Docker.
+These virtual machines serve as hosts on which Flocker can run Docker.
 Flocker does not require Vagrant or VirtualBox.
 You can run it on other virtualization technology (e.g., VMware), on clouds (e.g., EC2), or directly on physical hardware.
 
-For your convenience, this tutorial includes ``Vagrantfile`` which will boot the necessary VMs.
-Flocker and its dependencies will be installed on these VMs the first time you start them.
-One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
+For your convenience, this tutorial includes ``Vagrantfile`` which will boot the necessary virtual machines.
+Flocker and its dependencies will be installed on these virtual machines the first time you start them.
+One important thing to note is that these virtual machines are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
 These two IP addresses will be used throughout the tutorial and configuration files.
 
 .. warning::
@@ -73,7 +73,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       alice@mercury:~/flocker-tutorial$ ls
       cluster.crt user.crt user.key Vagrantfile
 
-#. Use ``vagrant up`` to start and provision the VMs:
+#. Use ``vagrant up`` to start and provision the virtual machines:
 
    .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
@@ -88,7 +88,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    Your network connectivity and CPU speed will affect how long this takes.
    Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
-#. After ``vagrant up`` completes you may want to verify that the two VMs are really running and accepting SSH connections:
+#. After ``vagrant up`` completes you may want to verify that the two virtual machines are really running and accepting SSH connections:
 
    .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
@@ -107,7 +107,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       alice@mercury:~/flocker-tutorial$
 
 #. If all goes well, the next step is to configure your SSH agent.
-   This will allow Flocker to authenticate itself to the VM:
+   This will allow Flocker to authenticate itself to the virtual machine:
 
    If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
    If you don't, you'll see an error:
@@ -136,7 +136,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 
       ssh-add ~/.vagrant.d/insecure_private_key
 
-You now have two VMs running and easy SSH access to them.
+You now have two virtual machines running and easy SSH access to them.
 This completes the Vagrant-related setup.
 
 
@@ -178,8 +178,8 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
    ==> node1: Running cleanup tasks for 'shell' provisioner...
    alice@mercury:~/flocker-tutorial$
 
-Next delete the cached SSH host keys for the virtual machines as they will change when new VMs are created.
-Failing to do so will cause SSH to think there is a security problem when you connect to the recreated VMs.
+Next delete the cached SSH host keys for the virtual machines as they will change when new virtual machines are created.
+Failing to do so will cause SSH to think there is a security problem when you connect to the recreated virtual machines.
 
 .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
