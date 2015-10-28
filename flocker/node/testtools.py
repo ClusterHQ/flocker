@@ -28,7 +28,8 @@ from eliot import Logger, ActionType, MessageType, fields
 from . import (
     ILocalState, IDeployer, NodeLocalState, IStateChange, sequentially
 )
-from ..testtools import loop_until, find_free_port
+from ..common import loop_until
+from ..testtools import find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid, Leases

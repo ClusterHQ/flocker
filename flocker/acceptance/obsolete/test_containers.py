@@ -9,9 +9,8 @@ from json import loads, dumps
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
 
-from ...testtools import (
-    loop_until, random_name,
-)
+from ...common import loop_until
+from ...testtools import random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
