@@ -76,6 +76,14 @@ MONGO_IMAGE = u"clusterhq/mongodb"
 DOCKER_PORT = 2376
 
 
+# Sometimes the TCP connection to Docker containers get stuck somewhere.
+# Unless we avoid having to wait the full TCP timeout period the test will
+# definitely fail with a timeout error (after a long delay!).  Anywhere we're
+# polling for a condition, it's better to time out quickly and retry instead of
+# possibly getting stuck in this case.
+SOCKET_TIMEOUT_FOR_POLLING = 2.0
+
+
 def get_docker_client(cluster, address):
     """
     Open a Docker client to the given address.
@@ -879,6 +887,7 @@ def verify_socket(host, port):
     """
     def can_connect():
         with closing(socket()) as s:
+            s.settimeout(SOCKET_TIMEOUT_FOR_POLLING)
             conn = s.connect_ex((host, port))
             Message.new(
                 message_type="acceptance:verify_socket",
@@ -907,7 +916,8 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         request = post(
             "http://{host}:{port}".format(host=host, port=port),
             data=data,
-            persistent=False
+            timeout=SOCKET_TIMEOUT_FOR_POLLING,
+            persistent=False,
         )
 
         def failed(failure):
@@ -938,7 +948,8 @@ def check_http_server(host, port):
     """
     req = get(
         "http://{host}:{port}".format(host=host, port=port),
-        persistent=False
+        timeout=SOCKET_TIMEOUT_FOR_POLLING,
+        persistent=False,
     )
 
     def failed(failure):
@@ -968,11 +979,7 @@ def query_http_server(host, port, path=b""):
         req = get(
             "http://{host}:{port}{path}".format(
                 host=host, port=port, path=path),
-            # Sometimes the TCP connection to the HTTP server gets stuck
-            # somewhere.  Avoid having to wait the full TCP timeout period
-            # before failing.  The query happens in a loop so it's better to
-            # give up early and try again.
-            timeout=2,
+            timeout=SOCKET_TIMEOUT_FOR_POLLING,
             persistent=False,
         )
 
