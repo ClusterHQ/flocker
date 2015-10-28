@@ -6,7 +6,7 @@ Installer
 
 This document guides you through setting up a Flocker cluster and gives a simple example of deploying and moving around a service which includes a stateful container.
 
-Key points
+Key Points
 ==========
 
 * Flocker is a clustered container data volume manager.
@@ -93,7 +93,7 @@ This will work on Linux or OS X machines with Docker installed.
 
 .. _labs-installer-certs-directory:
 
-Make a local directory for your cluster files
+Make a Local Directory for your Cluster Files
 =============================================
 
 The tools will create some configuration files and certificate files for your cluster.
@@ -106,7 +106,7 @@ It is convenient to keep these in a directory, so let's make a directory on your
 
 Now we'll put some files in this directory.
 
-Get some nodes
+Get Some Nodes
 ==============
 
 So now let's use the tools we've just installed to deploy and configure a Flocker cluster.
@@ -177,8 +177,8 @@ This step should take about 5 minutes, and will:
 * start all the requisite Flocker services
 * install the Flocker plugin for Docker, so that you can control Flocker directly from the Docker CLI
 
-Check that Flocker cluster is active
-====================================
+Check that the Flocker Cluster is Active
+========================================
 
 Try the Flocker CLI to check that all your nodes came up:
 
@@ -189,7 +189,7 @@ Try the Flocker CLI to check that all your nodes came up:
 
 You can see that there are no volumes yet.
 
-Deploy and migrate a stateful app
+Deploy and Migrate a Stateful App
 =================================
 
 Now you will deploy a highly sophisticated stateful app to test out Flocker.
@@ -236,7 +236,7 @@ This may take up to a minute since Flocker is ensuring the volume is on the seco
 Now visit ``http://<node 2 public IP>/`` and you’ll see that the location of the Moby Docks has been preserved.
 Nice.
 
-Cleaning up your cluster
+Cleaning Up Your Cluster
 ========================
 
 When you're done, if you want to clean up, run the following steps to clean up your volumes, your instances and your local files:
@@ -259,7 +259,7 @@ When you're done, if you want to clean up, run the following steps to clean up y
 
     If you wish to clean up your cluster manually, be sure to delete the instances that were created in your AWS console and the ``flocker_rules`` security group.
 
-Further reading
+Further Reading
 ===============
 
 Now that you've installed your own Flocker cluster, you may want to learn more about Flocker:
