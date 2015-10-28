@@ -15,7 +15,7 @@ from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
 
-STORAGE_PROFILES_IMPLEMENTED = False
+STORAGE_PROFILES_IMPLEMENTED = True
 
 
 class DatasetAPITests(TestCase):
