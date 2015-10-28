@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Testing utilities for ``flocker.acceptance``.
@@ -24,7 +24,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 
-from eliot import Logger, start_action, Message, write_failure
+from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content, get, post
@@ -322,34 +322,45 @@ def log_method(function):
     """
     label = "acceptance:" + function.__name__
 
-    def log_result(result):
-        Message.new(
-            message_type=label + ":result",
-            value=result,
-        ).write()
+    def log_result(result, action):
+        action.add_success_fields(result=_ensure_encodeable(result))
         return result
 
     @wraps(function)
     def wrapper(self, *args, **kwargs):
 
-        serializable_kwargs = kwargs.copy()
+        serializable_args = tuple(_ensure_encodeable(a) for a in args)
+        serializable_kwargs = {}
         for kwarg in kwargs:
-            try:
-                json.dumps(kwargs[kwarg])
-            except TypeError:
-                serializable_kwargs[kwarg] = repr(kwargs[kwarg])
+            serializable_kwargs[kwarg] = _ensure_encodeable(kwargs[kwarg])
 
         context = start_action(
-            Logger(),
             action_type=label,
-            args=args, kwargs=serializable_kwargs,
+            args=serializable_args, kwargs=serializable_kwargs,
         )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))
-            d.addCallback(log_result)
+            d.addCallback(log_result, context)
             d.addActionFinish()
             return d.result
     return wrapper
+
+
+def _ensure_encodeable(value):
+    """
+    Return a version of ``value`` that is guaranteed to be able to be logged.
+
+    Catches ``TypeError``, which is raised for intrinsically unserializable
+    values, and ``ValueError``, which catches ValueError, which is raised on
+    circular references and also invalid dates.
+
+    If normal encoding fails, return ``repr(value)``.
+    """
+    try:
+        json.dumps(value)
+    except (ValueError, TypeError):
+        return repr(value)
+    return value
 
 
 class Cluster(PRecord):
