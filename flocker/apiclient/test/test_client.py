@@ -37,7 +37,7 @@ from ...control.httpapi import create_api_service
 from ...control import NodeState, NonManifestDatasets, Dataset as ModelDataset
 from ...restapi._logging import JSON_REQUEST
 from ...restapi import _infrastructure as rest_api
-
+from ... import __version__
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
 
@@ -329,6 +329,18 @@ def make_clientv1_tests():
             d.addCallback(lambda _: self.client.acquire_lease(
                 dataset_id, self.node_2, None))
             return self.assertFailure(d, LeaseAlreadyHeld)
+
+        def test_version(self):
+            """
+            ``version`` returns a ``Deferred`` firing with a ``dict``
+            containing ``flocker.__version__``.
+            """
+            d = self.client.version()
+            d.addCallback(
+                self.assertEqual,
+                {"flocker": __version__},
+            )
+            return d
 
     return InterfaceTests
 
