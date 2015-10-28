@@ -1,3 +1,4 @@
+// vim: ai ts=2 sts=2 et sw=2 ft=jinja fdm=indent et foldlevel=0
 {# jobs.groovy.j2
 
   This jinja2 template is used to produce a jobs.groovy file containing the
@@ -261,6 +262,13 @@ folder("{{folder}}") { displayName("{{display_name}}") }
     currently only shell has been implemented.
 
     params v: dictionary containing the job values                           #}
+
+{# starting by updating GitHub saying that the build is now starting         #}
+    configure {
+      it / builders << 'com.cloudbees.jenkins.GitHubSetCommitStatusBuilder'(plugin: 'github@1.10')
+    }
+
+{# and loop through every type of step in the yaml, only shell at the moment #}
     steps {
 {%  for _step in v                                                          -%}
 {%    if _step.type=='shell'                                                 %}
@@ -479,7 +487,12 @@ branches.each {
           absolute(45)
           }
     }
+  {# update GitHub saying that the build is now starting                       #}
+    configure {
+      it / builders << 'com.cloudbees.jenkins.GitHubSetCommitStatusBuilder'(plugin: 'github@1.10')
+    }
       steps {
+
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -620,6 +633,8 @@ branches.each {
             failUnstable(true)
             failNoReports(false)
           }
+{# update GitHub saying that the build has now finished                      #}
+          githubCommitNotifier()
       }
   }
 }
