@@ -28,14 +28,15 @@ class EnsureEncodeableTests(SynchronousTestCase):
 
     def test_encodeable(self):
         """
-        If given an encodeable object, _ensure_encodeable just returns it.
+        If given a JSON-encodeable object, _ensure_encodeable just returns it.
         """
         value = {'foo': 'bar'}
         self.assertEqual(value, _ensure_encodeable(value))
 
     def test_unencodeable(self):
         """
-        If given an unencodeable object, _ensure_encodeable returns its repr.
+        If given an object that cannot be JSON encoded, _ensure_encodeable
+        returns its repr.
         """
         value = object()
         self.assertEqual(repr(value), _ensure_encodeable(value))
