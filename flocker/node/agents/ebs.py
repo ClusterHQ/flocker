@@ -29,7 +29,7 @@ from eliot import Message
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    UnattachedVolume, UnknownInstanceID,
 )
 from ...control import pmap_field
 
@@ -609,7 +609,10 @@ class EBSBlockDeviceAPI(object):
         """
         Look up the EC2 instance ID for this node.
         """
-        return get_instance_metadata()['instance-id'].decode("ascii")
+        instance_id = get_instance_metadata().get('instance-id', None)
+        if instance_id is None:
+            raise UnknownInstanceID(self)
+        return instance_id.decode("ascii")
 
     def _get_ebs_volume(self, blockdevice_id):
         """
@@ -692,6 +695,9 @@ class EBSBlockDeviceAPI(object):
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
+            # EC2 convention for naming objects, e.g. as used in EC2 web
+            # console (http://stackoverflow.com/a/12798180).
+            "Name": u"flocker-{}".format(dataset_id),
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)

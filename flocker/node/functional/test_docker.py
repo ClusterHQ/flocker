@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Functional tests for :module:`flocker.node._docker`.
@@ -32,7 +32,7 @@ from pyrsistent import PClass, pvector, field
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name)
+    random_name, retry_failure)
 
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
@@ -635,7 +635,12 @@ class GenericDockerClientTests(TestCase):
         )
 
         def extract_listening_port(client):
-            listing = client.list()
+            # FLOC-3077: Docker will sometimes raise a 500 when we inspect a
+            # container, due to race conditions with certain volume
+            # operations. Since there's no real user impact for flocker (the
+            # convergence loop will just retry anyway), retry here to avoid
+            # spurious test failures.
+            listing = retry_failure(client.list, [APIError], steps=[0.1] * 5)
             listing.addCallback(
                 lambda applications: list(
                     next(iter(application.ports)).external_port

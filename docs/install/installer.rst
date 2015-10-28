@@ -4,7 +4,7 @@
 Quick Start Flocker Installer
 =============================
 
-.. note:: For a full Flocker installation, including the Flocker plugin for Docker, see the :ref:`full-installation` instructions.
+.. note:: For a full Flocker installation, including :ref:`docker-plugin`, see the :ref:`full-installation` instructions.
 
 If you want to get started with Flocker quickly, but in your own environment, you can use the Quick Start Flocker Installer.
 The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currently experimental.

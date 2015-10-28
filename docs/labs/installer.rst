@@ -175,7 +175,7 @@ This step should take about 5 minutes, and will:
 * install the OS packages on your nodes required to run Flocker, including Docker
 * configure certificates, push them to your nodes, set up firewall rules for the control service
 * start all the requisite Flocker services
-* install the Flocker Docker plugin, so that you can control Flocker directly from the Docker CLI
+* install the Flocker plugin for Docker, so that you can control Flocker directly from the Docker CLI
 
 Check that Flocker cluster is active
 ====================================

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Testing utilities for ``flocker.acceptance``.
@@ -24,7 +24,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 
-from eliot import Logger, start_action, Message, write_failure
+from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content, get, post
@@ -322,34 +322,45 @@ def log_method(function):
     """
     label = "acceptance:" + function.__name__
 
-    def log_result(result):
-        Message.new(
-            message_type=label + ":result",
-            value=result,
-        ).write()
+    def log_result(result, action):
+        action.add_success_fields(result=_ensure_encodeable(result))
         return result
 
     @wraps(function)
     def wrapper(self, *args, **kwargs):
 
-        serializable_kwargs = kwargs.copy()
+        serializable_args = tuple(_ensure_encodeable(a) for a in args)
+        serializable_kwargs = {}
         for kwarg in kwargs:
-            try:
-                json.dumps(kwargs[kwarg])
-            except TypeError:
-                serializable_kwargs[kwarg] = repr(kwargs[kwarg])
+            serializable_kwargs[kwarg] = _ensure_encodeable(kwargs[kwarg])
 
         context = start_action(
-            Logger(),
             action_type=label,
-            args=args, kwargs=serializable_kwargs,
+            args=serializable_args, kwargs=serializable_kwargs,
         )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))
-            d.addCallback(log_result)
+            d.addCallback(log_result, context)
             d.addActionFinish()
             return d.result
     return wrapper
+
+
+def _ensure_encodeable(value):
+    """
+    Return a version of ``value`` that is guaranteed to be able to be logged.
+
+    Catches ``TypeError``, which is raised for intrinsically unserializable
+    values, and ``ValueError``, which catches ValueError, which is raised on
+    circular references and also invalid dates.
+
+    If normal encoding fails, return ``repr(value)``.
+    """
+    try:
+        json.dumps(value)
+    except (ValueError, TypeError):
+        return repr(value)
+    return value
 
 
 class Cluster(PRecord):
@@ -588,16 +599,20 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
+    @log_method
     def clean_nodes(self):
         """
         Clean containers and datasets via the API.
 
         :return: A `Deferred` that fires when the cluster is clean.
         """
-        def api_clean_state(configuration_method, state_method, delete_method):
+        def api_clean_state(
+            name, configuration_method, state_method, delete_method,
+        ):
             """
             Clean entities from the cluster.
 
+            :param unicode name: The name of the entities to clean.
             :param configuration_method: The function to obtain the configured
                 entities.
             :param state_method: The function to get the current entities.
@@ -606,25 +621,30 @@ class Cluster(PRecord):
             :return: A `Deferred` that fires when the entities have been
                 deleted.
             """
-            get_items = configuration_method()
+            context = start_action(
+                action_type=u"acceptance:cleanup_" + name,
+            )
+            with context.context():
+                get_items = DeferredContext(configuration_method())
 
-            def delete_items(items):
-                return gather_deferreds(list(
-                    delete_method(item)
-                    for item in items
-                ))
-            get_items.addCallback(delete_items)
-            get_items.addCallback(
-                lambda ignored: loop_until(
-                    lambda: state_method().addCallback(
-                        lambda result: [] == result
+                def delete_items(items):
+                    return gather_deferreds(list(
+                        delete_method(item)
+                        for item in items
+                    ))
+                get_items.addCallback(delete_items)
+                get_items.addCallback(
+                    lambda ignored: loop_until(
+                        lambda: state_method().addCallback(
+                            lambda result: [] == result
+                        )
                     )
                 )
-            )
-            return get_items
+                return get_items.addActionFinish()
 
         def cleanup_containers(_):
             return api_clean_state(
+                u"containers",
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
@@ -632,28 +652,31 @@ class Cluster(PRecord):
 
         def cleanup_datasets(_):
             return api_clean_state(
+                u"datasets",
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
         def cleanup_leases():
-            get_items = self.client.list_leases()
+            context = start_action(action_type="acceptance:cleanup_leases")
+            with context.context():
+                get_items = DeferredContext(self.client.list_leases())
 
-            def release_all(leases):
-                release_list = []
-                for lease in leases:
-                    release_list.append(
-                        self.client.release_lease(lease.dataset_id))
-                return gather_deferreds(release_list)
+                def release_all(leases):
+                    release_list = []
+                    for lease in leases:
+                        release_list.append(
+                            self.client.release_lease(lease.dataset_id))
+                    return gather_deferreds(release_list)
 
-            get_items.addCallback(release_all)
-            return get_items
+                get_items.addCallback(release_all)
+                return get_items.addActionFinish()
 
-        d = cleanup_leases()
+        d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_containers)
         d.addCallback(cleanup_datasets)
-        return d
+        return d.result
 
     def get_file(self, node, path):
         """

@@ -132,7 +132,7 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Create", methods=["POST"])
     @_endpoint(u"Create")
-    def volumedriver_create(self, Name):
+    def volumedriver_create(self, Name, Opts=None):
         """
         Create a volume with the given name.
 
@@ -150,6 +150,12 @@ class VolumePlugin(object):
         doesn't necessarily know about existing persistent volumes.
 
         :param unicode Name: The name of the volume.
+
+        :param dict Opts: Options passed from Docker for the volume
+            at creation. ``None`` if not supplied in the request body.
+            Currently ignored. ``Opts`` is a parameter introduced in the
+            v2 plugins API introduced in Docker 1.9, it is not supplied
+            in earlier Docker versions.
 
         :return: Result indicating success.
         """

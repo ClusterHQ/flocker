@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
@@ -47,9 +47,35 @@ from ..cinder import (
     wait_for_volume_state, UnexpectedStateException, UnattachedVolume
 )
 
-# Tests requiring virsh can currently only be run on a devstack installation
+# Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
-require_virsh = skipIf(
+#
+# In the meantime, you can do the following (provided you have access):
+#
+# Connect to the devstack host:
+#   ssh -A root@104.130.19.104
+#
+# From the devstack host, connect to the guest:
+#   ssh -A ubuntu@10.0.0.3
+#
+# This is a shared machine that only ClusterHQ employees have access to. Make
+# sure that no one else is using it at the same time.
+#
+# On the devstack guest do the following:
+#   cd flocker
+#   workon flocker
+#
+# Then update the branch to match the code you want to test.
+#
+# Then run these tests:
+#
+#   sudo /usr/bin/env \
+#     FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$PWD/acceptance.yml \
+#     FLOCKER_FUNCTIONAL_TEST=TRUE \
+#     FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
+#     $(type -p trial) \
+#     flocker.node.agents.functional.test_cinder.CinderAttachmentTests
+require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
@@ -83,9 +109,9 @@ class CinderBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
     """
-    def test_foreign_volume(self):
+    def cinder_client(self):
         """
-        Non-Flocker Volumes are not listed.
+        :return: A ``cinderclient.Cinder`` instance.
         """
         try:
             config = get_blockdevice_config(ProviderType.openstack)
@@ -93,7 +119,13 @@ class CinderBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_v1_client(session, region)
+        return get_cinder_v1_client(session, region)
+
+    def test_foreign_volume(self):
+        """
+        Non-Flocker Volumes are not listed.
+        """
+        cinder_client = self.cinder_client()
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
@@ -122,6 +154,21 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)
+
+    def test_name(self):
+        """
+        New volumes get a human-readable name.
+        """
+        cinder_client = self.cinder_client()
+        dataset_id = uuid4()
+        flocker_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size,
+        )
+        self.assertEqual(
+            cinder_client.volumes.get(
+                flocker_volume.blockdevice_id).display_name,
+            u"flocker-{}".format(dataset_id))
 
 
 class CinderHttpsTests(SynchronousTestCase):
@@ -342,7 +389,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_correct_with_attached_disk(self):
         """
         get_device_path returns the correct device name even when a non-Cinder
@@ -387,7 +434,7 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virsh
+    @require_virtio
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
@@ -425,7 +472,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver raises
@@ -470,7 +517,7 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume.id,
         )
 
-    @require_virsh
+    @require_virtio
     def test_get_device_path_virtio_blk_symlink(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver

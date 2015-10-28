@@ -360,6 +360,22 @@ def configured_cluster_for_nodes(
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
     """
+    # XXX: There is duplication between the values here and those in
+    # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
+    # the default volume size to be greater than or equal to the minimum
+    # allocatable size.
+    #
+    # Ideally, the minimum allocatable size (and perhaps the default volume
+    # size) would be something known by an object that represents the dataset
+    # backend. Unfortunately:
+    #  1. There is no such object
+    #  2. There is existing confusion in the code around 'openstack' and
+    #     'rackspace'
+    #
+    # Here, we special-case Rackspace (presumably) because it has a minimum
+    # allocatable size that is different from other Openstack backends.
+    #
+    # FLOC-2584 also discusses this.
     default_volume_size = GiB(1)
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
         default_volume_size = GiB(100)

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node.agents.blockdevice``.
@@ -41,7 +41,8 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
+    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
@@ -54,13 +55,13 @@ from ..blockdevice import (
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
-    DatasetWithoutVolume,
     allocated_size,
     check_allocatable_size,
     get_blockdevice_volume,
     _backing_file_name,
     ProcessLifetimeCache,
     FilesystemExists,
+    UnknownInstanceID,
 )
 
 from ... import run_state_change, in_parallel, ILocalState
@@ -703,9 +704,15 @@ def assert_calculated_changes(
     )
 
 
-# The prefix added to DATASET_IDs for test blockdevice_id's that are generated
-# in _infer_volumes_for_test.
-_BLOCKDEVICE_PREFIX = "blockdevice-"
+def _create_blockdevice_id_for_test(dataset_id):
+    """
+    Generates a blockdevice_id from a dataset_id for tests that do not use an
+    ``IBlockDeviceAPI``.
+
+    :param dataset_id: A unicode or uuid dataset_id to generate the
+        blockdevice_id for.
+    """
+    return "blockdevice-" + unicode(dataset_id)
 
 
 class ScenarioMixin(object):
@@ -713,7 +720,7 @@ class ScenarioMixin(object):
     A mixin for tests which defines some basic Flocker cluster state.
     """
     DATASET_ID = uuid4()
-    BLOCKDEVICE_ID = _BLOCKDEVICE_PREFIX + unicode(DATASET_ID)
+    BLOCKDEVICE_ID = _create_blockdevice_id_for_test(DATASET_ID)
     NODE = u"192.0.2.1"
     NODE_UUID = uuid4()
 
@@ -798,7 +805,7 @@ def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
     def create_test_blockdevice_volume_for_dataset_id(dataset_id,
                                                       attached_to=None):
         return BlockDeviceVolume(
-            blockdevice_id=_BLOCKDEVICE_PREFIX + dataset_id,
+            blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
             size=REALISTIC_BLOCKDEVICE_SIZE,
             attached_to=attached_to,
             dataset_id=UUID(dataset_id))
@@ -1143,6 +1150,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                         mountpoint=FilePath('/flocker/').child(
                             unicode(self.DATASET_ID)
                         ),
+                        blockdevice_id=self.BLOCKDEVICE_ID,
                         dataset_id=self.DATASET_ID
                     )
                 ]
@@ -1199,6 +1207,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             in_parallel(changes=[
                 AttachVolume(
                     dataset_id=UUID(dataset.dataset_id),
+                    blockdevice_id=_create_blockdevice_id_for_test(
+                        dataset.dataset_id)
                 ),
             ]),
             changes
@@ -1236,6 +1246,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
             in_parallel(changes=[
                 MountBlockDevice(
                     dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
                     mountpoint=FilePath(b"/flocker/").child(
                         bytes(self.DATASET_ID)
                     )
@@ -2281,6 +2292,44 @@ def make_iblockdeviceapi_tests(
     return Tests
 
 
+class IProfiledBlockDeviceAPITestsMixin(object):
+    """
+    Tests to perform on ``IProfiledBlockDeviceAPI`` providers.
+    """
+    def test_interface(self):
+        """
+        The API object provides ``IProfiledBlockDeviceAPI``.
+        """
+        self.assertTrue(
+            verifyObject(IProfiledBlockDeviceAPI, self.api)
+        )
+
+    def test_profile_respected(self):
+        """
+        Verify no errors are raised when constructing volumes with the
+        mandatory profiles.
+        """
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            self.api.create_volume_with_profile(profile)
+
+
+def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
+    """
+    Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
+
+    :param profiled_blockdevice_api_factory: A factory that generates the
+        ``IProfiledBlockDeviceAPI`` provider to test.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IProfiledBlockDeviceAPI`` provider.
+    """
+    class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.api = profiled_blockdevice_api_factory()
+
+    return Tests
+
+
 class IBlockDeviceAsyncAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAsyncAPI`` providers.
@@ -2579,6 +2628,17 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             self.api.get_device_path(volume.blockdevice_id),
         )
 
+    def test_missing_instance_id(self):
+        """
+        ``compute_instance_id`` raises an error when it cannot return a valid
+        instance ID.
+        """
+        root_path = None  # Unused in this code.
+        api = LoopbackBlockDeviceAPI(root_path, compute_instance_id=None)
+        e = self.assertRaises(UnknownInstanceID, api.compute_instance_id)
+        self.assertEqual(
+            'Could not find valid instance ID for %r' % (api,), str(e))
+
 
 class LosetupListTests(SynchronousTestCase):
     """
@@ -2829,7 +2889,8 @@ class CreateFilesystemTests(
 class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
-        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/foo")),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+             mountpoint=FilePath(b"/foo")),
         dict(),
     )
 ):
@@ -2928,8 +2989,10 @@ class _MountScenario(PRecord):
 class MountBlockDeviceTests(
     make_istatechange_tests(
         MountBlockDevice,
-        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/foo")),
-        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/bar")),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+             mountpoint=FilePath(b"/foo")),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2,
+             mountpoint=FilePath(b"/bar")),
     )
 ):
     """
@@ -2945,7 +3008,9 @@ class MountBlockDeviceTests(
         self.successResultOf(scenario.create())
 
         change = MountBlockDevice(
-            dataset_id=scenario.dataset_id, mountpoint=scenario.mountpoint
+            dataset_id=scenario.dataset_id,
+            blockdevice_id=scenario.volume.blockdevice_id,
+            mountpoint=scenario.mountpoint
         )
         return scenario, run_state_change(change, scenario.deployer)
 
@@ -2973,6 +3038,7 @@ class MountBlockDeviceTests(
     def _mount(self, scenario, mountpoint):
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
+                             blockdevice_id=scenario.volume.blockdevice_id,
                              mountpoint=mountpoint),
             scenario.deployer))
 
@@ -3005,6 +3071,7 @@ class MountBlockDeviceTests(
         Running ``CreateFilesystem`` on a block device that already has a file
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
+                             blockdevice_id=scenario.volume.blockdevice_id,
                              mountpoint=mountpoint),
             scenario.deployer))
         system fails with an exception and preserves the data.
@@ -3081,6 +3148,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
+                             blockdevice_id=scenario.volume.blockdevice_id,
                              mountpoint=scenario.mountpoint),
             scenario.deployer))
 
@@ -3094,6 +3162,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
+                             blockdevice_id=scenario.volume.blockdevice_id,
                              mountpoint=scenario.mountpoint),
             scenario.deployer))
         self.assertEqual(mountpoint.children(), [])
@@ -3110,6 +3179,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
+                             blockdevice_id=scenario.volume.blockdevice_id,
                              mountpoint=scenario.mountpoint),
             scenario.deployer))
         self.assertItemsEqual(mountpoint.children(),
@@ -3129,6 +3199,7 @@ class MountBlockDeviceTests(
         mountpoint.restat()
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
+                             blockdevice_id=scenario.volume.blockdevice_id,
                              mountpoint=scenario.mountpoint),
             scenario.deployer))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
@@ -3494,7 +3565,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
 class AttachVolumeInitTests(
     make_with_init_tests(
         record_type=AttachVolume,
-        kwargs=dict(dataset_id=uuid4()),
+        kwargs=dict(dataset_id=uuid4(),
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         expected_defaults=dict(),
     )
 ):
@@ -3506,8 +3578,8 @@ class AttachVolumeInitTests(
 class AttachVolumeTests(
     make_istatechange_tests(
         AttachVolume,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3524,7 +3596,8 @@ class AttachVolumeTests(
         volume = api.create_volume(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
-        change = AttachVolume(dataset_id=dataset_id)
+        change = AttachVolume(dataset_id=dataset_id,
+                              blockdevice_id=volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
 
         expected_volume = volume.set(
@@ -3535,17 +3608,20 @@ class AttachVolumeTests(
     def test_missing(self):
         """
         If no volume is associated with the ``AttachVolume`` instance's
-        ``dataset_id``, ``AttachVolume.run`` returns a ``Deferred`` that fires
-        with a ``Failure`` wrapping ``DatasetWithoutVolume``.
+        ``blockdevice_id``, the underlying ``IBlockDeviceAPI`` should fail with
+        an ``UnknownVolume`` exception, and ``AttachVolume.run`` should return
+        a ``Deferred`` that fires with a ``Failure`` wrapping that exception.
         """
         dataset_id = uuid4()
         deployer = create_blockdevicedeployer(self)
-        change = AttachVolume(dataset_id=dataset_id)
+        bad_blockdevice_id = u'incorrect_blockdevice_id'
+        change = AttachVolume(dataset_id=dataset_id,
+                              blockdevice_id=bad_blockdevice_id)
         failure = self.failureResultOf(
-            run_state_change(change, deployer), DatasetWithoutVolume
+            run_state_change(change, deployer), UnknownVolume
         )
         self.assertEqual(
-            DatasetWithoutVolume(dataset_id=dataset_id), failure.value
+            bad_blockdevice_id, failure.value.blockdevice_id
         )
 
 
