@@ -36,6 +36,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
+from twisted.python.reflect import prefixedMethodNames
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
