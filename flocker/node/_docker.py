@@ -769,6 +769,7 @@ class DockerClient(object):
 
         :param unicode container_name: The fully-namespaced name of the
             container.
+        :return: True if we removed the container, False otherwise.
         """
         try:
             # The ``docker.Client.stop`` method sometimes returns a
@@ -789,20 +790,29 @@ class DockerClient(object):
                 container=container_name
             ).write()
             self._client.remove_container(container_name)
-            Message.new(
-                message_type="flocker:docker:container_removed",
-                container=container_name
-            ).write()
         except APIError as e:
-            # If the container doesn't exist, we swallow the error,
-            # since this method is supposed to be idempotent.
             if e.response.status_code == NOT_FOUND:
+                # If the container doesn't exist, we swallow the error,
+                # since this method is supposed to be idempotent.
                 Message.new(
                     message_type="flocker:docker:container_not_found",
                     container=container_name
                 ).write()
-                return
-            raise
+                return True
+            elif e.response.status_code == INTERNAL_SERVER_ERROR:
+                # Failure to remove container - see FLOC-3262 for an example.
+                Message.new(
+                    message_type="flocker:docker:container_remove_internal_error",  # noqa
+                    container=container_name
+                ).write()
+                return False
+            else:
+                raise
+        Message.new(
+            message_type="flocker:docker:container_removed",
+            container=container_name
+        ).write()
+        return True
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
@@ -816,9 +826,11 @@ class DockerClient(object):
                 partial(self._stop_container, container_name),
                 repeat(0.001, 1000))
 
-            # XXX: Turn _remove_container into a predicate, and then wrap this
-            # in a poll_until as well.
-            self._remove_container(container_name)
+            # Previously, the container remove was only tried once. Again,
+            # these parameters may need tuning.
+            poll_until(
+                partial(self._remove_container, container_name),
+                repeat(0.001, 1000))
 
         d = deferToThread(_remove)
         return d
