@@ -965,6 +965,15 @@ class IProfiledBlockDeviceAPI(Interface):
     specific profile.
     """
 
+    def get_profiled_volume_minimum_size():
+        """
+        Get minimum size for volume creation with profile.
+
+        :returns: Size, in bytes, of the smallest possible profiled volume
+            for this backend.
+        :rtype: int
+        """
+
     def create_volume_with_profile(name, size, profile_name):
         """
         Create a new volume with the specified profile.
@@ -980,6 +989,28 @@ class IProfiledBlockDeviceAPI(Interface):
             volume.
 
         :returns: A ``BlockDeviceVolume`` of the newly created volume.
+        """
+
+    def get_configured_profile_attributes(profile_name):
+        """
+        Get attributes associated with input profile.
+
+        :param unicode profile_name: The name of the storage profile to fetch
+            attributes for.
+
+        :returns: Attribute key-value pairs associated with given profile.
+        :rtype: ``pmap``
+        """
+
+    def get_observed_profile_attributes(blockdevice_id):
+        """
+        Get current profile attribute values for given blockdevice.
+
+        :param unicode blockdevice_id: Blockdevice of interest.
+
+        :returns: Profile attribute values for the blockdevice,
+            as reported by driver.
+        :rtype: ``pmap``
         """
 
 

@@ -207,14 +207,6 @@ class EBSBlockDeviceAPIInterfaceTests(
             MandatoryProfiles.GOLD, created_profile=MandatoryProfiles.DEFAULT,
             size_GiB=1)
 
-    def test_create_largest_volume_gold_profile(self):
-        """
-        Largest volume with ``gold`` profile.
-        """
-        raise SkipTest(u'This test is expensive (money).')
-        self._assert_create_volume_with_mandatory_profile(
-            MandatoryProfiles.GOLD, size_GiB=16*1024)
-
     def test_create_too_large_volume_with_profile(self):
         """
         Create a volume so large that none of the ``MandatoryProfiles``
@@ -242,14 +234,6 @@ class EBSBlockDeviceAPIInterfaceTests(
                           MandatoryProfiles.SILVER,
                           size_GiB=1024*1024)
 
-    def test_create_largest_volume_silver_profile(self):
-        """
-        Largest volume with ``silver`` profile.
-        """
-        raise SkipTest(u'This test is expensive (money).')
-        self._assert_create_volume_with_mandatory_profile(
-            MandatoryProfiles.SILVER, size_GiB=16*1024)
-
     def test_create_volume_bronze_profile(self):
         """
         Requesting ``bronze`` profile during volume creation honors
@@ -257,14 +241,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         self._assert_create_volume_with_mandatory_profile(
             MandatoryProfiles.BRONZE)
-
-    def test_create_largest_volume_bronze_profile(self):
-        """
-        Largest volume with ``bronze`` profile.
-        """
-        raise SkipTest(u'This test is expensive (money).')
-        self._assert_create_volume_with_mandatory_profile(
-            MandatoryProfiles.BRONZE, size_GiB=1024)
 
     def _assert_create_volume_with_mandatory_profile(self, profile,
                                                      created_profile=None,
@@ -292,6 +268,8 @@ class EBSBlockDeviceAPIInterfaceTests(
         ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
         self.assertEqual(ebs_volume.type, A.volume_type.value)
         requested_iops = A.requested_iops(ebs_volume.size)
+        self.assertEqual(ebs_volume.iops if requested_iops is not None
+                         else None, requested_iops)
         if requested_iops is not None:
             self.assertEqual(ebs_volume.iops, requested_iops)
 
