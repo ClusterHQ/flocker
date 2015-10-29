@@ -173,7 +173,7 @@ class GenericDockerClientTests(TestCase):
         )
         self.addCleanup(client.remove, unit_name)
 
-        d.addCallback(lambda _: wait_for_unit_state(client, unit_name,
+        d.addCallback(lambda _: wait_for_unit_state(reactor, client, unit_name,
                                                     expected_states))
         d.addCallback(lambda _: client)
 

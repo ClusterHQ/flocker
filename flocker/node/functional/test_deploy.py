@@ -375,6 +375,7 @@ class DeployerTests(TestCase):
 
         d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(
+            reactor,
             docker_client,
             application_name,
             [u'active'])
@@ -421,6 +422,7 @@ class DeployerTests(TestCase):
 
         d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(
+            reactor,
             docker_client,
             application_name,
             [u'active'])
