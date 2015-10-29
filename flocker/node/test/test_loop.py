@@ -28,7 +28,7 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
-    _Sleep, ConvergenceLoop,
+    ConvergenceLoop,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
