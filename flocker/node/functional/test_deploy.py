@@ -10,6 +10,7 @@ from pyrsistent import pmap, pvector, pset
 
 from eliot import Message
 
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
@@ -186,7 +187,7 @@ class DeployerTests(TestCase):
             list(volumes)[0].get_filesystem().get_path().child(b'env'))
 
         def got_result_path(result_path):
-            d = loop_until(result_path.exists)
+            d = loop_until(reactor, result_path.exists)
             d.addCallback(lambda _: result_path)
             return d
         d.addCallback(got_result_path)
@@ -263,7 +264,7 @@ class DeployerTests(TestCase):
                           b'env'))
 
         def got_result_path(result_path):
-            d = loop_until(result_path.exists)
+            d = loop_until(reactor, result_path.exists)
             d.addCallback(lambda _: result_path)
             return d
         d.addCallback(got_result_path)

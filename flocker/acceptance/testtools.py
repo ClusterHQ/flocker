@@ -248,7 +248,7 @@ def get_mongo_client(host, port=27017):
         except PyMongoError:
             return False
 
-    d = loop_until(create_mongo_client)
+    d = loop_until(reactor, create_mongo_client)
     return d
 
 
@@ -413,7 +413,7 @@ class Cluster(PRecord):
             request.addCallback(got_results)
             return request
 
-        waiting = loop_until(deleted)
+        waiting = loop_until(reactor, deleted)
         waiting.addCallback(lambda _: deleted_dataset)
         return waiting
 
@@ -449,7 +449,7 @@ class Cluster(PRecord):
             request.addCallback(got_results)
             return request
 
-        waiting = loop_until(created)
+        waiting = loop_until(reactor, created)
         waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
 
@@ -581,7 +581,7 @@ class Cluster(PRecord):
             request.addCallback(got_response)
             return request
 
-        return loop_until(created)
+        return loop_until(reactor, created)
 
     @log_method
     def current_nodes(self):
@@ -635,7 +635,7 @@ class Cluster(PRecord):
                 get_items.addCallback(delete_items)
                 get_items.addCallback(
                     lambda ignored: loop_until(
-                        lambda: state_method().addCallback(
+                        reactor, lambda: state_method().addCallback(
                             lambda result: [] == result
                         )
                     )
@@ -764,7 +764,7 @@ def _get_test_cluster(reactor, node_count):
                        # Control service may not be up yet, keep trying:
                        failed_query)
         return d
-    agents_connected = loop_until(nodes_available)
+    agents_connected = loop_until(reactor, nodes_available)
 
     # Extract node hostnames from API that lists nodes. Currently we
     # happen know these in advance, but in FLOC-1631 node identification
@@ -911,7 +911,7 @@ def verify_socket(host, port):
             ).write()
             return conn == 0
 
-    dl = loop_until(can_connect)
+    dl = loop_until(reactor, can_connect)
     return dl
 
 
@@ -940,7 +940,7 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         request.addCallbacks(content, failed)
         return request
     d = verify_socket(host, port)
-    d.addCallback(lambda _: loop_until(lambda: make_post(
+    d.addCallback(lambda _: loop_until(reactor, lambda: make_post(
         host, port, data)))
     d.addCallback(test.assertEqual, expected_response)
     return d
@@ -1002,7 +1002,7 @@ def query_http_server(host, port, path=b""):
         return req
 
     d = verify_socket(host, port)
-    d.addCallback(lambda _: loop_until(query))
+    d.addCallback(lambda _: loop_until(reactor, query))
     return d
 
 

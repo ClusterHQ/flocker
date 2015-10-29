@@ -17,7 +17,6 @@ from eliot.twisted import DeferredContext
 from twisted.python.reflect import safe_repr
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
-from twisted.internet import reactor
 
 
 def function_serializer(function):
@@ -65,14 +64,14 @@ LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
     description="Predicate failed, trying again.")
 
 
-def loop_until(predicate, reactor=reactor, steps=None):
+def loop_until(reactor, predicate, steps=None):
     """Repeatedly call ``predicate``, until it returns something ``Truthy``.
-
-    :param predicate: Callable returning termination condition.
-    :type predicate: 0-argument callable returning a Deferred.
 
     :param reactor: The reactor implementation to use to delay.
     :type reactor: ``IReactorTime``.
+
+    :param predicate: Callable returning termination condition.
+    :type predicate: 0-argument callable returning a Deferred.
 
     :param steps: An iterable of delay intervals, measured in seconds.
         If not provided, will default to retrying every 0.1 seconds forever.

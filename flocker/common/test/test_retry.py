@@ -41,7 +41,7 @@ class LoopUntilTests(SynchronousTestCase):
         def predicate():
             return result
         clock = Clock()
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
         self.assertEqual(
             self.successResultOf(d),
             result)
@@ -68,7 +68,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
 
         self.assertNoResult(d)
 
@@ -106,7 +106,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
 
         clock.advance(0.1)
         self.assertNoResult(d)
@@ -144,7 +144,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock, steps=[1, 2, 3])
+        d = loop_until(clock, predicate, steps=[1, 2, 3])
 
         clock.advance(1)
         self.assertNoResult(d)
@@ -167,7 +167,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock, steps=steps)
+        d = loop_until(clock, predicate, steps=steps)
 
         clock.advance(0.1)
         self.assertNoResult(d)

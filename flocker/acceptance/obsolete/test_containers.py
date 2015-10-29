@@ -6,8 +6,9 @@ Tests for the control service REST API.
 
 from json import loads, dumps
 
-from twisted.trial.unittest import TestCase
+from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
+from twisted.trial.unittest import TestCase
 
 from ...common import loop_until
 from ...testtools import random_name
@@ -224,7 +225,7 @@ class ContainerAPITests(TestCase):
                 current = cluster.current_containers()
                 current.addCallback(lambda result: data in result)
                 return current
-            return loop_until(in_current)
+            return loop_until(reactor, in_current)
         creating.addCallback(created)
         return creating
 
