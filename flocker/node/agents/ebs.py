@@ -36,7 +36,7 @@ from ...control import pmap_field
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER, IN_USE_DEVICES,
+    BOTO_LOG_HEADER, IN_USE_DEVICES, BOTO_LOG_RESULT,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -276,8 +276,7 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
                                        aws_access_key_id=access_key_id,
-                                       aws_secret_access_key=secret_access_key,
-                                       debug=2)
+                                       aws_secret_access_key=secret_access_key)
     return _EC2(zone=zone,
                 connection=_LoggedBotoConnection(connection=connection))
 
@@ -691,6 +690,11 @@ class EBSBlockDeviceAPI(object):
         requested_volume = self.connection.create_volume(
             size=int(Byte(size).to_GiB().value), zone=self.zone)
 
+        message_type = BOTO_LOG_RESULT + u':created_volume'
+        Message.new(
+            message_type=message_type, requested_volume=requested_volume
+        ).write()
+
         # Stamp created volume with Flocker-specific tags.
         metadata = {
             METADATA_VERSION_LABEL: '1',
@@ -702,6 +706,13 @@ class EBSBlockDeviceAPI(object):
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
+
+        message_type = BOTO_LOG_RESULT + u':created_tags'
+        Message.new(
+            message_type=message_type,
+            requested_volume=requested_volume.id,
+            tags=metadata
+        ).write()
 
         # Wait for created volume to reach 'available' state.
         _wait_for_volume_state_change(VolumeOperations.CREATE,
@@ -716,6 +727,11 @@ class EBSBlockDeviceAPI(object):
         """
         try:
             ebs_volumes = self.connection.get_all_volumes()
+            message_type = BOTO_LOG_RESULT + u':listed_volumes'
+            Message.new(
+                message_type=message_type,
+                volume_ids=list(volume.id for volume in ebs_volumes),
+            ).write()
         except EC2ResponseError as e:
             # Work around some internal race-condition in EBS by retrying,
             # since this error makes no sense:
@@ -730,6 +746,11 @@ class EBSBlockDeviceAPI(object):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
+        message_type = BOTO_LOG_RESULT + u':listed_cluster_volumes'
+        Message.new(
+            message_type=message_type,
+            volume_ids=list(volume.id for volume in volumes),
+        ).write()
         return volumes
 
     def attach_volume(self, blockdevice_id, attach_to):
