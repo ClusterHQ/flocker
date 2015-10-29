@@ -289,7 +289,7 @@ def _volume_field():
     )
 
 
-class BlockDeviceVolume(PRecord):
+class BlockDeviceVolume(PClass):
     """
     A block device that may be attached to a host.
 
