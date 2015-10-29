@@ -1031,6 +1031,8 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
         backends that do not implement ``IProfiledBlockDeviceAPI``, but do
         implement ``IBlockDeviceAPI``.
         """
+        CREATE_VOLUME_PROFILE_DROPPED(dataset_id=dataset_id,
+                                      profile_name=profile_name).write(_logger)
         return self._blockdevice_api.create_volume(dataset_id=dataset_id,
                                                    size=size)
 

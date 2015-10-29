@@ -3522,11 +3522,9 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             u"This test assumes the API does not provide "
             u"IProfiledBlockDeviceAPI. If the API now does provide that "
             u"interface, this test needs a bit of love.")
+        self.patch(blockdevice, "_logger", logger)
         dataset_id = uuid4()
-        (volume,
-         device_path,
-         expected_mountpoint,
-         compute_instance_id) = self._create_blockdevice_dataset(
+        (volume, _, _, compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             metadata={u"clusterhq:flocker:profile": u"gold"}
