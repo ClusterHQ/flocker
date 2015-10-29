@@ -359,3 +359,27 @@ class PollUntilTests(SynchronousTestCase):
         results = [False, True]
         result = poll_until(lambda: results.pop(0), repeat(0))
         self.assertEqual(True, result)
+
+    def test_loop_exceeded(self):
+        """
+        If the generator of intervals that we pass to ``poll_until`` is
+        exhausted before we get a truthy return value, then we raise
+        ``LoopExceeded``.
+        """
+        results = [False] * 5
+        steps = [0.1] * 3
+        self.assertRaises(
+            LoopExceeded, poll_until, lambda: results.pop(0), steps,
+            lambda ignored: None)
+
+    def test_polls_one_last_time(self):
+        """
+        After intervals are exhausted, we poll one final time before
+        abandoning.
+        """
+        # Three sleeps, one value to poll after the last sleep.
+        results = [False, False, False, 42]
+        steps = [0.1] * 3
+        self.assertEqual(
+            42,
+            poll_until(lambda: results.pop(0), steps, lambda ignored: None))

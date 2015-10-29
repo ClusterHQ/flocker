@@ -169,3 +169,7 @@ def poll_until(predicate, steps, sleep=None):
         if result:
             return result
         sleep(step)
+    result = predicate()
+    if result:
+        return result
+    raise LoopExceeded(predicate, result)
