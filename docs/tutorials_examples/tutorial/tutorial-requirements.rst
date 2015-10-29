@@ -9,20 +9,27 @@ Before You Begin
 Prerequisites
 =============
 
-For this tutorial, you will need to have the ``flocker-cli`` installed, which provides the ``flocker-deploy`` command.
-For more information, see :ref:`installing-flocker-cli`.
-
-If you have a version of ``flocker-cli`` installed that is older than |version|, delete the install script and directory, and follow the instructions in :ref:`installing-flocker-cli` to install the latest version.
-
-You will also need:
+For this tutorial, you will need:
 
 * Linux, FreeBSD, or OS X
-* Two virtual machines with at least 10GB disk space available.
+* Two virtual machines with at least 10 GB disk space available.
   Follow the steps in :ref:`vagrant-setup` to set up virtual machines using `Vagrant`_ and `VirtualBox`_
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command line programs)
 * bash
+* The ``flocker-cli`` installed.
+  For more information, see :ref:`installing-cli`.
 * The ``mongo`` MongoDB interactive shell.
-  For more information, see MongoDB installation instructions below.
+  For more information, see :ref:`installing-mongoDB`.
+
+.. _installing-cli:
+
+Installing the Flocker CLI
+==========================
+
+You will need to have the ``flocker-cli`` installed, which provides the ``flocker-deploy`` command.
+For more information, see :ref:`installing-flocker-cli`.
+
+If you have a version of ``flocker-cli`` installed that is older than |version|, follow the instructions in :ref:`installing-flocker-cli` to install the latest version.
 
 .. _installing-mongoDB:
 
