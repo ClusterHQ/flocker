@@ -14,6 +14,8 @@ The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
 """
 
+from random import uniform
+
 from zope.interface import implementer
 
 from eliot import ActionType, Field, writeFailure, MessageType
@@ -321,6 +323,10 @@ class ConvergenceLoop(object):
     :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
         ``None`` if not in SLEEPING state.
     """
+    # How much noise to add to sleep interval between convergence
+    # iterations when already converged:
+    _JITTER_RANGE = 0.2
+
     # How many seconds to sleep between iterations when we may yet not be
     # converged so want to do another iteration again soon:
     _UNCONVERGED_DELAY = 0.1
@@ -432,8 +438,11 @@ class ConvergenceLoop(object):
                 self.configuration, self.cluster_state, local_state
             )
             if action == NoOp():
-                # We've converged, we can sleep for deployer poll interval:
-                sleep_duration = self.deployer.poll_interval
+                # We've converged, we can sleep for deployer poll
+                # interval. We add some jitter so not all agents wake up
+                # at exactly the same time, to reduce load on system:
+                jitter = 1 + uniform(-self._JITTER_RANGE, self._JITTER_RANGE)
+                sleep_duration = self.deployer.poll_interval * jitter
             else:
                 # We're going to do some work, we should do another
                 # iteration quickly in case there's followup work:
