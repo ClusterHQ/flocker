@@ -579,9 +579,13 @@ class CinderBlockDeviceAPI(object):
     def destroy_volume(self, blockdevice_id):
         """
         Detach Cinder volume identified by blockdevice_id.
+        It will loop listing the volume until it is no longer there. If the volume is still there
+        after the defined timeout, the function will just raise an exception and do nothing.
 
         :raises TimeoutException: If the volume is not deleted
-            within the expected time
+            within the expected time. If that happens, it will be because after the timeout,
+            the volume can still be listed. The volume will not be deleted unless further action
+            is taken.
         """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
@@ -598,7 +602,7 @@ class CinderBlockDeviceAPI(object):
             self._time.sleep(1.0)
         # If the volume is not deleted, raise an exception
         raise TimeoutException(
-            unicode(blockdevice_id),
+            blockdevice_id,
             None,
             self._time.time() - start_time
         )

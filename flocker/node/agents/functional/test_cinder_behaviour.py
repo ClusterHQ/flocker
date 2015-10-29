@@ -139,6 +139,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         """
         If the cinder cannot delete the volume, we should timeout
         after waiting some time
+        Test added with the fix of the issue FLOC-1853
         """
         new_volume = self.cinder_volumes.create(size=100)
         self.addCleanup(self.cinder_volumes.delete, new_volume)
@@ -148,10 +149,9 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
             desired_state=u'available',
             transient_states=(u'creating',),
         )
+        # Setting the timeout to 8, as the default one is quite big, and the test would take a long
+        # time to execute otherwise.
         expected_timeout = 8
-        # Using a fake no-op delete so it doesn't actually delete anything
-        # (we don't need any actual volumes here, as we only need to verify
-        # the timeout)
         self.patch(self.cinder_volumes, "delete", lambda *args, **kwargs: None)
         # Now try to delete it
         time_module = FakeTime(initial_time=0)

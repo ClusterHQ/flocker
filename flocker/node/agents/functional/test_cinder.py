@@ -44,7 +44,8 @@ from ....testtools import run_process
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
-    wait_for_volume_state, UnexpectedStateException, UnattachedVolume
+    wait_for_volume_state, UnexpectedStateException, UnattachedVolume,
+    TimeoutException
 )
 
 # Tests requiring virtio can currently only be run on a devstack installation
@@ -555,4 +556,61 @@ class CinderAttachmentTests(SynchronousTestCase):
             self.blockdevice_api.get_device_path(
                 volume.id
             )
+        )
+
+
+class FakeTime(object):
+    def __init__(self, initial_time):
+        self._current_time = initial_time
+
+    def time(self):
+        return self._current_time
+
+    def sleep(self, interval):
+        self._current_time += interval
+        print "Sleeping. Time now is %d"%self._current_time
+
+
+class BlockDeviceAPIDestroyTests(SynchronousTestCase):
+    """
+    Test for ``cinder.CinderBlockDeviceAPI.destroy_volume``
+    """
+    def setUp(self):
+        self.api = cinderblockdeviceapi_for_test(test_case=self)
+
+    def test_destroy_timesout(self):
+        """
+        If the cinder cannot delete the volume, we should timeout
+        after waiting some time
+        """
+        new_volume = self.api.cinder_volume_manager.create(size=100)
+        listed_volume = wait_for_volume_state(
+            volume_manager=self.api.cinder_volume_manager,
+            expected_volume=new_volume,
+            desired_state=u'available',
+            transient_states=(u'creating',),
+        )
+        expected_timeout = 8
+        # Using a fake no-op delete so it doesn't actually delete anything
+        # (we don't need any actual volumes here, as we only need to verify
+        # the timeout)
+        self.patch(self.api.cinder_volume_manager, "delete", lambda *args, **kwargs: None)
+        # Now try to delete it
+        time_module = FakeTime(initial_time=0)
+        self.patch(self.api, "time_module", time_module)
+
+        exception = self.assertRaises(
+            TimeoutException,
+            self.api.destroy_volume,
+            blockdevice_id=listed_volume.id
+        )
+
+        self.assertEqual(
+            expected_timeout,
+            exception.elapsed_time
+        )
+
+        self.assertEqual(
+            expected_timeout,
+            time_module._current_time
         )

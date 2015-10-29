@@ -101,14 +101,14 @@ class FakeCinderClient(object):
 class CinderDestroyTests(SynchronousTestCase):
     """
     Tests for destroy_volume.
+    Test added with the fix of the issue FLOC-1853
     """
 
-    # Test added with the fix of the issue FLOC-1853
     def test_timeout(self):
         """
         ``CinderBlockDeviceAPI.destroy_volume`` raises
         ``TimeoutException`` if the volume is not removed within
-        some time (``_currentTimeout`` will define how long it will wait).
+        some time.
         """
         # Uses the fake implementation of the Cinder Volume that will
         # be unresponsive.
@@ -121,7 +121,7 @@ class CinderDestroyTests(SynchronousTestCase):
         # Timeout = 1 because the default timeout is 300 secods, and
         # it is a bit too long for a test that runs regularly under CI
         returnedBlockDevice = FakeCinderClient().get(uuid4())
-        if(not isinstance(returnedBlockDevice, BlockDeviceVolume)):
+        if not isinstance(returnedBlockDevice, BlockDeviceVolume):
             self.fail("returned block device is not a BlockDeviceVolume")
         api.timeout = 1
         self.assertRaises(
