@@ -82,6 +82,25 @@ class Environment(PRecord):
         return dict(self.variables)
 
 
+# FLOC-3207
+#
+# Add abstraction for Docker volume driver with Flocker and Builtin
+# implementations.  Factors variable logic of how exactly to tell Docker to use
+# the volume out of the add implementation.
+#
+# class Flocker(object):
+#     def get_create_container_arguments(self, volumes):
+#         return dict(
+#             binds=list(some_formatting(volume) for volume in volumes),
+#             volume_driver=u"flocker",
+#         )
+#
+#
+# class Builtin(object):
+#     def get_create_container_arguments(self, volumes):
+#         Take logic from _create for string formatting and put it here.
+#
+
 class Volume(PRecord):
     """
     A Docker volume.
@@ -92,6 +111,17 @@ class Volume(PRecord):
     :ivar FilePath container_path: The volume's path within the
     container.
     """
+    # FLOC-3207 Expand this to describe the other fields possible in the Mounts
+    # structure:
+    #
+    #     "Mounts": [{
+    #       "Name": "tester1",
+    #       "Source": "/flocker/some-directory",
+    #       "Destination": "/data",
+    #       "Driver": "flocker",
+    #       "Mode": "z",
+    #       "RW": true
+    #     }]
     node_path = field(mandatory=True, type=FilePath)
     container_path = field(mandatory=True, type=FilePath)
 
@@ -608,12 +638,25 @@ class DockerClient(object):
         restart_policy_dict = self._serialize_restart_policy(restart_policy)
 
         def _create():
+            # FLOC-3207 Replace binds with
+            #
+            #   kwargs = volume.driver.get_create_container_arguments([volume])
+            #
+            # and pass them in to create_container call below
+            #
+            # If we ever support multiple volumes, they all have to use the
+            # same driver (Docker limitation).
+            #
+            # Move simple, existing logic below into "Builtin" driver object
+            #
             binds = list(
                 # The "Z" mode tells Docker to "relabel file objects" on the
                 # volume.  This makes things work when SELinux is enabled, at
                 # least in the default configuration on CentOS 7.  See
                 # <https://docs.docker.com/reference/commandline/run/>, in the
                 # `--volumes-from` section (or just search for SELinux).
+                #
+                # FLOC-3207 Put this in the Builtin driver
                 u"{}:{}:Z".format(
                     volume.node_path.path, volume.container_path.path
                 )
@@ -827,6 +870,26 @@ class DockerClient(object):
                 else:
                     ports = list()
                 volumes = []
+
+                # FLOC-3207
+                #
+                # Look at "Mounts" instead.  It contains more complete
+                # information and, in particular, it gives us the actual path
+                # when using the Flocker Docker plugin.  HostConfig/Binds only
+                # gives us the name which is not likely to be sufficiently
+                # informative as part of the Volume object (it won't
+                # necessarily let us uniquely identify a dataset, for example).
+                #
+                # The resulting list of Volumes constructed from the
+                # plugin-supplied volumes should look the same to any callers
+                # as the result previously looked when constructed from
+                # bind-mount volumes.
+                #
+                # A deeper change could be to add more fields to Volume to
+                # reflect everything Docker is willing to tell us about a
+                # mount.  Not strictly necessary for now, though.
+                #
+
                 binds = data[u"HostConfig"]['Binds']
                 if binds is not None:
                     for bind_config in binds:

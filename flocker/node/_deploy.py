@@ -173,6 +173,12 @@ class StartApplication(PRecord):
         if application.volume is not None:
             dataset_id = application.volume.manifestation.dataset_id
             volumes.append(DockerVolume(
+                # FLOC-3207
+                #
+                # Specify Flocker driver here and a dataset id, don't bother
+                # with a path (Flocker driver's responsibility to figure that
+                # part out).
+                #
                 container_path=application.volume.mountpoint,
                 node_path=self.node_state.paths[dataset_id]))
 
@@ -688,6 +694,17 @@ class ApplicationNodeDeployer(object):
             mounted.
         """
         if container.volumes:
+            # FLOC-3207
+            #
+            # This shouldn't require any change.  The Volume object will be the
+            # same and have the same information.  The meaning of the KeyError
+            # case might change to reflect a more serious failure, though,
+            # since our Docker client should now be finding Flocker-supplied
+            # volumes to tell us about.  If Docker thinks Flocker is managing
+            # some volume but we can't find information about, that's probably
+            # something wrong.
+            #
+
             # XXX https://clusterhq.atlassian.net/browse/FLOC-49
             # we only support one volume per container
             # at this time
