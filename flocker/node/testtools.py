@@ -163,6 +163,7 @@ class DummyDeployer(object):
     """
     hostname = u"127.0.0.1"
     node_uuid = uuid4()
+    poll_interval = 1.0
 
     def discover_state(self, node_state):
         return succeed(DummyLocalState())
