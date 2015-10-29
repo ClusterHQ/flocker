@@ -978,6 +978,8 @@ def task_configure_flocker_agent(control_node, dataset_backend,
                     "port": 4524,
                 },
                 "dataset": dataset_backend_configuration,
+                # FLOC-3207 Add a section containing values to be used to
+                # create a FlockerClient: control service host and port
             },
         ),
         log_content_filter=_remove_dataset_fields

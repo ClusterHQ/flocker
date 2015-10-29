@@ -80,6 +80,9 @@ def flocker_container_agent_main():
     This starts a Docker-based container convergence agent.
     """
     def deployer_factory(cluster_uuid, **kwargs):
+        # FLOC-3207 Re-use the plugin's certificates to make a FlockerClient to
+        # pass in.  Hard code paths to them.  Hard code the path to the cluster
+        # CA certificate.  Pull control service host and port from arguments.
         return ApplicationNodeDeployer(**kwargs)
     service_factory = AgentServiceFactory(
         deployer_factory=deployer_factory
@@ -320,6 +323,10 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
+                # FLOC-3207 Pass extra arguments to deployer factory.  Pull out
+                # a section of the config selected by some attribute of the
+                # deployer factory (name, type, etc; let us differentiate
+                # between container and dataset agent).  Pass them all on.
                 node_uuid=tls_info.node_credential.uuid, hostname=ip,
                 cluster_uuid=tls_info.node_credential.cluster_uuid),
             host=host, port=port,

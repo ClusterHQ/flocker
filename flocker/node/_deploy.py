@@ -140,6 +140,12 @@ def _eliot_system(part):
     return u"flocker:p2pdeployer:" + part
 
 
+# FLOC-3207 _start_application helper which returns a sequentially of acquiring
+# the application's volumes' leases and then a StartApplication.  A required
+# argument is a FlockerClient to use to acquire the lease.
+
+# FLOC-3207 create an AcquireLease IStateChange
+
 @implementer(IStateChange)
 class StartApplication(PRecord):
     """
@@ -241,6 +247,12 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
         base + u'_PROTO': protocol,
     }
 
+
+# FLOC-3207 _stop_application helper which returns a sequentially of releasing
+# the application's volumes' leases and then a StopApplication.  A required
+# argument is a FlockerClient to use to release the lease.
+
+# FLOC-3207 create a ReleaseLease IStateChange
 
 @implementer(IStateChange)
 class StopApplication(PRecord):
@@ -654,6 +666,7 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
+    # FLOC-3207 Accept a required flocker_client argument here
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):
         if node_uuid is None:
@@ -1083,6 +1096,8 @@ class ApplicationNodeDeployer(object):
             desired_local_state)
 
         start_containers = [
+            # FLOC-3207 Replace with `_start_application` call to make sure a
+            # lease is acquired on any volumes for the application.
             StartApplication(application=app, node_state=current_node_state)
             for app in desired_node_applications
             if ((app.name in start_names) and
@@ -1093,6 +1108,8 @@ class ApplicationNodeDeployer(object):
                  current_node_state.manifestations))
         ]
         stop_containers = [
+            # FLOC-3207 Replace with `_stop_application` call to make sure
+            # leases on volumes for the application are released quickly
             StopApplication(application=app) for app in all_applications
             if app.name in stop_names
         ]
@@ -1116,10 +1133,20 @@ class ApplicationNodeDeployer(object):
                 current_node_state, inspect_current, inspect_desired
             ):
                 restart_containers.append(sequentially(changes=[
+                    # FLOC-3207 Replace with `_stop_application` call to make
+                    # sure leases on volumes for the application are released
+                    # quickly
                     StopApplication(application=inspect_current),
+                    # FLOC-3207 Replace with `_start_application` call to make
+                    # sure a lease is acquired on any volumes for the
+                    # application.
                     StartApplication(application=inspect_desired,
                                      node_state=current_node_state),
                 ]))
+
+        # FLOC-3207 Check running, not-to-be-stopped applications for volumes.
+        # Renew any leases that are more than halfway through their time
+        # period.
 
         if stop_containers:
             phases.append(in_parallel(changes=stop_containers))
