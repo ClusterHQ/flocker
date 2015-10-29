@@ -186,7 +186,7 @@ BLOCK_DEVICE_PATH = Field(
 
 PROFILE_NAME = Field(
     u"profile_name",
-    lambda dataset_id: unicode(dataset_id),
+    identity,
     u"The name of a profile for a volume."
 )
 
