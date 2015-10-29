@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-
+from functools import partial
 from characteristic import attributes
 
 from eliot import Message, MessageType, Field
@@ -146,7 +146,7 @@ def get_connection_helper(address, username, port):
 
 @deferred_performer
 @inlineCallbacks
-def perform_run_remotely(base_dispatcher, intent):
+def perform_run_remotely(reactor, base_dispatcher, intent):
     connection_helper = get_connection_helper(
         username=intent.username, address=intent.address, port=intent.port)
 
@@ -158,7 +158,7 @@ def perform_run_remotely(base_dispatcher, intent):
         connection.addErrback(lambda _: False)
         return connection
 
-    connection = yield loop_until(connect)
+    connection = yield loop_until(reactor, connect)
 
     dispatcher = ComposedDispatcher([
         get_ssh_dispatcher(
@@ -178,7 +178,7 @@ def make_dispatcher(reactor):
     patch_twisted_7672()
     return ComposedDispatcher([
         TypeDispatcher({
-            RunRemotely: perform_run_remotely,
+            RunRemotely: partial(perform_run_remotely, reactor),
         }),
         make_twisted_dispatcher(reactor),
         base_dispatcher,
