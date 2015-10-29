@@ -5,13 +5,11 @@ Tests for the Flocker Docker plugin.
 """
 
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 from docker.utils import create_host_config
 
 from distutils.version import LooseVersion
-from twisted.internet import reactor
-from twisted.trial.unittest import SkipTest
 
 from ...common import loop_until
 from ...common.runner import run_ssh
