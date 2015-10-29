@@ -719,13 +719,26 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
-        volume = api.create_volume(
-            dataset_id=UUID(self.dataset.dataset_id),
-            size=allocated_size(
-                allocation_unit=api.allocation_unit(),
-                requested_size=self.dataset.maximum_size,
-            ),
-        )
+        profile = self.dataset.metadata.get(u"clusterhq:flocker:profile")
+        if profile:
+            volume = (
+                deployer.profiled_blockdevice_api.create_volume_with_profile(
+                    dataset_id=UUID(self.dataset.dataset_id),
+                    size=allocated_size(
+                        allocation_unit=api.allocation_unit(),
+                        requested_size=self.dataset.maximum_size,
+                    ),
+                    profile=profile
+                )
+            )
+        else:
+            volume = api.create_volume(
+                dataset_id=UUID(self.dataset.dataset_id),
+                size=allocated_size(
+                    allocation_unit=api.allocation_unit(),
+                    requested_size=self.dataset.maximum_size,
+                ),
+            )
 
         # This duplicates AttachVolume now.
         volume = api.attach_volume(
@@ -981,6 +994,29 @@ class IProfiledBlockDeviceAPI(Interface):
 
         :returns: A ``BlockDeviceVolume`` of the newly created volume.
         """
+
+
+@implementer(IProfiledBlockDeviceAPI)
+class ProfiledBlockDeviceAPIAdapter(PClass):
+    """
+    Adapter class to create ``IProfiledBlockDeviceAPI`` providers for
+    ``IBlockDeviceAPI`` implementations that do not implement
+    ``IProfiledBlockDeviceAPI``
+
+    :ivar _blockdevice_api: The ``IBlockDeviceAPI`` provider to back the
+        volume creation.
+    """
+    _blockdevice_api = field(
+        mandatory=True,
+        invariant=lambda i: IBlockDeviceAPI.providedBy(i))
+
+    def create_volume_with_profile(self, name, size, profile_name):
+        """
+        Reverts to constructing a volume with no profile. To be used with
+        backends that do not implement ``IProfiledBlockDeviceAPI``, but do
+        implement ``IBlockDeviceAPI``.
+        """
+        return self._blockdevice_api(name, size)
 
 
 @implementer(IBlockDeviceAsyncAPI)
@@ -1454,6 +1490,18 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
+
+    @property
+    def profiled_blockdevice_api(self):
+        """
+        Get an ``IProfiledBlockDeviceAPI`` provider which can create profiled
+        block devices for this deployer.
+        """
+        if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
+            return self.block_device_api
+        return ProfiledBlockDeviceAPIAdapter(
+            _block_device_api=self.block_device_api
+        )
 
     @property
     def async_block_device_api(self):
