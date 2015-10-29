@@ -171,16 +171,24 @@ class InParallelIStateChangeTests(
 class NoOpIStateChangeTests(make_istatechange_tests(NoOp, {}, {})):
     """
     Tests for the ``IStateChange`` implementation provided by ``NoOp``.
+
+    Inherits some equality/inequality tests we need to override because
+    they assume instances can be different, which is not the case for
+    ``NoOp``.
     """
     def test_equality(self):
         """
         All instances are equal.
+
+        Overrides test in base class.
         """
         self.assertTrue(NoOp() == NoOp())
 
     def test_notequality(self):
         """
         Not relevant for ``NoOp``.
+
+        Overrides test in base class.
         """
         raise SkipTest("All NoOp instances are equal.")
 
