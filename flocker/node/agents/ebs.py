@@ -50,6 +50,7 @@ MAX_ATTACH_RETRIES = 3
 # http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
+INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
 
 
 class EBSVolumeTypes(Values):
@@ -854,6 +855,8 @@ class EBSBlockDeviceAPI(object):
             # creation with default profile.
             # Compliance violation of the volume's requested profile
             # will be detected and remediated in a future release (FLOC-3275).
+            if e.code != INVALID_PARAMETER_VALUE:
+                raise e
             CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
                                   aws_code=e.code,
                                   aws_message=e.message).write()
