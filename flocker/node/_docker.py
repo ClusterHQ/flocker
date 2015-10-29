@@ -7,6 +7,8 @@ Docker API client.
 
 from __future__ import absolute_import
 
+from functools import partial
+from itertools import repeat
 from time import sleep
 
 from zope.interface import Interface, implementer
@@ -29,6 +31,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
+from ..common import poll_until
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
@@ -805,8 +808,9 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
 
         def _remove():
-            while not self._stop_container(container_name):
-                pass
+            poll_until(
+                partial(self._stop_container, container_name),
+                repeat(0.001, 1000))
             self._remove_container(container_name)
 
         d = deferToThread(_remove)
