@@ -4,6 +4,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+from itertools import repeat
 import time
 from uuid import UUID
 
@@ -347,7 +348,7 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
     waiter = VolumeStateMonitor(
         volume_manager, expected_volume, desired_state, transient_states,
         time_limit)
-    return poll_until(waiter.reached_desired_state, 1)
+    return poll_until(waiter.reached_desired_state, repeat(1))
 
 
 def _extract_nova_server_addresses(addresses):
