@@ -209,13 +209,10 @@ def get_backend_api(test_case, cluster_id):
             'in order to verify construction. Please set '
             'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG to a yaml filepath '
             'with the dataset configuration.')
-    print backend_config_filename
     backend_config_filepath = FilePath(backend_config_filename)
     full_backend_config = yaml.safe_load(
         backend_config_filepath.getContent())
-    print full_backend_config
     backend_config = full_backend_config.get(backend_name)
-    print backend_config
     if 'backend' in backend_config:
         backend_config.pop('backend')
     return aws_from_configuration(cluster_id=cluster_id, **backend_config)
