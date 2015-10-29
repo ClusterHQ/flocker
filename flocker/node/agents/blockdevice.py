@@ -50,6 +50,9 @@ _logger = Logger()
 # XXX: Make this configurable. FLOC-2679
 DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
 
+# The metadata key for flocker profiles.
+PROFILE_METADATA_KEY = u"clusterhq:flocker:profile"
+
 
 class VolumeException(Exception):
     """
@@ -733,7 +736,7 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
-        profile_name = self.dataset.metadata.get(u"clusterhq:flocker:profile")
+        profile_name = self.dataset.metadata.get(PROFILE_METADATA_KEY)
         dataset_id = UUID(self.dataset.dataset_id)
         size = allocated_size(allocation_unit=api.allocation_unit(),
                               requested_size=self.dataset.maximum_size)
