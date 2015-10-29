@@ -36,7 +36,7 @@ If you have a version of ``flocker-cli`` installed that is older than |version|,
 Installing MongoDB
 ==================
 
-The MongoDB client can be installed through the various package managers for Linux, FreeBSD and OS X.
+The MongoDB client can be installed through the various package managers for Linux, FreeBSD, and OS X.
 If you do not already have the client on your machine, you can install it by running the appropriate command for your system.
 
 Ubuntu
