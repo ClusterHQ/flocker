@@ -27,7 +27,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
-from flocker.testtools import loop_until
+from flocker.common import loop_until
 
 from ._model import (
     Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,

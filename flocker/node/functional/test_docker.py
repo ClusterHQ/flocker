@@ -29,10 +29,10 @@ from treq import request, content
 
 from pyrsistent import PClass, pvector, field
 
-
+from ...common import loop_until, retry_failure
 from ...testtools import (
-    loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name, retry_failure)
+    find_free_port, DockerImageBuilder, assertContainsAll,
+    random_name)
 
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
