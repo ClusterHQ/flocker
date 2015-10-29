@@ -808,9 +808,16 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
 
         def _remove():
+            # Previously, this looped forever and didn't pause between loops.
+            # We've arbitrarily chosen a wait interval of 0.001 seconds and
+            # 1000 retries (i.e. a second of polling). These values may need
+            # tuning.
             poll_until(
                 partial(self._stop_container, container_name),
                 repeat(0.001, 1000))
+
+            # XXX: Turn _remove_container into a predicate, and then wrap this
+            # in a poll_until as well.
             self._remove_container(container_name)
 
         d = deferToThread(_remove)
