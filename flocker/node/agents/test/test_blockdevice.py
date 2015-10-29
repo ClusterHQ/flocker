@@ -49,6 +49,8 @@ from ..blockdevice import (
     CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
     _losetup_list, _blockdevicevolume_from_dataset_id,
 
+    PROFILE_METADATA_KEY,
+
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
     CREATE_BLOCK_DEVICE_DATASET,
@@ -3644,7 +3646,7 @@ class CreateBlockDeviceDatasetImplementationTests(
         (volume, _, _, compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-            metadata={u"clusterhq:flocker:profile": u"gold"}
+            metadata={PROFILE_METADATA_KEY: u"gold"}
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
