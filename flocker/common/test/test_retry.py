@@ -4,6 +4,8 @@
 Tests for ``flocker.common._retry``.
 """
 
+from itertools import repeat
+
 from eliot.testing import (
     capture_logging,
     LoggedAction, LoggedMessage,
@@ -340,7 +342,7 @@ class PollUntilTests(SynchronousTestCase):
         If the predicate starts off as True then we don't delay at all.
         """
         sleeps = []
-        poll_until(lambda: True, 1, sleeps.append)
+        poll_until(lambda: True, repeat(1), sleeps.append)
         self.assertEqual([], sleeps)
 
     def test_polls_until_true(self):
@@ -350,10 +352,10 @@ class PollUntilTests(SynchronousTestCase):
         """
         sleeps = []
         results = [False, False, True]
-        result = poll_until(lambda: results.pop(0), 1, sleeps.append)
+        result = poll_until(lambda: results.pop(0), repeat(1), sleeps.append)
         self.assertEqual((True, [1, 1]), (result, sleeps))
 
     def test_default_sleep(self):
         results = [False, True]
-        result = poll_until(lambda: results.pop(0), 0)
+        result = poll_until(lambda: results.pop(0), repeat(0))
         self.assertEqual(True, result)

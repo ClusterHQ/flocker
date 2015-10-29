@@ -148,24 +148,24 @@ def retry_failure(reactor, function, expected=None, steps=None):
     return d
 
 
-def poll_until(predicate, interval, sleep=None):
+def poll_until(predicate, steps, sleep=None):
     """
     Perform steps until a non-false result is returned.
 
     This differs from ``loop_until`` in that it does not require a
-    Twisted reactor and it allows the interval to be set.
+    Twisted reactor.
 
     :param predicate: a function to be called until it returns a
         non-false result.
-    :param interval: time in seconds between calls to the function.
+    :param [float] steps: An iterable of delay intervals, measured in seconds.
     :param callable sleep: called with the interval to delay on.
         Defaults to `time.sleep`.
     :returns: the non-false result from the final call.
     """
     if sleep is None:
         sleep = time.sleep
-    result = predicate()
-    while not result:
-        sleep(interval)
+    for step in steps:
         result = predicate()
-    return result
+        if result:
+            return result
+        sleep(step)
