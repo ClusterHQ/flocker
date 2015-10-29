@@ -26,6 +26,7 @@ from pyrsistent import (
     PRecord, field, discard, pmap, pvector,
 )
 
+from twisted.python.components import proxyForInterface
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -2311,22 +2312,29 @@ class IProfiledBlockDeviceAPITestsMixin(object):
         mandatory profiles.
         """
         for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            self.api.create_volume_with_profile(profile)
+            self.api.create_volume_with_profile(dataset_id=uuid4(),
+                                                size=self.dataset_size,
+                                                profile_name=profile)
 
 
-def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
+def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
+                                       dataset_size):
     """
     Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
 
     :param profiled_blockdevice_api_factory: A factory that generates the
         ``IProfiledBlockDeviceAPI`` provider to test.
 
+    :param dataset_size: The size in bytes of the datasets to be created for
+        test.
+
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IProfiledBlockDeviceAPI`` provider.
     """
     class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
-            self.api = profiled_blockdevice_api_factory()
+            self.api = profiled_blockdevice_api_factory(self)
+            self.dataset_size = dataset_size
 
     return Tests
 
@@ -2705,6 +2713,78 @@ class LosetupListTests(SynchronousTestCase):
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
             _losetup_list_parse(input_text)
         )
+
+
+@implementer(IProfiledBlockDeviceAPI)
+class FakeProfiledLoopbackBlockDeviceAPI(
+        proxyForInterface(IBlockDeviceAPI, "_loopback_blockdevice_api")):
+    """
+    Fake implementation of ``IProfiledBlockDeviceAPI`` and ``IBlockDeviceAPI``
+    on top of ``LoopbackBlockDeviceAPI``. Profiles are not actually
+    implemented for loopback devices, but this fake is useful for testing the
+    intermediate layers.
+
+    :ivar _loopback_blockdevice_api: The underlying ``LoopbackBlockDeviceAPI``.
+    :ivar pmap dataset_profiles: A pmap from blockdevice_id to desired profile
+        at creation time.
+    """
+    def __init__(self, loopback_blockdevice_api):
+        self._loopback_blockdevice_api = loopback_blockdevice_api
+        self.dataset_profiles = pmap({})
+
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
+        """
+        Calls the underlying ``create_volume`` on
+        ``_loopback_blockdevice_api``, but records the desired profile_name for
+        the purpose of test validation.
+        """
+        volume = self._loopback_blockdevice_api.create_volume(
+            dataset_id=dataset_id, size=size)
+        self.dataset_profiles = self.dataset_profiles.set(
+            volume.blockdevice_id, profile_name)
+        return volume
+
+
+def fakeprofiledloopbackblockdeviceapi_for_test(test_case,
+                                                allocation_unit=None):
+    """
+    Constructs a ``FakeProfiledLoopbackBlockDeviceAPI`` for use in tests that
+    want to verify functionality with an ``IProfiledBlockDeviceAPI`` provider.
+    """
+    return FakeProfiledLoopbackBlockDeviceAPI(
+        loopback_blockdevice_api=loopbackblockdeviceapi_for_test(
+            test_case, allocation_unit=allocation_unit))
+
+
+_fake_profiled_loopback_block_device_api = partial(
+    fakeprofiledloopbackblockdeviceapi_for_test,
+    allocation_unit=LOOPBACK_ALLOCATION_UNIT)
+
+
+class FakeProfiledLoopbackBlockDeviceIBlockDeviceTests(
+    make_iblockdeviceapi_tests(
+        blockdevice_api_factory=_fake_profiled_loopback_block_device_api,
+        minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        device_allocation_unit=None,
+        unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
+    )
+):
+    """
+    ``IBlockDeviceAPI`` interface adherence Tests for
+    ``FakeProfiledLoopbackBlockDevice``.
+    """
+
+
+class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(
+    make_iprofiledblockdeviceapi_tests(
+        _fake_profiled_loopback_block_device_api,
+        LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+    )
+):
+    """
+    ``IProfiledBlockDeviceAPI`` interface adherence Tests for
+    ``FakeProfiledLoopbackBlockDevice``.
+    """
 
 
 def umount(device_file):
