@@ -328,6 +328,16 @@ class UserCredentialTests(
         user_credential = UserCredential.from_files(certificate_path, key_path)
         self.assertEqual(u"alice", user_credential.username)
 
+    def test_certificate_ou_cluster_uuid(self):
+        """
+        A certificate written by ``UserCredential.initialize`` has the
+        organizational unit name exposed as the ``cluster_uuid``
+        attribute.
+        """
+        cert = self.credential.credential.certificate.original
+        subject = cert.get_subject()
+        self.assertEqual(UUID(hex=subject.OU), self.credential.cluster_uuid)
+
 
 class NodeCredentialTests(
         make_credential_tests(NodeCredential, NODE_UUID, uuid=NODE_UUID)):

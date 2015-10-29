@@ -7,11 +7,12 @@ from functools import wraps
 from json import dumps
 from os import environ, close
 from unittest import SkipTest, skipUnless
-from uuid import uuid4
+from uuid import uuid4, UUID
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
 
+import yaml
 import json
 import ssl
 
@@ -39,9 +40,10 @@ from ..common import gather_deferreds
 from ..common.runner import download_file
 
 from ..control.httpapi import REST_API_PORT
-from ..ca import treq_with_authentication
+from ..ca import treq_with_authentication, UserCredential
 from ..testtools import loop_until, random_name
 from ..apiclient import FlockerClient, DatasetState
+from ..node.agents.ebs import aws_from_configuration
 
 try:
     from pymongo import MongoClient
@@ -185,6 +187,43 @@ def get_dataset_backend(test_case):
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
     return DatasetBackend.lookupByName(backend)
+
+
+def get_backend_api(test_case, cluster_id):
+    """
+    Get an appropriate BackendAPI for the specified dataset backend.
+
+    Note this is a backdoor that is useful to be able to interact with cloud
+    APIs in tests. For many dataset backends this does not make sense, but it
+    provides a convenient means to interact with cloud backends such as EBS or
+    cinder.
+
+    :param test_case: The test case that is being run.
+
+    :param cluster_id: The unique cluster_id, used for backend APIs that
+        require this in order to be constructed.
+    """
+    backend_type = get_dataset_backend(test_case)
+    if backend_type != DatasetBackend.aws:
+        raise SkipTest(
+            'This test is asking for backend type {} but only constructing '
+            'aws backends is currently supported'.format(backend_type.name))
+    backend_name = backend_type.name
+    backend_config_filename = environ.get(
+        "FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG")
+    if backend_config_filename is None:
+        raise SkipTest(
+            'This test requires the ability to construct an IBlockDeviceAPI '
+            'in order to verify construction. Please set '
+            'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG to a yaml filepath '
+            'with the dataset configuration.')
+    backend_config_filepath = FilePath(backend_config_filename)
+    full_backend_config = yaml.safe_load(
+        backend_config_filepath.getContent())
+    backend_config = full_backend_config.get(backend_name)
+    if 'backend' in backend_config:
+        backend_config.pop('backend')
+    return aws_from_configuration(cluster_id=cluster_id, **backend_config)
 
 
 def skip_backend(unsupported, reason):
@@ -389,6 +428,7 @@ class Cluster(PRecord):
     treq = field(mandatory=True)
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
+    cluster_uuid = field(mandatory=True, type=UUID)
 
     @property
     def base_url(self):
@@ -737,6 +777,7 @@ def _get_test_cluster(reactor, node_count):
     cluster_cert = certificates_path.child(b"cluster.crt")
     user_cert = certificates_path.child(b"user.crt")
     user_key = certificates_path.child(b"user.key")
+    user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
         control_node=ControlService(public_address=control_node),
         nodes=[],
@@ -745,6 +786,7 @@ def _get_test_cluster(reactor, node_count):
         client=FlockerClient(reactor, control_node, REST_API_PORT,
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
+        cluster_uuid=user_credential.cluster_uuid,
     )
 
     hostname_to_public_address_env_var = environ.get(
@@ -793,12 +835,21 @@ def _get_test_cluster(reactor, node_count):
     return agents_connected
 
 
-def require_cluster(num_nodes):
+def require_cluster(num_nodes, required_backend=None):
     """
     A decorator which will call the supplied test_method when a cluster with
     the required number of nodes is available.
 
     :param int num_nodes: The number of nodes that are required in the cluster.
+
+    :param required_backend: This optional parameter can be set to a
+        ``DatasetBackend`` constant in order to construct the requested backend
+        for use in the test. This is done in a backdoor sort of manner, and is
+        only for use by tests which want to interact with the specified backend
+        in order to verify the acceptance test should pass. If this is set, the
+        backend api will be sent as a keyword argument ``backend`` to the test,
+        and the test will be skipped if the cluster is not set up for the
+        specified backend.
     """
     def decorator(test_method):
         """
@@ -808,6 +859,15 @@ def require_cluster(num_nodes):
         """
         def call_test_method_with_cluster(cluster, test_case, args, kwargs):
             kwargs['cluster'] = cluster
+            if required_backend:
+                backend_type = get_dataset_backend(test_case)
+                if backend_type != required_backend:
+                    raise SkipTest(
+                        'This test requires backend type {} but is being run '
+                        'on {}.'.format(required_backend.name,
+                                        backend_type.name))
+                kwargs['backend'] = get_backend_api(test_case,
+                                                    cluster.cluster_uuid)
             return test_method(test_case, *args, **kwargs)
 
         @wraps(test_method)
@@ -868,7 +928,8 @@ def create_python_container(test_case, cluster, parameters, script,
     return creating
 
 
-def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
+def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
+                   metadata=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -878,6 +939,8 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
         cluster.
     :param UUID dataset_id: The v4 UUID of the dataset.
         Generated if not specified.
+    :param dict metadata: Additional metadata to be added to the create_dataset
+        request beyond the default "name": "my_volume" metadata.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
@@ -885,10 +948,13 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
         maximum_size = get_default_volume_size()
     if dataset_id is None:
         dataset_id = uuid4()
-
+    if metadata is None:
+        metadata = {}
+    metadata_arg = {u"name": u"my_volume"}
+    metadata_arg.update(metadata)
     configuring_dataset = cluster.client.create_dataset(
         cluster.nodes[0].uuid, maximum_size=maximum_size,
-        dataset_id=dataset_id, metadata={u"name": u"my_volume"}
+        dataset_id=dataset_id, metadata=metadata_arg
     )
 
     # Wait for the dataset to be created
