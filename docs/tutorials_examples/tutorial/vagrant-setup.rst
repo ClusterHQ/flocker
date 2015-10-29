@@ -79,7 +79,7 @@ Creating Vagrant Virtual Machines for Flocker
       alice@mercury:~/flocker-tutorial$
 
    This step can take several minutes, as it downloads the Vagrant image, boots up two nodes, and downloads the Docker image necessary to run the :ref:`MongoDB tutorial<tutorial-mongo>`.
-   The time this takes will depends on your network connectivity and CPU speed.
+   The time this takes will depend on your network connectivity and CPU speed.
    Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
 #. After ``vagrant up`` completes you may want to verify that the two virtual machines are really running and accepting SSH connections:
