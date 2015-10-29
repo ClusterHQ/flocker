@@ -511,9 +511,6 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.SLEEPING, {
             I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
             I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
-            # At some point in FLOC-3205 might want to make this interrupt
-            # sleep, but at the moment that would increase polling which
-            # we don't want.
             I.STATUS_UPDATE: (
                 [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
             })
