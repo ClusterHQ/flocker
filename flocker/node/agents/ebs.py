@@ -749,7 +749,7 @@ class EBSBlockDeviceAPI(object):
         message_type = BOTO_LOG_RESULT + u':listed_cluster_volumes'
         Message.new(
             message_type=message_type,
-            volume_ids=list(volume.id for volume in volumes),
+            volume_ids=list(volume.blockdevice_id for volume in volumes),
         ).write()
         return volumes
 
