@@ -734,7 +734,7 @@ class CreateBlockDeviceDataset(PRecord):
             return fail()
 
         profile_name = self.dataset.metadata.get(u"clusterhq:flocker:profile")
-        if False and profile_name:
+        if profile_name:
             volume = (
                 deployer.profiled_blockdevice_api.create_volume_with_profile(
                     dataset_id=UUID(self.dataset.dataset_id),
