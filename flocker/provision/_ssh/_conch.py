@@ -23,7 +23,6 @@ from twisted.conch.endpoints import (
 )
 
 from twisted.conch.client.knownhosts import KnownHostsFile
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
 from twisted.internet.error import ConnectionDone
@@ -118,11 +117,12 @@ def get_ssh_dispatcher(connection, context):
     })
 
 
-def get_connection_helper(address, username, port):
+def get_connection_helper(reactor, address, username, port):
     """
     Get a :class:`twisted.conch.endpoints._ISSHConnectionCreator` to connect to
     the given remote.
 
+    :param reactor: Reactor to connect with.
     :param bytes address: The address of the remote host to connect to.
     :param bytes username: The user to connect as.
     :param int port: The port of the ssh server to connect to.
@@ -148,6 +148,7 @@ def get_connection_helper(address, username, port):
 @inlineCallbacks
 def perform_run_remotely(reactor, base_dispatcher, intent):
     connection_helper = get_connection_helper(
+        reactor,
         username=intent.username, address=intent.address, port=intent.port)
 
     context = Message.new(
