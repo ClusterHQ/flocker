@@ -21,6 +21,7 @@ from .._retry import (
     LoopExceeded,
     loop_until,
     retry_failure,
+    poll_until,
 )
 
 
@@ -327,3 +328,32 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock.advance(0.1)
         self.assertEqual(self.failureResultOf(d), type_error)
+
+
+class PollUntilTests(SynchronousTestCase):
+    """
+    Tests for ``poll_until``.
+    """
+
+    def test_no_sleep_if_initially_true(self):
+        """
+        If the predicate starts off as True then we don't delay at all.
+        """
+        sleeps = []
+        poll_until(lambda: True, 1, sleeps.append)
+        self.assertEqual([], sleeps)
+
+    def test_polls_until_true(self):
+        """
+        The predicate is repeatedly call until the result is truthy, delaying
+        by the interval each time.
+        """
+        sleeps = []
+        results = [False, False, True]
+        result = poll_until(lambda: results.pop(0), 1, sleeps.append)
+        self.assertEqual((True, [1, 1]), (result, sleeps))
+
+    def test_default_sleep(self):
+        results = [False, True]
+        result = poll_until(lambda: results.pop(0), 0)
+        self.assertEqual(True, result)

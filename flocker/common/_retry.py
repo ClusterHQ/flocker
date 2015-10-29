@@ -148,7 +148,7 @@ def retry_failure(reactor, function, expected=None, steps=None):
     return d
 
 
-def poll_until(predicate, interval):
+def poll_until(predicate, interval, sleep=None):
     """
     Perform steps until a non-false result is returned.
 
@@ -158,10 +158,14 @@ def poll_until(predicate, interval):
     :param predicate: a function to be called until it returns a
         non-false result.
     :param interval: time in seconds between calls to the function.
+    :param callable sleep: called with the interval to delay on.
+        Defaults to `time.sleep`.
     :returns: the non-false result from the final call.
     """
+    if sleep is None:
+        sleep = time.sleep
     result = predicate()
     while not result:
-        time.sleep(interval)
+        sleep(interval)
         result = predicate()
     return result
