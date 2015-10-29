@@ -10,7 +10,7 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from ...testtools import loop_until
+from ...common import loop_until
 from .testtools import make_dataset_integration_testcase
 
 

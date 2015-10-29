@@ -36,12 +36,12 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds
+from ..common import gather_deferreds, loop_until
 from ..common.runner import download_file
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
-from ..testtools import loop_until, random_name
+from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.agents.ebs import aws_from_configuration
 

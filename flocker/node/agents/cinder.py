@@ -30,7 +30,8 @@ from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from ...common import (
-    interface_decorator, get_all_ips, ipaddress_from_string
+    interface_decorator, get_all_ips, ipaddress_from_string,
+    poll_until,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -324,25 +325,6 @@ class VolumeStateMonitor:
         if elapsed_time > self.time_limit:
             raise TimeoutException(
                 self.expected_volume, self.desired_state, elapsed_time)
-
-
-def poll_until(predicate, interval):
-    """
-    Perform steps until a non-false result is returned.
-
-    This differs from ``loop_until`` in that it does not require a
-    Twisted reactor and it allows the interval to be set.
-
-    :param predicate: a function to be called until it returns a
-        non-false result.
-    :param interval: time in seconds between calls to the function.
-    :returns: the non-false result from the final call.
-    """
-    result = predicate()
-    while not result:
-        time.sleep(interval)
-        result = predicate()
-    return result
 
 
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,

@@ -12,10 +12,11 @@ from docker.utils import create_host_config
 from distutils.version import LooseVersion
 from twisted.trial.unittest import SkipTest
 
+from ...common import loop_until
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    random_name, find_free_port, loop_until
+    random_name, find_free_port,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,

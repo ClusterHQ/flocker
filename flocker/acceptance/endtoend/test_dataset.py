@@ -9,7 +9,7 @@ from unittest import skipUnless
 
 from twisted.trial.unittest import TestCase
 
-from ...testtools import loop_until
+from ...common import loop_until
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
