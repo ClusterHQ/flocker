@@ -20,7 +20,6 @@ from ..test.blockdevicefactory import (
 from ....testtools import random_name
 
 from uuid import uuid4
-from ..blockdevice import BlockDeviceVolume
 
 
 def cinder_volume_manager():
@@ -127,12 +126,11 @@ class FakeTime(object):
 
     def sleep(self, interval):
         self._current_time += interval
-        print "Sleeping. Time now is %d"%self._current_time
 
 
 class BlockDeviceAPIDestroyTests(SynchronousTestCase):
     """
-    Test for ``cinder.CinderBlockDeviceAPI.destroy_volume``
+    Test for ``cinder.CinderBlockDeviceAPI.1volume``
     """
     def setUp(self):
         self.cinder_volumes = cinder_volume_manager()
