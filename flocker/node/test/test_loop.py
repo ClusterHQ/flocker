@@ -611,12 +611,14 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     @validate_logging(assert_full_logging)
     def convergence_iteration(
             self, logger,
-            later_action=ControllableAction(result=succeed(None))):
+            later_actions=[ControllableAction(result=succeed(None)),
+                           ControllableAction(result=succeed(None))]):
         """
         Do one iteration of a convergence loop.
 
-        :param later_action: ``IStateChange`` to return second and third
-            times discovery is done, i.e. after first iteration.
+        :param later_actions: List of ``IStateChange``, to be returned
+            second and third times discovery is done, i.e. after first
+            iteration.
 
         :return: ``ConvergenceLoop`` in SLEEPING state.
         """
@@ -626,7 +628,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.action = action = ControllableAction(result=succeed(None))
         self.deployer = deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state), succeed(local_state)],
-            [action, later_action, later_action]
+            [action] + later_actions,
         )
         client = self.make_amp_client([local_state])
         self.reactor = reactor = Clock()
@@ -675,7 +677,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         # Later calculations will return a NoOp(), indicating no need to
         # wake up:
-        loop = self.convergence_iteration(later_action=NoOp())
+        loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
         node_state = NodeState(hostname=u'192.0.3.5')
         changed_configuration = Deployment(
             nodes=frozenset([to_node(node_state)]))
