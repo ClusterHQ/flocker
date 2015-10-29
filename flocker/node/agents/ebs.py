@@ -692,8 +692,8 @@ class EBSBlockDeviceAPI(object):
 
         message_type = BOTO_LOG_RESULT + u':created_volume'
         Message.new(
-            message_type=message_type, volume_id=requested_volume.id,
-            dataset_id=dataset_id, size=size
+            message_type=message_type, volume_id=unicode(requested_volume.id),
+            dataset_id=unicode(dataset_id), size=unicode(size)
         ).write()
 
         # Stamp created volume with Flocker-specific tags.
