@@ -3476,59 +3476,10 @@ class CreateBlockDeviceDatasetInterfaceTests(
     """
 
 
-class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
+class CreateBlockDeviceDatasetImplementationMixin(object):
     """
-    ``CreateBlockDeviceDataset`` implementation tests.
+    Utility Mixin for ``CreateBlockDeviceDataset`` implementation tests.
     """
-    def setUp(self):
-        self.api = loopbackblockdeviceapi_for_test(
-            self,
-            allocation_unit=LOOPBACK_ALLOCATION_UNIT
-        )
-        self.mountroot = mountroot_for_test(self)
-        self.deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=u"192.0.2.10",
-            block_device_api=self.api,
-            mountroot=self.mountroot
-        )
-
-    @capture_logging(
-        assertHasAction, CREATE_BLOCK_DEVICE_DATASET, succeeded=False
-    )
-    def test_created_exists(self, logger):
-        """
-        ``CreateBlockDeviceDataset.run`` fails with ``DatasetExists`` if there
-        is already a ``BlockDeviceVolume`` for the requested dataset.
-        """
-        self.patch(blockdevice, '_logger', logger)
-        dataset_id = uuid4()
-
-        # The a volume for the dataset already exists.
-        existing_volume = self.api.create_volume(
-            dataset_id,
-            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-
-        dataset = Dataset(
-            dataset_id=unicode(dataset_id),
-            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-
-        change = CreateBlockDeviceDataset(
-            dataset=dataset,
-            mountpoint=self.mountroot.child(
-                unicode(dataset_id).encode("ascii")
-            )
-        )
-
-        changing = run_state_change(change, self.deployer)
-
-        failure = self.failureResultOf(changing, DatasetExists)
-        self.assertEqual(
-            existing_volume,
-            failure.value.blockdevice
-        )
 
     def _create_blockdevice_dataset(self, dataset_id, maximum_size,
                                     metadata=pmap({})):
@@ -3567,6 +3518,92 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         return (
             volume, device_path, expected_mountpoint,
             self.api.compute_instance_id()
+        )
+
+
+def make_createblockdevicedataset_mixin(profiled_api):
+    """
+    Constructs a base class for tests that verify the implementation of
+    ``CreateBlockDeviceDataset``.
+
+    This ``IStateChange`` needs to be tested in two configurations:
+
+    1) With an ``IBlockDeviceAPI`` provider that does not provide
+        ``IProfiledBlockDeviceAPI``.
+
+    2) With an ``IBlockDeviceAPI`` that does provide
+        ``IProfiledBlockDeviceAPI``.
+
+    The mixin holds utility functions that are useful in both configurations,
+    and takes care of initializing the two different versions of the API.
+    """
+    class Mixin(CreateBlockDeviceDatasetImplementationMixin,
+                SynchronousTestCase):
+        def setUp(self):
+            if profiled_api:
+                self.api = fakeprofiledloopbackblockdeviceapi_for_test(
+                    self,
+                    allocation_unit=LOOPBACK_ALLOCATION_UNIT
+                )
+            else:
+                self.api = loopbackblockdeviceapi_for_test(
+                    self,
+                    allocation_unit=LOOPBACK_ALLOCATION_UNIT
+                )
+            self.mountroot = mountroot_for_test(self)
+            self.deployer = BlockDeviceDeployer(
+                node_uuid=uuid4(),
+                hostname=u"192.0.2.10",
+                block_device_api=self.api,
+                mountroot=self.mountroot
+            )
+
+    return Mixin
+
+
+class CreateBlockDeviceDatasetImplementationTests(
+    make_createblockdevicedataset_mixin(profiled_api=False)
+):
+    """
+    ``CreateBlockDeviceDataset`` implementation tests for use with a backend
+    that is not storage profile aware.
+    """
+
+    @capture_logging(
+        assertHasAction, CREATE_BLOCK_DEVICE_DATASET, succeeded=False
+    )
+    def test_created_exists(self, logger):
+        """
+        ``CreateBlockDeviceDataset.run`` fails with ``DatasetExists`` if there
+        is already a ``BlockDeviceVolume`` for the requested dataset.
+        """
+        self.patch(blockdevice, '_logger', logger)
+        dataset_id = uuid4()
+
+        # The a volume for the dataset already exists.
+        existing_volume = self.api.create_volume(
+            dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+
+        dataset = Dataset(
+            dataset_id=unicode(dataset_id),
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+
+        change = CreateBlockDeviceDataset(
+            dataset=dataset,
+            mountpoint=self.mountroot.child(
+                unicode(dataset_id).encode("ascii")
+            )
+        )
+
+        changing = run_state_change(change, self.deployer)
+
+        failure = self.failureResultOf(changing, DatasetExists)
+        self.assertEqual(
+            existing_volume,
+            failure.value.blockdevice
         )
 
     def test_run_create(self):
@@ -3672,6 +3709,43 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         self.assertEqual((mountroot.getPermissions().shorthand(),
                           mountpoint.getPermissions().shorthand()),
                          ('rwx------', 'rwxrwxrwx'))
+
+
+class CreateBlockDeviceDatasetProfiledImplementationTests(
+    make_createblockdevicedataset_mixin(profiled_api=True)
+):
+    """
+    ``CreateBlockDeviceDataset`` implementation tests with a driver that can
+    handle storage profiles.
+    """
+
+    def test_run_create_profile(self):
+        """
+        ``CreateBlockDeviceDataset.run`` uses the ``IDeployer``\ 's API object
+        to create a new volume, and logs that profile dropped during creation
+        if the backend does not provide ``IProfiledBlockDeviceAPI``.
+        """
+        self.assertTrue(
+            IProfiledBlockDeviceAPI.providedBy(self.api),
+            u"This test assumes the API provides IProfiledBlockDeviceAPI. If "
+            u"the API now does not provide that interface, this test needs a "
+            u"bit of love.")
+        dataset_id = uuid4()
+        profile = u"gold"
+        (volume, _, _, compute_instance_id) = self._create_blockdevice_dataset(
+            dataset_id=dataset_id,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            metadata={u"clusterhq:flocker:profile": profile}
+        )
+
+        expected_volume = _blockdevicevolume_from_dataset_id(
+            dataset_id=dataset_id, attached_to=compute_instance_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+
+        self.assertEqual(expected_volume, volume)
+        self.assertEqual(profile,
+                         self.api.dataset_profiles[volume.blockdevice_id])
 
 
 class AttachVolumeInitTests(
