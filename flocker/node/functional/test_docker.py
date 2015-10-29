@@ -641,7 +641,8 @@ class GenericDockerClientTests(TestCase):
             # operations. Since there's no real user impact for flocker (the
             # convergence loop will just retry anyway), retry here to avoid
             # spurious test failures.
-            listing = retry_failure(client.list, [APIError], steps=[0.1] * 5)
+            listing = retry_failure(
+                reactor, client.list, [APIError], steps=[0.1] * 5)
             listing.addCallback(
                 lambda applications: list(
                     next(iter(application.ports)).external_port
