@@ -805,9 +805,8 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
 
         def _remove():
-            container_stopped = False
-            while not container_stopped:
-                container_stopped = self._stop_container(container_name)
+            while not self._stop_container(container_name):
+                pass
             self._remove_container(container_name)
 
         d = deferToThread(_remove)
