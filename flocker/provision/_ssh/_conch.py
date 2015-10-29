@@ -1,3 +1,7 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+from __future__ import absolute_import
+
 
 from characteristic import attributes
 
@@ -27,8 +31,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
-from flocker.common import loop_until
-
+from ..common import loop_until
 from ._model import (
     Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
     perform_sudo)

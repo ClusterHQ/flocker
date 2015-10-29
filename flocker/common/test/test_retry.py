@@ -158,7 +158,7 @@ class LoopUntilTests(SynchronousTestCase):
     def test_fewer_steps_than_repeats(self, logger):
         """
         loop_until can be given fewer steps than it needs for the predicate to
-        return True. In that case, something something.
+        return True. In that case, we raise ``LoopExceeded``.
         """
         results = [False] * 5
         steps = [0.1] * 2

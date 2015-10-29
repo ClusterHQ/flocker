@@ -85,8 +85,7 @@ def loop_until(predicate, reactor=reactor, steps=None):
     """
     if steps is None:
         steps = repeat(0.1)
-    else:
-        steps = iter(steps)
+    steps = iter(steps)
 
     action = LOOP_UNTIL_ACTION(predicate=predicate)
 
@@ -128,8 +127,7 @@ def retry_failure(function, expected=None, reactor=reactor, steps=None):
     """
     if steps is None:
         steps = repeat(0.1)
-    else:
-        steps = iter(steps)
+    steps = iter(steps)
 
     d = maybeDeferred(function)
 
