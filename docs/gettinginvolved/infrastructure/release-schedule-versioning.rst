@@ -28,7 +28,7 @@ Version Numbers
 ---------------
 
 Released version numbers take the form of ``X.Y.Z``.
-The current value of ``X`` is 0 until the project is ready for production.
+The value of ``X`` is the major version.
 ``Y`` is the minor version.
 ``Z`` is the micro version.
 

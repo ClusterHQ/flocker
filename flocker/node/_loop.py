@@ -32,7 +32,7 @@ from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from . import run_state_change
+from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
 from ..control import (
@@ -254,6 +254,8 @@ class ConvergenceLoopOutputs(Names):
     SCHEDULE_WAKEUP = NamedConstant()
     # Clear/cancel the sleep wakeup timeout:
     CLEAR_WAKEUP = NamedConstant()
+    # Check if we need to wakeup due to update from AMP client:
+    UPDATE_MAYBE_WAKEUP = NamedConstant()
 
 
 _FIELD_CONNECTION = Field(
@@ -313,6 +315,9 @@ class ConvergenceLoop(object):
         to the control service.
     :type _last_acknowledged_state: tuple of IClusterStateChange
 
+    :ivar _last_discovered_local_state: The discovered local state from
+        last iteration done.
+
     :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
         ``None`` if not in SLEEPING state.
     """
@@ -327,6 +332,7 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
         self.client = None
+        self._last_discovered_local_state = None
         self._last_acknowledged_state = None
         self._sleep_timeout = None
 
@@ -338,6 +344,16 @@ class ConvergenceLoop(object):
             # State updates are now being sent somewhere else.  At least send
             # one update using the new client.
             self._last_acknowledged_state = None
+
+    def output_UPDATE_MAYBE_WAKEUP(self, context):
+        # External configuration and state has changed. Let's pretend
+        # local state hasn't changed. If when we calculate changes that
+        # still indicates some action should be taken that means we should
+        # wake up:
+        discovered = self._last_discovered_local_state
+        if self.deployer.calculate_changes(
+                self.configuration, self.cluster_state, discovered) != NoOp():
+            self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
 
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
@@ -390,6 +406,7 @@ class ConvergenceLoop(object):
                 self.deployer.discover_state, known_local_state))
 
         def got_local_state(local_state):
+            self._last_discovered_local_state = local_state
             cluster_state_changes = local_state.shared_state_changes()
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
@@ -449,6 +466,27 @@ def build_convergence_loop_fsm(reactor, deployer):
     """
     Create a convergence loop FSM.
 
+    Once cluster config+cluster state updates from control service are
+    received the basic loop is:
+
+    1. Discover local state.
+    2. Calculate ``IStateChanges`` based on local state and cluster
+       configuration and cluster state we received from control service.
+    3. Execute the change.
+    4. Sleep.
+
+    However, if an update is received during sleep then we calculate based
+    on that updated config+state whether a ``IStateChange`` needs to
+    happen. If it does that means this change will have impact on what we
+    do, so we interrupt the sleep. If calculation suggests a no-op then we
+    keep sleeping. Notably we do **not** do a discovery of local state
+    when an update is received while sleeping, since that is an expensive
+    operation that can involve talking to external resources. Moreover an
+    external update only implies external state/config changed, so we're
+    not interested in the latest local state in trying to decide if this
+    update requires us to do something; a recently cached version should
+    suffice.
+
     :param IReactorTime reactor: Used to schedule delays in the loop.
 
     :param IDeployer deployer: Used to discover local state and calcualte
@@ -476,10 +514,8 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.SLEEPING, {
             I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
             I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
-            # At some point in FLOC-3205 might want to make this interrupt
-            # sleep, but at the moment that would increase polling which
-            # we don't want.
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.SLEEPING),
+            I.STATUS_UPDATE: (
+                [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
             })
 
     loop = ConvergenceLoop(reactor, deployer)
