@@ -321,6 +321,10 @@ class ConvergenceLoop(object):
     :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
         ``None`` if not in SLEEPING state.
     """
+    # How many seconds to sleep between iterations when we may yet not be
+    # converged so want to do another iteration again soon:
+    _UNCONVERGED_DELAY = 0.1
+
     def __init__(self, reactor, deployer):
         """
         :param IReactorTime reactor: Used to schedule delays in the loop.
@@ -428,9 +432,12 @@ class ConvergenceLoop(object):
                 self.configuration, self.cluster_state, local_state
             )
             if action == NoOp():
-                # Make sure _Sleep (see below) gets created with delay of self.deployer.poll_interval
+                # We've converged, we can sleep for deployer poll interval:
+                sleep_duration = self.deployer.poll_interval
             else:
-                # Make sure _Sleep gets created with delay of 0.01 seconds
+                # We're going to do some work, we should do another
+                # iteration quickly in case there's followup work:
+                sleep_duration = self._UNCONVERGED_DELAY
 
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
@@ -440,15 +447,22 @@ class ConvergenceLoop(object):
 
             # Wait for the control node to acknowledge the new
             # state, and for the convergence actions to run.
-            return gather_deferreds([sent_state, ran_state_change])
+            result = gather_deferreds([sent_state, ran_state_change])
+            result.addCallback(lambda _: sleep_duration)
+            return result
         d.addCallback(got_local_state)
 
         # If an error occurred we just want to log it and then try
         # converging again; hopefully next time we'll have more success.
-        d.addErrback(writeFailure, self.fsm.logger)
+        def error(failure):
+            writeFailure(failure, self.fsm.logger)
+            # We should retry quickly to redo the failed work:
+            return self._UNCONVERGED_DELAY
+        d.addErrback(error)
 
         # We're done with the iteration:
-        d.addCallback(lambda _: self.fsm.receive(_Sleep()))
+        d.addCallback(
+            lambda delay: self.fsm.receive(_Sleep(delay_seconds=delay)))
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):

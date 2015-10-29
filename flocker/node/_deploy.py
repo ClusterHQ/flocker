@@ -96,11 +96,17 @@ class IDeployer(Interface):
     :ivar UUID node_uuid: The UUID of the node this deployer is running.
     :ivar unicode hostname: The hostname (really, IP) of the node this
         deployer is managing.
+
+    :ivar float poll_interval: Number of seconds to delay between
+        iterations of convergence loop that call ``discover_state()``, to
+        reduce impact of polling external resources. The actual delay may
+        be smaller if the convergence loop decides more work is necessary
+        in order to converge.
     """
     node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
     hostname = Attribute("The public IP address of this node.")
     poll_interval = Attribute(
-        "How often should the convergence loop call discover_state()?")
+        "Time to sleep between convergence loop iterations.")
 
     def discover_state(local_state):
         """
