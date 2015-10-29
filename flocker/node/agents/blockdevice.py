@@ -734,25 +734,19 @@ class CreateBlockDeviceDataset(PRecord):
             return fail()
 
         profile_name = self.dataset.metadata.get(u"clusterhq:flocker:profile")
+        dataset_id = UUID(self.dataset.dataset_id)
+        size = allocated_size(allocation_unit=api.allocation_unit(),
+                              requested_size=self.dataset.maximum_size)
         if profile_name:
             volume = (
                 deployer.profiled_blockdevice_api.create_volume_with_profile(
-                    dataset_id=UUID(self.dataset.dataset_id),
-                    size=allocated_size(
-                        allocation_unit=api.allocation_unit(),
-                        requested_size=self.dataset.maximum_size,
-                    ),
+                    dataset_id=dataset_id,
+                    size=size,
                     profile_name=profile_name
                 )
             )
         else:
-            volume = api.create_volume(
-                dataset_id=UUID(self.dataset.dataset_id),
-                size=allocated_size(
-                    allocation_unit=api.allocation_unit(),
-                    requested_size=self.dataset.maximum_size,
-                ),
-            )
+            volume = api.create_volume(dataset_id=dataset_id, size=size)
 
         # This duplicates AttachVolume now.
         volume = api.attach_volume(
@@ -764,7 +758,7 @@ class CreateBlockDeviceDataset(PRecord):
         create = CreateFilesystem(volume=volume, filesystem=u"ext4")
         d = run_state_change(create, deployer)
 
-        mount = MountBlockDevice(dataset_id=UUID(hex=self.dataset.dataset_id),
+        mount = MountBlockDevice(dataset_id=dataset_id,
                                  blockdevice_id=volume.blockdevice_id,
                                  mountpoint=self.mountpoint)
         d.addCallback(lambda _: run_state_change(mount, deployer))
