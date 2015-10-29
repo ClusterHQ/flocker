@@ -52,6 +52,7 @@ from ..blockdevice import (
     DESTROY_VOLUME,
     CREATE_BLOCK_DEVICE_DATASET,
     INVALID_DEVICE_PATH,
+    CREATE_VOLUME_PROFILE_DROPPED,
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
@@ -3449,7 +3450,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             failure.value.blockdevice
         )
 
-    def _create_blockdevice_dataset(self, dataset_id, maximum_size):
+    def _create_blockdevice_dataset(self, dataset_id, maximum_size,
+                                    metadata=pmap({})):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -3457,6 +3459,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             be created.
         :param int maximum_size: The size, in bytes, of the dataset which will
             be created.
+        :param pmap(unicode, unicode) metadata: The metadata for the dataset.
+
         :returns: A 3-tuple of:
             * ``BlockDeviceVolume`` created by the run operation
             * The ``FilePath`` of the device where the volume is attached.
@@ -3469,6 +3473,7 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         dataset = Dataset(
             dataset_id=unicode(dataset_id),
             maximum_size=maximum_size,
+            metadata=metadata
         )
 
         change = CreateBlockDeviceDataset(
@@ -3496,6 +3501,35 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+
+        expected_volume = _blockdevicevolume_from_dataset_id(
+            dataset_id=dataset_id, attached_to=compute_instance_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+
+        self.assertEqual(expected_volume, volume)
+
+    @capture_logging(assertHasMessage, CREATE_VOLUME_PROFILE_DROPPED)
+    def test_run_create_profile_dropped(self, logger):
+        """
+        ``CreateBlockDeviceDataset.run`` uses the ``IDeployer``\ 's API object
+        to create a new volume, and logs that profile dropped during creation
+        if the backend does not provide ``IProfiledBlockDeviceAPI``.
+        """
+        self.assertFalse(
+            IProfiledBlockDeviceAPI.providedBy(self.api),
+            u"This test assumes the API does not provide "
+            u"IProfiledBlockDeviceAPI. If the API now does provide that "
+            u"interface, this test needs a bit of love.")
+        dataset_id = uuid4()
+        (volume,
+         device_path,
+         expected_mountpoint,
+         compute_instance_id) = self._create_blockdevice_dataset(
+            dataset_id=dataset_id,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            metadata={u"clusterhq:flocker:profile": u"gold"}
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(

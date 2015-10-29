@@ -181,6 +181,12 @@ BLOCK_DEVICE_PATH = Field(
     u"The system device file for an attached block device."
 )
 
+PROFILE_NAME = Field(
+    u"profile_name",
+    lambda dataset_id: unicode(dataset_id),
+    u"The name of a profile for a volume."
+)
+
 CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:create",
     [DATASET, MOUNTPOINT],
@@ -273,6 +279,14 @@ INVALID_DEVICE_PATH = MessageType(
     [DATASET_ID, INVALID_DEVICE_PATH_VALUE],
     u"The device path given by the IBlockDeviceAPI implementation was "
     u"invalid.",
+)
+
+CREATE_VOLUME_PROFILE_DROPPED = MessageType(
+    u"agent:blockdevice:profiles:create_volume_with_profiles:profile_dropped",
+    [DATASET_ID, PROFILE_NAME],
+    u"The profile of a volume was dropped during creation because the backend "
+    u"does not support profiles. Use a backend that provides "
+    u"IProfiledBlockDeviceAPI to get profile support."
 )
 
 
@@ -719,8 +733,8 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
-        profile = self.dataset.metadata.get(u"clusterhq:flocker:profile")
-        if profile:
+        profile_name = self.dataset.metadata.get(u"clusterhq:flocker:profile")
+        if profile_name:
             volume = (
                 deployer.profiled_blockdevice_api.create_volume_with_profile(
                     dataset_id=UUID(self.dataset.dataset_id),
@@ -728,7 +742,7 @@ class CreateBlockDeviceDataset(PRecord):
                         allocation_unit=api.allocation_unit(),
                         requested_size=self.dataset.maximum_size,
                     ),
-                    profile=profile
+                    profile_name=profile_name
                 )
             )
         else:
@@ -978,7 +992,7 @@ class IProfiledBlockDeviceAPI(Interface):
     specific profile.
     """
 
-    def create_volume_with_profile(name, size, profile_name):
+    def create_volume_with_profile(dataset_id, size, profile_name):
         """
         Create a new volume with the specified profile.
 
@@ -1008,15 +1022,17 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
     """
     _blockdevice_api = field(
         mandatory=True,
-        invariant=lambda i: IBlockDeviceAPI.providedBy(i))
+        invariant=lambda i: (IBlockDeviceAPI.providedBy(i),
+                             '_blockdevice_api must provide IBlockDeviceAPI'))
 
-    def create_volume_with_profile(self, name, size, profile_name):
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
         """
         Reverts to constructing a volume with no profile. To be used with
         backends that do not implement ``IProfiledBlockDeviceAPI``, but do
         implement ``IBlockDeviceAPI``.
         """
-        return self._blockdevice_api(name, size)
+        return self._blockdevice_api.create_volume(dataset_id=dataset_id,
+                                                   size=size)
 
 
 @implementer(IBlockDeviceAsyncAPI)
@@ -1500,7 +1516,7 @@ class BlockDeviceDeployer(PRecord):
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
-            _block_device_api=self.block_device_api
+            _blockdevice_api=self.block_device_api
         )
 
     @property
