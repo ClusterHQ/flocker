@@ -22,6 +22,7 @@ from twisted.internet import reactor
 from effect import Effect, Constant, Delay
 from effect.retry import retry
 
+
 def function_serializer(function):
     """
     Serialize the given function for logging by eliot.
@@ -170,7 +171,7 @@ def poll_until(predicate, interval):
     return result
 
 
-def retry_effect_with_timeout(effect, timeout, retry_wait = 1, exp_backoff = True):
+def retry_effect_with_timeout(effect, timeout, retry_wait=1, exp_backoff=True):
     """
     If ``effect`` fails, retry it until ``timeout`` expires.
 
@@ -196,7 +197,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait = 1, exp_backoff = Tru
                 should_retry.wait_secs *= 2
 
             return Effect(Delay(should_retry.wait_secs)).on(
-                success = lambda x: Effect(Constant(True)))
+                success=lambda x: Effect(Constant(True)))
 
     should_retry.wait_secs = retry_wait
 

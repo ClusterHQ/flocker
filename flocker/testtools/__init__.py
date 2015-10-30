@@ -12,7 +12,6 @@ import socket
 import sys
 import os
 import pwd
-import time
 from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
