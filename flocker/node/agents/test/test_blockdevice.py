@@ -2758,28 +2758,10 @@ def fakeprofiledloopbackblockdeviceapi_for_test(test_case,
             test_case, allocation_unit=allocation_unit))
 
 
-_fake_profiled_loopback_block_device_api = partial(
-    fakeprofiledloopbackblockdeviceapi_for_test,
-    allocation_unit=LOOPBACK_ALLOCATION_UNIT)
-
-
-class FakeProfiledLoopbackBlockDeviceIBlockDeviceTests(
-    make_iblockdeviceapi_tests(
-        blockdevice_api_factory=_fake_profiled_loopback_block_device_api,
-        minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        device_allocation_unit=None,
-        unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
-    )
-):
-    """
-    ``IBlockDeviceAPI`` interface adherence Tests for
-    ``FakeProfiledLoopbackBlockDevice``.
-    """
-
-
 class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(
     make_iprofiledblockdeviceapi_tests(
-        _fake_profiled_loopback_block_device_api,
+        partial(fakeprofiledloopbackblockdeviceapi_for_test,
+                allocation_unit=LOOPBACK_ALLOCATION_UNIT),
         LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
     )
 ):
@@ -3538,6 +3520,10 @@ def make_createblockdevicedataset_mixin(profiled_api):
 
     The mixin holds utility functions that are useful in both configurations,
     and takes care of initializing the two different versions of the API.
+
+    :param bool profiled_api: True if you want self.api to be an implementation
+        of ``IBlockDeviceAPI`` that provides ``IProfiledBlockDeviceAPI``. False
+        if you want self.api not to provide ``IProfiledBlockDeviceAPI``.
     """
     class Mixin(CreateBlockDeviceDatasetImplementationMixin,
                 SynchronousTestCase):
@@ -3641,7 +3627,6 @@ class CreateBlockDeviceDatasetImplementationTests(
             u"This test assumes the API does not provide "
             u"IProfiledBlockDeviceAPI. If the API now does provide that "
             u"interface, this test needs a bit of love.")
-        self.patch(blockdevice, "_logger", logger)
         dataset_id = uuid4()
         (volume, _, _, compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,

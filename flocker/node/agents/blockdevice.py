@@ -184,9 +184,9 @@ BLOCK_DEVICE_PATH = Field(
     u"The system device file for an attached block device."
 )
 
-PROFILE_NAME = Field(
+PROFILE_NAME = Field.forTypes(
     u"profile_name",
-    identity,
+    [unicode],
     u"The name of a profile for a volume."
 )
 
@@ -696,7 +696,10 @@ def check_allocatable_size(allocation_unit, requested_size):
 
 
 # Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes.  FLOC-1771
+# BlockDeviceDeployer.calculate_changes. Also consider splitting the
+# CreateVolume portion of the IStateChange into 2 IStateChanges, one for
+# creating a volume with a profile, and one for creating a volume without a
+# profile. FLOC-1771
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
     """
@@ -715,6 +718,32 @@ class CreateBlockDeviceDataset(PRecord):
             _logger,
             dataset=self.dataset, mountpoint=self.mountpoint
         )
+
+    def _create_volume(self, deployer):
+        """
+        Create the volume using the backend API. This method will create the
+        volume with a profile if the metadata on the volume suggests that we
+        should
+
+        :param deployer: The deployer to use to create the volume.
+
+        :returns: The created ``BlockDeviceVolume``.
+        """
+        api = deployer.block_device_api
+        profile_name = self.dataset.metadata.get(PROFILE_METADATA_KEY)
+        dataset_id = UUID(self.dataset.dataset_id)
+        size = allocated_size(allocation_unit=api.allocation_unit(),
+                              requested_size=self.dataset.maximum_size)
+        if profile_name:
+            return (
+                deployer.profiled_blockdevice_api.create_volume_with_profile(
+                    dataset_id=dataset_id,
+                    size=size,
+                    profile_name=profile_name
+                )
+            )
+        else:
+            return api.create_volume(dataset_id=dataset_id, size=size)
 
     def run(self, deployer):
         """
@@ -736,20 +765,7 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
-        profile_name = self.dataset.metadata.get(PROFILE_METADATA_KEY)
-        dataset_id = UUID(self.dataset.dataset_id)
-        size = allocated_size(allocation_unit=api.allocation_unit(),
-                              requested_size=self.dataset.maximum_size)
-        if profile_name:
-            volume = (
-                deployer.profiled_blockdevice_api.create_volume_with_profile(
-                    dataset_id=dataset_id,
-                    size=size,
-                    profile_name=profile_name
-                )
-            )
-        else:
-            volume = api.create_volume(dataset_id=dataset_id, size=size)
+        volume = self._create_volume(deployer)
 
         # This duplicates AttachVolume now.
         volume = api.attach_volume(
@@ -761,7 +777,7 @@ class CreateBlockDeviceDataset(PRecord):
         create = CreateFilesystem(volume=volume, filesystem=u"ext4")
         d = run_state_change(create, deployer)
 
-        mount = MountBlockDevice(dataset_id=dataset_id,
+        mount = MountBlockDevice(dataset_id=volume.dataset_id,
                                  blockdevice_id=volume.blockdevice_id,
                                  mountpoint=self.mountpoint)
         d.addCallback(lambda _: run_state_change(mount, deployer))
@@ -1029,7 +1045,7 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
         implement ``IBlockDeviceAPI``.
         """
         CREATE_VOLUME_PROFILE_DROPPED(dataset_id=dataset_id,
-                                      profile_name=profile_name).write(_logger)
+                                      profile_name=profile_name).write()
         return self._blockdevice_api.create_volume(dataset_id=dataset_id,
                                                    size=size)
 
@@ -1509,8 +1525,8 @@ class BlockDeviceDeployer(PRecord):
     @property
     def profiled_blockdevice_api(self):
         """
-        Get an ``IProfiledBlockDeviceAPI`` provider which can create profiled
-        block devices for this deployer.
+        Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
+        configured based on pre-defined profiles.
         """
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
