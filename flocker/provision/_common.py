@@ -6,6 +6,7 @@ from zope.interface import (
     Attribute as InterfaceAttribute, Interface)
 
 from twisted.python.constants import Values, ValueConstant
+from twisted.python.filepath import FilePath
 
 from flocker.common.version import make_rpm_version
 
@@ -71,6 +72,8 @@ class Cluster(PRecord):
     :ivar FilePath certificates_path: Directory where certificates can be
         found; specifically the directory used by ``Certificates``.
     :ivar Certificates certificates: Certificates to for the cluster.
+    :ivar FilePath dataset_backend_config_file: FilePath with the backend
+        configuration.
     """
     all_nodes = field(mandatory=True)
     control_node = field(mandatory=True)
@@ -78,6 +81,7 @@ class Cluster(PRecord):
     dataset_backend = field(mandatory=True)
     default_volume_size = field(type=int, mandatory=True)
     certificates = field(type=Certificates, mandatory=True)
+    dataset_backend_config_file = field(mandatory=True, type=FilePath)
 
     @property
     def certificates_path(self):

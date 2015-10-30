@@ -4,6 +4,8 @@
 Tests for ``flocker.node._change``.
 """
 
+from unittest import SkipTest
+
 from zope.interface import implementer
 
 from pyrsistent import PRecord, field
@@ -21,7 +23,7 @@ from ..testtools import (
 )
 from ...testtools import CustomException
 
-from .. import IStateChange, sequentially, in_parallel, run_state_change
+from .. import IStateChange, sequentially, in_parallel, run_state_change, NoOp
 
 from .istatechange import (
     DummyStateChange, RunSpyStateChange, make_istatechange_tests,
@@ -166,6 +168,37 @@ class InParallelIStateChangeTests(
         self.assertEqual(2, the_change.value)
 
 
+class NoOpIStateChangeTests(make_istatechange_tests(NoOp, {}, {})):
+    """
+    Tests for the ``IStateChange`` implementation provided by ``NoOp``.
+
+    Inherits some equality/inequality tests we need to override because
+    they assume instances can be different, which is not the case for
+    ``NoOp``.
+    """
+    def test_equality(self):
+        """
+        All instances are equal.
+
+        Overrides test in base class.
+        """
+        self.assertTrue(NoOp() == NoOp())
+
+    def test_notequality(self):
+        """
+        Not relevant for ``NoOp``.
+
+        Overrides test in base class.
+        """
+        raise SkipTest("All NoOp instances are equal.")
+
+    def test_run(self):
+        """
+        ``NoOp.run`` returns a fired ``Deferred``.
+        """
+        self.assertEqual(self.successResultOf(NoOp().run(None)), None)
+
+
 def _test_nested_change(case, outer_factory, inner_factory):
     """
     Assert that ``IChangeState`` providers wrapped inside ``inner_factory``
@@ -285,6 +318,18 @@ class SequentiallyTests(SynchronousTestCase):
         nested within a ``sequentially``.
         """
         _test_nested_change(self, sequentially, in_parallel)
+
+    def test_empty(self):
+        """
+        ``sequentially`` with no sub-changes becomes a ``NoOp``.
+        """
+        self.assertEqual(sequentially(changes=[]), NoOp())
+
+    def test_noops(self):
+        """
+        ``sequentially`` with only ``NoOp`` sub-changes becomes a ``NoOp``.
+        """
+        self.assertEqual(sequentially(changes=[NoOp(), NoOp()]), NoOp())
 
 
 class InParallelTests(SynchronousTestCase):
@@ -418,6 +463,18 @@ class InParallelTests(SynchronousTestCase):
         nested within an ``in_parallel``.
         """
         _test_nested_change(self, in_parallel, sequentially)
+
+    def test_empty(self):
+        """
+        ``in_parallel`` with no sub-changes becomes a ``NoOp``.
+        """
+        self.assertEqual(in_parallel(changes=[]), NoOp())
+
+    def test_noops(self):
+        """
+        ``in_parallel`` with only ``NoOp`` sub-changes becomes a ``NoOp``.
+        """
+        self.assertEqual(in_parallel(changes=[NoOp(), NoOp()]), NoOp())
 
 
 class RunStateChangeTests(SynchronousTestCase):

@@ -1,4 +1,8 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
+from __future__ import absolute_import
+
+from functools import partial
 from characteristic import attributes
 
 from eliot import Message, MessageType, Field
@@ -19,7 +23,6 @@ from twisted.conch.endpoints import (
 )
 
 from twisted.conch.client.knownhosts import KnownHostsFile
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
 from twisted.internet.error import ConnectionDone
@@ -27,8 +30,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
-from flocker.testtools import loop_until
-
+from ...common import loop_until
 from ._model import (
     Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
     perform_sudo)
@@ -115,11 +117,12 @@ def get_ssh_dispatcher(connection, context):
     })
 
 
-def get_connection_helper(address, username, port):
+def get_connection_helper(reactor, address, username, port):
     """
     Get a :class:`twisted.conch.endpoints._ISSHConnectionCreator` to connect to
     the given remote.
 
+    :param reactor: Reactor to connect with.
     :param bytes address: The address of the remote host to connect to.
     :param bytes username: The user to connect as.
     :param int port: The port of the ssh server to connect to.
@@ -143,8 +146,9 @@ def get_connection_helper(address, username, port):
 
 @deferred_performer
 @inlineCallbacks
-def perform_run_remotely(base_dispatcher, intent):
+def perform_run_remotely(reactor, base_dispatcher, intent):
     connection_helper = get_connection_helper(
+        reactor,
         username=intent.username, address=intent.address, port=intent.port)
 
     context = Message.new(
@@ -155,7 +159,7 @@ def perform_run_remotely(base_dispatcher, intent):
         connection.addErrback(lambda _: False)
         return connection
 
-    connection = yield loop_until(connect)
+    connection = yield loop_until(reactor, connect)
 
     dispatcher = ComposedDispatcher([
         get_ssh_dispatcher(
@@ -175,7 +179,7 @@ def make_dispatcher(reactor):
     patch_twisted_7672()
     return ComposedDispatcher([
         TypeDispatcher({
-            RunRemotely: perform_run_remotely,
+            RunRemotely: partial(perform_run_remotely, reactor),
         }),
         make_twisted_dispatcher(reactor),
         base_dispatcher,

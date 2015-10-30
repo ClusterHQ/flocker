@@ -7,14 +7,14 @@ Data-Oriented Clustering
 Minimal Downtime Volume Migration
 =================================
 
-Flocker's cluster management logic uses the volume manager (see :ref:`volume`) to efficiently move containers' data between nodes.
+Flocker's cluster management logic uses a volume manager to efficiently move containers' data between nodes.
 
 Consider a MongoDB application with a 20 GB volume being moved from node A to node B.
-The naive implementation would be:
+A naive implementation would be:
 
 #. Shut down MongoDB on node A.
-#. :ref:`Push<volume-push>` all 20 GB of data to node B with no database running.
-#. :ref:`Hand off<volume-handoff>` ownership of the volume to node B, a quick operation.
+#. Push all 20 GB of data to node B with no database running.
+#. Hand off ownership of the volume to node B, a quick operation.
 #. Start MongoDB on node B.
 
 This method would cause significant downtime.

@@ -16,11 +16,12 @@ changes.
 
 from zope.interface import Interface, Attribute, implementer
 
-from pyrsistent import PVector, PRecord, pvector, field
+from pyrsistent import PVector, PRecord, pvector, field, PClass
 
 from twisted.internet.defer import maybeDeferred, succeed
 
 from eliot.twisted import DeferredContext
+from eliot import ActionType
 
 from ..common import gather_deferreds
 
@@ -120,7 +121,15 @@ def in_parallel(changes):
 
     The order in which execution of the changes is started is unspecified.
     Comparison of the resulting object disregards the ordering of the changes.
+
+    @param changes: A sequence of ``IStateChange`` providers.
+
+    @return: ``IStateChange`` provider that will run given changes in
+        parallel, or ``NoOp`` instance if changes are empty or all
+        ``NoOp``.
     """
+    if all(c == NoOp() for c in changes):
+        return NoOp()
     return _InParallel(changes=changes)
 
 
@@ -141,5 +150,29 @@ def sequentially(changes):
     Run a series of changes in sequence, one after the other.
 
     Failures in earlier changes stop later changes.
+
+    @param changes: A sequence of ``IStateChange`` providers.
+
+    @return: ``IStateChange`` provider that will run given changes
+        serially, or ``NoOp`` instance if changes are empty or all
+        ``NoOp``.
     """
+    if all(c == NoOp() for c in changes):
+        return NoOp()
     return _Sequentially(changes=changes)
+
+
+LOG_NOOP = ActionType("flocker:change:noop", [], [], "We've done nothing.")
+
+
+@implementer(IStateChange)
+class NoOp(PClass):
+    """
+    Do nothing.
+    """
+    @property
+    def eliot_action(self):
+        return LOG_NOOP()
+
+    def run(self, deployer):
+        return succeed(None)
