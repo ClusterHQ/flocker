@@ -53,6 +53,9 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 # The longest time we're willing to wait for a Cinder API call to complete.
 CINDER_TIMEOUT = 600
 
+# The longest time we're willing to wait for a Cinder volume to be destroyed
+CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
+
 
 def _openstack_logged_method(method_name, original_name):
     """
@@ -234,6 +237,10 @@ class INovaServerManager(Interface):
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
+    :param expected_volume: the volume we were waiting on
+    :param desired_state: the new state we wanted the volume to have
+    :param elapsed_time: how much time we had been waiting for the volume
+        to change the state
     """
     def __init__(self, expected_volume, desired_state, elapsed_time):
         self.expected_volume = expected_volume
@@ -377,7 +384,9 @@ class CinderBlockDeviceAPI(object):
     def __init__(self,
                  cinder_volume_manager,
                  nova_volume_manager, nova_server_manager,
-                 cluster_id):
+                 cluster_id,
+                 timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT,
+                 time_module=None):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
@@ -393,6 +402,10 @@ class CinderBlockDeviceAPI(object):
         self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
+        self._timeout = timeout
+        if time_module is None:
+            time_module = time
+        self._time = time_module
 
     def allocation_unit(self):
         """
@@ -546,18 +559,36 @@ class CinderBlockDeviceAPI(object):
         )
 
     def destroy_volume(self, blockdevice_id):
+        """
+        Detach Cinder volume identified by blockdevice_id.
+        It will loop listing the volume until it is no longer there.
+        if the volume is still there after the defined timeout,
+        the function will just raise an exception and do nothing.
+
+        :raises TimeoutException: If the volume is not deleted
+            within the expected time. If that happens, it will be because after
+            the timeout, the volume can still be listed. The volume will not
+            be deleted unless further action is taken.
+        """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
-
-        while True:
-            # Don't loop forever here.  FLOC-1853
+        start_time = self._time.time()
+        # Wait until the volume is not there or until the operation
+        # timesout
+        while(self._time.time() - start_time < self._timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
-                break
-            time.sleep(1.0)
+                return
+            self._time.sleep(1.0)
+        # If the volume is not deleted, raise an exception
+        raise TimeoutException(
+            blockdevice_id,
+            None,
+            self._time.time() - start_time
+        )
 
     def _get_device_path_virtio_blk(self, volume):
         """
@@ -706,8 +737,10 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
 
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
-class _LoggingCinderVolumeManager(PRecord):
-    _cinder_volumes = field(mandatory=True)
+class _LoggingCinderVolumeManager(object):
+
+    def __init__(self, cinder_volumes):
+        self._cinder_volumes = cinder_volumes
 
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
@@ -846,8 +879,9 @@ def cinder_from_configuration(region, cluster_id, **config):
     nova_client = get_nova_v2_client(session, region)
 
     logging_cinder = _LoggingCinderVolumeManager(
-        _cinder_volumes=cinder_client.volumes
+        cinder_client.volumes
     )
+
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
     )
