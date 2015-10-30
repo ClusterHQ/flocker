@@ -791,48 +791,6 @@ class EBSBlockDeviceAPI(object):
         return self.create_volume_with_profile(
             dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
-    def get_profiled_volume_minimum_size(self):
-        """
-        Get minimum size for volume creation with profile.
-
-        :returns: Size, in bytes, of the smallest possible profiled volume
-            for this backend.
-        :rtype: int
-        """
-        return GiB(4).to_Byte().value
-
-    def get_configured_profile_attributes(self, profile_name):
-        """
-        Get profile attributes associated with given profile name.
-
-        :param unicode profile_name: Name of profile to fetch attributes for.
-        :returns: Attribute key-value pairs associated with given profile.
-        :rtype: ``pmap``
-        """
-        A = EBSMandatoryProfileAttributes.lookupByName(
-            MandatoryProfiles.lookupByValue(profile_name).name).value
-        attributes = pmap({u'volume_type': A.volume_type.value,
-                           u'iops_per_size_gib': A.iops_per_size_gib})
-        return attributes
-
-    def get_observed_profile_attributes(self, blockdevice_id):
-        """
-        Get observed values of profile attributes for a blockdevice.
-
-        :param unicode blockdevice_id: Blockdevice to fetch profile stats for.
-        :returns: Key-value pairs of observed attributes for the blockdevice,
-            as reported by EBS.
-        :rtype: ``pmap``
-        """
-        ebs_volume = self._get_ebs_volume(blockdevice_id)
-        volume_type = ebs_volume.type
-        iops = ebs_volume.iops
-        size = ebs_volume.size
-        iops_per_size_gib = None if iops is None else iops/size
-        observed_attributes = pmap({u'volume_type': volume_type,
-                                    u'iops_per_size_gib': iops_per_size_gib})
-        return observed_attributes
-
     def create_volume_with_profile(self, dataset_id, size, profile_name):
         """
         Create a volume on EBS. Store Flocker-specific
