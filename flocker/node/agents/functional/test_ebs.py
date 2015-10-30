@@ -270,8 +270,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         requested_iops = A.requested_iops(ebs_volume.size)
         self.assertEqual(ebs_volume.iops if requested_iops is not None
                          else None, requested_iops)
-        if requested_iops is not None:
-            self.assertEqual(ebs_volume.iops, requested_iops)
 
 
 class EBSProfiledBlockDeviceAPIInterfaceTests(
