@@ -42,7 +42,7 @@ If you get a connection refused error try again after a few seconds; the applica
 
 .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-   alice@mercury:~/flocker-tutorial$ $ mongo 172.16.255.250
+   alice@mercury:~/flocker-tutorial$ mongo 172.16.255.250
    MongoDB shell version: 2.4.9
    connecting to: 172.16.255.250/test
    > use example;
