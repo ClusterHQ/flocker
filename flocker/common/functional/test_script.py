@@ -27,7 +27,8 @@ from twisted.python.procutils import which
 from twisted.python.usage import Options, UsageError
 
 from ..script import ICommandLineScript, flocker_standard_options
-from ...testtools import random_name, if_root, loop_until
+from ...common import loop_until
+from ...testtools import random_name, if_root
 
 
 def _journald_available():

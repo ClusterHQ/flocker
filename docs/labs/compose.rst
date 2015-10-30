@@ -49,7 +49,7 @@ you can run a ``docker-compose up`` command as you would normally.
 
     docker-compose up -d
 
-Data volume format - standard
+Data Volume Format - Standard
 =============================
 
 When you use Flocker to manage data volumes with Compose the format of the data volume is slightly different than normal Docker volumes.
@@ -65,7 +65,7 @@ For a normal Docker volume - you would provide the ``host path`` and ``container
 
 In this example ``/var/lib/redis`` is the host path and ``/data`` is the container path.
 
-Data volume format - Flocker
+Data Volume Format - Flocker
 ============================
 
 For a Flocker managed volume - you still provide the container path but instead of a host path, you provide a global name for the volume.
