@@ -579,13 +579,14 @@ class CinderBlockDeviceAPI(object):
     def destroy_volume(self, blockdevice_id):
         """
         Detach Cinder volume identified by blockdevice_id.
-        It will loop listing the volume until it is no longer there. If the volume is still there
-        after the defined timeout, the function will just raise an exception and do nothing.
+        It will loop listing the volume until it is no longer there.
+        if the volume is still there after the defined timeout,
+        the function will just raise an exception and do nothing.
 
         :raises TimeoutException: If the volume is not deleted
-            within the expected time. If that happens, it will be because after the timeout,
-            the volume can still be listed. The volume will not be deleted unless further action
-            is taken.
+            within the expected time. If that happens, it will be because after
+            the timeout, the volume can still be listed. The volume will not
+            be deleted unless further action is taken.
         """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
@@ -754,8 +755,10 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
 
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
-class _LoggingCinderVolumeManager(PRecord):
-    _cinder_volumes = field(mandatory=True)
+class _LoggingCinderVolumeManager(object):
+
+    def __init__(self, cinder_volumes):
+        self._cinder_volumes = cinder_volumes
 
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
@@ -894,8 +897,9 @@ def cinder_from_configuration(region, cluster_id, **config):
     nova_client = get_nova_v2_client(session, region)
 
     logging_cinder = _LoggingCinderVolumeManager(
-        _cinder_volumes=cinder_client.volumes
+        cinder_client.volumes
     )
+
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
     )

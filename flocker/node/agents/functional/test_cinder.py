@@ -568,7 +568,6 @@ class FakeTime(object):
 
     def sleep(self, interval):
         self._current_time += interval
-        print "Sleeping. Time now is %d"%self._current_time
 
 
 class BlockDeviceAPIDestroyTests(SynchronousTestCase):
@@ -594,10 +593,15 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         # Using a fake no-op delete so it doesn't actually delete anything
         # (we don't need any actual volumes here, as we only need to verify
         # the timeout)
-        self.patch(self.api.cinder_volume_manager, "delete", lambda *args, **kwargs: None)
+        self.patch(
+            self.api.cinder_volume_manager,
+            "delete",
+            lambda *args, **kwargs: None
+        )
         # Now try to delete it
         time_module = FakeTime(initial_time=0)
-        self.patch(self.api, "time_module", time_module)
+        self.patch(self.api, "_time", time_module)
+        self.patch(self.api, "_timeout", expected_timeout)
 
         exception = self.assertRaises(
             TimeoutException,
