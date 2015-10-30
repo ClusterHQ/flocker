@@ -373,7 +373,13 @@ class Filesystem(object):
 
         def recv_and_close():
             try:
-                libzfs_core.lzc_receive(self.name, rfd, force)
+                (header, c_header) = libzfs_core.receive_header(rfd)
+                # drr_toname is a full snapshot name, but we need only the part
+                # after '@' that we use to construct a local snapshot name.
+                snapname = header['drr_toname'].split('@', 1)[1]
+                snapname = self.name + '@' + snapname
+                libzfs_core.lzc_receive_with_header(snapname, rfd, c_header,
+                                                    force)
                 success = True
             except Exception as e:
                 success = False
