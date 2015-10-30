@@ -198,9 +198,10 @@ class ConvergenceLoopInputs(Names):
     STATUS_UPDATE = NamedConstant()
     # Stop the convergence loop:
     STOP = NamedConstant()
-    # Finished applying necessary changes to local state, a single
-    # iteration of the convergence loop:
-    ITERATION_DONE = NamedConstant()
+    # Sleep for a while (so we don't poll in a busy-loop).
+    SLEEP = NamedConstant()
+    # Stop sleeping:
+    WAKEUP = NamedConstant()
 
 
 @attributes(["client", "configuration", "state"])
@@ -216,6 +217,17 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
+class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
+    """
+    Sleep for given number of seconds.
+
+    :ivar float delay_seconds: How many seconds to sleep.
+    """
+    # For now this is hard coded, will become more flexible in followup
+    # parts of FLOC-3205:
+    delay_seconds = 1.0
+
+
 class ConvergenceLoopStates(Names):
     """
     Convergence loop FSM states.
@@ -227,6 +239,8 @@ class ConvergenceLoopStates(Names):
     # Local state is being converged, and once that is done we will
     # immediately stop:
     CONVERGING_STOPPING = NamedConstant()
+    # The loop is sleeping until the next iteration occurs:
+    SLEEPING = NamedConstant()
 
 
 class ConvergenceLoopOutputs(Names):
@@ -238,6 +252,10 @@ class ConvergenceLoopOutputs(Names):
     STORE_INFO = NamedConstant()
     # Start an iteration of the covergence loop:
     CONVERGE = NamedConstant()
+    # Schedule timeout for sleep so we don't sleep forever:
+    SCHEDULE_WAKEUP = NamedConstant()
+    # Clear/cancel the sleep wakeup timeout:
+    CLEAR_WAKEUP = NamedConstant()
 
 
 _FIELD_CONNECTION = Field(
@@ -296,6 +314,9 @@ class ConvergenceLoop(object):
         acknowledged by the control service over the most recent connection
         to the control service.
     :type _last_acknowledged_state: tuple of IClusterStateChange
+
+    :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
+        ``None`` if not in SLEEPING state.
     """
     def __init__(self, reactor, deployer):
         """
@@ -309,6 +330,7 @@ class ConvergenceLoop(object):
         self.cluster_state = None
         self.client = None
         self._last_acknowledged_state = None
+        self._sleep_timeout = None
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -369,14 +391,15 @@ class ConvergenceLoop(object):
             d = DeferredContext(maybeDeferred(
                 self.deployer.discover_state, known_local_state))
 
-        def got_local_state(state_changes):
+        def got_local_state(local_state):
+            cluster_state_changes = local_state.shared_state_changes()
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
             #
             # XXX This somewhat side-steps the whole explicit-state-machine
             # thing we're aiming for here.  It would be better for these state
             # changes to arrive as an input to the state machine.
-            for state in state_changes:
+            for state in cluster_state_changes:
                 self.cluster_state = state.update_cluster_state(
                     self.cluster_state
                 )
@@ -384,10 +407,10 @@ class ConvergenceLoop(object):
             # XXX And for this update to be the side-effect of an output
             # resulting.
             sent_state = self._maybe_send_state_to_control_service(
-                state_changes)
+                cluster_state_changes)
 
             action = self.deployer.calculate_changes(
-                self.configuration, self.cluster_state
+                self.configuration, self.cluster_state, local_state
             )
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
@@ -404,20 +427,19 @@ class ConvergenceLoop(object):
         # converging again; hopefully next time we'll have more success.
         d.addErrback(writeFailure, self.fsm.logger)
 
-        # It would be better to have a "quiet time" state in the FSM and
-        # transition to that next, then have a timeout input kick the machine
-        # back around to the beginning of the loop in the FSM.  However, we're
-        # not going to keep this sleep-for-a-bit solution in the long term.
-        # Instead, we'll be more event driven.  So just going with the simple
-        # solution and inserting a side-effect-y delay directly here.
-
-        d.addCallback(
-            lambda _:
-                self.reactor.callLater(
-                    1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
-                )
-        )
+        # We're done with the iteration:
+        d.addCallback(lambda _: self.fsm.receive(_Sleep()))
         d.addActionFinish()
+
+    def output_SCHEDULE_WAKEUP(self, context):
+        self._sleep_timeout = self.reactor.callLater(
+            context.delay_seconds,
+            lambda: self.fsm.receive(ConvergenceLoopInputs.WAKEUP))
+
+    def output_CLEAR_WAKEUP(self, context):
+        if self._sleep_timeout.active():
+            self._sleep_timeout.cancel()
+        self._sleep_timeout = None
 
 
 def build_convergence_loop_fsm(reactor, deployer):
@@ -440,18 +462,27 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.CONVERGING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
             I.STOP: ([], S.CONVERGING_STOPPING),
-            I.ITERATION_DONE: ([O.CONVERGE], S.CONVERGING),
+            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
         })
     table = table.addTransitions(
         S.CONVERGING_STOPPING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.ITERATION_DONE: ([], S.STOPPED),
+            I.SLEEP: ([], S.STOPPED),
         })
+    table = table.addTransitions(
+        S.SLEEPING, {
+            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
+            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
+            # At some point in FLOC-3205 might want to make this interrupt
+            # sleep, but at the moment that would increase polling which
+            # we don't want.
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.SLEEPING),
+            })
 
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate], inputContext={},
+        richInputs=[_ClientStatusUpdate, _Sleep], inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
@@ -502,6 +533,9 @@ class AgentLoopService(MultiService, object):
     # IConvergenceAgent methods:
 
     def connected(self, client):
+        # Reduce reconnect delay back to normal, since we've successfully
+        # connected:
+        self.reconnecting_factory.resetDelay()
         self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):

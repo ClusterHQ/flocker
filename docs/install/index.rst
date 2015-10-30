@@ -4,49 +4,23 @@
 Installing Flocker
 ==================
 
-Quick Start
-===========
+There are several installation options with which you can get up and running with Flocker.
 
-Want to get started with Flocker quickly?
-You can try the Labs Installer.
-
-* It makes it easy to set up and manage a Flocker cluster.
-* It runs inside a Docker container on your local machine.
-* The :ref:`Flocker plugin for Docker <using-docker-plugin>` is installed.
-
-:ref:`Try the Labs installer <labs-installer>`.
-
-If you'd rather install Flocker manually, read on.
-
-Manual Installation
-===================
-
-The Flocker Client is installed on your local machine and provides command line tools to control the cluster.
-This also includes the ``flocker-ca`` tool, which you use to generate certificates for all the Flocker components.
-
-The Flocker agents are installed on any number of nodes in the cluster where your containers will run.
-The agent software is included in the ``clusterhq-flocker-node`` package.
-
-There is also a Flocker control service which you must install on one of the agent hosts, or on a separate machine.
-The control service is also included in the ``clusterhq-flocker-node`` package, but is activated separately later in these installation instructions.
-
-.. note:: The agents and control service are pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrant>`.
-
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
-
-This document will describe how to install the client locally and install the agents and control service on cloud infrastructure.
-It also describes how to get Vagrant nodes started which already have these services running.
-
-.. XXX We will improve this introduction with an image. See FLOC-2077
+You can also try Flocker without installation, either in our live hosted environment or on virtual machines using our Vagrant image. For more information, see :ref:`get-started`.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-   install-client
-   install-node
-   docker-plugin
+   installer
+   full-install
+
+Once you have Flocker installed, you will need to complete the :ref:`post-installation-configuration`, starting with setting up authentication so the different parts of Flocker can communicate.
+
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
 .. toctree::
    :hidden:
 
    plugin-restrictions
+   setup-aws
+   setup-rackspace

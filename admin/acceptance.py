@@ -29,9 +29,7 @@ from effect import parallel
 from effect.twisted import perform
 
 from admin.vagrant import vagrant_version
-from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
-import flocker
 from flocker.provision._ssh import (
     run_remotely,
     ensure_agent_has_ssh_key,
@@ -101,6 +99,8 @@ def get_trial_environment(cluster):
         'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': bytes(
             cluster.default_volume_size
         ),
+        'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
+            cluster.dataset_backend_config_file.path
     }
 
 
@@ -205,10 +205,31 @@ class ManagedRunner(object):
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration):
-        self._nodes = pvector(
-            ManagedNode(address=address, distribution=distribution)
-            for address in node_addresses
-        )
+        """
+        :param list: A ``list`` of public IP addresses or
+            ``[private_address, public_address]`` lists.
+
+        See ``ManagedRunner`` and ``ManagedNode`` for other parameter
+        documentation.
+        """
+        # Blow up if the list contains mixed types.
+        [address_type] = set(type(address) for address in node_addresses)
+        if address_type is list:
+            # A list of 2 item lists
+            self._nodes = pvector(
+                ManagedNode(
+                    address=address,
+                    private_address=private_address,
+                    distribution=distribution
+                )
+                for (private_address, address) in node_addresses
+            )
+        else:
+            # A list of strings.
+            self._nodes = pvector(
+                ManagedNode(address=address, distribution=distribution)
+                for address in node_addresses
+            )
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
@@ -276,6 +297,8 @@ class ManagedRunner(object):
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
+                _save_backend_configuration(self.dataset_backend,
+                                            self.dataset_backend_configuration)
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -321,9 +344,30 @@ def generate_certificates(cluster_id, nodes):
     return certificates
 
 
+def _save_backend_configuration(dataset_backend_name,
+                                dataset_backend_configuration):
+    """
+    Saves the backend configuration to a local file for consumption by the
+    trial process.
+
+    :param dataset_backend_name: The name of the dataset_backend.
+
+    :param dataset_backend_configuration: The configuration of the
+        dataset_backend.
+
+    :returns: The FilePath to the temporary file where the dataset backend
+        configuration was saved.
+    """
+    dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
+    print("Saving dataset backend config to: {}".format(dataset_path.path))
+    dataset_path.setContent(yaml.safe_dump(
+            {dataset_backend_name.name: dataset_backend_configuration}))
+    return dataset_path
+
+
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
-    dataset_backend_configuration
+    dataset_backend_configuration, dataset_backend_config_file
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -337,10 +381,28 @@ def configured_cluster_for_nodes(
         use when they are "started".
     :param dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
+    :param FilePath dataset_backend_config_file: A FilePath that has the
+        dataset_backend info stored.
 
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
     """
+    # XXX: There is duplication between the values here and those in
+    # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
+    # the default volume size to be greater than or equal to the minimum
+    # allocatable size.
+    #
+    # Ideally, the minimum allocatable size (and perhaps the default volume
+    # size) would be something known by an object that represents the dataset
+    # backend. Unfortunately:
+    #  1. There is no such object
+    #  2. There is existing confusion in the code around 'openstack' and
+    #     'rackspace'
+    #
+    # Here, we special-case Rackspace (presumably) because it has a minimum
+    # allocatable size that is different from other Openstack backends.
+    #
+    # FLOC-2584 also discusses this.
     default_volume_size = GiB(1)
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
         default_volume_size = GiB(100)
@@ -351,7 +413,8 @@ def configured_cluster_for_nodes(
         agent_nodes=nodes,
         dataset_backend=dataset_backend,
         default_volume_size=int(default_volume_size.to_Byte().value),
-        certificates=certificates
+        certificates=certificates,
+        dataset_backend_config_file=dataset_backend_config_file
     )
 
     configuring = perform(
@@ -377,7 +440,8 @@ class VagrantRunner(object):
     NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
 
     def __init__(self):
-        self.vagrant_path = self._get_vagrant_path(self.top_level, self.distribution)
+        self.vagrant_path = self._get_vagrant_path(self.top_level,
+                                                   self.distribution)
 
         self.certificates_path = self.top_level.descendant([
             'vagrant', 'tutorial', 'credentials'])
@@ -548,6 +612,8 @@ class LibcloudRunner(object):
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
+            _save_backend_configuration(self.dataset_backend,
+                                        self.dataset_backend_configuration)
         )
 
         returnValue(cluster)
@@ -591,8 +657,7 @@ class RunOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, flocker.__version__,
-         'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
     ]
@@ -683,17 +748,8 @@ class RunOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
-        if self['flocker-version']:
-            rpm_version = make_rpm_version(self['flocker-version'])
-            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
-            if os_version.endswith('.dirty'):
-                os_version = os_version[:-len('.dirty')]
-        else:
-            os_version = None
-
         package_source = PackageSource(
             version=self['flocker-version'],
-            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )
@@ -930,7 +986,6 @@ def journald_json_formatter(output_file):
     Eliot JSON with extra fields to identify the log origin.
     """
     accumulated = {}
-
 
     # XXX Factoring the parsing code separately from the IO would make this
     # whole thing nicer.

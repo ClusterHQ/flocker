@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 # -*- test-case-name: flocker.node.test.test_docker -*-
 
 """

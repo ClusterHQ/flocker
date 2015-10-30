@@ -9,9 +9,8 @@ from json import loads, dumps
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
 
-from ...testtools import (
-    loop_until, random_name,
-)
+from ...common import loop_until
+from ...testtools import random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -57,22 +56,37 @@ class ContainerAPITests(TestCase):
         """
         A container is restarted if it is stopped.
         """
+        responses = []
+
+        def query_and_save():
+            querying = query_http_server(
+                cluster.nodes[0].public_address, 8080
+            )
+            querying.addCallback(responses.append)
+            return querying
+
         created = self._create_container(
             cluster, SCRIPTS.child(b"exitinghttp.py")
         )
 
         # `query_http_server` will kill the server first time round.
-        created.addCallback(
-            lambda ignored: query_http_server(
-                cluster.nodes[0].public_address, 8080
-            )
-        )
+        created.addCallback(lambda ignored: query_and_save())
+
         # Call it again and see that the container is running again.
-        created.addCallback(
-            lambda ignored: query_http_server(
-                cluster.nodes[0].public_address, 8080
+        created.addCallback(lambda ignored: query_and_save())
+
+        # Verify one of the assumptions ... That the container restarted in
+        # between requests.  exitinghttp.py gives back a process-unique random
+        # value as the response body.
+        def check_different_response(ignored):
+            self.assertNotEqual(
+                responses[0],
+                responses[1],
+                "Responses to two requests were the same, "
+                "container probably did not restart.",
             )
-        )
+        created.addCallback(check_different_response)
+
         return created
 
     @require_cluster(1)

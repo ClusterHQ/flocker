@@ -5,6 +5,7 @@
 Install flocker on a remote node.
 """
 
+from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
@@ -15,6 +16,8 @@ from zope.interface import implementer
 
 from characteristic import attributes
 from pyrsistent import PRecord, field
+
+from twisted.internet.error import ProcessTerminated
 
 from ._libcloud import INode
 from ._common import PackageSource, Variants
@@ -205,11 +208,28 @@ def ensure_minimal_setup(package_manager):
         raise UnsupportedDistribution()
 
 
-def task_cli_pkg_test():
+def cli_pkg_test(package_source=PackageSource()):
     """
-    Check that the CLI is working.
+    Check that the Flocker CLI is working and has the expected version.
+
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
+        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
     """
-    return run_from_args(['flocker-deploy', '--version'])
+    expected = package_source.version
+    if not expected:
+        if package_source.branch:
+            # If branch is set but version isn't, we don't know the
+            # latest version. In this case, just check that the version
+            # can be displayed.
+            return run('flocker-deploy --version')
+        else:
+            # If neither branch nor version is set, the latest
+            # installable release will be installed.
+            expected = get_installable_version(version)
+    return run('test `flocker-deploy --version` = {}'.format(quote(expected)))
 
 
 def wipe_yum_cache(repository):
@@ -227,8 +247,7 @@ def wipe_yum_cache(repository):
     ])
 
 
-def install_commands_yum(package_name, distribution, package_source,
-                         base_url):
+def install_commands_yum(package_name, distribution, package_source, base_url):
     """
     Install Flocker package on CentOS.
 
@@ -246,15 +265,22 @@ def install_commands_yum(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    flocker_version = package_source.version
+    if not flocker_version:
+        # support empty values other than None, as '' sometimes used to
+        # indicate latest version, due to previous behaviour
+        flocker_version = get_installable_version(version)
+    repo_package_name = 'clusterhq-release'
     commands = [
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
         run(
-            command="yum list installed clusterhq-release || yum install -y {0}".format(  # noqa
+            command="yum list installed {} || yum install -y {}".format(
+                quote(repo_package_name),
                 get_repository_url(
                     distribution=distribution,
-                    flocker_version=get_installable_version(version)))),
-    ]
+                    flocker_version=flocker_version))),
+        ]
 
     if base_url is not None:
         repo = dedent(b"""\
@@ -281,8 +307,9 @@ def install_commands_yum(package_name, distribution, package_source,
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
 
-    if package_source.os_version:
-        package_name += '-%s' % (package_source.os_version,)
+    os_version = package_source.os_version()
+    if os_version:
+        package_name += '-%s' % (os_version,)
 
     # Install package and all dependencies:
 
@@ -310,6 +337,11 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     :return: a sequence of commands to run on the distribution
     """
+    flocker_version = package_source.version
+    if not flocker_version:
+        # support empty values other than None, as '' sometimes used to
+        # indicate latest version, due to previous behaviour
+        flocker_version = get_installable_version(version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -325,7 +357,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
-                flocker_version=get_installable_version(version))))
+                flocker_version=flocker_version)))
         ]
 
     if base_url is not None:
@@ -350,9 +382,11 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     # Update to read package info from new repos
     commands.append(run_from_args(["apt-get", "update"]))
 
-    if package_source.os_version:
+    os_version = package_source.os_version()
+
+    if os_version:
         # Set the version of the top-level package
-        package_name += '=%s' % (package_source.os_version,)
+        package_name += '=%s' % (os_version,)
 
         # If a specific version is required, ensure that the version for
         # all ClusterHQ packages is consistent.  This prevents conflicts
@@ -364,7 +398,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             Package: clusterhq-*
             Pin: version {}
             Pin-Priority: 900
-        '''.format(package_source.os_version)), '/tmp/apt-pref'))
+        '''.format(os_version)), '/tmp/apt-pref'))
         commands.append(run_from_args([
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
 
@@ -470,6 +504,24 @@ def task_cli_pip_prereqs(package_manager):
         raise UnsupportedDistribution()
 
 
+def _get_wheel_version(package_source):
+    """
+    Get the latest available wheel version for the specified package source.
+
+    If package source version is not set, the latest installable release
+    will be installed.  Note, branch is never used for wheel
+    installations, since the wheel file is not created for branches.
+
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: a string containing the previous installable version of
+        either the package version, or, if that is not specified, of the
+        current version.
+    """
+    return get_installable_version(package_source.version or version)
+
+
 def task_cli_pip_install(
         venv_name='flocker-client', package_source=PackageSource()):
     """
@@ -479,14 +531,11 @@ def task_cli_pip_install(
     :param package_source: Package source description
     :return: an Effect to install the client.
     """
-    vers = package_source.version
-    if vers is None:
-        vers = version
     url = (
         'https://{bucket}.s3.amazonaws.com/{key}/'
         'Flocker-{version}-py2-none-any.whl'.format(
             bucket=ARCHIVE_BUCKET, key='python',
-            version=get_installable_version(vers))
+            version=_get_wheel_version(package_source))
         )
     return sequence([
         run_from_args(
@@ -498,7 +547,7 @@ def task_cli_pip_install(
         ])
 
 
-def task_cli_pip_test(venv_name='flocker-client'):
+def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
     """
     Test the Flocker client installed in a virtualenv.
 
@@ -507,8 +556,8 @@ def task_cli_pip_test(venv_name='flocker-client'):
     """
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run_from_args(
-            ['flocker-deploy', '--version']),
+        run('test `flocker-deploy --version` = {}'.format(
+            quote(_get_wheel_version(package_source))))
         ])
 
 
@@ -800,6 +849,56 @@ def task_open_control_firewall(distribution):
     Open the firewall for flocker-control.
     """
     if is_centos(distribution):
+        open_firewall = open_firewalld
+    elif distribution == 'ubuntu-14.04':
+        open_firewall = open_ufw
+    else:
+        raise DistributionNotSupported(distribution=distribution)
+    return sequence([
+        open_firewall(service)
+        for service in ['flocker-control-api', 'flocker-control-agent']
+    ])
+
+
+def catch_exit_code(expected_exit_code):
+    """
+    :param int expected_exit_code: The expected exit code of the process.
+    :returns: An error handler function which accepts a 3-tuple(exception_type,
+        exception, None) and re-raises ``exception`` if the exit code is not
+        ``expected_exit_code`.
+    """
+    def error_handler(result):
+        exception_type, exception = result[:2]
+        if((exception_type is not ProcessTerminated) or
+           (exception.exitCode != expected_exit_code)):
+            raise exception
+    return error_handler
+
+
+def if_firewall_available(distribution, commands):
+    """
+    Open the firewall for remote access to control service if firewall command
+    is available.
+    """
+    if is_centos(distribution):
+        firewall_command = b'firewall-cmd'
+    elif distribution == 'ubuntu-14.04':
+        firewall_command = b'ufw'
+    else:
+        raise DistributionNotSupported(distribution=distribution)
+
+    # Only run the commands if the firewall command is available.
+    return run_from_args([b'which', firewall_command]).on(
+        success=lambda result: commands,
+        error=catch_exit_code(1),
+    )
+
+
+def open_firewall_for_docker_api(distribution):
+    """
+    Open the firewall for remote access to Docker API.
+    """
+    if is_centos(distribution):
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
                          """\
@@ -824,11 +923,8 @@ def task_open_control_firewall(distribution):
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-    return sequence([upload] + [
-        open_firewall(service)
-        for service in ['flocker-control-api', 'flocker-control-agent',
-                        'docker']
-    ])
+    # Only configure the firewall if the firewall command line is available.
+    return sequence([upload, open_firewall('docker')])
 
 
 # Set of dataset fields which are *not* sensitive.  Only fields in this
@@ -1282,7 +1378,7 @@ def install_flocker(nodes, package_source):
             task_install_docker_plugin(
                 distribution=node.distribution,
                 package_source=package_source,
-            )
+            ),
         ]),
     )
 
@@ -1307,6 +1403,12 @@ def configure_cluster(cluster, dataset_backend_configuration):
                     cluster.certificates.control.certificate,
                     cluster.certificates.control.key),
                 task_enable_flocker_control(cluster.control_node.distribution),
+                if_firewall_available(
+                    cluster.control_node.distribution,
+                    task_open_control_firewall(
+                        cluster.control_node.distribution
+                    )
+                ),
                 ]),
         ),
         parallel([
@@ -1323,6 +1425,10 @@ def configure_cluster(cluster, dataset_backend_configuration):
                             cluster.certificates.user.certificate,
                             cluster.certificates.user.key),
                         task_enable_docker(node.distribution),
+                        if_firewall_available(
+                            node.distribution,
+                            open_firewall_for_docker_api(node.distribution),
+                        ),
                         task_configure_flocker_agent(
                             control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
@@ -1333,8 +1439,9 @@ def configure_cluster(cluster, dataset_backend_configuration):
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
-                        )]),
-                    ),
+                        ),
+                    ]),
+                ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])

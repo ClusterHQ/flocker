@@ -30,11 +30,12 @@ from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from ...common import (
-    interface_decorator, get_all_ips, ipaddress_from_string
+    interface_decorator, get_all_ips, ipaddress_from_string,
+    poll_until,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume, UnknownInstanceID, get_blockdevice_volume,
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -326,25 +327,6 @@ class VolumeStateMonitor:
                 self.expected_volume, self.desired_state, elapsed_time)
 
 
-def poll_until(predicate, interval):
-    """
-    Perform steps until a non-false result is returned.
-
-    This differs from ``loop_until`` in that it does not require a
-    Twisted reactor and it allows the interval to be set.
-
-    :param predicate: a function to be called until it returns a
-        non-false result.
-    :param interval: time in seconds between calls to the function.
-    :returns: the non-false result from the final call.
-    """
-    result = predicate()
-    while not result:
-        time.sleep(interval)
-        result = predicate()
-    return result
-
-
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
                           transient_states=(), time_limit=CINDER_TIMEOUT):
     """
@@ -449,13 +431,14 @@ class CinderBlockDeviceAPI(object):
 
         # If we've got this correct there should only be one matching instance.
         # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1:
+        if len(matching_instances) == 1 and matching_instances[0]:
             return matching_instances[0]
         # If there was no match, or if multiple matches were found, log an
         # error containing all the local and remote IPs.
         COMPUTE_INSTANCE_ID_NOT_FOUND(
             local_ips=local_ips, api_ips=api_ip_map
         ).write()
+        raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
         """
@@ -473,6 +456,7 @@ class CinderBlockDeviceAPI(object):
         requested_volume = self.cinder_volume_manager.create(
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
+            display_name="flocker-{}".format(dataset_id),
         )
         Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
@@ -602,6 +586,17 @@ class CinderBlockDeviceAPI(object):
         expected_path = FilePath(
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
+        # Return the real path instead of the symlink to avoid two problems:
+        #
+        # 1. flocker-dataset-agent mounting volumes before udev has populated
+        #    the by-id symlinks.
+        # 2. Even if we mount with `/dev/disk/by-id/xxx`, the mounted
+        #    filesystems are listed (in e.g. `/proc/mounts`) with the
+        #    **target** (i.e. the real path) of the `/dev/disk/by-id/xxx`
+        #    symlinks. This confuses flocker-dataset-agent (which assumes path
+        #    equality is string equality), causing it to believe that
+        #    `/dev/disk/by-id/xxx` has not been mounted, leading it to
+        #    repeatedly attempt to mount the device.
         if expected_path.exists():
             return expected_path.realpath()
         else:
@@ -662,7 +657,7 @@ def _is_virtio_blk(device_path):
     """
     Check whether the supplied device path is a virtio_blk device.
 
-    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    We assume that virtio_blk device name always begin with `vd` whereas
     Xen devices begin with `xvd`.
     See https://www.kernel.org/doc/Documentation/devices.txt
 

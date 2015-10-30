@@ -10,6 +10,7 @@ The following topics describe how to complete the post-installation configuratio
    :maxdepth: 2
 
    configuring-authentication
+   generate-api-certificates
    enabling-control-service
    configuring-nodes-storage
    enabling-agent-service
