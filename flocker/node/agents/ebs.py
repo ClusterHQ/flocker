@@ -636,6 +636,15 @@ class EBSBlockDeviceAPI(object):
 
         for volume in all_volumes:
             if volume.id == blockdevice_id:
+                message_type = BOTO_LOG_RESULT + u':volume_details'
+                Message.new(
+                    message_type=message_type,
+                    volume_id=volume.id,
+                    status=volume.status,
+                    attached_to=(volume.attach_data.instance_id
+                                 if volume.attach_data and
+                                 volume.attach_data.instance_id else None),
+                ).write()
                 return volume
         raise UnknownVolume(blockdevice_id)
 
