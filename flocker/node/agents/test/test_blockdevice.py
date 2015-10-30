@@ -23,7 +23,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PRecord, field, discard, pmap, pvector,
+    PClass, PRecord, field, discard, pmap, pvector,
 )
 
 from twisted.python.components import proxyForInterface
@@ -3460,6 +3460,23 @@ class CreateBlockDeviceDatasetInterfaceTests(
     """
 
 
+class MountedVolumeInfo(PClass):
+    """
+    A utility class for information about a volume and its mountpoint.
+
+    :ivar BlockDeviceVolume volume: The volume.
+    :ivar FilePath device_path: The path to the device.
+    :ivar FilePath expected_mountpoint: The expected location for the volume
+        mount.
+    :ivar unicode compute_instance_id: The instance of the compute node that it
+        is mounted on.
+    """
+    volume = field(type=BlockDeviceVolume)
+    device_path = field(type=FilePath)
+    expected_mountpoint = field(type=FilePath)
+    compute_instance_id = field(type=unicode)
+
+
 class CreateBlockDeviceDatasetImplementationMixin(object):
     """
     Utility Mixin for ``CreateBlockDeviceDataset`` implementation tests.
@@ -3476,10 +3493,7 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
             be created.
         :param pmap(unicode, unicode) metadata: The metadata for the dataset.
 
-        :returns: A 3-tuple of:
-            * ``BlockDeviceVolume`` created by the run operation
-            * The ``FilePath`` of the device where the volume is attached.
-            * The ``FilePath`` where the volume is expected to be mounted.
+        :returns: A ``MountedVolumeInfo`` for the created volume.
         """
         expected_mountpoint = self.mountroot.child(
             unicode(dataset_id).encode("ascii")
@@ -3499,9 +3513,11 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
 
         [volume] = self.api.list_volumes()
         device_path = self.api.get_device_path(volume.blockdevice_id)
-        return (
-            volume, device_path, expected_mountpoint,
-            self.api.compute_instance_id()
+        return MountedVolumeInfo(
+            volume=volume,
+            device_path=device_path,
+            expected_mountpoint=expected_mountpoint,
+            compute_instance_id=self.api.compute_instance_id()
         )
 
 
@@ -3600,20 +3616,17 @@ class CreateBlockDeviceDatasetImplementationTests(
         to create a new volume.
         """
         dataset_id = uuid4()
-        (volume,
-         device_path,
-         expected_mountpoint,
-         compute_instance_id) = self._create_blockdevice_dataset(
+        volume_info = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, attached_to=compute_instance_id,
+            dataset_id=dataset_id, attached_to=volume_info.compute_instance_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        self.assertEqual(expected_volume, volume)
+        self.assertEqual(expected_volume, volume_info.volume)
 
     @capture_logging(assertHasMessage, CREATE_VOLUME_PROFILE_DROPPED)
     def test_run_create_profile_dropped(self, logger):
@@ -3628,18 +3641,18 @@ class CreateBlockDeviceDatasetImplementationTests(
             u"IProfiledBlockDeviceAPI. If the API now does provide that "
             u"interface, this test needs a bit of love.")
         dataset_id = uuid4()
-        (volume, _, _, compute_instance_id) = self._create_blockdevice_dataset(
+        volume_info = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             metadata={PROFILE_METADATA_KEY: u"gold"}
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, attached_to=compute_instance_id,
+            dataset_id=dataset_id, attached_to=volume_info.compute_instance_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        self.assertEqual(expected_volume, volume)
+        self.assertEqual(expected_volume, volume_info.volume)
 
     def test_run_create_round_up(self):
         """
@@ -3647,19 +3660,16 @@ class CreateBlockDeviceDatasetImplementationTests(
         requested size is less than ``allocation_unit``.
         """
         dataset_id = uuid4()
-        (volume,
-         device_path,
-         expected_mountpoint,
-         compute_instance_id) = self._create_blockdevice_dataset(
+        volume_info = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             # Request a size which will force over allocation.
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + 1,
         )
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, attached_to=compute_instance_id,
+            dataset_id=dataset_id, attached_to=volume_info.compute_instance_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + LOOPBACK_ALLOCATION_UNIT,
         )
-        self.assertEqual(expected_volume, volume)
+        self.assertEqual(expected_volume, volume_info.volume)
 
     def test_run_mkfs_and_mount(self):
         """
@@ -3667,16 +3677,15 @@ class CreateBlockDeviceDatasetImplementationTests(
         with an ext4 filesystem and mounts it.
         """
         dataset_id = uuid4()
-        (volume,
-         device_path,
-         expected_mountpoint,
-         compute_instance_id) = self._create_blockdevice_dataset(
+        volume_info = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         self.assertIn(
-            (device_path.path, expected_mountpoint.path, b"ext4"),
+            (volume_info.device_path.path,
+             volume_info.expected_mountpoint.path,
+             b"ext4"),
             list(
                 (partition.device, partition.mountpoint, partition.fstype)
                 for partition
@@ -3690,8 +3699,9 @@ class CreateBlockDeviceDatasetImplementationTests(
         user), and its parent is only accessible as current user (for
         security).
         """
-        _, _, mountpoint, _ = self._create_blockdevice_dataset(
-            uuid4(), maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        mountpoint = self._create_blockdevice_dataset(
+            uuid4(), maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        ).expected_mountpoint
         mountroot = mountpoint.parent()
         self.assertEqual((mountroot.getPermissions().shorthand(),
                           mountpoint.getPermissions().shorthand()),
@@ -3719,20 +3729,21 @@ class CreateBlockDeviceDatasetProfiledImplementationTests(
             u"bit of love.")
         dataset_id = uuid4()
         profile = u"gold"
-        (volume, _, _, compute_instance_id) = self._create_blockdevice_dataset(
+        volume_info = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             metadata={u"clusterhq:flocker:profile": profile}
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, attached_to=compute_instance_id,
+            dataset_id=dataset_id, attached_to=volume_info.compute_instance_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        self.assertEqual(expected_volume, volume)
-        self.assertEqual(profile,
-                         self.api.dataset_profiles[volume.blockdevice_id])
+        self.assertEqual(expected_volume, volume_info.volume)
+        self.assertEqual(
+            profile,
+            self.api.dataset_profiles[volume_info.volume.blockdevice_id])
 
 
 class AttachVolumeInitTests(
@@ -3770,10 +3781,10 @@ class AttachVolumeTests(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         change = AttachVolume(dataset_id=dataset_id,
-                              blockdevice_id=volume.blockdevice_id)
+                              blockdevice_id=volume_info.volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
 
-        expected_volume = volume.set(
+        expected_volume = volume_info.volume.set(
             attached_to=api.compute_instance_id()
         )
         self.assertEqual([expected_volume], api.list_volumes())
