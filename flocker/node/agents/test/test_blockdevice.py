@@ -3781,10 +3781,10 @@ class AttachVolumeTests(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         change = AttachVolume(dataset_id=dataset_id,
-                              blockdevice_id=volume_info.volume.blockdevice_id)
+                              blockdevice_id=volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
 
-        expected_volume = volume_info.volume.set(
+        expected_volume = volume.set(
             attached_to=api.compute_instance_id()
         )
         self.assertEqual([expected_volume], api.list_volumes())
