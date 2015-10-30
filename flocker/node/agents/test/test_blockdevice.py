@@ -2310,19 +2310,12 @@ class IProfiledBlockDeviceAPITestsMixin(object):
         mandatory profiles.
         """
         for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            size = self.api.get_profiled_volume_minimum_size()
+            size = GiB(1).to_Byte().value
             dataset_id = uuid4()
             self.addCleanup(detach_destroy_volumes, self.api)
-            volume = self.api.create_volume_with_profile(dataset_id=dataset_id,
-                                                         size=size,
-                                                         profile_name=profile)
-            configured_attributes = self.api.get_configured_profile_attributes(
-                profile)
-            observed_attributes = self.api.get_observed_profile_attributes(
-                volume.blockdevice_id)
-            for k, v in configured_attributes.iteritems():
-                if v is not None:
-                    self.assertEqual(v, observed_attributes.get(k))
+            self.api.create_volume_with_profile(dataset_id=dataset_id,
+                                                size=size,
+                                                profile_name=profile)
 
 
 def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory):
