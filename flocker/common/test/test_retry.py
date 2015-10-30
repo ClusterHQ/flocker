@@ -41,7 +41,7 @@ class LoopUntilTests(SynchronousTestCase):
         def predicate():
             return result
         clock = Clock()
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
         self.assertEqual(
             self.successResultOf(d),
             result)
@@ -68,7 +68,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
 
         self.assertNoResult(d)
 
@@ -106,7 +106,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
 
         clock.advance(0.1)
         self.assertNoResult(d)
@@ -144,7 +144,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock, steps=[1, 2, 3])
+        d = loop_until(clock, predicate, steps=[1, 2, 3])
 
         clock.advance(1)
         self.assertNoResult(d)
@@ -167,7 +167,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock, steps=steps)
+        d = loop_until(clock, predicate, steps=steps)
 
         clock.advance(0.1)
         self.assertNoResult(d)
@@ -194,7 +194,7 @@ class RetryFailureTests(SynchronousTestCase):
             return result
 
         clock = Clock()
-        d = retry_failure(function, reactor=clock)
+        d = retry_failure(clock, function)
         self.assertEqual(self.successResultOf(d), result)
 
     def test_iterates_once(self):
@@ -212,7 +212,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
@@ -237,7 +237,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
@@ -270,7 +270,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
@@ -296,7 +296,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertEqual(self.failureResultOf(d), failure)
 
     def test_limited_exceptions(self):
@@ -322,8 +322,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(
-            function, expected=[ValueError], reactor=clock, steps=steps)
+        d = retry_failure(clock, function, expected=[ValueError], steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)

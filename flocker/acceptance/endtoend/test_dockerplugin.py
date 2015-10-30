@@ -5,12 +5,11 @@ Tests for the Flocker Docker plugin.
 """
 
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 from docker.utils import create_host_config
 
 from distutils.version import LooseVersion
-from twisted.trial.unittest import SkipTest
 
 from ...common import loop_until
 from ...common.runner import run_ssh
@@ -198,7 +197,7 @@ class DockerPluginTests(TestCase):
                 ds = check_http_server(node.public_address, host_port)
                 ds.addCallback(lambda succeeded: not succeeded)
                 return ds
-            looping = loop_until(http_closed)
+            looping = loop_until(reactor, http_closed)
             return looping
 
         d.addCallback(poll_http_server_stopped)
