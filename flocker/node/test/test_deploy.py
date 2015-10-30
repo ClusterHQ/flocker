@@ -24,7 +24,7 @@ from twisted.python.filepath import FilePath
 from zope.interface.verify import verifyObject
 
 from .. import (
-    ApplicationNodeDeployer, P2PManifestationDeployer,
+    ApplicationNodeDeployer, P2PManifestationDeployer, NoOp,
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
@@ -1067,7 +1067,7 @@ def no_change():
     Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
     returns when it doesn't want to make any changes.
     """
-    return sequentially(changes=[])
+    return NoOp()
 
 
 class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):

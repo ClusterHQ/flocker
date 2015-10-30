@@ -64,7 +64,7 @@ from ..blockdevice import (
     UnknownInstanceID,
 )
 
-from ... import run_state_change, in_parallel, ILocalState
+from ... import run_state_change, in_parallel, ILocalState, NoOp
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
     compute_cluster_state
@@ -925,7 +925,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config, set(),
-            in_parallel(changes=[])
+            NoOp(),
         )
 
     def test_deleted_ignored(self):

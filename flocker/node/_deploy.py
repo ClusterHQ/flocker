@@ -123,6 +123,9 @@ class IDeployer(Interface):
         Calculate the state changes necessary to make the local state match the
         desired cluster configuration.
 
+        If no state changes are needed then ``flocker.node.NoOp`` should
+        be returned.
+
         :param Deployment configuration: The intended configuration of all
             nodes.
 

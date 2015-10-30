@@ -37,6 +37,7 @@ from ...control import (
 )
 from ...control._protocol import NodeStateCommand, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
+from .. import NoOp
 
 
 def build_protocol():
@@ -608,9 +609,16 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertIn(calculate, converge.children)
 
     @validate_logging(assert_full_logging)
-    def convergence_iteration(self, logger):
+    def convergence_iteration(
+            self, logger,
+            later_actions=[ControllableAction(result=succeed(None)),
+                           ControllableAction(result=succeed(None))]):
         """
         Do one iteration of a convergence loop.
+
+        :param later_actions: List of ``IStateChange``, to be returned
+            second and third times discovery is done, i.e. after first
+            iteration.
 
         :return: ``ConvergenceLoop`` in SLEEPING state.
         """
@@ -618,9 +626,11 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.configuration = configuration = Deployment()
         self.cluster_state = received_state = DeploymentState(nodes=[])
         self.action = action = ControllableAction(result=succeed(None))
+        # We only support discovery twice; anything more will result in
+        # exception being thrown:
         self.deployer = deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state), succeed(local_state)],
-            [action, action]
+            [action] + later_actions,
         )
         client = self.make_amp_client([local_state])
         self.reactor = reactor = Clock()
@@ -660,10 +670,66 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             dict(state=loop.state, calls=self.reactor.getDelayedCalls()),
             dict(state=ConvergenceLoopStates.STOPPED, calls=[]))
 
-    def test_convergence_iteration_status_update(self):
+    def test_convergence_iteration_status_update_no_consequences(self):
         """
         When a convergence loop in the sleeping state receives a status update
-        the next iteration of the event loop uses it.
+        the next iteration of the event loop uses it. The event loop is
+        not woken up if the update would not result in newly calculated
+        required actions.
+
+        """
+        # Later calculations will return a NoOp(), indicating no need to
+        # wake up:
+        loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
+        node_state = NodeState(hostname=u'192.0.3.5')
+        changed_configuration = Deployment(
+            nodes=frozenset([to_node(node_state)]))
+        changed_state = DeploymentState(
+            nodes=[node_state, self.local_state])
+
+        # Another update received while sleeping:
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=changed_configuration, state=changed_state))
+        num_calculations_pre_sleep = len(self.deployer.calculate_inputs)
+
+        # Action finally finishes, and we can move on to next iteration,
+        # but only after sleep.
+        self.reactor.advance(_Sleep.delay_seconds)
+        num_calculations_after_sleep = len(self.deployer.calculate_inputs)
+        self.assertEqual(
+            dict(pre=num_calculations_pre_sleep,
+                 post=num_calculations_after_sleep),
+            dict(pre=2,  # initial calculate, extra calculate on delivery
+                 post=3)  # the above plus next iteration
+        )
+
+    def test_status_update_while_sleeping_no_discovery(self):
+        """
+        When an update is received while the convergence loop is sleeping, we
+        don't want any discovery to happen since that will lead to load on
+        external resources.
+        """
+        # Later calculations will return a NoOp(), indicating no need to
+        # wake up:
+        loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
+        remaining_discover_calls = len(self.deployer.local_states)
+
+        # Another update received while sleeping:
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=self.configuration, state=self.cluster_state))
+        # No additional discovery done due to update:
+        self.assertEqual(
+            remaining_discover_calls - len(self.deployer.local_states),
+            0)
+
+    def test_convergence_iteration_status_update_wakeup(self):
+        """
+        When a convergence loop in the sleeping state receives a status update
+        the next iteration of the event loop uses it. The event loop is
+        woken up if the update results in newly calculated required
+        actions.
         """
         loop = self.convergence_iteration()
         node_state = NodeState(hostname=u'192.0.3.5')
@@ -671,17 +737,20 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             nodes=frozenset([to_node(node_state)]))
         changed_state = DeploymentState(
             nodes=[node_state, self.local_state])
+        # Another update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=changed_configuration, state=changed_state))
-        # Action finally finishes, and we can move on to next iteration,
-        # which happens with second set of client, desired configuration
-        # and cluster state:
-        self.reactor.advance(_Sleep.delay_seconds)
-
+        # Update resulted in waking up and starting new iteration:
         self.assertEqual(
-            self.deployer.calculate_inputs[-1],
-            (self.local_state, changed_configuration, changed_state))
+            dict(remaining_discoveries=len(self.deployer.local_states),
+                 number_calculates=len(self.deployer.calculate_inputs),
+                 calculate_inputs=self.deployer.calculate_inputs[-1]),
+            dict(remaining_discoveries=0,  # used up both, one per iteration
+                 number_calculates=3,  # one per iteration, one on on wakeup
+                 # We used new config/cluster state in latest iteration:
+                 calculate_inputs=(
+                     self.local_state, changed_configuration, changed_state)))
 
     def test_convergence_done_delays_new_iteration_ack(self):
         """
