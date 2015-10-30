@@ -16,4 +16,4 @@ from ._defer import gather_deferreds
 from ._thread import auto_threaded
 from ._interface import interface_decorator
 from ._net import get_all_ips, ipaddress_from_string
-from ._retry import loop_until, poll_until, retry_failure
+from ._retry import loop_until, poll_until, retry_failure, retry_effect_with_timeout

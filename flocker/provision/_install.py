@@ -34,7 +34,7 @@ from flocker.cli import configure_ssh
 from flocker.common.version import (
     get_installable_version, get_package_key_suffix, is_release,
 )
-from flocker.testtools import retry_effect_with_timeout
+from flocker.common import retry_effect_with_timeout
 
 # A systemctl sub-command to start or restart a service.  We use restart here
 # so that if it is already running it gets restart (possibly necessary to

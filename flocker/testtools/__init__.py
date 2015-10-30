@@ -52,9 +52,6 @@ from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
-from effect import Effect, Constant
-from effect.retry import retry
-
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
 # * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
@@ -193,28 +190,6 @@ def assert_not_equal_comparison(case, a, b):
     if messages:
         case.fail(
             "Expected a and b to be not-equal: " + "; ".join(messages))
-
-
-def retry_effect_with_timeout(effect, timeout):
-    """
-    If ``effect`` fails, retry it until ``timeout`` expires.
-
-    :param Effect effect: The Effect to retry.
-    :param int timeout: Timeout in seconds.
-    """
-
-    end_time = time.time() + timeout
-
-    def ret(e):
-        if time.time() > end_time:
-            return Effect(Constant(False))
-        else:
-            time.sleep(ret.wait_secs)
-            ret.wait_secs *= 2
-            return Effect(Constant(True))
-    ret.wait_secs = 1
-
-    return retry(effect, ret)
 
 
 def random_name(case):

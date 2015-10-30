@@ -19,6 +19,8 @@ from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
 
+from effect import Effect, Constant, Delay
+from effect.retry import retry
 
 def function_serializer(function):
     """
@@ -166,3 +168,36 @@ def poll_until(predicate, interval):
         time.sleep(interval)
         result = predicate()
     return result
+
+
+def retry_effect_with_timeout(effect, timeout, retry_wait = 1, exp_backoff = True):
+    """
+    If ``effect`` fails, retry it until ``timeout`` expires.
+
+    To avoid excessive retrying, this function by default (it can be disabled)
+    uses the exponential backoff algorithm, waiting twice the time between
+    each retry.
+
+    :param Effect effect: The Effect to retry.
+    :param int timeout: Keep retrying until timeout.
+    :param int retry_wait: The wait time between retries
+    :param bool exp_timeout: Whether we should use exponential backoff
+    :return: An Effect that does what ``effect`` does, but retrying.
+
+    """
+
+    end_time = time.time() + timeout
+
+    def should_retry(e):
+        if time.time() > end_time:
+            return Effect(Constant(False))
+        else:
+            if exp_backoff:
+                should_retry.wait_secs *= 2
+
+            return Effect(Delay(should_retry.wait_secs)).on(
+                success = lambda x: Effect(Constant(True)))
+
+    should_retry.wait_secs = retry_wait
+
+    return retry(effect, should_retry)
