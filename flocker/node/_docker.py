@@ -17,7 +17,7 @@ from docker import Client
 from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
-from eliot import Message, MessageType, Field, start_action
+from eliot import Message, MessageType, Field, start_action, write_traceback
 
 from repoze.lru import LRUCache
 
@@ -743,6 +743,7 @@ class DockerClient(object):
                     message_type="flocker:docker:container_not_found",
                     container=container_name
                 ).write()
+                write_traceback()
                 return True
             elif e.response.status_code == INTERNAL_SERVER_ERROR:
                 # Docker returns this if the process had died, but
@@ -751,6 +752,7 @@ class DockerClient(object):
                     message_type="flocker:docker:container_stop_internal_error",  # noqa
                     container=container_name
                 ).write()
+                write_traceback()
                 return False
             else:
                 raise
@@ -798,6 +800,7 @@ class DockerClient(object):
                     message_type="flocker:docker:container_not_found",
                     container=container_name
                 ).write()
+                write_traceback()
                 return True
             elif e.response.status_code == INTERNAL_SERVER_ERROR:
                 # Failure to remove container - see FLOC-3262 for an example.
@@ -805,6 +808,7 @@ class DockerClient(object):
                     message_type="flocker:docker:container_remove_internal_error",  # noqa
                     container=container_name
                 ).write()
+                write_traceback()
                 return False
             else:
                 raise
