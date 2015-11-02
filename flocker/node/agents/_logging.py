@@ -102,6 +102,8 @@ WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
     u"Waiting for a volume to reach target status.",)
 
 BOTO_LOG_HEADER = u'flocker:node:agents:blockdevice:aws:boto_logs'
+
+BOTO_LOG_RESULT = u'flocker:node:agents:blockdevice:aws:boto_result'
 # End: Helper datastructures used by AWS storage driver.
 
 # Begin: Helper datastructures used by OpenStack storage drivers

@@ -8,6 +8,8 @@ from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
 
+from ipaddr import IPv4Address, IPv6Address, IPAddress
+
 from pytz import UTC
 
 from zope.interface import Interface, implementer
@@ -95,6 +97,20 @@ class Container(PClass):
     node_uuid = field()
     name = field()
     image = field()
+
+
+class Node(PClass):
+    """
+    A node on which a Flocker agent is running.
+
+    :attr UUID uuid: The UUID of the node.
+    :attr IPAddress public_address: The public IP address of the node.
+    """
+    uuid = field(type=UUID, mandatory=True)
+    public_address = field(
+        type=(IPv4Address, IPv6Address),
+        mandatory=True,
+    )
 
 
 class DatasetAlreadyExists(Exception):
@@ -214,6 +230,13 @@ class IFlockerAPIV1Client(Interface):
             service.
         """
 
+    def list_nodes():
+        """
+        Get information about active cluster nodes.
+
+        :return: ``Deferred`` firing with a ``list`` of ``Node``.
+        """
+
     def create_container(node_uuid, name, image):
         """
         :param UUID node_uuid: The ``UUID`` of the node where the container
@@ -239,10 +262,13 @@ class FakeFlockerClient(object):
     # Placeholder time, we don't model the progress of time at all:
     _NOW = datetime.fromtimestamp(0, UTC)
 
-    def __init__(self):
+    def __init__(self, nodes=None):
         self._configured_datasets = pmap()
         self._configured_containers = pmap()
         self._leases = LeasesModel()
+        if nodes is None:
+            nodes = []
+        self._nodes = nodes
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
@@ -569,3 +595,24 @@ class FlockerClient(object):
             )
         )
         return d
+
+    def list_nodes(self):
+        request = self._request(
+            b"GET", b"/state/nodes", None, {OK}
+        )
+
+        def to_nodes(result):
+            """
+            Turn the list of dicts into ``Node`` instances.
+            """
+            nodes = []
+            for node_dict in result:
+                node = Node(
+                    uuid=UUID(hex=node_dict['uuid'], version=4),
+                    public_address=IPAddress(node_dict['host']),
+                )
+                nodes.append(node)
+            return nodes
+        request.addCallback(to_nodes)
+
+        return request

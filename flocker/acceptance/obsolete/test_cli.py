@@ -7,15 +7,17 @@ Tests for the ``flocker-deploy`` command line tool.
 from copy import deepcopy
 from subprocess import check_call
 
+from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 from yaml import safe_dump
 
+from ...common import loop_until
 from ...control._config import FlockerConfiguration
 from ...control.httpapi import container_configuration_response
 
 from ..testtools import require_flocker_cli, require_cluster
-from ...testtools import loop_until, random_name
+from ...testtools import random_name
 
 
 class FlockerDeployTests(TestCase):
@@ -100,7 +102,7 @@ class FlockerDeployTests(TestCase):
             d.addCallback(got_results)
             return d
 
-        return loop_until(configuration_matches_state)
+        return loop_until(reactor, configuration_matches_state)
 
     @require_flocker_cli
     @require_cluster(1)
