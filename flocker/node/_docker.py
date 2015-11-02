@@ -17,7 +17,7 @@ from docker import Client
 from docker.errors import APIError, NotFound
 from docker.utils import create_host_config
 
-from eliot import Message, MessageType, Field, start_action, write_traceback
+from eliot import Message, MessageType, Field, start_action
 
 from repoze.lru import LRUCache
 
