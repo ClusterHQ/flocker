@@ -363,17 +363,13 @@ def make_clientv1_tests():
             )
             return d
 
-        def test_create_container(self):
-            """
-            ``create_container`` returns a ``Deferred`` firing with the
-            configured ``Container``.
-            """
+        def assert_create_container(self, client):
             expected_container = Container(
                 node_uuid=uuid4(),
                 name=random_name(case=self),
                 image=DockerImage.from_string(u'nginx'),
             )
-            d = self.client.create_container(
+            d = client.create_container(
                 node_uuid=expected_container.node_uuid,
                 name=expected_container.name,
                 image=expected_container.image.full_name,
@@ -382,25 +378,8 @@ def make_clientv1_tests():
                 self.assertEqual,
                 expected_container,
             )
-            return d
-
-        def test_create_container_listed(self):
-            """
-            The ``Container`` returned by ``create_container`` is included in
-            the result of ``list_containers``.
-            """
-            expected_container = Container(
-                node_uuid=uuid4(),
-                name=random_name(case=self),
-                image=DockerImage.from_string(u'nginx'),
-            )
-            d = self.client.create_container(
-                node_uuid=expected_container.node_uuid,
-                name=expected_container.name,
-                image=expected_container.image.full_name,
-            )
             d.addCallback(
-                lambda ignored: self.client.list_containers_configuration()
+                lambda ignored: client.list_containers_configuration()
             )
             d.addCallback(
                 lambda containers: self.assertIn(
@@ -409,6 +388,13 @@ def make_clientv1_tests():
                 )
             )
             return d
+
+        def test_create_container(self):
+            """
+            ``create_container`` returns a ``Deferred`` firing with the
+            configured ``Container``.
+            """
+            return self.assert_create_container(self.client)
 
         def test_create_container_exists(self):
             """
