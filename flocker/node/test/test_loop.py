@@ -691,7 +691,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         changed_state = DeploymentState(
             nodes=[node_state, self.local_state])
 
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=changed_configuration, state=changed_state))
@@ -719,7 +719,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
         remaining_discover_calls = len(self.deployer.local_states)
 
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=self.configuration, state=self.cluster_state))
@@ -736,7 +736,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = self.convergence_iteration(initial_action=NoOp(),
                                           later_actions=[NoOp(), NoOp()])
 
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=self.configuration, state=self.cluster_state))
@@ -778,7 +778,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             nodes=frozenset([to_node(node_state)]))
         changed_state = DeploymentState(
             nodes=[node_state, self.local_state])
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=changed_configuration, state=changed_state))
