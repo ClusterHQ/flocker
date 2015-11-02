@@ -732,6 +732,31 @@ class ControlAMPServiceTests(ControlTestCase):
             dict(configuration=agent.desired, state=agent.actual),
         )
 
+    def test_unexpected_exception_raised(self):
+        """
+        A configuration change results in connected protocols being notified
+        of new cluster status.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+
+        def raise_unexpected_exception(self,
+                                       commandType=None,
+                                       *a, **kw):
+            raise Exception("I'm an unexpected exception")
+
+        service.startService()
+        server = LoopbackAMPClient(client.locator)
+        self.patch(server,
+                   "callRemote",
+                   raise_unexpected_exception
+                   )
+
+        service.connected(server)
+
+        service.configuration_service.save(TEST_DEPLOYMENT)
+
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
         """
         A second configuration change is only transmitted after acknowledgement
