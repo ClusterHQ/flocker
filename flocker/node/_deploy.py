@@ -130,8 +130,13 @@ class IDeployer(Interface):
         Calculate the state changes necessary to make the local state match the
         desired cluster configuration.
 
-        If no state changes are needed then ``flocker.node.NoOp`` should
-        be returned.
+        Returning ``flocker.node.NoOp`` will result in the convergence
+        loop sleeping for the duration of ``poll_interval``. The sleep
+        will only be interrupted by a new configuration/cluster state
+        update from control service which would result in need to run some
+        ``IStateChange``. Thus even if no immediate changes are needed if
+        you want ``discover_state`` to be called more frequently than
+        ``poll_interval`` you should not return ``NoOp``.
 
         :param Deployment configuration: The intended configuration of all
             nodes.
