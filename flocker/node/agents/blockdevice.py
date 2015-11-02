@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from subprocess import CalledProcessError, check_output, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
+from datetime import timedelta
 
 from bitmath import GiB
 
@@ -1454,7 +1455,7 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
-    poll_interval = 60.0
+    poll_interval = timedelta(seconds=60.0)
 
     @property
     def async_block_device_api(self):

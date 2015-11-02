@@ -6,6 +6,7 @@ Tests for ``flocker.node._loop``.
 
 from itertools import repeat
 from uuid import uuid4
+from datetime import timedelta
 
 from eliot.testing import validate_logging, assertHasAction, assertHasMessage
 from machinist import LOG_FSM_TRANSITION
@@ -633,7 +634,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # exception being thrown:
         self.deployer = deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state), succeed(local_state)],
-            [initial_action] + later_actions, poll_interval=300,
+            [initial_action] + later_actions,
+            poll_interval=timedelta(seconds=300),
         )
         client = self.make_amp_client([local_state])
         self.reactor = reactor = Clock()
@@ -744,13 +746,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         # Sleep until right before lowest possible random sleep interval:
         self.reactor.advance(
-            self.deployer.poll_interval * (1 - ConvergenceLoop._JITTER_RANGE)
-            - 0.05)
+            self.deployer.poll_interval.total_seconds() * (
+                1 - ConvergenceLoop._JITTER_RANGE) - 0.05)
         mid_sleep = len(self.deployer.local_states)
         # Sleep until right after highest possible sleep interval
         self.reactor.advance(
-            self.deployer.poll_interval + (2 * ConvergenceLoop._JITTER_RANGE)
-            + 0.05
+            self.deployer.poll_interval.total_seconds() + (
+                2 * ConvergenceLoop._JITTER_RANGE) + 0.05
             # Extra bit of sleep to ensure we don't break on floating
             # point rounding errors:
             + 0.00001)

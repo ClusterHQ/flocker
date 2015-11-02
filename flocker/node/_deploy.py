@@ -8,6 +8,7 @@ Deploy applications on nodes.
 from itertools import chain
 from warnings import warn
 from uuid import UUID
+from datetime import timedelta
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -96,17 +97,15 @@ class IDeployer(Interface):
     :ivar UUID node_uuid: The UUID of the node this deployer is running.
     :ivar unicode hostname: The hostname (really, IP) of the node this
         deployer is managing.
-
     :ivar float poll_interval: Number of seconds to delay between
         iterations of convergence loop that call ``discover_state()``, to
         reduce impact of polling external resources. The actual delay may
         be smaller if the convergence loop decides more work is necessary
         in order to converge.
     """
-    node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
-    hostname = Attribute("The public IP address of this node.")
-    poll_interval = Attribute(
-        "Time to sleep between convergence loop iterations.")
+    node_uuid = Attribute("")
+    hostname = Attribute("")
+    poll_interval = Attribute("")
 
     def discover_state(local_state):
         """
@@ -545,7 +544,7 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
-    poll_interval = 1.0
+    poll_interval = timedelta(seconds=1.0)
 
     def __init__(self, hostname, volume_service, node_uuid=None):
         if node_uuid is None:
@@ -667,7 +666,7 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    poll_interval = 1.0
+    poll_interval = timedelta(seconds=1.0)
 
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):

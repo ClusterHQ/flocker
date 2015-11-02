@@ -442,7 +442,8 @@ class ConvergenceLoop(object):
                 # interval. We add some jitter so not all agents wake up
                 # at exactly the same time, to reduce load on system:
                 jitter = 1 + uniform(-self._JITTER_RANGE, self._JITTER_RANGE)
-                sleep_duration = self.deployer.poll_interval * jitter
+                sleep_duration = (
+                    self.deployer.poll_interval.total_seconds() * jitter)
             else:
                 # We're going to do some work, we should do another
                 # iteration quickly in case there's followup work:
