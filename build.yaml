@@ -335,17 +335,12 @@ common_cli:
   run_sphinx: &run_sphinx |
     parse_logs python setup.py --version
     cd docs
-    set +e #dont abort at the first failure
-    let status=0
     # check spelling
     parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
-    let status=status+\$?
     # check links
     parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-    let status=status+\$?
     # build html pages
     parse_logs sphinx-build -d _build/doctree -b html . _build/html
-    exit \${status}
     # TODO:
     # upload html
     #link-release-documentation
