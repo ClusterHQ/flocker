@@ -352,7 +352,11 @@ class FakeFlockerClient(object):
     def create_container(self, node_uuid, name, image):
         if name in self._configured_containers:
             return fail(ContainerAlreadyExists())
-        result = Container(node_uuid=node_uuid, name=name, image=image)
+        result = Container(
+            node_uuid=node_uuid,
+            name=name,
+            image=DockerImage.from_string(image),
+        )
         self._configured_containers = self._configured_containers.set(
             name, result
         )
