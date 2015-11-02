@@ -226,6 +226,23 @@ class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
 
     :ivar float delay_seconds: How many seconds to sleep.
     """
+    @classmethod
+    def with_jitter(cls, delay_seconds):
+        """
+        Add some noise to the delay, so sleeps aren't exactly the same across
+        all processes.
+
+        :param delay_seconds: How many seconds to sleep approximately.
+
+        :return: ``_Sleep`` with jitter added.
+        """
+        jitter = 1 + uniform(-0.2, 0.2)
+        return cls(delay_seconds=delay_seconds*jitter)
+
+
+# How many seconds to sleep between iterations when we may yet not be
+# converged so want to do another iteration again soon:
+_UNCONVERGED_DELAY = _Sleep(delay_seconds=0.1)
 
 
 class ConvergenceLoopStates(Names):
@@ -323,14 +340,6 @@ class ConvergenceLoop(object):
     :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
         ``None`` if not in SLEEPING state.
     """
-    # How much noise to add to sleep interval between convergence
-    # iterations when already converged:
-    _JITTER_RANGE = 0.2
-
-    # How many seconds to sleep between iterations when we may yet not be
-    # converged so want to do another iteration again soon:
-    _UNCONVERGED_DELAY = 0.1
-
     def __init__(self, reactor, deployer):
         """
         :param IReactorTime reactor: Used to schedule delays in the loop.
@@ -441,13 +450,12 @@ class ConvergenceLoop(object):
                 # We've converged, we can sleep for deployer poll
                 # interval. We add some jitter so not all agents wake up
                 # at exactly the same time, to reduce load on system:
-                jitter = 1 + uniform(-self._JITTER_RANGE, self._JITTER_RANGE)
-                sleep_duration = (
-                    self.deployer.poll_interval.total_seconds() * jitter)
+                sleep_duration = _Sleep.with_jitter(
+                    self.deployer.poll_interval.total_seconds())
             else:
                 # We're going to do some work, we should do another
                 # iteration quickly in case there's followup work:
-                sleep_duration = self._UNCONVERGED_DELAY
+                sleep_duration = _UNCONVERGED_DELAY
 
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
@@ -467,12 +475,12 @@ class ConvergenceLoop(object):
         def error(failure):
             writeFailure(failure, self.fsm.logger)
             # We should retry quickly to redo the failed work:
-            return self._UNCONVERGED_DELAY
+            return _UNCONVERGED_DELAY
         d.addErrback(error)
 
         # We're done with the iteration:
         d.addCallback(
-            lambda delay: self.fsm.receive(_Sleep(delay_seconds=delay)))
+            lambda delay: self.fsm.receive(delay))
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):
