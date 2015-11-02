@@ -531,8 +531,41 @@ class FlockerClient(object):
             b"GET", b"/version", None, {OK}
         )
 
+    def _parse_configuration_container(self, container_dict):
+        """
+        Convert a dictionary decoded from JSON with a container's
+        configuration.
+
+        :param container_dict: Dictionary describing a container.
+        :return: ``Container`` instance.
+        """
+        return Container(
+            node_uuid=UUID(hex=container_dict[u"node_uuid"], version=4),
+            name=container_dict[u'name'],
+            image=container_dict[u'image'],
+        )
+
     def create_container(self, node_uuid, name, image):
+        container = dict(
+            node_uuid=unicode(node_uuid), name=name, image=image,
+        )
+        d = self._request(
+            b"POST",
+            b"/configuration/containers",
+            container,
+            {CREATED},
+            {CONFLICT: ContainerAlreadyExists},
+        )
+        d.addCallback(self._parse_configuration_container)
+        return d
         return succeed(None)
 
     def list_containers_configuration(self):
-        return succeed(None)
+        d = self._request(b"GET", b"/configuration/containers", None, {OK})
+        d.addCallback(
+            lambda containers: list(
+                self._parse_configuration_container(container_dict)
+                for container_dict in containers
+            )
+        )
+        return d
