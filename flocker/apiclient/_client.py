@@ -26,7 +26,7 @@ from twisted.web.http import CREATED, OK, CONFLICT
 from treq import json_content, content
 
 from ..ca import treq_with_authentication
-from ..control import Leases as LeasesModel, LeaseError
+from ..control import Leases as LeasesModel, LeaseError, DockerImage
 from .. import __version__
 
 _LOG_HTTP_REQUEST = ActionType(
@@ -568,7 +568,7 @@ class FlockerClient(object):
         return Container(
             node_uuid=UUID(hex=container_dict[u"node_uuid"], version=4),
             name=container_dict[u'name'],
-            image=container_dict[u'image'],
+            image=DockerImage.from_string(container_dict[u"image"]),
         )
 
     def create_container(self, node_uuid, name, image):

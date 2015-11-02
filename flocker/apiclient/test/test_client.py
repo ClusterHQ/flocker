@@ -38,6 +38,7 @@ from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
 from ...control import (
     NodeState, NonManifestDatasets, Dataset as ModelDataset, ChangeSource,
+    DockerImage,
 )
 from ...restapi._logging import JSON_REQUEST
 from ...restapi import _infrastructure as rest_api
@@ -370,12 +371,12 @@ def make_clientv1_tests():
             expected_container = Container(
                 node_uuid=uuid4(),
                 name=random_name(case=self),
-                image=u'nginx',
+                image=DockerImage.from_string(u'nginx'),
             )
             d = self.client.create_container(
                 node_uuid=expected_container.node_uuid,
                 name=expected_container.name,
-                image=expected_container.image,
+                image=expected_container.image.full_name,
             )
             d.addCallback(
                 self.assertEqual,
@@ -391,12 +392,12 @@ def make_clientv1_tests():
             expected_container = Container(
                 node_uuid=uuid4(),
                 name=random_name(case=self),
-                image=u'nginx',
+                image=DockerImage.from_string(u'nginx'),
             )
             d = self.client.create_container(
                 node_uuid=expected_container.node_uuid,
                 name=expected_container.name,
-                image=expected_container.image,
+                image=expected_container.image.full_name,
             )
             d.addCallback(
                 lambda ignored: self.client.list_containers_configuration()
@@ -418,12 +419,12 @@ def make_clientv1_tests():
             expected_container = Container(
                 node_uuid=uuid4(),
                 name=random_name(case=self),
-                image=u'nginx',
+                image=DockerImage.from_string(u'nginx'),
             )
             d = self.client.create_container(
                 node_uuid=expected_container.node_uuid,
                 name=expected_container.name,
-                image=expected_container.image,
+                image=expected_container.image.full_name,
             )
 
             def create_same_name_container(first_container):
