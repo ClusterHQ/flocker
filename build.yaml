@@ -928,7 +928,7 @@ job_type:
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
     run_sphinx:
-      on_nodes_with_labels: 'aws-centos-7-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
