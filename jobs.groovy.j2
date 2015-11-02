@@ -1,3 +1,4 @@
+// vim: ai ts=2 sts=2 et sw=2 ft=jinja fdm=indent et foldlevel=0
 {# jobs.groovy.j2
 
   This jinja2 template is used to produce a jobs.groovy file containing the
@@ -550,7 +551,7 @@ branches.each {
 {# make sure we don't kill the parent multijob, when we fail                 #}
                 killPhaseCondition("NEVER")
               }
-{%      endfor                                                                -%}
+{%      endfor                                                              -%}
 {%    endfor                                                                -%}
 {%  endif                                                                    %}
 

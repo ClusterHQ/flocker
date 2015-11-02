@@ -1025,6 +1025,7 @@ job_type:
       clean_repo: true
       timeout: 30
 
+
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
