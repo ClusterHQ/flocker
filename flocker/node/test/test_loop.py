@@ -744,7 +744,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # No additional discovery done due to update:
         pre_sleep = len(self.deployer.local_states)
 
-        # Sleep until right before lowest possible random sleep interval:
+        # Sleep until 50ms before lowest possible wakeup point, so we
+        # should still be sleeping:
         self.reactor.advance(
             self.deployer.poll_interval.total_seconds() * (
                 1 - ConvergenceLoop._JITTER_RANGE) - 0.05)
@@ -752,7 +753,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Sleep until right after highest possible sleep interval
         self.reactor.advance(
             self.deployer.poll_interval.total_seconds() + (
-                2 * ConvergenceLoop._JITTER_RANGE) + 0.05
+                2 * ConvergenceLoop._JITTER_RANGE)
             # Extra bit of sleep to ensure we don't break on floating
             # point rounding errors:
             + 0.00001)
