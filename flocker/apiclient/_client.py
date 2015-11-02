@@ -346,6 +346,9 @@ class FakeFlockerClient(object):
             {u"flocker": __version__}
         )
 
+    def list_nodes(self):
+        return succeed(self._nodes)
+
     def create_container(self, node_uuid, name, image):
         if name in self._configured_containers:
             return fail(ContainerAlreadyExists())
