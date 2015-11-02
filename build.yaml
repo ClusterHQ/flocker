@@ -1099,7 +1099,7 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
-                   *cleanup, *setup_venv, #*setup_flocker_modules,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
                    *run_lint ]
           }
       timeout: 10
