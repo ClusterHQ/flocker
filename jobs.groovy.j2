@@ -447,9 +447,20 @@ branches.each {
     {{ steps(job_values.with_steps) }}
   }
 {%    endif                                                                  %}
+
+{# apply config related to 'run_lint' jobs                                   #}
+{%    if job_type == 'run_lint'                                             -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers(job_values, 'none') }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
 {%  endfor                                                                   %}
 {% endfor                                                                    %}
-
 
 {# ------------------------------------------------------------------------- #}
 {# MULTIJOB CONFIGURATION BELOW                                              #}
@@ -565,8 +576,19 @@ branches.each {
 {%    endfor                                                                -%}
 {%  endif                                                                    %}
 
+{# add the 'run_lint' style jobs                                             #}
+{%  if job_type == 'run_lint'                                               -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
 {% endfor                                                                    %}
-          }
+          } {# ends parallel phase #}
+
 {# we've added the jobs to the multijob, we now need to fetch and archive all
    the artifacts produced by the different jobs                              #}
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}

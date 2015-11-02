@@ -717,6 +717,10 @@ common_cli:
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
     vagrant up
 
+  run_lint: &run_lint |
+    # run flake8 lint tests on Flocker source code
+    tox -e lint
+
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -1087,6 +1091,18 @@ job_type:
           }
       clean_repo: false
       timeout: 30
+
+  run_lint:
+    run_lint:
+      on_nodes_with_labels: 'aws-centos-7-T2Small'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, #*setup_flocker_modules,
+                   *run_lint ]
+          }
+      timeout: 10
+
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
