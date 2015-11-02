@@ -364,15 +364,8 @@ def make_clientv1_tests():
             return d
 
         def assert_create_container(self, client):
-            expected_container = Container(
-                node_uuid=uuid4(),
-                name=random_name(case=self),
-                image=DockerImage.from_string(u'nginx'),
-            )
-            d = client.create_container(
-                node_uuid=expected_container.node_uuid,
-                name=expected_container.name,
-                image=expected_container.image.full_name,
+            expected_container, d = create_container_for_test(
+                self, self.client,
             )
             d.addCallback(
                 self.assertEqual,
@@ -396,32 +389,23 @@ def make_clientv1_tests():
             """
             return self.assert_create_container(self.client)
 
-        def test_create_container_exists(self):
+        def test_create_conflicting_container_name(self):
             """
-            When supplied with the name of an existing container,
-            ``create_container`` returns a ``Deferred`` firing with a
+            Creating two containers with same ``name`` results in an
             ``ContainerAlreadyExists``.
             """
-            expected_container = Container(
-                node_uuid=uuid4(),
-                name=random_name(case=self),
-                image=DockerImage.from_string(u'nginx'),
-            )
-            d = self.client.create_container(
-                node_uuid=expected_container.node_uuid,
-                name=expected_container.name,
-                image=expected_container.image.full_name,
+            expected_container, d = create_container_for_test(
+                self, self.client,
             )
 
-            def create_same_name_container(first_container):
-                return self.client.create_container(
-                    node_uuid=uuid4(),
-                    name=first_container.name,
-                    image=u'not_nginx',
+            def got_result(container):
+                expected_container, d = create_container_for_test(
+                    self, self.client,
+                    name=container.name
                 )
-            d.addCallback(create_same_name_container)
-
-            return self.assertFailure(d, ContainerAlreadyExists)
+                return self.assertFailure(d, ContainerAlreadyExists)
+            d.addCallback(got_result)
+            return d
 
         def test_list_nodes(self):
             """
@@ -436,6 +420,28 @@ def make_clientv1_tests():
             return d
 
     return InterfaceTests
+
+
+def create_container_for_test(case, client, name=None):
+    """
+    :param TestCase case: The current running test.
+    :param IFlockerClient client: The client for creating containers.
+    :param unicode name: The name to be assigned to the container or ``None``
+        to assign a random name.
+    """
+    if name is None:
+        name = random_name(case=case)
+    expected_container = Container(
+        node_uuid=uuid4(),
+        name=name,
+        image=DockerImage.from_string(u'nginx'),
+    )
+    d = client.create_container(
+        node_uuid=expected_container.node_uuid,
+        name=expected_container.name,
+        image=expected_container.image.full_name,
+    )
+    return expected_container, d
 
 
 class FakeFlockerClientTests(make_clientv1_tests()):
