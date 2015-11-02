@@ -161,6 +161,8 @@ def poll_until(predicate, steps, sleep=None):
     :param callable sleep: called with the interval to delay on.
         Defaults to `time.sleep`.
     :returns: the non-false result from the final call.
+    :raise LoopExceeded: If given a finite sequence of steps, and we exhaust
+        that sequence waiting for predicate to be truthy.
     """
     if sleep is None:
         sleep = time.sleep

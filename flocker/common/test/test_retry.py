@@ -356,13 +356,16 @@ class PollUntilTests(SynchronousTestCase):
         self.assertEqual((True, [1, 1]), (result, sleeps))
 
     def test_default_sleep(self):
+        """
+        The ``poll_until`` function can be called with two arguments.
+        """
         results = [False, True]
         result = poll_until(lambda: results.pop(0), repeat(0))
         self.assertEqual(True, result)
 
     def test_loop_exceeded(self):
         """
-        If the generator of intervals that we pass to ``poll_until`` is
+        If the iterable of intervals that we pass to ``poll_until`` is
         exhausted before we get a truthy return value, then we raise
         ``LoopExceeded``.
         """
