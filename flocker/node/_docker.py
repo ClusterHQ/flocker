@@ -730,38 +730,23 @@ class DockerClient(object):
 
         """
         try:
-            Message.new(
-                message_type="flocker:docker:container_stop",
+            with start_action(
+                action_type='flocker:docker:container_stop',
                 container=container_name
-            ).write()
-            self._client.stop(container_name)
+            ):
+                self._client.stop(container_name)
         except APIError as e:
             if e.response.status_code == NOT_FOUND:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
-                Message.new(
-                    message_type="flocker:docker:container_not_found",
-                    container=container_name
-                ).write()
-                write_traceback()
                 return True
             elif e.response.status_code == INTERNAL_SERVER_ERROR:
                 # Docker returns this if the process had died, but
                 # hasn't noticed it yet.
-                Message.new(
-                    message_type="flocker:docker:container_stop_internal_error",  # noqa
-                    container=container_name
-                ).write()
-                write_traceback()
                 return False
             else:
                 raise
-        else:
-            Message.new(
-                message_type="flocker:docker:container_stopped",
-                container=container_name
-            ).write()
-            return True
+        return True
 
     def _remove_container(self, container_name):
         """
@@ -787,35 +772,21 @@ class DockerClient(object):
             # issue has been resolved. See [FLOC-1850]
             self._client.wait(container_name)
 
-            Message.new(
-                message_type="flocker:docker:container_remove",
+            with start_action(
+                action_type='flocker:docker:container_remove',
                 container=container_name
-            ).write()
-            self._client.remove_container(container_name)
+            ):
+                self._client.remove_container(container_name)
         except APIError as e:
             if e.response.status_code == NOT_FOUND:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
-                Message.new(
-                    message_type="flocker:docker:container_not_found",
-                    container=container_name
-                ).write()
-                write_traceback()
                 return True
             elif e.response.status_code == INTERNAL_SERVER_ERROR:
                 # Failure to remove container - see FLOC-3262 for an example.
-                Message.new(
-                    message_type="flocker:docker:container_remove_internal_error",  # noqa
-                    container=container_name
-                ).write()
-                write_traceback()
                 return False
             else:
                 raise
-        Message.new(
-            message_type="flocker:docker:container_removed",
-            container=container_name
-        ).write()
         return True
 
     def remove(self, unit_name):
