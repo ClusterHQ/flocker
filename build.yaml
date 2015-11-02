@@ -930,7 +930,7 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *run_sphinx ]
           }
-      timeout: 30
+      timeout: 10
 
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
