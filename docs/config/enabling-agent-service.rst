@@ -2,6 +2,8 @@
 Enabling the Flocker agent service
 ==================================
 
+The Flocker agents are the workhorses of Flocker; you have one on each node in your cluster, and enabling them is an essential step in setting up your cluster:
+
 CentOS 7
 ========
 
