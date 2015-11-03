@@ -20,8 +20,22 @@ from .._retry import (
     LOOP_UNTIL_ITERATION_MESSAGE,
     LoopExceeded,
     loop_until,
+    retry_effect_with_timeout,
     retry_failure,
 )
+
+from effect import (
+    Effect,
+    Error,
+    Func,
+    Constant,
+    base_dispatcher,
+    sync_perform,
+    ComposedDispatcher,
+    TypeDispatcher,
+    Delay,
+)
+from effect.testing import perform_sequence
 
 
 class LoopUntilTests(SynchronousTestCase):
@@ -328,3 +342,102 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock.advance(0.1)
         self.assertEqual(self.failureResultOf(d), type_error)
+
+
+class RetryEffectTests(SynchronousTestCase):
+    """
+    Tests for :py:func:`retry_effect_with_timeout`.
+    """
+    def get_time(self, times =  None):
+        if times ==  None:
+            times = [1, 2, 3, 4, 5]
+        return lambda: times.pop(0)
+
+    def test_immediate_success(self):
+        """
+        If the effect runs at first, no delay nor retry should be done.
+        """
+        effect = Effect(Constant(1000))
+        retrier = retry_effect_with_timeout(effect, 10, time = self.get_time())
+        result = perform_sequence([], retrier)
+        self.assertEqual(result, 1000)
+
+    def test_one_retry(self):
+        """
+        Retry the effect if it fails once.
+        """
+        divisors = [0, 1]
+
+        def tester():
+            x = divisors.pop(0)
+            return 1 / x
+
+        seq = [
+            (Delay(1), lambda ignore: None),
+        ]
+
+        retrier = retry_effect_with_timeout(Effect(Func(tester)), 10,
+                                            time = self.get_time())
+        result = perform_sequence(seq, retrier)
+        self.assertEqual(result, 1 / 1)
+
+    def test_exponential_backoff(self):
+        """
+        Retry the effect multiple times as long as the timeout doesn't expire.
+
+        Also make sure the exponential backoff runs properly.
+        """
+        divisors = [0, 0, 0, 1]
+
+        def tester():
+            x = divisors.pop(0)
+            return 1 / x
+
+        seq = [
+            (Delay(1), lambda ignore: None),
+            (Delay(2), lambda ignore: None),
+            (Delay(4), lambda ignore: None),
+        ]
+
+        retrier = retry_effect_with_timeout(Effect(Func(tester)), 10, time = self.get_time())
+        result = perform_sequence(seq, retrier)
+        self.assertEqual(result, 1 / 1)
+
+    def test_no_exponential_backoff(self):
+        """
+        If exp_backoff is disabled, always retry the effect with the same delay.
+        """
+        divisors = [0, 0, 0, 1]
+
+        def tester():
+            import time
+            x = divisors.pop(0)
+            return 1 / x
+
+        seq = [
+            (Delay(5), lambda ignore: None),
+            (Delay(5), lambda ignore: None),
+            (Delay(5), lambda ignore: None),
+        ]
+
+        retrier = retry_effect_with_timeout(Effect(Func(tester)), 1, 5, False)
+        result = perform_sequence(seq, retrier)
+        self.assertEqual(result, 1 / 1)
+
+    def test_timeout(self):
+        """
+        If the timeout expires, the effect should fail with the same exception.
+        """
+
+        secs = [1, 10]
+        seq = [
+            (Delay(1), lambda ignore: None),
+            (Delay(2), lambda ignore: None),
+        ]
+
+        retrier = retry_effect_with_timeout(
+            Effect(Error(Exception())),
+            timeout = 1,
+            time = self.get_time([1, 10]))
+
+        self.assertRaises(Exception, perform_sequence, seq, retrier)

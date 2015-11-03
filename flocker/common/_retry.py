@@ -171,7 +171,8 @@ def poll_until(predicate, interval):
     return result
 
 
-def retry_effect_with_timeout(effect, timeout, retry_wait=1, exp_backoff=True):
+def retry_effect_with_timeout(effect, timeout, retry_wait=1, exp_backoff=True,
+                              time=time.time):
     """
     If ``effect`` fails, retry it until ``timeout`` expires.
 
@@ -183,21 +184,23 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, exp_backoff=True):
     :param int timeout: Keep retrying until timeout.
     :param int retry_wait: The wait time between retries
     :param bool exp_timeout: Whether we should use exponential backoff
+    :param callable time: A nullary callable that returns a Unix UTC timestamp.
     :return: An Effect that does what ``effect`` does, but retrying.
-
     """
 
-    end_time = time.time() + timeout
+    end_time = time() + timeout
 
     def should_retry(e):
-        if time.time() > end_time:
+        if time() > end_time:
             return Effect(Constant(False))
         else:
+            effect = Effect(Delay(should_retry.wait_secs)).on(
+                success=lambda x: Effect(Constant(True)))
+
             if exp_backoff:
                 should_retry.wait_secs *= 2
 
-            return Effect(Delay(should_retry.wait_secs)).on(
-                success=lambda x: Effect(Constant(True)))
+            return effect
 
     should_retry.wait_secs = retry_wait
 
