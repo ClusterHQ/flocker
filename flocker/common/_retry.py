@@ -214,4 +214,3 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, exp_backoff=True,
     should_retry.wait_secs = retry_wait
 
     return retry(effect, should_retry)
-

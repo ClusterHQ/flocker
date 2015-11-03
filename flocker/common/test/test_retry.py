@@ -32,10 +32,6 @@ from effect import (
     Error,
     Func,
     Constant,
-    base_dispatcher,
-    sync_perform,
-    ComposedDispatcher,
-    TypeDispatcher,
     Delay,
 )
 from effect.testing import perform_sequence
@@ -406,8 +402,8 @@ class RetryEffectTests(SynchronousTestCase):
     """
     Tests for :py:func:`retry_effect_with_timeout`.
     """
-    def get_time(self, times =  None):
-        if times ==  None:
+    def get_time(self, times=None):
+        if times is None:
             times = [1, 2, 3, 4, 5]
         return lambda: times.pop(0)
 
@@ -416,7 +412,7 @@ class RetryEffectTests(SynchronousTestCase):
         If the effect runs at first, no delay nor retry should be done.
         """
         effect = Effect(Constant(1000))
-        retrier = retry_effect_with_timeout(effect, 10, time = self.get_time())
+        retrier = retry_effect_with_timeout(effect, 10, time=self.get_time())
         result = perform_sequence([], retrier)
         self.assertEqual(result, 1000)
 
@@ -435,7 +431,7 @@ class RetryEffectTests(SynchronousTestCase):
         ]
 
         retrier = retry_effect_with_timeout(Effect(Func(tester)), 10,
-                                            time = self.get_time())
+                                            time=self.get_time())
         result = perform_sequence(seq, retrier)
         self.assertEqual(result, 1 / 1)
 
@@ -457,18 +453,19 @@ class RetryEffectTests(SynchronousTestCase):
             (Delay(4), lambda ignore: None),
         ]
 
-        retrier = retry_effect_with_timeout(Effect(Func(tester)), 10, time = self.get_time())
+        retrier = retry_effect_with_timeout(Effect(Func(tester)), 10,
+                                            time=self.get_time())
         result = perform_sequence(seq, retrier)
         self.assertEqual(result, 1 / 1)
 
     def test_no_exponential_backoff(self):
         """
-        If exp_backoff is disabled, always retry the effect with the same delay.
+        If exp_backoff is disabled, always retry the effect with the
+        same delay.
         """
         divisors = [0, 0, 0, 1]
 
         def tester():
-            import time
             x = divisors.pop(0)
             return 1 / x
 
@@ -487,7 +484,6 @@ class RetryEffectTests(SynchronousTestCase):
         If the timeout expires, the effect should fail with the same exception.
         """
 
-        secs = [1, 10]
         seq = [
             (Delay(1), lambda ignore: None),
             (Delay(2), lambda ignore: None),
@@ -495,7 +491,7 @@ class RetryEffectTests(SynchronousTestCase):
 
         retrier = retry_effect_with_timeout(
             Effect(Error(Exception())),
-            timeout = 1,
-            time = self.get_time([1, 10]))
+            timeout=1,
+            time=self.get_time([1, 10]))
 
         self.assertRaises(Exception, perform_sequence, seq, retrier)
