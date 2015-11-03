@@ -4,6 +4,8 @@
 Tests for ``flocker.common._retry``.
 """
 
+from itertools import repeat
+
 from eliot.testing import (
     capture_logging,
     LoggedAction, LoggedMessage,
@@ -21,6 +23,7 @@ from .._retry import (
     LoopExceeded,
     loop_until,
     retry_failure,
+    poll_until,
 )
 
 
@@ -327,3 +330,59 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock.advance(0.1)
         self.assertEqual(self.failureResultOf(d), type_error)
+
+
+class PollUntilTests(SynchronousTestCase):
+    """
+    Tests for ``poll_until``.
+    """
+
+    def test_no_sleep_if_initially_true(self):
+        """
+        If the predicate starts off as True then we don't delay at all.
+        """
+        sleeps = []
+        poll_until(lambda: True, repeat(1), sleeps.append)
+        self.assertEqual([], sleeps)
+
+    def test_polls_until_true(self):
+        """
+        The predicate is repeatedly call until the result is truthy, delaying
+        by the interval each time.
+        """
+        sleeps = []
+        results = [False, False, True]
+        result = poll_until(lambda: results.pop(0), repeat(1), sleeps.append)
+        self.assertEqual((True, [1, 1]), (result, sleeps))
+
+    def test_default_sleep(self):
+        """
+        The ``poll_until`` function can be called with two arguments.
+        """
+        results = [False, True]
+        result = poll_until(lambda: results.pop(0), repeat(0))
+        self.assertEqual(True, result)
+
+    def test_loop_exceeded(self):
+        """
+        If the iterable of intervals that we pass to ``poll_until`` is
+        exhausted before we get a truthy return value, then we raise
+        ``LoopExceeded``.
+        """
+        results = [False] * 5
+        steps = [0.1] * 3
+        self.assertRaises(
+            LoopExceeded, poll_until, lambda: results.pop(0), steps,
+            lambda ignored: None)
+
+    def test_polls_one_last_time(self):
+        """
+        After intervals are exhausted, we poll one final time before
+        abandoning.
+        """
+        # Three sleeps, one value to poll after the last sleep.
+        results = [False, False, False, 42]
+        steps = [0.1] * 3
+        self.assertEqual(
+            42,
+            poll_until(lambda: results.pop(0), steps, lambda ignored: None))
