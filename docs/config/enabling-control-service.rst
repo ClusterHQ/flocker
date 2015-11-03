@@ -4,6 +4,8 @@
 Enabling the Flocker control service 
 ====================================
 
+The control service is the brain of Flocker; it can live anywhere in your cluster, and enabling it is an essential step in setting up your cluster.
+
 CentOS 7
 ========
 
