@@ -7,7 +7,7 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 
 import time
 from uuid import uuid4
-from bitmath import Byte
+from bitmath import Byte, GiB
 
 from boto.ec2.volume import (
     Volume as EbsVolume, AttachmentSet
@@ -274,11 +274,8 @@ class EBSBlockDeviceAPIInterfaceTests(
 
 class EBSProfiledBlockDeviceAPIInterfaceTests(
         make_iprofiledblockdeviceapi_tests(
-            profiled_blockdevice_api_factory=(
-                lambda test_case: ebsblockdeviceapi_for_test(
-                    test_case=test_case,
-                )
-            ),
+            profiled_blockdevice_api_factory=ebsblockdeviceapi_for_test,
+            dataset_size=GiB(4).to_Byte().value
         )
 ):
     """
