@@ -19,7 +19,7 @@ If you have any feedback or problems, you can :ref:`talk-to-us`.
 .. toctree::
    :maxdepth: 2
 
-   vagrant-setup
+   tutorial-requirements
    moving-applications
    exposing-ports
    volumes

@@ -19,6 +19,7 @@ from eliot import Message
 from eliot.testing import assertContainsFields
 
 from twisted.trial.unittest import TestCase
+from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
@@ -27,7 +28,8 @@ from twisted.python.procutils import which
 from twisted.python.usage import Options, UsageError
 
 from ..script import ICommandLineScript, flocker_standard_options
-from ...testtools import random_name, if_root, loop_until
+from ...common import loop_until
+from ...testtools import random_name, if_root
 
 
 def _journald_available():
@@ -337,7 +339,7 @@ class FlockerScriptRunnerJournaldTests(TestCase):
         d.addCallback(lambda result: msg("systemd-run output: " + result))
         # systemd-run doesn't wait for process to exit, so we need to ask
         # systemd when it's done:
-        d.addCallback(lambda _: loop_until(lambda: Popen(
+        d.addCallback(lambda _: loop_until(reactor, lambda: Popen(
             [b"systemctl", b"--quiet", b"is-active", name]).wait() != 0))
         d.addCallback(lambda _: getProcessOutput(
             b"journalctl", [b"--unit", name, b"--output", b"cat"]))

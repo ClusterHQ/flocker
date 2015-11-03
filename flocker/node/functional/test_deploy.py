@@ -10,6 +10,7 @@ from pyrsistent import pmap, pvector, pset
 
 from eliot import Message
 
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
@@ -17,13 +18,14 @@ from .. import (
     NodeLocalState, P2PManifestationDeployer, ApplicationNodeDeployer,
     sequentially
 )
+from ...common import loop_until
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
     Manifestation, Dataset, DeploymentState, NodeState)
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, loop_until)
+    random_name, DockerImageBuilder, assertContainsAll)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
@@ -185,7 +187,7 @@ class DeployerTests(TestCase):
             list(volumes)[0].get_filesystem().get_path().child(b'env'))
 
         def got_result_path(result_path):
-            d = loop_until(result_path.exists)
+            d = loop_until(reactor, result_path.exists)
             d.addCallback(lambda _: result_path)
             return d
         d.addCallback(got_result_path)
@@ -262,7 +264,7 @@ class DeployerTests(TestCase):
                           b'env'))
 
         def got_result_path(result_path):
-            d = loop_until(result_path.exists)
+            d = loop_until(reactor, result_path.exists)
             d.addCallback(lambda _: result_path)
             return d
         d.addCallback(got_result_path)
@@ -373,6 +375,7 @@ class DeployerTests(TestCase):
 
         d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(
+            reactor,
             docker_client,
             application_name,
             [u'active'])
@@ -419,6 +422,7 @@ class DeployerTests(TestCase):
 
         d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(
+            reactor,
             docker_client,
             application_name,
             [u'active'])

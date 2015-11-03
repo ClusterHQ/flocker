@@ -28,7 +28,8 @@ from eliot import Logger, ActionType, MessageType, fields
 from . import (
     ILocalState, IDeployer, NodeLocalState, IStateChange, sequentially
 )
-from ..testtools import loop_until, find_free_port
+from ..common import loop_until
+from ..testtools import find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid, Leases
@@ -95,10 +96,12 @@ def require_docker_version(minimum_docker_version, message):
     return decorator
 
 
-def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
+def wait_for_unit_state(reactor, docker_client, unit_name,
+                        expected_activation_states):
     """
     Wait until a unit is in the requested state.
 
+    :param IReactorTime reactor: The reactor implementation to use to delay.
     :param docker_client: A ``DockerClient`` instance.
     :param unicode unit_name: The name of the unit.
     :param expected_activation_states: Activation states to wait for.
@@ -116,7 +119,7 @@ def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
         responded.addCallback(is_in_states)
         return responded
 
-    return loop_until(check_if_in_states)
+    return loop_until(reactor, check_if_in_states)
 
 
 CONTROLLABLE_ACTION_TYPE = ActionType(u"test:controllableaction", [], [])

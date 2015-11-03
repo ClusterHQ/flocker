@@ -4,7 +4,7 @@
 Moving Applications
 ===================
 
-.. note:: If you haven't already, make sure to :ref:`install the flocker-cli package <installing-flocker-cli>` before continuing with this tutorial.
+.. note:: If you haven't already, make sure to :ref:`install the tutorial prerequisites <tutorial-prerequisites>` before continuing with this tutorial.
 
 Starting an Application
 =======================

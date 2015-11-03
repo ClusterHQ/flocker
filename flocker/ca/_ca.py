@@ -350,6 +350,8 @@ class UserCredential(PRecord):
     :ivar FlockerCredential credential: The certificate and key pair
         credential object.
     :ivar bytes username: A username.
+    :ivar UUID cluster_uuid: A unique identifier for the cluster this
+        certificate identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True, type=FlockerCredential)
     username = field(mandatory=True, type=unicode)
@@ -443,6 +445,10 @@ class UserCredential(PRecord):
         credential.write_credential_files(key_filename, cert_filename)
         instance = cls(credential=credential, username=username)
         return instance
+
+    @property
+    def cluster_uuid(self):
+        return UUID(hex=self.credential.certificate.getSubject().OU)
 
 
 class NodeCredential(PRecord):
