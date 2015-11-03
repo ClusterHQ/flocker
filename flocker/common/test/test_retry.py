@@ -4,6 +4,8 @@
 Tests for ``flocker.common._retry``.
 """
 
+from itertools import repeat
+
 from eliot.testing import (
     capture_logging,
     LoggedAction, LoggedMessage,
@@ -22,6 +24,7 @@ from .._retry import (
     loop_until,
     retry_effect_with_timeout,
     retry_failure,
+    poll_until,
 )
 
 from effect import (
@@ -55,7 +58,7 @@ class LoopUntilTests(SynchronousTestCase):
         def predicate():
             return result
         clock = Clock()
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
         self.assertEqual(
             self.successResultOf(d),
             result)
@@ -82,7 +85,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
 
         self.assertNoResult(d)
 
@@ -120,7 +123,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock)
+        d = loop_until(clock, predicate)
 
         clock.advance(0.1)
         self.assertNoResult(d)
@@ -158,7 +161,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock, steps=[1, 2, 3])
+        d = loop_until(clock, predicate, steps=[1, 2, 3])
 
         clock.advance(1)
         self.assertNoResult(d)
@@ -181,7 +184,7 @@ class LoopUntilTests(SynchronousTestCase):
             return results.pop(0)
         clock = Clock()
 
-        d = loop_until(predicate, reactor=clock, steps=steps)
+        d = loop_until(clock, predicate, steps=steps)
 
         clock.advance(0.1)
         self.assertNoResult(d)
@@ -208,7 +211,7 @@ class RetryFailureTests(SynchronousTestCase):
             return result
 
         clock = Clock()
-        d = retry_failure(function, reactor=clock)
+        d = retry_failure(clock, function)
         self.assertEqual(self.successResultOf(d), result)
 
     def test_iterates_once(self):
@@ -226,7 +229,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
@@ -251,7 +254,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
@@ -284,7 +287,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
@@ -310,7 +313,7 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(function, reactor=clock, steps=steps)
+        d = retry_failure(clock, function, steps=steps)
         self.assertEqual(self.failureResultOf(d), failure)
 
     def test_limited_exceptions(self):
@@ -336,12 +339,67 @@ class RetryFailureTests(SynchronousTestCase):
 
         clock = Clock()
 
-        d = retry_failure(
-            function, expected=[ValueError], reactor=clock, steps=steps)
+        d = retry_failure(clock, function, expected=[ValueError], steps=steps)
         self.assertNoResult(d)
 
         clock.advance(0.1)
         self.assertEqual(self.failureResultOf(d), type_error)
+
+
+class PollUntilTests(SynchronousTestCase):
+    """
+    Tests for ``poll_until``.
+    """
+
+    def test_no_sleep_if_initially_true(self):
+        """
+        If the predicate starts off as True then we don't delay at all.
+        """
+        sleeps = []
+        poll_until(lambda: True, repeat(1), sleeps.append)
+        self.assertEqual([], sleeps)
+
+    def test_polls_until_true(self):
+        """
+        The predicate is repeatedly call until the result is truthy, delaying
+        by the interval each time.
+        """
+        sleeps = []
+        results = [False, False, True]
+        result = poll_until(lambda: results.pop(0), repeat(1), sleeps.append)
+        self.assertEqual((True, [1, 1]), (result, sleeps))
+
+    def test_default_sleep(self):
+        """
+        The ``poll_until`` function can be called with two arguments.
+        """
+        results = [False, True]
+        result = poll_until(lambda: results.pop(0), repeat(0))
+        self.assertEqual(True, result)
+
+    def test_loop_exceeded(self):
+        """
+        If the iterable of intervals that we pass to ``poll_until`` is
+        exhausted before we get a truthy return value, then we raise
+        ``LoopExceeded``.
+        """
+        results = [False] * 5
+        steps = [0.1] * 3
+        self.assertRaises(
+            LoopExceeded, poll_until, lambda: results.pop(0), steps,
+            lambda ignored: None)
+
+    def test_polls_one_last_time(self):
+        """
+        After intervals are exhausted, we poll one final time before
+        abandoning.
+        """
+        # Three sleeps, one value to poll after the last sleep.
+        results = [False, False, False, 42]
+        steps = [0.1] * 3
+        self.assertEqual(
+            42,
+            poll_until(lambda: results.pop(0), steps, lambda ignored: None))
 
 
 class RetryEffectTests(SynchronousTestCase):

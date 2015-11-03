@@ -21,6 +21,7 @@ Client = partial(Client, version="1.15")
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet import reactor
 from twisted.internet.defer import succeed, gatherResults
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web.client import ResponseNeverReceived
@@ -172,7 +173,7 @@ class GenericDockerClientTests(TestCase):
         )
         self.addCleanup(client.remove, unit_name)
 
-        d.addCallback(lambda _: wait_for_unit_state(client, unit_name,
+        d.addCallback(lambda _: wait_for_unit_state(reactor, client, unit_name,
                                                     expected_states))
         d.addCallback(lambda _: client)
 
@@ -423,7 +424,7 @@ class GenericDockerClientTests(TestCase):
             response.addErrback(check_error)
             return response
 
-        return loop_until(send_request)
+        return loop_until(reactor, send_request)
 
     def test_non_docker_port_collision(self):
         """
@@ -640,7 +641,8 @@ class GenericDockerClientTests(TestCase):
             # operations. Since there's no real user impact for flocker (the
             # convergence loop will just retry anyway), retry here to avoid
             # spurious test failures.
-            listing = retry_failure(client.list, [APIError], steps=[0.1] * 5)
+            listing = retry_failure(
+                reactor, client.list, [APIError], steps=[0.1] * 5)
             listing.addCallback(
                 lambda applications: list(
                     next(iter(application.ports)).external_port
@@ -1055,7 +1057,7 @@ class GenericDockerClientTests(TestCase):
             # TODO: if the `run` script fails for any reason,
             # then this will loop forever.
 
-            d.addCallback(lambda ignored: loop_until(marker.exists))
+            d.addCallback(lambda ignored: loop_until(reactor, marker.exists))
 
         d.addCallback(lambda ignored: count.getContent())
         return d

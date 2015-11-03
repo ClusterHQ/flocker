@@ -6,6 +6,7 @@ Tests for interoperability between Postgres and Flocker datasets.
 
 from unittest import skipUnless
 
+from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 
 from eliot import Message
@@ -45,7 +46,7 @@ def get_postgres_connection(host, port, database=None):
                 exception=unicode(e.__class__), reason=unicode(e)).write()
             return False
 
-    d = loop_until(connect_to_postgres)
+    d = loop_until(reactor, connect_to_postgres)
     return d
 
 

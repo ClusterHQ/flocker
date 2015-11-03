@@ -7,6 +7,7 @@ Tests for the datasets REST API.
 from uuid import UUID
 from unittest import skipUnless
 
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 
 from ...common import loop_until
@@ -98,7 +99,7 @@ class DatasetAPITests(TestCase):
                     lambda actual_datasets: dataset.dataset_id not in
                     (d.dataset_id for d in actual_datasets))
                 return request
-            deleted.addCallback(lambda _: loop_until(not_exists))
+            deleted.addCallback(lambda _: loop_until(reactor, not_exists))
             return deleted
         created.addCallback(delete_dataset)
         return created
