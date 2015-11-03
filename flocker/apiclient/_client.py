@@ -253,6 +253,12 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with ``iterable`` of ``Container``.
         """
 
+    def delete_container(name):
+        """
+        :param unicode name: The name of the container to be deleted.
+        :return: ``Deferred`` firing with the deleted ``Container``.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
@@ -364,6 +370,11 @@ class FakeFlockerClient(object):
 
     def list_containers_configuration(self):
         return succeed(self._configured_containers.values())
+
+    def delete_container(self, name):
+        deleted_container = self._configured_containers[name]
+        self._configured_containers = self._configured_containers.remove(name)
+        return succeed(deleted_container)
 
 
 class ResponseError(Exception):
@@ -622,4 +633,14 @@ class FlockerClient(object):
             return nodes
         request.addCallback(to_nodes)
 
+        return request
+
+    def delete_container(self, name):
+        request = self._request(
+            b"DELETE", b"/configuration/containers/%s" % (
+                name.encode('ascii'),
+            ),
+            None, {OK}
+        )
+        request.addCallback(self._parse_configuration_container)
         return request

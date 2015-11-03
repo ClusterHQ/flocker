@@ -407,6 +407,48 @@ def make_clientv1_tests():
             d.addCallback(got_result)
             return d
 
+        def test_delete_container(self):
+            """
+            ``delete_container`` returns a deferred that fires with the
+            ``Container`` that has been deleted.
+            """
+            expected_container, d = create_container_for_test(
+                self, self.client
+            )
+            d.addCallback(
+                lambda ignored: self.client.delete_container(
+                    expected_container.name
+                )
+            )
+            d.addCallback(
+                self.assertEqual,
+                expected_container,
+            )
+            return d
+
+        def test_delete_container_not_listed(self):
+            """
+            ``list_containers_configuration`` does not list deleted containers.
+            """
+            expected_container, d = create_container_for_test(
+                self, self.client
+            )
+            d.addCallback(
+                lambda ignored: self.client.delete_container(
+                    expected_container.name
+                )
+            )
+            d.addCallback(
+                lambda ignored: self.client.list_containers_configuration()
+            )
+            d.addCallback(
+                lambda containers: self.assertNotIn(
+                    expected_container,
+                    containers,
+                )
+            )
+            return d
+
         def test_list_nodes(self):
             """
             ``list_nodes`` returns a ``Deferred`` firing with a ``list`` of
