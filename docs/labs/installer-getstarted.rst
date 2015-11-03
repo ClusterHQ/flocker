@@ -127,4 +127,4 @@ Getting Started with the Installer
 
    You can see that there are no volumes yet.
 
-To try a short demo of deploying and migrating a stateful application, see our :ref:`short tutorial <short-tutorial>`.
+Now that you have a Flocker cluster, if you want a short demonstration of deploying and migrating a stateful application, see our :ref:`short tutorial <short-tutorial>`.
