@@ -93,6 +93,13 @@ module UpdateCentOSKernel
           end
 
           @ui.info 'Installing Development Tools'
+          @vm.communicate.sudo('yum -y groups mark convert') do |type, data|
+            if type == :stderr
+              @ui.error(data);
+            else
+              @ui.info(data);
+            end
+          end
           @vm.communicate.sudo('yum groupinstall -y "Development Tools"') do |type, data|
             if type == :stderr
               @ui.error(data);
