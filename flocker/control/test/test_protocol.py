@@ -732,6 +732,7 @@ class ControlAMPServiceTests(ControlTestCase):
             dict(configuration=agent.desired, state=agent.actual),
         )
 
+    #TODO delete
     def test_unexpected_exception_raised(self):
         """
         A configuration change results in connected protocols being notified
@@ -754,8 +755,19 @@ class ControlAMPServiceTests(ControlTestCase):
                    )
 
         service.connected(server)
-
         service.configuration_service.save(TEST_DEPLOYMENT)
+        # It is empty - I have no idea of how to verify that we actually raise
+        # Failure. If I understand the code it should be in
+        # service._current_command[server].response, But the command will
+        # get deleted at the end of _update_connection, and the deferred is
+        # discarded. Do I really need to test that? Or is it enough with
+        # the other test case where I actually verify that a failure won't
+        # prevent other commands from executing
+        print service._current_command.values() # it is empty because the callback deletes them
+        for currentCommand in service._current_command.values():
+            assertIsInstance(currentCommand.response,
+                             Failure,
+                             "Expected all the (one) states of the connections to be a Failure")
 
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
         """
@@ -797,6 +809,69 @@ class ControlAMPServiceTests(ControlTestCase):
                 third=modified_configuration,
             ),
             dict(
+                first=first_agent_desired,
+                second=second_agent_desired,
+                third=third_agent_desired,
+            ),
+        )
+
+    def test_second_configuration_change_suceeds_when_first_fails(self):
+        """
+        If the first update fails, we want to ensure that following updates
+        won't get stuck waiting, and will get updated.
+        """
+
+        def raise_unexpected_exception(self,
+                                       commandType=None,
+                                       *a, **kw):
+            raise Exception("I'm an unexpected exception")
+
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        # Add a second agent, to ensure that the delayed logic interacts with
+        # the correct connection.
+        confounding_agent = FakeAgent()
+        confounding_client = AgentAMP(Clock(), confounding_agent)
+        failing_server = LoopbackAMPClient(confounding_client.locator)
+
+        # We want the update to fail in one of the connections
+        self.patch(failing_server,
+                   "callRemote",
+                   raise_unexpected_exception
+                   )
+        # The connection will fail, but it shouldn't prevent following
+        # commnads (from ``delayed_server``) to be properly executed
+        service.connected(failing_server)
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+        # Because the first agent fails to update, we do not
+        # expect the original configuration to change
+        first_agent_desired = configuration
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=configuration,
+                third=modified_configuration,
+            ),
+            dict(
+                # The update will fail, so we don't expect the config to change
                 first=first_agent_desired,
                 second=second_agent_desired,
                 third=third_agent_desired,
