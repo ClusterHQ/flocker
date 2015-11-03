@@ -341,11 +341,6 @@ common_cli:
     parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
     parse_logs sphinx-build -d _build/doctree -b html . _build/html
-    # TODO:
-    # upload html
-    #link-release-documentation
-    #upload-release-documentation
-    cd -
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
@@ -712,6 +707,23 @@ common_cli:
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
     vagrant up
 
+  install_aws_cli: &install_aws_cli |
+    # installs the AWS python based cli
+    # we use the aws cli to upload the docs files to S3
+    \${PARSE_LOGS}  pip install awscli \${PIP_ADDITIONAL_OPTIONS}
+
+  get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
+    # collects the S3 credentials that allows us to upload files to the S3
+    # staging bucket for our docs
+    . /tmp/s3_staging_docs_clusterhq_com.sh
+
+  upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
+    # uploads the new generated html to a folder on the S3 staging-docs bucket
+    cd _build/html
+    aws s3 sync . s3://clusterhq-staging-docs/\$TRIGGERED_BRANCH
+    echo "This branch is available at :"
+    echo "http://clusterhq-staging-docs.s3.amazonaws.com/\$TRIGGERED_BRANCH/index.html"
+
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -928,7 +940,9 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *run_sphinx ]
+                   *install_aws_cli, *run_sphinx,
+                   *get_s3_creds_for_bucket_staging_docs,
+                   *upload_new_docs_html_to_s3_staging_docs]
           }
       timeout: 10
 
