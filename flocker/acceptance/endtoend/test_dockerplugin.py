@@ -115,6 +115,32 @@ class DockerPluginTests(TestCase):
             self.addCleanup(client.remove_container, cid, force=True)
         return cid
 
+    def _create_volume(self, client, name, driver_opts):
+        """
+        Create a volume with the given name and driver options on the passed in
+        docker client.
+
+        :param client: The docker.Client object to use.
+        :param name: The name of the volume to create.
+        :param opts: The options to pass through to the Flocker Plugin for
+            Docker.
+        :returns: The result of the API call.
+        """
+        # XXX: replace with:
+        #
+        # client.create_volume(name, u'flocker', driver_opts)
+        #
+        # Once version 1.5.1+ of docker-py is released. It is currently fixed
+        # at head, but version 1.5.0 unfortunately has the wrong endpoint for
+        # creating a volume.
+        url = client._url('/volumes/create')
+        data = {
+            'Name': name,
+            'Driver': u'flocker',
+            'DriverOpts': driver_opts,
+        }
+        return client._result(client._post_json(url, data=data), True)
+
     def _test_create_container(self, cluster):
         """
         Create a container running a simple HTTP server that writes to
@@ -166,8 +192,8 @@ class DockerPluginTests(TestCase):
         node = cluster.nodes[0]
         docker = get_docker_client(cluster, node.public_address)
         volume_name = random_name(self)
-        docker.create_volume(volume_name, driver=u'flocker',
-                             driver_opts={'profile': 'silver'})
+        self._create_volume(docker, volume_name,
+                           driver_opts={'profile': 'silver'})
 
         datasets_deferred = cluster.client.list_datasets_configuration()
 
