@@ -428,16 +428,20 @@ class CinderBlockDeviceAPI(object):
         local_ips = get_all_ips()
         api_ip_map = {}
         matching_instances = []
+        ipv4_matching_instances = []
         for server in self.nova_server_manager.list():
             # Servers which are not active will not have any IP addresses
             if server.status != u'ACTIVE':
                 continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
+            ipv4_addresses = set([i for i in api_addresses if i.version == 4])
             # Only do subset comparison if there were *some* IP addresses;
             # non-ACTIVE servers will have an empty list of IP addresses and
             # lead to incorrect matches.
             if api_addresses and api_addresses.issubset(local_ips):
                 matching_instances.append(server.id)
+            elif ipv4_addresses and ipv4_addresses.issubset(local_ips):
+                ipv4_matching_instances.append(server.id)
             else:
                 for ip in api_addresses:
                     api_ip_map[ip] = server.id
@@ -446,6 +450,14 @@ class CinderBlockDeviceAPI(object):
         # But we don't currently test this directly. See FLOC-2281.
         if len(matching_instances) == 1 and matching_instances[0]:
             return matching_instances[0]
+
+        # If we have not found any matching instances it might be because we
+        # are on rackspace and have a kernel that cannot figure out our
+        # global IPv6 address. In this case, revert to just using IPv4.
+        if (not matching_instances and len(ipv4_matching_instances) == 1 and
+                ipv4_matching_instances[0]):
+            return ipv4_matching_instances[0]
+
         # If there was no match, or if multiple matches were found, log an
         # error containing all the local and remote IPs.
         COMPUTE_INSTANCE_ID_NOT_FOUND(
