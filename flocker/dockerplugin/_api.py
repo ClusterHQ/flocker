@@ -169,7 +169,8 @@ class VolumePlugin(object):
         listing.addCallback(got_configured)
 
         metadata = {u"name": Name}
-        profile = Opts.get(u"profile")
+        opts = Opts or {}
+        profile = opts.get(u"profile")
         if profile:
             metadata[PROFILE_METADATA_KEY] = profile
 
