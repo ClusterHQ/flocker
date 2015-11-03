@@ -722,7 +722,7 @@ class AgentAMP(AMP):
     def __init__(self, reactor, agent):
         """
         :param IReactorTime reactor: A reactor to use to schedule periodic ping
-            operations.
+            operations.root@52.28.55.192
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         locator = _AgentLocator(agent)
