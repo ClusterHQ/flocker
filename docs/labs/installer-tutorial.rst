@@ -1,8 +1,10 @@
+.. _short-tutorial:
+
 =================================================
 Short Tuturial: Deploy and Migrate a Stateful App
 =================================================
 
-Now you can deploy a highly sophisticated stateful app to test out Flocker.
+When you have completed the steps in :ref:`labs-installing-unofficial-flocker-tools` (or installed and configured Flocker via the :ref:`main instructions <installing-flocker>`, you can use the following steps to deploy a highly sophisticated stateful app to test out Flocker.
 
 #. Begin by finding out the IP addresses of our first two nodes.
    Do this by running:

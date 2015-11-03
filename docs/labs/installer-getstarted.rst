@@ -25,7 +25,7 @@ Getting Started with the Installer
         curl -sSL https://get.flocker.io/ | sh
 
      This assumes that your user can use ``sudo``, and may prompt you for your password.
-     This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your ``/usr/local/bin``.
+     This installer is a tiny script which puts some wrapper scripts (around ``docker run`` commands) into your :file:`/usr/local/bin`.
 
    * Now test one of the installed tools:
 
@@ -33,7 +33,7 @@ Getting Started with the Installer
 
         uft-flocker-ca --version
 
-     This should return something like ``1.4.0``, showing you which version of the Flocker Client is installed.
+     This should return something like ``1.5.0``, showing you which version of the Flocker Client is installed.
 
 #. Make a local directory for your cluster files:
 
@@ -51,7 +51,7 @@ Getting Started with the Installer
 
    So now let's use the tools we've just installed to deploy and configure a Flocker cluster.
 
-   * Run the following command in your ``~/clusters/test`` directory you made earlier:
+   * Run the following command in your :file:`~/clusters/test` directory you made earlier:
 
      .. prompt:: bash $
 
@@ -97,7 +97,7 @@ Getting Started with the Installer
 
         Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
-     This should have created a pre-configured ``cluster.yml`` file in the current directory.
+     This should have created a pre-configured :file:`cluster.yml` file in the current directory.
 
    Now you have some nodes, it's time to install and configure Flocker on them!
 
@@ -111,10 +111,10 @@ Getting Started with the Installer
 
    This step should take about 5 minutes, and will:
 
-   * install the OS packages on your nodes required to run Flocker, including Docker
-   * configure certificates, push them to your nodes, set up firewall rules for the control service
-   * start all the requisite Flocker services
-   * install the Flocker plugin for Docker, so that you can control Flocker directly from the Docker CLI
+   * Install the OS packages on your nodes required to run Flocker, including Docker.
+   * Configure certificates, push them to your nodes, set up firewall rules for the control service.
+   * Start all the requisite Flocker services.
+   * Install the Flocker plugin for Docker, so that you can control Flocker directly from the Docker CLI.
 
 #. Check that the Flocker cluster is active:
 
@@ -126,3 +126,5 @@ Getting Started with the Installer
       uft-flocker-volumes list
 
    You can see that there are no volumes yet.
+
+To try a short demo of deploying and migrating a stateful application, see our :ref:`short tutorial <short-tutorial>`.
