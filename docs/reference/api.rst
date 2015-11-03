@@ -5,7 +5,7 @@ Flocker REST API Details
 ========================
 
 .. contents::
-	:local:
+        :local:
 
 Introduction
 ============
@@ -61,3 +61,7 @@ Container API Endpoints
 
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094
+
+
+.. XXX: Document the Python ``FlockerClient`` API.
+.. https://clusterhq.atlassian.net/browse/FLOC-3306

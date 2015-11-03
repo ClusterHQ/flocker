@@ -113,7 +113,9 @@ Now refresh the ``Kibana`` web interface and you should see those messages.
 Move ``ElasticSearch`` to Node2
 ===============================
 
-Download and save the following configuration files to the ``flocker-tutorial`` directory:
+Download and save the following configuration file to the ``flocker-tutorial`` directory:
+
+:download:`elk-deployment-moved.yml`
 
 .. literalinclude:: elk-deployment-moved.yml
    :language: yaml
@@ -122,7 +124,7 @@ Then run ``flocker-deploy`` to move the ``Elasticsearch`` application along with
 
 .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-   flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
+   flocker-deploy 172.16.255.250 elk-deployment-moved.yml elk-application.yml
    
 Now verify that the ``ElasticSearch`` application has moved to the other VM:
 

@@ -108,6 +108,8 @@ CREATE_VOLUME_FAILURE = MessageType(
     u"Create volume operation failed. Retrying with default profile.",)
 
 BOTO_LOG_HEADER = u'flocker:node:agents:blockdevice:aws:boto_logs'
+
+BOTO_LOG_RESULT = u'flocker:node:agents:blockdevice:aws:boto_result'
 # End: Helper datastructures used by AWS storage driver.
 
 # Begin: Helper datastructures used by OpenStack storage drivers

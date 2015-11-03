@@ -37,7 +37,8 @@ from ...control import pmap_field
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE
+    BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
+    BOTO_LOG_RESULT
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -826,6 +827,12 @@ class EBSBlockDeviceAPI(object):
                 volume_type=volume_type,
                 iops=iops)
 
+        message_type = BOTO_LOG_RESULT + u':created_volume'
+        Message.new(
+            message_type=message_type, volume_id=unicode(requested_volume.id),
+            dataset_id=unicode(dataset_id), size=unicode(size)
+        ).write()
+
         # Stamp created volume with Flocker-specific tags.
         metadata = {
             METADATA_VERSION_LABEL: '1',
@@ -837,6 +844,13 @@ class EBSBlockDeviceAPI(object):
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
+
+        message_type = BOTO_LOG_RESULT + u':created_tags'
+        Message.new(
+            message_type=message_type,
+            requested_volume=requested_volume.id,
+            tags=metadata
+        ).write()
 
         # Wait for created volume to reach 'available' state.
         _wait_for_volume_state_change(VolumeOperations.CREATE,
@@ -851,6 +865,11 @@ class EBSBlockDeviceAPI(object):
         """
         try:
             ebs_volumes = self.connection.get_all_volumes()
+            message_type = BOTO_LOG_RESULT + u':listed_volumes'
+            Message.new(
+                message_type=message_type,
+                volume_ids=list(volume.id for volume in ebs_volumes),
+            ).write()
         except EC2ResponseError as e:
             # Work around some internal race-condition in EBS by retrying,
             # since this error makes no sense:
@@ -865,6 +884,11 @@ class EBSBlockDeviceAPI(object):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
+        message_type = BOTO_LOG_RESULT + u':listed_cluster_volumes'
+        Message.new(
+            message_type=message_type,
+            volume_ids=list(volume.blockdevice_id for volume in volumes),
+        ).write()
         return volumes
 
     def attach_volume(self, blockdevice_id, attach_to):

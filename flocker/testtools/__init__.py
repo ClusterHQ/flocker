@@ -16,9 +16,8 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
 import shutil
-from functools import wraps, partial
+from functools import wraps
 from unittest import skipIf, skipUnless
-from inspect import getfile, getsourcelines
 from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
@@ -27,7 +26,7 @@ from bitmath import GiB, MiB
 from pyrsistent import PRecord, field
 
 from docker import Client as DockerClient
-from eliot import ActionType, Message, MessageType, start_action, fields, Field
+from eliot import ActionType, Message, MessageType, start_action, fields
 from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
@@ -37,9 +36,8 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import prefixedMethodNames, safe_repr
-from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.task import Clock
+from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -192,69 +190,6 @@ def assert_not_equal_comparison(case, a, b):
     if messages:
         case.fail(
             "Expected a and b to be not-equal: " + "; ".join(messages))
-
-
-def function_serializer(function):
-    """
-    Serialize the given function for logging by eliot.
-
-    :param function: Function to serialize.
-
-    :return: Serialized version of function for inclusion in logs.
-    """
-    try:
-        return {
-            "function": str(function),
-            "file": getfile(function),
-            "line": getsourcelines(function)[1]
-        }
-    except IOError:
-        # One debugging method involves changing .py files and is incompatible
-        # with inspecting the source.
-        return {
-            "function": str(function),
-        }
-
-LOOP_UNTIL_ACTION = ActionType(
-    action_type="flocker:testtools:loop_until",
-    startFields=[Field("predicate", function_serializer)],
-    successFields=[Field("result", serializer=safe_repr)],
-    description="Looping until predicate is true.")
-
-LOOP_UNTIL_ITERATION_MESSAGE = MessageType(
-    message_type="flocker:testtools:loop_until:iteration",
-    fields=[Field("result", serializer=safe_repr)],
-    description="Predicate failed, trying again.")
-
-
-def loop_until(predicate, reactor=reactor):
-    """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
-
-    :param predicate: Callable returning termination condition.
-    :type predicate: 0-argument callable returning a Deferred.
-
-    :param reactor: The reactor implementation to use to delay.
-    :type reactor: ``IReactorTime``.
-
-    :return: A ``Deferred`` firing with the first ``Truthy`` response from
-        ``predicate``.
-    """
-    action = LOOP_UNTIL_ACTION(predicate=predicate)
-
-    d = action.run(DeferredContext, maybeDeferred(action.run, predicate))
-
-    def loop(result):
-        if not result:
-            LOOP_UNTIL_ITERATION_MESSAGE(
-                result=result
-            ).write()
-            d = deferLater(reactor, 0.1, action.run, predicate)
-            d.addCallback(partial(action.run, loop))
-            return d
-        action.addSuccessFields(result=result)
-        return result
-    d.addCallback(loop)
-    return d.addActionFinish()
 
 
 def random_name(case):
@@ -1007,43 +942,3 @@ def run_process(command, *args, **kwargs):
                 returncode=status, cmd=command, output=output,
             )
     return result
-
-
-def skip_except(supported_tests):
-    """
-    Mark all the ``test_`` methods in ``TestCase`` as ``skip`` unless the test
-    method names are in ``supported_tests``.
-
-    :param list supported_tests: The names of the tests that are expected to
-        pass.
-    """
-    test_prefix = 'test_'
-    skip_or_todo = 'skip'
-    noskip = os.environ.get('NOSKIP')
-    if noskip is not None:
-        return lambda test_case: test_case
-
-    def decorator(test_case):
-        test_method_names = [
-            test_prefix + name
-            for name
-            in prefixedMethodNames(test_case, test_prefix)
-        ]
-        for test_method_name in test_method_names:
-            if test_method_name not in supported_tests:
-                test_method = getattr(test_case, test_method_name)
-                new_message = []
-                existing_message = getattr(test_method, skip_or_todo, None)
-                if existing_message is not None:
-                    new_message.append(existing_message)
-                new_message.append('Not implemented yet')
-                new_message = ' '.join(new_message)
-
-                @wraps(test_method)
-                def wrapper(*args, **kwargs):
-                    return test_method(*args, **kwargs)
-                setattr(wrapper, skip_or_todo, new_message)
-                setattr(test_case, test_method_name, wrapper)
-
-        return test_case
-    return decorator

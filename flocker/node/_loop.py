@@ -32,7 +32,7 @@ from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from . import run_state_change
+from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
 from ..control import (
@@ -198,9 +198,10 @@ class ConvergenceLoopInputs(Names):
     STATUS_UPDATE = NamedConstant()
     # Stop the convergence loop:
     STOP = NamedConstant()
-    # Finished applying necessary changes to local state, a single
-    # iteration of the convergence loop:
-    ITERATION_DONE = NamedConstant()
+    # Sleep for a while (so we don't poll in a busy-loop).
+    SLEEP = NamedConstant()
+    # Stop sleeping:
+    WAKEUP = NamedConstant()
 
 
 @attributes(["client", "configuration", "state"])
@@ -216,6 +217,17 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
+class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
+    """
+    Sleep for given number of seconds.
+
+    :ivar float delay_seconds: How many seconds to sleep.
+    """
+    # For now this is hard coded, will become more flexible in followup
+    # parts of FLOC-3205:
+    delay_seconds = 1.0
+
+
 class ConvergenceLoopStates(Names):
     """
     Convergence loop FSM states.
@@ -227,6 +239,8 @@ class ConvergenceLoopStates(Names):
     # Local state is being converged, and once that is done we will
     # immediately stop:
     CONVERGING_STOPPING = NamedConstant()
+    # The loop is sleeping until the next iteration occurs:
+    SLEEPING = NamedConstant()
 
 
 class ConvergenceLoopOutputs(Names):
@@ -238,6 +252,12 @@ class ConvergenceLoopOutputs(Names):
     STORE_INFO = NamedConstant()
     # Start an iteration of the covergence loop:
     CONVERGE = NamedConstant()
+    # Schedule timeout for sleep so we don't sleep forever:
+    SCHEDULE_WAKEUP = NamedConstant()
+    # Clear/cancel the sleep wakeup timeout:
+    CLEAR_WAKEUP = NamedConstant()
+    # Check if we need to wakeup due to update from AMP client:
+    UPDATE_MAYBE_WAKEUP = NamedConstant()
 
 
 _FIELD_CONNECTION = Field(
@@ -296,6 +316,12 @@ class ConvergenceLoop(object):
         acknowledged by the control service over the most recent connection
         to the control service.
     :type _last_acknowledged_state: tuple of IClusterStateChange
+
+    :ivar _last_discovered_local_state: The discovered local state from
+        last iteration done.
+
+    :ivar _sleep_timeout: Current ``IDelayedCall`` for sleep timeout, or
+        ``None`` if not in SLEEPING state.
     """
     def __init__(self, reactor, deployer):
         """
@@ -308,7 +334,9 @@ class ConvergenceLoop(object):
         self.deployer = deployer
         self.cluster_state = None
         self.client = None
+        self._last_discovered_local_state = None
         self._last_acknowledged_state = None
+        self._sleep_timeout = None
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -318,6 +346,16 @@ class ConvergenceLoop(object):
             # State updates are now being sent somewhere else.  At least send
             # one update using the new client.
             self._last_acknowledged_state = None
+
+    def output_UPDATE_MAYBE_WAKEUP(self, context):
+        # External configuration and state has changed. Let's pretend
+        # local state hasn't changed. If when we calculate changes that
+        # still indicates some action should be taken that means we should
+        # wake up:
+        discovered = self._last_discovered_local_state
+        if self.deployer.calculate_changes(
+                self.configuration, self.cluster_state, discovered) != NoOp():
+            self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
 
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
@@ -370,6 +408,7 @@ class ConvergenceLoop(object):
                 self.deployer.discover_state, known_local_state))
 
         def got_local_state(local_state):
+            self._last_discovered_local_state = local_state
             cluster_state_changes = local_state.shared_state_changes()
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
@@ -405,25 +444,45 @@ class ConvergenceLoop(object):
         # converging again; hopefully next time we'll have more success.
         d.addErrback(writeFailure, self.fsm.logger)
 
-        # It would be better to have a "quiet time" state in the FSM and
-        # transition to that next, then have a timeout input kick the machine
-        # back around to the beginning of the loop in the FSM.  However, we're
-        # not going to keep this sleep-for-a-bit solution in the long term.
-        # Instead, we'll be more event driven.  So just going with the simple
-        # solution and inserting a side-effect-y delay directly here.
-
-        d.addCallback(
-            lambda _:
-                self.reactor.callLater(
-                    1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
-                )
-        )
+        # We're done with the iteration:
+        d.addCallback(lambda _: self.fsm.receive(_Sleep()))
         d.addActionFinish()
+
+    def output_SCHEDULE_WAKEUP(self, context):
+        self._sleep_timeout = self.reactor.callLater(
+            context.delay_seconds,
+            lambda: self.fsm.receive(ConvergenceLoopInputs.WAKEUP))
+
+    def output_CLEAR_WAKEUP(self, context):
+        if self._sleep_timeout.active():
+            self._sleep_timeout.cancel()
+        self._sleep_timeout = None
 
 
 def build_convergence_loop_fsm(reactor, deployer):
     """
     Create a convergence loop FSM.
+
+    Once cluster config+cluster state updates from control service are
+    received the basic loop is:
+
+    1. Discover local state.
+    2. Calculate ``IStateChanges`` based on local state and cluster
+       configuration and cluster state we received from control service.
+    3. Execute the change.
+    4. Sleep.
+
+    However, if an update is received during sleep then we calculate based
+    on that updated config+state whether a ``IStateChange`` needs to
+    happen. If it does that means this change will have impact on what we
+    do, so we interrupt the sleep. If calculation suggests a no-op then we
+    keep sleeping. Notably we do **not** do a discovery of local state
+    when an update is received while sleeping, since that is an expensive
+    operation that can involve talking to external resources. Moreover an
+    external update only implies external state/config changed, so we're
+    not interested in the latest local state in trying to decide if this
+    update requires us to do something; a recently cached version should
+    suffice.
 
     :param IReactorTime reactor: Used to schedule delays in the loop.
 
@@ -441,18 +500,25 @@ def build_convergence_loop_fsm(reactor, deployer):
         S.CONVERGING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
             I.STOP: ([], S.CONVERGING_STOPPING),
-            I.ITERATION_DONE: ([O.CONVERGE], S.CONVERGING),
+            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
         })
     table = table.addTransitions(
         S.CONVERGING_STOPPING, {
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.ITERATION_DONE: ([], S.STOPPED),
+            I.SLEEP: ([], S.STOPPED),
         })
+    table = table.addTransitions(
+        S.SLEEPING, {
+            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
+            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
+            I.STATUS_UPDATE: (
+                [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
+            })
 
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate], inputContext={},
+        richInputs=[_ClientStatusUpdate, _Sleep], inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
