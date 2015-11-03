@@ -19,7 +19,7 @@ from ...testtools import (
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket, check_http_server,
+    get_docker_client, verify_socket, check_http_server, DatasetBackend
 )
 from ..scripts import SCRIPTS
 
@@ -153,6 +153,46 @@ class DockerPluginTests(TestCase):
         """
         self.require_docker('1.9.0', cluster)
         return self._test_create_container(cluster)
+
+    @require_cluster(1, required_backend=DatasetBackend.aws)
+    def test_create_profiled_container_with_v2_plugin_api(self, cluster,
+                                                          backend):
+        """
+        Docker >=1.9, using the v2 plugin API, can create a volume with the
+        volumes API, and pass a profile argument which is represented in the
+        backing volume created.
+        """
+        self.require_docker('1.9.0', cluster)
+        node = cluster.nodes[0]
+        docker = get_docker_client(cluster, node.public_address)
+        volume_name = random_name(self)
+        docker.create_volume(volume_name, driver=u'flocker',
+                             driver_opts={'profile': 'silver'})
+
+        datasets_deferred = cluster.client.list_datasets_configuration()
+
+        def _evaluate_datasets(datasets):
+            dataset = None
+            for d in datasets:
+                for key, value in d.metadata.iteritems():
+                    if key.lower() == u"name" and value == volume_name:
+                        dataset = d
+                        break
+                if dataset:
+                    break
+            self.assertTrue(dataset is not None)
+
+            volumes = backend.list_volumes()
+
+            for volume in volumes:
+                if volume.dataset_id == dataset.dataset_id:
+                    break
+            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
+            self.assertEqual(u'gp2', ebs_volume.type)
+
+        datasets_deferred.addCallback(_evaluate_datasets)
+
+        return datasets_deferred
 
     @require_cluster(1)
     def test_volume_persists_restart(self, cluster):
