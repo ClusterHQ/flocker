@@ -8,6 +8,7 @@ for consolidation opportunities.
 """
 
 from eliot import Field, ActionType, MessageType
+from .blockdevice import DATASET_ID
 
 # Begin: Common structures used by all (AWS, OpenStack)
 # storage drivers.
@@ -100,6 +101,11 @@ WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
     u"flocker:node:agents:blockdevice:aws:volume_status_change_wait",
     [VOLUME_ID, STATUS, TARGET_STATUS, NEEDS_ATTACH_DATA, WAIT_TIME],
     u"Waiting for a volume to reach target status.",)
+
+CREATE_VOLUME_FAILURE = MessageType(
+    u"flocker:node:agents:blockdevice:aws:boto_create_volume_failure",
+    [DATASET_ID, AWS_CODE, AWS_MESSAGE],
+    u"Create volume operation failed. Retrying with default profile.",)
 
 BOTO_LOG_HEADER = u'flocker:node:agents:blockdevice:aws:boto_logs'
 
