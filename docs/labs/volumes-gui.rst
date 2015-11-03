@@ -10,7 +10,7 @@ This is a very simple web interface to view the current state of the datasets (v
 
 You can also create volumes with sizes and metadata, and move datasets around between hosts by changing their primary.
 
-Trying out the volumes GUI
+Trying Out the Volumes GUI
 ==========================
 
 Prerequisites:
@@ -19,7 +19,7 @@ Prerequisites:
 * Docker (either locally or in `boot2docker <https://docs.docker.com/installation/mac/>`_ on OS X).
 * A web browser (tested on Google Chrome).
 
-Step 1 - run the container with your local keys
+Step 1 - Run the Container with your Local Keys
 ===============================================
 
 Run this command from the directory where you created your cluster configuration and certificates, for example ``~/clusters/test``:
@@ -45,7 +45,7 @@ Run this command from the directory where you created your cluster configuration
     You must substitute ``your.control.service`` with the name (or IP address, depending on how you configured it) of your control service and ``certuser`` with the name of an API user you generated a key and certificate for (where you have those files in your current working directory).
     Refer to the instructions in the :ref:`experimental installer <labs-installer>`.
 
-Step 2 - load up the experimental Flocker GUI
+Step 2 - Load Up the Experimental Flocker GUI
 =============================================
 
 Go to `http://localhost/client/#/nodes/list <http://localhost/client/#/nodes/list>`_ or, if you are using ``boot2docker``:

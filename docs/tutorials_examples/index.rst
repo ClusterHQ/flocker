@@ -9,5 +9,6 @@ Tutorials and Examples
    :maxdepth: 2
 
    tutorial/index
+   tutorial/vagrant-setup
    examples/apps
    examples/features

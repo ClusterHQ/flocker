@@ -778,6 +778,67 @@ class ControlAMPServiceTests(ControlTestCase):
             ),
         )
 
+    def test_second_configuration_change_suceeds_when_first_fails(self):
+        """
+        If the first update fails, we want to ensure that following updates
+        won't get stuck waiting, and will get updated.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        # Add a second agent, to ensure that the delayed logic interacts with
+        # the correct connection.
+        confounding_agent = FakeAgent()
+        confounding_client = AgentAMP(Clock(), confounding_agent)
+
+        # Setup of the the server that will fail to update
+        failing_server = LoopbackAMPClient(confounding_client.locator)
+
+        def raise_unexpected_exception(self,
+                                       commandType=None,
+                                       *a, **kw):
+            raise Exception("I'm an unexpected exception")
+
+        # We want the update to fail in one of the connections
+        self.patch(failing_server,
+                   "callRemote",
+                   raise_unexpected_exception
+                   )
+        # The connection will fail, but it shouldn't prevent following
+        # commnads (from ``delayed_server``) to be properly executed
+        service.connected(failing_server)
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        # Now we verify that the updates following the failure
+        # actually worked as we expect
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=modified_configuration,
+            ),
+            dict(
+                # The update will fail, so we don't expect the config to change
+                first=second_agent_desired,
+                second=third_agent_desired,
+            ),
+        )
+
     def test_third_configuration_change_supercedes_second(self):
         """
         A third configuration change completely replaces a second configuration

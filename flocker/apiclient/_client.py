@@ -8,6 +8,8 @@ from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
 
+from ipaddr import IPv4Address, IPv6Address, IPAddress
+
 from pytz import UTC
 
 from zope.interface import Interface, implementer
@@ -25,7 +27,7 @@ from treq import json_content, content
 
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError
-
+from .. import __version__
 
 _LOG_HTTP_REQUEST = ActionType(
     "flocker:apiclient:http_request",
@@ -86,6 +88,20 @@ class Lease(PClass):
     dataset_id = field(type=UUID, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     expires = field(type=(float, int, NoneType), mandatory=True)
+
+
+class Node(PClass):
+    """
+    A node on which a Flocker agent is running.
+
+    :attr UUID uuid: The UUID of the node.
+    :attr IPAddress public_address: The public IP address of the node.
+    """
+    uuid = field(type=UUID, mandatory=True)
+    public_address = field(
+        type=(IPv4Address, IPv6Address),
+        mandatory=True,
+    )
 
 
 class DatasetAlreadyExists(Exception):
@@ -190,6 +206,22 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with a list of ``Lease`` instance.
         """
 
+    def version():
+        """
+        Return current version.
+
+        :return: ``Deferred`` firing with a ``dict`` containing the key
+            ``flocker`` and the version reported by the Flocker Control
+            service.
+        """
+
+    def list_nodes():
+        """
+        Get information about active cluster nodes.
+
+        :return: ``Deferred`` firing with a ``list`` of ``Node``.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
@@ -199,9 +231,12 @@ class FakeFlockerClient(object):
     # Placeholder time, we don't model the progress of time at all:
     _NOW = datetime.fromtimestamp(0, UTC)
 
-    def __init__(self):
+    def __init__(self, nodes=None):
         self._configured_datasets = pmap()
         self._leases = LeasesModel()
+        if nodes is None:
+            nodes = []
+        self._nodes = nodes
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
@@ -273,6 +308,14 @@ class FakeFlockerClient(object):
                   expires=((l.expiration - self._NOW).total_seconds()
                            if l.expiration is not None else None))
             for l in self._leases.values()])
+
+    def version(self):
+        return succeed(
+            {u"flocker": __version__}
+        )
+
+    def list_nodes(self):
+        return succeed(self._nodes)
 
 
 class ResponseError(Exception):
@@ -466,4 +509,30 @@ class FlockerClient(object):
             b"GET", b"/configuration/leases", None, {OK})
         request.addCallback(
             lambda results: [self._parse_lease(l) for l in results])
+        return request
+
+    def version(self):
+        return self._request(
+            b"GET", b"/version", None, {OK}
+        )
+
+    def list_nodes(self):
+        request = self._request(
+            b"GET", b"/state/nodes", None, {OK}
+        )
+
+        def to_nodes(result):
+            """
+            Turn the list of dicts into ``Node`` instances.
+            """
+            nodes = []
+            for node_dict in result:
+                node = Node(
+                    uuid=UUID(hex=node_dict['uuid'], version=4),
+                    public_address=IPAddress(node_dict['host']),
+                )
+                nodes.append(node)
+            return nodes
+        request.addCallback(to_nodes)
+
         return request
