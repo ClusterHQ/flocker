@@ -193,7 +193,7 @@ class DockerPluginTests(TestCase):
         docker = get_docker_client(cluster, node.public_address)
         volume_name = random_name(self)
         self._create_volume(docker, volume_name,
-                           driver_opts={'profile': 'silver'})
+                            driver_opts={'profile': 'silver'})
 
         datasets_deferred = cluster.client.list_datasets_configuration()
 
