@@ -1,3 +1,9 @@
+# -*- test-case-name: flocker.node.agents.test.test_blockdevice -*-
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""
+A loopback implementation of the ``IBlockDeviceAPI`` for testing.
+"""
 from uuid import UUID, uuid4
 from subprocess import check_output
 
