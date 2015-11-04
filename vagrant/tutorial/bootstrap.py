@@ -3,19 +3,12 @@
 # This script performs the steps to build the base flocker-tutorial box until
 # the box must be rebooted.
 
-import os
 from subprocess import check_output
 
 ZFS_REPO_PKG = (
     "https://s3.amazonaws.com/archive.zfsonlinux.org/epel/"
     "zfs-release{dist}.noarch.rpm"
 )
-
-VBOXADD_CANDIDATE_LOCATION = '/etc/init.d/vboxadd'
-
-
-class CouldNotFindVBoxAdditions(Exception):
-    pass
 
 
 def yum_install(*packages):

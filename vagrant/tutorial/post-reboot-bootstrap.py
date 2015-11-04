@@ -133,4 +133,3 @@ with file("/etc/NetworkManager/conf.d/auto-reload.conf", "a") as f:
 [main]
 monitor-connection-files=true
 """)
-
