@@ -65,6 +65,7 @@ Get Started
    
    installer-getstarted
    installer-tutorial
+   cluster-cleanup
 
 Further Reading
 ===============
