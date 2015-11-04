@@ -29,14 +29,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                         ENV.fetch('FLOCKER_BUILD_SERVER', '')
                       ]
 
-  config.vm.provision 'docker', images: [
-    'busybox',
-    'clusterhq/mongodb',
-    'redis',
-    'python:2.7-slim',
-    'clusterhq/flask'
-  ]
-
   # Cleanup
   config.vm.provision :shell, path: '../cleanup.sh', privileged: true
   #

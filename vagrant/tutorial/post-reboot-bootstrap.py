@@ -133,3 +133,14 @@ with file("/etc/NetworkManager/conf.d/auto-reload.conf", "a") as f:
 [main]
 monitor-connection-files=true
 """)
+
+# Install docker images.
+IMAGES = [
+    'busybox',
+    'clusterhq/mongodb',
+    'redis',
+    'python:2.7-slim',
+    'clusterhq/flask'
+]
+for img in IMAGES:
+    check_call(['docker', 'pull', img])
