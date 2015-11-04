@@ -670,7 +670,7 @@ branches.each {
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers(job_values, 'none') }}
     {{ triggers('cron', job_values.at, "${branchName}") }}
-    {{ scm("${git_url}", "master") }}
+    {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
 {%    endif                                                                  %}
