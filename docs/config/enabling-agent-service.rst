@@ -2,7 +2,7 @@
 Enabling the Flocker Agent Service
 ==================================
 
-The Flocker agents, the `flocker-dataset-agent` and the `flocker-container-agent`, are the workhorses of Flocker; you have them on each node in your cluster, and enabling them is an essential step in setting up your cluster:
+The Flocker agents, the ``flocker-dataset-agent`` and the ``flocker-container-agent``, are the workhorses of Flocker; you have them on each node in your cluster, and enabling them is an essential step in setting up your cluster:
 
 CentOS 7
 ========
