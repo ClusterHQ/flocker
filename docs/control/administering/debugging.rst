@@ -207,5 +207,5 @@ For example:
 
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
-.. _`Eliot`: https://eliot.readthedocs.org
+.. _`Eliot`: https://eliot.readthedocs.org/en/0.9.0/
 .. _`eliot-tree`: https://github.com/jonathanj/eliottree
