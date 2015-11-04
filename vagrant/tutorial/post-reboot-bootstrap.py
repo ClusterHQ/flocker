@@ -134,6 +134,9 @@ with file("/etc/NetworkManager/conf.d/auto-reload.conf", "a") as f:
 monitor-connection-files=true
 """)
 
+check_call(['ps', 'aux'])
+check_call(['whoami'])
+check_call(['docker --version'])
 # Install docker images.
 IMAGES = [
     'busybox',
