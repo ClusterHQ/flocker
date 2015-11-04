@@ -335,22 +335,12 @@ common_cli:
   run_sphinx: &run_sphinx |
     parse_logs python setup.py --version
     cd docs
-    set +e #dont abort at the first failure
-    let status=0
     # check spelling
     parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
-    let status=status+\$?
     # check links
     parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-    let status=status+\$?
     # build html pages
     parse_logs sphinx-build -d _build/doctree -b html . _build/html
-    exit \${status}
-    # TODO:
-    # upload html
-    #link-release-documentation
-    #upload-release-documentation
-    cd -
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
@@ -717,6 +707,37 @@ common_cli:
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
     vagrant up
 
+  install_aws_cli: &install_aws_cli |
+    # installs the AWS python based cli
+    # we use the aws cli to upload the docs files to S3
+    \${PARSE_LOGS}  pip install awscli \${PIP_ADDITIONAL_OPTIONS}
+
+  get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
+    # collects the S3 credentials that allows us to upload files to the S3
+    # staging bucket for our docs.
+    # the file with the credentials are deployed by the jenkins master to the
+    # /tmp of the slave when the slave is instantiated.
+    . /tmp/s3_staging_docs_clusterhq_com.sh
+
+  upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
+    # uploads the new generated html to a folder on the S3 staging-docs bucket
+    cd _build/html
+    aws s3 sync . s3://clusterhq-staging-docs/\$TRIGGERED_BRANCH
+    echo "This branch is available at :"
+    echo "http://clusterhq-staging-docs.s3.amazonaws.com/\$TRIGGERED_BRANCH/index.html"
+
+  run_lint: &run_lint |
+    # we need to unset PIP_INDEX_URL since it causes tox to fail.
+    # in order to use our pip caching we need to append --trusted-hosts
+    # which we currently can't do through tox.
+    unset PIP_INDEX_URL
+    # run flake8 lint tests on Flocker source code
+    tox -e lint
+
+  install_flake8: &install_flake8 |
+    # flake8 is used by lint tests on Flocker source code
+    \${PARSE_LOGS} pip install flake8 \${PIP_ADDITIONAL_OPTIONS}
+
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -928,14 +949,16 @@ job_type:
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
     run_sphinx:
-      on_nodes_with_labels: 'aws-centos-7-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *run_sphinx ]
+                   *install_aws_cli, *run_sphinx,
+                   *get_s3_creds_for_bucket_staging_docs,
+                   *upload_new_docs_html_to_s3_staging_docs]
           }
-      timeout: 30
+      timeout: 10
 
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
@@ -1021,6 +1044,7 @@ job_type:
       clean_repo: true
       timeout: 30
 
+
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1087,6 +1111,19 @@ job_type:
           }
       clean_repo: false
       timeout: 30
+
+
+  run_lint:
+    run_lint:
+      on_nodes_with_labels: 'aws-centos-7-T2Small'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *install_flake8, *run_lint ]
+          }
+      timeout: 10
+
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
