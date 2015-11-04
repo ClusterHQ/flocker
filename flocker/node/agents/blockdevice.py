@@ -20,7 +20,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, PClass, field
+from pyrsistent import PRecord, PClass, field, pmap_field
 
 import psutil
 
@@ -1092,6 +1092,16 @@ def _manifestation_from_volume(volume):
     return Manifestation(dataset=dataset, primary=True)
 
 
+class RawState(PClass):
+    """
+    The raw state of a node.
+    """
+    compute_instance_id = field(unicode, mandatory=True)
+    volumes = pvector_field(BlockDeviceVolume)
+    devices = pmap_field(unicode, FilePath)
+    system_mounts = pmap_field(FilePath, FilePath)
+
+
 @implementer(ILocalState)
 class BlockDeviceDeployerLocalState(PClass):
     """
@@ -1178,7 +1188,7 @@ class BlockDeviceDeployer(PRecord):
         Load information about mounted filesystems related to the given
         volumes.
 
-        :param list volumes: The ``BlockDeviceVolumes`` known to exist.  They
+        :param list volumes: The ``BlockDeviceVolume``s known to exist.  They
             may or may not be attached to this host.  Only system mounts that
             related to these volumes will be returned.
 
@@ -1204,6 +1214,20 @@ class BlockDeviceDeployer(PRecord):
             in partitions
             if FilePath(partition.device) in device_to_dataset_id
         }
+
+    def _discover_raw_state(self):
+        """
+        """
+        api = self.block_device_api
+        compute_instance_id = api.compute_instance_id()
+        volumes = api.list_volumes()
+
+        return RawState(
+            compute_instance_id=compute_instance_id,
+            volumes=volumes,
+            devices={},
+            system_mounts={},
+        )
 
     def discover_state(self, node_state):
         """
