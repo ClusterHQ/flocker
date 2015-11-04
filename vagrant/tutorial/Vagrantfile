@@ -84,7 +84,7 @@ module UpdateCentOSKernel
           @@rebooted[@vm.id] = true
 
           @ui.info 'Updating kernel'
-          @vm.communicate.sudo('yum install -y kernel kernel-devel') do |type, data|
+          @vm.communicate.sudo('yum -y install kernel kernel-devel') do |type, data|
             if type == :stderr
               @ui.error(data);
             else
@@ -100,7 +100,7 @@ module UpdateCentOSKernel
               @ui.info(data);
             end
           end
-          @vm.communicate.sudo('yum groupinstall -y "Development Tools"') do |type, data|
+          @vm.communicate.sudo('yum -y groupinstall "Development Tools"') do |type, data|
             if type == :stderr
               @ui.error(data);
             else
@@ -115,7 +115,7 @@ module UpdateCentOSKernel
 
       def reboot()
         @ui.info('Rebooting after updating kernel')
-        simle_reboot = Vagrant::Action::Builder.new.tap do |b|
+        simple_reboot = Vagrant::Action::Builder.new.tap do |b|
           b.use Vagrant::Action::Builtin::Call, Vagrant::Action::Builtin::GracefulHalt, :poweroff, :running do |env2, b2|
             if !env2[:result]
               b2.use VagrantPlugins::ProviderVirtualBox::Action::ForcedHalt
@@ -128,7 +128,7 @@ module UpdateCentOSKernel
           end
           b.use VagrantVbguest::Middleware
         end
-        @env[:action_runner].run(simle_reboot, @env)
+        @env[:action_runner].run(simple_reboot, @env)
       end
     end
   end
