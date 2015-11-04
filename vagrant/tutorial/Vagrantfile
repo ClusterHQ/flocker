@@ -29,6 +29,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                         ENV.fetch('FLOCKER_BUILD_SERVER', '')
                       ]
 
+  config.vm.provision :shell,
+                      path: 'setup_docker.sh',
+                      privileged: true
+
   # Cleanup
   config.vm.provision :shell, path: '../cleanup.sh', privileged: true
   #
