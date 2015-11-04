@@ -226,6 +226,15 @@ class NoOp(Command):
     requiresAnswer = False
 
 
+class SetNodeEra(Command):
+    """
+    Update the node's era.
+
+    Sent by agent upon first connecting. Eras should reset on each reboot.
+    """
+    arguments = [('era', Unicode())]
+
+
 class ClusterStatusCommand(Command):
     """
     Used by the control service to inform a convergence agent of the
@@ -316,7 +325,7 @@ class ControlServiceLocator(CommandLocator):
 
     @VersionCommand.responder
     def version(self):
-        return {"major": 1}
+        return {"major": 2}
 
     @NodeStateCommand.responder
     def node_changed(self, eliot_context, state_changes):
@@ -325,6 +334,12 @@ class ControlServiceLocator(CommandLocator):
                 self._source, state_changes,
             )
             return {}
+
+    @SetNodeEra.responder
+    def set_node_era(self, era):
+        # 1. get node UUID from certificate
+        # 2. tell cluster state service to wipe any NodeState for that node UUID which has different era
+        # 3. if NodeState with given node UUID and era does not exist, add one to cluster state service
 
 
 class ControlAMP(AMP):
@@ -734,6 +749,7 @@ class AgentAMP(AMP):
         AMP.connectionMade(self)
         self.agent.connected(self)
         self._pinger.start(self, PING_INTERVAL)
+        # Send SetNodeEra using value of /proc/sys/kernel/random/boot_id
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)

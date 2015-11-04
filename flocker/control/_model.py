@@ -856,6 +856,7 @@ class NodeState(PRecord):
     The current state of a node.
 
     :ivar UUID uuid: The node's UUID.
+    :ivar UUID era: The node's era. Each reboot is a new era.
     :ivar unicode hostname: The IP of the node.
     :ivar applications: A ``PSet`` of ``Application`` instances on this node,
         or ``None`` if the information is not known.

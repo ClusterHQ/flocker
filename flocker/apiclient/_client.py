@@ -102,6 +102,7 @@ class Node(PClass):
         type=(IPv4Address, IPv6Address),
         mandatory=True,
     )
+    era = field(type=UUID, mandatory=True)
 
 
 class DatasetAlreadyExists(Exception):
@@ -517,6 +518,7 @@ class FlockerClient(object):
         )
 
     def list_nodes(self):
+        # XXX will also need to do /state/node_eras
         request = self._request(
             b"GET", b"/state/nodes", None, {OK}
         )
