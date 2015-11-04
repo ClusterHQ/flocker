@@ -4,6 +4,8 @@
 Installing the Flocker Plugin for Docker
 ========================================
 
+:ref:`docker-plugin` allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
+
 Before installing the Flocker plugin for Docker, you will need to have installed Flocker on some nodes, using the :ref:`node installation instructions <installing-flocker-node>`.
 
 The Flocker plugin for Docker requires access to the Flocker REST API.
