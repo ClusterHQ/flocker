@@ -163,4 +163,4 @@ Here's an example of a simple but complete configuration defining one applicatio
        "name": "on-failure"
        "maximum_retry_count": 10
 
-.. _`Docker Run reference`: http://docs.docker.com/reference/run/#runtime-constraints-on-cpu-and-memory
+.. _`Docker Run reference`: http://docs.docker.com/engine/reference/run/#runtime-constraints-on-cpu-and-memory
