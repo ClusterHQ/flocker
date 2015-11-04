@@ -1,5 +1,5 @@
 ==================================
-Enabling the Flocker agent service
+Enabling the Flocker Agent Service
 ==================================
 
 The Flocker agents are the workhorses of Flocker; you have one on each node in your cluster, and enabling them is an essential step in setting up your cluster:
