@@ -714,7 +714,9 @@ common_cli:
 
   get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
     # collects the S3 credentials that allows us to upload files to the S3
-    # staging bucket for our docs
+    # staging bucket for our docs.
+    # the file with the credentials are deployed by the jenkins master to the
+    # /tmp of the slave when the slave is instantiated.
     . /tmp/s3_staging_docs_clusterhq_com.sh
 
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
