@@ -13,7 +13,7 @@ When you have completed the steps in :ref:`labs-installing-unofficial-flocker-to
 
       cat cluster.yml
 
-#. Copy and paste the public IP addresses of the first two ``agent_nodes``:
+#. Add the public IP addresses of the first two nodes in the following commands:
 
    In this example, ``demo`` is the name of the Flocker volume being created, which will map onto the Flocker volume being created.
 
