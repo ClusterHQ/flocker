@@ -532,7 +532,7 @@ class RunStateChangeTests(SynchronousTestCase):
 
         :param combo: ``sequentially`` or ``in_parallel``.
         :param action_type: ``eliot.ActionType`` we expect to be parent of
-            sub-changes logs.
+            sub-changes' log entries.
         :param logger: A ``MemoryLogger`` where messages go.
         """
         actions = [ControllableAction(result=Deferred()),
