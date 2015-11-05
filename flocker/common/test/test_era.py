@@ -17,6 +17,9 @@ class EraTests(SynchronousTestCase):
     Tests for ``get_era``
     """
     @skipUnless(platform.isLinux(), "Only possible on Linux.")
+    def setUp(self):
+        pass
+
     def test_get_era(self):
         """
         The era is the current unique ``boot_id``.
@@ -27,3 +30,10 @@ class EraTests(SynchronousTestCase):
         with open("/proc/sys/kernel/random/boot_id") as f:
             self.assertEqual(get_era(),
                              UUID(hex=f.read().strip()))
+
+    def test_repeated(self):
+        """
+        Repeated calls give the same result.
+        """
+        values = set(get_era() for i in range(100))
+        self.assertEqual(len(values), 1)
