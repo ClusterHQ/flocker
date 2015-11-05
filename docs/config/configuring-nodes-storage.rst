@@ -38,6 +38,8 @@ All nodes must be configured to use the same dataset backend.
 .. note::
 	You can only choose a single backend at a time, and changing backends is not currently supported.
 
+.. _storage-profiles:
+
 Storage Profiles
 ================
 
