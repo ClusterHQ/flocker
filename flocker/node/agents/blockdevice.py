@@ -1520,6 +1520,7 @@ class BlockDeviceDeployer(PRecord):
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
+    profiled_blockdevice_api = field(mandatory=False, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
@@ -1530,6 +1531,8 @@ class BlockDeviceDeployer(PRecord):
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
         configured based on pre-defined profiles.
         """
+        if IProfiledBlockDeviceAPI.providedBy(self.profiled_blokdevice_api):
+            return self.profiled_blokdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(

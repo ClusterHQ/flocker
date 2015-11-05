@@ -470,6 +470,7 @@ _DEFAULT_DEPLOYERS = {
         P2PManifestationDeployer(volume_service=api, **kw),
     DeployerType.block: lambda api, **kw:
         BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
+                            profiled_blokdevice_api=api,
                             **kw),
 }
 
