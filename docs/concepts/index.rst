@@ -13,3 +13,8 @@ Flocker Concepts
    clustering
    routing
    storage-profiles
+
+.. toctree::
+   :hidden:
+
+   storage-profiles-content

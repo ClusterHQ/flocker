@@ -38,7 +38,10 @@ All nodes must be configured to use the same dataset backend.
 .. note::
 	You can only choose a single backend at a time, and changing backends is not currently supported.
 
-.. include:: ../concepts/storage-profiles.rst
+Storage Profiles
+================
+
+.. include:: ../concepts/storage-profiles-content.rst
 
 .. _supported-backends:
 
