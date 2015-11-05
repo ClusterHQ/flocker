@@ -38,6 +38,7 @@ from eliot.testing import (
     LoggedAction, assertHasMessage, assertHasAction
 )
 
+from ..._change import LOG_SEQUENTIALLY
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
@@ -51,7 +52,7 @@ from ..blockdevice import (
 
     PROFILE_METADATA_KEY,
 
-    DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
+    UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
     CREATE_BLOCK_DEVICE_DATASET,
     INVALID_DEVICE_PATH,
@@ -2887,7 +2888,7 @@ class DestroyBlockDeviceDatasetTests(
         )
 
     @validate_logging(multistep_change_log(
-        DESTROY_BLOCK_DEVICE_DATASET,
+        LOG_SEQUENTIALLY,
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
     ))
     def test_run(self, logger):
