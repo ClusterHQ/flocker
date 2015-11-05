@@ -868,6 +868,19 @@ class ConfigurationAPIUserV1(object):
         except ConfigurationError as e:
             raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
 
+    @app.route("/state/node_eras", methods=['GET'])
+    @user_documentation(
+        u"""
+        List the currently known nodes and their eras.
+
+        A node's era can be looked up by reading
+        /proc/sys/kernel/random/boot_id. If possible use eras to identify
+        nodes rather than IP addresses.
+        """)
+    def node_eras(self):
+        # ... etc... returns list of {"node_id": id, "era": era} dicts
+        pass
+
     @app.route("/configuration/leases", methods=['GET'])
     @user_documentation(
         u"""

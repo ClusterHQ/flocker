@@ -69,7 +69,8 @@ class DockerPluginScript(object):
         # some information we need:
         agent_config = get_configuration(options)
         control_host = agent_config['control-service']['hostname']
-        node_id = agent_config['node-credential'].uuid
+
+        # XXX read era from /proc/sys/kernel/random/boot_id, then use client to lookup node_id with matching era. will need to loop until that info is available I guess.
 
         certificates_path = options["agent-config"].parent()
         control_port = options["rest-api-port"]
