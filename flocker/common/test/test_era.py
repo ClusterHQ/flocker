@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Tests for ``flocker.node._era``.
+Tests for ``flocker.common._era``.
 """
 
 from uuid import UUID
