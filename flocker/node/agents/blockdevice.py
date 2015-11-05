@@ -1127,6 +1127,9 @@ class BlockDeviceDeployer(PRecord):
     :ivar unicode hostname: The IP address of the node that has this deployer.
     :ivar IBlockDeviceAPI block_device_api: The block device API that will be
         called upon to perform block device operations.
+    :ivar IProfiledBlockDeviceAPI _profiled_blockdevice_api: The block device
+        API that will be called upon to perform block device operations with
+        profiles.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
     :ivar _async_block_device_api: An object to override the value of the
@@ -1136,6 +1139,7 @@ class BlockDeviceDeployer(PRecord):
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
+    _profiled_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
@@ -1144,8 +1148,13 @@ class BlockDeviceDeployer(PRecord):
     def profiled_blockdevice_api(self):
         """
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
-        configured based on pre-defined profiles.
+        configured based on pre-defined profiles. This will use the
+        _profiled_blockdevice_api attribute, falling back to the
+        block_device_api attributed and finally an adapter implementation
+        around the block_device_api if neither of those provide the interface.
         """
+        if IProfiledBlockDeviceAPI.providedBy(self._profiled_blockdevice_api):
+            return self._profiled_blockdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
