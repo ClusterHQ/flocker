@@ -18,6 +18,7 @@ Flocker implements generic logic for network-based block device storage already,
 * `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_
 
 The following documents will also provide detailed instructions for testing, certifying, and publishing your driver.
+You will also find instructions on how to enable your driver to support :ref:`storage-profiles`.
 
 If you have any questions not addressed in this section, please get in touch with us either via the ``#clusterhq`` channel on ``irc.freenode.net``, or by filing a `GitHub issue <https://github.com/ClusterHQ/flocker/issues>`_.
 More information about contacting ClusterHQ can be found in our :ref:`talk-to-us` section.
