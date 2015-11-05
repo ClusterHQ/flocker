@@ -16,8 +16,6 @@ from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
 
-STORAGE_PROFILES_IMPLEMENTED = False
-
 
 class DatasetAPITests(TestCase):
     """
@@ -30,8 +28,6 @@ class DatasetAPITests(TestCase):
         """
         return create_dataset(self, cluster)
 
-    @skipUnless(STORAGE_PROFILES_IMPLEMENTED,
-                "Flocker storage profiles are not implemented yet.")
     @require_cluster(1, required_backend=DatasetBackend.aws)
     def test_dataset_creation_with_gold_profile(self, cluster, backend):
         """

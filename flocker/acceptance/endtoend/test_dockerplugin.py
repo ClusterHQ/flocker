@@ -210,11 +210,16 @@ class DockerPluginTests(TestCase):
 
             volumes = backend.list_volumes()
 
-            for volume in volumes:
-                if volume.dataset_id == dataset.dataset_id:
+            volume = None
+            for v in volumes:
+                if v.dataset_id == dataset.dataset_id:
+                    volume = v
                     break
-            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
-            self.assertEqual(u'gp2', ebs_volume.type)
+            volume_type = None
+            if volume:
+                ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
+                volume_type = ebs_volume.type
+            self.assertEqual(u'gp2', volume_type)
 
         datasets_deferred.addCallback(_evaluate_datasets)
 
