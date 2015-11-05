@@ -43,10 +43,14 @@ Storage Profiles
 
 To use :ref:`storage-profiles` with the Flocker plugin for Docker you will need Docker 1.9 or later.
 
-The Flocker plugin for Docker accepts a ``gold``, ``silver``, or ``bronze`` profile, via the volume driver's options parameter.
+The Flocker plugin for Docker accepts a ``gold``, ``silver`` or ``bronze`` profile by default, via the volume driver's options parameter.
 For example:
 
 .. prompt:: bash $
 
    docker volume create --name <fastvol> -d flocker -o profile=gold
    docker run -v <fastvol>:/data redis
+
+.. note::
+	Some backend providers may already have their own notion of profiles.
+	:ref:`storage-profiles` can be used to enable you to create volumes with those existing profiles.
