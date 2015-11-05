@@ -23,7 +23,7 @@ v1.5.0
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
 * journald logs are now easier to filter and read.
-  See the `documentation <flocker-logging>`_ for more information.
+  See the :ref:`documentation <flocker-logging>` for more information.
 * The control service uses much less CPU, allowing for larger clusters.
 * Flocker CLI now installs on OS X 10.11.
 
