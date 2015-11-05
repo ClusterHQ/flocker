@@ -15,7 +15,7 @@ Your storage driver must be a Python 2.7 library providing a class implementing 
 .. note::
 	If you want your storage driver to support :ref:`storage-profiles`, you can also implement the `flocker.node.agents.blockdevice.IProfiledBlockDeviceAPI <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/blockdevice.py>`_ interface.
 	
-	Please note that you must implement ``bronze``, ``silver``, and ``gold`` profiles.
+	Please note that you must implement ``bronze``, ``silver`` and ``gold`` profiles.
 	
 	If you do choose to implement profiles, it would be great to :ref:`hear from you <talk-to-us>` about what you think of both profiles in general, and of the interface.
 	We are looking to extend the profiles functionality, and would love feedback from driver writers.
