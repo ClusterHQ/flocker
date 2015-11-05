@@ -10,17 +10,12 @@ set -e
 systemctl restart docker
 
 # Record the version of docker for the logs.
-echo "Docker Version:"
 docker --version
 
 # Pull docker images so they are cached for later.
-IMAGES="busybox"
-IMAGES+=" clusterhq/mongodb"
-IMAGES+=" redis"
-IMAGES+=" python:2.7-slim"
-IMAGES+=" clusterhq/flask"
-for I in $IMAGES
+IMAGES=(busybox clusterhq/mongodb redis python:2.7-slim clusterhq/flask)
+for I in ${IMAGES}
 do
-    echo Pulling image $I...
-    docker pull $I
+    echo Pulling image ${I}...
+    docker pull ${I}
 done

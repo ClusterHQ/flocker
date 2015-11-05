@@ -29,6 +29,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                         ENV.fetch('FLOCKER_BUILD_SERVER', '')
                       ]
 
+  # Despite the fact that the Vagrant 'docker' provider is tempting to use
+  # here, we instead use a shell script to start docker and pull down docker
+  # images. In the past we've had bad luck with the Vagrant 'docker' provider
+  # being fragile relative to new releases of docker running on CentOS
+  # (FLOC-3372).
   config.vm.provision :shell,
                       path: 'setup_docker.sh',
                       privileged: true
