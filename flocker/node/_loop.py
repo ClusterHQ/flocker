@@ -12,6 +12,11 @@ state with the desired configuration as transmitted by the control
 service. This involves two state machines: ClusterStatus and ConvergenceLoop.
 The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
+
+:var TransitionTable _CLUSTER_STATUS_FSM_TABLE: See
+    ``_build_cluster_status_fsm_table``.
+:var TransitionTable _CONVERGENCE_LOOP_FSM_TABLE: See
+    ``_build_cluster_status_fsm_table``.
 """
 
 from random import uniform
@@ -139,16 +144,12 @@ class ClusterStatus(object):
         self.client = None
 
 
-def build_cluster_status_fsm(convergence_loop_fsm):
+def _build_cluster_status_fsm_table():
     """
-    Create a new cluster status FSM.
+    Create the ``TransitionTable`` needed by the cluster status FSM.
 
-    The automatic reconnection logic is handled by the
-    ``AgentLoopService``; the world object here just gets notified of
-    disconnects, it need schedule the reconnect itself.
-
-    :param convergence_loop_fsm: A convergence loop FSM as output by
-    ``build_convergence_loop_fsm``.
+    :return TransitionTable: The transition table for the state machine for
+        keeping track of cluster state and configuration.
     """
     S = ClusterStatusStates
     I = ClusterStatusInputs
@@ -183,9 +184,29 @@ def build_cluster_status_fsm(convergence_loop_fsm):
             I.DISCONNECTED_FROM_CONTROL_SERVICE: ([], S.SHUTDOWN),
             I.STATUS_UPDATE: ([], S.SHUTDOWN),
             })
+    return table
 
+
+_CLUSTER_STATUS_FSM_TABLE = _build_cluster_status_fsm_table()
+
+
+def build_cluster_status_fsm(convergence_loop_fsm):
+    """
+    Create a new cluster status FSM.
+
+    The automatic reconnection logic is handled by the
+    ``AgentLoopService``; the world object here just gets notified of
+    disconnects, it need schedule the reconnect itself.
+
+    :param convergence_loop_fsm: A convergence loop FSM as output by
+    ``build_convergence_loop_fsm``.
+    """
     return constructFiniteStateMachine(
-        inputs=I, outputs=O, states=S, initial=S.DISCONNECTED, table=table,
+        inputs=ClusterStatusInputs,
+        outputs=ClusterStatusOutputs,
+        states=ClusterStatusStates,
+        initial=ClusterStatusStates.DISCONNECTED,
+        table=_CLUSTER_STATUS_FSM_TABLE,
         richInputs=[_ConnectedToControlService, _StatusUpdate],
         inputContext={},
         world=MethodSuffixOutputer(ClusterStatus(convergence_loop_fsm)))
@@ -494,6 +515,44 @@ class ConvergenceLoop(object):
         self._sleep_timeout = None
 
 
+def _build_convergence_loop_table():
+    """
+    Create the ``TransitionTable`` needed by the convergence loop FSM.
+
+    :return TransitionTable: The transition table for the state machine for
+        converging on the cluster configuration.
+    """
+    I = ConvergenceLoopInputs
+    O = ConvergenceLoopOutputs
+    S = ConvergenceLoopStates
+
+    table = TransitionTable()
+    table = table.addTransition(
+        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.CONVERGE], S.CONVERGING)
+    table = table.addTransitions(
+        S.CONVERGING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
+            I.STOP: ([], S.CONVERGING_STOPPING),
+            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
+        })
+    table = table.addTransitions(
+        S.CONVERGING_STOPPING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
+            I.SLEEP: ([], S.STOPPED),
+        })
+    table = table.addTransitions(
+        S.SLEEPING, {
+            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
+            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
+            I.STATUS_UPDATE: (
+                [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
+            })
+    return table
+
+
+_CONVERGENCE_LOOP_FSM_TABLE = _build_convergence_loop_table()
+
+
 def build_convergence_loop_fsm(reactor, deployer):
     """
     Create a convergence loop FSM.
@@ -524,36 +583,15 @@ def build_convergence_loop_fsm(reactor, deployer):
     :param IDeployer deployer: Used to discover local state and calcualte
         necessary changes to match desired configuration.
     """
-    I = ConvergenceLoopInputs
-    O = ConvergenceLoopOutputs
-    S = ConvergenceLoopStates
-
-    table = TransitionTable()
-    table = table.addTransition(
-        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.CONVERGE], S.CONVERGING)
-    table = table.addTransitions(
-        S.CONVERGING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.STOP: ([], S.CONVERGING_STOPPING),
-            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
-        })
-    table = table.addTransitions(
-        S.CONVERGING_STOPPING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.SLEEP: ([], S.STOPPED),
-        })
-    table = table.addTransitions(
-        S.SLEEPING, {
-            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
-            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
-            I.STATUS_UPDATE: (
-                [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
-            })
-
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
-        inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate, _Sleep], inputContext={},
+        inputs=ConvergenceLoopInputs,
+        outputs=ConvergenceLoopOutputs,
+        states=ConvergenceLoopStates,
+        initial=ConvergenceLoopStates.STOPPED,
+        table=_CONVERGENCE_LOOP_FSM_TABLE,
+        richInputs=[_ClientStatusUpdate, _Sleep],
+        inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
