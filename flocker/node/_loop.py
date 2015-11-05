@@ -14,6 +14,8 @@ The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
 """
 
+from random import uniform
+
 from zope.interface import implementer
 
 from eliot import ActionType, Field, writeFailure, MessageType
@@ -217,15 +219,30 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
+@attributes(["delay_seconds"])
 class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
     """
     Sleep for given number of seconds.
 
     :ivar float delay_seconds: How many seconds to sleep.
     """
-    # For now this is hard coded, will become more flexible in followup
-    # parts of FLOC-3205:
-    delay_seconds = 1.0
+    @classmethod
+    def with_jitter(cls, delay_seconds):
+        """
+        Add some noise to the delay, so sleeps aren't exactly the same across
+        all processes.
+
+        :param delay_seconds: How many seconds to sleep approximately.
+
+        :return: ``_Sleep`` with jitter added.
+        """
+        jitter = 1 + uniform(-0.2, 0.2)
+        return cls(delay_seconds=delay_seconds*jitter)
+
+
+# How many seconds to sleep between iterations when we may yet not be
+# converged so want to do another iteration again soon:
+_UNCONVERGED_DELAY = _Sleep(delay_seconds=0.1)
 
 
 class ConvergenceLoopStates(Names):
@@ -429,6 +446,17 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state, local_state
             )
+            if action == NoOp():
+                # We've converged, we can sleep for deployer poll
+                # interval. We add some jitter so not all agents wake up
+                # at exactly the same time, to reduce load on system:
+                sleep_duration = _Sleep.with_jitter(
+                    self.deployer.poll_interval.total_seconds())
+            else:
+                # We're going to do some work, we should do another
+                # iteration quickly in case there's followup work:
+                sleep_duration = _UNCONVERGED_DELAY
+
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
             ran_state_change = run_state_change(action, self.deployer)
@@ -437,15 +465,22 @@ class ConvergenceLoop(object):
 
             # Wait for the control node to acknowledge the new
             # state, and for the convergence actions to run.
-            return gather_deferreds([sent_state, ran_state_change])
+            result = gather_deferreds([sent_state, ran_state_change])
+            result.addCallback(lambda _: sleep_duration)
+            return result
         d.addCallback(got_local_state)
 
         # If an error occurred we just want to log it and then try
         # converging again; hopefully next time we'll have more success.
-        d.addErrback(writeFailure, self.fsm.logger)
+        def error(failure):
+            writeFailure(failure, self.fsm.logger)
+            # We should retry quickly to redo the failed work:
+            return _UNCONVERGED_DELAY
+        d.addErrback(error)
 
         # We're done with the iteration:
-        d.addCallback(lambda _: self.fsm.receive(_Sleep()))
+        d.addCallback(
+            lambda delay: self.fsm.receive(delay))
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):
