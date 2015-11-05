@@ -17,7 +17,7 @@ Your storage driver must be a Python 2.7 library providing a class implementing 
 	
 	Please note that you must implement ``bronze``, ``silver`` and ``gold`` profiles.
 	
-	If you do choose to implement profiles, it would be great to :ref:`hear from you <talk-to-us>` about what you think of both profiles in general, and of the interface.
+	If you do choose to implement profiles, please don't hesitate to  :ref:`contact us <talk-to-us>` with your feedback, comments and suggestions about how you're using this feature and how we might continue to improve it in future.
 	We are looking to extend the profiles functionality, and would love feedback from driver writers.
 
 Flocker implements generic logic for network-based block device storage already, and these implementations can serve as an examples:
