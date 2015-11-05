@@ -36,5 +36,3 @@ More information about contacting ClusterHQ can be found in our :ref:`talk-to-us
    prereqs
    building-driver
    faq
-
-

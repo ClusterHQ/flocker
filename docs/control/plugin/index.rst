@@ -37,3 +37,16 @@ Set the container ``Mount`` attributes according to the instructions in the :ref
 More information about the ``VolumeDriver`` can be found in the `Docker volumes plugin`_ documentation.
 
 .. _`Docker volumes plugin`: https://docs.docker.com/extend/plugins_volume/
+
+Storage Profiles
+================
+
+To use :ref:`storage-profiles` with the Flocker plugin for Docker you will need Docker 1.9 or later.
+
+The Flocker plugin for Docker accepts a ``gold``, ``silver``, or ``bronze`` profile.
+For example:
+
+.. prompt:: bash $
+
+   docker volume create --name <fastvol> -d flocker -o profile=gold
+   docker run -v <fastvol>
