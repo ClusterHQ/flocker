@@ -29,11 +29,6 @@ def main():
     # Install a repository that provides epel packages/updates.
     yum_install("epel-release")
 
-    # The kernel was just upgraded which means the existing VirtualBox Guest
-    # Additions will no longer work.  Build them again against the new version
-    # of the kernel.
-    check_output(["/etc/init.d/vboxadd", "setup"])
-
     # Create the 'docker' group.  The Vagrant feature for pulling Docker images
     # (used in the Vagrant file) wants to be able to add the `vagrant` user to
     # the `docker` group (so that it can use the `docker` CLI, presumably).
