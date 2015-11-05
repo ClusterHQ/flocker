@@ -16,4 +16,4 @@ More information about support for profiles can be found in the :ref:`configurat
 
 .. note::
 	Flocker Storage Profiles is a new and exciting implementation, but it currently only has minimal features.
-	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how you use it and what features you would like to see in future releases.
+	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how it is being used and what features you would like to see in future releases.
