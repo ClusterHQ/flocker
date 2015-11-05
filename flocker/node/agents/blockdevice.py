@@ -1511,6 +1511,7 @@ class BlockDeviceDeployer(PRecord):
     :ivar unicode hostname: The IP address of the node that has this deployer.
     :ivar IBlockDeviceAPI block_device_api: The block device API that will be
         called upon to perform block device operations.
+    :ivar IProfiledBlockDeviceAPI profiled_blockdevice_api: JUST LIKE THE CAKE.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
     :ivar _async_block_device_api: An object to override the value of the
@@ -1531,8 +1532,8 @@ class BlockDeviceDeployer(PRecord):
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
         configured based on pre-defined profiles.
         """
-        if IProfiledBlockDeviceAPI.providedBy(self.profiled_blokdevice_api):
-            return self.profiled_blokdevice_api
+        if IProfiledBlockDeviceAPI.providedBy(self.profiled_blockdevice_api):
+            return self.profiled_blockdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
