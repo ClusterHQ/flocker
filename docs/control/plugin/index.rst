@@ -34,7 +34,6 @@ Docker Remote API
 The Docker Remote API call which supports ``--volume-driver`` in the CLI is undocumented at time of writing.
 However, currently is it is specified by the ``VolumeDriver`` attribute of ``HostConfig`` under ``POST /containers/create``.
 Set the container ``Mount`` attributes according to the instructions in the :ref:`docker-plugin-cli` section.
-Full documentation for ``VolumeDriver`` will appear after the release of `Docker Engine 1.9`_.
+More information about the ``VolumeDriver`` can be found in the `Docker volumes plugin`_ documentation.
 
 .. _`Docker volumes plugin`: https://docs.docker.com/extend/plugins_volume/
-.. _`Docker Engine 1.9`: https://github.com/docker/docker/wiki/Engine-1.9.0
