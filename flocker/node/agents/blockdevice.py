@@ -980,7 +980,7 @@ class MandatoryProfiles(Values):
     GOLD = ValueConstant(u'gold')
     SILVER = ValueConstant(u'silver')
     BRONZE = ValueConstant(u'bronze')
-    DEFAULT = SILVER
+    DEFAULT = ValueConstant(BRONZE.value)
 
 
 class IProfiledBlockDeviceAPI(Interface):

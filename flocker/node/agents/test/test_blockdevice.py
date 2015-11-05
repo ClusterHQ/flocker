@@ -2320,7 +2320,9 @@ class IProfiledBlockDeviceAPITestsMixin(object):
         mandatory profiles.
         """
         for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            self.api.create_volume_with_profile(dataset_id=uuid4(),
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            self.api.create_volume_with_profile(dataset_id=dataset_id,
                                                 size=self.dataset_size,
                                                 profile_name=profile)
 
