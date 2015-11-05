@@ -13,7 +13,7 @@ systemctl restart docker
 docker --version
 
 # Pull docker images so they are cached for later.
-IMAGES=(busybox clusterhq/mongodb redis python:2.7-slim clusterhq/flask)
+IMAGES="busybox clusterhq/mongodb redis python:2.7-slim clusterhq/flask"
 for I in ${IMAGES}
 do
     echo Pulling image ${I}...
