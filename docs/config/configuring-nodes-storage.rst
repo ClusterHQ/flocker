@@ -54,9 +54,14 @@ Flocker Storage Profiles require support from your storage driver, and you are a
 Please be aware that the actual specification of these profiles may differ between each storage provider.
 The definition for each profile should be documented in the storage providers documentation.
 
+Currently, only a selection of :ref:`backends supported by Flocker <supported-backends>` support Flocker Storage Profiles.
+More information about support for profiles can be found in the configuration documentation for each backend.
+
 .. note::
 	Flocker Storage Profiles is a new and exciting implementation, but it currently only has minimal features.
 	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how you use it and what features you would like to see in future releases.
+
+.. _supported-backends:
 
 List of Supported Backends
 ==========================
