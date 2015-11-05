@@ -12,3 +12,4 @@ Flocker Concepts
    architecture
    clustering
    routing
+   storage-profiles
