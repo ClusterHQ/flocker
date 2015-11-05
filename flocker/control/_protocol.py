@@ -35,6 +35,7 @@ from datetime import timedelta
 from io import BytesIO
 from itertools import count
 from contextlib import contextmanager
+from twisted.internet.defer import maybeDeferred
 
 from eliot import Logger, ActionType, Action, Field, MessageType
 from eliot.twisted import DeferredContext
@@ -575,7 +576,10 @@ class ControlAMPService(Service):
         """
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
-            d = DeferredContext(connection.callRemote(
+            # Use ``maybeDeferred`` so if an exception happens,
+            # it will be wrapped in a ``Failure`` - see FLOC-3221
+            d = DeferredContext(maybeDeferred(
+                connection.callRemote,
                 ClusterStatusCommand,
                 configuration=configuration,
                 state=state,
@@ -718,7 +722,7 @@ class AgentAMP(AMP):
     def __init__(self, reactor, agent):
         """
         :param IReactorTime reactor: A reactor to use to schedule periodic ping
-            operations.
+            operations.root@52.28.55.192
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         locator = _AgentLocator(agent)

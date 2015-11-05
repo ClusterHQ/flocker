@@ -4,6 +4,8 @@
 Generating an API User Certificate
 ==================================
 
+If you wish to send instructions to the control service, by using the API directly, via the CLI, or any other method, you will need to follow the instructions below to generate an API user certificate:
+
 #. Generate an API user certificate.
 
    Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster. For more information, see :ref:`authentication`.

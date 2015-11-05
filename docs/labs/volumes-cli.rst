@@ -21,7 +21,7 @@ It will also need access to the TLS certificates that were created when you prov
 
 If you have used our :ref:`installer tool <labs-installer>` - you will have already created such a file.  The TLS certificates will have been generated in the same folder after you have run the ``flocker-config`` command.
 
-You can read more about generating these certificates in the documentation for our :ref:`Flocker installer <labs-installer-certs-directory>`.
+You can read more about generating these certificates in the documentation for our :ref:`Flocker installer <labs-installing-unofficial-flocker-tools>`.
 
 Running the CLI
 ===============
