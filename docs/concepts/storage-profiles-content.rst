@@ -1,6 +1,6 @@
 Flocker Storage Profiles are a way to help you choose different levels of service from your storage provider.
 For example, in a development environment you might only want a low cost storage option.
-However, if you need storage for a production environment, you can choose a high performace and more expensive option.
+However, if you need storage for a production environment, you can choose a high performance and more expensive option.
 
 Flocker Storage Profiles require support from your storage driver, and you are able to choose from the following profiles:
 
