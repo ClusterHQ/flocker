@@ -28,6 +28,7 @@ from ...testtools import (
     random_name, DockerImageBuilder, assertContainsAll)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
+from .. import run_state_change
 
 
 class P2PNodeDeployer(object):
@@ -109,7 +110,7 @@ def change_node_state(deployer, desired_configuration):
             return deployer.calculate_changes(
                 desired_configuration, cluster_state, local_state)
         d.addCallback(got_changes)
-        d.addCallback(lambda change: change.run(deployer))
+        d.addCallback(lambda change: run_state_change(change, deployer))
         return d
     # Repeat a few times until things settle down:
     result = converge()
