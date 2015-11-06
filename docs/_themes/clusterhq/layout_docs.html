@@ -156,7 +156,7 @@
                 <div class="row">
                     <div class="col-sm-8 feedback-form">
                         <h3>How could we improve this page?</h3>
-                        <form method="post" action="https://www.formstack.com/forms/index.php">
+                        <form method="post" action="https://www.formstack.com/forms/index.php" id="feedback">
                             <!-- Form ID and keys are from formstack for this specific form -->
                             <input type="hidden" name="form" value="2174054" />
                             <input type="hidden" name="viewkey" value="ErUKrnw85k" />
@@ -260,5 +260,8 @@
             }
         });
     </script>
+
+    <!-- Javascript include for form feedback submit -->
+    <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
   </body>
 </html>
