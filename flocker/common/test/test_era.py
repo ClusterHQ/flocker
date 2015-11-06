@@ -16,7 +16,7 @@ class EraTests(SynchronousTestCase):
     """
     Tests for ``get_era``
     """
-    @skipUnless(platform.isLinux(), "Only possible on Linux.")
+    @skipUnless(platform.isLinux(), "get_era() only supported on Linux.")
     def setUp(self):
         pass
 

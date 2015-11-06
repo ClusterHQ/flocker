@@ -951,7 +951,7 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
-    @skipUnless(platform.isLinux(), "Only possible on Linux.")
+    @skipUnless(platform.isLinux(), "get_era() is only supported on Linux.")
     def test_send_era_on_connect(self):
         """
         Upon connecting a ``SetNodeEra`` is sent with the current node's era.
