@@ -18,5 +18,5 @@ Currently, only a selection of :ref:`backends supported by Flocker <supported-ba
 More information about support for profiles can be found in the :ref:`configuration documentation for each backend <supported-backends>`.
 
 .. note::
-	Flocker Storage Profiles is a new and exciting implementation, but it currently only has minimal features.
-	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how it is being used and what features you would like to see in future releases.
+	Flocker Storage Profiles is a new Flocker feature, and we're hoping to iterate on the functionality in future releases.
+	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how it is being used and what features you would like to see in the future.
