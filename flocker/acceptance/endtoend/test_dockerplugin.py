@@ -128,18 +128,18 @@ class DockerPluginTests(TestCase):
         """
         # XXX: replace with:
         #
-        return client.create_volume(name, u'flocker', driver_opts)
+        # return client.create_volume(name, u'flocker', driver_opts)
         #
         # Once version 1.5.1+ of docker-py is released. It is currently fixed
         # at head, but version 1.5.0 unfortunately has the wrong endpoint for
         # creating a volume.
-        #url = client._url('/volumes/create')
-        #data = {
-        #    'Name': name,
-        #    'Driver': u'flocker',
-        #    'DriverOpts': driver_opts,
-        #}
-        #return client._result(client._post_json(url, data=data), True)
+        url = client._url('/volumes/create')
+        data = {
+            'Name': name,
+            'Driver': u'flocker',
+            'DriverOpts': driver_opts,
+        }
+        return client._result(client._post_json(url, data=data), True)
 
     def _test_create_container(self, cluster):
         """
