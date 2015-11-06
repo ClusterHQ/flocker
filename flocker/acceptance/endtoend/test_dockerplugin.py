@@ -23,6 +23,8 @@ from ..testtools import (
 )
 from ..scripts import SCRIPTS
 
+from ...node.agents.ebs import EBSMandatoryProfileAttributes
+
 
 class DockerPluginTests(TestCase):
     """
@@ -143,18 +145,23 @@ class DockerPluginTests(TestCase):
         self.addCleanup(client.remove_volume, name)
         return result
 
-    def _test_create_container(self, cluster):
+    def _test_create_container(self, cluster, volume_name=None):
         """
         Create a container running a simple HTTP server that writes to
         its volume on POST and reads the same data back from the volume
         on GET.
+
+        :param cluster: The cluster to create the container within.
+        :param unicode volume_name: The name to use for the volume. If left
+            unspecified then a random name will be generated.
         """
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
         host_port = find_free_port()[1]
 
-        volume_name = random_name(self)
+        if volume_name is None:
+            volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
@@ -188,6 +195,14 @@ class DockerPluginTests(TestCase):
         Docker >=1.9, using the v2 plugin API, can create a volume with the
         volumes API, and pass a profile argument of silver which is represented
         in the backing volume created on EBS.
+
+        The approach here is to:
+
+        - Create the volume.
+        - Create a container using that volume to ensure that it is created.
+        - Use the flocker API to find the dataset for the volume.
+        - Interface with EBS directly to verify that the created volume has
+          'silver' characteristics.
         """
         self.require_docker('1.9.0', cluster)
         node = cluster.nodes[0]
@@ -196,35 +211,30 @@ class DockerPluginTests(TestCase):
         self._create_volume(docker, volume_name,
                             driver_opts={'profile': 'silver'})
 
-        datasets_deferred = cluster.client.list_datasets_configuration()
+        create_container = self._test_create_container(cluster,
+                                                       volume_name=volume_name)
 
-        def _evaluate_datasets(datasets):
-            dataset = None
-            for d in datasets:
-                for key, value in d.metadata.iteritems():
-                    if key.lower() == u"name" and value == volume_name:
-                        dataset = d
-                        break
-                if dataset:
-                    break
-            self.assertTrue(dataset is not None)
+        def _get_datasets(unused_arg):
+            return cluster.client.list_datasets_configuration()
+        create_container.addCallback(_get_datasets)
+
+        def _verify_created_volume_is_silver(datasets):
+            dataset = next(d for d in datasets
+                           if d.metadata.get(u'name') == volume_name)
 
             volumes = backend.list_volumes()
 
-            volume = None
-            for v in volumes:
-                if v.dataset_id == dataset.dataset_id:
-                    volume = v
-                    break
-            volume_type = None
-            if volume:
-                ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
-                volume_type = ebs_volume.type
-            self.assertEqual(u'gp2', volume_type)
+            volume = next(v for v in volumes
+                          if v.dataset_id == dataset.dataset_id)
+            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
 
-        datasets_deferred.addCallback(_evaluate_datasets)
+            self.assertEqual(
+                EBSMandatoryProfileAttributes.SILVER.value.volume_type.value,
+                ebs_volume.type)
 
-        return datasets_deferred
+        create_container.addCallback(_verify_created_volume_is_silver)
+
+        return create_container
 
     @require_cluster(1)
     def test_volume_persists_restart(self, cluster):
