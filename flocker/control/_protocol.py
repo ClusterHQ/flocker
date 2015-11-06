@@ -245,7 +245,7 @@ class ClusterStatusCommand(Command):
 
 class SetNodeEraCommand(Command):
     """
-    Set the era for a node.
+    Tell the control service the current era for a node.
 
     This should clear any previous NodeState that has a different
     era. Updates to the node should only be sent after this command, to
