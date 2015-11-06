@@ -857,6 +857,7 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
+    :ivar UUID era: The node's era; each reboot should result in a new era.
     :ivar applications: A ``PSet`` of ``Application`` instances on this node,
         or ``None`` if the information is not known.
     :ivar PMap manifestations: Mapping between dataset IDs and corresponding
@@ -890,16 +891,24 @@ class NodeState(PRecord):
     def __new__(cls, **kwargs):
         # PRecord does some crazy stuff, thus _precord_buckets; see
         # PRecord.__new__.
-        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
-            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
-            warn("UUID is required, this is for backwards compat with existing"
-                 " tests only. If you see this in production code that's "
-                 "a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        if "_precord_buckets" not in kwargs:
+            if "uuid" not in kwargs:
+                # See https://clusterhq.atlassian.net/browse/FLOC-1795
+                warn("UUID is required, this is for backwards compat with "
+                     "existing tests. If you see this in production code "
+                     "that's a bug.", DeprecationWarning, stacklevel=2)
+                kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+            if "era" not in kwargs:
+                warn("era is required, this is for backwards compat with "
+                     "existing tests. If you see this in production code "
+                     "that's a bug.",
+                     DeprecationWarning, stacklevel=2)
+                kwargs["era"] = UUID(int=0)
         return PRecord.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
+    era = field(type=UUID, mandatory=True)
     applications = pset_field(Application, optional=True, initial=None)
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
