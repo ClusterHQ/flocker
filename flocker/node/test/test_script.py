@@ -5,6 +5,7 @@ Tests for :module:`flocker.node.script`.
 """
 
 import socket
+from unittest import skipUnless
 
 import yaml
 from ipaddr import IPAddress
@@ -21,9 +22,11 @@ from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
+from twisted.python.runtime import platform
 
 from ...common.script import ICommandLineScript
 from ...common import get_all_ips
+from ...common._era import get_era
 
 from ..script import (
     AgentScript, ContainerAgentOptions,
@@ -467,6 +470,7 @@ class AgentServiceLoopTests(SynchronousTestCase):
     """
     setUp = agent_service_setup
 
+    @skipUnless(platform.isLinux(), "get_era() only supports Linux.")
     def test_agentloopservice(self):
         """
         ```AgentService.get_loop_service`` returns an ``AgentLoopService``
@@ -483,6 +487,7 @@ class AgentServiceLoopTests(SynchronousTestCase):
                 host=self.host,
                 port=self.port,
                 context_factory=context_factory,
+                era=get_era()
             ),
             loop_service,
         )
@@ -527,6 +532,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
              self.ca_set.node.cluster_uuid),
             result[0])
 
+    @skipUnless(platform.isLinux(), "get_era() only supports Linux.")
     def test_get_service(self):
         """
         ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
@@ -547,10 +553,12 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 port=1234,
                 context_factory=_context_factory_and_credential(
                     self.config.parent(), b"10.0.0.1", 1234).context_factory,
+                era=get_era(),
             ),
             service_factory.get_service(reactor, options)
         )
 
+    @skipUnless(platform.isLinux(), "get_era() only supports Linux.")
     def test_default_port(self):
         """
         ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
@@ -581,6 +589,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 port=4524,
                 context_factory=_context_factory_and_credential(
                     self.config.parent(), b"10.0.0.2", 4524).context_factory,
+                era=get_era(),
             ),
             service_factory.get_service(reactor, options)
         )

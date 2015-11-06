@@ -738,6 +738,13 @@ class DatasetChanges(object):
     """
 
 
+class _NoWipe(object):
+    """
+    Indicate no wipe is necessary.
+    """
+NO_WIPE = _NoWipe()
+
+
 class IClusterStateChange(Interface):
     """
     An ``IClusterStateChange`` can update a ``DeploymentState`` with new
@@ -762,7 +769,8 @@ class IClusterStateChange(Interface):
         information indicating ignorance about that information. We need
         this ability in order to expire out-of-date state information.
 
-        :return: A ``IClusterStateWipe`` that undoes this update.
+        :return: A ``IClusterStateWipe`` that undoes this update, or
+            ``NO_WIPE`` if no undo is necessary or possible.
         """
 
 
@@ -890,12 +898,13 @@ class NodeState(PRecord):
     def __new__(cls, **kwargs):
         # PRecord does some crazy stuff, thus _precord_buckets; see
         # PRecord.__new__.
-        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
-            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
-            warn("UUID is required, this is for backwards compat with existing"
-                 " tests only. If you see this in production code that's "
-                 "a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        if "_precord_buckets" not in kwargs:
+            if "uuid" not in kwargs:
+                # See https://clusterhq.atlassian.net/browse/FLOC-1795
+                warn("UUID is required, this is for backwards compat with "
+                     "existing tests. If you see this in production code "
+                     "that's a bug.", DeprecationWarning, stacklevel=2)
+                kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
         return PRecord.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
@@ -928,6 +937,42 @@ class NodeState(PRecord):
                       self._POTENTIALLY_IGNORANT_ATTRIBUTES
                       if getattr(self, attr) is not None]
         return _WipeNodeState(node_uuid=self.uuid, attributes=attributes)
+
+
+@implementer(IClusterStateChange)
+class UpdateNodeStateEra(PClass):
+    """
+    Update a node's era.
+
+    :ivar UUID uuid: The node's UUID.
+    :ivar UUID era: The node's era.
+    """
+    uuid = field(type=UUID, mandatory=True)
+    era = field(type=UUID, mandatory=True)
+
+    def update_cluster_state(self, cluster_state):
+        """
+        Record the node's era and discard the ``NodeState`` if it doesn't
+        match the era.
+        """
+        if cluster_state.node_uuid_to_era.get(self.uuid) != self.era:
+            # Discard the NodeState:
+            cluster_state = cluster_state.set(
+                nodes={n for n in cluster_state.nodes
+                       if n.uuid != self.uuid})
+        cluster_state = cluster_state.transform(
+            ["node_uuid_to_era", self.uuid], self.era)
+        return cluster_state
+
+    def get_information_wipe(self):
+        """
+        Do nothing: no followup wipes are necessary.
+
+        If we did discard the node state we'll be leaving its wiper hanging,
+        but it won't actually do anything if it can't find the node so
+        that's OK.
+        """
+        return NO_WIPE
 
 
 @implementer(IClusterStateWipe)
@@ -970,6 +1015,7 @@ class DeploymentState(PRecord):
 
     :ivar PSet nodes: A set containing ``NodeState`` instances describing the
         state of each cooperating node.
+    :ivar PMap node_uuid_to_era: Mapping between a node's UUID and its era.
     :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
         ``unicode``) to corresponding ``Dataset`` instances.  This mapping
         describes every ``Dataset`` which is known to exist as part of the
@@ -985,12 +1031,12 @@ class DeploymentState(PRecord):
         https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
     nodes = pset_field(NodeState)
-
-    get_node = _get_node(NodeState)
-
+    node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
     )
+
+    get_node = _get_node(NodeState)
 
     def update_node(self, node_state):
         """

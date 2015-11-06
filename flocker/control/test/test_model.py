@@ -26,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Lease, Leases, LeaseError
+    Link, Lease, Leases, LeaseError, UpdateNodeStateEra, NO_WIPE,
 )
 
 
@@ -1638,3 +1638,76 @@ class LeaseTests(SynchronousTestCase):
             InvariantException,
             self.leases.set, uuid4(), lease
         )
+
+
+class UpdateNodeStateEraTests(SynchronousTestCase):
+    """
+    Tests for ``UpdateNodeStateEraTests``.
+    """
+    KNOWN_STATE = NodeState(hostname=u"1.1.1.1", uuid=uuid4())
+    INITIAL_CLUSTER = DeploymentState(
+        nodes=[KNOWN_STATE],
+        node_uuid_to_era={KNOWN_STATE.uuid: uuid4()})
+    NODE_STATE = NodeState(hostname=u"1.2.3.4",
+                           uuid=uuid4(),
+                           applications=None,
+                           manifestations={},
+                           devices={}, paths={})
+    UPDATE_ERA_1 = UpdateNodeStateEra(uuid=NODE_STATE.uuid, era=uuid4())
+    UPDATE_ERA_2 = UpdateNodeStateEra(uuid=NODE_STATE.uuid, era=uuid4())
+
+    def test_iclusterstatechange(self):
+        """
+        ``UpdateNodeStateEra`` instances provide ``IClusterStateChange``.
+        """
+        self.assertTrue(verifyObject(IClusterStateChange, self.UPDATE_ERA_1))
+
+    def test_get_information_wipe(self):
+        """
+        ``UpdateNodeStateEra`` has no wiping.
+        """
+        self.assertIs(self.UPDATE_ERA_1.get_information_wipe(), NO_WIPE)
+
+    def test_no_era(self):
+        """
+        If era information was not known, ``UpdateNodeStateEra`` adds it.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+        self.assertEqual(
+            state,
+            self.INITIAL_CLUSTER.transform(
+                ["node_uuid_to_era", self.UPDATE_ERA_1.uuid],
+                self.UPDATE_ERA_1.era))
+
+    def test_same_era(self):
+        """
+        If the known era matches, ``UpdateNodeStateEra`` does nothing.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+        state = self.NODE_STATE.update_cluster_state(state)
+
+        updated_state = self.UPDATE_ERA_1.update_cluster_state(state)
+        self.assertEqual(state, updated_state)
+
+    def test_different_era(self):
+        """
+        If the era differs, it is updated.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+
+        updated_state = self.UPDATE_ERA_2.update_cluster_state(state)
+        self.assertEqual(
+            updated_state,
+            self.UPDATE_ERA_2.update_cluster_state(self.INITIAL_CLUSTER))
+
+    def test_different_era_discards_state(self):
+        """
+        If the era differs the corresponding ``NodeState`` is removed.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+        state = self.NODE_STATE.update_cluster_state(state)
+
+        updated_state = self.UPDATE_ERA_2.update_cluster_state(state)
+        self.assertEqual(
+            updated_state,
+            self.UPDATE_ERA_2.update_cluster_state(self.INITIAL_CLUSTER))

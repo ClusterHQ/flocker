@@ -43,7 +43,7 @@ from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
 from ..control import (
-    NodeStateCommand, IConvergenceAgent, AgentAMP,
+    NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
 )
 
 
@@ -598,7 +598,7 @@ def build_convergence_loop_fsm(reactor, deployer):
 
 
 @implementer(IConvergenceAgent)
-@attributes(["reactor", "deployer", "host", "port"])
+@attributes(["reactor", "deployer", "host", "port", "era"])
 class AgentLoopService(MultiService, object):
     """
     Service in charge of running the convergence loop.
@@ -612,6 +612,7 @@ class AgentLoopService(MultiService, object):
     :ivar factory: The factory used to connect to the control service.
     :ivar reconnecting_factory: The underlying factory used to connect to
         the control service, without the TLS wrapper.
+    :ivar UUID era: This node's era.
     """
 
     def __init__(self, context_factory):
@@ -645,6 +646,10 @@ class AgentLoopService(MultiService, object):
         # Reduce reconnect delay back to normal, since we've successfully
         # connected:
         self.reconnecting_factory.resetDelay()
+        d = client.callRemote(SetNodeEraCommand,
+                              era=unicode(self.era),
+                              node_uuid=unicode(self.deployer.node_uuid))
+        d.addErrback(writeFailure)
         self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):
