@@ -126,9 +126,9 @@ class DockerPluginTests(TestCase):
             Docker.
         :returns: The result of the API call.
         """
-        # XXX: replace with:
+        # XXX: replace down to addCleanup with:
         #
-        # return client.create_volume(name, u'flocker', driver_opts)
+        # result = client.create_volume(name, u'flocker', driver_opts)
         #
         # Once version 1.5.1+ of docker-py is released. It is currently fixed
         # at head, but version 1.5.0 unfortunately has the wrong endpoint for
@@ -139,7 +139,9 @@ class DockerPluginTests(TestCase):
             'Driver': u'flocker',
             'DriverOpts': driver_opts,
         }
-        return client._result(client._post_json(url, data=data), True)
+        result = client._result(client._post_json(url, data=data), True)
+        self.addCleanup(client.remove_volume, name)
+        return result
 
     def _test_create_container(self, cluster):
         """
@@ -181,12 +183,11 @@ class DockerPluginTests(TestCase):
         return self._test_create_container(cluster)
 
     @require_cluster(1, required_backend=DatasetBackend.aws)
-    def test_create_profiled_container_with_v2_plugin_api(self, cluster,
-                                                          backend):
+    def test_create_silver_volume_with_v2_plugin_api(self, cluster, backend):
         """
         Docker >=1.9, using the v2 plugin API, can create a volume with the
-        volumes API, and pass a profile argument which is represented in the
-        backing volume created.
+        volumes API, and pass a profile argument of silver which is represented
+        in the backing volume created on EBS.
         """
         self.require_docker('1.9.0', cluster)
         node = cluster.nodes[0]
