@@ -6,6 +6,7 @@ Tests for ``flocker.control._protocol``.
 
 from uuid import uuid4
 from json import loads
+from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -17,6 +18,7 @@ from eliot.testing import (
     capture_logging, validate_logging, assertHasAction,
 )
 
+from twisted.python.runtime import platform
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
@@ -41,7 +43,8 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    AGENT_CONNECTED, CachingEncoder, _caching_encoder
+    AGENT_CONNECTED, CachingEncoder, _caching_encoder,
+    SetNodeEraCommand,
 )
 from .._clusterstate import ClusterStateService
 from .. import (
@@ -49,6 +52,7 @@ from .. import (
     Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService, wire_encode
+from ...common._era import get_era
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -947,6 +951,18 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
+    @skipUnless(platform.isLinux(), "get_era() is only supported on Linux.")
+    def test_send_era_on_connect(self):
+        """
+        Upon connecting a ``SetNodeEra`` is sent with the current node's era.
+        """
+        locator = _NoOpCounter()
+        peer = AMP(locator=locator)
+        pump = connectedServerAndClient(lambda: self.client,
+                                        lambda: peer)[2]
+        pump.flush()
+        self.assertEqual(locator.era, unicode(get_era()))
+
     def test_connection_lost(self):
         """
         Connection lost events are passed on to the agent.
@@ -1182,6 +1198,12 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
 class _NoOpCounter(CommandLocator):
     noops = 0
+    era = None
+
+    @SetNodeEraCommand.responder
+    def set_node_era(self, era):
+        self.era = era
+        return {}
 
     @NoOp.responder
     def noop(self):
