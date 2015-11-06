@@ -6,7 +6,6 @@ Tests for ``flocker.control._protocol``.
 
 from uuid import uuid4
 from json import loads
-from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -18,7 +17,6 @@ from eliot.testing import (
     capture_logging, validate_logging, assertHasAction,
 )
 
-from twisted.python.runtime import platform
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
@@ -52,7 +50,6 @@ from .. import (
     Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService, wire_encode
-from ...common._era import get_era
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -951,18 +948,6 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
-    @skipUnless(platform.isLinux(), "get_era() is only supported on Linux.")
-    def test_send_era_on_connect(self):
-        """
-        Upon connecting a ``SetNodeEra`` is sent with the current node's era.
-        """
-        locator = _NoOpCounter()
-        peer = AMP(locator=locator)
-        pump = connectedServerAndClient(lambda: self.client,
-                                        lambda: peer)[2]
-        pump.flush()
-        self.assertEqual(locator.era, unicode(get_era()))
-
     def test_connection_lost(self):
         """
         Connection lost events are passed on to the agent.
@@ -1038,12 +1023,20 @@ def iconvergence_agent_tests_factory(fixture):
         """
         Tests for ``IConvergenceAgent``.
         """
+        def protocol(self):
+            """
+            Return an ``AMP`` instance with a transport.
+            """
+            protocol = AMP()
+            protocol.makeConnection(StringTransport())
+            return protocol
+
         def test_connected(self):
             """
             ``IConvergenceAgent.connected()`` takes an AMP instance.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(self.protocol())
 
         def test_disconnected(self):
             """
@@ -1051,7 +1044,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(self.protocol())
             agent.disconnected()
 
         def test_reconnected(self):
@@ -1060,9 +1053,9 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.disconnected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(self.protocol())
             agent.disconnected()
-            agent.connected(AMP())
+            agent.connected(self.protocol())
 
         def test_cluster_updated(self):
             """
@@ -1070,7 +1063,7 @@ def iconvergence_agent_tests_factory(fixture):
             instances.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(self.protocol())
             agent.cluster_updated(
                 Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
 
@@ -1198,12 +1191,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
 class _NoOpCounter(CommandLocator):
     noops = 0
-    era = None
-
-    @SetNodeEraCommand.responder
-    def set_node_era(self, era):
-        self.era = era
-        return {}
 
     @NoOp.responder
     def noop(self):

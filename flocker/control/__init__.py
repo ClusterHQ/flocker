@@ -26,6 +26,7 @@ from ._protocol import (
     IConvergenceAgent,
     NodeStateCommand,
     AgentAMP,
+    SetNodeEraCommand,
 )
 
 __all__ = [
@@ -54,6 +55,7 @@ __all__ = [
 
     'IConvergenceAgent',
     'NodeStateCommand',
+    'SetNodeEraCommand',
     'AgentAMP',
     'pmap_field',
     'Lease',

@@ -38,7 +38,7 @@ from contextlib import contextmanager
 from twisted.internet.defer import maybeDeferred
 
 from eliot import (
-    Logger, ActionType, Action, Field, MessageType, writeFailure,
+    Logger, ActionType, Action, Field, MessageType,
 )
 from eliot.twisted import DeferredContext
 
@@ -252,7 +252,8 @@ class SetNodeEraCommand(Command):
     ensure it doesn't get stale pre-reboot information (i.e. NodeState
     with wrong era).
     """
-    arguments = [('era', Unicode())]
+    arguments = [('era', Unicode()),
+                 ('node_uuid', Unicode())]
     response = []
 
 
@@ -343,7 +344,7 @@ class ControlServiceLocator(CommandLocator):
             return {}
 
     @SetNodeEraCommand.responder
-    def set_node_era(self, era):
+    def set_node_era(self, era, node_uuid):
         # Actual work will be done in FLOC-3379, FLOC-3380
         pass
 
@@ -755,8 +756,6 @@ class AgentAMP(AMP):
         AMP.connectionMade(self)
         self.agent.connected(self)
         self._pinger.start(self, PING_INTERVAL)
-        d = self.callRemote(SetNodeEraCommand, era=unicode(get_era()))
-        d.addErrback(writeFailure)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)
