@@ -14,6 +14,7 @@ from zope.interface import implementer
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
+from twisted.python.runtime import platform
 
 from ..common.script import (
     ICommandLineScript, flocker_standard_options, FlockerScriptRunner,
@@ -50,6 +51,8 @@ class EraScript(object):
     Output the era to stdout.
     """
     def main(self, reactor, options):
+        if not platform.isLinux():
+            raise SystemExit("flocker-node-era only works on Linux.")
         sys.stdout.write(str(get_era()))
         sys.stdout.flush()
         return succeed(None)
