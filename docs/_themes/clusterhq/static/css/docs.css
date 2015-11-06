@@ -326,6 +326,10 @@ a.download:before {
     margin-top:10px;
 }
 
+.feedback-form {
+    font-family: lato;
+}
+
 
 @media all and (min-width: 768px) {
     /* sm */
