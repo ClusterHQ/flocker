@@ -8,6 +8,7 @@ from unittest import skipUnless
 from subprocess import check_output
 
 from twisted.python.procutils import which
+from twisted.python.runtime import platform
 
 from .._era import get_era
 from ...testtools import make_script_tests
@@ -20,6 +21,7 @@ class FlockerNodeEraTests(make_script_tests(EXECUTABLE)):
     Tests for ``flocker-node-era``.
     """
     @skipUnless(which(EXECUTABLE), EXECUTABLE + " not installed")
+    @skipUnless(platform.isLinux(), "flocker-node-era only works on Linux")
     def setUp(self):
         pass
 
