@@ -135,7 +135,7 @@ If you have any feature requests or suggestions, we would love to hear about the
 At a minimum you can simply submit a GitHub Pull Request with your changes.
 In order to maximize your chances of getting your code accepted, and to keep you from wasting time:
 
-* Discuss your ideas with us in advance by using our `UserVoice`_ forum, or by filing a `GitHub issue`_.
+* Discuss your ideas with us in advance by filing a `GitHub issue`_.
 * Explain the purpose of your PR, and why these changes are necessary.
 * Limit your PR to fixing a single problem or adding a single feature.
 * See the merge requirements below for details about our testing and documentation requirements.
@@ -145,8 +145,6 @@ Make sure your PR adds your name to ``AUTHORS.rst`` if you've never contributed 
 Once your pull request is merged, as a small thank you for contributing to Flocker we'd like to send you some ClusterHQ swag.
 Just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
 We'll get something in the mail to you.
-
-.. _UserVoice: https://feedback.clusterhq.com/
 
 Merge Requirements
 ^^^^^^^^^^^^^^^^^^
