@@ -41,13 +41,12 @@ from eliot.testing import (
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
-    BlockDeviceDeployerLocalState, BlockDeviceDeployer, LoopbackBlockDeviceAPI,
+    BlockDeviceDeployerLocalState, BlockDeviceDeployer,
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice, _losetup_list_parse,
-    _losetup_list, _blockdevicevolume_from_dataset_id,
+    CreateFilesystem, DestroyVolume, MountBlockDevice,
 
     PROFILE_METADATA_KEY,
 
@@ -60,13 +59,20 @@ from ..blockdevice import (
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
     allocated_size,
-    check_allocatable_size,
-    get_blockdevice_volume,
-    _backing_file_name,
     ProcessLifetimeCache,
     FilesystemExists,
     UnknownInstanceID,
+    get_blockdevice_volume,
 )
+
+from ..loopback import (
+    check_allocatable_size,
+    LoopbackBlockDeviceAPI,
+    _losetup_list_parse,
+    _losetup_list, _blockdevicevolume_from_dataset_id,
+    _backing_file_name,
+)
+
 
 from ... import run_state_change, in_parallel, ILocalState, NoOp
 from ...testtools import (
@@ -2314,7 +2320,9 @@ class IProfiledBlockDeviceAPITestsMixin(object):
         mandatory profiles.
         """
         for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            self.api.create_volume_with_profile(dataset_id=uuid4(),
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            self.api.create_volume_with_profile(dataset_id=dataset_id,
                                                 size=self.dataset_size,
                                                 profile_name=profile)
 
