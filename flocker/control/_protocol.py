@@ -36,6 +36,7 @@ from io import BytesIO
 from itertools import count
 from contextlib import contextmanager
 from twisted.internet.defer import maybeDeferred
+from uuid import UUID
 
 from eliot import (
     Logger, ActionType, Action, Field, MessageType,
@@ -58,10 +59,9 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from ..common._era import get_era
 from ._persistence import wire_encode, wire_decode
 from ._model import (
-    Deployment, DeploymentState, ChangeSource,
+    Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
 )
 
 PING_INTERVAL = timedelta(seconds=30)
@@ -345,8 +345,14 @@ class ControlServiceLocator(CommandLocator):
 
     @SetNodeEraCommand.responder
     def set_node_era(self, era, node_uuid):
-        # Actual work will be done in FLOC-3379, FLOC-3380
-        pass
+        # Further work will be done in FLOC-3380
+        self.control_amp_service.cluster_state.apply_changes_from_source(
+            self._source, [UpdateNodeStateEra(era=UUID(era),
+                                              uuid=UUID(node_uuid))])
+        # We don't bother sending update to other nodes because this
+        # command will almost immediatey be following by a
+        # ``NodeStateCommand`` with more interesting information.
+        return {}
 
 
 class ControlAMP(AMP):

@@ -651,6 +651,22 @@ class ControlAMPTests(ControlTestCase):
             self.control_amp_service.cluster_state.as_deployment(),
         )
 
+    def test_set_node_era(self):
+        """
+        A ``SetNodeEraCommand`` results in the node's era being
+        updated.
+        """
+        node_uuid = uuid4()
+        era = uuid4()
+        d = self.client.callRemote(SetNodeEraCommand,
+                                   node_uuid=unicode(node_uuid),
+                                   era=unicode(era))
+        self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(node_uuid_to_era={node_uuid: era}),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
