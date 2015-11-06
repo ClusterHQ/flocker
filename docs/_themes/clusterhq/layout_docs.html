@@ -152,12 +152,28 @@
                     </div>
                 </div>
 
-                <!-- Disqus -->
-                {% if theme_disqus_shortname %}
-                    <div id="disqus_thread"></div>
-                    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-                {% endif %}
-                <!-- End of Disqus -->
+                <!-- Feedback form -->
+                <div class="row">
+                    <div class="col-sm-8 feedback-form">
+                        <h3>How could we improve this page?</h3>
+                        <form method="post" action="https://www.formstack.com/forms/index.php">
+                            <!-- Form ID and keys are from formstack for this specific form -->
+                            <input type="hidden" name="form" value="2174054" />
+                            <input type="hidden" name="viewkey" value="ErUKrnw85k" />
+                            <input type="hidden" name="_submit" value="1" />
+                            <!-- The field names here are the field names as produced by Formstack for our form -->
+                            <input type="hidden" name="field37192831" value="UNKNOWN" id="currenturl" />
+                            <script>
+                                // populate the current URL field
+                                document.querySelector("#currenturl").value = window.location.href;
+                            </script>
+                            <textarea class="form-control" rows="3" name="field37192409" placeholder="Your Feedback"></textarea>
+                            <input type="text" name="field37192455" placeholder="Your email address (optional)" class="form-control"/>
+                            <input type="submit" class="button" />
+                        </form>
+                    </div>
+                </div>
+                <!-- End of Feedback form -->
             </div>
         </div>
     </div>
