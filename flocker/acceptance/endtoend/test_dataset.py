@@ -5,7 +5,6 @@ Tests for the datasets REST API.
 """
 
 from uuid import UUID
-from unittest import skipUnless
 
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
