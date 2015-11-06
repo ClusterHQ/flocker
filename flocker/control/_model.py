@@ -939,6 +939,42 @@ class NodeState(PRecord):
         return _WipeNodeState(node_uuid=self.uuid, attributes=attributes)
 
 
+@implementer(IClusterStateChange)
+class UpdateNodeStateEra(PClass):
+    """
+    Update a node's era.
+
+    :ivar UUID uuid: The node's UUID.
+    :ivar UUID era: The node's era.
+    """
+    uuid = field(type=UUID, mandatory=True)
+    era = field(type=UUID, mandatory=True)
+
+    def update_cluster_state(self, cluster_state):
+        """
+        Record the node's era and discard the ``NodeState`` if it doesn't
+        match the era.
+        """
+        if cluster_state.node_uuid_to_era.get(self.uuid) != self.era:
+            # Discard the NodeState:
+            cluster_state = cluster_state.set(
+                nodes={n for n in cluster_state.nodes
+                       if n.uuid != self.uuid})
+        cluster_state = cluster_state.transform(
+            ["node_uuid_to_era", self.uuid], self.era)
+        return cluster_state
+
+    def get_information_wipe(self):
+        """
+        Do nothing: no followup wipes are necessary.
+
+        If we did discard the node state we'll be leaving its wiper hanging,
+        but it won't actually do anything if it can't find the node so
+        that's OK.
+        """
+        return NO_WIPE
+
+
 @implementer(IClusterStateWipe)
 class _WipeNodeState(PRecord):
     """
@@ -979,7 +1015,7 @@ class DeploymentState(PRecord):
 
     :ivar PSet nodes: A set containing ``NodeState`` instances describing the
         state of each cooperating node.
-    :ivar PMap era_to_node_uuid: Mapping between a node's era and its UUID.
+    :ivar PMap node_uuid_to_era: Mapping between a node's UUID and its era.
     :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
         ``unicode``) to corresponding ``Dataset`` instances.  This mapping
         describes every ``Dataset`` which is known to exist as part of the
@@ -995,7 +1031,7 @@ class DeploymentState(PRecord):
         https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
     nodes = pset_field(NodeState)
-    era_to_node_uuid = pmap_field(UUID, UUID)
+    node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
     )
