@@ -37,7 +37,9 @@ from itertools import count
 from contextlib import contextmanager
 from twisted.internet.defer import maybeDeferred
 
-from eliot import Logger, ActionType, Action, Field, MessageType
+from eliot import (
+    Logger, ActionType, Action, Field, MessageType, writeFailure,
+)
 from eliot.twisted import DeferredContext
 
 from pyrsistent import PClass, field
@@ -56,6 +58,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
+from ..common._era import get_era
 from ._persistence import wire_encode, wire_decode
 from ._model import (
     Deployment, DeploymentState, ChangeSource,
@@ -240,6 +243,19 @@ class ClusterStatusCommand(Command):
     response = []
 
 
+class SetNodeEraCommand(Command):
+    """
+    Tell the control service the current era for a node.
+
+    This should clear any previous NodeState that has a different
+    era. Updates to the node should only be sent after this command, to
+    ensure it doesn't get stale pre-reboot information (i.e. NodeState
+    with wrong era).
+    """
+    arguments = [('era', Unicode())]
+    response = []
+
+
 class NodeStateCommand(Command):
     """
     Used by a convergence agent to update the control service about the
@@ -325,6 +341,11 @@ class ControlServiceLocator(CommandLocator):
                 self._source, state_changes,
             )
             return {}
+
+    @SetNodeEraCommand.responder
+    def set_node_era(self, era):
+        # Actual work will be done in FLOC-3379, FLOC-3380
+        pass
 
 
 class ControlAMP(AMP):
@@ -734,6 +755,8 @@ class AgentAMP(AMP):
         AMP.connectionMade(self)
         self.agent.connected(self)
         self._pinger.start(self, PING_INTERVAL)
+        d = self.callRemote(SetNodeEraCommand, era=unicode(get_era()))
+        d.addErrback(writeFailure)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)

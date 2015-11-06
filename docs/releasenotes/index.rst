@@ -10,8 +10,13 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
-============
+v1.6.1
+======
+
+* Updated the Vagrant tutorial box to work with Docker 1.9.
+
+v1.6.0
+======
 
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
 * New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.

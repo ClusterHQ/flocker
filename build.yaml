@@ -1196,4 +1196,4 @@ job_type:
                    *run_build_sh_script_on_vagrant_box,
                    *package_jenkins_osx_yosemite_box ]
           }
-      timeout: 60
+      timeout: 120
