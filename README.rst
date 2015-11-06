@@ -1,5 +1,3 @@
-Want to get your hands dirty? Skip ahead to the `tutorial`_.
-
 Flocker
 =======
 
