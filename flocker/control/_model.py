@@ -865,7 +865,6 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar UUID era: The node's era; each reboot should result in a new era.
     :ivar applications: A ``PSet`` of ``Application`` instances on this node,
         or ``None`` if the information is not known.
     :ivar PMap manifestations: Mapping between dataset IDs and corresponding
@@ -906,17 +905,10 @@ class NodeState(PRecord):
                      "existing tests. If you see this in production code "
                      "that's a bug.", DeprecationWarning, stacklevel=2)
                 kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
-            if "era" not in kwargs:
-                warn("era is required, this is for backwards compat with "
-                     "existing tests. If you see this in production code "
-                     "that's a bug.",
-                     DeprecationWarning, stacklevel=2)
-                kwargs["era"] = UUID(int=0)
         return PRecord.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    era = field(type=UUID, mandatory=True)
     applications = pset_field(Application, optional=True, initial=None)
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
@@ -987,6 +979,7 @@ class DeploymentState(PRecord):
 
     :ivar PSet nodes: A set containing ``NodeState`` instances describing the
         state of each cooperating node.
+    :ivar PMap era_to_node_uuid: Mapping between a node's era and its UUID.
     :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
         ``unicode``) to corresponding ``Dataset`` instances.  This mapping
         describes every ``Dataset`` which is known to exist as part of the
@@ -1002,12 +995,12 @@ class DeploymentState(PRecord):
         https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
     nodes = pset_field(NodeState)
-
-    get_node = _get_node(NodeState)
-
+    era_to_node_uuid = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
     )
+
+    get_node = _get_node(NodeState)
 
     def update_node(self, node_state):
         """
