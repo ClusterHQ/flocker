@@ -20,7 +20,7 @@ from ._model import (
     Link, AttachedVolume, NodeState, Manifestation, Dataset, RestartNever,
     RestartOnFailure, RestartAlways, DeploymentState, NonManifestDatasets,
     same_node, IClusterStateWipe, Leases, Lease, LeaseError, pmap_field,
-    ChangeSource,
+    ChangeSource, NO_WIPE,
 )
 from ._protocol import (
     IConvergenceAgent,
@@ -60,4 +60,5 @@ __all__ = [
     'Leases',
     'LeaseError',
     'ChangeSource',
+    'NO_WIPE',
 ]

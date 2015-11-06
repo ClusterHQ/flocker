@@ -738,6 +738,13 @@ class DatasetChanges(object):
     """
 
 
+class _NoWipe(object):
+    """
+    Indicate no wipe is necessary.
+    """
+NO_WIPE = _NoWipe()
+
+
 class IClusterStateChange(Interface):
     """
     An ``IClusterStateChange`` can update a ``DeploymentState`` with new
@@ -762,7 +769,8 @@ class IClusterStateChange(Interface):
         information indicating ignorance about that information. We need
         this ability in order to expire out-of-date state information.
 
-        :return: A ``IClusterStateWipe`` that undoes this update.
+        :return: A ``IClusterStateWipe`` that undoes this update, or
+            ``NO_WIPE`` if no undo is necessary or possible.
         """
 
 
