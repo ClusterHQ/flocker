@@ -20,6 +20,8 @@ from twisted.internet.defer import succeed, Deferred, fail
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
+from twisted.protocols.amp import AMP, CommandLocator
+from twisted.test.iosim import connectedServerAndClient
 
 from ...testtools.amp import FakeAMPClient, DelayedAMPClient
 from ...testtools import CustomException
@@ -36,16 +38,16 @@ from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
     Application, DockerImage,
 )
-from ...control._protocol import NodeStateCommand, AgentAMP
+from ...control._protocol import NodeStateCommand, AgentAMP, SetNodeEraCommand
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
 from .. import NoOp
 
 
 def build_protocol():
     """
-    :return: ``Protocol`` hooked up to transport.
+    :return: ``AMP`` hooked up to transport.
     """
-    p = Protocol()
+    p = AMP()
     p.makeConnection(StringTransport())
     return p
 
@@ -1084,6 +1086,17 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
              [(NodeStateCommand, dict(state_changes=(local_state2,)))]))
 
 
+class UpdateNodeEraLocator(CommandLocator):
+    uuid = None
+    era = None
+
+    @SetNodeEraCommand.responder
+    def set_node_era(self, era, node_uuid):
+        self.era = era
+        self.uuid = node_uuid
+        return {}
+
+
 class AgentLoopServiceTests(SynchronousTestCase):
     """
     Tests for ``AgentLoopService``.
@@ -1093,7 +1106,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         self.reactor = MemoryReactorClock()
         self.service = AgentLoopService(
             reactor=self.reactor, deployer=self.deployer, host=u"example.com",
-            port=1234, context_factory=ClientContextFactory())
+            port=1234, context_factory=ClientContextFactory(), era=uuid4())
 
     def test_start_service(self):
         """
@@ -1135,10 +1148,25 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         service = self.service
         service.cluster_status = fsm = StubFSM()
-        client = object()
+        client = build_protocol()
         service.connected(client)
         self.assertEqual(fsm.inputted,
                          [_ConnectedToControlService(client=client)])
+
+    def test_send_era_on_connect(self):
+        """
+        Upon connecting a ``SetNodeEraCommand`` is sent with the current
+        node's era and UUID.
+        """
+        protocol = AgentAMP(self.reactor, self.service)
+        locator = UpdateNodeEraLocator()
+        peer = AMP(locator=locator)
+        pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
+        pump.flush()
+        self.assertEqual(
+            dict(era=locator.era, uuid=locator.uuid),
+            dict(era=unicode(self.service.era),
+                 uuid=unicode(self.deployer.node_uuid)))
 
     def test_connected_resets_factory_delay(self):
         """
@@ -1150,7 +1178,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         # don't hammer the server with reconnects):
         factory.delay += 500000
         # But now we successfully connect!
-        client = factory.buildProtocol(None)
+        client = build_protocol()
         self.service.connected(client)
         self.assertEqual(factory.delay, factory.initialDelay)
 
@@ -1186,8 +1214,10 @@ def _build_service(test):
     Fixture for creating ``AgentLoopService``.
     """
     service = AgentLoopService(
-        reactor=None, deployer=object(), host=u"example.com", port=1234,
-        context_factory=ClientContextFactory())
+        reactor=MemoryReactorClock(),
+        deployer=ControllableDeployer(u"127.0.0.1", [], []),
+        host=u"example.com", port=1234,
+        context_factory=ClientContextFactory(), era=uuid4())
     service.cluster_status = StubFSM()
     return service
 
