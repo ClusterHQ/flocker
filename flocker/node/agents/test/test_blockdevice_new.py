@@ -251,6 +251,7 @@ def assert_discovered_state(
     case,
     deployer,
     expected_discoved_datasets,
+    expected_volumes,
 ):
     """
     Assert that datasets on the state object returned by
@@ -291,6 +292,7 @@ def assert_discovered_state(
                 dataset.dataset_id: dataset
                 for dataset in expected_discoved_datasets
             },
+            volumes=expected_volumes,
         )
     )
 
@@ -372,10 +374,10 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         empty ``manifestations`` if the ``api`` reports no locally attached
         volumes.
         """
-        assert_discovered_state(self, self.deployer, [])
+        assert_discovered_state(self, self.deployer, [], [])
 
     def test_created_volume(self):
-        unmounted = self.api.create_volume(
+        volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
@@ -384,11 +386,12 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_discoved_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
-                    dataset_id=unmounted.dataset_id,
-                    blockdevice_id=unmounted.blockdevice_id,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                 ),
             ],
+            expected_volumes=[volume],
         )
 
     def test_attached_unmounted_device(self):
@@ -397,26 +400,27 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         an ``ATTACHED`` dataset returned by
         ``BlockDeviceDeployer.discover_state``.
         """
-        unmounted = self.api.create_volume(
+        volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        self.api.attach_volume(
-            unmounted.blockdevice_id,
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
             attach_to=self.this_node,
         )
-        device_path = self.api.get_device_path(unmounted.blockdevice_id)
+        device_path = self.api.get_device_path(volume.blockdevice_id)
         assert_discovered_state(
             self, self.deployer,
             expected_discoved_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
-                    dataset_id=unmounted.dataset_id,
-                    blockdevice_id=unmounted.blockdevice_id,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
                 ),
             ],
+            expected_volumes=[attached_volume],
         )
 
     def test_one_device(self):
@@ -426,15 +430,15 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         and the volume's filesystem is mounted in the right place.
         """
         dataset_id = uuid4()
-        new_volume = self.api.create_volume(
+        volume = self.api.create_volume(
             dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        self.api.attach_volume(
-            new_volume.blockdevice_id,
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
             attach_to=self.this_node,
         )
-        device = self.api.get_device_path(new_volume.blockdevice_id)
+        device = self.api.get_device_path(volume.blockdevice_id)
         mount_point = self.deployer.mountroot.child(bytes(dataset_id))
         mount_point.makedirs()
         make_filesystem(device, block_device=True)
@@ -445,13 +449,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_discoved_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.MOUNTED,
-                    dataset_id=new_volume.dataset_id,
-                    blockdevice_id=new_volume.blockdevice_id,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device,
                     mount_point=mount_point,
                 ),
             ],
+            expected_volumes=[attached_volume],
         )
 
     def test_attached_and_mismounted(self):
@@ -468,7 +473,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -495,6 +500,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     device_path=device_path,
                 ),
             ],
+            expected_volumes=[attached_volume],
         )
 
     def _incorrect_device_path_test(self, bad_value):
@@ -508,7 +514,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
         )
 
@@ -526,7 +532,8 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                 ),
-            ]
+            ],
+            expected_volumes=[attached_volume]
         )
 
     @capture_logging(
