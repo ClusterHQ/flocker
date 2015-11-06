@@ -35,7 +35,7 @@ Feature Requests
 ----------------
 
 If you have any feature requests or suggestions, we would love to hear about them.
-Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
+Please send us your ideas by filing a `GitHub issue`_.
 
 
 Tests
@@ -58,5 +58,4 @@ Flocker is also tested using `continuous integration`_.
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
-.. _UserVoice: https://feedback.clusterhq.com/
 .. _GitHub issue: https://github.com/clusterhq/flocker/issues
