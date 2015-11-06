@@ -1148,8 +1148,8 @@ class BlockDeviceDeployer(PRecord):
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
         configured based on pre-defined profiles.
         """
-        if IProfiledBlockDeviceAPI.providedBy(self._profiled_blockdevice_api):
-            return self._profiled_blockdevice_api
+        #if IProfiledBlockDeviceAPI.providedBy(self._profiled_blockdevice_api):
+        #    return self._profiled_blockdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
