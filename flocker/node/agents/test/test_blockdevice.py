@@ -2887,7 +2887,7 @@ class DestroyBlockDeviceDatasetTests(
             blockdevice_id=ARBITRARY_BLOCKDEVICE_ID
         )
 
-    @validate_logging(multistep_change_log(
+    @capture_logging(multistep_change_log(
         LOG_SEQUENTIALLY,
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
     ))
