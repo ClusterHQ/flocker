@@ -31,3 +31,11 @@ class FlockerNodeEraTests(make_script_tests(EXECUTABLE)):
         """
         self.assertEqual(check_output(EXECUTABLE),
                          str(get_era()))
+
+    def test_repeatable_output(self):
+        """
+        The process outputs the same information when called multiple times,
+        since it shoudl only change on reboot.
+        """
+        self.assertEqual(check_output(EXECUTABLE),
+                         check_output(EXECUTABLE))
