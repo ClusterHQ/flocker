@@ -15,7 +15,7 @@ from pyrsistent import pset
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
-from twisted.internet.protocol import Protocol, ReconnectingClientFactory
+from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
