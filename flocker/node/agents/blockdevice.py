@@ -1186,7 +1186,46 @@ class BlockDeviceDeployerLocalState(PClass):
         These are the only parts of the state that need to be sent to the
         control service.
         """
-        return (self.node_state, self.nonmanifest_datasets)
+        manifestations = {}
+        paths = {}
+        devices = {}
+        nonmanifest_datasets = {}
+        for dataset in self.datasets.values():
+            dataset_id = dataset.dataset_id
+            if dataset.state == DatasetStates.MOUNTED:
+                manifestations[unicode(dataset_id)] = Manifestation(
+                    dataset=Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=dataset.maximum_size,
+                    ),
+                    primary=True,
+                )
+                paths[unicode(dataset_id)] = dataset.mount_point
+            if dataset.state in (
+                DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
+            ):
+                nonmanifest_datasets[unicode(dataset_id)] = Dataset(
+                    dataset_id=dataset_id,
+                    maximum_size=dataset.maximum_size,
+                )
+            if dataset.state in (
+                DatasetStates.MOUNTED, DatasetStates.ATTACHED,
+            ):
+                devices[dataset_id] = dataset.device_path
+
+        return (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations=manifestations,
+                paths=paths,
+                devices=devices,
+                applications=None,
+            ),
+            NonManifestDatasets(
+                datasets=nonmanifest_datasets
+            ),
+        )
 
 
 @implementer(IDeployer)
