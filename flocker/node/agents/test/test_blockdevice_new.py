@@ -15,6 +15,8 @@ from bitmath import MiB
 
 import psutil
 
+from zope.interface.verify import verifyObject
+
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -31,8 +33,12 @@ from ....testtools import (
 )
 from ....control import (
     NodeState,
+    NonManifestDatasets,
+    Dataset,
+    Manifestation,
 )
 
+from ... import ILocalState
 from .. import blockdevice
 from ..blockdevice import (
     BlockDeviceDeployerLocalState,
@@ -60,6 +66,7 @@ CLEANUP_RETRY_LIMIT = 10
 # Enough space for the ext4 journal:
 LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
+ARBITRARY_BLOCKDEVICE_ID = u'blockdevice_id_1'
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -565,3 +572,253 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         self.patch(blockdevice, "_logger", logger)
         self._incorrect_device_path_test(None)
+
+
+def assert_shared_state_changes(case,
+                                deployer,
+                                expected_manifestations,
+                                expected_nonmanifest_datasets=(),
+                                expected_volumes=[],
+                                expected_devices={}):
+    """
+    Assert that the manifestations on the state object returned by
+    ``deployer.discover_state`` equals the given list of manifestations.
+
+    :param TestCase case: The running test.
+    :param IDeployer deployer: The object to use to discover the state.
+    :param list expected_manifestations: The ``Manifestation``\ s expected to
+        be discovered on the deployer's node.
+    :param expected_nonmanifest_datasets: Sequence of the ``Dataset``\ s
+        expected to be discovered on the cluster but not attached to any
+        node.
+    :param expected_volumes: The expected sequence of ``BlockDeviceVolume``
+        instances. discover_state() is expected to return an
+        ``BlockDeviceDeployerLocalState`` with a volumes attribute equal to
+        this.
+    :param dict expected_devices: The OS device files which are expected to be
+        discovered as allocated to volumes attached to the node.  See
+        ``NodeState.devices``.
+
+    :raise: A test failure exception if the manifestations are not what is
+        expected.
+    """
+    previous_state = NodeState(
+        uuid=deployer.node_uuid, hostname=deployer.hostname,
+        applications=None, manifestations=None, paths=None,
+        devices=None,
+    )
+    discovering = deployer.discover_state(previous_state)
+    local_state = case.successResultOf(discovering)
+    node_state, nonmanifest_datasets = local_state.shared_state_changes()
+    expected_paths = {}
+    for manifestation in expected_manifestations:
+        dataset_id = manifestation.dataset.dataset_id
+        mountpath = deployer._mountpath_for_manifestation(manifestation)
+        expected_paths[dataset_id] = mountpath
+    case.assertEqual(NodeState(
+        applications=None,
+        uuid=deployer.node_uuid,
+        hostname=deployer.hostname,
+        manifestations={
+            m.dataset_id: m for m in expected_manifestations},
+        paths=expected_paths,
+        devices=expected_devices,
+    ), node_state
+    )
+    # FLOC-1806 - Make this actually be a dictionary (callers pass a list
+    # instead) and construct the ``NonManifestDatasets`` with the
+    # ``Dataset`` instances that are present as values.
+    case.assertEqual(
+        NonManifestDatasets(datasets={
+            unicode(dataset_id):
+            Dataset(dataset_id=unicode(dataset_id))
+            for dataset_id in expected_nonmanifest_datasets
+        }), nonmanifest_datasets)
+
+
+class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceDeployerLocalState``.
+    """
+    def setUp(self):
+        self.node_uuid = uuid4()
+        self.hostname = u"192.0.2.1"
+
+    def test_provides_ilocalstate(self):
+        """
+        Verify that ``BlockDeviceDeployerLocalState`` instances provide the
+        ILocalState interface.
+        """
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={},
+        )
+        self.assertTrue(
+            verifyObject(ILocalState, local_state)
+        )
+
+    def test_shared_changes(self):
+        """
+        ``shared_state_changes`` returns a ``NodeState`` with
+        the ``node_uuid`` and ``hostname`` from the
+        BlockDeviceDeployerLocalState`` and a
+        ``NonManifestDatasets``.
+        """
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={},
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={},
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={},
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+    def test_non_manifest_dataset(self):
+        """
+        When there is a a dataset in the ``NON_MANIFEST`` state,
+        it is reported as a non-manifest dataset.
+        """
+        dataset_id = uuid4()
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={
+                dataset_id: DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            },
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={},
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={
+                    unicode(dataset_id): Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    ),
+                },
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+    def test_attached_dataset(self):
+        """
+        When there is a a dataset in the ``ATTACHED`` state,
+        it is reported as a non-manifest dataset.
+        """
+        dataset_id = uuid4()
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={
+                dataset_id: DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                ),
+            },
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={
+                    dataset_id: FilePath('/dev/xvdf'),
+                },
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={
+                    unicode(dataset_id): Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    ),
+                },
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+    def test_mounted_dataset(self):
+        """
+        When there is a a dataset in the ``MOUNTED`` state,
+        it is reported as a non-manifest dataset.
+        """
+        dataset_id = uuid4()
+        mount_point = FilePath('/mount/point')
+        device_path = FilePath('/dev/xvdf')
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={
+                dataset_id: DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device_path,
+                    mount_point=mount_point,
+                ),
+            },
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={
+                    unicode(dataset_id): Manifestation(
+                        dataset=Dataset(
+                            dataset_id=dataset_id,
+                            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                        ),
+                        primary=True,
+                    )
+                },
+                paths={
+                    unicode(dataset_id): mount_point
+                },
+                devices={
+                    dataset_id: device_path,
+                },
+                applications=None
+            ),
+            NonManifestDatasets(),
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
