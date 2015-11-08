@@ -23,7 +23,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PClass, PRecord, field, discard, pmap, pvector,
+    PClass, PRecord, field, discard, pmap, pvector, pvector_field,
 )
 
 from twisted.python.components import proxyForInterface
@@ -1027,6 +1027,76 @@ class DiscoverVolumesMethod(Names):
     INFER_VOLUMES_FROM_STATE = NamedConstant()
 
 
+@implementer(ILocalState)
+class FakeBlockDeviceDeployerLocalState(PClass):
+    node_state = field(type=NodeState, mandatory=True)
+    nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
+    volumes = pvector_field(BlockDeviceVolume)
+
+    def shared_state_changes(self):
+        return self.node_state, self.nonmanifest_datasets
+
+
+class FakeBlockDeviceDeployerLocalStateTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceDeployerLocalState``.
+    """
+    def setUp(self):
+        self.node_uuid = uuid4()
+        self.hostname = u"192.0.2.1"
+
+    def test_provides_ilocalstate(self):
+        """
+        Verify that ``BlockDeviceDeployerLocalState`` instances provide the
+        ILocalState interface.
+        """
+        local_state = FakeBlockDeviceDeployerLocalState(
+            node_state=EMPTY_NODE_STATE,
+            nonmanifest_datasets=NonManifestDatasets(datasets={}),
+            volumes=[],
+        )
+        self.assertTrue(
+            verifyObject(ILocalState, local_state)
+        )
+
+    def test_shared_changes(self):
+        """
+        ``shared_state_changes`` returns a ``NodeState`` with
+        the ``node_uuid`` and ``hostname`` from the
+        BlockDeviceDeployerLocalState`` and a
+        ``NonManifestDatasets``.
+        """
+        local_state = FakeBlockDeviceDeployerLocalState(
+            node_state=NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={},
+                applications=None
+            ),
+            nonmanifest_datasets=NonManifestDatasets(datasets={}),
+            volumes=[],
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={},
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={},
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+
 def _create_block_device_deployer_local_state(
         block_device_deployer, cluster_state,
         volumes=DiscoverVolumesMethod.GET_VOLUMES_FROM_API,
@@ -1070,7 +1140,7 @@ def _create_block_device_deployer_local_state(
     elif volumes is DiscoverVolumesMethod.GET_VOLUMES_FROM_API:
         volumes = api.list_volumes()
 
-    return BlockDeviceDeployerLocalState(
+    return FakeBlockDeviceDeployerLocalState(
         node_state=node_state,
         nonmanifest_datasets=NonManifestDatasets(
             datasets=nonmanifest_datasets
