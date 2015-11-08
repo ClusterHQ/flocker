@@ -49,6 +49,8 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice,
 
+    DiscoveredDataset, DatasetStates,
+
     PROFILE_METADATA_KEY,
 
     UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -276,31 +278,187 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
     Tests for ``BlockDeviceDeployerLocalState``.
     """
     def setUp(self):
-        self.node_state = EMPTY_NODE_STATE
-        self.nonmanifest_datasets = NonManifestDatasets(datasets={})
-        self.volumes = []
-        self.local_state = BlockDeviceDeployerLocalState(
-            node_state=self.node_state,
-            nonmanifest_datasets=self.nonmanifest_datasets,
-            volumes=self.volumes
-        )
+        self.node_uuid = uuid4()
+        self.hostname = u"192.0.2.1"
 
     def test_provides_ilocalstate(self):
         """
         Verify that ``BlockDeviceDeployerLocalState`` instances provide the
         ILocalState interface.
         """
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={},
+        )
         self.assertTrue(
-            verifyObject(ILocalState, self.local_state)
+            verifyObject(ILocalState, local_state)
         )
 
-    def test_shared_changes_are_shared(self):
+    def test_shared_changes(self):
         """
-        Verify that the attributes of ``BlockDeviceDeployerLocalState`` that
-        are supposed to be shared are returned from shared_state_changes().
+        ``shared_state_changes`` returns a ``NodeState`` with
+        the ``node_uuid`` and ``hostname`` from the
+        BlockDeviceDeployerLocalState`` and a
+        ``NonManifestDatasets``.
         """
-        self.assertEqual((self.node_state, self.nonmanifest_datasets),
-                         self.local_state.shared_state_changes())
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={},
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={},
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={},
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+    def test_non_manifest_dataset(self):
+        """
+        When there is a a dataset in the ``NON_MANIFEST`` state,
+        it is reported as a non-manifest dataset.
+        """
+        dataset_id = uuid4()
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={
+                dataset_id: DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            },
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={},
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={
+                    unicode(dataset_id): Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    ),
+                },
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+    def test_attached_dataset(self):
+        """
+        When there is a a dataset in the ``ATTACHED`` state,
+        it is reported as a non-manifest dataset.
+        """
+        dataset_id = uuid4()
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={
+                dataset_id: DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                ),
+            },
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={},
+                paths={},
+                devices={
+                    dataset_id: FilePath('/dev/xvdf'),
+                },
+                applications=None
+            ),
+            NonManifestDatasets(
+                datasets={
+                    unicode(dataset_id): Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    ),
+                },
+            )
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
+
+    def test_mounted_dataset(self):
+        """
+        When there is a a dataset in the ``MOUNTED`` state,
+        it is reported as a non-manifest dataset.
+        """
+        dataset_id = uuid4()
+        mount_point = FilePath('/mount/point')
+        device_path = FilePath('/dev/xvdf')
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets={
+                dataset_id: DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device_path,
+                    mount_point=mount_point,
+                ),
+            },
+        )
+        expected_changes = (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations={
+                    unicode(dataset_id): Manifestation(
+                        dataset=Dataset(
+                            dataset_id=dataset_id,
+                            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                        ),
+                        primary=True,
+                    )
+                },
+                paths={
+                    unicode(dataset_id): mount_point
+                },
+                devices={
+                    dataset_id: device_path,
+                },
+                applications=None
+            ),
+            NonManifestDatasets(),
+        )
+        self.assertEqual(
+            local_state.shared_state_changes(),
+            expected_changes,
+        )
 
 
 class BlockDeviceDeployerTests(
@@ -357,15 +515,15 @@ class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
         self.assertIs(async_api, deployer.async_block_device_api)
 
 
-def assert_discovered_state(case,
-                            deployer,
-                            expected_manifestations,
-                            expected_nonmanifest_datasets=(),
-                            expected_volumes=[],
-                            expected_devices=pmap()):
+def assert_discovered_state(
+    case,
+    deployer,
+    expected_discoved_datasets,
+    expected_volumes,
+):
     """
-    Assert that the manifestations on the state object returned by
-    ``deployer.discover_state`` equals the given list of manifestations.
+    Assert that datasets on the state object returned by
+    ``deployer.discover_state`` equals the given list of datasets.
 
     :param TestCase case: The running test.
     :param IDeployer deployer: The object to use to discover the state.
@@ -392,32 +550,74 @@ def assert_discovered_state(case,
     )
     discovering = deployer.discover_state(previous_state)
     local_state = case.successResultOf(discovering)
-    expected_paths = {}
-    for manifestation in expected_manifestations:
-        dataset_id = manifestation.dataset.dataset_id
-        mountpath = deployer._mountpath_for_manifestation(manifestation)
-        expected_paths[dataset_id] = mountpath
-    case.assertEqual(NodeState(
-        applications=None,
-        uuid=deployer.node_uuid,
-        hostname=deployer.hostname,
-        manifestations={
-            m.dataset_id: m for m in expected_manifestations},
-        paths=expected_paths,
-        devices=expected_devices,
-    ), local_state.node_state
-    )
-    # FLOC-1806 - Make this actually be a dictionary (callers pass a list
-    # instead) and construct the ``NonManifestDatasets`` with the
-    # ``Dataset`` instances that are present as values.
-    case.assertEqual(
-        NonManifestDatasets(datasets={
-            unicode(dataset_id):
-            Dataset(dataset_id=unicode(dataset_id))
-            for dataset_id in expected_nonmanifest_datasets
-        }), local_state.nonmanifest_datasets)
 
-    case.assertItemsEqual(expected_volumes, local_state.volumes)
+    case.assertEqual(
+        local_state,
+        BlockDeviceDeployerLocalState(
+            hostname=deployer.hostname,
+            node_uuid=deployer.node_uuid,
+            datasets={
+                dataset.dataset_id: dataset
+                for dataset in expected_discoved_datasets
+            },
+            volumes=expected_volumes,
+        )
+    )
+
+
+class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceDeployer._discover_raw_state``.
+    """
+
+    def setUp(self):
+        self.expected_hostname = u'192.0.2.123'
+        self.expected_uuid = uuid4()
+        self.api = loopbackblockdeviceapi_for_test(self)
+        self.this_node = self.api.compute_instance_id()
+        self.deployer = BlockDeviceDeployer(
+            node_uuid=self.expected_uuid,
+            hostname=self.expected_hostname,
+            block_device_api=self.api,
+            mountroot=mountroot_for_test(self),
+        )
+
+    def test_compute_instance_id(self):
+        """
+        ``BlockDeviceDeployer._discover_raw_state``
+        returns a ``RawState`` with the
+        ``compute_instance_id`` that the ``api``
+        reports.
+        """
+        raw_state = self.deployer._discover_raw_state()
+        self.assertEqual(
+            raw_state.compute_instance_id,
+            self.api.compute_instance_id(),
+        )
+
+    def test_no_volumes(self):
+        """
+        ``BlockDeviceDeployer._discover_raw_state`` returns a
+        ``RawState`` with empty ``volumes`` if the ``api`` reports
+        no attached volumes.
+        """
+        raw_state = self.deployer._discover_raw_state()
+        self.assertEqual(raw_state.volumes, [])
+
+    def test_attached_unmounted_device(self):
+        """
+        If a volume is attached but not mounted, it is included as a
+        non-manifest dataset returned by ``BlockDeviceDeployer.discover_state``
+        and not as a manifestation on the ``NodeState``.
+        """
+        unmounted = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        raw_state = self.deployer._discover_raw_state()
+        self.assertEqual(raw_state.volumes, [
+            unmounted,
+        ])
 
 
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
@@ -442,69 +642,133 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         empty ``manifestations`` if the ``api`` reports no locally attached
         volumes.
         """
-        assert_discovered_state(self, self.deployer, [])
+        assert_discovered_state(self, self.deployer, [], [])
 
-    def test_attached_unmounted_device(self):
-        """
-        If a volume is attached but not mounted, it is included as a
-        non-manifest dataset returned by ``BlockDeviceDeployer.discover_state``
-        and not as a manifestation on the ``NodeState``.
-        """
-        unmounted = self.api.create_volume(
+    def test_created_volume(self):
+        volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        attached = self.api.attach_volume(
-            unmounted.blockdevice_id,
-            attach_to=self.this_node,
-        )
         assert_discovered_state(
             self, self.deployer,
-            expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size.
-            expected_nonmanifest_datasets=[unmounted.dataset_id],
-            expected_volumes=[attached],
-            expected_devices={
-                unmounted.dataset_id:
-                    self.api.get_device_path(unmounted.blockdevice_id),
-            },
+            expected_discoved_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+            expected_volumes=[volume],
+        )
+
+    def test_attached_unmounted_device(self):
+        """
+        If a volume is attached but not mounted, it is discovered as
+        an ``ATTACHED`` dataset returned by
+        ``BlockDeviceDeployer.discover_state``.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        device_path = self.api.get_device_path(volume.blockdevice_id)
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discoved_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device_path,
+                ),
+            ],
+            expected_volumes=[attached_volume],
+        )
+
+    def test_one_device(self):
+        """
+        ``BlockDeviceDeployer.discover_state`` returns a ``NodeState`` with one
+        ``manifestations`` if the ``api`` reports one locally attached volume
+        and the volume's filesystem is mounted in the right place.
+        """
+        dataset_id = uuid4()
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        device = self.api.get_device_path(volume.blockdevice_id)
+        mount_point = self.deployer.mountroot.child(bytes(dataset_id))
+        mount_point.makedirs()
+        make_filesystem(device, block_device=True)
+        mount(device, mount_point)
+
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discoved_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device,
+                    mount_point=mount_point,
+                ),
+            ],
+            expected_volumes=[attached_volume],
         )
 
     def test_attached_and_mismounted(self):
         """
         If a volume is attached and mounted but not mounted at the location
-        ``BlockDeviceDeployer`` expects, it is included as a non-manifest
-        dataset returned by ``BlockDeviceDeployer.discover_state`` and not as a
-        manifestation on the ``NodeState``.
+        ``BlockDeviceDeployer`` expects, the dataset returned by
+        ``BlockDeviceDeployer.discover_state`` is marked as
+        ``ATTACHED``.
         """
-        unexpected = self.api.create_volume(
+        # XXX: Presumably we should detect and repair this case,
+        # so that the volume can be unmounted.
+        volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        attached = self.api.attach_volume(
-            unexpected.blockdevice_id,
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
             attach_to=self.this_node,
         )
 
-        device = self.api.get_device_path(unexpected.blockdevice_id)
-        make_filesystem(device, block_device=True)
+        device_path = self.api.get_device_path(
+            volume.blockdevice_id,
+        )
+        make_filesystem(device_path, block_device=True)
 
         # Mount it somewhere beneath the expected mountroot (so that it is
         # cleaned up automatically) but not at the expected place beneath it.
         mountpoint = self.deployer.mountroot.child(b"nonsense")
         mountpoint.makedirs()
-        mount(device, mountpoint)
+        mount(device_path, mountpoint)
 
         assert_discovered_state(
             self, self.deployer,
-            expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size.
-            expected_nonmanifest_datasets=[unexpected.dataset_id],
-            expected_volumes=[attached],
-            expected_devices={
-                unexpected.dataset_id: device,
-            },
+            expected_discoved_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device_path,
+                ),
+            ],
+            expected_volumes=[attached_volume],
         )
 
     def _incorrect_device_path_test(self, bad_value):
@@ -513,10 +777,12 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         that must be wrong, the corresponding manifestation is not included in
         the discovered state for the node.
         """
+        # XXX This discovers volums as NON_MANIFEST, but we should
+        # have a state so we can try to recover.
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        attached = self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
         )
 
@@ -527,10 +793,15 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
         assert_discovered_state(
             self, self.deployer,
-            expected_manifestations=[],
-            expected_nonmanifest_datasets=[],
-            expected_volumes=[attached],
-            expected_devices={},
+            expected_discoved_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+            expected_volumes=[attached_volume]
         )
 
     @capture_logging(
@@ -562,116 +833,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         self.patch(blockdevice, "_logger", logger)
         self._incorrect_device_path_test(None)
-
-    def test_unrelated_mounted(self):
-        """
-        If a volume is attached but an unrelated filesystem is mounted at the
-        expected location for that volume, it is included as a non-manifest
-        dataset returned by ``BlockDeviceDeployer.discover_state`` and not as a
-        manifestation on the ``NodeState``.
-        """
-        unrelated_device = FilePath(self.mktemp())
-        with unrelated_device.open("w") as unrelated_file:
-            unrelated_file.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
-
-        unmounted = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        )
-        mountpoint = self.deployer.mountroot.child(bytes(unmounted.dataset_id))
-        mountpoint.makedirs()
-        attached = self.api.attach_volume(
-            unmounted.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-        make_filesystem(unrelated_device, block_device=False)
-        mount(unrelated_device, mountpoint)
-
-        assert_discovered_state(
-            self, self.deployer,
-            expected_manifestations=[],
-            # FLOC-1806 Expect dataset with size.
-            expected_nonmanifest_datasets=[unmounted.dataset_id],
-            expected_volumes=[attached],
-            expected_devices={
-                unmounted.dataset_id:
-                    self.api.get_device_path(unmounted.blockdevice_id),
-            }
-        )
-
-    def test_one_device(self):
-        """
-        ``BlockDeviceDeployer.discover_state`` returns a ``NodeState`` with one
-        ``manifestations`` if the ``api`` reports one locally attached volume
-        and the volume's filesystem is mounted in the right place.
-        """
-        dataset_id = uuid4()
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        )
-        attached = self.api.attach_volume(
-            new_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-        device = self.api.get_device_path(new_volume.blockdevice_id)
-        mountpoint = self.deployer.mountroot.child(bytes(dataset_id))
-        mountpoint.makedirs()
-        make_filesystem(device, block_device=True)
-        mount(device, mountpoint)
-        expected_dataset = Dataset(
-            dataset_id=dataset_id,
-            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-        )
-        expected_manifestation = Manifestation(
-            dataset=expected_dataset, primary=True
-        )
-        assert_discovered_state(
-            self, self.deployer,
-            [expected_manifestation],
-            expected_volumes=[attached],
-            expected_devices={
-                dataset_id: device,
-            },
-        )
-
-    def test_only_remote_device(self):
-        """
-        ``BlockDeviceDeployer.discover_state`` does not consider remotely
-        attached volumes.
-        """
-        dataset_id = uuid4()
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-        attached = self.api.attach_volume(
-            new_volume.blockdevice_id,
-            # This is a hack.  We don't know any other IDs, though.
-            # https://clusterhq.atlassian.net/browse/FLOC-1839
-            attach_to=u'some.other.host',
-        )
-        assert_discovered_state(self, self.deployer, [],
-                                expected_volumes=[attached])
-
-    def test_only_unattached_devices(self):
-        """
-        ``BlockDeviceDeployer.discover_state`` discovers volumes that are not
-        attached to any node and creates entries in a ``NonManifestDatasets``
-        instance corresponding to them.
-        """
-        dataset_id = uuid4()
-        volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
-        assert_discovered_state(
-            self, self.deployer,
-            expected_manifestations=[],
-            expected_volumes=[volume],
-            # FLOC-1806 Expect dataset with size.
-            expected_nonmanifest_datasets=[dataset_id],
-        )
 
 
 @implementer(IBlockDeviceAPI)
