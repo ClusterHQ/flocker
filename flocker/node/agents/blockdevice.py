@@ -1353,7 +1353,7 @@ class BlockDeviceDeployer(PRecord):
             ).write(_logger)
             return False
 
-        # FIXME This should probably just be included in
+        # XXX This should probably just be included in
         # BlockDeviceVolume for attached volumes.
         devices = {}
         for volume in volumes:
@@ -1363,8 +1363,10 @@ class BlockDeviceDeployer(PRecord):
                 if is_existing_block_device(dataset_id, device_path):
                     devices[dataset_id] = device_path
                 else:
-                    # XXX We will detect this as NON_MANIFEST
-
+                    # XXX We will detect this as NON_MANIFEST, but this is
+                    # probably an intermediate state where the device is
+                    # externally attached but the device hasn't shown up
+                    # in the filesystem yet.
                     pass
 
         return RawState(
