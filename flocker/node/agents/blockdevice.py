@@ -1473,8 +1473,11 @@ class BlockDeviceDeployer(PRecord):
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
             return in_parallel(changes=[])
-
-        not_in_use = NotInUseDatasets(local_node_state, configuration.leases)
+        not_in_use = NotInUseDatasets(
+            node_uuid=self.node_uuid,
+            local_applications=local_node_state.applications,
+            leases=configuration.leases,
+        )
 
         configured_manifestations = this_node_config.manifestations
 
