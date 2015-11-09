@@ -1200,7 +1200,10 @@ class BlockDeviceDeployerLocalState(PClass):
     """
     An ``ILocalState`` implementation for the ``BlockDeviceDeployer``.
 
-    :ivar NodeState node_state: The current ``NodeState`` for this node.
+    :ivar unicode hostname: The IP address of the node that has this is the
+        state for.
+    :ivar UUID node_uuid: The UUID of the node that this is the state for.
+    :ivar datasets: The datasets discovered from this node.
 
     :ivar NonManifestDatasets nonmanifest_datasets: The current
         ``NonManifestDatasets`` that this node is aware of but are not attached
@@ -1269,6 +1272,7 @@ class BlockDeviceDeployer(PRecord):
     An ``IDeployer`` that operates on ``IBlockDeviceAPI`` providers.
 
     :ivar unicode hostname: The IP address of the node that has this deployer.
+    :ivar UUID node_uuid: The UUID of the node that has this deployer.
     :ivar IBlockDeviceAPI block_device_api: The block device API that will be
         called upon to perform block device operations.
     :ivar FilePath mountroot: The directory where block devices will be
@@ -1319,6 +1323,8 @@ class BlockDeviceDeployer(PRecord):
 
     def _discover_raw_state(self):
         """
+        Find the state of this node that is relevant to determining which datasets
+        are on this node, and return a ``RawState`` containing that information.
         """
         # FLOC-1819 Make this asynchronous
         api = self.block_device_api
