@@ -1239,7 +1239,7 @@ class BlockDeviceDeployerLocalState(PClass):
                     primary=True,
                 )
                 paths[unicode(dataset_id)] = dataset.mount_point
-            if dataset.state in (
+            elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
             ):
                 nonmanifest_datasets[unicode(dataset_id)] = Dataset(
