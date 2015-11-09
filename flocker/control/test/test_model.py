@@ -26,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Lease, Leases, LeaseError, UpdateNodeStateEra, NO_WIPE,
+    Link, Lease, Leases, LeaseError, UpdateNodeStateEra, NoWipe,
 )
 
 
@@ -1418,40 +1418,49 @@ class NodeStateWipingTests(SynchronousTestCase):
             DeploymentState(nodes={node_2}))
 
 
-class NonManifestDatasetsWipingTests(SynchronousTestCase):
+class NoWipeTests(SynchronousTestCase):
     """
-    Tests for ``NonManifestDatasets.get_information_wipe()``.
+    Tests for ``NoWipe``.
     """
-    NON_MANIFEST = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
-                                                 MANIFESTATION.dataset})
-    WIPE = NON_MANIFEST.get_information_wipe()
-
     def test_interface(self):
         """
-        The object returned from ``NodeStateWipe`` implements
-        ``IClusterStateWipe``.
+        ``NoWipe`` instances provide ``IClusterStateWipe``.
         """
-        self.assertTrue(verifyObject(IClusterStateWipe, self.WIPE))
+        self.assertTrue(verifyObject(IClusterStateWipe, NoWipe()))
 
     def test_key_always_the_same(self):
         """
-        The ``IClusterStateWipe`` always has the same key.
+        A ``NoWipe`` always has the same key.
         """
-        self.assertEqual(
-            NonManifestDatasets().get_information_wipe().key(),
-            self.WIPE.key())
+        self.assertEqual(NoWipe().key(), NoWipe().key())
 
     def test_applying_does_nothing(self):
         """
-        Applying the ``IClusterStateWipe`` does nothing to the cluster state.
+        Applying the ``NoWipe`` does nothing to the cluster state.
         """
-        # Cluster has some non-manifested datasets:
-        cluster_state = self.NON_MANIFEST.update_cluster_state(
-            DeploymentState())
+        non_manifest = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
+                                                     MANIFESTATION.dataset})
+        cluster_state = non_manifest.update_cluster_state(DeploymentState())
 
         # "Wiping" this information has no effect:
-        updated = self.WIPE.update_cluster_state(cluster_state)
+        updated = NoWipe().update_cluster_state(cluster_state)
         self.assertEqual(updated, cluster_state)
+
+
+class NonManifestDatasetsWipingTests(SynchronousTestCase):
+    """
+    Tests for ``NonManifestDatasets.get_information_wipe()``.
+
+    See above for demonstration ``NoWipe`` has no side-effects.
+    """
+    def test_no_wipe(self):
+        """
+        Applying the ``IClusterStateWipe`` does nothing to the cluster state.
+        """
+        non_manifest = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
+                                                     MANIFESTATION.dataset})
+        wipe = non_manifest.get_information_wipe()
+        self.assertIsInstance(wipe, NoWipe)
 
 
 class LinkTests(SynchronousTestCase):
@@ -1664,9 +1673,9 @@ class UpdateNodeStateEraTests(SynchronousTestCase):
 
     def test_get_information_wipe(self):
         """
-        ``UpdateNodeStateEra`` has no wiping.
+        ``UpdateNodeStateEra`` has no side-effects from wiping.
         """
-        self.assertIs(self.UPDATE_ERA_1.get_information_wipe(), NO_WIPE)
+        self.assertIsInstance(self.UPDATE_ERA_1.get_information_wipe(), NoWipe)
 
     def test_no_era(self):
         """

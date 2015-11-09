@@ -738,13 +738,6 @@ class DatasetChanges(object):
     """
 
 
-class _NoWipe(object):
-    """
-    Indicate no wipe is necessary.
-    """
-NO_WIPE = _NoWipe()
-
-
 class IClusterStateChange(Interface):
     """
     An ``IClusterStateChange`` can update a ``DeploymentState`` with new
@@ -769,8 +762,7 @@ class IClusterStateChange(Interface):
         information indicating ignorance about that information. We need
         this ability in order to expire out-of-date state information.
 
-        :return: A ``IClusterStateWipe`` that undoes this update, or
-            ``NO_WIPE`` if no undo is necessary or possible.
+        :return: A ``IClusterStateWipe`` that undoes this update.
         """
 
 
@@ -804,6 +796,25 @@ class IClusterStateWipe(Interface):
         cover different information, so there is no need for the key to
         express that differentation.
         """
+
+
+@implementer(IClusterStateWipe)
+class NoWipe(object):
+    """
+    Wipe object that does nothing.
+    """
+    def key(self):
+        """
+        We always have the same key, so we end up with just one instance of
+        ``NoWipe`` remembered by ``ClusterStateService``.
+        """
+        return None
+
+    def update_cluster_state(self, cluster_state):
+        """
+        Do nothing.
+        """
+        return cluster_state
 
 
 class IClusterStateSource(Interface):
@@ -972,7 +983,7 @@ class UpdateNodeStateEra(PClass):
         but it won't actually do anything if it can't find the node so
         that's OK.
         """
-        return NO_WIPE
+        return NoWipe()
 
 
 @implementer(IClusterStateWipe)
@@ -1095,25 +1106,11 @@ class NonManifestDatasets(PRecord):
 
     def get_information_wipe(self):
         """
-        Result will wipe all information about non-manifest datasets.
+        There's no point in wiping this update. Even if no relevant agents are
+        connected the datasets probably still continue to exist unchanged,
+        since they're not node-specific.
         """
-        return _NonManifestDatasetsWipe()
-
-
-@implementer(IClusterStateWipe)
-class _NonManifestDatasetsWipe(object):
-    """
-    Wipe object that does nothing.
-
-    There's no point in wiping this information. Even if no relevant
-    agents are connected the datasets probably still continue to exist
-    unchanged, since they're not node-specific.
-    """
-    def key(self):
-        return None
-
-    def update_cluster_state(self, cluster_state):
-        return cluster_state
+        return NoWipe()
 
 
 # Classes that can be serialized to disk or sent over the network:

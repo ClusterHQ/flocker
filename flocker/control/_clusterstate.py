@@ -13,7 +13,7 @@ from twisted.application.internet import TimerService
 
 from pyrsistent import PRecord, field, pmap
 
-from . import DeploymentState, ChangeSource, NO_WIPE
+from . import DeploymentState, ChangeSource
 
 # Allowed inactivity period before updates are expired
 EXPIRATION_TIME = timedelta(seconds=120)
@@ -119,8 +119,6 @@ class ClusterStateService(MultiService):
             )
         for change in changes:
             wiper = change.get_information_wipe()
-            if wiper is NO_WIPE:
-                continue
             key = (wiper.__class__, wiper.key())
             self._information_wipers = self._information_wipers.set(
                 key, _WiperAndSource(wiper=wiper, source=source)
