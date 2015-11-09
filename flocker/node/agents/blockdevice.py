@@ -1413,7 +1413,10 @@ class BlockDeviceDeployer(PRecord):
                         device_path=device_path,
                     )
             else:
-                if volume.attached_to is None:
+                if volume.attached_to in (None, raw_state.compute_instance_id):
+                    # XXX We check for attached locally for the case
+                    # where the volume is attached but the
+                    # blockdevice doesn't exist yet.
                     datasets[dataset_id] = DiscoveredDataset(
                         state=DatasetStates.NON_MANIFEST,
                         dataset_id=dataset_id,
