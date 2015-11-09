@@ -518,7 +518,7 @@ class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
 def assert_discovered_state(
     case,
     deployer,
-    expected_discoved_datasets,
+    expected_discovered_datasets,
     expected_volumes,
 ):
     """
@@ -527,18 +527,11 @@ def assert_discovered_state(
 
     :param TestCase case: The running test.
     :param IDeployer deployer: The object to use to discover the state.
-    :param list expected_manifestations: The ``Manifestation``\ s expected to
-        be discovered on the deployer's node.
-    :param expected_nonmanifest_datasets: Sequence of the ``Dataset``\ s
-        expected to be discovered on the cluster but not attached to any
-        node.
-    :param expected_volumes: The expected sequence of ``BlockDeviceVolume``
-        instances. discover_state() is expected to return an
-        ``BlockDeviceDeployerLocalState`` with a volumes attribute equal to
-        this.
-    :param dict expected_devices: The OS device files which are expected to be
-        discovered as allocated to volumes attached to the node.  See
-        ``NodeState.devices``.
+    :param expected_discovered_datasets: The expected discovered datasets.
+        discover_state() is expected to return an
+        ``BlockDeviceDeployerLocalState`` with a dataset attribute
+        corresponding to this.
+    :type expected_discovered_datasets: iterable of ``DiscoveredDataset``.
 
     :raise: A test failure exception if the manifestations are not what is
         expected.
@@ -558,7 +551,7 @@ def assert_discovered_state(
             node_uuid=deployer.node_uuid,
             datasets={
                 dataset.dataset_id: dataset
-                for dataset in expected_discoved_datasets
+                for dataset in expected_discovered_datasets
             },
             volumes=expected_volumes,
         )
@@ -651,7 +644,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         assert_discovered_state(
             self, self.deployer,
-            expected_discoved_datasets=[
+            expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
                     dataset_id=volume.dataset_id,
@@ -679,7 +672,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         device_path = self.api.get_device_path(volume.blockdevice_id)
         assert_discovered_state(
             self, self.deployer,
-            expected_discoved_datasets=[
+            expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
                     dataset_id=volume.dataset_id,
@@ -714,7 +707,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
         assert_discovered_state(
             self, self.deployer,
-            expected_discoved_datasets=[
+            expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.MOUNTED,
                     dataset_id=volume.dataset_id,
@@ -759,7 +752,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
         assert_discovered_state(
             self, self.deployer,
-            expected_discoved_datasets=[
+            expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
                     dataset_id=volume.dataset_id,
@@ -793,7 +786,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
         assert_discovered_state(
             self, self.deployer,
-            expected_discoved_datasets=[
+            expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
                     dataset_id=volume.dataset_id,
@@ -888,7 +881,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
         assert_discovered_state(
             self, self.deployer,
-            expected_discoved_datasets=[
+            expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
                     dataset_id=volume.dataset_id,
