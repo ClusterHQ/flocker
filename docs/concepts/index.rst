@@ -10,5 +10,3 @@ Flocker Concepts
 
    security
    architecture
-   clustering
-   routing
