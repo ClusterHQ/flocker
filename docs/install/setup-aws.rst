@@ -4,14 +4,23 @@
 Setting Up Nodes Using Amazon Web Services
 ==========================================
 
-If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
+If you are not familiar with EC2, you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
 You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
 
 .. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
 
-#. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard.
+#. Choose a region, and an Amazon Machine Image (AMI):
 
-   For example, the links below launch instances using CentOS 7 Amazon Machine Images (specifically ``CentOS 7 x86_64 (2014_09_29) EBS HVM``):
+   * Launch the `AWS EC2 Launch Wizard <https://eu-west-1.console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:>`_.
+   * In the header bar, next to your user name, you can change which region you'd like to use. 
+     The link provided defaults to EU (Ireland).
+   * Choose an AMI.
+     You can choose any :ref:`operating system supported by Flocker<supported-operating-systems>` with AWS. 
+
+.. note:: 
+   If you want to choose a CentOS 7 AMI, you might not find it listed in the provided link. 
+   
+   Use the links below to launch instances using CentOS 7 AMIs (specifically ``CentOS 7 x86_64 (2014_09_29) EBS HVM``):
 
    * `EU (Frankfurt) <https://console.aws.amazon.com/ec2/v2/home?region=eu-central-1#LaunchInstanceWizard:ami=ami-7cc4f661>`_
    * `South America (Sao Paulo) <https://console.aws.amazon.com/ec2/v2/home?region=sa-east-1#LaunchInstanceWizard:ami=ami-bf9520a2>`_
@@ -22,8 +31,6 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
    * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-c7d092f7>`_
    * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-bd523087>`_
    * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
-
-   Alternatively, it possible to use any :ref:`operating system supported by Flocker<supported-operating-systems>` with AWS.
 
 #. Configure the instance.
    Complete the configuration wizard; in general the default configuration should suffice.   
