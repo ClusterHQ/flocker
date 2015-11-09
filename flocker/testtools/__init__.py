@@ -7,6 +7,7 @@ Various utilities to help with unit and functional testing.
 from __future__ import absolute_import
 
 __all__ = [
+    'AsyncTestCase',
     'CustomException',
     'DockerImageBuilder',
     'FakeProcessReactor',
@@ -71,9 +72,9 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
-from twisted.trial.unittest import TestCase
 from twisted.python.logfile import LogFile
 
+from ._base import AsyncTestCase
 from ._flaky import flaky
 from .. import __version__
 from ..common.script import (
@@ -792,7 +793,7 @@ def make_script_tests(executable):
     :return: A ``TestCase`` subclass which defines some tests applied to the
         given executable.
     """
-    class ScriptTests(TestCase):
+    class ScriptTests(AsyncTestCase):
         @skipUnless(which(executable), executable + " not installed")
         def test_version(self):
             """
