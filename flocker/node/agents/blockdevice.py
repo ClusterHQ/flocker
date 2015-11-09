@@ -59,6 +59,9 @@ PROFILE_METADATA_KEY = u"clusterhq:flocker:profile"
 
 
 class DatasetStates(Names):
+    """
+    States that a ``Dataset`` can be in.
+    """
     NON_MANIFEST = NamedConstant()
     ATTACHED = NamedConstant()
     MOUNTED = NamedConstant()
@@ -68,6 +71,15 @@ class DatasetStates(Names):
 class DiscoveredDataset(PClass):
     """
     Dataset as discovered by deployer.
+
+    :ivar DatasetStates state: The state this dataset was determined to be in.
+    :ivar int maximum_size: The maximum size of the dataset.
+    :param unicode blockdevice_id: The unique identifier of the
+        ``IBlockDeviceAPI``-managed volume.
+    :ivar FilePath device_path: The absolute path to the block device file on
+        the node where the dataset is attached.
+    :ivar FilePath mount_point: The absolute path to the location on the node
+        where the dataset will be mounted.
     """
     state = field(
         invariant=lambda state: (state in DatasetStates.iterconstants(),
