@@ -977,11 +977,7 @@ class UpdateNodeStateEra(PClass):
 
     def get_information_wipe(self):
         """
-        Do nothing: no followup wipes are necessary.
-
-        If we did discard the node state we'll be leaving its wiper hanging,
-        but it won't actually do anything if it can't find the node so
-        that's OK.
+        Since we just deleted some information, there's nothing to wipe.
         """
         return NoWipe()
 
