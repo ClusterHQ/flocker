@@ -572,4 +572,3 @@ class FlockerClient(object):
         request = getting_era.addCallback(got_era)
         request.addCallback(lambda result: UUID(result["uuid"]))
         return request
-
