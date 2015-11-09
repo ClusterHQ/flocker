@@ -26,7 +26,7 @@ class FlakyTests(SynchronousTestCase):
         """
         values = []
 
-        @flaky
+        @flaky('FLOC-XXXX')
         def f(x):
             values.append(x)
             return x
@@ -44,7 +44,7 @@ class FlakyTests(SynchronousTestCase):
         # TestCase features, thus increasing complexity.
         class SomeTest(unittest.TestCase):
 
-            @flaky
+            @flaky('FLOC-XXXX')
             def test_something(self):
                 pass
 
@@ -66,7 +66,7 @@ class FlakyTests(SynchronousTestCase):
 
         class SomeTest(unittest.TestCase):
 
-            @flaky
+            @flaky('FLOC-XXXX')
             def test_something(self):
                 1/0
 
