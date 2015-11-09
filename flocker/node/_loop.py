@@ -657,5 +657,9 @@ class AgentLoopService(MultiService, object):
             ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
 
     def cluster_updated(self, configuration, cluster_state):
+        # Filter out state for this node if the era doesn't match:
+        node_uuid = self.deployer.node_uuid
+        if self.era != cluster_state.node_uuid_to_era.get(node_uuid):
+            cluster_state = cluster_state.remove_node(node_uuid)
         self.cluster_status.receive(_StatusUpdate(configuration=configuration,
                                                   state=cluster_state))
