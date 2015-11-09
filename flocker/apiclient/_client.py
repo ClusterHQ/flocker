@@ -7,6 +7,7 @@ Client for the Flocker REST API.
 from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
+from subprocess import check_output
 
 from ipaddr import IPv4Address, IPv6Address, IPAddress
 
@@ -222,6 +223,13 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with a ``list`` of ``Node``.
         """
 
+    def this_node_uuid():
+        """
+        Return this node's UUID by looking it up by era.
+
+        This is the recommended way of discovering the node UUID.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
@@ -231,12 +239,13 @@ class FakeFlockerClient(object):
     # Placeholder time, we don't model the progress of time at all:
     _NOW = datetime.fromtimestamp(0, UTC)
 
-    def __init__(self, nodes=None):
+    def __init__(self, nodes=None, this_node_uuid=uuid4()):
         self._configured_datasets = pmap()
         self._leases = LeasesModel()
         if nodes is None:
             nodes = []
         self._nodes = nodes
+        self._this_node_uuid = this_node_uuid
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
@@ -316,6 +325,9 @@ class FakeFlockerClient(object):
 
     def list_nodes(self):
         return succeed(self._nodes)
+
+    def this_node_uuid(self):
+        return succeed(self._this_node_uuid)
 
 
 class ResponseError(Exception):
@@ -536,3 +548,12 @@ class FlockerClient(object):
         request.addCallback(to_nodes)
 
         return request
+
+    def this_node_uuid(self):
+        era = check_output(["flocker-node-era"])
+        request = self._request(
+            b"GET", b"/state/nodes/by_era/" + era, None, {OK}
+        )
+        request.addCallback(lambda result: UUID(result["uuid"]))
+        return request
+
