@@ -13,7 +13,7 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
 
    * Launch the `AWS EC2 Launch Wizard <https://eu-west-1.console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:>`_.
    * In the header bar, next to your user name, you can change which region you'd like to use. 
-     The link provided defaults to EU (Ireland).
+     The link provided defaults to EU (Ireland), but change this to another region if you'd prefer.
    * Choose an AMI.
      You can choose any :ref:`operating system supported by Flocker<supported-operating-systems>` with AWS. 
 
