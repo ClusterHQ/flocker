@@ -7,7 +7,7 @@ Client for the Flocker REST API.
 from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
-from subprocess import check_output
+from os import environ
 
 from ipaddr import IPv4Address, IPv6Address, IPAddress
 
@@ -23,12 +23,14 @@ from eliot.twisted import DeferredContext
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
-from twisted.internet.task import deferLater
+from twisted.internet.utils import getProcessOutput
 
 from treq import json_content, content
 
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError
+from ..common import retry_failure
+
 from .. import __version__
 
 _LOG_HTTP_REQUEST = ActionType(
@@ -558,15 +560,16 @@ class FlockerClient(object):
         return request
 
     def this_node_uuid(self):
-        era = check_output(["flocker-node-era"])
-        request = self._request(
-            b"GET", b"/state/nodes/by_era/" + era, None, {OK},
-            {NOT_FOUND: NotFound},
-        )
+        getting_era = getProcessOutput(
+            "flocker-node-era", reactor=self._reactor, env=environ)
 
-        def handle_error(failure):
-            failure.trap(NotFound)
-            return deferLater(self._reactor, 0.1, self.this_node_uuid)
-        request.addCallbacks(lambda result: UUID(result["uuid"]), handle_error)
+        def got_era(era):
+            return retry_failure(
+                self._reactor, lambda: self._request(
+                    b"GET", b"/state/nodes/by_era/" + era, None, {OK},
+                    {NOT_FOUND: NotFound},
+                ), [NotFound])
+        request = getting_era.addCallback(got_era)
+        request.addCallback(lambda result: UUID(result["uuid"]))
         return request
 
