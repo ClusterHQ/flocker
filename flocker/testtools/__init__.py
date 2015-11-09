@@ -47,10 +47,14 @@ from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.python.logfile import LogFile
 
+from ._flaky import flaky
 from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
+
+# Export for other places to import. Be still, flake8.
+flaky
 
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
