@@ -2,13 +2,10 @@
 
 """
 Logic for handling flaky tests.
-
-XXX: Not all of this code actually belongs here, but while writing it's
-convenient to have one place to put everything.
 """
 
 
-def flaky(test_method):
+def flaky(jira_key):
     """
     Mark a test as flaky.
 
@@ -16,14 +13,19 @@ def flaky(test_method):
     test as flaky means both failures and successes are expected, and that
     neither will fail the test run.
 
-    :param function test_method: The test method to mark as flaky.
-    :return: A decorated version of ``test_method``.
+    :param unicode jira_key: The JIRA key of the bug for this flaky test,
+        e.g. 'FLOC-2345'
+    :return: A decorator that can be applied to `TestCase` methods.
     """
-    # TODO
+    # XXX: This raises a crappy error message if you forgot to provide a JIRA
+    # key. Is there a way to provide a good one?
+
+    # TODO (see FLOC-3281):
     # - allow specifying which exceptions are expected
     # - retry on expected exceptions
     #   - parametrize on retry options
-    #     - perhaps `loop_until` should take a generator of sleep intervals,
-    #       so we can use same routine for backoff
     # - provide interesting & parseable logs for flaky tests
-    return test_method
+
+    def wrapper(test_method):
+        return test_method
+    return wrapper
