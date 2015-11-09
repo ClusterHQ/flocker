@@ -1087,6 +1087,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
 
 class UpdateNodeEraLocator(CommandLocator):
+    """
+    An AMP locator that can handle the ``SetNodeEraCommand`` AMP command.
+    """
     uuid = None
     era = None
 
@@ -1158,13 +1161,16 @@ class AgentLoopServiceTests(SynchronousTestCase):
         Upon connecting a ``SetNodeEraCommand`` is sent with the current
         node's era and UUID.
         """
-        protocol = AgentAMP(self.reactor, self.service)
-        locator = UpdateNodeEraLocator()
-        peer = AMP(locator=locator)
-        pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
+        client = AgentAMP(self.reactor, self.service)
+        # The object that processes incoming AMP commands:
+        server_locator = UpdateNodeEraLocator()
+        server = AMP(locator=server_locator)
+        pump = connectedServerAndClient(lambda: client, lambda: server)[2]
         pump.flush()
         self.assertEqual(
-            dict(era=locator.era, uuid=locator.uuid),
+            # Actual result of handling AMP commands, if any:
+            dict(era=server_locator.era, uuid=server_locator.uuid),
+            # Expected result:
             dict(era=unicode(self.service.era),
                  uuid=unicode(self.deployer.node_uuid)))
 
