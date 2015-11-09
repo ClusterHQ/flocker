@@ -644,6 +644,22 @@
     ]
 
 -
+  id: "get node by era"
+
+  doc: |
+    Lookup a node by its era, in this case "56780f44-0499-4153-9352-92344b180021".
+
+  request: |
+    GET /v1/state/nodes/by_era/56780f44-0499-4153-9352-92344b180021
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {
+      "uuid": "%(NODE_0)s",
+    }
+
+-
   id:
     "release a lease"
 
