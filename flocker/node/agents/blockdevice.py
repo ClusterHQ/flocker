@@ -1323,8 +1323,9 @@ class BlockDeviceDeployer(PRecord):
 
     def _discover_raw_state(self):
         """
-        Find the state of this node that is relevant to determining which datasets
-        are on this node, and return a ``RawState`` containing that information.
+        Find the state of this node that is relevant to determining which
+        datasets are on this node, and return a ``RawState`` containing that
+        information.
         """
         # FLOC-1819 Make this asynchronous
         api = self.block_device_api
