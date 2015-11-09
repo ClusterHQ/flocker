@@ -47,7 +47,7 @@ Setting Up Nodes Using Amazon Web Services
    * When you are ready to proceed, click Launch.
      This opens a prompt for you to either select an existing key pair, or create and download a new key pair.
 
-   Launch your instances when you are happy to proceed.	 
+   Launch your instances when you are happy to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
