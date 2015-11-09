@@ -32,8 +32,9 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
    * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-bd523087>`_
    * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-aea582fc>`_
 
-#. Configure the instance.
-   Complete the configuration wizard; in general the default configuration should suffice.   
+#. Configure the instance:
+
+   Complete each of the steps in the EC2 wizard using the following suggestions (fields not mentioned below can be left with the default configuration):
 
    * Choose instance type.
      We recommend at least the ``m3.large`` instance size.
