@@ -7,17 +7,16 @@ Tests for the datasets REST API.
 from uuid import UUID
 
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
 
 from ...common import loop_until
-from ...testtools import flaky
+from ...testtools import AsyncTestCase, flaky
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
 
 
-class DatasetAPITests(TestCase):
+class DatasetAPITests(AsyncTestCase):
     """
     Tests for the dataset API.
     """

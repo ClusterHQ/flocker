@@ -8,12 +8,11 @@ from uuid import UUID, uuid4
 
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
-from twisted.trial.unittest import TestCase
 
 from docker.utils import create_host_config
 
 from ...testtools import (
-    random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE
+    AsyncTestCase, random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE,
 )
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
@@ -22,7 +21,7 @@ from ..testtools import (
 from ..scripts import SCRIPTS
 
 
-class LeaseAPITests(TestCase):
+class LeaseAPITests(AsyncTestCase):
     """
     Tests for the leases API.
     """
