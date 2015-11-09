@@ -349,9 +349,9 @@ class ControlServiceLocator(CommandLocator):
         self.control_amp_service.cluster_state.apply_changes_from_source(
             self._source, [UpdateNodeStateEra(era=UUID(era),
                                               uuid=UUID(node_uuid))])
-        # We don't bother sending update to other nodes because this
-        # command will almost immediatey be following by a
-        # ``NodeStateCommand`` with more interesting information.
+        # We don't bother sending an update to other nodes because this
+        # command will immediately be followed by a ``NodeStateCommand``
+        # with more interesting information.
         return {}
 
 
