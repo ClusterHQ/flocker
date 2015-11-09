@@ -644,7 +644,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         assert_discovered_state(self, self.deployer, [], [])
 
-    def test_created_volume(self):
+    def test_unattached_volume(self):
         volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
@@ -833,6 +833,72 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         self.patch(blockdevice, "_logger", logger)
         self._incorrect_device_path_test(None)
+
+    def test_only_remote_device(self):
+        """
+        ``BlockDeviceDeployer.discover_state`` does not report remotely
+        attached volumes as datasets.
+        """
+        dataset_id = uuid4()
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
+            # This is a hack.  We don't know any other IDs, though.
+            # https://clusterhq.atlassian.net/browse/FLOC-1839
+            attach_to=u'some.other.host',
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discovered_datasets=[],
+            expected_volumes=[attached_volume],
+        )
+
+    def test_unrelated_mounted(self):
+        """
+        If a volume is attached but an unrelated filesystem is mounted at
+        the expected location for that volume, it is recognized as an
+        ``ATTACHED`` dataset.
+        """
+        # XXX This should perhaps be a seperate state so this can be
+        # fixed.
+        unrelated_device = FilePath(self.mktemp())
+        with unrelated_device.open("w") as unrelated_file:
+            unrelated_file.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        mountpoint = self.deployer.mountroot.child(bytes(volume.dataset_id))
+        mountpoint.makedirs()
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+
+        make_filesystem(unrelated_device, block_device=False)
+        mount(unrelated_device, mountpoint)
+
+        device_path = self.api.get_device_path(
+            volume.blockdevice_id,
+        )
+
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discoved_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device_path,
+                ),
+            ],
+            expected_volumes=[attached_volume],
+        )
 
 
 @implementer(IBlockDeviceAPI)

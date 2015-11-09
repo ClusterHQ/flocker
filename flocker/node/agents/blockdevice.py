@@ -1408,12 +1408,13 @@ class BlockDeviceDeployer(PRecord):
                         device_path=device_path,
                     )
             else:
-                datasets[dataset_id] = DiscoveredDataset(
-                    state=DatasetStates.NON_MANIFEST,
-                    dataset_id=dataset_id,
-                    maximum_size=volume.size,
-                    blockdevice_id=volume.blockdevice_id,
-                )
+                if volume.attached_to is None:
+                    datasets[dataset_id] = DiscoveredDataset(
+                        state=DatasetStates.NON_MANIFEST,
+                        dataset_id=dataset_id,
+                        maximum_size=volume.size,
+                        blockdevice_id=volume.blockdevice_id,
+                    )
 
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
