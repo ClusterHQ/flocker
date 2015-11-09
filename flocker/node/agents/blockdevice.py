@@ -101,7 +101,7 @@ class DiscoveredDataset(PClass):
             ((DatasetStates.ATTACHED, DatasetStates.MOUNTED), "device_path"),
             ((DatasetStates.MOUNTED,), "mount_point"),
         ]
-        for states, attribute, message in expected_attributes:
+        for states, attribute in expected_attributes:
             if (self.state in states) != hasattr(self, attribute):
                 if self.state in states:
                     message = (
