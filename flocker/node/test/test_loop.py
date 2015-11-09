@@ -14,7 +14,7 @@ from machinist import LOG_FSM_TRANSITION
 from pyrsistent import pset
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
+from twisted.test.proto_helpers import MemoryReactorClock
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
 from twisted.internet.ssl import ClientContextFactory
@@ -23,7 +23,9 @@ from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 from twisted.protocols.amp import AMP, CommandLocator
 from twisted.test.iosim import connectedServerAndClient
 
-from ...testtools.amp import FakeAMPClient, DelayedAMPClient
+from ...testtools.amp import (
+    FakeAMPClient, DelayedAMPClient, connected_amp_protocol,
+)
 from ...testtools import CustomException
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
@@ -41,15 +43,6 @@ from ...control import (
 from ...control._protocol import NodeStateCommand, AgentAMP, SetNodeEraCommand
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
 from .. import NoOp
-
-
-def build_protocol():
-    """
-    :return: ``AMP`` hooked up to transport.
-    """
-    p = AMP()
-    p.makeConnection(StringTransport())
-    return p
 
 
 class StubFSM(object):
@@ -122,7 +115,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         Neither new connections nor status updates cause the client to be
         disconnected.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         self.fsm.receive(_ConnectedToControlService(client=client))
         self.fsm.receive(_StatusUpdate(configuration=object(),
                                        state=object()))
@@ -133,7 +126,8 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         If the client disconnects before a status update is received then no
         notification is needed for convergence loop FSM.
         """
-        self.fsm.receive(_ConnectedToControlService(client=build_protocol()))
+        self.fsm.receive(
+            _ConnectedToControlService(client=connected_amp_protocol()))
         self.fsm.receive(ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
         self.assertConvergenceLoopInputted([])
 
@@ -189,7 +183,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         received then it disconnects but does not notify the agent
         operation FSM.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         self.fsm.receive(_ConnectedToControlService(client=client))
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.assertEqual((client.transport.disconnecting,
@@ -202,7 +196,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         then it disconnects and also notifys the convergence loop FSM that
         is should stop.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         desired = object()
         state = object()
         self.fsm.receive(_ConnectedToControlService(client=client))
@@ -216,7 +210,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         """
         If the FSM has been shutdown it ignores disconnection event.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         desired = object()
         state = object()
         self.fsm.receive(_ConnectedToControlService(client=client))
@@ -234,7 +228,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         """
         If the FSM has been shutdown it ignores cluster status update.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         desired = object()
         state = object()
         self.fsm.receive(_ConnectedToControlService(client=client))
@@ -1151,7 +1145,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         service = self.service
         service.cluster_status = fsm = StubFSM()
-        client = build_protocol()
+        client = connected_amp_protocol()
         service.connected(client)
         self.assertEqual(fsm.inputted,
                          [_ConnectedToControlService(client=client)])
@@ -1184,7 +1178,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         # don't hammer the server with reconnects):
         factory.delay += 500000
         # But now we successfully connect!
-        client = build_protocol()
+        client = connected_amp_protocol()
         self.service.connected(client)
         self.assertEqual(factory.delay, factory.initialDelay)
 
