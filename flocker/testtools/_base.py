@@ -6,7 +6,8 @@ Base classes for unit tests.
 
 import fixtures
 import testtools
-from testtools.deferredruntest import AsynchronousDeferredRunTest
+from testtools.deferredruntest import (
+    AsynchronousDeferredRunTestForBrokenTwisted)
 
 from twisted.trial import unittest
 
@@ -24,7 +25,12 @@ def async_runner(timeout):
     :param float timeout: The maximum length of time (in seconds) that a test
         is allowed to take.
     """
-    return AsynchronousDeferredRunTest.make_factory(timeout=timeout)
+    # XXX: Looks like the acceptance tests (which were the first tests that we
+    # tried to migrate) aren't cleaning up after themselves even in the
+    # successful case. Use the RunTest that loops the reactor a couple of
+    # times after the test is done.
+    return AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
+        timeout=timeout)
 
 
 # By default, asynchronous tests are timed out after 2 minutes.
