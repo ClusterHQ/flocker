@@ -19,9 +19,11 @@ from ...testtools import (
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket, check_http_server,
+    get_docker_client, verify_socket, check_http_server, DatasetBackend
 )
 from ..scripts import SCRIPTS
+
+from ...node.agents.ebs import EBSMandatoryProfileAttributes
 
 
 class DockerPluginTests(TestCase):
@@ -115,18 +117,51 @@ class DockerPluginTests(TestCase):
             self.addCleanup(client.remove_container, cid, force=True)
         return cid
 
-    def _test_create_container(self, cluster):
+    def _create_volume(self, client, name, driver_opts):
+        """
+        Create a volume with the given name and driver options on the passed in
+        docker client.
+
+        :param client: The docker.Client object to use.
+        :param name: The name of the volume to create.
+        :param opts: The options to pass through to the Flocker Plugin for
+            Docker.
+        :returns: The result of the API call.
+        """
+        # XXX: replace down to addCleanup with:
+        #
+        # result = client.create_volume(name, u'flocker', driver_opts)
+        #
+        # Once version 1.5.1+ of docker-py is released. It is currently fixed
+        # at head, but version 1.5.0 unfortunately has the wrong endpoint for
+        # creating a volume.
+        url = client._url('/volumes/create')
+        data = {
+            'Name': name,
+            'Driver': u'flocker',
+            'DriverOpts': driver_opts,
+        }
+        result = client._result(client._post_json(url, data=data), True)
+        self.addCleanup(client.remove_volume, name)
+        return result
+
+    def _test_create_container(self, cluster, volume_name=None):
         """
         Create a container running a simple HTTP server that writes to
         its volume on POST and reads the same data back from the volume
         on GET.
+
+        :param cluster: The cluster to create the container within.
+        :param unicode volume_name: The name to use for the volume. If left
+            unspecified then a random name will be generated.
         """
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
         http_port = 8080
         host_port = find_free_port()[1]
 
-        volume_name = random_name(self)
+        if volume_name is None:
+            volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
             {"host_config": create_host_config(
@@ -153,6 +188,53 @@ class DockerPluginTests(TestCase):
         """
         self.require_docker('1.9.0', cluster)
         return self._test_create_container(cluster)
+
+    @require_cluster(1, required_backend=DatasetBackend.aws)
+    def test_create_silver_volume_with_v2_plugin_api(self, cluster, backend):
+        """
+        Docker >=1.9, using the v2 plugin API, can create a volume with the
+        volumes API, and pass a profile argument of silver which is represented
+        in the backing volume created on EBS.
+
+        The approach here is to:
+
+        - Create the volume.
+        - Create a container using that volume to ensure that it is created.
+        - Use the flocker API to find the dataset for the volume.
+        - Interface with EBS directly to verify that the created volume has
+          'silver' characteristics.
+        """
+        self.require_docker('1.9.0', cluster)
+        node = cluster.nodes[0]
+        docker = get_docker_client(cluster, node.public_address)
+        volume_name = random_name(self)
+        self._create_volume(docker, volume_name,
+                            driver_opts={'profile': 'silver'})
+
+        create_container = self._test_create_container(cluster,
+                                                       volume_name=volume_name)
+
+        def _get_datasets(unused_arg):
+            return cluster.client.list_datasets_configuration()
+        create_container.addCallback(_get_datasets)
+
+        def _verify_created_volume_is_silver(datasets):
+            dataset = next(d for d in datasets
+                           if d.metadata.get(u'name') == volume_name)
+
+            volumes = backend.list_volumes()
+
+            volume = next(v for v in volumes
+                          if v.dataset_id == dataset.dataset_id)
+            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
+
+            self.assertEqual(
+                EBSMandatoryProfileAttributes.SILVER.value.volume_type.value,
+                ebs_volume.type)
+
+        create_container.addCallback(_verify_created_volume_is_silver)
+
+        return create_container
 
     @require_cluster(1)
     def test_volume_persists_restart(self, cluster):

@@ -15,7 +15,8 @@ from twisted.internet.defer import FirstError, Deferred, succeed, fail
 from twisted.python.components import proxyForInterface
 
 from eliot import ActionType
-from eliot.testing import validate_logging, assertHasAction
+from eliot.testing import (
+    validate_logging, assertHasAction, capture_logging, LoggedAction)
 
 from ..testtools import (
     CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer,
@@ -24,6 +25,7 @@ from ..testtools import (
 from ...testtools import CustomException
 
 from .. import IStateChange, sequentially, in_parallel, run_state_change, NoOp
+from .._change import LOG_IN_PARALLEL, LOG_SEQUENTIALLY
 
 from .istatechange import (
     DummyStateChange, RunSpyStateChange, make_istatechange_tests,
@@ -521,3 +523,47 @@ class RunStateChangeTests(SynchronousTestCase):
         action._logger = logger
         failure = self.failureResultOf(run_state_change(action, DEPLOYER))
         self.assertEqual(failure.getErrorMessage(), "Oh no")
+
+    def assert_nested_logging(self, combo, action_type, logger):
+        """
+        All the underlying ``IStateChange`` will be run in Eliot context in
+        which the sequential ``IStateChange`` is run, even if they are not
+        run immediately.
+
+        :param combo: ``sequentially`` or ``in_parallel``.
+        :param action_type: ``eliot.ActionType`` we expect to be parent of
+            sub-changes' log entries.
+        :param logger: A ``MemoryLogger`` where messages go.
+        """
+        actions = [ControllableAction(result=Deferred()),
+                   ControllableAction(result=succeed(None))]
+        for action in actions:
+            self.patch(action, "_logger", logger)
+        run_state_change(combo(actions), None)
+        # For sequentially this will ensure second action doesn't
+        # automatically run in context of LOG_ACTION:
+        actions[0].result.callback(None)
+
+        parent = assertHasAction(self, logger, action_type, succeeded=True)
+        self.assertEqual(
+            dict(messages=parent.children, length=len(parent.children)),
+            dict(
+                messages=LoggedAction.ofType(
+                    logger.messages, CONTROLLABLE_ACTION_TYPE),
+                length=2))
+
+    @capture_logging(None)
+    def test_sequential_logging(self, logger):
+        """
+        All the underlying ``IStateChange`` will be run in Eliot context in
+        which the sequential ``IStateChange`` is run.
+        """
+        self.assert_nested_logging(sequentially, LOG_SEQUENTIALLY, logger)
+
+    @capture_logging(None)
+    def test_parallel_logging(self, logger):
+        """
+        All the underlying ``IStateChange`` will be run in Eliot context in
+        which the parallel ``IStateChange`` is run.
+        """
+        self.assert_nested_logging(in_parallel, LOG_IN_PARALLEL, logger)

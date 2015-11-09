@@ -7,7 +7,7 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 
 import time
 from uuid import uuid4
-from bitmath import Byte
+from bitmath import Byte, GiB
 
 from boto.ec2.volume import (
     Volume as EbsVolume, AttachmentSet
@@ -16,18 +16,24 @@ from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging
+from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
+
+from ..blockdevice import MandatoryProfiles
 
 from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException, _should_finish, UnexpectedStateException
+    TimeoutException, _should_finish, UnexpectedStateException,
+    EBSMandatoryProfileAttributes
 )
 
 from .._logging import (
-    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER
+    AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
+    CREATE_VOLUME_FAILURE
 )
-from ..test.test_blockdevice import make_iblockdeviceapi_tests
+from ..test.test_blockdevice import (
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests
+)
 
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
@@ -181,6 +187,101 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+    def test_create_volume_gold_profile(self):
+        """
+        Requesting ``gold`` profile during volume creation honors
+        ``gold`` attributes.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.GOLD)
+
+    @capture_logging(assertHasMessage, CREATE_VOLUME_FAILURE)
+    def test_create_volume_violate_requested_profile(self, logger):
+        """
+        Volume creation request that cannot satisfy attributes of requested
+        profile makes a second (successful) attempt to create the volume with
+        default profile.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.GOLD, created_profile=MandatoryProfiles.DEFAULT,
+            size_GiB=1)
+
+    def test_create_too_large_volume_with_profile(self):
+        """
+        Create a volume so large that none of the ``MandatoryProfiles``
+        can be assigned to it.
+        """
+        self.assertRaises(EC2ResponseError,
+                          self._assert_create_volume_with_mandatory_profile,
+                          MandatoryProfiles.GOLD,
+                          size_GiB=1024*1024)
+
+    def test_create_volume_silver_profile(self):
+        """
+        Requesting ``silver`` profile during volume creation honors
+        ``silver`` attributes.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.SILVER)
+
+    def test_create_too_large_volume_silver_profile(self):
+        """
+        Too large volume (> 16TiB) for ``silver`` profile.
+        """
+        self.assertRaises(EC2ResponseError,
+                          self._assert_create_volume_with_mandatory_profile,
+                          MandatoryProfiles.SILVER,
+                          size_GiB=1024*1024)
+
+    def test_create_volume_bronze_profile(self):
+        """
+        Requesting ``bronze`` profile during volume creation honors
+        ``bronze`` attributes.
+        """
+        self._assert_create_volume_with_mandatory_profile(
+            MandatoryProfiles.BRONZE)
+
+    def _assert_create_volume_with_mandatory_profile(self, profile,
+                                                     created_profile=None,
+                                                     size_GiB=4):
+        """
+        Volume created with given profile has the attributes
+        expected from the profile.
+
+        :param ValueConstant profile: Name of profile to use for creation.
+        :param ValueConstant created_profile: Name of the profile volume is
+            expected to be created with.
+        :param int size_GiB: Size of volume to be created.
+        """
+        if created_profile is None:
+            created_profile = profile
+        volume1 = self.api.create_volume_with_profile(
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size * size_GiB,
+            profile_name=profile.value)
+
+        cannonical_profile = MandatoryProfiles.lookupByValue(
+            created_profile.value)
+        A = EBSMandatoryProfileAttributes.lookupByName(
+            cannonical_profile.name).value
+        ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
+        self.assertEqual(ebs_volume.type, A.volume_type.value)
+        requested_iops = A.requested_iops(ebs_volume.size)
+        self.assertEqual(ebs_volume.iops if requested_iops is not None
+                         else None, requested_iops)
+
+
+class EBSProfiledBlockDeviceAPIInterfaceTests(
+        make_iprofiledblockdeviceapi_tests(
+            profiled_blockdevice_api_factory=ebsblockdeviceapi_for_test,
+            dataset_size=GiB(4).to_Byte().value
+        )
+):
+    """
+    Interface adherence tests for ``IProfiledBlockDeviceAPI``.
+    """
+    pass
 
 
 class VolumeStateTransitionTests(TestCase):

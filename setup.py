@@ -93,6 +93,7 @@ setup(
             'flocker.dockerplugin._script:docker_plugin_main',
             'flocker-diagnostics = ' +
             'flocker.node.script:flocker_diagnostics_main',
+            'flocker-node-era = flocker.common._era:era_main',
         ],
     },
 
