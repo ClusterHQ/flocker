@@ -767,14 +767,12 @@ run_trial_modules: &run_trial_modules
   - flocker.cli
   - flocker.common
   - flocker.control
+  - flocker.restapi
+  - flocker.docs
   - flocker.dockerplugin
   - flocker.node.agents
   - flocker.node.test
-  # TODO:
-  # one of the functional tests is hanging, so we split the functional
-  # tests and comment out the subset that is hanging
-  # - flocker.node.functional
-  # - flocker.node.functional.test_docker
+  - flocker.node.functional.test_docker
   - flocker.node.functional.test_script
   - flocker.node.functional.test_deploy
   - flocker.provision
@@ -783,6 +781,7 @@ run_trial_modules: &run_trial_modules
   - flocker.test
   - flocker.testtools
   # flocker.volume needs to run as root due to ZFS calls
+  # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
   # - flocker.volume
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
@@ -817,10 +816,15 @@ run_trial_cli_as_root: &run_trial_cli_as_root [
 # during the acceptance tests
 run_acceptance_modules: &run_acceptance_modules
   - flocker.acceptance.endtoend.test_dataset
+  - flocker.acceptance.endtoend.test_diagnostics
+  - flocker.acceptance.endtoend.test_dockerplugin
+  - flocker.acceptance.endtoend.test_leases
   - flocker.acceptance.integration.test_mongodb
+  - flocker.acceptance.integration.test_platform
   - flocker.acceptance.integration.test_postgres
   - flocker.acceptance.obsolete.test_cli
   - flocker.acceptance.obsolete.test_containers
+  - flocker.acceptance.test.test_testtools
 
 # flocker.node.functional is hanging, so we don't run it
 job_type:
