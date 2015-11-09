@@ -765,7 +765,7 @@ class IClusterStateChange(Interface):
         this change.
 
         For example, if this update adds information to a particular node,
-        the returned ``IClusterStateChange`` will wipe out that
+        the returned ``IClusterStateWipe`` will wipe out that
         information indicating ignorance about that information. We need
         this ability in order to expire out-of-date state information.
 
