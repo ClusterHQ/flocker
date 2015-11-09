@@ -19,8 +19,6 @@ class FlakyTests(SynchronousTestCase):
     Tests for ``@flaky`` decorator.
     """
 
-    # XXX: Should I use this branch to introduce testtools as well?
-
     @given(integers())
     def test_decorated_function_executed(self, x):
         """
@@ -51,8 +49,56 @@ class FlakyTests(SynchronousTestCase):
                 pass
 
         test = SomeTest('test_something')
-        result = unittest.TestResult()
+        self.assertEqual({
+            'errors': 0,
+            'failures': 0,
+            'skipped': 0,
+            'expectedFailures': 0,
+            'unexpectedSuccesses': 0,
+            'testsRun': 1,
+        }, get_results(test))
 
-        test.run(result)
+    def test_failed_flaky_test(self):
+        """
+        As of FLOC-3414, the @flaky decorator doesn't actually treat failed
+        tests in special in any way - it just acts as a structured comment.
+        """
 
-        self.assertEqual({}, result.__dict__)
+        class SomeTest(unittest.TestCase):
+
+            @flaky
+            def test_something(self):
+                1/0
+
+        test = SomeTest('test_something')
+        self.assertEqual({
+            'errors': 1,
+            'failures': 0,
+            'skipped': 0,
+            'expectedFailures': 0,
+            'unexpectedSuccesses': 0,
+            'testsRun': 1,
+        }, get_results(test))
+
+
+def _get_result_stats(result):
+    """
+    Return a summary of test results.
+    """
+    return {
+        'errors': len(result.errors),
+        'failures': len(result.failures),
+        'skipped': len(result.skipped),
+        'expectedFailures': len(result.expectedFailures),
+        'unexpectedSuccesses': len(result.unexpectedSuccesses),
+        'testsRun': result.testsRun,
+    }
+
+
+def get_results(test):
+    """
+    Run a test and return a summary of its results.
+    """
+    result = unittest.TestResult()
+    test.run(result)
+    return _get_result_stats(result)
