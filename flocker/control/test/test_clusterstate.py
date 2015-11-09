@@ -16,7 +16,7 @@ from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
 from .. import (
     Application, DockerImage, NodeState, DeploymentState, Manifestation,
-    Dataset, NO_WIPE, IClusterStateChange,
+    Dataset, IClusterStateChange,
 )
 from .clusterstatetools import advance_some, advance_rest
 
@@ -253,26 +253,4 @@ class ClusterStateServiceTests(SynchronousTestCase):
         self.assertEqual(
             service.as_deployment(),
             DeploymentState(nodes=[self.WITH_APPS]),
-        )
-
-    def test_no_wipe(self):
-        """
-        An update can indicate no wiping is necessary by returning
-        ``NO_WIPE``. Other changes will still expire as usual.
-        """
-        @implementer(IClusterStateChange)
-        class NoChange(object):
-            def update_cluster_state(self, cluster_state):
-                return cluster_state
-
-            def get_information_wipe(self):
-                return NO_WIPE
-
-        service = self.service()
-        service.apply_changes([NoChange(), self.WITH_APPS])
-        advance_some(self.clock)
-        advance_rest(self.clock)
-        # At this point both changes should have expired.
-        self.assertEqual(
-            service.as_deployment(), DeploymentState(nodes=[])
         )
