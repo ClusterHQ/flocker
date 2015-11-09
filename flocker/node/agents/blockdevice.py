@@ -94,18 +94,27 @@ class DiscoveredDataset(PClass):
 
     def __invariant__(self):
         expected_attributes = [
-            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED),
-             "device_path",
-             "device_path only for attached and mounted xDataset."),
-            ((DatasetStates.MOUNTED,),
-             "mount_point",
-             "mount_point only for mounted xDataset."),
+            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED), "device_path"),
+            ((DatasetStates.MOUNTED,), "mount_point"),
         ]
         for states, attribute, message in expected_attributes:
             if (self.state in states) != hasattr(self, attribute):
+                if self.state in states:
+                    message = (
+                        "`{attr}` must be specified in state `{state}`"
+                        .format(attribute=attribute, state=self.state.name)
+                    )
+                else:
+                    message = (
+                        "`{attr}` can only be specified in states {states}"
+                        .format(
+                            attr=attribute,
+                            states=','.join(map("`{0.name}`".format, states)),
+                        )
+                    )
                 return (False, message)
         if self.state in (DatasetStates.DELETED,):
-            return (False, "xDataset can't be in state DELETED.")
+            return (False, "DesiredDataset can't be in state DELETED.")
         return (True, "")
 
 
