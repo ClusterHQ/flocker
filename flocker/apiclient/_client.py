@@ -22,7 +22,8 @@ from eliot.twisted import DeferredContext
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
-from twisted.web.http import CREATED, OK, CONFLICT
+from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
+from twisted.internet.task import deferLater
 
 from treq import json_content, content
 
@@ -340,6 +341,12 @@ class ResponseError(Exception):
         self.code = code
 
 
+class NotFound(Exception):
+    """
+    Result was not found.
+    """
+
+
 @implementer(IFlockerAPIV1Client)
 class FlockerClient(object):
     """
@@ -355,6 +362,7 @@ class FlockerClient(object):
         :param FilePath cert_path: Path to user certificate.
         :param FilePath key_path: Path to user private key.
         """
+        self._reactor = reactor
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
@@ -369,7 +377,7 @@ class FlockerClient(object):
             body of the request.
         :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
-            raised if it is present, or ``None`` to send no headers.
+            raised if it is present, or ``None`` to set no errors.
 
         :return: ``Deferred`` firing with decoded JSON.
         """
@@ -552,8 +560,13 @@ class FlockerClient(object):
     def this_node_uuid(self):
         era = check_output(["flocker-node-era"])
         request = self._request(
-            b"GET", b"/state/nodes/by_era/" + era, None, {OK}
+            b"GET", b"/state/nodes/by_era/" + era, None, {OK},
+            {NOT_FOUND: NotFound},
         )
-        request.addCallback(lambda result: UUID(result["uuid"]))
+
+        def handle_error(failure):
+            failure.trap(NotFound)
+            return deferLater(self._reactor, 0.1, self.this_node_uuid)
+        request.addCallbacks(lambda result: UUID(result["uuid"]), handle_error)
         return request
 
