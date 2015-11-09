@@ -20,12 +20,13 @@ from ._model import (
     Link, AttachedVolume, NodeState, Manifestation, Dataset, RestartNever,
     RestartOnFailure, RestartAlways, DeploymentState, NonManifestDatasets,
     same_node, IClusterStateWipe, Leases, Lease, LeaseError, pmap_field,
-    ChangeSource,
+    ChangeSource, UpdateNodeStateEra, NoWipe,
 )
 from ._protocol import (
     IConvergenceAgent,
     NodeStateCommand,
     AgentAMP,
+    SetNodeEraCommand,
 )
 
 __all__ = [
@@ -54,10 +55,13 @@ __all__ = [
 
     'IConvergenceAgent',
     'NodeStateCommand',
+    'SetNodeEraCommand',
     'AgentAMP',
     'pmap_field',
     'Lease',
     'Leases',
     'LeaseError',
     'ChangeSource',
+    'UpdateNodeStateEra',
+    'NoWipe',
 ]
