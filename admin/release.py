@@ -911,8 +911,8 @@ def initialize_release_main(args, base_path, top_level):
         "\nCompleted.\n\nPlease copy and paste the following commands "
         "in your shell to enter the release environment and continue "
         "the pre-tag release process:\n\n"
-        "cd {};\nsource venv/bin/activate;\n\n"
-        .format(release_path.path)
+        "export VERSION={}\n;cd {};\nsource venv/bin/activate;\n\n"
+        .format(version, release_path.path)
     )
 
 
