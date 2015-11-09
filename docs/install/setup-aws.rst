@@ -4,7 +4,7 @@
 Setting Up Nodes Using Amazon Web Services
 ==========================================
 
-If you are not familiar with EC2, you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
+If you are not familiar with AWS EC2, you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
 You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
 
 .. The AMI links were created using the ami_links tool in ClusterHQ's internal-tools repository.
