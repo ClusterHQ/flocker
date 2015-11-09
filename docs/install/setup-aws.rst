@@ -44,8 +44,10 @@ Setting Up Nodes Using Amazon Web Services
      * If you run the MongoDB tutorial using AWS, you will need to open port 27017 to allow your MongoDB client to connect to the database.
 
    * Review to ensure your instances have sufficient storage and your security groups have the required ports.
+   * When you are ready to proceed, click Launch.
+     This opens a prompt for you to either select an existing key pair, or create and download a new key pair.
 
-   Launch when you are ready to proceed.
+   Launch your instances when you are happy to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
