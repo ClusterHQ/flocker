@@ -44,7 +44,7 @@ class AsyncTestCase(testtools.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
-        self.exception_handlers.append((unittest.SkipTest, _test_skipped))
+        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def mktemp(self):
         """
