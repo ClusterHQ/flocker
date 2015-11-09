@@ -99,7 +99,7 @@ Preparing For a Release
    This should be a "Feature" with "Release Flocker [VERSION]" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Create the release repo, environment and branch:
+#. Create the release repository, environment and branch:
 
    .. prompt:: bash $
 
