@@ -855,7 +855,6 @@ def initialize_release_main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    REMOTE_URL = "https://github.com/ClusterHQ/flocker"
     options = InitializeReleaseOptions()
 
     try:
@@ -866,28 +865,48 @@ def initialize_release_main(args, base_path, top_level):
 
     version = options['flocker-version']
     path = options['path']
-    # repo = Repo(path=top_level.path, search_parent_directories=True)
+    initialize_release(version, path, top_level)
+
+
+def initialize_release(version, path, top_level):
+    """
+    Clone the Flocker repo and install a new virtual environment for
+    a release.
+
+    :param bytes version: The version to release.
+    :param FilePath path: The path in which the release branch
+        will be created.
+    :param FilePath top_level: The top-level of the flocker repository.
+
+    """
+    REMOTE_URL = "https://github.com/ClusterHQ/flocker"
     release_path = path.child("flocker-release-{}".format(version))
     sys.stdout.write("Cloning repo in {}...\n".format(release_path.path))
-    # release_repo = repo.clone(release_path.path)
+
     release_repo = Repo.init(release_path.path)
     release_origin = release_repo.create_remote('origin', REMOTE_URL)
     release_origin.fetch()
     release_origin.pull(release_origin.refs[0].remote_head)
+
     sys.stdout.write("Checking out master...\n")
     release_repo.git.checkout("master")
+
     sys.stdout.write("Updating repo...\n")
     release_repo.git.pull("origin", "master")
+
     sys.stdout.write(
         "Creating release branch for version {}...\n".format(version))
     release_repo.active_branch.checkout(b="release/flocker-{}".format(version))
+
     sys.stdout.write("Creating virtual environment...\n")
     virtualenv.create_environment(
         release_path.child("venv").path, site_packages=False)
+
     sys.stdout.write("Activating virtual environment...\n")
     virtualenv_file = release_path.child("venv").child("bin")
     virtualenv_file = virtualenv_file.child("activate_this.py")
     execfile(virtualenv_file.path, dict(__file__=virtualenv_file.path))
+
     sys.stdout.write("Installing dependencies...\n")
     os.chdir(release_path.path)
     if _platform == "darwin":
@@ -896,8 +915,10 @@ def initialize_release_main(args, base_path, top_level):
             brew_openssl, brew_openssl)
     check_call(
         ["pip install -e .[dev]"], shell=True, stdout=open(os.devnull, 'w'))
+
     sys.stdout.write("Updating LICENSE file...\n")
     update_license_file(list(), top_level)
+
     sys.stdout.write("Committing result (no push)...\n")
     try:
         release_repo.git.commit(
@@ -907,6 +928,7 @@ def initialize_release_main(args, base_path, top_level):
         # This will happen when the LICENSE file has not changed, so we'll
         # ignore the error.
         pass
+
     sys.stdout.write(
         "\nCompleted.\n\nPlease copy and paste the following commands "
         "in your shell to enter the release environment and continue "
