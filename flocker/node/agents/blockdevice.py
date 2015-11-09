@@ -1224,6 +1224,9 @@ class BlockDeviceDeployerLocalState(PClass):
         These are the only parts of the state that need to be sent to the
         control service.
         """
+        # XXX The structure of the shared state changes reflects the model
+        # currently used by the control service. However, that model doesn't
+        # seem to actually match what any consumer wants.
         manifestations = {}
         paths = {}
         devices = {}
