@@ -93,6 +93,10 @@ class DiscoveredDataset(PClass):
     mount_point = field(FilePath)
 
     def __invariant__(self):
+        """
+        Check that the state is valid for a ``DiscoveredDataset`` and
+        that all the attributes required for the state are specified.
+        """
         expected_attributes = [
             ((DatasetStates.ATTACHED, DatasetStates.MOUNTED), "device_path"),
             ((DatasetStates.MOUNTED,), "mount_point"),
@@ -1174,6 +1178,16 @@ def _manifestation_from_volume(volume):
 class RawState(PClass):
     """
     The raw state of a node.
+
+    :param unicode compute_instance_id:
+    :param volumes: List of volumes attached to this node or non-manifest.
+    :type volumes: ``pvector`` of ``BlockDeviceVolume:
+    :param devices: Mapping from datasets to block device path containing
+        filesystem of that dataset.
+    :type devices: ``pmamp`` of ``UUID`` to ``FilePath``
+    :param system_mounts: Mapping of block device path to mount point of all
+        mounts on the system.
+    :type system_mounts: ``pmap`` of ``FilePath`` to ``FilePath``.
     """
     compute_instance_id = field(unicode, mandatory=True)
     volumes = pvector_field(BlockDeviceVolume)
@@ -1343,9 +1357,9 @@ class BlockDeviceDeployer(PRecord):
 
     def discover_state(self, node_state):
         """
-        Find all block devices that are currently associated with this host and
-        return a ``NodeState`` containing only ``Manifestation`` instances and
-        their mount paths.
+        Find all datasets that are currently associated with this host and
+        return a ``BlockDeviceDeployerLocalState`` containing all the datasets
+        that are not manifest or are located on this node.
         """
         raw_state = self._discover_raw_state()
 
