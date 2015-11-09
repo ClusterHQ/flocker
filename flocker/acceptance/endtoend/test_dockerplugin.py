@@ -15,7 +15,7 @@ from ...common import loop_until
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    random_name, find_free_port,
+    random_name, find_free_port, flaky,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -180,6 +180,7 @@ class DockerPluginTests(TestCase):
             self, node.public_address, host_port, expected_response=data))
         return d
 
+    @flaky('FLOC-3346')
     @require_cluster(1)
     def test_create_container_with_v2_plugin_api(self, cluster):
         """
@@ -354,6 +355,7 @@ class DockerPluginTests(TestCase):
             expected_response=data))
         return d
 
+    @flaky('FLOC-2977')
     @require_cluster(1)
     def test_move_volume_single_node(self, cluster):
         """
@@ -363,6 +365,7 @@ class DockerPluginTests(TestCase):
         """
         return self._test_move(cluster, cluster.nodes[0], cluster.nodes[0])
 
+    @flaky('FLOC-3346')
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """

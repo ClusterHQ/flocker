@@ -10,6 +10,7 @@ from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 
 from ...common import loop_until
+from ...testtools import flaky
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
@@ -20,6 +21,8 @@ class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
     """
+
+    @flaky('FLOC-3207')
     @require_cluster(1)
     def test_dataset_creation(self, cluster):
         """
@@ -51,6 +54,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create.addCallback(confirm_gold)
         return waiting_for_create
 
+    @flaky('FLOC-3341')
     @require_moving_backend
     @require_cluster(2)
     def test_dataset_move(self, cluster):
@@ -78,6 +82,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create.addCallback(move_dataset)
         return waiting_for_create
 
+    @flaky('FLOC-3196')
     @require_cluster(1)
     def test_dataset_deletion(self, cluster):
         """

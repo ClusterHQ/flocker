@@ -11,7 +11,7 @@ from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 
 from ...common import loop_until
-from ...testtools import random_name
+from ...testtools import flaky, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -118,6 +118,7 @@ class ContainerAPITests(TestCase):
         )
         return d
 
+    @flaky('FLOC-2488')
     @require_moving_backend
     @require_cluster(2)
     def test_move_container_with_dataset(self, cluster):
