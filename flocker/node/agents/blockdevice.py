@@ -1182,9 +1182,9 @@ class RawState(PClass):
     :param unicode compute_instance_id:
     :param volumes: List of volumes attached to this node or non-manifest.
     :type volumes: ``pvector`` of ``BlockDeviceVolume:
-    :param devices: Mapping from datasets to block device path containing
+    :param devices: Mapping from dataset UUID to block device path containing
         filesystem of that dataset.
-    :type devices: ``pmamp`` of ``UUID`` to ``FilePath``
+    :type devices: ``pmap`` of ``UUID`` to ``FilePath``
     :param system_mounts: Mapping of block device path to mount point of all
         mounts on the system.
     :type system_mounts: ``pmap`` of ``FilePath`` to ``FilePath``.
