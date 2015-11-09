@@ -6,8 +6,6 @@ Tests for ``flocker.control._clusterstate``.
 
 from uuid import uuid4
 
-from zope.interface import implementer
-
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
@@ -16,7 +14,7 @@ from .._model import ChangeSource
 from .._clusterstate import ClusterStateService
 from .. import (
     Application, DockerImage, NodeState, DeploymentState, Manifestation,
-    Dataset, IClusterStateChange,
+    Dataset,
 )
 from .clusterstatetools import advance_some, advance_rest
 
