@@ -12,6 +12,7 @@ effect==0.1a13
 eliot==0.9.0
 eliot-tree==15.3.0
 enum34==1.0.4
+fixtures==1.4.0
 idna==2.0
 ipaddr==2.1.11
 ipaddress==1.0.7

@@ -4,6 +4,7 @@
 Base classes for unit tests.
 """
 
+import fixtures
 import testtools
 from testtools.deferredruntest import AsynchronousDeferredRunTest
 
@@ -30,9 +31,25 @@ def async_runner(timeout):
 DEFAULT_ASYNC_TIMEOUT = 120
 
 
+def _test_skipped(case, result, exception):
+    result.addSkip(case, str(exception))
+
+
 class AsyncTestCase(testtools.TestCase):
     """
     Base class for asynchronous test cases.
     """
 
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
+
+    def __init__(self, *args, **kwargs):
+        super(AsyncTestCase, self).__init__(*args, **kwargs)
+        self.exception_handlers.append((unittest.SkipTest, _test_skipped))
+
+    def mktemp(self):
+        """
+        Create a temporary directory that will be deleted on test completion.
+
+        :return: Path to the newly-created temporary directory.
+        """
+        return self.useFixture(fixtures.TempDir()).path

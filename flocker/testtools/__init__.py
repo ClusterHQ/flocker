@@ -16,6 +16,7 @@ __all__ = [
     'MemoryCoreReactor',
     'REALISTIC_BLOCKDEVICE_SIZE',
     'StandardOptionsTestsMixin',
+    'TestCase',
     'assertContainsAll',
     'assertNoFDsLeaked',
     'assert_equal_comparison',
@@ -74,12 +75,15 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.python.logfile import LogFile
 
-from ._base import AsyncTestCase
+from ._base import AsyncTestCase, TestCase
 from ._flaky import flaky
 from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
+
+# AsyncTestCase imported for re-use elsewhere.
+AsyncTestCase
 
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
@@ -793,7 +797,7 @@ def make_script_tests(executable):
     :return: A ``TestCase`` subclass which defines some tests applied to the
         given executable.
     """
-    class ScriptTests(AsyncTestCase):
+    class ScriptTests(TestCase):
         @skipUnless(which(executable), executable + " not installed")
         def test_version(self):
             """
