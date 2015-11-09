@@ -34,7 +34,7 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
-from ...testtools.amp import DelayedAMPClient
+from ...testtools.amp import DelayedAMPClient, connected_amp_protocol
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
@@ -1039,20 +1039,12 @@ def iconvergence_agent_tests_factory(fixture):
         """
         Tests for ``IConvergenceAgent``.
         """
-        def protocol(self):
-            """
-            Return an ``AMP`` instance with a transport.
-            """
-            protocol = AMP()
-            protocol.makeConnection(StringTransport())
-            return protocol
-
         def test_connected(self):
             """
             ``IConvergenceAgent.connected()`` takes an AMP instance.
             """
             agent = fixture(self)
-            agent.connected(self.protocol())
+            agent.connected(connected_amp_protocol())
 
         def test_disconnected(self):
             """
@@ -1060,7 +1052,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()``.
             """
             agent = fixture(self)
-            agent.connected(self.protocol())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
 
         def test_reconnected(self):
@@ -1069,9 +1061,9 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.disconnected()``.
             """
             agent = fixture(self)
-            agent.connected(self.protocol())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
-            agent.connected(self.protocol())
+            agent.connected(connected_amp_protocol())
 
         def test_cluster_updated(self):
             """
@@ -1079,7 +1071,7 @@ def iconvergence_agent_tests_factory(fixture):
             instances.
             """
             agent = fixture(self)
-            agent.connected(self.protocol())
+            agent.connected(connected_amp_protocol())
             agent.cluster_updated(
                 Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
 
