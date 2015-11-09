@@ -67,6 +67,16 @@ definitions:
       - node_uuid
     additionalProperties: false
 
+  node:
+    description: "A known node in the cluster."
+    type: object
+    properties:
+      uuid:
+        '$ref': 'types.json#/definitions/node_uuid'
+    required:
+      - uuid
+    additionalProperties: false
+
   nodes_array:
     decription: "An array of known nodes in the cluster."
     type: array
