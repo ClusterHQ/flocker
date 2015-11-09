@@ -430,10 +430,11 @@ class FlockerClientTests(make_clientv1_tests()):
         source = ChangeSource()
         # Prevent nodes being deleted by the state wiper.
         source.set_last_activity(reactor.seconds())
-        era = UUID(check_output(["flocker-node-era"]))
+        self.era = UUID(check_output(["flocker-node-era"]))
         self.cluster_state_service.apply_changes_from_source(
             source=source,
-            changes=[UpdateNodeStateEra(era=era, uuid=self.node_1.uuid)] + [
+            changes=[
+                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)] + [
                 NodeState(uuid=node.uuid, hostname=node.public_address)
                 for node in [self.node_1, self.node_2]
             ],
@@ -555,3 +556,34 @@ class FlockerClientTests(make_clientv1_tests()):
                           states))
         return d
 
+    def test_this_node_uuid_retry(self):
+        """
+        ``this_node_uuid`` retries if the node UUID is unknown.
+        """
+        # Pretend that the era for node 1 is something else; first try at
+        # getting node UUID for real era will therefore fail:
+        self.cluster_state_service.apply_changes([
+            UpdateNodeStateEra(era=uuid4(), uuid=self.node_1.uuid)])
+
+        # When we lookup the DeploymentState the first time we'll set the
+        # value to the correct one, so second try should succeed:
+        def as_deployment(original=self.cluster_state_service.as_deployment):
+            result = original()
+            self.cluster_state_service.apply_changes(changes=[
+                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)])
+            return result
+        self.patch(self.cluster_state_service, "as_deployment", as_deployment)
+
+        d = self.client.this_node_uuid()
+        d.addCallback(self.assertEqual, self.node_1.uuid)
+        return d
+
+    def test_this_node_uuid_no_retry_on_other_responses(self):
+        """
+        ``this_node_uuid`` doesn't retry on unexpected responses.
+        """
+        # Cause 500 errors to be raised by the API endpoint:
+        self.patch(self.cluster_state_service, "as_deployment",
+                   lambda: 1/0)
+        return self.assertFailure(self.client.this_node_uuid(),
+                                  ResponseError)
