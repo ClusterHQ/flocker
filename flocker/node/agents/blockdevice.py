@@ -20,7 +20,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, PClass, field, pmap_field
+from pyrsistent import PRecord, PClass, field, pmap_field, pset_field
 
 import psutil
 
@@ -501,13 +501,10 @@ class CreateFilesystem(PRecord):
         return succeed(None)
 
 
-def _ensure_no_filesystem(device):
+def _has_filesystem(device):
     """
-    Raises an error if there's already a filesystem on ``device``.
-
-    :raises: ``FilesystemExists`` if there is already a filesystem on
-        ``device``.
-    :return: ``None``
+    :return: Boolean which is true if a filesystem exists on the
+        ``device``, otherwise false.
     """
     try:
         check_output(
@@ -527,9 +524,21 @@ def _ensure_no_filesystem(device):
         # assumption.
         if e.returncode == 2 and not e.output:
             # There is no filesystem on this device.
-            return
+            return False
         raise
-    raise FilesystemExists(device)
+    return True
+
+
+def _ensure_no_filesystem(device):
+    """
+    Raises an error if there's already a filesystem on ``device``.
+
+    :raises: ``FilesystemExists`` if there is already a filesystem on
+        ``device``.
+    :return: ``None``
+    """
+    if _has_filesystem(device):
+        raise FilesystemExists(device)
 
 
 def _valid_size(size):
@@ -1195,11 +1204,14 @@ class RawState(PClass):
     :param system_mounts: Mapping of block device path to mount point of all
         mounts on this particular node.
     :type system_mounts: ``pmap`` of ``FilePath`` to ``FilePath``.
+    :param devices_with_filesystems: ``PSet`` of ``FilePath`` including
+        those devices that have filesystems on this node.
     """
     compute_instance_id = field(unicode, mandatory=True)
     volumes = pvector_field(BlockDeviceVolume)
     devices = pmap_field(UUID, FilePath)
     system_mounts = pmap_field(FilePath, FilePath)
+    devices_with_filesystems = pset_field(FilePath)
 
 
 @implementer(ILocalState)
@@ -1376,6 +1388,8 @@ class BlockDeviceDeployer(PRecord):
             volumes=volumes,
             devices=devices,
             system_mounts=system_mounts,
+            devices_with_filesystems=[device for device in devices.values()
+                                      if _has_filesystem(device)],
         )
 
     def discover_state(self, node_state):

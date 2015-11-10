@@ -577,10 +577,8 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
 
     def test_compute_instance_id(self):
         """
-        ``BlockDeviceDeployer._discover_raw_state``
-        returns a ``RawState`` with the
-        ``compute_instance_id`` that the ``api``
-        reports.
+        ``BlockDeviceDeployer._discover_raw_state`` returns a ``RawState``
+        with the ``compute_instance_id`` that the ``api`` reports.
         """
         raw_state = self.deployer._discover_raw_state()
         self.assertEqual(
@@ -597,11 +595,10 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
         raw_state = self.deployer._discover_raw_state()
         self.assertEqual(raw_state.volumes, [])
 
-    def test_attached_unmounted_device(self):
+    def test_unattached_unmounted_device(self):
         """
         If a volume is attached but not mounted, it is included as a
-        non-manifest dataset returned by ``BlockDeviceDeployer.discover_state``
-        and not as a manifestation on the ``NodeState``.
+        volume by ``BlockDeviceDeployer._discover_raw_state``.
         """
         unmounted = self.api.create_volume(
             dataset_id=uuid4(),
@@ -611,6 +608,38 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
         self.assertEqual(raw_state.volumes, [
             unmounted,
         ])
+
+    def test_filesystem_state(self):
+        """
+        ``RawState`` includes whether or not a volume has a filesystem.
+        """
+        with_fs = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        with_fs = self.api.attach_volume(with_fs.blockdevice_id,
+                                         self.api.compute_instance_id())
+        with_fs_device = self.api.get_device_path(with_fs.blockdevice_id)
+        make_filesystem(with_fs_device, True)
+        without_fs = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        without_fs = self.api.attach_volume(without_fs.blockdevice_id,
+                                            self.api.compute_instance_id())
+        without_fs_device = self.api.get_device_path(without_fs.blockdevice_id)
+        devices_with_filesystems = self.deployer._discover_raw_state(
+            ).devices_with_filesystems
+
+        self.assertEqual(
+            dict(
+                with_fs=(
+                    with_fs_device in devices_with_filesystems),
+                without_fs=(
+                    without_fs_device in devices_with_filesystems)),
+            dict(
+                with_fs=True,
+                without_fs=False))
 
 
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
