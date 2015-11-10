@@ -111,7 +111,7 @@ Preparing For a Release
    
       export VERSION=1.6.2;
       cd /home/developer/flocker-release-1.6.2;
-      source venv/bin/activate;
+      source flocker-1.6.2/bin/activate;
 
 #. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 

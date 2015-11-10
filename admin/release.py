@@ -900,11 +900,13 @@ def initialize_release(version, path, top_level):
 
     sys.stdout.write("Creating virtual environment...\n")
     virtualenv.create_environment(
-        release_path.child("venv").path, site_packages=False)
+        release_path.child("flocker-{}".format(version)).path,
+        site_packages=False
+    )
 
     sys.stdout.write("Activating virtual environment...\n")
-    virtualenv_file = release_path.child("venv").child("bin")
-    virtualenv_file = virtualenv_file.child("activate_this.py")
+    virtualenv_file = release_path.child("flocker-{}".format(version))
+    virtualenv_file = virtualenv_file.child("bin").child("activate_this.py")
     execfile(virtualenv_file.path, dict(__file__=virtualenv_file.path))
 
     sys.stdout.write("Installing dependencies...\n")
@@ -933,8 +935,8 @@ def initialize_release(version, path, top_level):
         "\nCompleted.\n\nPlease copy and paste the following commands "
         "in your shell to enter the release environment and continue "
         "the pre-tag release process:\n\n"
-        "export VERSION={};\ncd {};\nsource venv/bin/activate;\n\n"
-        .format(version, release_path.path)
+        "export VERSION={};\ncd {};\nsource flocker-{}/bin/activate;\n\n"
+        .format(version, release_path.path, version)
     )
 
 
