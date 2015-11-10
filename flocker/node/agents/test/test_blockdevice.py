@@ -326,7 +326,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
 
     def test_non_manifest_dataset(self):
         """
-        When there is a a dataset in the ``NON_MANIFEST`` state,
+        When there is a dataset in the ``NON_MANIFEST`` state,
         it is reported as a non-manifest dataset.
         """
         dataset_id = uuid4()
@@ -412,7 +412,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
     def test_mounted_dataset(self):
         """
         When there is a a dataset in the ``MOUNTED`` state,
-        it is reported as a non-manifest dataset.
+        it is reported as a manifest dataset.
         """
         dataset_id = uuid4()
         mount_point = FilePath('/mount/point')
@@ -769,7 +769,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         that must be wrong, the corresponding manifestation is not included in
         the discovered state for the node.
         """
-        # XXX This discovers volums as NON_MANIFEST, but we should
+        # XXX This discovers volumes as NON_MANIFEST, but we should
         # have a state so we can try to recover.
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,

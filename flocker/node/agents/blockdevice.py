@@ -1147,7 +1147,7 @@ def get_blockdevice_volume(api, blockdevice_id):
 
 def get_system_mounts():
     """
-    Load information about mounted filesystems.  volumes.
+    Load information about mounted filesystems.
 
     :return: Mapping from block devices to mountpoints.
     :rtype: ``dict`` mapping ``FilePath`` to ``FilePath``
@@ -1181,7 +1181,7 @@ class RawState(PClass):
 
     :param unicode compute_instance_id:
     :param volumes: List of volumes attached to this node or non-manifest.
-    :type volumes: ``pvector`` of ``BlockDeviceVolume:
+    :type volumes: ``pvector`` of ``BlockDeviceVolume``
     :param devices: Mapping from dataset UUID to block device path containing
         filesystem of that dataset.
     :type devices: ``pmap`` of ``UUID`` to ``FilePath``
@@ -1204,11 +1204,6 @@ class BlockDeviceDeployerLocalState(PClass):
         state for.
     :ivar UUID node_uuid: The UUID of the node that this is the state for.
     :ivar datasets: The datasets discovered from this node.
-
-    :ivar NonManifestDatasets nonmanifest_datasets: The current
-        ``NonManifestDatasets`` that this node is aware of but are not attached
-        to any node.
-
     :ivar volumes: A ``PVector`` of ``BlockDeviceVolume`` instances for all
         volumes in the cluster that this node is aware of.
     """
