@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Clone the Flocker repo in to a new path and initialize a release branch.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.release import initialize_release_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

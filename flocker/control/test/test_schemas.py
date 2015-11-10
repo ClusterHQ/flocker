@@ -810,6 +810,25 @@ NodesTests = build_schema_test(
     ],
 )
 
+NodeTests = build_schema_test(
+    name="NodeTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/node'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Wrong type
+        [], 1, None,
+        # Missing uuid
+        {},
+        # Wrong uuid type
+        {'uuid': 123},
+        # Extra key
+        {'uuid': unicode(uuid4()), 'x': 'y'},
+    ],
+    passing_instances=[
+        {'uuid': unicode(uuid4())},
+    ],
+)
+
 
 LEASE_WITH_EXPIRATION = {'dataset_id': unicode(uuid4()),
                          'node_uuid': unicode(uuid4()),

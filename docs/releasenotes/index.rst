@@ -149,7 +149,7 @@ v0.3
 v0.2
 ====
 
-* Moving volumes between nodes is now done with a :ref:`two-phase push<clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+* Moving volumes between nodes is now done with a two-phase push that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :ref:`application configuration<configuration>`.
 * Added basic support for links between containers in the :ref:`application configuration<configuration>`.
 
