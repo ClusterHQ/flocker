@@ -105,7 +105,8 @@ class DiscoveredDataset(PClass):
         that all the attributes required for the state are specified.
         """
         expected_attributes = [
-            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED), "device_path"),
+            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED,
+              DatasetStates.ATTACHED_NO_FILESYSTEM), "device_path"),
             ((DatasetStates.MOUNTED,), "mount_point"),
         ]
         for states, attribute in expected_attributes:
@@ -1421,8 +1422,12 @@ class BlockDeviceDeployer(PRecord):
                         mount_point=mount_point,
                     )
                 else:
+                    if device_path in raw_state.devices_with_filesystems:
+                        state = DatasetStates.ATTACHED
+                    else:
+                        state = DatasetStates.ATTACHED_NO_FILESYSTEM
                     datasets[dataset_id] = DiscoveredDataset(
-                        state=DatasetStates.ATTACHED,
+                        state=state,
                         dataset_id=dataset_id,
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,

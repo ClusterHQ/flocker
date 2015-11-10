@@ -699,6 +699,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             attach_to=self.this_node,
         )
         device_path = self.api.get_device_path(volume.blockdevice_id)
+        make_filesystem(device_path, block_device=True)
         assert_discovered_state(
             self, self.deployer,
             expected_discovered_datasets=[
@@ -881,8 +882,8 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     def test_unrelated_mounted(self):
         """
         If a volume is attached but an unrelated filesystem is mounted at
-        the expected location for that volume, it is recognized as an
-        ``ATTACHED`` dataset.
+        the expected location for that volume, it is recognized as not
+        being in ``MOUNTED`` state.
         """
         # XXX This should perhaps be a seperate state so this can be
         # fixed.
@@ -912,7 +913,35 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             self, self.deployer,
             expected_discovered_datasets=[
                 DiscoveredDataset(
-                    state=DatasetStates.ATTACHED,
+                    state=DatasetStates.ATTACHED_NO_FILESYSTEM,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device_path,
+                ),
+            ],
+            expected_volumes=[attached_volume],
+        )
+
+    def test_attached_no_filesystem(self):
+        """
+        An attached volume with no filesystem ends up in
+        ATTACHED_NO_FILESYSTEM state.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        device_path = self.api.get_device_path(volume.blockdevice_id)
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_NO_FILESYSTEM,
                     dataset_id=volume.dataset_id,
                     blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
