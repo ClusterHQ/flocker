@@ -190,7 +190,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     line-height: 47px;
 }
 
-a.button {
+a.button, input.button {
     font-family: "Soho Gothic W01 Medium";
     border-radius: 8px;
     text-decoration: none;
@@ -199,9 +199,10 @@ a.button {
     padding: 10px;
     cursor: pointer;
     width: 150px;
+    border: 0;
 }
 
-a.button:hover {
+a.button:hover, input.button:hover {
     background-color: #343a3d;
 }
 
@@ -319,6 +320,16 @@ a.download:before {
     height:97px;
     padding: 25px;
 }
+
+/* Feedback form */
+.feedback-form form>textarea,input {
+    margin-top:10px;
+}
+
+.feedback-form {
+    font-family: lato;
+}
+
 
 @media all and (min-width: 768px) {
     /* sm */
