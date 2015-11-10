@@ -51,6 +51,7 @@ from flocker.testtools.cluster_utils import (
 )
 
 from flocker.common.runner import run, run_ssh
+from flocker.provision._effect import SequenceFailed
 
 
 def extend_environ(**kwargs):
@@ -1046,8 +1047,11 @@ def main(reactor, args, base_path, top_level):
     cluster = None
     try:
         yield runner.ensure_keys(reactor)
+        # try:
+        #     cluster = yield runner.start_cluster(reactor)
+        # except SequenceFailed as e:
+        #     pass
         cluster = yield runner.start_cluster(reactor)
-
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:

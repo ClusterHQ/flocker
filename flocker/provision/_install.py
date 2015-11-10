@@ -27,7 +27,7 @@ from ._ssh import (
     put,
     run_remotely,
 )
-from ._effect import sequence
+from ._effect import sequence, Sequence
 
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
@@ -807,6 +807,77 @@ def task_enable_flocker_control(distribution):
         # alongside the flocker-dataset-agent service, the default control
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
+
+        #TODO
+        # SAMPLE CODE I CANT USE HERE
+        #         commands.append(put(content=repo,
+        #                     path='/tmp/clusterhq-build.repo'))
+        # commands.append(run_from_args([
+        #     'cp', '/tmp/clusterhq-build.repo',
+        #     '/etc/yum.repos.d/clusterhq-build.repo']))
+        # repo_options = ['--enablerepo=clusterhq-build']
+        # command_list = []
+        # command_list += [
+        #         put(
+        #             path='/etc/init/flocker-control.override',
+        #             content=dedent('''\
+        #                 start on runlevel [2345]
+        #                 stop on runlevel [016]
+        #                 '''),
+        #         ),
+        #     ]
+        #
+        # FIRST TRY
+        # command_list+=[
+        #     run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services")
+        #     ]
+        # command_list+=[
+        #      run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),
+        #     ]
+        # command_list+=[
+        #      run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),
+        #     ]
+        # command_list+=[
+        #     run_from_args(['service', 'flocker-control', 'start']),
+        #  ]
+
+        # SECOND TRY
+        # command_list=[
+        #     put(
+        #         path='/etc/init/flocker-control.override',
+        #         content=dedent('''\
+        #             start on runlevel [2345]
+        #             stop on runlevel [016]
+        #             '''),
+        #     ),
+        #     run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
+        #     run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
+        #     run_from_args(['service', 'flocker-control', 'start']),
+        # ]
+        #
+        # commands = sequence(command_list)
+        # commands.on(error=error_handler)
+
+        # THIRD TRY
+        # command_list=[
+        #     put(
+        #         path='/etc/init/flocker-control.override',
+        #         content=dedent('''\
+        #             start on runlevel [2345]
+        #             stop on runlevel [016]
+        #             '''),
+        #     ),
+        #     run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
+        #     run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
+        #     run_from_args(['service', 'flocker-control', 'start']),
+        # ]
+        #
+        # commands = []
+        # for command in command_list:
+        #     current_effect = Effect(command)
+        #     current_effect.on(error = error_handler)
+        #
+        # return Effect(Sequence(commands))
         return sequence([
             put(
                 path='/etc/init/flocker-control.override',
@@ -817,11 +888,22 @@ def task_enable_flocker_control(distribution):
             ),
             run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
             run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-            run_from_args(['service', 'flocker-control', 'start']),
+            run_from_args(['service', 'flocker-control', 'start']).on(error=error_handler),
         ])
+
     else:
         raise DistributionNotSupported(distribution=distribution)
 
+def error_handler():
+    pass
+
+# def error_handling_in_effects(command_list, handler):
+#     effect_list = []
+#     for command in command_list:
+#         current_effect = Effect(command)
+#         current_effect.on(error=handler)
+#         effect_list.append(current_effect)
+#     return effect_list
 
 def task_enable_docker_plugin(distribution):
     """
