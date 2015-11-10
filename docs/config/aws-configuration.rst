@@ -19,3 +19,19 @@ The configuration item to use AWS should look like:
 
 Make sure that the ``region`` and ``zone`` match each other and that both match the region and zone where the Flocker agent nodes run.
 AWS must be able to attach volumes created in that availability zone to your Flocker nodes.
+
+The Amazon AWS / EBS driver maintained by ClusterHQ provides :ref:`storage-profiles`.
+The three available profiles are:
+
+* **Gold**: EBS Provisioned IOPS / API named ``io1``.
+  Configured for maximum IOPS for its size - 30 IOPS/GB, with a maximum of 20,000 IOPS.
+* **Silver**: EBS General Purpose SSD / API named ``gp2``.
+* **Bronze**: EBS Magnetic / API named ``standard``.
+
+If no profile is specified, then a bronze volume is created, which is consistent with previous behavior. 
+
+.. note::
+	After configuration you are subject to the normal performance guarantees that EBS provides.
+	For further information, see the `Amazon EBS Product Details <https://aws.amazon.com/ebs/details/>`_.
+
+
