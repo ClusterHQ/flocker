@@ -24,6 +24,7 @@ from zope.interface.verify import verifyObject
 
 from pyrsistent import (
     PClass, PRecord, field, discard, pmap, pvector, pvector_field,
+    pmap_field,
 )
 
 from twisted.python.components import proxyForInterface
@@ -961,13 +962,16 @@ class UnusableAPI(object):
 
 
 def assert_calculated_changes(
-    case, node_state, node_config, nonmanifest_datasets, expected_changes,
-    additional_node_states=frozenset(), leases=Leases(),
+        case, node_state, node_config, nonmanifest_datasets, expected_changes,
+        additional_node_states=frozenset(), leases=Leases(),
+        discovered_datasets=(),
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
     circumstance.
 
+    :param discovered_datasets: Collection of ``DiscoveredDataset`` to
+        expose as local state.
     :see: ``assert_calculated_changes_for_deployer``.
     """
     api = UnusableAPI()
@@ -985,6 +989,8 @@ def assert_calculated_changes(
         deployer, cluster_state,
         volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE,
         compute_instance_id=u"instance-".format(node_state.uuid))
+    local_state = local_state.set(
+        discovered_datasets={d.dataset_id: d for d in discovered_datasets})
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
@@ -1146,9 +1152,14 @@ class DiscoverVolumesMethod(Names):
 
 @implementer(ILocalState)
 class FakeBlockDeviceDeployerLocalState(PClass):
+    """
+    This class is a terrible idea and should be thrown out ASAP to be
+    replaced by the real thing.
+    """
     node_state = field(type=NodeState, mandatory=True)
     nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
     volumes = pvector_field(BlockDeviceVolume)
+    discovered_datasets = pmap_field(UUID, DiscoveredDataset)
 
     def shared_state_changes(self):
         return self.node_state, self.nonmanifest_datasets
@@ -1514,6 +1525,17 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     )
                 ]
             ),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=_create_blockdevice_id_for_test(
+                        self.DATASET_ID),
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath(b"/dev/whatever"),
+                ),
+            ],
+
         )
 
 
@@ -1590,10 +1612,11 @@ class BlockDeviceDeployerMountCalculateChangesTests(
         """
         # Give it a state that says the volume is attached but nothing is
         # mounted.
+        device = FilePath(b"/dev/sda")
         node_state = self.ONE_DATASET_STATE.set(
             manifestations={},
             paths={},
-            devices={self.DATASET_ID: FilePath(b"/dev/sda")},
+            devices={self.DATASET_ID: device},
         )
 
         # Give it a configuration that says there should be a manifestation.
@@ -1610,7 +1633,63 @@ class BlockDeviceDeployerMountCalculateChangesTests(
                         bytes(self.DATASET_ID)
                     )
                 ),
-            ])
+            ]),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=_create_blockdevice_id_for_test(
+                        self.DATASET_ID),
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device,
+                ),
+            ],
+
+        )
+
+
+class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to creation of filesystems.
+    """
+    def test_create_filesystem(self):
+        """
+        If the volume for a dataset is attached to the node but the filesystem
+        does not exist and the configuration says the dataset is meant to be
+        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
+        a state change to create the filesystem.
+        """
+        # Give it a state that says the volume is attached but nothing is
+        # mounted.
+        device = FilePath(b"/dev/sda")
+        node_state = self.ONE_DATASET_STATE.set(
+            manifestations={},
+            paths={},
+            devices={self.DATASET_ID: device},
+        )
+
+        # Give it a configuration that says there should be a manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                CreateFilesystem(device=device, filesystem=u"ext4")
+            ]),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_NO_FILESYSTEM,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=_create_blockdevice_id_for_test(
+                        self.DATASET_ID),
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device,
+                ),
+            ],
         )
 
 
@@ -3285,7 +3364,7 @@ class DestroyBlockDeviceDatasetTests(
 class CreateFilesystemInitTests(
     make_with_init_tests(
         CreateFilesystem,
-        dict(volume=_ARBITRARY_VOLUME, filesystem=u"ext4"),
+        dict(device=FilePath(b"/dev/null"), filesystem=u"ext4"),
         dict(),
     )
 ):
@@ -3297,8 +3376,8 @@ class CreateFilesystemInitTests(
 class CreateFilesystemTests(
     make_istatechange_tests(
         CreateFilesystem,
-        dict(volume=_ARBITRARY_VOLUME, filesystem=u"ext4"),
-        dict(volume=_ARBITRARY_VOLUME, filesystem=u"btrfs"),
+        dict(device=FilePath(b"/dev/null"), filesystem=u"ext4"),
+        dict(device=FilePath(b"/dev/null"), filesystem=u"btrfs"),
     )
 ):
     """
@@ -3402,7 +3481,8 @@ class _MountScenario(PRecord):
         """
         return run_state_change(
             CreateFilesystem(
-                volume=self.volume, filesystem=self.filesystem_type
+                device=self.api.get_device_path(self.volume.blockdevice_id),
+                filesystem=self.filesystem_type
             ),
             self.deployer,
         )
