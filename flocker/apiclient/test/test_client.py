@@ -4,7 +4,9 @@
 Tests for the Flocker REST API client.
 """
 
-from uuid import uuid4
+from uuid import uuid4, UUID
+from unittest import skipUnless
+from subprocess import check_output
 
 from bitmath import GiB
 
@@ -24,6 +26,8 @@ from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.http import BAD_REQUEST
 from twisted.internet.defer import gatherResults
+from twisted.python.runtime import platform
+from twisted.python.procutils import which
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
@@ -38,6 +42,7 @@ from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
 from ...control import (
     NodeState, NonManifestDatasets, Dataset as ModelDataset, ChangeSource,
+    UpdateNodeStateEra,
 )
 from ...restapi._logging import JSON_REQUEST
 from ...restapi import _infrastructure as rest_api
@@ -374,6 +379,15 @@ def make_clientv1_tests():
             )
             return d
 
+        def test_this_node_uuid(self):
+            """
+            ``this_node_uuid`` returns ``Deferred`` firing the UUID of the
+            current node.
+            """
+            d = self.client.this_node_uuid()
+            d.addCallback(self.assertEqual, self.node_1.uuid)
+            return d
+
     return InterfaceTests
 
 
@@ -383,7 +397,8 @@ class FakeFlockerClientTests(make_clientv1_tests()):
     """
     def create_client(self):
         return FakeFlockerClient(
-            nodes=[self.node_1, self.node_2]
+            nodes=[self.node_1, self.node_2],
+            this_node_uuid=self.node_1.uuid,
         )
 
     def synchronize_state(self):
@@ -394,6 +409,10 @@ class FlockerClientTests(make_clientv1_tests()):
     """
     Interface tests for ``FlockerClient``.
     """
+    @skipUnless(platform.isLinux(),
+                "flocker-node-era currently requires Linux.")
+    @skipUnless(which("flocker-node-era"),
+                "flocker-node-era needs to be in $PATH.")
     def create_client(self):
         """
         Create a new ``FlockerClient`` instance pointing at a running control
@@ -411,9 +430,11 @@ class FlockerClientTests(make_clientv1_tests()):
         source = ChangeSource()
         # Prevent nodes being deleted by the state wiper.
         source.set_last_activity(reactor.seconds())
+        self.era = UUID(check_output(["flocker-node-era"]))
         self.cluster_state_service.apply_changes_from_source(
             source=source,
             changes=[
+                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)] + [
                 NodeState(uuid=node.uuid, hostname=node.public_address)
                 for node in [self.node_1, self.node_2]
             ],
@@ -534,3 +555,35 @@ class FlockerClientTests(make_clientv1_tests()):
                                         path=None)],
                           states))
         return d
+
+    def test_this_node_uuid_retry(self):
+        """
+        ``this_node_uuid`` retries if the node UUID is unknown.
+        """
+        # Pretend that the era for node 1 is something else; first try at
+        # getting node UUID for real era will therefore fail:
+        self.cluster_state_service.apply_changes([
+            UpdateNodeStateEra(era=uuid4(), uuid=self.node_1.uuid)])
+
+        # When we lookup the DeploymentState the first time we'll set the
+        # value to the correct one, so second try should succeed:
+        def as_deployment(original=self.cluster_state_service.as_deployment):
+            result = original()
+            self.cluster_state_service.apply_changes(changes=[
+                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)])
+            return result
+        self.patch(self.cluster_state_service, "as_deployment", as_deployment)
+
+        d = self.client.this_node_uuid()
+        d.addCallback(self.assertEqual, self.node_1.uuid)
+        return d
+
+    def test_this_node_uuid_no_retry_on_other_responses(self):
+        """
+        ``this_node_uuid`` doesn't retry on unexpected responses.
+        """
+        # Cause 500 errors to be raised by the API endpoint:
+        self.patch(self.cluster_state_service, "as_deployment",
+                   lambda: 1/0)
+        return self.assertFailure(self.client.this_node_uuid(),
+                                  ResponseError)
