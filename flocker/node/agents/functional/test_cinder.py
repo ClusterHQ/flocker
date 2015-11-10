@@ -173,8 +173,9 @@ class CinderBlockDeviceAPIInterfaceTests(
 
     @flaky('FLOC-3347')
     def test_get_device_path_device(self):
-        super(CinderBlockDeviceAPIInterfaceTests,
-              self).test_get_device_path_device()
+        return super(
+            CinderBlockDeviceAPIInterfaceTests,
+            self).test_get_device_path_device()
 
 
 class CinderHttpsTests(SynchronousTestCase):

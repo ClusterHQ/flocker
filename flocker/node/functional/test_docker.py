@@ -82,7 +82,7 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
     # XXX: First time we've needed multiple JIRA keys. Is this the right API?
     @flaky(['FLOC-2628', 'FLOC-2874'])
     def test_added_is_listed(self):
-        super(IDockerClientNamespacedTests, self).test_added_is_listed()
+        return super(IDockerClientNamespacedTests, self).test_added_is_listed()
 
 
 class Registry(PClass):
@@ -1328,4 +1328,5 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
 
     @flaky('FLOC-1657')
     def test_pull_image_if_necessary(self):
-        super(NamespacedDockerClientTests, self).test_pull_image_if_necessary()
+        return super(
+            NamespacedDockerClientTests, self).test_pull_image_if_necessary()

@@ -274,18 +274,20 @@ class EBSBlockDeviceAPIInterfaceTests(
 
     @flaky('FLOC-2302')
     def test_listed_volume_attributes(self):
-        super(EBSBlockDeviceAPIInterfaceTests,
-              self).test_listed_volume_attributes()
+        return super(
+            EBSBlockDeviceAPIInterfaceTests,
+            self).test_listed_volume_attributes()
 
     @flaky('FLOC-2672')
     def test_multiple_volumes_attached_to_host(self):
-        super(EBSBlockDeviceAPIInterfaceTests,
-              self).test_multiple_volumes_attached_to_host()
+        return super(
+            EBSBlockDeviceAPIInterfaceTests,
+            self).test_multiple_volumes_attached_to_host()
 
     @flaky('FLOC-3236')
     def test_detach_volume(self):
-        super(EBSBlockDeviceAPIInterfaceTests,
-              self).test_detach_volume()
+        return super(
+            EBSBlockDeviceAPIInterfaceTests, self).test_detach_volume()
 
 
 class EBSProfiledBlockDeviceAPIInterfaceTests(
