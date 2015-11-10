@@ -26,7 +26,7 @@ from ..ebs import (
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes
 )
-from ...testtools import flaky
+from ....testtools import flaky
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,

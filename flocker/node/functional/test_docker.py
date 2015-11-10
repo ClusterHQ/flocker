@@ -1328,4 +1328,4 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
 
     @flaky('FLOC-1657')
     def test_pull_image_if_necessary(self):
-        super(NamespacedDockerClient, self).test_pull_image_if_necessary()
+        super(NamespacedDockerClientTests, self).test_pull_image_if_necessary()
