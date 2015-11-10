@@ -10,11 +10,6 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-v1.7.0
-======
-
-* Added support for :ref:`storage profiles<storage-profiles>`.
-
 v1.6.1
 ======
 
