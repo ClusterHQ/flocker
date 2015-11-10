@@ -61,10 +61,17 @@ PROFILE_METADATA_KEY = u"clusterhq:flocker:profile"
 class DatasetStates(Names):
     """
     States that a ``Dataset`` can be in.
+
     """
+    # Exists, but not attached:
     NON_MANIFEST = NamedConstant()
+    # Attached to this node but no filesystem
+    ATTACHED_NO_FILESYSTEM = NamedConstant()
+    # Attached to this node, has filesystem
     ATTACHED = NamedConstant()
+    # Mounted on this node:
     MOUNTED = NamedConstant()
+    # XXX seems pointless might delete at some point
     DELETED = NamedConstant()
 
 
@@ -1179,14 +1186,14 @@ class RawState(PClass):
     """
     The raw state of a node.
 
-    :param unicode compute_instance_id:
-    :param volumes: List of volumes attached to this node or non-manifest.
+    :param unicode compute_instance_id: The identifier for this node.
+    :param volumes: List of all volumes in the cluster.
     :type volumes: ``pvector`` of ``BlockDeviceVolume``
     :param devices: Mapping from dataset UUID to block device path containing
-        filesystem of that dataset.
+        filesystem of that dataset, on this particular node.
     :type devices: ``pmap`` of ``UUID`` to ``FilePath``
     :param system_mounts: Mapping of block device path to mount point of all
-        mounts on the system.
+        mounts on this particular node.
     :type system_mounts: ``pmap`` of ``FilePath`` to ``FilePath``.
     """
     compute_instance_id = field(unicode, mandatory=True)
