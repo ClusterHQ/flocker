@@ -6,6 +6,33 @@ Various utilities to help with unit and functional testing.
 
 from __future__ import absolute_import
 
+__all__ = [
+    'CustomException',
+    'DockerImageBuilder',
+    'FakeProcessReactor',
+    'FakeSysModule',
+    'FlockerScriptTestsMixin',
+    'MemoryCoreReactor',
+    'REALISTIC_BLOCKDEVICE_SIZE',
+    'StandardOptionsTestsMixin',
+    'assertContainsAll',
+    'assertNoFDsLeaked',
+    'assert_equal_comparison',
+    'assert_not_equal_comparison',
+    'attempt_effective_uid',
+    'find_free_port',
+    'flaky',
+    'help_problems',
+    'if_root',
+    'logged_run_process',
+    'make_script_tests',
+    'make_with_init_tests',
+    'not_root',
+    'random_name',
+    'run_process',
+    'skip_on_broken_permissions',
+]
+
 import gc
 import io
 import socket
@@ -47,6 +74,7 @@ from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.python.logfile import LogFile
 
+from ._flaky import flaky
 from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)

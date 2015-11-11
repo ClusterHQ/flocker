@@ -25,7 +25,7 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll)
+    random_name, DockerImageBuilder, assertContainsAll, flaky)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 from .. import run_state_change
@@ -394,6 +394,7 @@ class DeployerTests(TestCase):
         d.addCallback(inspect_application)
         return d
 
+    @flaky('FLOC-3330')
     @if_docker_configured
     def test_cpu_shares(self):
         """
