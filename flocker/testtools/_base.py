@@ -8,6 +8,7 @@ from itertools import tee
 
 import fixtures
 import testtools
+from testtools.content import text_content
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
 
@@ -54,6 +55,35 @@ class AsyncTestCase(testtools.TestCase):
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
+
+    def run(self, result=None):
+        ret = super(AsyncTestCase, self).run(result)
+        self._reformat_details(self.getDetails())
+        return ret
+
+    def _reformat_details(self, details):
+        """
+        Take the attached twisted log, if any, and split out the eliot logs
+        into a separate attachment.
+
+        :param dict details: A "details" dictionary from testtools that will
+            be mutated so that 'twisted-log' contains a reasonable looking
+            Twisted log without Eliot, and 'twisted-eliot-log' contains a
+            pretty-printed Eliot log.
+        """
+        log = details.get('twisted-log', None)
+        if log is None:
+            return
+
+        # Load the whole thing into memory because jml is too lazy to
+        # write a thing that turns chunks of bytes into an iterable of
+        # lines.
+        contents = log.as_text().splitlines(True)
+        core_log, eliot_log = _filter_eliot_logs(contents)
+        # XXX: Take advantage of the fact that getDetails() returns a dict
+        # that we can mutate. Am I evil? Yes I am.
+        details['twisted-log'] = text_content(''.join(core_log))
+        details['twisted-eliot-log'] = text_content(''.join(eliot_log))
 
     def mktemp(self):
         """

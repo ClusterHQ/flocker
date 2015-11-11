@@ -4,24 +4,32 @@ Tests for flocker base test cases.
 
 import errno
 from itertools import chain
+import json
 import shutil
 
+from eliot import MessageType, fields
 from hypothesis import given
 from hypothesis.strategies import binary, lists
 from testtools import TestCase
+from testtools.content import text_content
 from testtools.matchers import (
+    AfterPreprocessing,
     AllMatch,
     Contains,
+    ContainsDict,
     DirExists,
+    EndsWith,
     Equals,
     HasLength,
     Matcher,
+    MatchesListwise,
     Mismatch,
     Not,
     PathExists,
 )
 from testtools.testresult.doubles import Python27TestResult
 from twisted.python.filepath import FilePath
+from twisted.python import log
 from twisted.trial import unittest
 
 from .._base import (
@@ -68,6 +76,39 @@ class AsyncTestCaseTests(TestCase):
 
         self.expectThat(temp_path.parent().path, DirExists())
         self.assertThat(temp_path.path, Not(PathExists()))
+
+    def test_logs_processed(self):
+        """
+        We separate the eliot logs out from the Twisted logs when we report.
+        """
+
+        ELIOT_MESSAGE = MessageType(
+            self.id().replace('.', ':'),
+            fields(msg=str),
+            u'Message for test_logs_processed')
+
+        class LoggingTest(AsyncTestCase):
+            def test_log(self):
+                log.msg('twisted log message')
+                ELIOT_MESSAGE(msg='eliot message').write()
+
+        test = LoggingTest('test_log')
+        test.run(Python27TestResult())
+
+        details = test.getDetails()
+        self.assertThat(
+            [details.get('twisted-log', text_content('')).as_text(),
+             details.get('twisted-eliot-log', text_content('{}')).as_text()],
+            MatchesListwise([
+                EndsWith('twisted log message\n'),
+                AfterPreprocessing(
+                    json.loads,
+                    ContainsDict({
+                        'msg': Equals('eliot message'),
+                    })
+                )
+            ])
+        )
 
 
 class FilterEliotLogTests(TestCase):
