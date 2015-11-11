@@ -42,8 +42,7 @@ The optional ``port`` variable is the port on the control node to connect to.
 This value must agree with the configuration for the control service telling it on what port to listen.
 Omit the ``port`` from both configurations and the services will automatically agree.
 
-The file must also include a ``dataset`` item.
-This selects and configures a dataset backend.
+The ``dataset`` item selects and configures a dataset backend.
 All nodes must be configured to use the same dataset backend.
 
 .. note::
