@@ -55,14 +55,15 @@ The following pages describe how to configure the backends currently supported b
    
    openstack-configuration
    aws-configuration
-   emc-configuration
-   vmware-configuration
-   netapp-configuration
-   hedvig-configuration
-   convergeio-configuration
-   saratogaspeed-configuration
    zfs-configuration
    loopback-configuration
+   convergeio-configuration
+   hedvig-configuration
+   dell-configuration
+   emc-configuration
+   netapp-configuration
+   saratogaspeed-configuration
+   vmware-configuration
    
 Flocker supports pluggable storage backends. 
 Any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.
