@@ -9,8 +9,6 @@ from uuid import UUID, uuid4
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
-from docker.utils import create_host_config
-
 from ...testtools import (
     AsyncTestCase, async_runner, random_name, find_free_port,
     REALISTIC_BLOCKDEVICE_SIZE,
@@ -115,7 +113,7 @@ class LeaseAPITests(AsyncTestCase):
             script = SCRIPTS.child("datahttp.py")
             script_arguments = [u"/data"]
             docker_arguments = {
-                "host_config": create_host_config(
+                "host_config": client.create_host_config(
                     binds=["{}:/data".format(dataset.path.path)],
                     port_bindings={container_http_port: host_http_port}),
                 "ports": [container_http_port],
