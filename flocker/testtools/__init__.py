@@ -82,9 +82,6 @@ from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
 
-# AsyncTestCase imported for re-use elsewhere.
-AsyncTestCase
-
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
 # * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
