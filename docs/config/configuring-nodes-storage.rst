@@ -5,7 +5,7 @@ Configuring the Nodes and Storage Backends
 ==========================================
 
 To start the agents on a node, a configuration file must exist on the node at :file:`/etc/flocker/agent.yml`.
-The file must always include ``version`` and ``control-service`` items similar to these:
+The file must always include ``version`` and ``control-service`` items, and will need to include ``dataset`` objects similar to these:
 
 .. code-block:: yaml
 
