@@ -74,6 +74,7 @@ class ClusterStateService(MultiService):
         for key, wipe in self._information_wipers.items():
             last_activity = wipe.last_activity()
             if current_time - last_activity >= EXPIRATION_TIME:
+                import pdb;pdb.set_trace()
                 self._deployment_state = wipe.update_cluster_state(
                     self._deployment_state
                 )

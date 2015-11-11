@@ -355,7 +355,19 @@ class ControlServiceLocator(CommandLocator):
         return {}
 
 
-class ControlAMP(AMP):
+class FlockerServiceAMP(AMP):
+    """
+    Base AMP protocol that provides a method to forcefully close the
+    transport connection.
+    """
+    def __init__(self, *args, **kwargs):
+        AMP.__init__(self, *args, **kwargs)
+
+    def close_connection(self):
+        self.transport.abortConnection()
+
+
+class ControlAMP(FlockerServiceAMP):
     """
     AMP protocol for control service server.
 
@@ -369,17 +381,17 @@ class ControlAMP(AMP):
             connections to the control service.
         """
         locator = ControlServiceLocator(reactor, control_amp_service)
-        AMP.__init__(self, locator=locator)
+        FlockerServiceAMP.__init__(self, locator=locator)
         self.control_amp_service = control_amp_service
         self._pinger = Pinger(reactor)
 
     def connectionMade(self):
-        AMP.connectionMade(self)
+        FlockerServiceAMP.connectionMade(self)
         self.control_amp_service.connected(self)
         self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
-        AMP.connectionLost(self, reason)
+        FlockerServiceAMP.connectionLost(self, reason)
         self.control_amp_service.disconnected(self)
         self._pinger.stop()
 
@@ -738,7 +750,7 @@ class _AgentLocator(CommandLocator):
             return {}
 
 
-class AgentAMP(AMP):
+class AgentAMP(FlockerServiceAMP):
     """
     AMP protocol for convergence agent side of the protocol.
 
@@ -754,17 +766,17 @@ class AgentAMP(AMP):
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         locator = _AgentLocator(agent)
-        AMP.__init__(self, locator=locator)
+        FlockerServiceAMP.__init__(self, locator=locator)
         self.agent = agent
         self._pinger = Pinger(reactor)
 
     def connectionMade(self):
-        AMP.connectionMade(self)
+        FlockerServiceAMP.connectionMade(self)
         self.agent.connected(self)
         self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
-        AMP.connectionLost(self, reason)
+        FlockerServiceAMP.connectionLost(self, reason)
         self.agent.disconnected()
         self._pinger.stop()
 
