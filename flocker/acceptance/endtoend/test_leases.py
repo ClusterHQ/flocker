@@ -10,8 +10,6 @@ from twisted.internet import reactor
 from twisted.internet.task import deferLater
 from twisted.trial.unittest import TestCase
 
-from docker.utils import create_host_config
-
 from ...testtools import (
     random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE
 )
@@ -114,7 +112,7 @@ class LeaseAPITests(TestCase):
             script = SCRIPTS.child("datahttp.py")
             script_arguments = [u"/data"]
             docker_arguments = {
-                "host_config": create_host_config(
+                "host_config": client.create_host_config(
                     binds=["{}:/data".format(dataset.path.path)],
                     port_bindings={container_http_port: host_http_port}),
                 "ports": [container_http_port],

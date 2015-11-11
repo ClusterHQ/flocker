@@ -15,7 +15,6 @@ from zope.interface import Interface, implementer
 
 from docker import Client
 from docker.errors import APIError, NotFound
-from docker.utils import create_host_config
 
 from eliot import Message, MessageType, Field, start_action
 
@@ -626,7 +625,7 @@ class DockerClient(object):
                 p.internal_port: p.external_port
                 for p in ports
             }
-            host_config = create_host_config(
+            host_config = self._client.create_host_config(
                 binds=binds,
                 port_bindings=port_bindings,
                 restart_policy=restart_policy_dict,

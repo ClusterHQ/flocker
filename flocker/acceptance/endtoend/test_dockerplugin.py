@@ -7,8 +7,6 @@ Tests for the Flocker Docker plugin.
 from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest, TestCase
 
-from docker.utils import create_host_config
-
 from distutils.version import LooseVersion
 
 from ...common import loop_until
@@ -82,7 +80,7 @@ class DockerPluginTests(TestCase):
         return acting
 
     def run_python_container(self, cluster, address, docker_arguments, script,
-                             script_arguments, cleanup=True):
+                             script_arguments, cleanup=True, client=None):
         """
         Run a Python script as a Docker container with the Flocker volume
         driver.
@@ -100,7 +98,8 @@ class DockerPluginTests(TestCase):
 
         :return: Container id, once the Docker container has started.
         """
-        client = get_docker_client(cluster, address)
+        if client is None:
+            client = get_docker_client(cluster, address)
 
         # Remove all existing containers on the node, in case they're left
         # over from previous test:
@@ -157,6 +156,7 @@ class DockerPluginTests(TestCase):
         """
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
+        client = get_docker_client(cluster, node.public_address)
         http_port = 8080
         host_port = find_free_port()[1]
 
@@ -164,7 +164,7 @@ class DockerPluginTests(TestCase):
             volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
-            {"host_config": create_host_config(
+            {"host_config": client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
                 port_bindings={http_port: host_port},
                 restart_policy={"Name": "always"}),
@@ -172,7 +172,7 @@ class DockerPluginTests(TestCase):
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
-            [u"/data"])
+            [u"/data"], client=client)
 
         d = post_http_server(self, node.public_address, host_port,
                              {"data": data})
@@ -246,13 +246,15 @@ class DockerPluginTests(TestCase):
         # create a simple data HTTP python container, with the restart policy
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
+        client = get_docker_client(cluster, node.public_address)
+
         http_port = 8080
         host_port = find_free_port()[1]
 
         volume_name = random_name(self)
         self.run_python_container(
             cluster, node.public_address,
-            {"host_config": create_host_config(
+            {"host_config": client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
                 port_bindings={http_port: host_port},
                 restart_policy={"Name": "always"}),
@@ -260,7 +262,7 @@ class DockerPluginTests(TestCase):
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
-            [u"/data"])
+            [u"/data"], client=client)
 
         # write some data to it via POST
         d = post_http_server(self, node.public_address, host_port,
@@ -319,12 +321,13 @@ class DockerPluginTests(TestCase):
 
         :return: ``Deferred`` that fires on assertion success, or failure.
         """
+        client = get_docker_client(cluster, origin_node.public_address)
         data = "hello world"
         http_port = 8080
         host_port = find_free_port()[1]
         volume_name = random_name(self)
         container_args = {
-            "host_config": create_host_config(
+            "host_config": client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
                 port_bindings={http_port: host_port}),
             "ports": [http_port]}
@@ -334,7 +337,7 @@ class DockerPluginTests(TestCase):
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
-            [u"/data"], cleanup=False)
+            [u"/data"], cleanup=False, client=client)
 
         # Post to container on origin node:
         d = post_http_server(self, origin_node.public_address, host_port,
