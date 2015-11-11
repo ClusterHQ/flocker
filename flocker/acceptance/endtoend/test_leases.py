@@ -12,7 +12,8 @@ from twisted.internet.task import deferLater
 from docker.utils import create_host_config
 
 from ...testtools import (
-    AsyncTestCase, random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE,
+    AsyncTestCase, async_runner, random_name, find_free_port,
+    REALISTIC_BLOCKDEVICE_SIZE,
 )
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
@@ -25,7 +26,8 @@ class LeaseAPITests(AsyncTestCase):
     """
     Tests for the leases API.
     """
-    timeout = 600
+
+    run_tests_with = async_runner(timeout=600)
 
     def _assert_lease_behavior(self, cluster, operation,
                                additional_kwargs, state_method):
