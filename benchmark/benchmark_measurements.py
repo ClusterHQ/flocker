@@ -23,8 +23,11 @@ class _WallClock(PClass):
 
 
 _measurements = {
-    "wallclock": _WallClock,
+    'wallclock': _WallClock,
 }
+
+supported_measurements = _measurements.keys()
+default_measurement = 'wallclock'
 
 
 def get_measurement(clock, client, name):

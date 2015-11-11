@@ -98,9 +98,12 @@ class _ReadRequestOperation(PClass):
 
 
 _operations = {
-    "nop": _NoOperation,
-    "read-request": _ReadRequestOperation,
+    'nop': _NoOperation,
+    'read-request': _ReadRequestOperation,
 }
+
+supported_operations = _operations.keys()
+default_operation = 'read-request'
 
 
 def get_operation(client, name):

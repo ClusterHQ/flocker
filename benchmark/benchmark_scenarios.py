@@ -44,8 +44,11 @@ class _NoLoadScenario(object):
         return running
 
 _scenarios = {
-    "no_load": _NoLoadScenario,
+    'no-load': _NoLoadScenario,
 }
+
+supported_scenarios = _scenarios.keys()
+default_scenario = 'no-load'
 
 
 def get_scenario(clock, client, name):
