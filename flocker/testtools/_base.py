@@ -9,6 +9,7 @@ import testtools
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
 
+from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
 
@@ -56,6 +57,15 @@ class AsyncTestCase(testtools.TestCase):
         """
         Create a temporary directory that will be deleted on test completion.
 
+        Provided for compatibility with Twisted's ``TestCase``.
+
         :return: Path to the newly-created temporary directory.
         """
-        return self.useFixture(fixtures.TempDir()).path
+        # XXX: Should we provide a cleaner interface for people to use? One
+        # that returns FilePath? One that returns a directory?
+
+        # XXX: Actually belongs in a mixin or something, not actually specific
+        # to async.
+        temp_dir = FilePath(self.useFixture(fixtures.TempDir()).path)
+        filename = self.id().split('.')[-1][:32]
+        return temp_dir.child(filename).path
