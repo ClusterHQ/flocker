@@ -4,6 +4,8 @@
 Base classes for unit tests.
 """
 
+from itertools import tee
+
 import fixtures
 import testtools
 from testtools.deferredruntest import (
@@ -69,3 +71,24 @@ class AsyncTestCase(testtools.TestCase):
         temp_dir = FilePath(self.useFixture(fixtures.TempDir()).path)
         filename = self.id().split('.')[-1][:32]
         return temp_dir.child(filename).path
+
+
+def _filter_eliot_logs(twisted_log_lines, eliot_token='ELIOT: '):
+    """
+    Take an iterable of Twisted log lines and return two iterables: one that
+    has *only* the regular logs, and one that has only the eliot logs, with
+    Twisted stuff stripped off.
+
+    :param iterable twisted_log_lines: An iterable of Twisted log lines.
+    :param str eliot_token: The string token that marks a log entry as being
+        of eliot.
+    :return: A 2-tuple of ``(core_logs, eliot_logs)``, where ``core_logs`` only
+        has Twisted core logs, and ``eliot_logs`` has only eliot logs.
+    """
+    core_logs, eliot_logs = tee(twisted_log_lines)
+    eliot_token_len = len(eliot_token)
+    return (
+        (line for line in core_logs if eliot_token not in line),
+        (line[line.index(eliot_token) + eliot_token_len:]
+         for line in eliot_logs if eliot_token in line)
+    )
