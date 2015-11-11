@@ -4,7 +4,7 @@
 Configuring the Nodes and Storage Backends
 ==========================================
 
-To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
+To start the agents on a node, a configuration file must exist on the node at :file:`/etc/flocker/agent.yml`.
 The file must always include ``version`` and ``control-service`` items similar to these:
 
 .. code-block:: yaml
@@ -14,13 +14,24 @@ The file must always include ``version`` and ``control-service`` items similar t
       "hostname": "${CONTROL_NODE}"
       "port": 4524
 
-The value of the hostname field should be a hostname or IP that is routable from all your node agents.
+   # The dataset key below selects and configures a dataset backend (see below: aws/openstack/etc).
+   # All nodes will be configured to use only one backend
+
+   dataset:
+      backend: "aws"
+      region: "<your region; for example, us-west-1>"
+      zone: "<your availability zone; for example, us-west-1a>"
+      access_key_id: "<AWS API key identifier>"
+      secret_access_key: "<Matching AWS API key>"
+
+The value of the ``hostname`` field should be a hostname or IP that is routable from all your node agents.
 
 When configuring node agents, consider whether the control service location you choose will have multiple possible addresses, and ensure the hostname you provide is the correct one.
-You should never choose ``127.0.0.1`` or ``localhost`` as the hostname, even if the control service is on same machine as the node agent, as this will keep the control service from correctly identifying the agent's IP address.
 
 .. warning::
-	It is important to note that the flocker nodes will refuse to communicate with the flocker agent if there is a misconfiguration in the hostname.
+	You should never choose ``127.0.0.1`` or ``localhost`` as the hostname, even if the control service is on same machine as the node agent, as this will keep the control service from correctly identifying the agent's IP address.
+	
+	It is also important to be aware that the flocker nodes will refuse to communicate with the flocker agent if there is a misconfiguration in the hostname.
 	Please ensure that your hostname is configured correctly before proceeding, because any errors can result in failures.
 
 Please note that the interface you choose will be the one that linked traffic will be routed over.
