@@ -4,7 +4,6 @@ Tests for flocker base test cases.
 
 import errno
 from itertools import chain
-import json
 import shutil
 
 from eliot import MessageType, fields
@@ -13,10 +12,8 @@ from hypothesis.strategies import binary, lists
 from testtools import TestCase
 from testtools.content import text_content
 from testtools.matchers import (
-    AfterPreprocessing,
     AllMatch,
     Contains,
-    ContainsDict,
     DirExists,
     EndsWith,
     Equals,
