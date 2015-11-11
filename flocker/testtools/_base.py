@@ -5,10 +5,13 @@ Base classes for unit tests.
 """
 
 from itertools import tee
+import json
 
+from eliot.prettyprint import pretty_format
 import fixtures
 import testtools
-from testtools.content import text_content
+from testtools.content import Content, text_content
+from testtools.content_type import UTF8_TEXT
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
 
@@ -57,6 +60,11 @@ class AsyncTestCase(testtools.TestCase):
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def run(self, result=None):
+        """
+        Run `AsyncTestCase`.
+
+        :param TestResult result: An optional `TestResult`.
+        """
         ret = super(AsyncTestCase, self).run(result)
         self._reformat_details(self.getDetails())
         return ret
@@ -83,7 +91,8 @@ class AsyncTestCase(testtools.TestCase):
         # XXX: Take advantage of the fact that getDetails() returns a dict
         # that we can mutate. Am I evil? Yes I am.
         details['twisted-log'] = text_content(''.join(core_log))
-        details['twisted-eliot-log'] = text_content(''.join(eliot_log))
+        details['twisted-eliot-log'] = Content(
+            UTF8_TEXT, _pretty_print_eliot(eliot_log).next)
 
     def mktemp(self):
         """
@@ -101,6 +110,20 @@ class AsyncTestCase(testtools.TestCase):
         temp_dir = FilePath(self.useFixture(fixtures.TempDir()).path)
         filename = self.id().split('.')[-1][:32]
         return temp_dir.child(filename).path
+
+
+def _pretty_print_eliot(eliot_lines):
+    """
+    Given an iterable of lines of eliot JSON dicts, yield pretty-formatted
+    messages.
+    """
+    for line in eliot_lines:
+        try:
+            message = json.loads(line)
+        except (ValueError, TypeError):
+            # XXX: What to do?!
+            continue
+        yield pretty_format(message)
 
 
 def _filter_eliot_logs(twisted_log_lines, eliot_token='ELIOT: '):

@@ -101,12 +101,7 @@ class AsyncTestCaseTests(TestCase):
              details.get('twisted-eliot-log', text_content('{}')).as_text()],
             MatchesListwise([
                 EndsWith('twisted log message\n'),
-                AfterPreprocessing(
-                    json.loads,
-                    ContainsDict({
-                        'msg': Equals('eliot message'),
-                    })
-                )
+                EndsWith('msg: eliot message\n'),
             ])
         )
 
