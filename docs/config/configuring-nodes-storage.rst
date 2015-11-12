@@ -64,9 +64,9 @@ ClusterHQ supported drivers:
 
 .. toctree::
    :maxdepth: 1
-   
-   openstack-configuration
+
    aws-configuration
+   openstack-configuration
    zfs-configuration
    loopback-configuration
 
@@ -76,9 +76,9 @@ Community supported drivers:
    :maxdepth: 1
 
    convergeio-configuration
-   hedvig-configuration
    dell-configuration
    emc-configuration
+   hedvig-configuration
    netapp-configuration
    saratogaspeed-configuration
    vmware-configuration
