@@ -37,7 +37,7 @@ def async_runner(timeout):
 
 
 # By default, asynchronous tests are timed out after 2 minutes.
-DEFAULT_ASYNC_TIMEOUT = timedelta(seconds=120)
+DEFAULT_ASYNC_TIMEOUT = timedelta(minutes=2)
 
 
 def _test_skipped(case, result, exception):

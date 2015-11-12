@@ -4,6 +4,7 @@
 Tests for the leases API.
 """
 
+from datetime import timedelta
 from uuid import UUID, uuid4
 
 from twisted.internet import reactor
@@ -25,7 +26,7 @@ class LeaseAPITests(AsyncTestCase):
     Tests for the leases API.
     """
 
-    run_tests_with = async_runner(timeout=600)
+    run_tests_with = async_runner(timeout=timedelta(minutes=10))
 
     def _assert_lease_behavior(self, cluster, operation,
                                additional_kwargs, state_method):
