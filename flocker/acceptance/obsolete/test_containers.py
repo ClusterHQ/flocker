@@ -5,6 +5,7 @@ Tests for the control service REST API.
 """
 
 from json import loads, dumps
+from subprocess import call
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
@@ -334,3 +335,55 @@ class ContainerAPITests(TestCase):
             # Connect to the machine where the container is NOT running:
             lambda _: assert_http_server(self, origin.public_address, port))
         return running
+
+    @require_cluster(2)
+    def test_reboot(self, cluster):
+        """
+        After a reboot the containers are only started once all datasets are
+        available locally.
+        """
+        # Find a node which is not running the control service.
+        # If the control node is rebooted, we won't get stale dataset state.
+        node = [node for node in cluster.nodes if
+                node.public_address != cluster.control_node.public_address][0]
+
+        def query():
+            return loads(query_http_server(node.public_address, 8080))
+
+        creating_dataset = create_dataset(self, cluster, node=node)
+
+        def created_dataset(dataset):
+            return create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080, u"external": 8080}],
+                    u"node_uuid": node.uuid,
+                    u"volumes": [{u"dataset_id": unicode(dataset.dataset_id),
+                                  u"mountpoint": u"/data"}],
+                }, SCRIPTS.child(b"reboot.py"),
+                additional_arguments=[u"/data"])
+        creating_dataset.addCallback(created_dataset)
+
+        creating_dataset.addCallback(lambda _: query())
+
+        def got_initial_result(initial_result):
+            call([b"ssh", b"root@{}".format(node.public_address),
+                  b"shutdown", b"-r", b"now"])
+            changed = loop_until(
+                reactor, lambda: query().addCallback(
+                    lambda result: result != initial_result))
+            changed.addCallback(lambda _: query)
+
+            def result_changed(new_result):
+                self.assertEqual(
+                    dict(current_same=(new_result["current"] ==
+                                       initial_result["current"]),
+                         written_same=(new_result["written"] ==
+                                       initial_result["written"])),
+                    dict(current_same=False,  # post-reboot expect new boot_id
+                         written_same=True,  # written data survived reboot
+                         ))
+            changed.addCallback(result_changed)
+            return changed
+
+        creating_dataset.addCallback(got_initial_result)
+        return creating_dataset

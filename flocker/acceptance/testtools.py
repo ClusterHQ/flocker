@@ -929,7 +929,7 @@ def create_python_container(test_case, cluster, parameters, script,
 
 
 def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
-                   metadata=None):
+                   metadata=None, node=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -941,6 +941,7 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         Generated if not specified.
     :param dict metadata: Additional metadata to be added to the create_dataset
         request beyond the default "name": "my_volume" metadata.
+    :param node: Node to create dataset on. By default first one in cluster.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
@@ -952,8 +953,11 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         metadata = {}
     metadata_arg = {u"name": u"my_volume"}
     metadata_arg.update(metadata)
+    if node is None:
+        node = cluster.nodes[0]
+
     configuring_dataset = cluster.client.create_dataset(
-        cluster.nodes[0].uuid, maximum_size=maximum_size,
+        node.uuid, maximum_size=maximum_size,
         dataset_id=dataset_id, metadata=metadata_arg
     )
 
