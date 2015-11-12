@@ -10,8 +10,8 @@ from zope.interface import implementer
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.trial.unittest import TestCase
 
-from benchmark.benchmark_driver import benchmark
-from benchmark.benchmark_operations import IProbe, IOperation
+from benchmark._driver import benchmark
+from benchmark._operations import IProbe, IOperation
 
 
 class FakeMeasurement:

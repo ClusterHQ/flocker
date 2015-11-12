@@ -10,10 +10,10 @@ from eliot import to_file
 from twisted.internet.task import react
 from twisted.python.usage import Options, UsageError
 
-from benchmark_driver import driver
-from benchmark_scenarios import supported_scenarios, default_scenario
-from benchmark_operations import supported_operations, default_operation
-from benchmark_measurements import supported_measurements, default_measurement
+from benchmark._driver import driver
+from benchmark._scenarios import supported_scenarios, default_scenario
+from benchmark._operations import supported_operations, default_operation
+from benchmark._measurements import supported_measurements, default_measurement
 
 to_file(sys.stderr)
 

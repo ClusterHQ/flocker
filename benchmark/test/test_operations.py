@@ -7,7 +7,7 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from benchmark.benchmark_operations import _operations, IProbe, IOperation
+from benchmark._operations import _operations, IProbe, IOperation
 
 
 def check_interfaces(factory):

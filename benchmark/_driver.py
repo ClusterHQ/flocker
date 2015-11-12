@@ -23,9 +23,9 @@ from flocker.apiclient import (
 )
 from flocker.common import gather_deferreds
 
-from benchmark_operations import get_operation
-from benchmark_measurements import get_measurement
-from benchmark_scenarios import get_scenario
+from benchmark._operations import get_operation
+from benchmark._measurements import get_measurement
+from benchmark._scenarios import get_scenario
 
 
 def benchmark(measure, operation, scenario, n=3):

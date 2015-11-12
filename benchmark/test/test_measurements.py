@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.task import Clock
 from twisted.internet.defer import maybeDeferred
 
-from benchmark.benchmark_measurements import _WallClock
+from benchmark._measurements import _WallClock
 
 
 class WallClockTests(TestCase):
