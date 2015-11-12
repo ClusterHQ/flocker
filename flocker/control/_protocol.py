@@ -31,7 +31,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
     ``SerializableArgument``, allowing for cached serialization.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import BytesIO
 from itertools import count
 from contextlib import contextmanager
@@ -317,6 +317,7 @@ class ControlServiceLocator(CommandLocator):
         """
         Do normal responder lookup and also record this activity.
         """
+        import pdb;pdb.set_trace()
         self._source.set_last_activity(self._reactor.seconds())
         return CommandLocator.locateResponder(self, name)
 
@@ -361,6 +362,7 @@ class FlockerServiceAMP(AMP):
     transport connection.
     """
     def __init__(self, *args, **kwargs):
+        #self.last
         AMP.__init__(self, *args, **kwargs)
 
     def close_connection(self):
@@ -728,6 +730,13 @@ class _AgentLocator(CommandLocator):
         """
         CommandLocator.__init__(self)
         self.agent = agent
+
+    def locateResponder(self, name):
+        """
+        Do normal responder lookup and also record this activity.
+        """
+        import pdb;pdb.set_trace()
+        return CommandLocator.locateResponder(self, name)
 
     @NoOp.responder
     def noop(self):

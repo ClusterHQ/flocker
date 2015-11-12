@@ -515,7 +515,7 @@ class ControlAMPTests(ControlTestCase):
         self.client.callRemote(NoOp)
         advance_rest(self.reactor)
         #self.protocol.connectionLost(Failure(ConnectionLost()))
-        import pdb;pdb.set_trace()
+        #import pdb;pdb.set_trace()
         self.fail("not implemented yet")
 
     def test_connection_made(self):
@@ -968,6 +968,7 @@ class AgentClientTests(SynchronousTestCase):
     def setUp(self):
         self.agent = FakeAgent()
         self.client = AgentAMP(Clock(), self.agent)
+        self.reactor = Clock()
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
@@ -979,9 +980,13 @@ class AgentClientTests(SynchronousTestCase):
         cluster state, the silent connection is forcefully closed.
         """
         self.client.makeConnection(StringTransportWithAbort())
-        #self.client.connectionLost(Failure(ConnectionLost()))
+        advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        advance_rest(self.reactor)
+        #self.protocol.connectionLost(Failure(ConnectionLost()))
         #import pdb;pdb.set_trace()
         self.fail("not implemented yet")
+        #self.client.connectionLost(Failure(ConnectionLost()))
 
     def test_initially_not_connected(self):
         """
