@@ -79,7 +79,9 @@ Community supported drivers:
    dell-configuration
    emc-configuration
    hedvig-configuration
+   huawei-configuration
    netapp-configuration
+   nexenta-configuration
    saratogaspeed-configuration
    vmware-configuration
    
