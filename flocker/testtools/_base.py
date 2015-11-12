@@ -4,14 +4,8 @@
 Base classes for unit tests.
 """
 
-from itertools import tee
-import json
-
-from eliot.prettyprint import pretty_format
 import fixtures
 import testtools
-from testtools.content import Content, text_content
-from testtools.content_type import UTF8_TEXT
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
 
@@ -59,41 +53,6 @@ class AsyncTestCase(testtools.TestCase):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
-    def run(self, result=None):
-        """
-        Run `AsyncTestCase`.
-
-        :param TestResult result: An optional `TestResult`.
-        """
-        ret = super(AsyncTestCase, self).run(result)
-        self._reformat_details(self.getDetails())
-        return ret
-
-    def _reformat_details(self, details):
-        """
-        Take the attached twisted log, if any, and split out the eliot logs
-        into a separate attachment.
-
-        :param dict details: A "details" dictionary from testtools that will
-            be mutated so that 'twisted-log' contains a reasonable looking
-            Twisted log without Eliot, and 'twisted-eliot-log' contains a
-            pretty-printed Eliot log.
-        """
-        log = details.get('twisted-log', None)
-        if log is None:
-            return
-
-        # Load the whole thing into memory because jml is too lazy to
-        # write a thing that turns chunks of bytes into an iterable of
-        # lines.
-        contents = log.as_text().splitlines(True)
-        core_log, eliot_log = _filter_eliot_logs(contents)
-        # XXX: Take advantage of the fact that getDetails() returns a dict
-        # that we can mutate. Am I evil? Yes I am.
-        details['twisted-log'] = text_content(''.join(core_log))
-        details['twisted-eliot-log'] = Content(
-            UTF8_TEXT, _pretty_print_eliot(eliot_log).next)
-
     def mktemp(self):
         """
         Create a temporary directory that will be deleted on test completion.
@@ -110,38 +69,3 @@ class AsyncTestCase(testtools.TestCase):
         temp_dir = FilePath(self.useFixture(fixtures.TempDir()).path)
         filename = self.id().split('.')[-1][:32]
         return temp_dir.child(filename).path
-
-
-def _pretty_print_eliot(eliot_lines):
-    """
-    Given an iterable of lines of eliot JSON dicts, yield pretty-formatted
-    messages.
-    """
-    for line in eliot_lines:
-        try:
-            message = json.loads(line)
-        except (ValueError, TypeError):
-            # XXX: What to do?!
-            continue
-        yield pretty_format(message)
-
-
-def _filter_eliot_logs(twisted_log_lines, eliot_token='ELIOT: '):
-    """
-    Take an iterable of Twisted log lines and return two iterables: one that
-    has *only* the regular logs, and one that has only the eliot logs, with
-    Twisted stuff stripped off.
-
-    :param iterable twisted_log_lines: An iterable of Twisted log lines.
-    :param str eliot_token: The string token that marks a log entry as being
-        of eliot.
-    :return: A 2-tuple of ``(core_logs, eliot_logs)``, where ``core_logs`` only
-        has Twisted core logs, and ``eliot_logs`` has only eliot logs.
-    """
-    core_logs, eliot_logs = tee(twisted_log_lines)
-    eliot_token_len = len(eliot_token)
-    return (
-        (line for line in core_logs if eliot_token not in line),
-        (line[line.index(eliot_token) + eliot_token_len:]
-         for line in eliot_logs if eliot_token in line)
-    )
