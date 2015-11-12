@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Measurements for the control service benchmarks.
+"""
+
 from pyrsistent import PClass, field
 
 from twisted.internet.defer import maybeDeferred

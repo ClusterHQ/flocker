@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Scenarios for the control service benchmarks.
+"""
+
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 
 

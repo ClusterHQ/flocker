@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Operations for the control service benchmarks.
+"""
+
 from pyrsistent import PClass, field
 from zope.interface import Interface, implementer
 

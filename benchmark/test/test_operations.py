@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Operations tests for the control service benchmarks.
+"""
+
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase

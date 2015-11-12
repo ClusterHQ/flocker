@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Driver for the control service benchmarks.
+"""
+
 from datetime import datetime
 import json
 from os import environ, getcwd

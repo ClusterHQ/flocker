@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Driver tests for the control service benchmarks.
+"""
+
 from itertools import count, repeat
 
 from zope.interface import implementer

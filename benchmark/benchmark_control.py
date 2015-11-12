@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Run the control service benchmarks.
+"""
+
 import sys
 
 from eliot import to_file

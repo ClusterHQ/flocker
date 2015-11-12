@@ -1,3 +1,8 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+"""
+Measurement tests for the control service benchmarks.
+"""
+
 from twisted.trial.unittest import TestCase
 from twisted.internet.task import Clock
 from twisted.internet.defer import maybeDeferred
