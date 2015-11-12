@@ -13,8 +13,7 @@ from twisted.application.internet import TimerService
 
 from pyrsistent import PRecord, field, pmap
 
-from ._model import DeploymentState, ChangeSource
-
+from . import DeploymentState, ChangeSource
 
 # Allowed inactivity period before updates are expired
 EXPIRATION_TIME = timedelta(seconds=120)
