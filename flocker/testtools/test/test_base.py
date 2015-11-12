@@ -13,10 +13,13 @@ from testtools import PlaceHolder, TestCase
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
+    Annotate,
     Contains,
     DirExists,
     HasLength,
     Equals,
+    FileContains,
+    Matcher,
     MatchesAny,
     LessThan,
     Not,
@@ -78,7 +81,25 @@ class AsyncTestCaseTests(TestCase):
         self.addCleanup(_remove_dir, temp_path.parent())
 
         self.expectThat(temp_path.parent().path, DirExists())
-        self.assertThat(temp_path.path, Not(PathExists()))
+        self.expectThat(temp_path.path, Not(PathExists()))
+        self.assertThat(temp_path, BelowPath(FilePath(os.getcwd())))
+
+    def test_mktemp_not_deleted(self):
+        """
+        ``mktemp`` returns a path that's not deleted after the test is run.
+        """
+        created_files = []
+
+        class SomeTest(AsyncTestCase):
+            def test_create_file(self):
+                path = self.mktemp()
+                created_files.append(path)
+                open(path, 'w').write('hello')
+
+        SomeTest('test_create_file').run(Python27TestResult())
+        [path] = created_files
+        self.addCleanup(os.unlink, path)
+        self.assertThat(path, FileContains('hello'))
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
@@ -133,7 +154,7 @@ class MakeTemporaryTests(TestCase):
         temp_dir = make_temporary_directory(test)
         self.addCleanup(_remove_dir, temp_dir)
         self.expectThat(temp_dir.path, DirExists())
-        self.assertThat(temp_dir.parents(), Contains(FilePath(os.getcwd())))
+        self.assertThat(temp_dir, BelowPath(FilePath(os.getcwd())))
 
 
 def _remove_dir(path):
@@ -145,3 +166,28 @@ def _remove_dir(path):
     except OSError as e:
         if e.errno != errno.ENOENT:
             raise
+
+
+class BelowPath(Matcher):
+    """
+    Match if the given path is a child (or grandchild, etc.) of the specified
+    parent.
+    """
+
+    def __init__(self, parent):
+        """
+        Construct a ``BelowPath`` that will successfully match for any child
+        of ``parent``.
+
+        :param FilePath parent: The parent path. Any path beneath this will
+            match.
+        """
+        self._parent = parent
+
+    def match(self, child):
+        """
+        Assert ``child`` is beneath the core path.
+        """
+        return Annotate(
+            "%s in not beneath %s" % (child, self._parent),
+            Contains(self._parent)).match(child.parents())

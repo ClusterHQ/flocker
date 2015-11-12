@@ -7,7 +7,6 @@ Base classes for unit tests.
 from datetime import timedelta
 import tempfile
 
-import fixtures
 import testtools
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
@@ -69,9 +68,7 @@ class AsyncTestCase(testtools.TestCase):
 
         # XXX: Actually belongs in a mixin or something, not actually specific
         # to async.
-        temp_dir = FilePath(self.useFixture(fixtures.TempDir()).path)
-        filename = self.id().split('.')[-1][:32]
-        return temp_dir.child(filename).path
+        return make_temporary_directory(self).child('temp').path
 
 
 def _path_for_test_id(test_id, max_segment_length=32):
