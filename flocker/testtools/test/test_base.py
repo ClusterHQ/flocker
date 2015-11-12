@@ -5,21 +5,16 @@ Tests for flocker base test cases.
 import errno
 import shutil
 
-from eliot import MessageType, fields
 from hypothesis import given
 from hypothesis.strategies import binary
 from testtools import TestCase
-from testtools.content import text_content
 from testtools.matchers import (
     DirExists,
-    EndsWith,
-    MatchesListwise,
     Not,
     PathExists,
 )
 from testtools.testresult.doubles import Python27TestResult
 from twisted.python.filepath import FilePath
-from twisted.python import log
 from twisted.trial import unittest
 
 from .._base import AsyncTestCase
