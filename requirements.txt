@@ -59,3 +59,4 @@ wheel==0.24.0
 wrapt==1.10.4
 zope.interface==4.1.2
 txeffect==0.9
+attrs==15.1.0
