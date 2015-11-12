@@ -71,3 +71,20 @@ class AsyncTestCase(testtools.TestCase):
         temp_dir = FilePath(self.useFixture(fixtures.TempDir()).path)
         filename = self.id().split('.')[-1][:32]
         return temp_dir.child(filename).path
+
+
+def _path_for_test_id(test_id, max_segment_length=32):
+    """
+    Get the temporary directory path for a test ID.
+
+    :param str test_id: A fully-qualified Python name. Must
+        have at least three components.
+    :param int max_segment_length: The longest that a path segment may be.
+    :return: A relative path to ``$module/$class/$method``.
+    """
+    if test_id.count('.') < 2:
+        raise ValueError(
+            "Must have at least three components (e.g. foo.bar.baz), got: %r"
+            % (test_id,))
+    return '/'.join(
+        segment[:max_segment_length] for segment in test_id.rsplit('.', 2))
