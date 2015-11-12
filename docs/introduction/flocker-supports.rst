@@ -39,6 +39,7 @@ The following backends can be used with Flocker:
 * VMware
 * NetApp OnTap
 * Hedvig
+* Dell SC Series
 * ConvergeIO
 * Saratoga Speed
 * Local storage using our ZFS driver (currently Experimental)

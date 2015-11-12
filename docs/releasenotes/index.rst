@@ -10,8 +10,18 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
-============
+v1.7.0
+======
+
+* Added support for :ref:`storage profiles<storage-profiles>`.
+
+v1.6.1
+======
+
+* Updated the Vagrant tutorial box to work with Docker 1.9.
+
+v1.6.0
+======
 
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
 * New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
@@ -23,7 +33,7 @@ v1.5.0
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
 * journald logs are now easier to filter and read.
-  See the `documentation <flocker-logging>`_ for more information.
+  See the :ref:`documentation <flocker-logging>` for more information.
 * The control service uses much less CPU, allowing for larger clusters.
 * Flocker CLI now installs on OS X 10.11.
 
@@ -144,7 +154,7 @@ v0.3
 v0.2
 ====
 
-* Moving volumes between nodes is now done with a :ref:`two-phase push<clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+* Moving volumes between nodes is now done with a two-phase push that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :ref:`application configuration<configuration>`.
 * Added basic support for links between containers in the :ref:`application configuration<configuration>`.
 

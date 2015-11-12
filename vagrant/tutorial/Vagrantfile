@@ -29,13 +29,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                         ENV.fetch('FLOCKER_BUILD_SERVER', '')
                       ]
 
-  config.vm.provision 'docker', images: [
-    'busybox',
-    'clusterhq/mongodb',
-    'redis',
-    'python:2.7-slim',
-    'clusterhq/flask'
-  ]
+  # Despite the fact that the Vagrant 'docker' provider is tempting to use
+  # here, we instead use a shell script to start docker and pull down docker
+  # images. In the past we've had bad luck with the Vagrant 'docker' provider
+  # being fragile relative to new releases of docker running on CentOS
+  # (FLOC-3372).
+  config.vm.provision :shell,
+                      path: 'setup_docker.sh',
+                      privileged: true
 
   # Cleanup
   config.vm.provision :shell, path: '../cleanup.sh', privileged: true
@@ -48,4 +49,88 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder '.', '/vagrant', disabled: true
 
   config.cache.scope = :box if Vagrant.has_plugin?('vagrant-cachier')
+end
+
+
+# make sure we can install the VBox guest utils
+# https://github.com/dotless-de/vagrant-vbguest/issues/141#issuecomment-101071914
+#
+module UpdateCentOSKernel
+  class UpdateCentOSKernelPlugin < Vagrant.plugin('2')
+    name 'update_centos_kernel_plugin'
+
+    # update yum after first boot when provisioning
+    action_hook(:update_yum, :machine_action_up) do |hook|
+      hook.after(VagrantPlugins::ProviderVirtualBox::Action::CheckGuestAdditions, UpdateCentOSKernel::Middleware::KernelUpdater)
+    end
+  end
+
+  module Middleware
+    class KernelUpdater
+      @@rebooted = {};
+
+      def initialize(app, env)
+        @app = app
+      end
+
+      def call(env)
+        @env = env
+        @vm = env[:machine]
+        @ui = env[:ui]
+        self.update_kernel()
+      end
+
+      def update_kernel()
+        if !@@rebooted[@vm.id]
+          @@rebooted[@vm.id] = true
+
+          @ui.info 'Updating kernel'
+          @vm.communicate.sudo('yum -y install kernel kernel-devel') do |type, data|
+            if type == :stderr
+              @ui.error(data);
+            else
+              @ui.info(data);
+            end
+          end
+
+          @ui.info 'Installing Development Tools'
+          @vm.communicate.sudo('yum -y groups mark convert') do |type, data|
+            if type == :stderr
+              @ui.error(data);
+            else
+              @ui.info(data);
+            end
+          end
+          @vm.communicate.sudo('yum -y groupinstall "Development Tools"') do |type, data|
+            if type == :stderr
+              @ui.error(data);
+            else
+              @ui.info(data);
+            end
+          end
+
+
+          self.reboot()
+        end
+      end
+
+      def reboot()
+        @ui.info('Rebooting after updating kernel')
+        simple_reboot = Vagrant::Action::Builder.new.tap do |b|
+          b.use Vagrant::Action::Builtin::Call, Vagrant::Action::Builtin::GracefulHalt, :poweroff, :running do |env2, b2|
+            if !env2[:result]
+              b2.use VagrantPlugins::ProviderVirtualBox::Action::ForcedHalt
+            end
+          end
+
+          b.use VagrantPlugins::ProviderVirtualBox::Action::Boot
+          if defined?(Vagrant::Action::Builtin::WaitForCommunicator)
+            b.use Vagrant::Action::Builtin::WaitForCommunicator, [:starting, :running]
+          end
+          b.use VagrantVbguest::Middleware
+        end
+        @env[:action_runner].run(simple_reboot, @env)
+      end
+    end
+  end
 end

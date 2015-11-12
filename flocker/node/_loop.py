@@ -12,7 +12,14 @@ state with the desired configuration as transmitted by the control
 service. This involves two state machines: ClusterStatus and ConvergenceLoop.
 The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
+
+:var TransitionTable _CLUSTER_STATUS_FSM_TABLE: See
+    ``_build_cluster_status_fsm_table``.
+:var TransitionTable _CONVERGENCE_LOOP_FSM_TABLE: See
+    ``_build_cluster_status_fsm_table``.
 """
+
+from random import uniform
 
 from zope.interface import implementer
 
@@ -36,7 +43,7 @@ from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
 from ..control import (
-    NodeStateCommand, IConvergenceAgent, AgentAMP,
+    NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
 )
 
 
@@ -137,16 +144,12 @@ class ClusterStatus(object):
         self.client = None
 
 
-def build_cluster_status_fsm(convergence_loop_fsm):
+def _build_cluster_status_fsm_table():
     """
-    Create a new cluster status FSM.
+    Create the ``TransitionTable`` needed by the cluster status FSM.
 
-    The automatic reconnection logic is handled by the
-    ``AgentLoopService``; the world object here just gets notified of
-    disconnects, it need schedule the reconnect itself.
-
-    :param convergence_loop_fsm: A convergence loop FSM as output by
-    ``build_convergence_loop_fsm``.
+    :return TransitionTable: The transition table for the state machine for
+        keeping track of cluster state and configuration.
     """
     S = ClusterStatusStates
     I = ClusterStatusInputs
@@ -181,9 +184,29 @@ def build_cluster_status_fsm(convergence_loop_fsm):
             I.DISCONNECTED_FROM_CONTROL_SERVICE: ([], S.SHUTDOWN),
             I.STATUS_UPDATE: ([], S.SHUTDOWN),
             })
+    return table
 
+
+_CLUSTER_STATUS_FSM_TABLE = _build_cluster_status_fsm_table()
+
+
+def build_cluster_status_fsm(convergence_loop_fsm):
+    """
+    Create a new cluster status FSM.
+
+    The automatic reconnection logic is handled by the
+    ``AgentLoopService``; the world object here just gets notified of
+    disconnects, it need schedule the reconnect itself.
+
+    :param convergence_loop_fsm: A convergence loop FSM as output by
+    ``build_convergence_loop_fsm``.
+    """
     return constructFiniteStateMachine(
-        inputs=I, outputs=O, states=S, initial=S.DISCONNECTED, table=table,
+        inputs=ClusterStatusInputs,
+        outputs=ClusterStatusOutputs,
+        states=ClusterStatusStates,
+        initial=ClusterStatusStates.DISCONNECTED,
+        table=_CLUSTER_STATUS_FSM_TABLE,
         richInputs=[_ConnectedToControlService, _StatusUpdate],
         inputContext={},
         world=MethodSuffixOutputer(ClusterStatus(convergence_loop_fsm)))
@@ -217,15 +240,30 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
+@attributes(["delay_seconds"])
 class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
     """
     Sleep for given number of seconds.
 
     :ivar float delay_seconds: How many seconds to sleep.
     """
-    # For now this is hard coded, will become more flexible in followup
-    # parts of FLOC-3205:
-    delay_seconds = 1.0
+    @classmethod
+    def with_jitter(cls, delay_seconds):
+        """
+        Add some noise to the delay, so sleeps aren't exactly the same across
+        all processes.
+
+        :param delay_seconds: How many seconds to sleep approximately.
+
+        :return: ``_Sleep`` with jitter added.
+        """
+        jitter = 1 + uniform(-0.2, 0.2)
+        return cls(delay_seconds=delay_seconds*jitter)
+
+
+# How many seconds to sleep between iterations when we may yet not be
+# converged so want to do another iteration again soon:
+_UNCONVERGED_DELAY = _Sleep(delay_seconds=0.1)
 
 
 class ConvergenceLoopStates(Names):
@@ -429,6 +467,17 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state, local_state
             )
+            if action == NoOp():
+                # We've converged, we can sleep for deployer poll
+                # interval. We add some jitter so not all agents wake up
+                # at exactly the same time, to reduce load on system:
+                sleep_duration = _Sleep.with_jitter(
+                    self.deployer.poll_interval.total_seconds())
+            else:
+                # We're going to do some work, we should do another
+                # iteration quickly in case there's followup work:
+                sleep_duration = _UNCONVERGED_DELAY
+
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
             ran_state_change = run_state_change(action, self.deployer)
@@ -437,15 +486,22 @@ class ConvergenceLoop(object):
 
             # Wait for the control node to acknowledge the new
             # state, and for the convergence actions to run.
-            return gather_deferreds([sent_state, ran_state_change])
+            result = gather_deferreds([sent_state, ran_state_change])
+            result.addCallback(lambda _: sleep_duration)
+            return result
         d.addCallback(got_local_state)
 
         # If an error occurred we just want to log it and then try
         # converging again; hopefully next time we'll have more success.
-        d.addErrback(writeFailure, self.fsm.logger)
+        def error(failure):
+            writeFailure(failure, self.fsm.logger)
+            # We should retry quickly to redo the failed work:
+            return _UNCONVERGED_DELAY
+        d.addErrback(error)
 
         # We're done with the iteration:
-        d.addCallback(lambda _: self.fsm.receive(_Sleep()))
+        d.addCallback(
+            lambda delay: self.fsm.receive(delay))
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):
@@ -457,6 +513,44 @@ class ConvergenceLoop(object):
         if self._sleep_timeout.active():
             self._sleep_timeout.cancel()
         self._sleep_timeout = None
+
+
+def _build_convergence_loop_table():
+    """
+    Create the ``TransitionTable`` needed by the convergence loop FSM.
+
+    :return TransitionTable: The transition table for the state machine for
+        converging on the cluster configuration.
+    """
+    I = ConvergenceLoopInputs
+    O = ConvergenceLoopOutputs
+    S = ConvergenceLoopStates
+
+    table = TransitionTable()
+    table = table.addTransition(
+        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.CONVERGE], S.CONVERGING)
+    table = table.addTransitions(
+        S.CONVERGING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
+            I.STOP: ([], S.CONVERGING_STOPPING),
+            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
+        })
+    table = table.addTransitions(
+        S.CONVERGING_STOPPING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
+            I.SLEEP: ([], S.STOPPED),
+        })
+    table = table.addTransitions(
+        S.SLEEPING, {
+            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
+            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
+            I.STATUS_UPDATE: (
+                [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
+            })
+    return table
+
+
+_CONVERGENCE_LOOP_FSM_TABLE = _build_convergence_loop_table()
 
 
 def build_convergence_loop_fsm(reactor, deployer):
@@ -489,43 +583,22 @@ def build_convergence_loop_fsm(reactor, deployer):
     :param IDeployer deployer: Used to discover local state and calcualte
         necessary changes to match desired configuration.
     """
-    I = ConvergenceLoopInputs
-    O = ConvergenceLoopOutputs
-    S = ConvergenceLoopStates
-
-    table = TransitionTable()
-    table = table.addTransition(
-        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.CONVERGE], S.CONVERGING)
-    table = table.addTransitions(
-        S.CONVERGING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.STOP: ([], S.CONVERGING_STOPPING),
-            I.SLEEP: ([O.SCHEDULE_WAKEUP], S.SLEEPING),
-        })
-    table = table.addTransitions(
-        S.CONVERGING_STOPPING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
-            I.SLEEP: ([], S.STOPPED),
-        })
-    table = table.addTransitions(
-        S.SLEEPING, {
-            I.WAKEUP: ([O.CLEAR_WAKEUP, O.CONVERGE], S.CONVERGING),
-            I.STOP: ([O.CLEAR_WAKEUP], S.STOPPED),
-            I.STATUS_UPDATE: (
-                [O.STORE_INFO, O.UPDATE_MAYBE_WAKEUP], S.SLEEPING),
-            })
-
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
-        inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate, _Sleep], inputContext={},
+        inputs=ConvergenceLoopInputs,
+        outputs=ConvergenceLoopOutputs,
+        states=ConvergenceLoopStates,
+        initial=ConvergenceLoopStates.STOPPED,
+        table=_CONVERGENCE_LOOP_FSM_TABLE,
+        richInputs=[_ClientStatusUpdate, _Sleep],
+        inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
 
 
 @implementer(IConvergenceAgent)
-@attributes(["reactor", "deployer", "host", "port"])
+@attributes(["reactor", "deployer", "host", "port", "era"])
 class AgentLoopService(MultiService, object):
     """
     Service in charge of running the convergence loop.
@@ -539,6 +612,7 @@ class AgentLoopService(MultiService, object):
     :ivar factory: The factory used to connect to the control service.
     :ivar reconnecting_factory: The underlying factory used to connect to
         the control service, without the TLS wrapper.
+    :ivar UUID era: This node's era.
     """
 
     def __init__(self, context_factory):
@@ -572,6 +646,10 @@ class AgentLoopService(MultiService, object):
         # Reduce reconnect delay back to normal, since we've successfully
         # connected:
         self.reconnecting_factory.resetDelay()
+        d = client.callRemote(SetNodeEraCommand,
+                              era=unicode(self.era),
+                              node_uuid=unicode(self.deployer.node_uuid))
+        d.addErrback(writeFailure)
         self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):

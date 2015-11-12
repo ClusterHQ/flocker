@@ -21,6 +21,7 @@ from klein import Klein
 from ..restapi import structured
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
+from ..node.agents.blockdevice import PROFILE_METADATA_KEY
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -167,9 +168,15 @@ class VolumePlugin(object):
                     raise DatasetAlreadyExists
         listing.addCallback(got_configured)
 
+        metadata = {u"name": Name}
+        opts = Opts or {}
+        profile = opts.get(u"profile")
+        if profile:
+            metadata[PROFILE_METADATA_KEY] = profile
+
         creating = listing.addCallback(
             lambda _: self._flocker_client.create_dataset(
-                self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
+                self._node_id, DEFAULT_SIZE, metadata=metadata,
                 dataset_id=UUID(dataset_id_from_name(Name))))
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
