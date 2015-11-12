@@ -43,7 +43,7 @@ from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
 from ..control import (
-    NodeStateCommand, IConvergenceAgent, AgentAMP,
+    NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
 )
 
 
@@ -598,7 +598,7 @@ def build_convergence_loop_fsm(reactor, deployer):
 
 
 @implementer(IConvergenceAgent)
-@attributes(["reactor", "deployer", "host", "port"])
+@attributes(["reactor", "deployer", "host", "port", "era"])
 class AgentLoopService(MultiService, object):
     """
     Service in charge of running the convergence loop.
@@ -612,6 +612,7 @@ class AgentLoopService(MultiService, object):
     :ivar factory: The factory used to connect to the control service.
     :ivar reconnecting_factory: The underlying factory used to connect to
         the control service, without the TLS wrapper.
+    :ivar UUID era: This node's era.
     """
 
     def __init__(self, context_factory):
@@ -645,6 +646,10 @@ class AgentLoopService(MultiService, object):
         # Reduce reconnect delay back to normal, since we've successfully
         # connected:
         self.reconnecting_factory.resetDelay()
+        d = client.callRemote(SetNodeEraCommand,
+                              era=unicode(self.era),
+                              node_uuid=unicode(self.deployer.node_uuid))
+        d.addErrback(writeFailure)
         self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):
@@ -652,5 +657,12 @@ class AgentLoopService(MultiService, object):
             ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
 
     def cluster_updated(self, configuration, cluster_state):
+        # Filter out state for this node if the era doesn't match. Since
+        # the era doesn't match ours that means it's old pre-reboot state
+        # that hasn't expired yet and is likely wrong, so we don't want to
+        # act based on any information in it.
+        node_uuid = self.deployer.node_uuid
+        if self.era != cluster_state.node_uuid_to_era.get(node_uuid):
+            cluster_state = cluster_state.remove_node(node_uuid)
         self.cluster_status.receive(_StatusUpdate(configuration=configuration,
                                                   state=cluster_state))

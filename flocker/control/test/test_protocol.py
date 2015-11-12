@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.control._protocol``.
@@ -6,7 +6,6 @@ Tests for ``flocker.control._protocol``.
 
 from uuid import uuid4
 from json import loads
-from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -18,7 +17,6 @@ from eliot.testing import (
     capture_logging, validate_logging, assertHasAction,
 )
 
-from twisted.python.runtime import platform
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
 from twisted.trial.unittest import SynchronousTestCase
@@ -36,7 +34,7 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
-from ...testtools.amp import DelayedAMPClient
+from ...testtools.amp import DelayedAMPClient, connected_amp_protocol
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
@@ -52,7 +50,6 @@ from .. import (
     Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService, wire_encode
-from ...common._era import get_era
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -654,6 +651,22 @@ class ControlAMPTests(ControlTestCase):
             self.control_amp_service.cluster_state.as_deployment(),
         )
 
+    def test_set_node_era(self):
+        """
+        A ``SetNodeEraCommand`` results in the node's era being
+        updated.
+        """
+        node_uuid = uuid4()
+        era = uuid4()
+        d = self.client.callRemote(SetNodeEraCommand,
+                                   node_uuid=unicode(node_uuid),
+                                   era=unicode(era))
+        self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(node_uuid_to_era={node_uuid: era}),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
@@ -951,18 +964,6 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
-    @skipUnless(platform.isLinux(), "get_era() is only supported on Linux.")
-    def test_send_era_on_connect(self):
-        """
-        Upon connecting a ``SetNodeEra`` is sent with the current node's era.
-        """
-        locator = _NoOpCounter()
-        peer = AMP(locator=locator)
-        pump = connectedServerAndClient(lambda: self.client,
-                                        lambda: peer)[2]
-        pump.flush()
-        self.assertEqual(locator.era, unicode(get_era()))
-
     def test_connection_lost(self):
         """
         Connection lost events are passed on to the agent.
@@ -1043,7 +1044,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()`` takes an AMP instance.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
 
         def test_disconnected(self):
             """
@@ -1051,7 +1052,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
 
         def test_reconnected(self):
@@ -1060,9 +1061,9 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.disconnected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
 
         def test_cluster_updated(self):
             """
@@ -1070,9 +1071,9 @@ def iconvergence_agent_tests_factory(fixture):
             instances.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.cluster_updated(
-                Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
+                Deployment(nodes=frozenset()), DeploymentState(nodes=[]))
 
         def test_interface(self):
             """
@@ -1198,12 +1199,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
 class _NoOpCounter(CommandLocator):
     noops = 0
-    era = None
-
-    @SetNodeEraCommand.responder
-    def set_node_era(self, era):
-        self.era = era
-        return {}
 
     @NoOp.responder
     def noop(self):

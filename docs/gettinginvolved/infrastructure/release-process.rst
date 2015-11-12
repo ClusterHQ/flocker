@@ -94,55 +94,33 @@ Preparing For a Release
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
 
-#. Set the version number of the release being created as an environment variable for later use:
+#. Create an issue in JIRA:
+
+   This should be a "Feature" with "Release Flocker [VERSION]" as the title, and it should be assigned to yourself.
+   The issue does not need a design, so move the issue to the "Coding" state.
+
+#. Create the release repository, environment and branch from within an existing Flocker development environment:
 
    .. prompt:: bash $
 
-      VERSION=0.1.2
-
-#. Create an issue in JIRA:
-
-   This should be a "Feature" with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
-   The issue does not need a design, so move the issue to the "Coding" state.
-
-#. Create an environment for the release:
-
-   **Linux**
-
-   .. prompt:: bash $,(flocker-0.1.2)$ auto
-
-      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
-      $ mkvirtualenv -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
-      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
-
-   **OS X**
-
-   .. prompt:: bash $,(flocker-0.1.2)$ auto
-
-      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
-      # Use system Python with Homebrew's OpenSSL libraries - see FLOC-3044.
-      $ mkvirtualenv --python=/usr/bin/python -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
-      (flocker-0.1.2)$ export LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include"
-      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
-
-#. Create a release branch, and check that the license is up-to-date:
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      admin/create-release-branch --flocker-version=${VERSION}
-      admin/update-license
-      git commit -am "Updated copyright in LICENSE file"
+      admin/initialize-release --flocker-version=1.6.2
+      
+   Execute the commands output by the `initialize-release` script:
+   
+   .. prompt:: bash $
+   
+      export VERSION=1.6.2;
+      cd /home/developer/flocker-release-1.6.2;
+      source flocker-1.6.2/bin/activate;
 
 #. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash (flocker-0.1.2)$
+      .. prompt:: bash (flocker-1.6.2)$
 
           # Choose the tag of the last version with a "Release Notes" entry to compare the latest version to.
-          OLD_VERSION=0.3.0
+          OLD_VERSION=1.6.1
 
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           git log --first-parent ${OLD_VERSION}..${BRANCH}
@@ -157,13 +135,13 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       git commit -am "Updated Release Notes"
 
 #. Push the changes:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
@@ -227,7 +205,7 @@ Release
 
 #. Tag the version being released:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       BRANCH=$(git rev-parse --abbrev-ref HEAD)
       RELEASE_BRANCH_PREFIX="release\/flocker-"
@@ -246,7 +224,7 @@ Release
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       aws configure
 
@@ -255,7 +233,7 @@ Release
 
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       admin/publish-artifacts
       admin/publish-docs --production
@@ -269,7 +247,7 @@ Release
    This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
    This test can take about 30 minutes, especially if Docker images need to be pulled.
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       admin/test-artifacts
 
@@ -282,16 +260,16 @@ Release
    It outputs a success message if the documentation does redirect correctly.
    It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       admin/test-redirects --production
 
 #. Remove the release virtual environment:
 
-   .. prompt:: bash (flocker-0.1.2)$,$ auto
+   .. prompt:: bash (flocker-1.6.2)$,$ auto
 
-      (flocker-0.1.2)$ VIRTUALENV_NAME=$(basename ${VIRTUAL_ENV})
-      (flocker-0.1.2)$ deactivate
+      (flocker-1.6.2)$ VIRTUALENV_NAME=$(basename ${VIRTUAL_ENV})
+      (flocker-1.6.2)$ deactivate
       $ rmvirtualenv ${VIRTUALENV_NAME}
 
 #. Remove the release Flocker clone:
