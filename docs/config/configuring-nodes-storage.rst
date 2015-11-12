@@ -58,7 +58,9 @@ Storage Profiles
 List of Supported Backends
 ==========================
 
-The following pages describe how to configure the backends currently supported by Flocker:
+The following pages describe how to configure the backends currently supported by Flocker.
+
+ClusterHQ supported drivers:
 
 .. toctree::
    :maxdepth: 1
@@ -67,6 +69,12 @@ The following pages describe how to configure the backends currently supported b
    aws-configuration
    zfs-configuration
    loopback-configuration
+
+Community supported drivers:
+
+.. toctree::
+   :maxdepth: 1
+
    convergeio-configuration
    hedvig-configuration
    dell-configuration
