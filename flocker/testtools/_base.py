@@ -5,6 +5,7 @@ Base classes for unit tests.
 """
 
 from datetime import timedelta
+import tempfile
 
 import fixtures
 import testtools
@@ -88,3 +89,18 @@ def _path_for_test_id(test_id, max_segment_length=32):
             % (test_id,))
     return '/'.join(
         segment[:max_segment_length] for segment in test_id.rsplit('.', 2))
+
+
+def make_temporary_directory(test):
+    """
+    Create a temporary directory for use in ``test``.
+
+    :param TestCase test: A TestCase
+    :return: The FilePath to a newly-created temporary directory, created
+        beneath the current working directory.
+    """
+    path = FilePath(_path_for_test_id(test.id()))
+    if not path.exists():
+        path.makedirs()
+    temp_dir = tempfile.mkdtemp(dir=path.path)
+    return FilePath(temp_dir)

@@ -3,15 +3,17 @@ Tests for flocker base test cases.
 """
 
 import errno
+import os
 import shutil
 import string
 
 from hypothesis import assume, given
 from hypothesis.strategies import binary, integers, lists, text
-from testtools import TestCase
+from testtools import PlaceHolder, TestCase
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
+    Contains,
     DirExists,
     HasLength,
     Equals,
@@ -27,6 +29,7 @@ from twisted.trial import unittest
 
 from .._base import (
     AsyncTestCase,
+    make_temporary_directory,
     _path_for_test_id,
 )
 
@@ -82,6 +85,8 @@ identifier_characters = string.ascii_letters + string.digits + '_'
 identifiers = text(average_size=20, min_size=1, alphabet=identifier_characters)
 fqpns = lists(
     identifiers, min_size=1, average_size=5).map(lambda xs: '.'.join(xs))
+tests = lists(identifiers, min_size=3, average_size=5).map(
+    lambda xs: PlaceHolder('.'.join(xs)))
 
 
 class MakeTemporaryTests(TestCase):
@@ -119,6 +124,16 @@ class MakeTemporaryTests(TestCase):
         """
         assume(test_id.count('.') < 2)
         self.assertRaises(ValueError, _path_for_test_id, test_id)
+
+    @given(tests)
+    def test_make_temporary_directory(self, test):
+        """
+        Given a test, make a temporary directory.
+        """
+        temp_dir = make_temporary_directory(test)
+        self.addCleanup(_remove_dir, temp_dir)
+        self.expectThat(temp_dir.path, DirExists())
+        self.assertThat(temp_dir.parents(), Contains(FilePath(os.getcwd())))
 
 
 def _remove_dir(path):
