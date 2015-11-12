@@ -990,7 +990,7 @@ def assert_calculated_changes(
         volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE,
         compute_instance_id=u"instance-".format(node_state.uuid))
     local_state = local_state.set(
-        discovered_datasets={d.dataset_id: d for d in discovered_datasets})
+        datasets={d.dataset_id: d for d in discovered_datasets})
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
@@ -1159,7 +1159,7 @@ class FakeBlockDeviceDeployerLocalState(PClass):
     node_state = field(type=NodeState, mandatory=True)
     nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
     volumes = pvector_field(BlockDeviceVolume)
-    discovered_datasets = pmap_field(UUID, DiscoveredDataset)
+    datasets = pmap_field(UUID, DiscoveredDataset)
 
     def shared_state_changes(self):
         return self.node_state, self.nonmanifest_datasets

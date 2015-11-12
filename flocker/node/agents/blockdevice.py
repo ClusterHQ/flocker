@@ -63,15 +63,15 @@ class DatasetStates(Names):
     States that a ``Dataset`` can be in.
 
     """
-    # Exists, but not attached:
+    # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
     ATTACHED_NO_FILESYSTEM = NamedConstant()
     # Attached to this node, has filesystem
     ATTACHED = NamedConstant()
-    # Mounted on this node:
+    # Mounted on this node
     MOUNTED = NamedConstant()
-    # XXX seems pointless might delete at some point
+    # Deleted from the driver
     DELETED = NamedConstant()
 
 
@@ -1519,7 +1519,7 @@ class BlockDeviceDeployer(PRecord):
         mounts = list(self._calculate_mounts(
             local_node_state.devices, local_node_state.paths,
             configured_manifestations, local_state.volumes,
-            local_state.discovered_datasets,
+            local_state.datasets,
         ))
         unmounts = list(self._calculate_unmounts(
             local_node_state.paths, configured_manifestations,
@@ -1527,7 +1527,7 @@ class BlockDeviceDeployer(PRecord):
         ))
         filesystem_creates = list(self._calculate_filesystem_creates(
             configured_manifestations,
-            local_state.discovered_datasets,
+            local_state.datasets,
         ))
 
         # XXX prevent the configuration of unsized datasets on blockdevice
