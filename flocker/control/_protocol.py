@@ -344,8 +344,9 @@ class ControlServiceLocator(CommandLocator):
 
     @SetNodeEraCommand.responder
     def set_node_era(self, era):
-        # Actual work will be done in FLOC-3379, FLOC-3380
-        pass
+        # Version in master actually does something, here just return
+        # nothing so we don't break the connection.
+        return {}
 
 
 class ControlAMP(AMP):
