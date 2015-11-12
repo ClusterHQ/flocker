@@ -32,7 +32,7 @@ from flocker.provision._install import (
 from flocker.provision._ssh import run_remotely
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._effect import sequence
-from effect.twisted import perform
+from txeffect import perform
 from flocker import __version__
 
 from flocker.common.runner import run
