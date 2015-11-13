@@ -1073,7 +1073,7 @@ def iconvergence_agent_tests_factory(fixture):
             agent = fixture(self)
             agent.connected(connected_amp_protocol())
             agent.cluster_updated(
-                Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
+                Deployment(nodes=frozenset()), DeploymentState(nodes=[]))
 
         def test_interface(self):
             """
