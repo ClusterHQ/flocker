@@ -367,10 +367,13 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
             expected_changes,
         )
 
-    def test_attached_dataset(self):
+    def attached_dataset_test(self, state):
         """
-        When there is a a dataset in the ``ATTACHED`` state,
+        When there is a a dataset in the given attached state,
         it is reported as a non-manifest dataset.
+
+        :param state: Either ``DatasetStates.ATTACHED`` or
+            ``DatasetStates.ATTACHED_NO_FILESYSTEM``.
         """
         dataset_id = uuid4()
         local_state = BlockDeviceDeployerLocalState(
@@ -378,7 +381,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
             hostname=self.hostname,
             datasets={
                 dataset_id: DiscoveredDataset(
-                    state=DatasetStates.ATTACHED,
+                    state=state,
                     dataset_id=dataset_id,
                     blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
@@ -410,6 +413,20 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
             local_state.shared_state_changes(),
             expected_changes,
         )
+
+    def test_attached_dataset(self):
+        """
+        When there is a a dataset in the ``ATTACHED`` state,
+        it is reported as a non-manifest dataset.
+        """
+        self.attached_dataset_test(DatasetStates.ATTACHED)
+
+    def test_attached_no_filesystem_dataset(self):
+        """
+        When there is a a dataset in the ``ATTACHED_NO_FILESYSTEM`` state,
+        it is reported as a non-manifest dataset.
+        """
+        self.attached_dataset_test(DatasetStates.ATTACHED_NO_FILESYSTEM)
 
     def test_mounted_dataset(self):
         """
