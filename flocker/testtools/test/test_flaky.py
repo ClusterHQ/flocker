@@ -82,6 +82,38 @@ class FlakyTests(TestCase):
             'testsRun': 1,
         }, get_results(test))
 
+    def test_intermittent_flaky_test(self):
+        """
+        A @flaky test that fails sometimes and succeeds other times counts as a
+        pass.
+        """
+        # XXX: Pass through again and update descriptions and tests for
+        # min_value & max_value.
+        # XXX: Do we have a 'shuffled' strategy?
+        # XXX: We could create an "exceptions" strategy.
+        executions = iter([
+            lambda: throw(ValueError('failure')),
+            lambda: None,
+            lambda: throw(RuntimeError('failure #2')),
+        ])
+
+        class SomeTest(AsyncTestCase):
+
+            @flaky('FLOC-XXXX', max_runs=3, min_passes=1)
+            def test_something(self):
+                next(executions)()
+
+        test = SomeTest('test_something')
+        self.assertEqual({
+            'errors': 0,
+            'failures': 0,
+            'skipped': 0,
+            'expectedFailures': 0,
+            'unexpectedSuccesses': 0,
+            'testsRun': 1,
+        }, get_results(test))
+    test_intermittent_flaky_test.todo = "Acceptance test for flaky retries"
+
 
 def throw(exception):
     """
