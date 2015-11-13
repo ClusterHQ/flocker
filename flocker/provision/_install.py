@@ -793,91 +793,20 @@ def open_ufw(service):
         ])
 
 
-def task_enable_flocker_control(distribution):
+def task_enable_flocker_control(distribution, action="start"):
     """
     Enable flocker-control service.
     """
     if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', START, 'flocker-control']),
+            run_from_args(['systemctl', START, 'flocker-control']).on(error=managed_errors_handler),
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
         # alongside the flocker-dataset-agent service, the default control
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
-
-        #TODO
-        # SAMPLE CODE I CANT USE HERE
-        #         commands.append(put(content=repo,
-        #                     path='/tmp/clusterhq-build.repo'))
-        # commands.append(run_from_args([
-        #     'cp', '/tmp/clusterhq-build.repo',
-        #     '/etc/yum.repos.d/clusterhq-build.repo']))
-        # repo_options = ['--enablerepo=clusterhq-build']
-        # command_list = []
-        # command_list += [
-        #         put(
-        #             path='/etc/init/flocker-control.override',
-        #             content=dedent('''\
-        #                 start on runlevel [2345]
-        #                 stop on runlevel [016]
-        #                 '''),
-        #         ),
-        #     ]
-        #
-        # FIRST TRY
-        # command_list+=[
-        #     run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services")
-        #     ]
-        # command_list+=[
-        #      run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),
-        #     ]
-        # command_list+=[
-        #      run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),
-        #     ]
-        # command_list+=[
-        #     run_from_args(['service', 'flocker-control', 'start']),
-        #  ]
-
-        # SECOND TRY
-        # command_list=[
-        #     put(
-        #         path='/etc/init/flocker-control.override',
-        #         content=dedent('''\
-        #             start on runlevel [2345]
-        #             stop on runlevel [016]
-        #             '''),
-        #     ),
-        #     run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
-        #     run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-        #     run_from_args(['service', 'flocker-control', 'start']),
-        # ]
-        #
-        # commands = sequence(command_list)
-        # commands.on(error=error_handler)
-
-        # THIRD TRY
-        # command_list=[
-        #     put(
-        #         path='/etc/init/flocker-control.override',
-        #         content=dedent('''\
-        #             start on runlevel [2345]
-        #             stop on runlevel [016]
-        #             '''),
-        #     ),
-        #     run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
-        #     run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-        #     run_from_args(['service', 'flocker-control', 'start']),
-        # ]
-        #
-        # commands = []
-        # for command in command_list:
-        #     current_effect = Effect(command)
-        #     current_effect.on(error = error_handler)
-        #
-        # return Effect(Sequence(commands))
         return sequence([
             put(
                 path='/etc/init/flocker-control.override',
@@ -888,22 +817,17 @@ def task_enable_flocker_control(distribution):
             ),
             run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
             run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-            run_from_args(['service', 'flocker-control', 'start']).on(error=error_handler),
+            #run_from_args(['service', 'flocker-control', 'start']).on(error=managed_errors_handler),
+            run_from_args(['service', 'flocker-control', action]),
         ])
 
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-def error_handler():
-    pass
+# def managed_errors_handler(argument):
+#     print "Error starting flocker control. Ignoring it."
+#     sleep(10)
 
-# def error_handling_in_effects(command_list, handler):
-#     effect_list = []
-#     for command in command_list:
-#         current_effect = Effect(command)
-#         current_effect.on(error=handler)
-#         effect_list.append(current_effect)
-#     return effect_list
 
 def task_enable_docker_plugin(distribution):
     """
@@ -1067,7 +991,7 @@ def task_configure_flocker_agent(control_node, dataset_backend,
     return sequence([put_config_file])
 
 
-def task_enable_flocker_agent(distribution):
+def task_enable_flocker_agent(distribution, action="start"):
     """
     Enable the flocker agents.
 
@@ -1082,8 +1006,10 @@ def task_enable_flocker_agent(distribution):
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            run_from_args(['service', 'flocker-dataset-agent', 'start']),
-            run_from_args(['service', 'flocker-container-agent', 'start']),
+            # run_from_args(['service', 'flocker-dataset-agent', 'start']).on(error=managed_errors_handler),
+            # run_from_args(['service', 'flocker-container-agent', 'start']).on(error=managed_errors_handler),
+            run_from_args(['service', 'flocker-dataset-agent', action]),
+            run_from_args(['service', 'flocker-container-agent', action]),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1465,7 +1391,7 @@ def install_flocker(nodes, package_source):
     )
 
 
-def configure_cluster(cluster, dataset_backend_configuration):
+def configure_cluster(cluster, dataset_backend_configuration, provider):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
@@ -1475,6 +1401,10 @@ def configure_cluster(cluster, dataset_backend_configuration):
     :param dict dataset_backend_configuration: Configuration parameters to
         supply to the dataset backend.
     """
+    setup_action="start"
+    if(provider == "managed"):
+        setup_action="restart"
+
     return sequence([
         run_remotely(
             username='root',
@@ -1484,7 +1414,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                     cluster.certificates.cluster.certificate,
                     cluster.certificates.control.certificate,
                     cluster.certificates.control.key),
-                task_enable_flocker_control(cluster.control_node.distribution),
+                task_enable_flocker_control(cluster.control_node.distribution, setup_action),
                 if_firewall_available(
                     cluster.control_node.distribution,
                     task_open_control_firewall(
@@ -1521,6 +1451,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
+                            action=setup_action,
                         ),
                     ]),
                 ),

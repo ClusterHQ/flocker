@@ -299,8 +299,9 @@ class ManagedRunner(object):
                 self.dataset_backend,
                 self.dataset_backend_configuration,
                 _save_backend_configuration(self.dataset_backend,
-                                            self.dataset_backend_configuration)
-            )
+                                            self.dataset_backend_configuration),
+                                            provider="managed"
+                )
         configuring = upgrading.addCallback(configure)
         return configuring
 
@@ -310,7 +311,8 @@ class ManagedRunner(object):
         """
         return succeed(None)
 
-
+# NOTE: what happens with MANAGED provider??
+# Where do we parse that info? Does it get here?
 def _provider_for_cluster_id(dataset_backend):
     """
     Get the ``Providers`` value that probably corresponds to a value from
@@ -368,7 +370,8 @@ def _save_backend_configuration(dataset_backend_name,
 
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
-    dataset_backend_configuration, dataset_backend_config_file
+    dataset_backend_configuration, dataset_backend_config_file,
+    provider=None
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -420,7 +423,7 @@ def configured_cluster_for_nodes(
 
     configuring = perform(
         make_dispatcher(reactor),
-        configure_cluster(cluster, dataset_backend_configuration)
+        configure_cluster(cluster, dataset_backend_configuration, provider)
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
