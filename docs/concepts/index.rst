@@ -10,5 +10,9 @@ Flocker Concepts
 
    security
    architecture
-   clustering
-   routing
+   storage-profiles
+
+.. toctree::
+   :hidden:
+
+   storage-profiles-content

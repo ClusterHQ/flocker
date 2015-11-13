@@ -40,7 +40,7 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size, get_openstack_region_for_test,
 )
-from ....testtools import run_process
+from ....testtools import flaky, run_process
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
@@ -170,6 +170,12 @@ class CinderBlockDeviceAPIInterfaceTests(
             cinder_client.volumes.get(
                 flocker_volume.blockdevice_id).display_name,
             u"flocker-{}".format(dataset_id))
+
+    @flaky('FLOC-3347')
+    def test_get_device_path_device(self):
+        return super(
+            CinderBlockDeviceAPIInterfaceTests,
+            self).test_get_device_path_device()
 
 
 class CinderHttpsTests(SynchronousTestCase):
