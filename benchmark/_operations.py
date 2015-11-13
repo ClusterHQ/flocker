@@ -100,16 +100,3 @@ class _ReadRequestOperation(PClass):
 
     def get_probe(self):
         return _ReadRequest(control_service=self.control_service)
-
-
-_operations = {
-    'nop': _NoOperation,
-    'read-request': _ReadRequestOperation,
-}
-
-supported_operations = _operations.keys()
-default_operation = 'read-request'
-
-
-def get_operation(name):
-    return _operations[name]

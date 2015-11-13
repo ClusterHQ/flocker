@@ -23,15 +23,3 @@ class _WallClock(PClass):
         d = f(*a, **kw)
         d.addCallback(finished)
         return d
-
-
-_metrics = {
-    'wallclock': _WallClock,
-}
-
-supported_metrics = _metrics.keys()
-default_metric = 'wallclock'
-
-
-def get_metric(name):
-    return _metrics[name]

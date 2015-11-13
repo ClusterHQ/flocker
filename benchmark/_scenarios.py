@@ -47,14 +47,3 @@ class _NoLoadScenario(object):
         running = RunningScenario()
         running.established().callback(None)  # no setup needed
         return running
-
-_scenarios = {
-    'no-load': _NoLoadScenario,
-}
-
-supported_scenarios = _scenarios.keys()
-default_scenario = 'no-load'
-
-
-def get_scenario(name):
-    return _scenarios[name]

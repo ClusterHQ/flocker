@@ -19,13 +19,46 @@ from flocker import __version__ as flocker_client_version
 
 from benchmark._driver import driver
 from benchmark._scenarios import (
-    supported_scenarios, default_scenario, get_scenario)
+    _NoLoadScenario)
 from benchmark._operations import (
-    supported_operations, default_operation, get_operation)
+    _NoOperation, _ReadRequestOperation)
 from benchmark._metrics import (
-    supported_metrics, default_metric, get_metric)
+    _WallClock)
 
 to_file(sys.stderr)
+
+
+_scenarios = {
+    'no-load': _NoLoadScenario,
+}
+
+default_scenario = 'no-load'
+
+
+def get_scenario(name):
+    return _scenarios[name]
+
+
+_operations = {
+    'nop': _NoOperation,
+    'read-request': _ReadRequestOperation,
+}
+
+default_operation = 'read-request'
+
+
+def get_operation(name):
+    return _operations[name]
+
+_metrics = {
+    'wallclock': _WallClock,
+}
+
+default_metric = 'wallclock'
+
+
+def get_metric(name):
+    return _metrics[name]
 
 
 class BenchmarkOptions(Options):
@@ -38,13 +71,13 @@ class BenchmarkOptions(Options):
          'Directory containing client certificates'],
         ['scenario', None, default_scenario,
          'Environmental scenario under which to perform test. '
-         'Supported values: {}.'.format(', '.join(supported_scenarios))],
+         'Supported values: {}.'.format(', '.join(_scenarios))],
         ['operation', None, default_operation,
          'Operation to measure. '
-         'Supported values: {}.'.format(', '.join(supported_operations))],
+         'Supported values: {}.'.format(', '.join(_operations))],
         ['metric', None, default_metric,
          'Quantity to benchmark. '
-         'Supported values: {}.'.format(', '.join(supported_metrics))],
+         'Supported values: {}.'.format(', '.join(_metrics))],
     ]
 
 
