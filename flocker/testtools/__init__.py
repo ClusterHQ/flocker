@@ -7,6 +7,7 @@ Various utilities to help with unit and functional testing.
 from __future__ import absolute_import
 
 __all__ = [
+    'AsyncTestCase',
     'CustomException',
     'DockerImageBuilder',
     'FakeProcessReactor',
@@ -15,10 +16,12 @@ __all__ = [
     'MemoryCoreReactor',
     'REALISTIC_BLOCKDEVICE_SIZE',
     'StandardOptionsTestsMixin',
+    'TestCase',
     'assertContainsAll',
     'assertNoFDsLeaked',
     'assert_equal_comparison',
     'assert_not_equal_comparison',
+    'async_runner',
     'attempt_effective_uid',
     'find_free_port',
     'flaky',
@@ -71,9 +74,9 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
-from twisted.trial.unittest import TestCase
 from twisted.python.logfile import LogFile
 
+from ._base import AsyncTestCase, TestCase, async_runner
 from ._flaky import flaky
 from .. import __version__
 from ..common.script import (

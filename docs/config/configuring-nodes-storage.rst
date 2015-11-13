@@ -58,21 +58,32 @@ Storage Profiles
 List of Supported Backends
 ==========================
 
-The following pages describe how to configure the backends currently supported by Flocker:
+The following pages describe how to configure the backends currently supported by Flocker.
+
+ClusterHQ supported drivers:
 
 .. toctree::
    :maxdepth: 1
-   
-   openstack-configuration
+
    aws-configuration
-   emc-configuration
-   vmware-configuration
-   netapp-configuration
-   hedvig-configuration
-   convergeio-configuration
-   saratogaspeed-configuration
+   openstack-configuration
    zfs-configuration
    loopback-configuration
+
+Community supported drivers:
+
+.. toctree::
+   :maxdepth: 1
+
+   convergeio-configuration
+   dell-configuration
+   emc-configuration
+   hedvig-configuration
+   huawei-configuration
+   netapp-configuration
+   nexenta-configuration
+   saratogaspeed-configuration
+   vmware-configuration
    
 Flocker supports pluggable storage backends. 
 Any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.

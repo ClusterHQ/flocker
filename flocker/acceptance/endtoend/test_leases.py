@@ -4,14 +4,15 @@
 Tests for the leases API.
 """
 
+from datetime import timedelta
 from uuid import UUID, uuid4
 
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
-from twisted.trial.unittest import TestCase
 
 from ...testtools import (
-    random_name, find_free_port, REALISTIC_BLOCKDEVICE_SIZE
+    AsyncTestCase, async_runner, random_name, find_free_port,
+    REALISTIC_BLOCKDEVICE_SIZE,
 )
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
@@ -20,11 +21,12 @@ from ..testtools import (
 from ..scripts import SCRIPTS
 
 
-class LeaseAPITests(TestCase):
+class LeaseAPITests(AsyncTestCase):
     """
     Tests for the leases API.
     """
-    timeout = 600
+
+    run_tests_with = async_runner(timeout=timedelta(minutes=10))
 
     def _assert_lease_behavior(self, cluster, operation,
                                additional_kwargs, state_method):
