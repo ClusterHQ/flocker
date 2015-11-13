@@ -53,11 +53,9 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
      * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
      * If you run the MongoDB tutorial using AWS, you will need to open port 27017 to allow your MongoDB client to connect to the database.
 
-   * Review to ensure your instances have sufficient storage and your security groups have the required ports.
    * When you are ready to proceed, click Launch.
      This opens a prompt for you to either select an existing key pair, or create and download a new key pair.
-
-   Launch your instances when you are happy to proceed.
+     Click **Launch your instances** when you are happy to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
