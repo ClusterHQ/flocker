@@ -1377,7 +1377,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
     to dataset destruction.
     """
-    def test_deleted_dataset_volume_exists(self):
+    def test_deleted_dataset_volume_mounted(self):
         """
         If the configuration indicates a dataset with a primary manifestation
         on the node has been deleted and the volume associated with that
@@ -1395,6 +1395,16 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
                                           blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath(b"/dev/whatever"),
+                    mount_point=FilePath(b"/flocker/wherever"),
+                ),
+            ],
         )
 
     def test_deleted_dataset_belongs_to_other_node(self):
@@ -1533,6 +1543,66 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                         self.DATASET_ID),
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=FilePath(b"/dev/whatever"),
+                ),
+            ],
+
+        )
+
+    def test_deleted_dataset_volume_no_filesystem(self):
+        """
+        ``DestroyBlockDeviceDataset`` is a compound state change that first
+        attempts to unmount the block device.
+        Therefore do not calculate deletion for blockdevices that are not
+        manifest, instead creating filesystem.
+
+        This will be unnecessary once we do FLOC-1772, but until that is
+        fixed is necessary to ensure volumes without filesystems get
+        deleted.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        # Remove the manifestation and its mount path.
+        local_state = local_state.transform(
+            ['manifestations', unicode(self.DATASET_ID)],
+            discard
+        )
+        local_state = local_state.transform(
+            ['paths', unicode(self.DATASET_ID)],
+            discard
+        )
+        device = FilePath(b"/dev/whatever")
+
+        # Local state shows that there is a device for the (now) non-manifest
+        # dataset. i.e it is attached.
+        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
+        assert_calculated_changes(
+            case=self,
+            node_state=local_state,
+            node_config=local_config,
+            # The unmounted dataset has been added back to the non-manifest
+            # datasets by discover_state.
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset
+            ],
+            expected_changes=in_parallel(
+                changes=[
+                    CreateFilesystem(
+                        device=device,
+                        filesystem=u"ext4",
+                    )
+                ]
+            ),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_NO_FILESYSTEM,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=_create_blockdevice_id_for_test(
+                        self.DATASET_ID),
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=device,
                 ),
             ],
 
