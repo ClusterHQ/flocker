@@ -5,7 +5,7 @@ Tests for the Flocker Docker plugin.
 """
 
 from twisted.internet import reactor
-from twisted.trial.unittest import SkipTest, TestCase
+from twisted.trial.unittest import SkipTest
 
 from distutils.version import LooseVersion
 
@@ -13,7 +13,7 @@ from ...common import loop_until
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    random_name, find_free_port, flaky,
+    AsyncTestCase, random_name, find_free_port, flaky,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -24,7 +24,7 @@ from ..scripts import SCRIPTS
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
 
 
-class DockerPluginTests(TestCase):
+class DockerPluginTests(AsyncTestCase):
     """
     Tests for the Docker plugin.
     """
