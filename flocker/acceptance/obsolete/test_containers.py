@@ -349,7 +349,9 @@ class ContainerAPITests(TestCase):
                 node.public_address != cluster.control_node.public_address][0]
 
         def query():
-            return loads(query_http_server(node.public_address, 8080))
+            d = query_http_server(node.public_address, 8080)
+            d.addCallback(loads)
+            return d
 
         creating_dataset = create_dataset(self, cluster, node=node)
 
@@ -372,7 +374,7 @@ class ContainerAPITests(TestCase):
             changed = loop_until(
                 reactor, lambda: query().addCallback(
                     lambda result: result != initial_result))
-            changed.addCallback(lambda _: query)
+            changed.addCallback(lambda _: query())
 
             def result_changed(new_result):
                 self.assertEqual(
@@ -388,3 +390,5 @@ class ContainerAPITests(TestCase):
 
         creating_dataset.addCallback(got_initial_result)
         return creating_dataset
+    # Unfortunately this test is very very slow:
+    test_reboot.timeout = 240
