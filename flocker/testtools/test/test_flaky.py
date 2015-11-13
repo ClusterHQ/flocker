@@ -4,6 +4,7 @@
 Tests for ``flocker.testtools._flaky``.
 """
 
+from itertools import repeat
 import unittest
 
 from hypothesis import given
@@ -64,11 +65,13 @@ class FlakyTests(SynchronousTestCase):
         tests in special in any way - it just acts as a structured comment.
         """
 
+        executions = repeat(lambda: throw(ValueError('failure')))
+
         class SomeTest(unittest.TestCase):
 
             @flaky('FLOC-XXXX')
             def test_something(self):
-                1/0
+                next(executions)()
 
         test = SomeTest('test_something')
         self.assertEqual({
@@ -79,6 +82,13 @@ class FlakyTests(SynchronousTestCase):
             'unexpectedSuccesses': 0,
             'testsRun': 1,
         }, get_results(test))
+
+
+def throw(exception):
+    """
+    Raise 'exception'.
+    """
+    raise exception
 
 
 def _get_result_stats(result):
