@@ -56,7 +56,8 @@ class AsyncTestCaseTests(TestCase):
         test = SkippingTest('test_skip')
         # We need a test result double that we can useful results from, and
         # the Python 2.7 TestResult is the lowest common denominator.
-        result = Python27TestResult()
+        logs = []
+        result = Python27TestResult(logs)
         test.run(result)
         # testing-cabal/testtools c51fdb854 adds a public API for this. Update
         # to use new API when we start using a version later than 1.8.0.
@@ -64,7 +65,7 @@ class AsyncTestCaseTests(TestCase):
             ('startTest', test),
             ('addSkip', test, reason),
             ('stopTest', test),
-        ], result._events)
+        ], logs)
 
     def test_mktemp_doesnt_exist(self):
         """
