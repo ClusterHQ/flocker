@@ -1235,6 +1235,7 @@ class BlockDeviceDeployerLocalState(PClass):
         paths = {}
         devices = {}
         nonmanifest_datasets = {}
+
         for dataset in self.datasets.values():
             dataset_id = dataset.dataset_id
             if dataset.state == DatasetStates.MOUNTED:
@@ -1248,6 +1249,7 @@ class BlockDeviceDeployerLocalState(PClass):
                 paths[unicode(dataset_id)] = dataset.mount_point
             elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
+                DatasetStates.ATTACHED_NO_FILESYSTEM,
             ):
                 nonmanifest_datasets[unicode(dataset_id)] = Dataset(
                     dataset_id=dataset_id,
@@ -1255,6 +1257,7 @@ class BlockDeviceDeployerLocalState(PClass):
                 )
             if dataset.state in (
                 DatasetStates.MOUNTED, DatasetStates.ATTACHED,
+                DatasetStates.ATTACHED_NO_FILESYSTEM,
             ):
                 devices[dataset_id] = dataset.device_path
 
