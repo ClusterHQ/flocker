@@ -57,7 +57,7 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
      This opens a prompt for you to either select an existing key pair, or create and download a new key pair.
      Click **Launch your instances** when you are happy to proceed.
 
-#. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
+#. Add the key to your local keychain (download it from the AWS web interface first if necessary):
 
    .. prompt:: bash alice@mercury:~$
 
