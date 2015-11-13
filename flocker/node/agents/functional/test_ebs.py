@@ -26,6 +26,7 @@ from ..ebs import (
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes
 )
+from ....testtools import flaky
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
@@ -270,6 +271,23 @@ class EBSBlockDeviceAPIInterfaceTests(
         requested_iops = A.requested_iops(ebs_volume.size)
         self.assertEqual(ebs_volume.iops if requested_iops is not None
                          else None, requested_iops)
+
+    @flaky('FLOC-2302')
+    def test_listed_volume_attributes(self):
+        return super(
+            EBSBlockDeviceAPIInterfaceTests,
+            self).test_listed_volume_attributes()
+
+    @flaky('FLOC-2672')
+    def test_multiple_volumes_attached_to_host(self):
+        return super(
+            EBSBlockDeviceAPIInterfaceTests,
+            self).test_multiple_volumes_attached_to_host()
+
+    @flaky('FLOC-3236')
+    def test_detach_volume(self):
+        return super(
+            EBSBlockDeviceAPIInterfaceTests, self).test_detach_volume()
 
 
 class EBSProfiledBlockDeviceAPIInterfaceTests(

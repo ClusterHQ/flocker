@@ -29,19 +29,26 @@ The best option for you depends on a combination of factors including where you 
 
 For help determining which storage option is right for you, you will find a useful table in the `storage section of our About Flocker`_ page. 
 
-The following backends can be used with Flocker:
+The following backends can be used with Flocker.
 
-* AWS EBS
-* Rackspace Cloud Block Storage
+ClusterHQ supported drivers:
+
+* Amazon AWS EBS
 * Anything that supports the OpenStack Cinder API
+* Local storage using our ZFS driver (currently Experimental)
+
+Community supported drivers:
+
+* ConvergeIO
+* Dell SC Series
 * EMC ScaleIO
 * EMC XtremIO
-* VMware
-* NetApp OnTap
 * Hedvig
-* ConvergeIO
+* Huawei
+* NetApp OnTap
+* NexentaEdge
 * Saratoga Speed
-* Local storage using our ZFS driver (currently Experimental)
+* VMware
 
 Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
 

@@ -35,7 +35,7 @@ from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
     RestartAlways, RestartNever, Link, same_node, DeploymentState,
-    NonManifestDatasets, Leases, Lease,
+    NonManifestDatasets, Leases, Lease, UpdateNodeStateEra,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -3543,3 +3543,35 @@ class LeasesTestsMixin(APITestsMixin):
 
 RealTestsLeases, MemoryTestsLeases = buildIntegrationTests(
     LeasesTestsMixin, "Leases", _build_app)
+
+
+class NodeByEraTestsMixin(APITestsMixin):
+    """
+    Tests for ``/state/nodes/by_era/<era>``.
+    """
+    def test_known_era(self):
+        """
+        If the era<->node mapping is available, return the node UUID.
+        """
+        node_uuid = uuid4()
+        era = uuid4()
+        self.cluster_state_service.apply_changes(
+            [UpdateNodeStateEra(era=era, uuid=node_uuid)])
+        return self.assertResultItems(
+            b"GET", b"/state/nodes/by_era/" + bytes(era), None, OK,
+            {u"uuid": unicode(node_uuid)},
+        )
+
+    def test_unknown(self):
+        """
+        If the era is unknown, fail with 404.
+        """
+        return self.assertResult(
+            b"GET",
+            b"/state/nodes/by_era/" + bytes(uuid4()),
+            None, NOT_FOUND,
+            {u"description": u'No node found with given era.'})
+
+
+RealNodeByEra, MemoryRealByEra = buildIntegrationTests(
+    NodeByEraTestsMixin, "NodeByEra", _build_app)
