@@ -4,6 +4,10 @@
 Logic for handling flaky tests.
 """
 
+from functools import wraps
+
+import testtools
+
 
 def flaky(jira_key):
     """
@@ -29,3 +33,32 @@ def flaky(jira_key):
     def wrapper(test_method):
         return test_method
     return wrapper
+
+
+class _RetryFlaky(object):
+    """
+    ``RunTest`` implementation that retries tests that fail.
+    """
+
+    # XXX: This should probably become a part of testtools:
+    # https://bugs.launchpad.net/testtools/+bug/1515933
+
+    def __init__(self, run_test):
+        self._run_test = run_test
+
+    def run(self, result=None):
+        return self._run_test.run(result)
+
+
+def retry_flaky(run_test_factory=None):
+    """
+    Wrap a ``RunTest`` object so that flaky tests are retried.
+    """
+    if run_test_factory is None:
+        run_test_factory = testtools.RunTest
+
+    # XXX: I feel as if there's a simpler, more standard way of doing this.
+    @wraps(run_test_factory)
+    def wrapped(*args, **kwargs):
+        return _RetryFlaky(run_test_factory(*args, **kwargs))
+    return wrapped

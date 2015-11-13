@@ -9,9 +9,10 @@ import unittest
 
 from hypothesis import given
 from hypothesis.strategies import integers
+import testtools
 
 from .. import AsyncTestCase, TestCase
-from .._flaky import flaky
+from .._flaky import retry_flaky, flaky
 
 
 class FlakyTests(TestCase):
@@ -113,6 +114,36 @@ class FlakyTests(TestCase):
             'testsRun': 1,
         }, get_results(test))
     test_intermittent_flaky_test.todo = "Acceptance test for flaky retries"
+
+
+class RetryFlakyTests(TestCase):
+    """
+    Tests for our ``RunTest`` implementation that retries flaky tests.
+    """
+
+    def test_executes_test(self):
+        """
+        Tests that the ``retry_flaky`` test runner are still run as normal.
+        """
+
+        values = []
+
+        class NormalTest(testtools.TestCase):
+            run_tests_with = retry_flaky()
+
+            def test_something(self):
+                values.append('foo')
+
+        results = get_results(NormalTest('test_something'))
+        self.assertEqual(['foo'], values)
+        self.assertEqual({
+            'errors': 0,
+            'failures': 0,
+            'skipped': 0,
+            'expectedFailures': 0,
+            'unexpectedSuccesses': 0,
+            'testsRun': 1,
+        }, results)
 
 
 def throw(exception):
