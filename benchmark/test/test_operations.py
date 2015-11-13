@@ -7,7 +7,8 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from benchmark._operations import _operations, IProbe, IOperation
+from benchmark.operations import NoOperation, ReadRequest
+from benchmark._operations import IProbe, IOperation
 
 
 def check_interfaces(factory):
@@ -24,5 +25,5 @@ def check_interfaces(factory):
     OperationTests.__name__ = testname
     globals()[testname] = OperationTests
 
-for factory in _operations.values():
+for factory in (NoOperation, ReadRequest):
     check_interfaces(factory)

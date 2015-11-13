@@ -6,7 +6,7 @@ Metrics for the control service benchmarks.
 from pyrsistent import PClass, field
 
 
-class _WallClock(PClass):
+class WallClock(PClass):
     """
     Measure the elapsed wallclock time during an operation.
     """

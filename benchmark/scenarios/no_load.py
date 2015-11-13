@@ -37,7 +37,7 @@ class RunningScenario:
         return succeed(None)
 
 
-class _NoLoadScenario(object):
+class NoLoadScenario(object):
 
     def __init__(self, clock, control_service):
         self.clock = clock

@@ -18,47 +18,29 @@ from twisted.python.usage import Options, UsageError
 from flocker import __version__ as flocker_client_version
 
 from benchmark._driver import driver
-from benchmark._scenarios import (
-    _NoLoadScenario)
-from benchmark._operations import (
-    _NoOperation, _ReadRequestOperation)
-from benchmark._metrics import (
-    _WallClock)
+from benchmark import metrics, operations, scenarios
 
 to_file(sys.stderr)
 
 
 _scenarios = {
-    'no-load': _NoLoadScenario,
+    'no-load': scenarios.NoLoadScenario,
 }
 
 default_scenario = 'no-load'
 
-
-def get_scenario(name):
-    return _scenarios[name]
-
-
 _operations = {
-    'nop': _NoOperation,
-    'read-request': _ReadRequestOperation,
+    'no-op': operations.NoOperation,
+    'read-request': operations.ReadRequest,
 }
 
 default_operation = 'read-request'
 
-
-def get_operation(name):
-    return _operations[name]
-
 _metrics = {
-    'wallclock': _WallClock,
+    'wallclock': metrics.WallClock,
 }
 
 default_metric = 'wallclock'
-
-
-def get_metric(name):
-    return _metrics[name]
 
 
 class BenchmarkOptions(Options):
@@ -90,9 +72,9 @@ except UsageError as e:
     sys.exit(1)
 
 
-operation = get_operation(name=config['operation'])
-metric = get_metric(name=config['metric'])
-scenario = get_scenario(name=config['scenario'])
+operation = _operations[config['operation']]
+metric = _metrics[config['metric']]
+scenario = _scenarios[config['scenario']]
 
 timestamp = datetime.now().isoformat()
 
