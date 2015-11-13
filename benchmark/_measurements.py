@@ -5,15 +5,13 @@ Measurements for the control service benchmarks.
 
 from pyrsistent import PClass, field
 
-from twisted.internet.defer import maybeDeferred
-
 
 class _WallClock(PClass):
     """
     Measure the elapsed wallclock time during an operation.
     """
     clock = field(mandatory=True)
-    client = field()
+    control_service = field()
 
     def __call__(self, f, *a, **kw):
         def finished(ignored):
@@ -35,5 +33,5 @@ supported_measurements = _measurements.keys()
 default_measurement = 'wallclock'
 
 
-def get_measurement(clock, client, name):
-    return maybeDeferred(_measurements[name], clock=clock, client=client)
+def get_measurement(name):
+    return _measurements[name]

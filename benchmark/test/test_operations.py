@@ -15,7 +15,7 @@ def check_interfaces(factory):
     class OperationTests(TestCase):
 
         def test_interfaces(self):
-            operation = factory(client=None)
+            operation = factory(control_service=None)
             verifyObject(IOperation, operation)
             probe = operation.get_probe()
             verifyObject(IProbe, probe)

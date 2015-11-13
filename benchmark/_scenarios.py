@@ -3,7 +3,7 @@
 Scenarios for the control service benchmarks.
 """
 
-from twisted.internet.defer import maybeDeferred, Deferred, succeed
+from twisted.internet.defer import Deferred, succeed
 
 
 class RunningScenario:
@@ -39,9 +39,9 @@ class RunningScenario:
 
 class _NoLoadScenario(object):
 
-    def __init__(self, clock, client):
+    def __init__(self, clock, control_service):
         self.clock = clock
-        self.client = client
+        self.control_service = control_service
 
     def start(self):
         running = RunningScenario()
@@ -56,5 +56,5 @@ supported_scenarios = _scenarios.keys()
 default_scenario = 'no-load'
 
 
-def get_scenario(clock, client, name):
-    return maybeDeferred(_scenarios[name], clock=clock, client=client)
+def get_scenario(name):
+    return _scenarios[name]

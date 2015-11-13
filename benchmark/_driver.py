@@ -3,12 +3,6 @@
 Driver for the control service benchmarks.
 """
 
-from datetime import datetime
-import json
-from os import environ, getcwd
-from platform import node, platform
-from sys import stdout
-
 from eliot import start_action
 from eliot.twisted import DeferredContext
 
@@ -17,15 +11,9 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
 from twisted.internet.defer import maybeDeferred, Deferred
 
-from flocker import __version__ as flocker_client_version
 from flocker.apiclient import (
     IFlockerAPIV1Client, FakeFlockerClient, FlockerClient,
 )
-from flocker.common import gather_deferreds
-
-from benchmark._operations import get_operation
-from benchmark._measurements import get_measurement
-from benchmark._scenarios import get_scenario
 
 
 def benchmark(measure, operation, scenario, n=3):
@@ -91,38 +79,6 @@ def benchmark(measure, operation, scenario, n=3):
     return benchmarking
 
 
-def record_samples(
-    samples, version, metric_name, measurement_name, out=stdout
-):
-    """
-    Create a record from the samples and write it.
-
-    :param samples: Sampling results.
-    :param version: Flocker server version.
-    :param metric_name: Sampled operation.
-    :param measurement_name: Samples measurement.
-    :param out: Output file for record.
-    """
-    timestamp = datetime.now().isoformat()
-    artifact = dict(
-        client=dict(
-            flocker_version=flocker_client_version,
-            date=timestamp,
-            working_directory=getcwd(),
-            username=environ[b"USER"],
-            nodename=node(),
-            platform=platform(),
-        ),
-        server=dict(
-            flocker_version=version,
-        ),
-        measurement=measurement_name,
-        metric_name=metric_name,
-        samples=samples,
-    )
-    json.dump(artifact, out)
-
-
 class FastConvergingFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
@@ -152,44 +108,47 @@ class FastConvergingFakeFlockerClient(
         return result
 
 
-def driver(reactor, control_service_address=None, cert_directory=b"certs",
-           metric_name=b"read-request", measurement_name=b"wallclock",
-           scenario_name=b'ten_ro_req_sec'):
+def driver(reactor, config, operation, measurement, scenario, result, output):
 
-    if control_service_address:
-        cert_directory = FilePath(cert_directory)
-        client = FlockerClient(
+    if config['control']:
+        cert_directory = FilePath(config['certs'])
+        control_service = FlockerClient(
             reactor,
-            host=control_service_address,
+            host=config['control'],
             port=4523,
             ca_cluster_path=cert_directory.child(b"cluster.crt"),
             cert_path=cert_directory.child(b"user.crt"),
             key_path=cert_directory.child(b"user.key"),
         )
     else:
-        client = FastConvergingFakeFlockerClient(FakeFlockerClient())
+        control_service = FastConvergingFakeFlockerClient(FakeFlockerClient())
 
-    metric = get_operation(client=client, name=metric_name)
-    measurement = get_measurement(
-        clock=reactor, client=client, name=measurement_name,
-    )
-    scenario = get_scenario(
-        clock=reactor, client=client, name=scenario_name,
-    )
-    version = client.version()
+    d = control_service.version()
 
-    d = gather_deferreds((metric, measurement, scenario, version))
-
-    def got_parameters((metric, measurement, scenario, version)):
-        d = benchmark(measurement, metric, scenario)
-        d.addCallback(
-            record_samples,
-            version[u"flocker"],
-            metric_name,
-            measurement_name
+    def add_control_service(version, result):
+        result['control_service'] = dict(
+            host=config['control'],
+            port=4523,
+            flocker_version=version[u"flocker"],
         )
-        return d
 
-    d.addCallback(got_parameters)
-    # d.addErrback(lambda ignored: None)
+    d.addCallback(add_control_service, result)
+
+    def run_benchmark(ignored):
+        return benchmark(
+            measurement(clock=reactor, control_service=control_service),
+            operation(control_service=control_service),
+            scenario(reactor, control_service)
+        )
+
+    d.addCallback(run_benchmark)
+
+    def add_samples(samples, result):
+        result['samples'] = samples
+        return result
+
+    d.addCallback(add_samples, result)
+
+    d.addCallback(output)
+
     return d

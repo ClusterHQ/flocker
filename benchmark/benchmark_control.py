@@ -3,6 +3,11 @@
 Run the control service benchmarks.
 """
 
+from datetime import datetime
+from functools import partial
+import json
+from os import environ, getcwd
+from platform import node, platform
 import sys
 
 from eliot import to_file
@@ -10,10 +15,15 @@ from eliot import to_file
 from twisted.internet.task import react
 from twisted.python.usage import Options, UsageError
 
+from flocker import __version__ as flocker_client_version
+
 from benchmark._driver import driver
-from benchmark._scenarios import supported_scenarios, default_scenario
-from benchmark._operations import supported_operations, default_operation
-from benchmark._measurements import supported_measurements, default_measurement
+from benchmark._scenarios import (
+    supported_scenarios, default_scenario, get_scenario)
+from benchmark._operations import (
+    supported_operations, default_operation, get_operation)
+from benchmark._measurements import (
+    supported_measurements, default_measurement, get_measurement)
 
 to_file(sys.stderr)
 
@@ -46,9 +56,30 @@ except UsageError as e:
     sys.stderr.write('\n{}\n'.format(str(e)))
     sys.exit(1)
 
+
+operation = get_operation(name=config['operation'])
+measurement = get_measurement(name=config['measure'])
+scenario = get_scenario(name=config['scenario'])
+
+timestamp = datetime.now().isoformat()
+
+result = dict(
+    timestamp=timestamp,
+    client=dict(
+        flocker_version=flocker_client_version,
+        working_directory=getcwd(),
+        username=environ[b"USER"],
+        nodename=node(),
+        platform=platform(),
+    ),
+    measurement=config['measure'],
+    operation=config['operation'],
+    scenario=config['scenario'],
+)
+
 react(
     driver, (
-        config['control'], config['certs'], config['operation'],
-        config['measure'], config['scenario']
+        config, operation, measurement, scenario, result,
+        partial(json.dump, fp=sys.stdout, indent=2)
     )
 )

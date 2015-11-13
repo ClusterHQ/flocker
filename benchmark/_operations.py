@@ -6,7 +6,7 @@ Operations for the control service benchmarks.
 from pyrsistent import PClass, field
 from zope.interface import Interface, implementer
 
-from twisted.internet.defer import succeed, maybeDeferred
+from twisted.internet.defer import succeed
 from twisted.web.client import ResponseFailed
 
 
@@ -67,7 +67,7 @@ class _NoOperation(PClass):
     An nop operation.
     """
 
-    client = field(mandatory=True)
+    control_service = field(mandatory=True)
 
     def get_probe(self):
         return _NoOpRequest()
@@ -79,10 +79,10 @@ class _ReadRequest(PClass):
     A probe to perform a read request on the control service.
     """
 
-    client = field(mandatory=True)
+    control_service = field(mandatory=True)
 
     def run(self):
-        d = self.client.list_datasets_state()
+        d = self.control_service.list_datasets_state()
         d.addErrback(_report_error)
         return d
 
@@ -96,10 +96,10 @@ class _ReadRequestOperation(PClass):
     An operation to perform a read request on the control service.
     """
 
-    client = field(mandatory=True)
+    control_service = field(mandatory=True)
 
     def get_probe(self):
-        return _ReadRequest(client=self.client)
+        return _ReadRequest(control_service=self.control_service)
 
 
 _operations = {
@@ -111,5 +111,5 @@ supported_operations = _operations.keys()
 default_operation = 'read-request'
 
 
-def get_operation(client, name):
-    return maybeDeferred(_operations[name], client=client)
+def get_operation(name):
+    return _operations[name]
