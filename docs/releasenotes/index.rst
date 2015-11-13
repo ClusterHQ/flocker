@@ -10,6 +10,13 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* Added a new REST API for looking up node identity by era; eras are reset after every reboot.
+  This allows interacting with Flocker in a robust way across reboots without getting stale data.
+  As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
+
 v1.7.1
 ======
 
