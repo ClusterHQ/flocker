@@ -10,12 +10,11 @@ import unittest
 from hypothesis import given
 from hypothesis.strategies import integers
 
-from twisted.trial.unittest import SynchronousTestCase
-
+from .. import AsyncTestCase, TestCase
 from .._flaky import flaky
 
 
-class FlakyTests(SynchronousTestCase):
+class FlakyTests(TestCase):
     """
     Tests for ``@flaky`` decorator.
     """
@@ -43,7 +42,7 @@ class FlakyTests(SynchronousTestCase):
 
         # We use 'unittest' here to avoid accidentally depending on Twisted
         # TestCase features, thus increasing complexity.
-        class SomeTest(unittest.TestCase):
+        class SomeTest(AsyncTestCase):
 
             @flaky('FLOC-XXXX')
             def test_something(self):
@@ -59,7 +58,7 @@ class FlakyTests(SynchronousTestCase):
             'testsRun': 1,
         }, get_results(test))
 
-    def test_failed_flaky_test(self):
+    def test_always_failing_flaky_test(self):
         """
         As of FLOC-3414, the @flaky decorator doesn't actually treat failed
         tests in special in any way - it just acts as a structured comment.
@@ -67,7 +66,7 @@ class FlakyTests(SynchronousTestCase):
 
         executions = repeat(lambda: throw(ValueError('failure')))
 
-        class SomeTest(unittest.TestCase):
+        class SomeTest(AsyncTestCase):
 
             @flaky('FLOC-XXXX')
             def test_something(self):
