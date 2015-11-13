@@ -16,14 +16,14 @@ from flocker.apiclient import (
 )
 
 
-def benchmark(measure, operation, scenario, n=3):
+def benchmark(measure, operation, scenario, num_samples=3):
     """
     Perform sampling of the operation.
 
     :param measure: A quantity to measure.
     :param operation: An operation to perform.
     :param scenario: A load scenario.
-    :param int n: Number of samples to take.
+    :param int num_samples: Number of samples to take.
     """
     running_scenario = scenario.start()
 
@@ -51,7 +51,7 @@ def benchmark(measure, operation, scenario, n=3):
 
     def collect_samples(ignored):
         collecting = Deferred()
-        task = cooperate(sample(i) for i in range(n))
+        task = cooperate(sample(i) for i in range(num_samples))
 
         # If the scenario collapses, stop sampling
         def stop_sampling_on_scenario_collapse(failure):

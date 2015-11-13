@@ -6,7 +6,7 @@ Run the control service benchmarks.
 from datetime import datetime
 from functools import partial
 import json
-from os import environ, getcwd
+import os
 from platform import node, platform
 import sys
 
@@ -67,8 +67,8 @@ result = dict(
     timestamp=timestamp,
     client=dict(
         flocker_version=flocker_client_version,
-        working_directory=getcwd(),
-        username=environ[b"USER"],
+        working_directory=os.getcwd(),
+        username=os.environ[b"USER"],
         nodename=node(),
         platform=platform(),
     ),
