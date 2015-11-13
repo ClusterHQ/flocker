@@ -59,8 +59,6 @@ class AsyncTestCaseTests(TestCase):
         logs = []
         result = Python27TestResult(logs)
         test.run(result)
-        # testing-cabal/testtools c51fdb854 adds a public API for this. Update
-        # to use new API when we start using a version later than 1.8.0.
         self.assertEqual([
             ('startTest', test),
             ('addSkip', test, reason),
