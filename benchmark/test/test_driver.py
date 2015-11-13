@@ -14,7 +14,7 @@ from benchmark._driver import benchmark
 from benchmark._operations import IProbe, IOperation
 
 
-class FakeMeasurement:
+class FakeMetric:
 
     def __init__(self, measurements):
         """
@@ -23,7 +23,7 @@ class FakeMeasurement:
         """
         self.measurements = measurements
 
-    def __call__(self, f, *a, **kw):
+    def measure(self, f, *a, **kw):
         def finished(ignored):
             return next(self.measurements)
 
@@ -113,7 +113,7 @@ class SampleTest(TestCase):
         Sampling returns results when probes succeed.
         """
         samples_ready = benchmark(
-            FakeMeasurement(count(5)),
+            FakeMetric(count(5)),
             FakeOperation(repeat(True)),
             FakeScenario(),
             3)
@@ -129,7 +129,7 @@ class SampleTest(TestCase):
         Sampling returns reasons when probes fail.
         """
         samples_ready = benchmark(
-            FakeMeasurement(count(5)),
+            FakeMetric(count(5)),
             FakeOperation(repeat(False)),
             FakeScenario(),
             3)
@@ -150,7 +150,7 @@ class SampleTest(TestCase):
         If the scenario collapses, a failure is returned.
         """
         samples_ready = benchmark(
-            FakeMeasurement(count(5)),
+            FakeMetric(count(5)),
             FakeOperation(repeat(True)),
             FakeCollapsingScenario(),
             3)

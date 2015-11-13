@@ -16,11 +16,11 @@ from flocker.apiclient import (
 )
 
 
-def benchmark(measure, operation, scenario, num_samples=3):
+def benchmark(metric, operation, scenario, num_samples=3):
     """
     Perform sampling of the operation.
 
-    :param measure: A quantity to measure.
+    :param metric: A quantity to measure.
     :param operation: An operation to perform.
     :param scenario: A load scenario.
     :param int num_samples: Number of samples to take.
@@ -34,7 +34,7 @@ def benchmark(measure, operation, scenario, num_samples=3):
             sampling = DeferredContext(maybeDeferred(operation.get_probe))
 
             def run_probe(probe):
-                probing = measure(probe.run)
+                probing = metric.measure(probe.run)
                 probing.addCallbacks(
                     lambda interval: samples.append(
                         dict(success=True, value=interval)
@@ -108,7 +108,7 @@ class FastConvergingFakeFlockerClient(
         return result
 
 
-def driver(reactor, config, operation, measurement, scenario, result, output):
+def driver(reactor, config, operation, metric, scenario, result, output):
 
     if config['control']:
         cert_directory = FilePath(config['certs'])
@@ -136,7 +136,7 @@ def driver(reactor, config, operation, measurement, scenario, result, output):
 
     def run_benchmark(ignored):
         return benchmark(
-            measurement(clock=reactor, control_service=control_service),
+            metric(clock=reactor, control_service=control_service),
             operation(control_service=control_service),
             scenario(reactor, control_service)
         )

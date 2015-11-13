@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.task import Clock
 from twisted.internet.defer import maybeDeferred
 
-from benchmark._measurements import _WallClock
+from benchmark._metrics import _WallClock
 
 
 class WallClockTests(TestCase):
@@ -19,5 +19,5 @@ class WallClockTests(TestCase):
         """
         clock = Clock()
         wallclock = _WallClock(clock=clock)
-        d = wallclock(maybeDeferred, clock.advance, 1.23)
+        d = wallclock.measure(maybeDeferred, clock.advance, 1.23)
         d.addCallback(self.assertEqual, 1.23)

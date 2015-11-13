@@ -22,8 +22,8 @@ from benchmark._scenarios import (
     supported_scenarios, default_scenario, get_scenario)
 from benchmark._operations import (
     supported_operations, default_operation, get_operation)
-from benchmark._measurements import (
-    supported_measurements, default_measurement, get_measurement)
+from benchmark._metrics import (
+    supported_metrics, default_metric, get_metric)
 
 to_file(sys.stderr)
 
@@ -42,9 +42,9 @@ class BenchmarkOptions(Options):
         ['operation', None, default_operation,
          'Operation to measure. '
          'Supported values: {}.'.format(', '.join(supported_operations))],
-        ['measure', None, default_measurement,
+        ['metric', None, default_metric,
          'Quantity to benchmark. '
-         'Supported values: {}.'.format(', '.join(supported_measurements))],
+         'Supported values: {}.'.format(', '.join(supported_metrics))],
     ]
 
 
@@ -58,7 +58,7 @@ except UsageError as e:
 
 
 operation = get_operation(name=config['operation'])
-measurement = get_measurement(name=config['measure'])
+metric = get_metric(name=config['metric'])
 scenario = get_scenario(name=config['scenario'])
 
 timestamp = datetime.now().isoformat()
@@ -72,14 +72,14 @@ result = dict(
         nodename=node(),
         platform=platform(),
     ),
-    measurement=config['measure'],
+    metric=config['metric'],
     operation=config['operation'],
     scenario=config['scenario'],
 )
 
 react(
     driver, (
-        config, operation, measurement, scenario, result,
+        config, operation, metric, scenario, result,
         partial(json.dump, fp=sys.stdout, indent=2)
     )
 )
