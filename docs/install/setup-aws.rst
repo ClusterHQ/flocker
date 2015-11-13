@@ -46,7 +46,7 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
    * Configure security group.
       
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
-     * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
+     * To enable Flocker agents to communicate with the :ref:`control service <enabling-control-service>` and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
      * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
      * For example, if you run the MongoDB tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
      * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
