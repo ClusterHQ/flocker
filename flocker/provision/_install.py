@@ -800,7 +800,7 @@ def task_enable_flocker_control(distribution, action="start"):
     if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', START, 'flocker-control']).on(error=managed_errors_handler),
+            run_from_args(['systemctl', START, 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
