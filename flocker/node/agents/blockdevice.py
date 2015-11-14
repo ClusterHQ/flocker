@@ -361,6 +361,11 @@ CREATE_VOLUME_PROFILE_DROPPED = MessageType(
     u"IProfiledBlockDeviceAPI to get profile support."
 )
 
+DISCOVERED_RAW_STATE = MessageType(
+    u"agent:blockdevice:raw_state",
+    [Field(u"raw_state", safe_repr)],
+    u"The discovered raw state of the node's block device volumes.")
+
 
 def _volume_field():
     """
@@ -1376,7 +1381,7 @@ class BlockDeviceDeployer(PRecord):
                     # in the filesystem yet.
                     pass
 
-        return RawState(
+        result = RawState(
             compute_instance_id=compute_instance_id,
             volumes=volumes,
             devices=devices,
@@ -1384,6 +1389,8 @@ class BlockDeviceDeployer(PRecord):
             devices_with_filesystems=[device for device in devices.values()
                                       if _has_filesystem(device)],
         )
+        DISCOVERED_RAW_STATE(raw_state=result).write()
+        return result
 
     def discover_state(self, node_state):
         """
