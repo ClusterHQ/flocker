@@ -59,6 +59,7 @@ from ..blockdevice import (
     CREATE_BLOCK_DEVICE_DATASET,
     INVALID_DEVICE_PATH,
     CREATE_VOLUME_PROFILE_DROPPED,
+    DISCOVERED_RAW_STATE,
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
@@ -627,7 +628,8 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
             unmounted,
         ])
 
-    def test_filesystem_state(self):
+    @capture_logging(assertHasMessage, DISCOVERED_RAW_STATE)
+    def test_filesystem_state(self, logger):
         """
         ``RawState`` includes whether or not a volume has a filesystem.
         """
