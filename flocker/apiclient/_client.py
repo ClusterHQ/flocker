@@ -102,9 +102,9 @@ class Container(PClass):
     @attr unicode name: The unique name of the container.
     @attr DockerImage image: The Docker image the container will run.
     """
-    node_uuid = field()
-    name = field()
-    image = field()
+    node_uuid = field(type=UUID, mandatory=True)
+    name = field(type=unicode, mandatory=True)
+    image = field(type=DockerImage, mandatory=True)
 
 
 class Node(PClass):
