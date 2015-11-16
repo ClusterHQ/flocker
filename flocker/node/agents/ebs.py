@@ -13,7 +13,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap, thaw
+from pyrsistent import PClass, PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -28,15 +28,17 @@ from twisted.python.filepath import FilePath
 from eliot import Message
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
+    AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
+    MandatoryProfiles
 )
 from ...control import pmap_field
 
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER, IN_USE_DEVICES,
+    BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
+    BOTO_LOG_RESULT
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -49,6 +51,108 @@ MAX_ATTACH_RETRIES = 3
 # http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
+INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
+
+
+class EBSVolumeTypes(Values):
+    """
+    Constants for the different types of volumes that can be created on EBS.
+    These are taken from the documentation at:
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+
+    :ivar STANDARD: Magnetic
+
+    :ivar IO1: Provisioned IOPS (SSD)
+
+    :ivar GP2: General Purpose (SSD)
+    """
+    STANDARD = ValueConstant(u"standard")
+    IO1 = ValueConstant(u"io1")
+    GP2 = ValueConstant(u"gp2")
+
+
+class EBSProfileAttributes(PClass):
+    """
+    Sets of profile attributes for the mandatory EBS volume profiles.
+
+    :ivar volume_type: The volume_type for the boto create_volume call.
+        Valid values are EBSVolumeTypes.
+
+    :ivar iops_per_size_gib: The desired IOs per second per GiB of disk size.
+
+    :ivar max_iops: The maximum number of IOs per second that EBS will accept
+        for this type of volume.
+    """
+    volume_type = field(mandatory=False, type=ValueConstant,
+                        initial=EBSVolumeTypes.STANDARD)
+    iops_per_size_gib = field(mandatory=False,
+                              type=(int, type(None)), initial=None)
+    max_iops = field(mandatory=False, type=(int, type(None)), initial=None)
+
+    def requested_iops(self, size_gib):
+        """
+        Returns the requested IOs per second for this profile or None if you
+        cannot request a rate of IOs per second for this volume type. This will
+        be iops_per_size_gib * size_gib unless this value exceeds max_iops.
+
+        :param int size_gib: The size in GiB of the volume being created.
+
+        :returns: The requested IOs per second for this profile for a disk of
+            the given size.
+        """
+        if self.iops_per_size_gib is not None:
+            if self.max_iops is not None:
+                return min(size_gib * self.iops_per_size_gib,
+                           self.max_iops)
+            return size_gib * self.iops_per_size_gib
+        return None
+
+
+class EBSMandatoryProfileAttributes(Values):
+    """
+    These constants are the ``EBSProfileAttributes`` for the mandatory
+    profiles. Many of the values for these were gotten from the documentation
+    at:
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+
+    :ivar GOLD: The high performing Provisioned IOPS disks.
+    :ivar SILVER: The medium performing SSD disks.
+    :ivar BRONZE: The cheap magnetic disks.
+    """
+    GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
+                                              iops_per_size_gib=30,
+                                              max_iops=20000))
+    # ``gp2`` volume type cannot take IOPS request since it defaults to
+    # baseline performance of 3 IOPS/GiB (up to 10,000 IOPS)
+    SILVER = ValueConstant(EBSProfileAttributes(
+        volume_type=EBSVolumeTypes.GP2))
+    BRONZE = ValueConstant(EBSProfileAttributes(
+        volume_type=EBSVolumeTypes.STANDARD))
+
+
+def _volume_type_and_iops_for_profile_name(profile_name, size):
+    """
+    Determines and returns the volume_type and iops for a boto create_volume
+    call for a given profile_name.
+
+    :param profile_name: The name of the profile.
+
+    :param size: The size of the volume to create in GiB.
+
+    :returns: A tuple of (volume_type, iops) to be passed to a create_volume
+        call.
+    """
+    volume_type = None
+    iops = None
+    try:
+        A = EBSMandatoryProfileAttributes.lookupByName(
+            MandatoryProfiles.lookupByValue(profile_name).name).value
+    except ValueError:
+        pass
+    else:
+        volume_type = A.volume_type.value
+        iops = A.requested_iops(size)
+    return volume_type, iops
 
 
 class VolumeOperations(Names):
@@ -581,6 +685,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(IProfiledBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
     """
     An EBS implementation of ``IBlockDeviceAPI`` which creates
@@ -610,7 +715,10 @@ class EBSBlockDeviceAPI(object):
         """
         Look up the EC2 instance ID for this node.
         """
-        return get_instance_metadata()['instance-id'].decode("ascii")
+        instance_id = get_instance_metadata().get('instance-id', None)
+        if instance_id is None:
+            raise UnknownInstanceID(self)
+        return instance_id.decode("ascii")
 
     def _get_ebs_volume(self, blockdevice_id):
         """
@@ -680,22 +788,70 @@ class EBSBlockDeviceAPI(object):
 
     def create_volume(self, dataset_id, size):
         """
+        Create a volume on EBS backend.
+        """
+        return self.create_volume_with_profile(
+            dataset_id, size, MandatoryProfiles.DEFAULT.value)
+
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
+        """
         Create a volume on EBS. Store Flocker-specific
         {metadata version, cluster id, dataset id} for the volume
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GiB().value), zone=self.zone)
+        requested_size = int(Byte(size).to_GiB().value)
+        try:
+            volume_type, iops = _volume_type_and_iops_for_profile_name(
+                profile_name, requested_size)
+            requested_volume = self.connection.create_volume(
+                size=requested_size,
+                zone=self.zone,
+                volume_type=volume_type,
+                iops=iops)
+        except EC2ResponseError as e:
+            # If we failed to create a volume with attributes complying
+            # with requested profile, make a second attempt at volume
+            # creation with default profile.
+            # Compliance violation of the volume's requested profile
+            # will be detected and remediated in a future release (FLOC-3275).
+            if e.code != INVALID_PARAMETER_VALUE:
+                raise e
+            CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
+                                  aws_code=e.code,
+                                  aws_message=e.message).write()
+            volume_type, iops = _volume_type_and_iops_for_profile_name(
+                MandatoryProfiles.DEFAULT.value, requested_size)
+            requested_volume = self.connection.create_volume(
+                size=requested_size,
+                zone=self.zone,
+                volume_type=volume_type,
+                iops=iops)
+
+        message_type = BOTO_LOG_RESULT + u':created_volume'
+        Message.new(
+            message_type=message_type, volume_id=unicode(requested_volume.id),
+            dataset_id=unicode(dataset_id), size=unicode(size)
+        ).write()
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
+            # EC2 convention for naming objects, e.g. as used in EC2 web
+            # console (http://stackoverflow.com/a/12798180).
+            "Name": u"flocker-{}".format(dataset_id),
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
+
+        message_type = BOTO_LOG_RESULT + u':created_tags'
+        Message.new(
+            message_type=message_type,
+            requested_volume=requested_volume.id,
+            tags=metadata
+        ).write()
 
         # Wait for created volume to reach 'available' state.
         _wait_for_volume_state_change(VolumeOperations.CREATE,
@@ -710,6 +866,11 @@ class EBSBlockDeviceAPI(object):
         """
         try:
             ebs_volumes = self.connection.get_all_volumes()
+            message_type = BOTO_LOG_RESULT + u':listed_volumes'
+            Message.new(
+                message_type=message_type,
+                volume_ids=list(volume.id for volume in ebs_volumes),
+            ).write()
         except EC2ResponseError as e:
             # Work around some internal race-condition in EBS by retrying,
             # since this error makes no sense:
@@ -724,6 +885,11 @@ class EBSBlockDeviceAPI(object):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
+        message_type = BOTO_LOG_RESULT + u':listed_cluster_volumes'
+        Message.new(
+            message_type=message_type,
+            volume_ids=list(volume.blockdevice_id for volume in volumes),
+        ).write()
         return volumes
 
     def attach_volume(self, blockdevice_id, attach_to):

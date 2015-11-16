@@ -13,6 +13,8 @@ from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
 
+from ...node.testtools import require_docker_version
+
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 
@@ -53,6 +55,29 @@ class APITestsMixin(APIAssertionsMixin):
         """
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
+
+    @require_docker_version(
+        '1.9.0',
+        'This test uses the v2 plugin API, which requires Docker >=1.9.0'
+    )
+    def test_create_with_opts(self):
+        """
+        Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
+        in the request body JSON ignores this parameter and creates
+        a volume with the given name.
+        """
+        name = u"testvolume"
+        d = self.assertResult(b"POST", b"/VolumeDriver.Create",
+                              {u"Name": name, 'Opts': {'ignored': 'ignored'}},
+                              OK, {u"Err": None})
+        d.addCallback(
+            lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(self.assertItemsEqual, [
+            Dataset(dataset_id=UUID(dataset_id_from_name(name)),
+                    primary=self.NODE_A,
+                    maximum_size=DEFAULT_SIZE,
+                    metadata={u"name": name})])
+        return d
 
     def create(self, name):
         """

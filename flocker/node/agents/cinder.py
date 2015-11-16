@@ -4,6 +4,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+from itertools import repeat
 import time
 from uuid import UUID
 
@@ -30,11 +31,12 @@ from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from ...common import (
-    interface_decorator, get_all_ips, ipaddress_from_string
+    interface_decorator, get_all_ips, ipaddress_from_string,
+    poll_until,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume, UnknownInstanceID, get_blockdevice_volume,
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -51,6 +53,9 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 
 # The longest time we're willing to wait for a Cinder API call to complete.
 CINDER_TIMEOUT = 600
+
+# The longest time we're willing to wait for a Cinder volume to be destroyed
+CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -233,6 +238,10 @@ class INovaServerManager(Interface):
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
+    :param expected_volume: the volume we were waiting on
+    :param desired_state: the new state we wanted the volume to have
+    :param elapsed_time: how much time we had been waiting for the volume
+        to change the state
     """
     def __init__(self, expected_volume, desired_state, elapsed_time):
         self.expected_volume = expected_volume
@@ -326,25 +335,6 @@ class VolumeStateMonitor:
                 self.expected_volume, self.desired_state, elapsed_time)
 
 
-def poll_until(predicate, interval):
-    """
-    Perform steps until a non-false result is returned.
-
-    This differs from ``loop_until`` in that it does not require a
-    Twisted reactor and it allows the interval to be set.
-
-    :param predicate: a function to be called until it returns a
-        non-false result.
-    :param interval: time in seconds between calls to the function.
-    :returns: the non-false result from the final call.
-    """
-    result = predicate()
-    while not result:
-        time.sleep(interval)
-        result = predicate()
-    return result
-
-
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
                           transient_states=(), time_limit=CINDER_TIMEOUT):
     """
@@ -365,7 +355,7 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
     waiter = VolumeStateMonitor(
         volume_manager, expected_volume, desired_state, transient_states,
         time_limit)
-    return poll_until(waiter.reached_desired_state, 1)
+    return poll_until(waiter.reached_desired_state, repeat(1))
 
 
 def _extract_nova_server_addresses(addresses):
@@ -395,7 +385,9 @@ class CinderBlockDeviceAPI(object):
     def __init__(self,
                  cinder_volume_manager,
                  nova_volume_manager, nova_server_manager,
-                 cluster_id):
+                 cluster_id,
+                 timeout=CINDER_VOLUME_DESTRUCTION_TIMEOUT,
+                 time_module=None):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
@@ -411,6 +403,10 @@ class CinderBlockDeviceAPI(object):
         self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
+        self._timeout = timeout
+        if time_module is None:
+            time_module = time
+        self._time = time_module
 
     def allocation_unit(self):
         """
@@ -449,13 +445,14 @@ class CinderBlockDeviceAPI(object):
 
         # If we've got this correct there should only be one matching instance.
         # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1:
+        if len(matching_instances) == 1 and matching_instances[0]:
             return matching_instances[0]
         # If there was no match, or if multiple matches were found, log an
         # error containing all the local and remote IPs.
         COMPUTE_INSTANCE_ID_NOT_FOUND(
             local_ips=local_ips, api_ips=api_ip_map
         ).write()
+        raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
         """
@@ -473,6 +470,7 @@ class CinderBlockDeviceAPI(object):
         requested_volume = self.cinder_volume_manager.create(
             size=int(Byte(size).to_GiB().value),
             metadata=metadata,
+            display_name="flocker-{}".format(dataset_id),
         )
         Message.new(message_type=CINDER_CREATE,
                     blockdevice_id=requested_volume.id).write()
@@ -562,18 +560,36 @@ class CinderBlockDeviceAPI(object):
         )
 
     def destroy_volume(self, blockdevice_id):
+        """
+        Detach Cinder volume identified by blockdevice_id.
+        It will loop listing the volume until it is no longer there.
+        if the volume is still there after the defined timeout,
+        the function will just raise an exception and do nothing.
+
+        :raises TimeoutException: If the volume is not deleted
+            within the expected time. If that happens, it will be because after
+            the timeout, the volume can still be listed. The volume will not
+            be deleted unless further action is taken.
+        """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
-
-        while True:
-            # Don't loop forever here.  FLOC-1853
+        start_time = self._time.time()
+        # Wait until the volume is not there or until the operation
+        # timesout
+        while(self._time.time() - start_time < self._timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
-                break
-            time.sleep(1.0)
+                return
+            self._time.sleep(1.0)
+        # If the volume is not deleted, raise an exception
+        raise TimeoutException(
+            blockdevice_id,
+            None,
+            self._time.time() - start_time
+        )
 
     def _get_device_path_virtio_blk(self, volume):
         """
@@ -602,6 +618,17 @@ class CinderBlockDeviceAPI(object):
         expected_path = FilePath(
             "/dev/disk/by-id/virtio-{}".format(volume.id[:20])
         )
+        # Return the real path instead of the symlink to avoid two problems:
+        #
+        # 1. flocker-dataset-agent mounting volumes before udev has populated
+        #    the by-id symlinks.
+        # 2. Even if we mount with `/dev/disk/by-id/xxx`, the mounted
+        #    filesystems are listed (in e.g. `/proc/mounts`) with the
+        #    **target** (i.e. the real path) of the `/dev/disk/by-id/xxx`
+        #    symlinks. This confuses flocker-dataset-agent (which assumes path
+        #    equality is string equality), causing it to believe that
+        #    `/dev/disk/by-id/xxx` has not been mounted, leading it to
+        #    repeatedly attempt to mount the device.
         if expected_path.exists():
             return expected_path.realpath()
         else:
@@ -662,7 +689,7 @@ def _is_virtio_blk(device_path):
     """
     Check whether the supplied device path is a virtio_blk device.
 
-    XXX: We assume that virtio_blk device name always begin with `vd` where as
+    We assume that virtio_blk device name always begin with `vd` whereas
     Xen devices begin with `xvd`.
     See https://www.kernel.org/doc/Documentation/devices.txt
 
@@ -711,8 +738,10 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
 
 @auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
-class _LoggingCinderVolumeManager(PRecord):
-    _cinder_volumes = field(mandatory=True)
+class _LoggingCinderVolumeManager(object):
+
+    def __init__(self, cinder_volumes):
+        self._cinder_volumes = cinder_volumes
 
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
@@ -851,8 +880,9 @@ def cinder_from_configuration(region, cluster_id, **config):
     nova_client = get_nova_v2_client(session, region)
 
     logging_cinder = _LoggingCinderVolumeManager(
-        _cinder_volumes=cinder_client.volumes
+        cinder_client.volumes
     )
+
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
     )

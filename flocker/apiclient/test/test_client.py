@@ -4,9 +4,13 @@
 Tests for the Flocker REST API client.
 """
 
-from uuid import uuid4
+from uuid import uuid4, UUID
+from unittest import skipUnless
+from subprocess import check_output
 
 from bitmath import GiB
+
+from ipaddr import IPAddress
 
 from zope.interface.verify import verifyObject
 
@@ -22,11 +26,13 @@ from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.http import BAD_REQUEST
 from twisted.internet.defer import gatherResults
+from twisted.python.runtime import platform
+from twisted.python.procutils import which
 
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
-    Lease, LeaseAlreadyHeld,
+    Lease, LeaseAlreadyHeld, Node,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -34,10 +40,13 @@ from ...testtools import find_free_port
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
-from ...control import NodeState, NonManifestDatasets, Dataset as ModelDataset
+from ...control import (
+    NodeState, NonManifestDatasets, Dataset as ModelDataset, ChangeSource,
+    UpdateNodeStateEra,
+)
 from ...restapi._logging import JSON_REQUEST
 from ...restapi import _infrastructure as rest_api
-
+from ... import __version__
 
 DATASET_SIZE = int(GiB(1).to_Byte().value)
 
@@ -57,8 +66,14 @@ def make_clientv1_tests():
     """
     class InterfaceTests(TestCase):
         def setUp(self):
-            self.node_1 = uuid4()
-            self.node_2 = uuid4()
+            self.node_1 = Node(
+                uuid=uuid4(),
+                public_address=IPAddress('10.0.0.1')
+            )
+            self.node_2 = Node(
+                uuid=uuid4(),
+                public_address=IPAddress('10.0.0.2')
+            )
             self.client = self.create_client()
 
         def test_interface(self):
@@ -112,7 +127,7 @@ def make_clientv1_tests():
             a new one is generated.
             """
             return self.assert_creates(self.client,
-                                       primary=self.node_1,
+                                       primary=self.node_1.uuid,
                                        maximum_size=DATASET_SIZE)
 
         def test_create_no_size(self):
@@ -120,7 +135,7 @@ def make_clientv1_tests():
             If no ``maximum_size`` is specified when calling ``create_dataset``
             the result has no size set.
             """
-            return self.assert_creates(self.client, primary=self.node_1)
+            return self.assert_creates(self.client, primary=self.node_1.uuid)
 
         def test_create_given_dataset(self):
             """
@@ -128,7 +143,7 @@ def make_clientv1_tests():
             it is used as the ID for the resulting created dataset.
             """
             dataset_id = uuid4()
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(lambda dataset: self.assertEqual(dataset.dataset_id,
@@ -140,7 +155,7 @@ def make_clientv1_tests():
             The metadata passed to ``create_dataset`` is stored with the
             dataset.
             """
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE,
                                     metadata={u"hello": u"there"})
             d.addCallback(lambda dataset: self.assertEqual(
@@ -152,11 +167,11 @@ def make_clientv1_tests():
             Creating two datasets with same ``dataset_id`` results in an
             ``DatasetAlreadyExists``.
             """
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE)
 
             def got_result(dataset):
-                d = self.client.create_dataset(primary=self.node_1,
+                d = self.client.create_dataset(primary=self.node_1.uuid,
                                                maximum_size=DATASET_SIZE,
                                                dataset_id=dataset.dataset_id)
                 return self.assertFailure(d, DatasetAlreadyExists)
@@ -170,7 +185,7 @@ def make_clientv1_tests():
             """
             dataset_id = uuid4()
 
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(
@@ -178,7 +193,7 @@ def make_clientv1_tests():
 
             def got_result(dataset):
                 expected_removed = Dataset(
-                    dataset_id=dataset_id, primary=self.node_1,
+                    dataset_id=dataset_id, primary=self.node_1.uuid,
                     maximum_size=DATASET_SIZE
                 )
                 self.assertEqual(expected_removed, dataset)
@@ -192,7 +207,7 @@ def make_clientv1_tests():
             """
             dataset_id = uuid4()
 
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(
@@ -206,7 +221,7 @@ def make_clientv1_tests():
 
             def not_listed(listed_datasets):
                 expected_removed = Dataset(
-                    dataset_id=dataset_id, primary=self.node_1,
+                    dataset_id=dataset_id, primary=self.node_1.uuid,
                     maximum_size=DATASET_SIZE
                 )
                 self.assertNotIn(expected_removed, listed_datasets)
@@ -220,11 +235,14 @@ def make_clientv1_tests():
             """
             dataset_id = uuid4()
 
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE,
                                     dataset_id=dataset_id)
             d.addCallback(
-                lambda _: self.client.move_dataset(self.node_2, dataset_id))
+                lambda _: self.client.move_dataset(
+                    self.node_2.uuid, dataset_id
+                )
+            )
 
             def got_result(dataset):
                 listed = self.client.list_datasets_configuration()
@@ -235,7 +253,7 @@ def make_clientv1_tests():
             def got_listing(result):
                 moved_result, listed_datasets = result
                 expected = Dataset(dataset_id=dataset_id,
-                                   primary=self.node_2,
+                                   primary=self.node_2.uuid,
                                    maximum_size=DATASET_SIZE)
                 self.assertEqual((expected, expected in listed_datasets),
                                  (moved_result, True))
@@ -248,7 +266,7 @@ def make_clientv1_tests():
             """
             dataset_id = uuid4()
             expected_path = FilePath(b"/flocker/{}".format(dataset_id))
-            d = self.assert_creates(self.client, primary=self.node_1,
+            d = self.assert_creates(self.client, primary=self.node_1.uuid,
                                     maximum_size=DATASET_SIZE * 2,
                                     dataset_id=dataset_id)
             d.addCallback(lambda _: self.synchronize_state())
@@ -256,7 +274,7 @@ def make_clientv1_tests():
             d.addCallback(lambda states:
                           self.assertIn(
                               DatasetState(dataset_id=dataset_id,
-                                           primary=self.node_1,
+                                           primary=self.node_1.uuid,
                                            maximum_size=DATASET_SIZE * 2,
                                            path=expected_path),
                               states))
@@ -268,9 +286,9 @@ def make_clientv1_tests():
             instance.
             """
             dataset_id = uuid4()
-            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d = self.client.acquire_lease(dataset_id, self.node_1.uuid, 123)
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
-                                                  node_uuid=self.node_1,
+                                                  node_uuid=self.node_1.uuid,
                                                   expires=123))
             return d
 
@@ -280,10 +298,10 @@ def make_clientv1_tests():
             instance.
             """
             dataset_id = uuid4()
-            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d = self.client.acquire_lease(dataset_id, self.node_1.uuid, 123)
             d.addCallback(lambda _: self.client.release_lease(dataset_id))
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
-                                                  node_uuid=self.node_1,
+                                                  node_uuid=self.node_1.uuid,
                                                   expires=123))
             return d
 
@@ -294,16 +312,23 @@ def make_clientv1_tests():
             """
             d1, d2, d3 = uuid4(), uuid4(), uuid4()
             d = gatherResults([
-                self.client.acquire_lease(d1, self.node_1, 10),
-                self.client.acquire_lease(d2, self.node_1, None),
-                self.client.acquire_lease(d3, self.node_2, 10.5),
+                self.client.acquire_lease(d1, self.node_1.uuid, 10),
+                self.client.acquire_lease(d2, self.node_1.uuid, None),
+                self.client.acquire_lease(d3, self.node_2.uuid, 10.5),
                 ])
             d.addCallback(lambda _: self.client.release_lease(d2))
             d.addCallback(lambda _: self.client.list_leases())
             d.addCallback(
                 self.assertItemsEqual,
-                [Lease(dataset_id=d1, node_uuid=self.node_1, expires=10),
-                 Lease(dataset_id=d3, node_uuid=self.node_2, expires=10.5)])
+                [
+                    Lease(
+                        dataset_id=d1, node_uuid=self.node_1.uuid, expires=10
+                    ),
+                    Lease(
+                        dataset_id=d3, node_uuid=self.node_2.uuid, expires=10.5
+                    )
+                ]
+            )
             return d
 
         def test_renew_lease(self):
@@ -311,11 +336,11 @@ def make_clientv1_tests():
             Acquiring a lease twice on the same dataset and node renews it.
             """
             dataset_id = uuid4()
-            d = self.client.acquire_lease(dataset_id, self.node_1, 123)
+            d = self.client.acquire_lease(dataset_id, self.node_1.uuid, 123)
             d.addCallback(lambda _: self.client.acquire_lease(
-                dataset_id, self.node_1, 456))
+                dataset_id, self.node_1.uuid, 456))
             d.addCallback(self.assertEqual, Lease(dataset_id=dataset_id,
-                                                  node_uuid=self.node_1,
+                                                  node_uuid=self.node_1.uuid,
                                                   expires=456))
             return d
 
@@ -325,10 +350,43 @@ def make_clientv1_tests():
             acquire a lease that is held by another node.
             """
             dataset_id = uuid4()
-            d = self.client.acquire_lease(dataset_id, self.node_1, 60)
+            d = self.client.acquire_lease(dataset_id, self.node_1.uuid, 60)
             d.addCallback(lambda _: self.client.acquire_lease(
-                dataset_id, self.node_2, None))
+                dataset_id, self.node_2.uuid, None))
             return self.assertFailure(d, LeaseAlreadyHeld)
+
+        def test_version(self):
+            """
+            ``version`` returns a ``Deferred`` firing with a ``dict``
+            containing ``flocker.__version__``.
+            """
+            d = self.client.version()
+            d.addCallback(
+                self.assertEqual,
+                {"flocker": __version__},
+            )
+            return d
+
+        def test_list_nodes(self):
+            """
+            ``list_nodes`` returns a ``Deferred`` firing with a ``list`` of
+            ``Node``s.
+            """
+            d = self.client.list_nodes()
+            d.addCallback(
+                self.assertItemsEqual,
+                [self.node_1, self.node_2]
+            )
+            return d
+
+        def test_this_node_uuid(self):
+            """
+            ``this_node_uuid`` returns ``Deferred`` firing the UUID of the
+            current node.
+            """
+            d = self.client.this_node_uuid()
+            d.addCallback(self.assertEqual, self.node_1.uuid)
+            return d
 
     return InterfaceTests
 
@@ -338,7 +396,10 @@ class FakeFlockerClientTests(make_clientv1_tests()):
     Interface tests for ``FakeFlockerClient``.
     """
     def create_client(self):
-        return FakeFlockerClient()
+        return FakeFlockerClient(
+            nodes=[self.node_1, self.node_2],
+            this_node_uuid=self.node_1.uuid,
+        )
 
     def synchronize_state(self):
         return self.client.synchronize_state()
@@ -348,6 +409,10 @@ class FlockerClientTests(make_clientv1_tests()):
     """
     Interface tests for ``FlockerClient``.
     """
+    @skipUnless(platform.isLinux(),
+                "flocker-node-era currently requires Linux.")
+    @skipUnless(which("flocker-node-era"),
+                "flocker-node-era needs to be in $PATH.")
     def create_client(self):
         """
         Create a new ``FlockerClient`` instance pointing at a running control
@@ -362,6 +427,18 @@ class FlockerClientTests(make_clientv1_tests()):
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(reactor)
         self.cluster_state_service.startService()
+        source = ChangeSource()
+        # Prevent nodes being deleted by the state wiper.
+        source.set_last_activity(reactor.seconds())
+        self.era = UUID(check_output(["flocker-node-era"]))
+        self.cluster_state_service.apply_changes_from_source(
+            source=source,
+            changes=[
+                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)] + [
+                NodeState(uuid=node.uuid, hostname=node.public_address)
+                for node in [self.node_1, self.node_2]
+            ],
+        )
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
         credential_set, _ = get_credential_sets()
@@ -406,16 +483,16 @@ class FlockerClientTests(make_clientv1_tests()):
         """
         dataset_id = uuid4()
         d = self.client.create_dataset(
-            primary=self.node_1, maximum_size=None, dataset_id=dataset_id)
+            primary=self.node_1.uuid, maximum_size=None, dataset_id=dataset_id)
         d.addCallback(lambda _: assertHasAction(
             self, logger, _LOG_HTTP_REQUEST, True, dict(
                 url=b"https://127.0.0.1:{}/v1/configuration/datasets".format(
                     self.port),
                 method=u"POST",
-                request_body=dict(primary=unicode(self.node_1),
+                request_body=dict(primary=unicode(self.node_1.uuid),
                                   metadata={},
                                   dataset_id=unicode(dataset_id))),
-            dict(response_body=dict(primary=unicode(self.node_1),
+            dict(response_body=dict(primary=unicode(self.node_1.uuid),
                                     metadata={},
                                     deleted=False,
                                     dataset_id=unicode(dataset_id)))))
@@ -429,7 +506,7 @@ class FlockerClientTests(make_clientv1_tests()):
         self.patch(rest_api, "_logger", logger)
         my_action = ActionType("my_action", [], [])
         with my_action():
-            d = self.client.create_dataset(primary=self.node_1)
+            d = self.client.create_dataset(primary=self.node_1.uuid)
 
         def got_response(_):
             parent = LoggedAction.ofType(logger.messages, my_action)[0]
@@ -444,7 +521,7 @@ class FlockerClientTests(make_clientv1_tests()):
                 self.port),
             method=u"POST",
             request_body=dict(
-                primary=unicode(self.node_1), maximum_size=u"notint",
+                primary=unicode(self.node_1.uuid), maximum_size=u"notint",
                 metadata={})),
         {u'exception': u'flocker.apiclient._client.ResponseError'}))
     def test_unexpected_error(self, logger):
@@ -453,7 +530,7 @@ class FlockerClientTests(make_clientv1_tests()):
         returns a ``ResponseError`` failure.
         """
         d = self.client.create_dataset(
-            primary=self.node_1, maximum_size=u"notint")
+            primary=self.node_1.uuid, maximum_size=u"notint")
         self.assertFailure(d, ResponseError)
         d.addCallback(lambda exc: self.assertEqual(exc.code, BAD_REQUEST))
         return d
@@ -478,3 +555,35 @@ class FlockerClientTests(make_clientv1_tests()):
                                         path=None)],
                           states))
         return d
+
+    def test_this_node_uuid_retry(self):
+        """
+        ``this_node_uuid`` retries if the node UUID is unknown.
+        """
+        # Pretend that the era for node 1 is something else; first try at
+        # getting node UUID for real era will therefore fail:
+        self.cluster_state_service.apply_changes([
+            UpdateNodeStateEra(era=uuid4(), uuid=self.node_1.uuid)])
+
+        # When we lookup the DeploymentState the first time we'll set the
+        # value to the correct one, so second try should succeed:
+        def as_deployment(original=self.cluster_state_service.as_deployment):
+            result = original()
+            self.cluster_state_service.apply_changes(changes=[
+                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)])
+            return result
+        self.patch(self.cluster_state_service, "as_deployment", as_deployment)
+
+        d = self.client.this_node_uuid()
+        d.addCallback(self.assertEqual, self.node_1.uuid)
+        return d
+
+    def test_this_node_uuid_no_retry_on_other_responses(self):
+        """
+        ``this_node_uuid`` doesn't retry on unexpected responses.
+        """
+        # Cause 500 errors to be raised by the API endpoint:
+        self.patch(self.cluster_state_service, "as_deployment",
+                   lambda: 1/0)
+        return self.assertFailure(self.client.this_node_uuid(),
+                                  ResponseError)

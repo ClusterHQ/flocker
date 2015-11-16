@@ -31,7 +31,7 @@ from ..release import (
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
-    MissingPreRelease, NoPreRelease,
+    MissingPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
     publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
@@ -1677,16 +1677,6 @@ class CalculateBaseBranchTests(SynchronousTestCase):
             self.calculate_base_branch(version='0.3.0.dev1').name,
             "master")
 
-    def test_doc_release_base(self):
-        """
-        A documentation release is created from the release which is having
-        its documentation changed.
-        """
-        self.repo.create_head('release/flocker-0.3.0')
-        self.assertEqual(
-            self.calculate_base_branch(version='0.3.0.post1').name,
-            "release/flocker-0.3.0")
-
     def test_first_pre_release(self):
         """
         The first pre-release for a marketing release is created from the
@@ -1695,19 +1685,6 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertEqual(
             self.calculate_base_branch(version='0.3.0rc1').name,
             "master")
-
-    def test_uses_previous_pre_release(self):
-        """
-        The second pre-release for a marketing release is created from the
-        previous pre-release release branch.
-        """
-        self.repo.create_head('release/flocker-0.3.0rc1')
-        self.repo.create_tag('0.3.0rc1')
-        self.repo.create_head('release/flocker-0.3.0rc2')
-        self.repo.create_tag('0.3.0rc2')
-        self.assertEqual(
-            self.calculate_base_branch(version='0.3.0rc3').name,
-            "release/flocker-0.3.0rc2")
 
     def test_unparseable_tags(self):
         """
@@ -1720,7 +1697,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.repo.create_tag('0.3.0rc2')
         self.assertEqual(
             self.calculate_base_branch(version='0.3.0rc3').name,
-            "release/flocker-0.3.0rc2")
+            "master")
 
     def test_parent_repository_used(self):
         """
@@ -1733,36 +1710,6 @@ class CalculateBaseBranchTests(SynchronousTestCase):
                 path=FilePath(self.repo.working_dir).child('README').path,
             ).name,
             "master")
-
-    def test_no_pre_releases_fails(self):
-        """
-        Trying to release a marketing release when no pre-release exists for it
-        fails.
-        """
-        self.assertRaises(
-            NoPreRelease,
-            self.calculate_base_branch, '0.3.0')
-
-    def test_missing_pre_release_fails(self):
-        """
-        Trying to release a pre-release when the previous pre-release does not
-        exist fails.
-        """
-        self.repo.create_head('release/flocker-0.3.0rc1')
-        self.repo.create_tag('0.3.0rc1')
-        self.assertRaises(
-            MissingPreRelease,
-            self.calculate_base_branch, '0.3.0rc3')
-
-    def test_base_branch_does_not_exist_fails(self):
-        """
-        Trying to create a release when the base branch does not exist fails.
-        """
-        self.repo.create_tag('0.3.0rc1')
-
-        self.assertRaises(
-            GitCommandError,
-            self.calculate_base_branch, '0.3.0')
 
     def test_tag_exists_fails(self):
         """
@@ -1788,7 +1735,7 @@ class CalculateBaseBranchTests(SynchronousTestCase):
             calculate_base_branch(
                     version='0.3.0rc2',
                     path=clone.working_dir).name,
-            "release/flocker-0.3.0rc1")
+            "master")
 
 
 class PublishVagrantMetadataTests(SynchronousTestCase):

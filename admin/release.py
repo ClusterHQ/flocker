@@ -12,9 +12,11 @@ import json
 import os
 import sys
 import tempfile
+import virtualenv
 
 from datetime import datetime
-from subprocess import check_call
+from subprocess import check_call, check_output
+from sys import platform as _platform
 from urllib import quote
 
 from effect import (
@@ -38,12 +40,9 @@ from flocker.provision._effect import sequence, dispatcher as base_dispatcher
 
 from flocker.common.version import (
     get_doc_version,
-    get_pre_release,
     is_pre_release,
     is_release,
     is_weekly_release,
-    target_release,
-    UnparseableVersion,
 )
 from flocker.provision._install import ARCHIVE_BUCKET
 
@@ -119,12 +118,6 @@ class MissingPreRelease(Exception):
     """
     Raised if trying to release a pre-release for which the previous expected
     pre-release does not exist.
-    """
-
-
-class NoPreRelease(Exception):
-    """
-    Raised if trying to release a marketing release if no pre-release exists.
     """
 
 
@@ -801,43 +794,8 @@ def calculate_base_branch(version, path):
     if existing_tags:
         raise TagExists()
 
-    release_branch_prefix = 'release/flocker-'
-
-    if is_weekly_release(version):
-        base_branch_name = 'master'
-    elif is_pre_release(version) and get_pre_release(version) == 1:
-        base_branch_name = 'master'
-    elif get_doc_version(version) != version:
-        base_branch_name = release_branch_prefix + get_doc_version(version)
-    else:
-        if is_pre_release(version):
-            target_version = target_release(version)
-        else:
-            target_version = version
-
-        pre_releases = []
-        for tag in repo.tags:
-            try:
-                if (is_pre_release(tag.name) and
-                    target_version == target_release(tag.name)):
-                    pre_releases.append(tag.name)
-            except UnparseableVersion:
-                # The Flocker repository contains versions which are not
-                # currently considered valid versions.
-                pass
-
-        if not pre_releases:
-            raise NoPreRelease()
-
-        latest_pre_release = sorted(
-            pre_releases,
-            key=lambda pre_release: get_pre_release(pre_release))[-1]
-
-        if (is_pre_release(version) and get_pre_release(version) >
-                get_pre_release(latest_pre_release) + 1):
-            raise MissingPreRelease()
-
-        base_branch_name = release_branch_prefix + latest_pre_release
+    # We always base releases off master now.
+    base_branch_name = 'master'
 
     # We create a new branch from a branch, not a tag, because a maintenance
     # or documentation change may have been applied to the branch and not the
@@ -863,6 +821,123 @@ def create_release_branch(version, base_branch):
         base_branch.checkout(b='release/flocker-' + version)
     except GitCommandError:
         raise BranchExists()
+
+
+class InitializeReleaseOptions(Options):
+    """
+    Arguments for ``initialize-release`` script.
+    """
+
+    optParameters = [
+        ["flocker-version", None, None,
+         "The version of Flocker to create a release for."],
+        ["path", None, None,
+         "Full path where the cloned repo should be created."],
+    ]
+
+    def parseArgs(self):
+        if self['flocker-version'] is None:
+            raise UsageError("`--flocker-version` must be specified.")
+        if self['path'] is None:
+            self['path'] = FilePath(os.getcwd()).parent()
+        else:
+            self['path'] = FilePath(self['path'])
+        if not self['path'].exists():
+            self['path'].makedirs()
+
+
+def initialize_release_main(args, base_path, top_level):
+    """
+    Clone the Flocker repo and install a new virtual environment for
+    a release.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = InitializeReleaseOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    version = options['flocker-version']
+    path = options['path']
+    initialize_release(version, path, top_level)
+
+
+def initialize_release(version, path, top_level):
+    """
+    Clone the Flocker repo and install a new virtual environment for
+    a release.
+
+    :param bytes version: The version to release.
+    :param FilePath path: The path in which the release branch
+        will be created.
+    :param FilePath top_level: The top-level of the flocker repository.
+
+    """
+    REMOTE_URL = "https://github.com/ClusterHQ/flocker"
+    release_path = path.child("flocker-release-{}".format(version))
+    sys.stdout.write("Cloning repo in {}...\n".format(release_path.path))
+
+    release_repo = Repo.init(release_path.path)
+    release_origin = release_repo.create_remote('origin', REMOTE_URL)
+    release_origin.fetch()
+    release_origin.pull(release_origin.refs[0].remote_head)
+
+    sys.stdout.write("Checking out master...\n")
+    release_repo.git.checkout("master")
+
+    sys.stdout.write("Updating repo...\n")
+    release_repo.git.pull("origin", "master")
+
+    sys.stdout.write(
+        "Creating release branch for version {}...\n".format(version))
+    release_repo.active_branch.checkout(b="release/flocker-{}".format(version))
+
+    sys.stdout.write("Creating virtual environment...\n")
+    virtualenv.create_environment(
+        release_path.child("flocker-{}".format(version)).path,
+        site_packages=False
+    )
+
+    sys.stdout.write("Activating virtual environment...\n")
+    virtualenv_file = release_path.child("flocker-{}".format(version))
+    virtualenv_file = virtualenv_file.child("bin").child("activate_this.py")
+    execfile(virtualenv_file.path, dict(__file__=virtualenv_file.path))
+
+    sys.stdout.write("Installing dependencies...\n")
+    os.chdir(release_path.path)
+    if _platform == "darwin":
+        brew_openssl = check_output(["brew", "--prefix", "openssl"])
+        os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
+            brew_openssl, brew_openssl)
+    check_call(
+        ["pip install -e .[dev]"], shell=True, stdout=open(os.devnull, 'w'))
+
+    sys.stdout.write("Updating LICENSE file...\n")
+    update_license_file(list(), top_level)
+
+    sys.stdout.write("Committing result (no push)...\n")
+    try:
+        release_repo.git.commit(
+            a=True, m="'Updated copyright in LICENSE file'"
+        )
+    except GitCommandError:
+        # This will happen when the LICENSE file has not changed, so we'll
+        # ignore the error.
+        pass
+
+    sys.stdout.write(
+        "\nCompleted.\n\nPlease copy and paste the following commands "
+        "in your shell to enter the release environment and continue "
+        "the pre-tag release process:\n\n"
+        "export VERSION={};\ncd {};\nsource flocker-{}/bin/activate;\n\n"
+        .format(version, release_path.path, version)
+    )
 
 
 class CreateReleaseBranchOptions(Options):
@@ -909,10 +984,6 @@ def create_release_branch_main(args, base_path, top_level):
     except TagExists:
         sys.stderr.write("%s: Tag already exists for this release.\n"
                          % (base_path.basename(),))
-        raise SystemExit(1)
-    except NoPreRelease:
-        sys.stderr.write("%s: No (previous) pre-release exists for this "
-                         "release.\n" % (base_path.basename(),))
         raise SystemExit(1)
     except BranchExists:
         sys.stderr.write("%s: The release branch already exists.\n"

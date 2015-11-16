@@ -42,7 +42,7 @@ If you get a connection refused error try again after a few seconds; the applica
 
 .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-   alice@mercury:~/flocker-tutorial$ $ mongo 172.16.255.250
+   alice@mercury:~/flocker-tutorial$ mongo 172.16.255.250
    MongoDB shell version: 2.4.9
    connecting to: 172.16.255.250/test
    > use example;
@@ -64,7 +64,6 @@ We can also connect to the other node where it isn't running and the traffic wil
    { "_id" : ObjectId("53c958e8e571d2046d9b9df9"), "flocker" : "tested" }
 
 Since the application is transparently accessible from both nodes you can configure a DNS record that points at both IPs and access the application regardless of its location.
-See :ref:`routing` for more details.
 
 At this point you have successfully deployed a MongoDB server and communicated with it.
 You've also seen how external users don't need to worry about applications' location within the cluster.

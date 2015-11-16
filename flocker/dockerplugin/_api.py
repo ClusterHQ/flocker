@@ -21,6 +21,7 @@ from klein import Klein
 from ..restapi import structured
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
+from ..node.agents.blockdevice import PROFILE_METADATA_KEY
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -132,7 +133,7 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Create", methods=["POST"])
     @_endpoint(u"Create")
-    def volumedriver_create(self, Name):
+    def volumedriver_create(self, Name, Opts=None):
         """
         Create a volume with the given name.
 
@@ -151,6 +152,12 @@ class VolumePlugin(object):
 
         :param unicode Name: The name of the volume.
 
+        :param dict Opts: Options passed from Docker for the volume
+            at creation. ``None`` if not supplied in the request body.
+            Currently ignored. ``Opts`` is a parameter introduced in the
+            v2 plugins API introduced in Docker 1.9, it is not supplied
+            in earlier Docker versions.
+
         :return: Result indicating success.
         """
         listing = self._flocker_client.list_datasets_configuration()
@@ -161,9 +168,15 @@ class VolumePlugin(object):
                     raise DatasetAlreadyExists
         listing.addCallback(got_configured)
 
+        metadata = {u"name": Name}
+        opts = Opts or {}
+        profile = opts.get(u"profile")
+        if profile:
+            metadata[PROFILE_METADATA_KEY] = profile
+
         creating = listing.addCallback(
             lambda _: self._flocker_client.create_dataset(
-                self._node_id, DEFAULT_SIZE, metadata={u"name": Name},
+                self._node_id, DEFAULT_SIZE, metadata=metadata,
                 dataset_id=UUID(dataset_id_from_name(Name))))
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})

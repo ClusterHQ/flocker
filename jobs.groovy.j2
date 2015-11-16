@@ -1,3 +1,4 @@
+// vim: ai ts=2 sts=2 et sw=2 ft=jinja fdm=indent et foldlevel=0
 {# jobs.groovy.j2
 
   This jinja2 template is used to produce a jobs.groovy file containing the
@@ -83,9 +84,12 @@
     type jobs which are not executed as part of the main multijob.
     These follow a similar structure to the common 'job_type' definitions
     above, except they include a trigger section specifying an daily schedulle.
-
-
 #}
+
+{# ------------------------------------------------------------------------- #}
+{# JINJA2 MACROS DEFINED BELOW                                               #}
+{# --------------------------------------------------------------------------#}
+
 {% macro folder(folder, display_name)                                       -%}
 {# creates a folder structure to group jobs, these are the Jenkins folder views
    in the Jenkins UI.
@@ -96,9 +100,8 @@
 println("creating {{folder}}...")
 folder("{{folder}}") { displayName("{{display_name}}") }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
 {% macro wrappers(v, directory_to_delete)                                   -%}
 {# adds a list of common wrappers to the build jobs.
 
@@ -138,9 +141,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {% endif %}
     }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
 {% macro triggers(_type, _value, _branch )                                 -%}
 {# adds a list of triggers to the build job
 
@@ -153,15 +155,25 @@ folder("{{folder}}") { displayName("{{display_name}}") }
     but we only configure the scheduler if the jobs is for the master branch.
     If we were to schedule the job on every branch we would have multiple jobs
     running at the same time                                                 #}
-{%      if _type == 'cron' and _branch == 'master'                           %}
+        if ("{{_type}}" == "cron" && "{{_branch}}" == "master") {
 {#  the cron  string below is a common crontab style string                  #}
             cron("{{_value}}")
-{%      endif                                                                %}
+        }
+{#  the job_type 'githubPush' is used by the multijob, we use it to
+    configure that job so that builds on master are triggered automatically
+    this block enables 'Build when a change is pushed to GitHub'
+#}
+        if ("{{_type}}" == "githubPush" && "{{_branch}}" == "master") {
+            configure { node ->
+                node / 'triggers' / 'com.cloudbees.jenkins.GitHubPushTrigger' {
+                spec ''
+                }
+            }
+        }
     }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
 {% macro scm(git_url, branch) -%}
 {# configures a remote git repository, and merges 'branch' before build
 
@@ -173,7 +185,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
         remote {
 {#  our remote will be called 'upstream'                                     #}
           name("upstream")
-          url("{{git_url}}")
+{#  the project name from the build yaml 'ClusterHQ/Flocker'                 #}
+          github("{{cfg.project}}")
         }
 {#  configure the git user merging the branches.
     the job dsl scm/git doesn't contain a method to specify the local git user
@@ -199,9 +212,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
       }
     }
 {%- endmacro                                                                -%}
-{#
 
-#}
+
 {% macro publishers(v)                                                      -%}
 {# adds a publishers block to the jenkins job configuration, containing:
    an action for archiving artifacts
@@ -242,7 +254,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {%      endif                                                               -%}
     }
 {%- endmacro                                                                -%}
-{#                                                                           #}
+
+
 {% macro steps(v)                                                           -%}
 {#  builds a list of job steps based on the type of the job:
     ( 'shell', others )
@@ -261,10 +274,8 @@ folder("{{folder}}") { displayName("{{display_name}}") }
 {%  endfor                                                                   %}
     }
 {%- endmacro                                                                -%}
-{#
 
 
-#}
 {# groov lacks a loop...until ...                                            #}
 class Looper {
    private Closure code
@@ -313,6 +324,10 @@ branches.each {
 {# create a folder for every branch: /git-username/git-repo/branch           #}
   {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
 
+
+{# ------------------------------------------------------------------------- #}
+{# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
+{# --------------------------------------------------------------------------#}
 
 {# iterate over every job_type  #}
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
@@ -433,12 +448,41 @@ branches.each {
     {{ steps(job_values.with_steps) }}
   }
 {%    endif                                                                  %}
+
+{# apply config related to 'run_lint' jobs                                   #}
+{%    if job_type == 'run_lint'                                             -%}
+{%        set _job_name = job_name                                          -%}
+  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+{# limit execution to jenkins slaves with a particular label                 #}
+    label("{{ job_values.on_nodes_with_labels }}")
+    {{ wrappers(job_values, 'none') }}
+    {{ scm("${git_url}", "${branchName}") }}
+    {{ steps(job_values.with_steps) }}
+  }
+{%    endif                                                                  %}
+
 {%  endfor                                                                   %}
 {% endfor                                                                    %}
 
+{# ------------------------------------------------------------------------- #}
+{# MULTIJOB CONFIGURATION BELOW                                              #}
+{# --------------------------------------------------------------------------#}
 
 {# the multijob is responsible for running all configured jobs in parallel   #}
   multiJob("${dashProject}/${dashBranchName}/__main_multijob") {
+  {# we don't execute any code from the mulitjob run, but we need to fetch
+     the git repository so that we can track when changes are pushed upstream.
+     We add a SCM block pointing to our flocker code base.
+  #}
+    {{ scm("${git_url}", "${branchName}") }}
+  {# By adding a trigger of type 'github' we enable automatic builds when
+     changes are pushed to the repository.
+     This however only happens for the master branch, no other branches are
+     automatically built when new commits are pushed to those branches.
+     The logic that manages which branch is built automaticaly, is performed
+     in the triggers jinja2 macro.
+  #}
+    {{ triggers('githubPush', 'none', "${branchName}") }}
     wrappers {
       timestamps()
       colorizeOutput()
@@ -508,7 +552,7 @@ branches.each {
 {# make sure we don't kill the parent multijob, when we fail                 #}
                 killPhaseCondition("NEVER")
               }
-{%      endfor                                                                -%}
+{%      endfor                                                              -%}
 {%    endfor                                                                -%}
 {%  endif                                                                    %}
 
@@ -534,8 +578,19 @@ branches.each {
 {%    endfor                                                                -%}
 {%  endif                                                                    %}
 
+{# add the 'run_lint' style jobs                                             #}
+{%  if job_type == 'run_lint'                                               -%}
+{%    for job_name, job_values  in job_type_values.iteritems()              -%}
+{%      set _job_name = job_name                                             %}
+              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
+{# make sure we don't kill the parent multijob, when we fail                 #}
+                killPhaseCondition("NEVER")
+              }
+{%    endfor                                                                -%}
+{%  endif                                                                    %}
 {% endfor                                                                    %}
-          }
+          } {# ends parallel phase #}
+
 {# we've added the jobs to the multijob, we now need to fetch and archive all
    the artifacts produced by the different jobs                              #}
 {% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
@@ -592,6 +647,12 @@ branches.each {
       }
   }
 }
+
+
+{# ------------------------------------------------------------------------- #}
+{# CRON JOBS BELOW                                                           #}
+{# --------------------------------------------------------------------------#}
+
 {# Configure cronly jobs, these are not part of the main branches loop       #}
 {# As we only run them from the master branch, they get executed a few       #}
 {# times a day based on a cron type schedule.                                #}
@@ -609,7 +670,7 @@ branches.each {
     label("{{ job_values.on_nodes_with_labels }}")
     {{ wrappers(job_values, 'none') }}
     {{ triggers('cron', job_values.at, "${branchName}") }}
-    {{ scm("${git_url}", "master") }}
+    {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
 {%    endif                                                                  %}

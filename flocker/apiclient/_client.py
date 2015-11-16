@@ -7,6 +7,9 @@ Client for the Flocker REST API.
 from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
+from os import environ
+
+from ipaddr import IPv4Address, IPv6Address, IPAddress
 
 from pytz import UTC
 
@@ -19,13 +22,16 @@ from eliot.twisted import DeferredContext
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
-from twisted.web.http import CREATED, OK, CONFLICT
+from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
+from twisted.internet.utils import getProcessOutput
 
 from treq import json_content, content
 
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError
+from ..common import retry_failure
 
+from .. import __version__
 
 _LOG_HTTP_REQUEST = ActionType(
     "flocker:apiclient:http_request",
@@ -86,6 +92,20 @@ class Lease(PClass):
     dataset_id = field(type=UUID, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     expires = field(type=(float, int, NoneType), mandatory=True)
+
+
+class Node(PClass):
+    """
+    A node on which a Flocker agent is running.
+
+    :attr UUID uuid: The UUID of the node.
+    :attr IPAddress public_address: The public IP address of the node.
+    """
+    uuid = field(type=UUID, mandatory=True)
+    public_address = field(
+        type=(IPv4Address, IPv6Address),
+        mandatory=True,
+    )
 
 
 class DatasetAlreadyExists(Exception):
@@ -190,6 +210,29 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with a list of ``Lease`` instance.
         """
 
+    def version():
+        """
+        Return current version.
+
+        :return: ``Deferred`` firing with a ``dict`` containing the key
+            ``flocker`` and the version reported by the Flocker Control
+            service.
+        """
+
+    def list_nodes():
+        """
+        Get information about active cluster nodes.
+
+        :return: ``Deferred`` firing with a ``list`` of ``Node``.
+        """
+
+    def this_node_uuid():
+        """
+        Return this node's UUID by looking it up by era.
+
+        This is the recommended way of discovering the node UUID.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
@@ -199,9 +242,13 @@ class FakeFlockerClient(object):
     # Placeholder time, we don't model the progress of time at all:
     _NOW = datetime.fromtimestamp(0, UTC)
 
-    def __init__(self):
+    def __init__(self, nodes=None, this_node_uuid=uuid4()):
         self._configured_datasets = pmap()
         self._leases = LeasesModel()
+        if nodes is None:
+            nodes = []
+        self._nodes = nodes
+        self._this_node_uuid = this_node_uuid
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
@@ -274,6 +321,17 @@ class FakeFlockerClient(object):
                            if l.expiration is not None else None))
             for l in self._leases.values()])
 
+    def version(self):
+        return succeed(
+            {u"flocker": __version__}
+        )
+
+    def list_nodes(self):
+        return succeed(self._nodes)
+
+    def this_node_uuid(self):
+        return succeed(self._this_node_uuid)
+
 
 class ResponseError(Exception):
     """
@@ -283,6 +341,12 @@ class ResponseError(Exception):
         Exception.__init__(self, "Unexpected response code {}:\n{}\n".format(
             code, body))
         self.code = code
+
+
+class NotFound(Exception):
+    """
+    Result was not found.
+    """
 
 
 @implementer(IFlockerAPIV1Client)
@@ -300,6 +364,7 @@ class FlockerClient(object):
         :param FilePath cert_path: Path to user certificate.
         :param FilePath key_path: Path to user private key.
         """
+        self._reactor = reactor
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
@@ -314,7 +379,7 @@ class FlockerClient(object):
             body of the request.
         :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
-            raised if it is present, or ``None`` to send no headers.
+            raised if it is present, or ``None`` to set no errors.
 
         :return: ``Deferred`` firing with decoded JSON.
         """
@@ -466,4 +531,44 @@ class FlockerClient(object):
             b"GET", b"/configuration/leases", None, {OK})
         request.addCallback(
             lambda results: [self._parse_lease(l) for l in results])
+        return request
+
+    def version(self):
+        return self._request(
+            b"GET", b"/version", None, {OK}
+        )
+
+    def list_nodes(self):
+        request = self._request(
+            b"GET", b"/state/nodes", None, {OK}
+        )
+
+        def to_nodes(result):
+            """
+            Turn the list of dicts into ``Node`` instances.
+            """
+            nodes = []
+            for node_dict in result:
+                node = Node(
+                    uuid=UUID(hex=node_dict['uuid'], version=4),
+                    public_address=IPAddress(node_dict['host']),
+                )
+                nodes.append(node)
+            return nodes
+        request.addCallback(to_nodes)
+
+        return request
+
+    def this_node_uuid(self):
+        getting_era = getProcessOutput(
+            "flocker-node-era", reactor=self._reactor, env=environ)
+
+        def got_era(era):
+            return retry_failure(
+                self._reactor, lambda: self._request(
+                    b"GET", b"/state/nodes/by_era/" + era, None, {OK},
+                    {NOT_FOUND: NotFound},
+                ), [NotFound])
+        request = getting_era.addCallback(got_era)
+        request.addCallback(lambda result: UUID(result["uuid"]))
         return request

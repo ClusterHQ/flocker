@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Generate a Flocker package that can be deployed onto cluster nodes.
@@ -93,6 +93,7 @@ setup(
             'flocker.dockerplugin._script:docker_plugin_main',
             'flocker-diagnostics = ' +
             'flocker.node.script:flocker_diagnostics_main',
+            'flocker-node-era = flocker.common._era:era_main',
         ],
     },
 

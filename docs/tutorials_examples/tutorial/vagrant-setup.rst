@@ -1,104 +1,47 @@
-.. _tutvagrant:
-
-================
-Before You Begin
-================
-
-.. note::
-	To start this tutorial, you will need to have installed the ``flocker-cli``, which provides the ``flocker-deploy`` command.
-	For more information, see :ref:`installing-flocker-cli`.
-
-	If you have a version of ``flocker-cli`` installed that is older than |version|, delete the install script and directory, and install the latest version.
-
-Requirements
-============
-
-To replicate the steps demonstrated in this tutorial, you will need:
-
-* Linux, FreeBSD, or OS X
-* `Vagrant`_ (1.6.2 or newer)
-* `VirtualBox`_
-* At least 10GB disk space available for the two virtual machines
-* The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
-* bash
-* The ``mongo`` MongoDB interactive shell (see below for installation instructions)
-
-Setup
-=====
-
-Installing MongoDB
-------------------
-
-The MongoDB client can be installed through the various package managers for Linux, FreeBSD and OS X.
-If you do not already have the client on your machine, you can install it by running the appropriate command for your system.
-
-Ubuntu
-^^^^^^
-
-.. prompt:: bash alice@mercury:~$
-
-   sudo apt-get install mongodb-clients
-
-Red Hat / Fedora
-^^^^^^^^^^^^^^^^
-
-.. prompt:: bash alice@mercury:~$
-
-   sudo yum install mongodb
-
-OS X
-^^^^
-
-Install `Homebrew`_
-
-.. prompt:: bash alice@mercury:~$
-
-   brew update
-   brew install mongodb
-
-Other Systems
-^^^^^^^^^^^^^
-
-See the official `MongoDB installation guide`_ for your system.
-
 .. _vagrant-setup:
 
-Creating Vagrant VMs Needed for Flocker
----------------------------------------
+========================================
+Using Vagrant to Create Virtual Machines
+========================================
 
-.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+.. note:: If you already followed these instructions from a previous Flocker release, see :ref:`upgrading-vagrant-environment`.
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
-To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
+For the purpose of the :ref:`MongoDB tutorial<tutorial-mongo>`, the instructions below describe how to use `Vagrant`_ to create two `VirtualBox`_ virtual machines.
 
-These VMs serve as hosts on which Flocker can run Docker.
-Flocker does not require Vagrant or VirtualBox.
-You can run it on other virtualization technology (e.g., VMware), on clouds (e.g., EC2), or directly on physical hardware.
+It is important to note the following:
 
-For your convenience, this tutorial includes ``Vagrantfile`` which will boot the necessary VMs.
-Flocker and its dependencies will be installed on these VMs the first time you start them.
-One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
-These two IP addresses will be used throughout the tutorial and configuration files.
+* These virtual machines serve as hosts on which Flocker can run Docker.
+* Flocker does not require Vagrant or VirtualBox.
+* You can also run Flocker on other virtualization technology (VMware for example), on clouds (EC2 for example), or directly on physical hardware.
+* The two virtual machines are each assigned a 10 GB virtual disk.
+  The underlying disk files grow to about 5 GB, so you will need at least 10 GB of free disk space on your workstation.
+
+These instructions include a :file:`Vagrantfile` to download, which will boot the necessary virtual machines.
+Flocker and its dependencies will be installed on these virtual machines the first time you start them.
+
+These virtual machines are statically assigned the following IPs:
+
+* node1: ``172.16.255.250``
+* node2: ``172.16.255.251``
+
+These two IP addresses are used throughout the :ref:`MongoDB tutorial<tutorial-mongo>`.
 
 .. warning::
+
+   If these addresses conflict with your local network configuration, you will need to edit the :file:`Vagrantfile` to change the IP addresses.
+
+   You will also need to generate a new set of certificates and keys using the Flocker CLI ``flocker-ca`` tool, and copy these to the virtual machines.
    
-   If these addresses conflict with your local network configuration, you will need to edit the ``Vagrantfile`` to change the IP addresses.
-   You will then need to generate a new set of certificates and keys using the Flocker CLI ``flocker-ca`` tool and copy these to the virtual machines.
    This will also require you to start the node services manually.
-   Therefore if your IP addresses conflict with the tutorial, please see the full :ref:`installation instructions <installing-flocker>` for more information.
+   For more information, see :ref:`authentication`.
 
-.. XXX This warning needs to be reviewed, as the link is vague. See FLOC 2661
+.. _creating-vagrant-VMs:
 
-.. warning::
+Creating Vagrant Virtual Machines for Flocker
+=============================================
 
-   On some versions of Vagrant and VirtualBox, restarting the tutorial virtual machines via the ``vagrant halt`` and ``vagrant up`` commands can result in losing the static IP configuration, making the nodes unreachable on the assigned ``172.15.255.25x`` addresses.
-   In this case you should destroy and recreate the machines with the ``vagrant destroy`` and ``vagrant up`` commands.
-
-.. note:: The two virtual machines are each assigned a 10GB virtual disk.
-          The underlying disk files grow to about 5GB.
-          So you will need at least 10GB of free disk space on your workstation.
-
-#. Create a tutorial directory:
+#. Create a tutorial directory, for example:
 
    .. prompt:: bash alice@mercury:~/$
 
@@ -106,10 +49,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       cd flocker-tutorial
 
 #. Download the Vagrant configuration file by right clicking on the link below.
-   Save it in the *flocker-tutorial* directory and preserve its filename.
-
-   .. This download is also used in the getting started guide. You will need to adjust
-      it if this download is changed.
+   Save it in the :file:`flocker-tutorial` directory, preserving the filename.
 
    :version-download:`Vagrantfile.template`
 
@@ -119,10 +59,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       :append: ...
 
 #. Download the cluster and user credentials by right clicking on the links below.
-   Save these to the *flocker-tutorial* directory too, also preserving the file names.
-
-   .. These downloads are also used in the getting started guide. You will need to adjust
-      it if these downloads are changed.
+   Save these to the :file:`flocker-tutorial` directory, also preserving the filenames.
    
    :download:`cluster.crt`
    
@@ -130,12 +67,7 @@ These two IP addresses will be used throughout the tutorial and configuration fi
    
    :download:`user.key`
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
-
-      alice@mercury:~/flocker-tutorial$ ls
-      cluster.crt user.crt user.key Vagrantfile
-
-#. Use ``vagrant up`` to start and provision the VMs:
+#. Use ``vagrant up`` to start and provision the virtual machines:
 
    .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
@@ -146,11 +78,11 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
       alice@mercury:~/flocker-tutorial$
 
-   This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.
-   Your network connectivity and CPU speed will affect how long this takes.
+   This step can take several minutes, as it downloads the Vagrant image, boots up two nodes, and downloads the Docker image necessary to run the :ref:`MongoDB tutorial<tutorial-mongo>`.
+   The time this takes will depend on your network connectivity and CPU speed.
    Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
-#. After ``vagrant up`` completes you may want to verify that the two VMs are really running and accepting SSH connections:
+#. After ``vagrant up`` completes you may want to verify that the two virtual machines are really running and accepting SSH connections:
 
    .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
@@ -168,106 +100,91 @@ These two IP addresses will be used throughout the tutorial and configuration fi
       Connection to 127.0.0.1 closed.
       alice@mercury:~/flocker-tutorial$
 
-#. If all goes well, the next step is to configure your SSH agent.
-   This will allow Flocker to authenticate itself to the VM:
+#. Configure your SSH agent to allow Flocker to authenticate itself to the virtual machine:
 
-   If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
-   If you don't, you'll see an error:
+   * If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+     If you have an SSH agent running, you'll see no output.
+     If you don't, you'll see an error:
 
-      alice@mercury:~/flocker-tutorial$ ssh-add
-      Could not open a connection to your authentication agent.
+     .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-   If you do, you'll see no output:
+        alice@mercury:~/flocker-tutorial$ ssh-add
+        Could not open a connection to your authentication agent.
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$
+   * If you don't have an SSH agent running, start one:
 
-      ssh-add
+     .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-   If you don't have an SSH agent running, start one:
+        alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
+        Agent pid 27233
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+   * Finally, add the Vagrant key to your agent:
 
-      alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
-      Agent pid 27233
+     .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-#. Finally, add the Vagrant key to your agent:
+        ssh-add ~/.vagrant.d/insecure_private_key
 
-   .. prompt:: bash alice@mercury:~/flocker-tutorial$
+You now have two virtual machines running and easy SSH access to them.
 
-      ssh-add ~/.vagrant.d/insecure_private_key
-
-You now have two VMs running and easy SSH access to them.
-This completes the Vagrant-related setup.
-
+.. note::
+   
+   On some versions of Vagrant and VirtualBox, restarting the tutorial virtual machines via the ``vagrant halt`` and ``vagrant up`` commands can result in losing the static IP configuration, making the nodes unreachable on the assigned ``172.15.255.25x`` addresses.
+   
+   In this case you should destroy and recreate the machines with the ``vagrant destroy`` and ``vagrant up`` commands.
 
 .. _upgrading-vagrant-environment:
 
 Upgrading the Vagrant Environment
 =================================
 
-The ``Vagrantfile`` used in this tutorial installs an RPM package called ``clusterhq-flocker-node`` on both the nodes.
+The :file:`Vagrantfile` used in the :ref:`MongoDB tutorial<tutorial-mongo>` installs an RPM package called ``clusterhq-flocker-node`` on both the nodes.
 If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``clusterhq-flocker-node`` before continuing with the following tutorials.
 
-First check the current Flocker version on the nodes.
-You can do this by logging into each node and running the ``flocker-dataset-agent`` command with a ``--version`` argument.
+#. Check the current version of Flocker on each of the nodes.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$
+   Log into each node and run the ``flocker-dataset-agent`` command with a ``--version`` argument.
 
-   ssh root@172.16.255.250 flocker-dataset-agent --version
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-Only proceed if you find that you are running an older version of Flocker than |version|.
+      ssh root@172.16.255.250 flocker-dataset-agent --version
 
-If you find that you *are* running an older version, you now need to rebuild the tutorial environment.
+   If you find that you are running an older version of Flocker than |version|, proceed to the next step to rebuild the tutorial environment.
 
-This will ensure that you have the latest Flocker version and that you are using a pristine tutorial environment.
+#. If you have an older version of ``Vagrantfile``, run ``vagrant destroy`` in the :file:`flocker-tutorial` directory:
 
-.. warning:: This will completely remove the existing nodes and their data.
+   .. warning:: 
 
-If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
+	  This will completely remove the existing nodes and their data.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
 
-   alice@mercury:~/flocker-tutorial$ vagrant destroy
-       node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
-   ==> node2: Forcing shutdown of VM...
-   ==> node2: Destroying VM and associated drives...
-   ==> node2: Running cleanup tasks for 'shell' provisioner...
-       node1: Are you sure you want to destroy the 'node1' VM? [y/N] y
-   ==> node1: Forcing shutdown of VM...
-   ==> node1: Destroying VM and associated drives...
-   ==> node1: Running cleanup tasks for 'shell' provisioner...
-   alice@mercury:~/flocker-tutorial$
+      alice@mercury:~/flocker-tutorial$ vagrant destroy
+          node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
+      ==> node2: Forcing shutdown of VM...
+      ==> node2: Destroying VM and associated drives...
+      ==> node2: Running cleanup tasks for 'shell' provisioner...
+          node1: Are you sure you want to destroy the 'node1' VM? [y/N] y
+      ==> node1: Forcing shutdown of VM...
+      ==> node1: Destroying VM and associated drives...
+      ==> node1: Running cleanup tasks for 'shell' provisioner...
+      alice@mercury:~/flocker-tutorial$
 
-Next delete the cached SSH host keys for the virtual machines as they will change when new VMs are created.
-Failing to do so will cause SSH to think there is a security problem when you connect to the recreated VMs.
+#. Delete the cached SSH host keys for the virtual machines as they will change when new virtual machines are created.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$
+   Failing to do so will cause SSH to think there is a security problem when you connect to the recreated virtual machines.
 
-   ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
-   ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
+   .. prompt:: bash alice@mercury:~/flocker-tutorial$
 
-Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` along with the cluster and user certificate and key files below and run ``vagrant up``.
+      ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
+      ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
-:download:`cluster.crt`
-   
-:download:`user.crt`
-  
-:download:`user.key`
+#. Delete the original :file:`Vagrantfile` and complete the steps in :ref:`creating-vagrant-VMs` to download the latest versions of the files (:file:`Vagrantfile`, :file:`cluster.crt`, :file:`user.crt`, and :file:`user.key`) and run ``vagrant up``.
 
-.. prompt:: bash alice@mercury:~/flocker-tutorial$ auto
+If you do not have an older versions of the :file:`Vagrantfile`, or if the ``vagrant destroy`` command fails, you can remove existing nodes `directly from VirtualBox`_.
 
-   alice@mercury:~/flocker-tutorial$ vagrant up
-   Bringing machine 'node1' up with 'virtualbox' provider...
-   Bringing machine 'node2' up with 'virtualbox' provider...
-   alice@mercury:~/flocker-tutorial$
-
-Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can remove the existing nodes `directly from VirtualBox`_.
 The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
 
-.. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/v2/
 .. _`VirtualBox`: https://www.virtualbox.org/
-.. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
 .. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568
