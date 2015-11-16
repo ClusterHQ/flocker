@@ -2,16 +2,14 @@
 """
 Operations tests for the control service benchmarks.
 """
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
 from twisted.python.components import proxyForInterface
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
-from flocker.apiclient._client import DatasetState
 
 from benchmark.operations import NoOperation, ReadRequest
 from benchmark._operations import IProbe, IOperation
