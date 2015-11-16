@@ -250,7 +250,8 @@ class IFlockerAPIV1Client(Interface):
         :param UUID node_uuid: The ``UUID`` of the node where the container
             will be started.
         :param unicode name: The name to assign to the container.
-        :param unicode image: The name of ``Docker`` image which will be used.
+        :param DockerImage image: The ``Docker`` image which the container will
+            run.
 
         :return: ``Deferred`` firing with the configured ``Container`` or
             ``ContainerAlreadyExists`` if the supplied container name already
@@ -379,7 +380,7 @@ class FakeFlockerClient(object):
         result = Container(
             node_uuid=node_uuid,
             name=name,
-            image=DockerImage.from_string(image),
+            image=image,
         )
         self._configured_containers = self._configured_containers.set(
             name, result
@@ -618,7 +619,7 @@ class FlockerClient(object):
 
     def create_container(self, node_uuid, name, image):
         container = dict(
-            node_uuid=unicode(node_uuid), name=name, image=image,
+            node_uuid=unicode(node_uuid), name=name, image=image.full_name,
         )
         d = self._request(
             b"POST",

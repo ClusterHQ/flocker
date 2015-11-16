@@ -490,7 +490,7 @@ def create_container_for_test(case, client, name=None):
     d = client.create_container(
         node_uuid=expected_container.node_uuid,
         name=expected_container.name,
-        image=expected_container.image.full_name,
+        image=expected_container.image,
     )
     return expected_container, d
 
