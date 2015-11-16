@@ -4,6 +4,8 @@
 Installing the Flocker Node Services
 ====================================
 
+The following instructions describe how to install the ``clusterhq-flocker node`` and ``clusterhq-flocker-docker-plugin`` packages on each of the nodes in your cluster.
+
 .. _installing-flocker-node-prereq:
 
 Prerequisites
@@ -58,9 +60,17 @@ Installing on CentOS 7
    .. task:: install_flocker centos-7
       :prompt: [root@centos]#
 
-#. **Repeat steps 1 and 2 for all other nodes:**
+#. **Install the** ``clusterhq-flocker-docker-plugin`` **package:**
 
-   Log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
+   Run the following command as root on the target node:
+
+   .. prompt:: bash [root@centos]#
+   
+      yum install -y clusterhq-flocker-docker-plugin
+
+#. **Repeat the previous steps for all other nodes:**
+
+   Log into your other nodes as root, and then run step 2 and 3 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` and ``clusterhq-flocker-docker-plugin`` package.
 
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
