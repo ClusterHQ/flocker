@@ -98,9 +98,18 @@ Installing on Ubuntu 14.04
    .. task:: install_flocker ubuntu-14.04
       :prompt: [root@ubuntu]#
 
-#. **Repeat steps 1 and 2 on all other nodes:**
+#. **Install the** ``clusterhq-flocker-docker-plugin`` **package:**
 
-   Log into your other nodes as root, and then run step 2 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` package.
+   Run the following command as root on the target node:
+
+   .. prompt:: bash [root@ubuntu]#
+   
+      apt-get install -y clusterhq-flocker-docker-plugin
+
+#. **Repeat the previous steps for all other nodes:**
+
+   Log into your other nodes as root, and then run step 2 and 3 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` and ``clusterhq-flocker-docker-plugin`` package.
+
 
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
