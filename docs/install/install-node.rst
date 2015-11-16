@@ -117,7 +117,7 @@ Installing on Ubuntu 14.04
 Next Step
 =========
 
-The installation of the Flocker clients, node services and the Flocker plugin for Docker are now complete.
+The installation of the Flocker clients, node services and the Flocker plugin for Docker is now complete.
 To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration`.
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
