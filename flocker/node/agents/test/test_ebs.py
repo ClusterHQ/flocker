@@ -31,6 +31,21 @@ class AttachedUnexpectedDeviceTests(SynchronousTestCase):
             repr(AttachedUnexpectedDevice(requested, discovered))
         )
 
+    def test_nothing_discovered(self):
+        """
+        If no device is discovered, the repr of ``AttachedUnexpectedDevice``
+        shows this with a ``None`` value for ``discovered``.
+        """
+        requested = FilePath(b"/dev/sda")
+        discovered = None
+        expected = (
+            "AttachedUnexpectedDevice(requested='/dev/sda', discovered=None)"
+        )
+        self.assertEqual(
+            expected,
+            repr(AttachedUnexpectedDevice(requested, discovered))
+        )
+
 
 class ExpectedDeviceTests(SynchronousTestCase):
     """

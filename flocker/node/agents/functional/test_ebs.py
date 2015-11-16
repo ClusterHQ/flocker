@@ -203,40 +203,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         self.assertIs(result, None)
 
-    def test_attached_unexpected_device_repr(self):
-        """
-        The repr of an ``AttachedUnexpectedDevice`` instance includes requested
-        and discovered device names.
-        """
-        requested = FilePath(b"/dev/sdk")
-        discovered = FilePath(b'/dev/sdl')
-        expected_repr = (
-            "AttachedUnexpectedDevice(requested={!r}, discovered={!r})".format(
-                requested.basename(), discovered.basename(),
-            )
-        )
-        exception_repr = repr(
-            AttachedUnexpectedDevice(requested, discovered)
-        )
-        self.assertEqual(expected_repr, exception_repr)
-
-    def test_attached_unexpected_device_nothing_discovered(self):
-        """
-        If no device is discovered, the repr of ``AttachedUnexpectedDevice``
-        shows this.
-        """
-        requested = FilePath(b"/dev/sda")
-        discovered = None
-        expected_repr = (
-            "AttachedUnexpectedDevice(requested={!r}, discovered=None)".format(
-                requested.basename()
-            )
-        )
-        exception_repr = repr(
-            AttachedUnexpectedDevice(requested, discovered)
-        )
-        self.assertEqual(expected_repr, exception_repr)
-
     def test_create_volume_gold_profile(self):
         """
         Requesting ``gold`` profile during volume creation honors
