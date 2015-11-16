@@ -286,6 +286,15 @@ class NodeStateCommand(Command):
     response = []
 
 
+class Timeout(object):
+    def __init__(self, reactor, timeout, action):
+        self._delay_call = reactor.callLater(timeout, action)
+        self._timeout = timeout
+
+    def reset(self):
+        self._delay_call.reset(self._timeout)
+
+
 class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
@@ -355,6 +364,10 @@ class ControlServiceLocator(CommandLocator):
         # with more interesting information.
         return {}
 
+p = YourProtocol() --> p.__init__()
+p.makeConnection(transport) -> p.connectionMade()
+
+action = action = lambda: protocol.transport.abortConnection()
 
 class FlockerServiceAMP(AMP):
     """
@@ -364,6 +377,11 @@ class FlockerServiceAMP(AMP):
     def __init__(self, *args, **kwargs):
         #self.last
         AMP.__init__(self, *args, **kwargs)
+        self._timeout = Timeout(reactor, 2 * PING_TIMEOUT, self.close_connection)
+
+    def locateResponder(self, ...):
+        self._timeout.reset()
+        return AMP.locateResponder(...)
 
     def close_connection(self):
         self.transport.abortConnection()
@@ -738,8 +756,7 @@ class _AgentLocator(CommandLocator):
         import pdb;pdb.set_trace()
         return CommandLocator.locateResponder(self, name)
 
-    @NoOp.responder
-    def noop(self):
+    @NoOp(self):
         """
         Perform no operation.
         """
