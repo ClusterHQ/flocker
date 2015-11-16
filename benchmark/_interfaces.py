@@ -39,7 +39,9 @@ class IScenario(Interface):
 
 
 class IProbe(Interface):
-    """A probe that performs an operation."""
+    """
+    A probe that performs an operation.
+    """
 
     def run():
         """
@@ -59,7 +61,14 @@ class IProbe(Interface):
 
 
 class IOperation(Interface):
-    """An operation that can be performed."""
+    """
+    An operation that can be performed.
+    """
+
+    def __init__(self, control_service):
+        """
+        Provide the operation with a control service.
+        """
 
     def get_probe():
         """
@@ -73,11 +82,19 @@ class IMetric(Interface):
     """
     A metric to be measured.
     """
+
+    def __init__(self, clock, control_service):
+        """
+        Provide the metric with a clock and control service.
+        """
+
     def measure(self, f, *a, **kw):
         """
         Measure the change in the metric while performing a function.
 
-        :param f: Function to call.
-        :param a: Positional arguments to function.
-        :param kw: Keyword arguments to function.
+        :param f: The measured function, which must return a Deferred.
+        :param a: Positional arguments to function ``f``.
+        :param kw: Keyword arguments to function ``f``.
+        :return: Deferred firing when measurement has been taken, with the
+            value of the measurement.
         """

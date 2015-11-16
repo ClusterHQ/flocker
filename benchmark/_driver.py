@@ -21,6 +21,11 @@ def benchmark(metric, operation, scenario, num_samples=3):
     :param IOperation operation: An operation to perform.
     :param IScenario scenario: A load scenario.
     :param int num_samples: Number of samples to take.
+    :return: Deferred firing with a list of samples. Each sample is a
+        dictionary containing a ``success`` boolean. If ``success is True``,
+        the dictionary also contains a ``value`` for the sample measurement.
+        If ``success is False``, the dictionary also contains a ``reason`` for
+        failure.
     """
     scenario_established = scenario.start()
 

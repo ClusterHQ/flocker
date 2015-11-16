@@ -16,6 +16,12 @@ from benchmark._interfaces import IProbe, IOperation
 
 
 def check_interfaces(factory):
+    """
+    Check interfaces for IOpoeration/IProbe pairs.
+
+    Check that an IOperation factory produces an IOperation, whose
+    ``get_probe`` method creates an IProbe.
+    """
 
     class OperationTests(TestCase):
 
