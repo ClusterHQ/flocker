@@ -15,4 +15,4 @@ Flocker Concepts
 .. toctree::
    :hidden:
 
-   _storage-profiles-content
+   _content/storage-profiles-content
