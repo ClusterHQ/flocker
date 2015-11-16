@@ -6,10 +6,11 @@ Logic for handling flaky tests.
 
 from functools import partial
 
+import flaky as _flaky
 import testtools
 
 
-def flaky(jira_key):
+def flaky(jira_key, max_runs=None, min_passes=None):
     """
     Mark a test as flaky.
 
@@ -19,6 +20,9 @@ def flaky(jira_key):
 
     :param unicode jira_key: The JIRA key of the bug for this flaky test,
         e.g. 'FLOC-2345'
+    :param int max_runs: The maximum number of times to run the test.
+    :param int min_passes: The minimum number of passes required to treat this
+        test as successful.
     :return: A decorator that can be applied to `TestCase` methods.
     """
     # XXX: This raises a crappy error message if you forgot to provide a JIRA
@@ -31,7 +35,8 @@ def flaky(jira_key):
     # - provide interesting & parseable logs for flaky tests
 
     def wrapper(test_method):
-        return test_method
+        return _flaky.flaky(max_runs=max_runs, min_passes=min_passes)(
+            test_method)
     return wrapper
 
 
