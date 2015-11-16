@@ -60,6 +60,7 @@ from ..blockdevice import (
     INVALID_DEVICE_PATH,
     CREATE_VOLUME_PROFILE_DROPPED,
     DISCOVERED_RAW_STATE,
+    ATTACH_VOLUME,
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
@@ -4218,7 +4219,8 @@ class AttachVolumeTests(
     """
     Tests for ``AttachVolume``\ 's ``IStateChange`` implementation.
     """
-    def test_run(self):
+    @validate_logging(assertHasAction, ATTACH_VOLUME, True)
+    def test_run(self, logger):
         """
         ``AttachVolume.run`` attaches a volume to a host.
         """
@@ -4231,6 +4233,7 @@ class AttachVolumeTests(
         )
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
+        self.patch(blockdevice, "_logger", logger)
         self.successResultOf(run_state_change(change, deployer))
 
         expected_volume = volume.set(

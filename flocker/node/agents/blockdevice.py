@@ -658,7 +658,7 @@ class AttachVolume(PRecord):
     @property
     def eliot_action(self):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
-                             blockdevice_id=self.blockdevice_id)
+                             block_device_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
