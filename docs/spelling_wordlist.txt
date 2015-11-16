@@ -51,6 +51,7 @@ invalidations
 IPv4
 IPv
 journald
+keychain
 keypair
 Kubernetes
 libswarm

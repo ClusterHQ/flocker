@@ -68,6 +68,7 @@ More information on these integrations is :ref:`available in the Labs section <l
 Get Started with the Flocker Plugin for Docker
 ==============================================
 
-Before you install the plugin, you'll need to :ref:`install the Flocker node services<installing-flocker-node>`.
+The plugin is installed on each node in your cluster, and can be installed at the same time as the Flocker node services.
+For more information, see :ref:`installing-flocker-node`.
 
-For instructions specific to installing the plugin, see :ref:`install-docker-plugin`.
+When the plugin has been installed, you will need to :ref:`create API user certificates for access to the Flocker REST API <generate-api-docker-plugin>`, and then :ref:`enable the plugin <enabling-agent-service>` before you can use it to :ref:`control Flocker <using-docker-plugin>`.

@@ -1104,6 +1104,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         self.service = AgentLoopService(
             reactor=self.reactor, deployer=self.deployer, host=u"example.com",
             port=1234, context_factory=ClientContextFactory(), era=uuid4())
+        self.node_state = NodeState(uuid=self.deployer.node_uuid,
+                                    hostname=self.deployer.hostname)
 
     def test_start_service(self):
         """
@@ -1202,11 +1204,29 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         service = self.service
         service.cluster_status = fsm = StubFSM()
-        config = object()
-        state = object()
+        config = Deployment()
+        state = DeploymentState(
+            nodes=[self.node_state],
+            node_uuid_to_era={self.deployer.node_uuid: self.service.era})
         service.cluster_updated(config, state)
         self.assertEqual(fsm.inputted, [_StatusUpdate(configuration=config,
                                                       state=state)])
+
+    def test_cluster_updated_wrong_era(self):
+        """
+        The ``NodeState`` for the local node is removed from the update if the
+        era doesn't match this node's actual era.
+        """
+        service = self.service
+        service.cluster_status = fsm = StubFSM()
+        config = Deployment()
+        state = DeploymentState(
+            nodes=[self.node_state],
+            node_uuid_to_era={self.deployer.node_uuid: uuid4()})
+        service.cluster_updated(config, state)
+        self.assertEqual(fsm.inputted,
+                         [_StatusUpdate(configuration=config,
+                                        state=state.set(nodes=[]))])
 
 
 def _build_service(test):
