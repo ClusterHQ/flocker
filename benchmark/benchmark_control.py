@@ -66,6 +66,9 @@ class BenchmarkOptions(Options):
 config = BenchmarkOptions()
 try:
     config.parseOptions()
+    if not config['control'] and config['operation'] != 'no-op':
+        # No-op is OK with no control service
+        raise UsageError('Control service required')
 except UsageError as e:
     sys.stderr.write(config.getUsage())
     sys.stderr.write('\n{}\n'.format(str(e)))

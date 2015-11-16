@@ -8,7 +8,7 @@ from eliot.twisted import DeferredContext
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
-from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.defer import maybeDeferred, Deferred, succeed
 
 from flocker.apiclient import FlockerClient
 
@@ -93,17 +93,22 @@ def driver(reactor, config, operation, metric, scenario, result, output):
         printing or storage.
     """
 
-    cert_directory = FilePath(config['certs'])
-    control_service = FlockerClient(
-        reactor,
-        host=config['control'],
-        port=4523,
-        ca_cluster_path=cert_directory.child(b"cluster.crt"),
-        cert_path=cert_directory.child(b"user.crt"),
-        key_path=cert_directory.child(b"user.key"),
-    )
+    if config['control']:
+        cert_directory = FilePath(config['certs'])
+        control_service = FlockerClient(
+            reactor,
+            host=config['control'],
+            port=4523,
+            ca_cluster_path=cert_directory.child(b"cluster.crt"),
+            cert_path=cert_directory.child(b"user.crt"),
+            key_path=cert_directory.child(b"user.key"),
+        )
 
-    d = control_service.version()
+        d = control_service.version()
+    else:
+        # Only valid for operation 'no-op'
+        control_service = None
+        d = succeed({u'flocker': None})
 
     def add_control_service(version, result):
         result['control_service'] = dict(
