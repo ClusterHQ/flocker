@@ -15,7 +15,6 @@ from boto.ec2.volume import (
 from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SkipTest, TestCase
 from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 
@@ -25,7 +24,7 @@ from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    AttachedUnexpectedDevice, EBSMandatoryProfileAttributes,
+    EBSMandatoryProfileAttributes,
 )
 from ....testtools import flaky
 
