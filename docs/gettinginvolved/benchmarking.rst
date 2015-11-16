@@ -19,7 +19,7 @@ The :program:`benchmark/benchmark_control.py` script has several options:
 .. option:: --control <control-service-ipaddr>
 
    Specifies the IP address for the Flocker cluster control node.
-   Defaults to using a fake control service for testing.
+   This must be specified, unless the ``no-op`` operation is requested.
 
 .. option:: --certs <directory>
 
@@ -41,14 +41,14 @@ The :program:`benchmark/benchmark_control.py` script has several options:
    This operation is sampled 3 times.
    Supported values include:
 
-      ``nop``
-         A no-op operation.
+      ``no-op``
+         A no-op operation that performs no action.
 
       ``read-request``
          Read from the control service.
          This is the default.
 
-.. option:: --measure <measurement>
+.. option:: --metric <measurement>
 
    Specifies the quantity to measure while the operation is performed.
    Supported values include:
