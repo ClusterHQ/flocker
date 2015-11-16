@@ -591,13 +591,17 @@ def task_test_homebrew(recipe):
     :return Effect: Commands used to install a Homebrew recipe for Flocker and
         test it.
     """
+    # Arbitrarily selected value
+    timeout = 160.0
 
     return sequence([
         retry_effect_with_timeout(
-            run_from_args(['brew', 'tap', 'ClusterHQ/tap']), 160),
-        retry_effect_with_timeout(run("brew update"), 160),
+            run_from_args(['brew', 'tap', 'ClusterHQ/tap']), timeout,
+        ),
+        retry_effect_with_timeout(run("brew update"), timeout),
         retry_effect_with_timeout(
-            run("brew install {recipe}".format(recipe=recipe)), 160),
+            run("brew install {recipe}".format(recipe=recipe)), timeout,
+        ),
         run("brew test {recipe}".format(recipe=recipe)),
     ])
 
