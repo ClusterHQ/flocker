@@ -362,7 +362,7 @@ class ContainerAPITests(TestCase):
                     u"node_uuid": node.uuid,
                     u"volumes": [{u"dataset_id": unicode(dataset.dataset_id),
                                   u"mountpoint": u"/data"}],
-                }, SCRIPTS.child(b"reboot.py"),
+                }, SCRIPTS.child(b"remember_boot_id.py"),
                 additional_arguments=[u"/data"])
         creating_dataset.addCallback(created_dataset)
 
