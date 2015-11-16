@@ -6,14 +6,11 @@ Driver for the control service benchmarks.
 from eliot import start_action
 from eliot.twisted import DeferredContext
 
-from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
 from twisted.internet.defer import maybeDeferred, Deferred
 
-from flocker.apiclient import (
-    IFlockerAPIV1Client, FakeFlockerClient, FlockerClient,
-)
+from flocker.apiclient import FlockerClient
 
 
 def benchmark(metric, operation, scenario, num_samples=3):
@@ -78,35 +75,6 @@ def benchmark(metric, operation, scenario, num_samples=3):
     return benchmarking
 
 
-class FastConvergingFakeFlockerClient(
-    proxyForInterface(IFlockerAPIV1Client)
-):
-    def create_dataset(self, *a, **kw):
-        result = self.original.create_dataset(*a, **kw)
-        self.original.synchronize_state()
-        return result
-
-    def move_dataset(self, *a, **kw):
-        result = self.original.move_dataset(*a, **kw)
-        self.original.synchronize_state()
-        return result
-
-    def delete_dataset(self, *a, **kw):
-        result = self.original.delete_dataset(*a, **kw)
-        self.original.synchronize_state()
-        return result
-
-    def create_container(self, *a, **kw):
-        result = self.original.create_container(*a, **kw)
-        self.original.synchronize_state()
-        return result
-
-    def delete_container(self, *a, **kw):
-        result = self.original.delete_container(*a, **kw)
-        self.original.synchronize_state()
-        return result
-
-
 def driver(reactor, config, operation, metric, scenario, result, output):
     """
     :param reactor:
@@ -120,18 +88,15 @@ def driver(reactor, config, operation, metric, scenario, result, output):
         printing or storage.
     """
 
-    if config['control']:
-        cert_directory = FilePath(config['certs'])
-        control_service = FlockerClient(
-            reactor,
-            host=config['control'],
-            port=4523,
-            ca_cluster_path=cert_directory.child(b"cluster.crt"),
-            cert_path=cert_directory.child(b"user.crt"),
-            key_path=cert_directory.child(b"user.key"),
-        )
-    else:
-        control_service = FastConvergingFakeFlockerClient(FakeFlockerClient())
+    cert_directory = FilePath(config['certs'])
+    control_service = FlockerClient(
+        reactor,
+        host=config['control'],
+        port=4523,
+        ca_cluster_path=cert_directory.child(b"cluster.crt"),
+        cert_path=cert_directory.child(b"user.crt"),
+        key_path=cert_directory.child(b"user.key"),
+    )
 
     d = control_service.version()
 
