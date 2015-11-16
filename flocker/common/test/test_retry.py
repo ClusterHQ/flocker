@@ -487,7 +487,7 @@ class RetryEffectTests(SynchronousTestCase):
 
     def test_timeout(self):
         """
-        If the timeout expires, the retry effect fail with the exception from
+        If the timeout expires, the retry effect fails with the exception from
         the final time the wrapped effect is performed.
         """
         expected_intents = [
