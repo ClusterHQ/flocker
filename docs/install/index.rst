@@ -21,6 +21,5 @@ Once you have Flocker installed, you will need to complete the :ref:`post-instal
 .. toctree::
    :hidden:
 
-   plugin-restrictions
    setup-aws
    setup-rackspace
