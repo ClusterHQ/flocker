@@ -66,44 +66,32 @@ class FakeOperation:
 
 class FakeScenario:
 
-    class FakeRunningScenario:
-
-        def __init__(self):
-            self.scenario_established = succeed(None)
-            self.scenario_maintained = Deferred()
-
-        def established(self):
-            return self.scenario_established
-
-        def maintained(self):
-            return self.scenario_maintained
-
-        def stop(self):
-            return succeed(None)
+    def __init__(self):
+        self.scenario_maintained = Deferred()
 
     def start(self):
-        return self.FakeRunningScenario()
+        return succeed(None)
+
+    def maintained(self):
+        return self.scenario_maintained
+
+    def stop(self):
+        return succeed(None)
 
 
 class FakeCollapsingScenario:
 
-    class FakeRunningScenario:
-
-        def __init__(self):
-            self.scenario_established = succeed(None)
-            self.scenario_maintained = Deferred()
-
-        def established(self):
-            return self.scenario_established
-
-        def maintained(self):
-            return fail(RuntimeError('collapse'))
-
-        def stop(self):
-            return succeed(None)
+    def __init__(self):
+        self.scenario_maintained = fail(RuntimeError('collapse'))
 
     def start(self):
-        return self.FakeRunningScenario()
+        return succeed(None)
+
+    def maintained(self):
+        return self.scenario_maintained
+
+    def stop(self):
+        return succeed(None)
 
 
 class SampleTest(TestCase):
