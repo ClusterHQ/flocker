@@ -251,6 +251,7 @@ class IFlockerAPIV1Client(Interface):
             will be started.
         :param unicode name: The name to assign to the container.
         :param unicode image: The name of ``Docker`` image which will be used.
+
         :return: ``Deferred`` firing with the configured ``Container`` or
             ``ContainerAlreadyExists`` if the supplied container name already
             exists.
@@ -264,6 +265,7 @@ class IFlockerAPIV1Client(Interface):
     def delete_container(name):
         """
         :param unicode name: The name of the container to be deleted.
+
         :return: ``Deferred`` firing with the deleted ``Container``.
         """
 
