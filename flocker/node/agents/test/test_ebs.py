@@ -4,11 +4,11 @@
 Tests for ``flocker.node.agents.ebs``.
 """
 
-from string import letters
+from string import lowercase
 from uuid import uuid4
 
 from hypothesis import given
-from hypothesis.strategies import binary, integers, sampled_from, builds
+from hypothesis.strategies import integers, sampled_from, builds
 
 from bitmath import GiB
 
@@ -28,7 +28,7 @@ from ....testtools import CustomException
 # A Hypothesis strategy for generating /dev/sd?
 device_path = builds(
     lambda suffix: b"/dev/sd" + suffix,
-    suffix=sampled_from(letters),
+    suffix=sampled_from(lowercase),
 )
 
 
@@ -150,6 +150,10 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
         # But there are complex criteria for selection.  So be careful which
         # device we select so as to fool the implementation.
         for wrong_device in blockdevices:
+            # Don't pick the one that's actually the right result
+            if wrong_device.basename().endswith(device[-1]):
+                continue
+
             if wrong_device.basename().startswith((b"sd", b"xvd")):
                 size = _get_device_size(wrong_device.basename())
                 volume = self.volume.set("size", size)
