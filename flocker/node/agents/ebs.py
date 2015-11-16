@@ -723,6 +723,13 @@ def _attach_volume_and_wait_for_device(
     :param list blockdevices: The OS device paths which are already present on
         the system before this operation is attempted (primarily useful to make
         testing easier).
+
+    :raise: Anything ``attach_volume`` can raise.  Or
+        ``AttachedUnexpectedDevice`` if the volume appears to become attached
+        to the wrong OS device file.
+
+    :return: ``True`` if the volume is attached and accessible via the expected
+        OS device file.  ``False`` if the attempt times out without succeeding.
     """
     try:
         attach_volume(volume.blockdevice_id, attach_to, device)
