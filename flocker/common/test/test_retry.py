@@ -438,9 +438,8 @@ class RetryEffectTests(SynchronousTestCase):
 
     def test_exponential_backoff(self):
         """
-        Retry the effect multiple times as long as the timeout doesn't expire.
-
-        Also make sure the exponential backoff runs properly.
+        Retry the effect multiple times with exponential backoff between
+        retries.
         """
         divisors = [0, 0, 0, 1]
 
@@ -482,7 +481,8 @@ class RetryEffectTests(SynchronousTestCase):
 
     def test_timeout(self):
         """
-        If the timeout expires, the effect should fail with the same exception.
+        If the timeout expires, the retry effect fail with the exception from
+        the final time the wrapped effect is performed.
         """
         seq = [
             (Delay(1), lambda ignore: None),
