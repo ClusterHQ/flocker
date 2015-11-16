@@ -409,7 +409,8 @@ class RetryEffectTests(SynchronousTestCase):
 
     def test_immediate_success(self):
         """
-        If the effect succeeds at first, no delay or retry is done.
+        If the wrapped effect succeeds at first, no delay or retry is done and
+        the retry effect's result is the wrapped effect's result.
         """
         effect = Effect(Constant(1000))
         retrier = retry_effect_with_timeout(effect, 10, time=self.get_time())
