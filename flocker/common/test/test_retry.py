@@ -18,6 +18,15 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.task import Clock
 from twisted.python.failure import Failure
 
+from effect import (
+    Effect,
+    Error,
+    Func,
+    Constant,
+    Delay,
+)
+from effect.testing import perform_sequence
+
 from .._retry import (
     LOOP_UNTIL_ACTION,
     LOOP_UNTIL_ITERATION_MESSAGE,
@@ -27,15 +36,6 @@ from .._retry import (
     retry_failure,
     poll_until,
 )
-
-from effect import (
-    Effect,
-    Error,
-    Func,
-    Constant,
-    Delay,
-)
-from effect.testing import perform_sequence
 
 
 class LoopUntilTests(SynchronousTestCase):
