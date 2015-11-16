@@ -36,15 +36,15 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
 
    Complete each of the steps in the EC2 wizard using the following suggestions (fields not mentioned below can be left with the default configuration):
 
-   * Choose instance type.
+   * **Choose instance type**:
      We recommend at least the ``m3.large`` instance size.
-   * Configure instance details.
+   * **Configure instance details**:
      You will need to configure a minimum of 2 instances.
-   * Add storage.
+   * **Add storage**:
      It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16 GB for the root device to avoid potential disk space problems.
-   * Tag instance.
+   * **Tag instance**:
      Flocker does not require the instance to be tagged.
-   * Configure security group.
+   * **Configure security group**:
       
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
      * To enable Flocker agents to communicate with the control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
@@ -54,11 +54,10 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
      * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
      * If you run the :ref:`MongoDB tutorial <tutorial-mongo>` using AWS, you will need to open port 27017 to allow your MongoDB client to connect to the database.
 
-   * Review to ensure your instances have sufficient storage and your security groups have the required ports.
-   * When you are ready to proceed, click Launch.
+   * **Launch**:
      This opens a prompt for you to either select an existing key pair, or create and download a new key pair.
 
-   Launch your instances when you are happy to proceed.
+   Click **Launch your instances** when you are happy to proceed.
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
