@@ -31,9 +31,15 @@ class IStateChange(Interface):
     An operation that changes local state.
     """
     eliot_action = Attribute(
-        "An ``eliot.ActionType`` within the context of which to execute this "
-        "state change's run method."
-    )
+        """
+        A hack whereby getting this attributes has a side-effect: a
+        ``eliot.ActionType`` is started and return. This state change's
+        run method should be run within the context of the returned
+        action.
+
+        At some point we should fix this so it's a method instead of a
+        attribute-which-must-always-be-a-property.
+        """)
 
     def run(deployer):
         """
@@ -70,30 +76,16 @@ def run_state_change(change, deployer):
 
     :return: ``Deferred`` firing when the change is done.
     """
-    if isinstance(change, _InParallel):
-        return gather_deferreds(list(
-            run_state_change(subchange, deployer)
-            for subchange in change.changes
-        ))
-    if isinstance(change, _Sequentially):
-        d = succeed(None)
-        for subchange in change.changes:
-            d.addCallback(
-                lambda _, subchange=subchange: run_state_change(
-                    subchange, deployer
-                )
-            )
-        return d
-
     with change.eliot_action.context():
         context = DeferredContext(maybeDeferred(change.run, deployer))
         context.addActionFinish()
         return context.result
 
 
-# run_state_change doesn't use the IStateChange implementation provided by
-# _InParallel and _Sequentially but those types provide it anyway because
-# certain other areas of the test suite depend on it.
+LOG_SEQUENTIALLY = ActionType("flocker:node:sequentially", [], [])
+LOG_IN_PARALLEL = ActionType("flocker:node:in_parallel", [], [])
+
+
 @implementer(IStateChange)
 class _InParallel(PRecord):
     changes = field(
@@ -105,12 +97,15 @@ class _InParallel(PRecord):
         mandatory=True
     )
 
-    # Supplied so we technically conform to the interface.  This won't actually
-    # be used.
-    eliot_action = None
+    @property
+    def eliot_action(self):
+        return LOG_IN_PARALLEL()
 
     def run(self, deployer):
-        return run_state_change(self, deployer)
+        return gather_deferreds(list(
+            run_state_change(subchange, deployer)
+            for subchange in self.changes
+        ))
 
 
 def in_parallel(changes):
@@ -133,16 +128,23 @@ def in_parallel(changes):
     return _InParallel(changes=changes)
 
 
-# See comment above _InParallel.
 @implementer(IStateChange)
 class _Sequentially(PRecord):
     changes = field(type=PVector, factory=pvector, mandatory=True)
 
-    # See comment for _InParallel.eliot_action.
-    eliot_action = None
+    @property
+    def eliot_action(self):
+        return LOG_SEQUENTIALLY()
 
     def run(self, deployer):
-        return run_state_change(self, deployer)
+        d = DeferredContext(succeed(None))
+        for subchange in self.changes:
+            d.addCallback(
+                lambda _, subchange=subchange: run_state_change(
+                    subchange, deployer
+                )
+            )
+        return d.result
 
 
 def sequentially(changes):

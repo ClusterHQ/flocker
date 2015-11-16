@@ -41,6 +41,11 @@
     </script>
     <link rel="top" title="{{ docstitle|e }}" href="{{ pathto('index') }}"/>
 
+    <!-- Snippet from https://clusterhq.zendesk.com/agent/apps/zopim-chat -->
+    <!-- Start of clusterhq Zendesk Widget script -->
+    <script>/*<![CDATA[*/window.zEmbed||function(e,t){var n,o,d,i,s,a=[],r=document.createElement("iframe");window.zEmbed=function(){a.push(arguments)},window.zE=window.zE||window.zEmbed,r.src="javascript:false",r.title="",r.role="presentation",(r.frameElement||r).style.cssText="display: none",d=document.getElementsByTagName("script"),d=d[d.length-1],d.parentNode.insertBefore(r,d),i=r.contentWindow,s=i.document;try{o=s}catch(c){n=document.domain,r.src='javascript:var d=document.open();d.domain="'+n+'";void(0);',o=s}o.open()._l=function(){var o=this.createElement("script");n&&(this.domain=n),o.id="js-iframe-async",o.src=e,this.t=+new Date,this.zendeskHost=t,this.zEQueue=a,this.body.appendChild(o)},o.write('<body onload="document._l();">'),o.close()}("//assets.zendesk.com/embeddable_framework/main.js","clusterhq.zendesk.com");/*]]>*/</script>
+    <!-- End of clusterhq Zendesk Widget script -->
+
     {% if theme_analytics_code %}
         <script type="text/javascript">
             var _gaq = _gaq || [];
@@ -147,12 +152,28 @@
                     </div>
                 </div>
 
-                <!-- Disqus -->
-                {% if theme_disqus_shortname %}
-                    <div id="disqus_thread"></div>
-                    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-                {% endif %}
-                <!-- End of Disqus -->
+                <!-- Feedback form -->
+                <div class="row">
+                    <div class="col-sm-8 feedback-form">
+                        <h3>How could we improve this page?</h3>
+                        <form method="post" action="https://www.formstack.com/forms/index.php" id="feedback">
+                            <!-- Form ID and keys are from formstack for this specific form -->
+                            <input type="hidden" name="form" value="2174054" />
+                            <input type="hidden" name="viewkey" value="ErUKrnw85k" />
+                            <input type="hidden" name="_submit" value="1" />
+                            <!-- The field names here are the field names as produced by Formstack for our form -->
+                            <input type="hidden" name="field37192831" value="UNKNOWN" id="currenturl" />
+                            <script>
+                                // populate the current URL field
+                                document.querySelector("#currenturl").value = window.location.href;
+                            </script>
+                            <textarea class="form-control" rows="3" name="field37192409" placeholder="Your Feedback" required="required"></textarea>
+                            <input type="text" name="field37192455" placeholder="Your email address (optional)" class="form-control"/>
+                            <input type="submit" class="button" />
+                        </form>
+                    </div>
+                </div>
+                <!-- End of Feedback form -->
             </div>
         </div>
     </div>
@@ -239,5 +260,8 @@
             }
         });
     </script>
+
+    <!-- Javascript include for form feedback submit -->
+    <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
   </body>
 </html>

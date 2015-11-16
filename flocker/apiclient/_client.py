@@ -7,6 +7,7 @@ Client for the Flocker REST API.
 from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
+from os import environ
 
 from ipaddr import IPv4Address, IPv6Address, IPAddress
 
@@ -21,12 +22,15 @@ from eliot.twisted import DeferredContext
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
-from twisted.web.http import CREATED, OK, CONFLICT
+from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
+from twisted.internet.utils import getProcessOutput
 
 from treq import json_content, content
 
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError, DockerImage
+from ..common import retry_failure
+
 from .. import __version__
 
 _LOG_HTTP_REQUEST = ActionType(
@@ -259,6 +263,13 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with the deleted ``Container``.
         """
 
+    def this_node_uuid():
+        """
+        Return this node's UUID by looking it up by era.
+
+        This is the recommended way of discovering the node UUID.
+        """
+
 
 @implementer(IFlockerAPIV1Client)
 class FakeFlockerClient(object):
@@ -268,13 +279,14 @@ class FakeFlockerClient(object):
     # Placeholder time, we don't model the progress of time at all:
     _NOW = datetime.fromtimestamp(0, UTC)
 
-    def __init__(self, nodes=None):
+    def __init__(self, nodes=None, this_node_uuid=uuid4()):
         self._configured_datasets = pmap()
         self._configured_containers = pmap()
         self._leases = LeasesModel()
         if nodes is None:
             nodes = []
         self._nodes = nodes
+        self._this_node_uuid = this_node_uuid
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
@@ -376,6 +388,9 @@ class FakeFlockerClient(object):
         self._configured_containers = self._configured_containers.remove(name)
         return succeed(deleted_container)
 
+    def this_node_uuid(self):
+        return succeed(self._this_node_uuid)
+
 
 class ResponseError(Exception):
     """
@@ -385,6 +400,12 @@ class ResponseError(Exception):
         Exception.__init__(self, "Unexpected response code {}:\n{}\n".format(
             code, body))
         self.code = code
+
+
+class NotFound(Exception):
+    """
+    Result was not found.
+    """
 
 
 @implementer(IFlockerAPIV1Client)
@@ -402,6 +423,7 @@ class FlockerClient(object):
         :param FilePath cert_path: Path to user certificate.
         :param FilePath key_path: Path to user private key.
         """
+        self._reactor = reactor
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
@@ -416,7 +438,7 @@ class FlockerClient(object):
             body of the request.
         :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
-            raised if it is present, or ``None`` to send no headers.
+            raised if it is present, or ``None`` to set no errors.
 
         :return: ``Deferred`` firing with decoded JSON.
         """
@@ -643,4 +665,18 @@ class FlockerClient(object):
             None, {OK}
         )
         request.addCallback(self._parse_configuration_container)
+        return request
+
+    def this_node_uuid(self):
+        getting_era = getProcessOutput(
+            "flocker-node-era", reactor=self._reactor, env=environ)
+
+        def got_era(era):
+            return retry_failure(
+                self._reactor, lambda: self._request(
+                    b"GET", b"/state/nodes/by_era/" + era, None, {OK},
+                    {NOT_FOUND: NotFound},
+                ), [NotFound])
+        request = getting_era.addCallback(got_era)
+        request.addCallback(lambda result: UUID(result["uuid"]))
         return request

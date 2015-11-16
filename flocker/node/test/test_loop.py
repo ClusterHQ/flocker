@@ -6,6 +6,7 @@ Tests for ``flocker.node._loop``.
 
 from itertools import repeat
 from uuid import uuid4
+from datetime import timedelta
 
 from eliot.testing import validate_logging, assertHasAction, assertHasMessage
 from machinist import LOG_FSM_TRANSITION
@@ -13,14 +14,18 @@ from machinist import LOG_FSM_TRANSITION
 from pyrsistent import pset
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
-from twisted.internet.protocol import Protocol, ReconnectingClientFactory
+from twisted.test.proto_helpers import MemoryReactorClock
+from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
+from twisted.protocols.amp import AMP, CommandLocator
+from twisted.test.iosim import connectedServerAndClient
 
-from ...testtools.amp import FakeAMPClient, DelayedAMPClient
+from ...testtools.amp import (
+    FakeAMPClient, DelayedAMPClient, connected_amp_protocol,
+)
 from ...testtools import CustomException
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
@@ -28,25 +33,16 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
-    _Sleep,
+    _UNCONVERGED_DELAY, _Sleep,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
     Application, DockerImage,
 )
-from ...control._protocol import NodeStateCommand, AgentAMP
+from ...control._protocol import NodeStateCommand, AgentAMP, SetNodeEraCommand
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
 from .. import NoOp
-
-
-def build_protocol():
-    """
-    :return: ``Protocol`` hooked up to transport.
-    """
-    p = Protocol()
-    p.makeConnection(StringTransport())
-    return p
 
 
 class StubFSM(object):
@@ -119,7 +115,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         Neither new connections nor status updates cause the client to be
         disconnected.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         self.fsm.receive(_ConnectedToControlService(client=client))
         self.fsm.receive(_StatusUpdate(configuration=object(),
                                        state=object()))
@@ -130,7 +126,8 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         If the client disconnects before a status update is received then no
         notification is needed for convergence loop FSM.
         """
-        self.fsm.receive(_ConnectedToControlService(client=build_protocol()))
+        self.fsm.receive(
+            _ConnectedToControlService(client=connected_amp_protocol()))
         self.fsm.receive(ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
         self.assertConvergenceLoopInputted([])
 
@@ -186,7 +183,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         received then it disconnects but does not notify the agent
         operation FSM.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         self.fsm.receive(_ConnectedToControlService(client=client))
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.assertEqual((client.transport.disconnecting,
@@ -199,7 +196,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         then it disconnects and also notifys the convergence loop FSM that
         is should stop.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         desired = object()
         state = object()
         self.fsm.receive(_ConnectedToControlService(client=client))
@@ -213,7 +210,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         """
         If the FSM has been shutdown it ignores disconnection event.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         desired = object()
         state = object()
         self.fsm.receive(_ConnectedToControlService(client=client))
@@ -231,7 +228,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         """
         If the FSM has been shutdown it ignores cluster status update.
         """
-        client = build_protocol()
+        client = connected_amp_protocol()
         desired = object()
         state = object()
         self.fsm.receive(_ConnectedToControlService(client=client))
@@ -246,6 +243,29 @@ def no_action():
     Return an ``IStateChange`` that immediately does nothing.
     """
     return ControllableAction(result=succeed(None))
+
+
+class SleepTests(SynchronousTestCase):
+    """
+    Tests for ``_Sleep``.
+    """
+    def test_jitter(self):
+        """
+        ``_Sleep.with_jitter`` adds some noise to the given delay.
+        """
+        base = 100
+        delays = [_Sleep.with_jitter(base).delay_seconds for i in range(3000)]
+        # Since we're dealing with random results we can't quite assert
+        # deterministically, but we can get some assurance.
+        self.assertEqual(
+            dict(less_than_max=all(d <= 1.2 * base for d in delays),
+                 more_than_min=all(d >= 0.8 * base for d in delays),
+                 expected_average=(abs(sum(delays) / 3000.0 - base) < 5),
+                 spread=(max(delays) - min(delays)) > 0.2 * base),
+            dict(less_than_max=True,
+                 more_than_min=True,
+                 expected_average=True,
+                 spread=True))
 
 
 class ConvergenceLoopFSMTests(SynchronousTestCase):
@@ -350,7 +370,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -389,7 +409,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -425,7 +445,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -490,8 +510,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             client=client, configuration=configuration, state=state))
 
         # Wait for all three iterations to occur.
-        reactor.advance(1.0)
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -611,11 +631,14 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     @validate_logging(assert_full_logging)
     def convergence_iteration(
             self, logger,
+            initial_action=ControllableAction(result=succeed(None)),
             later_actions=[ControllableAction(result=succeed(None)),
                            ControllableAction(result=succeed(None))]):
         """
         Do one iteration of a convergence loop.
 
+        :param initial_action: First ``IStateChange`` provider to
+            calculate as necessary action.
         :param later_actions: List of ``IStateChange``, to be returned
             second and third times discovery is done, i.e. after first
             iteration.
@@ -625,12 +648,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
         self.configuration = configuration = Deployment()
         self.cluster_state = received_state = DeploymentState(nodes=[])
-        self.action = action = ControllableAction(result=succeed(None))
+        self.action = initial_action
         # We only support discovery twice; anything more will result in
         # exception being thrown:
         self.deployer = deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state), succeed(local_state)],
-            [action] + later_actions,
+            [initial_action] + later_actions,
+            poll_interval=timedelta(seconds=300),
         )
         client = self.make_amp_client([local_state])
         self.reactor = reactor = Clock()
@@ -676,7 +700,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         the next iteration of the event loop uses it. The event loop is
         not woken up if the update would not result in newly calculated
         required actions.
-
         """
         # Later calculations will return a NoOp(), indicating no need to
         # wake up:
@@ -687,15 +710,15 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         changed_state = DeploymentState(
             nodes=[node_state, self.local_state])
 
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=changed_configuration, state=changed_state))
         num_calculations_pre_sleep = len(self.deployer.calculate_inputs)
 
         # Action finally finishes, and we can move on to next iteration,
-        # but only after sleep.
-        self.reactor.advance(_Sleep.delay_seconds)
+        # but only after sleeping.
+        self.reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
         num_calculations_after_sleep = len(self.deployer.calculate_inputs)
         self.assertEqual(
             dict(pre=num_calculations_pre_sleep,
@@ -715,7 +738,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
         remaining_discover_calls = len(self.deployer.local_states)
 
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=self.configuration, state=self.cluster_state))
@@ -723,6 +746,44 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual(
             remaining_discover_calls - len(self.deployer.local_states),
             0)
+
+    def test_longer_sleep_when_converged(self):
+        """
+        When a convergence loop results in a ``NoOp`` the sleep is based on
+        that configured on the ``Deployer``.
+        """
+        loop = self.convergence_iteration(initial_action=NoOp(),
+                                          later_actions=[NoOp(), NoOp()])
+
+        # An update received while sleeping:
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=self.configuration, state=self.cluster_state))
+
+        # No additional discovery done due to update:
+        pre_sleep = len(self.deployer.local_states)
+
+        [delayed_call] = self.reactor.getDelayedCalls()
+        delay = delayed_call.getTime() - self.reactor.seconds()
+
+        # Sleep until 50ms before wakeup point, so we should still be
+        # sleeping:
+        self.reactor.advance(delay - 0.05)
+        mid_sleep = len(self.deployer.local_states)
+
+        # Sleep until right after event happens, with extra bit of sleep
+        # to ensure we don't break on floating point rounding errors:
+        self.reactor.advance(0.051)
+        post_sleep = len(self.deployer.local_states)
+
+        self.assertEqual(
+            dict(long_enough=(delay > 200),
+                 pre=pre_sleep, mid=mid_sleep, post=post_sleep),
+            dict(long_enough=True,  # deployer has 300s sleep with jitter added
+                 pre=1,  # no new iteration yet
+                 mid=1,  # slept not quite enough, so still no new iteration
+                 post=0),  # slept full poll interval, new iteration
+        )
 
     def test_convergence_iteration_status_update_wakeup(self):
         """
@@ -737,7 +798,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             nodes=frozenset([to_node(node_state)]))
         changed_state = DeploymentState(
             nodes=[node_state, self.local_state])
-        # Another update received while sleeping:
+        # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
             client=self.make_amp_client([self.local_state]),
             configuration=changed_configuration, state=changed_state))
@@ -776,7 +837,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         # Wait for the delay in the convergence loop to pass.  This won't do
         # anything, since we are also waiting for state to be acknowledged.
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # Only one status update was sent.
         self.assertListEqual(
@@ -807,7 +868,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.patch(loop, "logger", logger)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
         # Calculating actions happened, result was run and caused error...
         # but we started on loop again and are thus in discovery state,
         # which we can tell because all faked local states have been
@@ -843,7 +904,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # If the loop kept running then the good state following the error
         # state should have been sent via the AMP client on a subsequent
@@ -911,7 +972,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # which happens with second set of client, desired configuration
         # and cluster state:
         action.result.callback(None)
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
@@ -948,7 +1009,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop.receive(ConvergenceLoopInputs.STOP)
         # Action finally finishes:
         action.result.callback(None)
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
 
         # work is scheduled:
         expected = (
@@ -1010,13 +1071,27 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # which happens with second set of client, desired configuration
         # and cluster state:
         action.result.callback(None)
-        reactor.advance(1.0)
+        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
             ([(local_state, configuration, state),
               (local_state2, configuration2, state2)],
              [(NodeStateCommand, dict(state_changes=(local_state,)))],
              [(NodeStateCommand, dict(state_changes=(local_state2,)))]))
+
+
+class UpdateNodeEraLocator(CommandLocator):
+    """
+    An AMP locator that can handle the ``SetNodeEraCommand`` AMP command.
+    """
+    uuid = None
+    era = None
+
+    @SetNodeEraCommand.responder
+    def set_node_era(self, era, node_uuid):
+        self.era = era
+        self.uuid = node_uuid
+        return {}
 
 
 class AgentLoopServiceTests(SynchronousTestCase):
@@ -1028,7 +1103,9 @@ class AgentLoopServiceTests(SynchronousTestCase):
         self.reactor = MemoryReactorClock()
         self.service = AgentLoopService(
             reactor=self.reactor, deployer=self.deployer, host=u"example.com",
-            port=1234, context_factory=ClientContextFactory())
+            port=1234, context_factory=ClientContextFactory(), era=uuid4())
+        self.node_state = NodeState(uuid=self.deployer.node_uuid,
+                                    hostname=self.deployer.hostname)
 
     def test_start_service(self):
         """
@@ -1070,10 +1147,28 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         service = self.service
         service.cluster_status = fsm = StubFSM()
-        client = object()
+        client = connected_amp_protocol()
         service.connected(client)
         self.assertEqual(fsm.inputted,
                          [_ConnectedToControlService(client=client)])
+
+    def test_send_era_on_connect(self):
+        """
+        Upon connecting a ``SetNodeEraCommand`` is sent with the current
+        node's era and UUID.
+        """
+        client = AgentAMP(self.reactor, self.service)
+        # The object that processes incoming AMP commands:
+        server_locator = UpdateNodeEraLocator()
+        server = AMP(locator=server_locator)
+        pump = connectedServerAndClient(lambda: client, lambda: server)[2]
+        pump.flush()
+        self.assertEqual(
+            # Actual result of handling AMP commands, if any:
+            dict(era=server_locator.era, uuid=server_locator.uuid),
+            # Expected result:
+            dict(era=unicode(self.service.era),
+                 uuid=unicode(self.deployer.node_uuid)))
 
     def test_connected_resets_factory_delay(self):
         """
@@ -1085,7 +1180,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         # don't hammer the server with reconnects):
         factory.delay += 500000
         # But now we successfully connect!
-        client = factory.buildProtocol(None)
+        client = connected_amp_protocol()
         self.service.connected(client)
         self.assertEqual(factory.delay, factory.initialDelay)
 
@@ -1109,11 +1204,29 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         service = self.service
         service.cluster_status = fsm = StubFSM()
-        config = object()
-        state = object()
+        config = Deployment()
+        state = DeploymentState(
+            nodes=[self.node_state],
+            node_uuid_to_era={self.deployer.node_uuid: self.service.era})
         service.cluster_updated(config, state)
         self.assertEqual(fsm.inputted, [_StatusUpdate(configuration=config,
                                                       state=state)])
+
+    def test_cluster_updated_wrong_era(self):
+        """
+        The ``NodeState`` for the local node is removed from the update if the
+        era doesn't match this node's actual era.
+        """
+        service = self.service
+        service.cluster_status = fsm = StubFSM()
+        config = Deployment()
+        state = DeploymentState(
+            nodes=[self.node_state],
+            node_uuid_to_era={self.deployer.node_uuid: uuid4()})
+        service.cluster_updated(config, state)
+        self.assertEqual(fsm.inputted,
+                         [_StatusUpdate(configuration=config,
+                                        state=state.set(nodes=[]))])
 
 
 def _build_service(test):
@@ -1121,8 +1234,10 @@ def _build_service(test):
     Fixture for creating ``AgentLoopService``.
     """
     service = AgentLoopService(
-        reactor=None, deployer=object(), host=u"example.com", port=1234,
-        context_factory=ClientContextFactory())
+        reactor=MemoryReactorClock(),
+        deployer=ControllableDeployer(u"127.0.0.1", [], []),
+        host=u"example.com", port=1234,
+        context_factory=ClientContextFactory(), era=uuid4())
     service.cluster_status = StubFSM()
     return service
 

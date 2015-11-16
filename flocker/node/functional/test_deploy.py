@@ -25,9 +25,10 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll)
+    random_name, DockerImageBuilder, assertContainsAll, flaky)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
+from .. import run_state_change
 
 
 class P2PNodeDeployer(object):
@@ -109,7 +110,7 @@ def change_node_state(deployer, desired_configuration):
             return deployer.calculate_changes(
                 desired_configuration, cluster_state, local_state)
         d.addCallback(got_changes)
-        d.addCallback(lambda change: change.run(deployer))
+        d.addCallback(lambda change: run_state_change(change, deployer))
         return d
     # Repeat a few times until things settle down:
     result = converge()
@@ -393,6 +394,7 @@ class DeployerTests(TestCase):
         d.addCallback(inspect_application)
         return d
 
+    @flaky('FLOC-3330')
     @if_docker_configured
     def test_cpu_shares(self):
         """

@@ -26,7 +26,7 @@ from .. import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
-    Link, Lease, Leases, LeaseError
+    Link, Lease, Leases, LeaseError, UpdateNodeStateEra, NoWipe,
 )
 
 
@@ -1288,6 +1288,24 @@ class DeploymentStateTests(SynchronousTestCase):
         )
         self.assertEqual([], list(deployment.all_datasets()))
 
+    def test_remove_existing_node(self):
+        """
+        If a ``NodeState`` exists, ``remove_node`` removes it.
+        """
+        node = NodeState(hostname=u"1.2.2.4", uuid=uuid4())
+        another_node = NodeState(hostname=u"1.2.2.5", uuid=uuid4())
+        original = DeploymentState(nodes=[node, another_node])
+        self.assertEqual(DeploymentState(nodes=[node]),
+                         original.remove_node(another_node.uuid))
+
+    def test_remove_non_existing_node(self):
+        """
+        If a ``NodeState`` does exists, ``remove_node`` does nothing.
+        """
+        original = DeploymentState(
+            nodes=[NodeState(hostname=u"1.2.2.4", uuid=uuid4())])
+        self.assertEqual(original, original.remove_node(uuid4()))
+
 
 class SameNodeTests(SynchronousTestCase):
     """
@@ -1418,40 +1436,49 @@ class NodeStateWipingTests(SynchronousTestCase):
             DeploymentState(nodes={node_2}))
 
 
-class NonManifestDatasetsWipingTests(SynchronousTestCase):
+class NoWipeTests(SynchronousTestCase):
     """
-    Tests for ``NonManifestDatasets.get_information_wipe()``.
+    Tests for ``NoWipe``.
     """
-    NON_MANIFEST = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
-                                                 MANIFESTATION.dataset})
-    WIPE = NON_MANIFEST.get_information_wipe()
-
     def test_interface(self):
         """
-        The object returned from ``NodeStateWipe`` implements
-        ``IClusterStateWipe``.
+        ``NoWipe`` instances provide ``IClusterStateWipe``.
         """
-        self.assertTrue(verifyObject(IClusterStateWipe, self.WIPE))
+        self.assertTrue(verifyObject(IClusterStateWipe, NoWipe()))
 
     def test_key_always_the_same(self):
         """
-        The ``IClusterStateWipe`` always has the same key.
+        A ``NoWipe`` always has the same key.
         """
-        self.assertEqual(
-            NonManifestDatasets().get_information_wipe().key(),
-            self.WIPE.key())
+        self.assertEqual(NoWipe().key(), NoWipe().key())
 
     def test_applying_does_nothing(self):
         """
-        Applying the ``IClusterStateWipe`` does nothing to the cluster state.
+        Applying the ``NoWipe`` does nothing to the cluster state.
         """
-        # Cluster has some non-manifested datasets:
-        cluster_state = self.NON_MANIFEST.update_cluster_state(
-            DeploymentState())
+        non_manifest = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
+                                                     MANIFESTATION.dataset})
+        cluster_state = non_manifest.update_cluster_state(DeploymentState())
 
         # "Wiping" this information has no effect:
-        updated = self.WIPE.update_cluster_state(cluster_state)
+        updated = NoWipe().update_cluster_state(cluster_state)
         self.assertEqual(updated, cluster_state)
+
+
+class NonManifestDatasetsWipingTests(SynchronousTestCase):
+    """
+    Tests for ``NonManifestDatasets.get_information_wipe()``.
+
+    See above for demonstration ``NoWipe`` has no side-effects.
+    """
+    def test_no_wipe(self):
+        """
+        Applying the ``IClusterStateWipe`` does nothing to the cluster state.
+        """
+        non_manifest = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
+                                                     MANIFESTATION.dataset})
+        wipe = non_manifest.get_information_wipe()
+        self.assertIsInstance(wipe, NoWipe)
 
 
 class LinkTests(SynchronousTestCase):
@@ -1638,3 +1665,76 @@ class LeaseTests(SynchronousTestCase):
             InvariantException,
             self.leases.set, uuid4(), lease
         )
+
+
+class UpdateNodeStateEraTests(SynchronousTestCase):
+    """
+    Tests for ``UpdateNodeStateEraTests``.
+    """
+    KNOWN_STATE = NodeState(hostname=u"1.1.1.1", uuid=uuid4())
+    INITIAL_CLUSTER = DeploymentState(
+        nodes=[KNOWN_STATE],
+        node_uuid_to_era={KNOWN_STATE.uuid: uuid4()})
+    NODE_STATE = NodeState(hostname=u"1.2.3.4",
+                           uuid=uuid4(),
+                           applications=None,
+                           manifestations={},
+                           devices={}, paths={})
+    UPDATE_ERA_1 = UpdateNodeStateEra(uuid=NODE_STATE.uuid, era=uuid4())
+    UPDATE_ERA_2 = UpdateNodeStateEra(uuid=NODE_STATE.uuid, era=uuid4())
+
+    def test_iclusterstatechange(self):
+        """
+        ``UpdateNodeStateEra`` instances provide ``IClusterStateChange``.
+        """
+        self.assertTrue(verifyObject(IClusterStateChange, self.UPDATE_ERA_1))
+
+    def test_get_information_wipe(self):
+        """
+        ``UpdateNodeStateEra`` has no side-effects from wiping.
+        """
+        self.assertIsInstance(self.UPDATE_ERA_1.get_information_wipe(), NoWipe)
+
+    def test_no_era(self):
+        """
+        If era information was not known, ``UpdateNodeStateEra`` adds it.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+        self.assertEqual(
+            state,
+            self.INITIAL_CLUSTER.transform(
+                ["node_uuid_to_era", self.UPDATE_ERA_1.uuid],
+                self.UPDATE_ERA_1.era))
+
+    def test_same_era(self):
+        """
+        If the known era matches, ``UpdateNodeStateEra`` does nothing.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+        state = self.NODE_STATE.update_cluster_state(state)
+
+        updated_state = self.UPDATE_ERA_1.update_cluster_state(state)
+        self.assertEqual(state, updated_state)
+
+    def test_different_era(self):
+        """
+        If the era differs, it is updated.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+
+        updated_state = self.UPDATE_ERA_2.update_cluster_state(state)
+        self.assertEqual(
+            updated_state,
+            self.UPDATE_ERA_2.update_cluster_state(self.INITIAL_CLUSTER))
+
+    def test_different_era_discards_state(self):
+        """
+        If the era differs the corresponding ``NodeState`` is removed.
+        """
+        state = self.UPDATE_ERA_1.update_cluster_state(self.INITIAL_CLUSTER)
+        state = self.NODE_STATE.update_cluster_state(state)
+
+        updated_state = self.UPDATE_ERA_2.update_cluster_state(state)
+        self.assertEqual(
+            updated_state,
+            self.UPDATE_ERA_2.update_cluster_state(self.INITIAL_CLUSTER))

@@ -5,24 +5,23 @@ Tests for the datasets REST API.
 """
 
 from uuid import UUID
-from unittest import skipUnless
 
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
 
 from ...common import loop_until
+from ...testtools import AsyncTestCase, flaky
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
 
-STORAGE_PROFILES_IMPLEMENTED = False
 
-
-class DatasetAPITests(TestCase):
+class DatasetAPITests(AsyncTestCase):
     """
     Tests for the dataset API.
     """
+
+    @flaky('FLOC-3207')
     @require_cluster(1)
     def test_dataset_creation(self, cluster):
         """
@@ -30,8 +29,6 @@ class DatasetAPITests(TestCase):
         """
         return create_dataset(self, cluster)
 
-    @skipUnless(STORAGE_PROFILES_IMPLEMENTED,
-                "Flocker storage profiles are not implemented yet.")
     @require_cluster(1, required_backend=DatasetBackend.aws)
     def test_dataset_creation_with_gold_profile(self, cluster, backend):
         """
@@ -56,6 +53,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create.addCallback(confirm_gold)
         return waiting_for_create
 
+    @flaky('FLOC-3341')
     @require_moving_backend
     @require_cluster(2)
     def test_dataset_move(self, cluster):
@@ -83,6 +81,7 @@ class DatasetAPITests(TestCase):
         waiting_for_create.addCallback(move_dataset)
         return waiting_for_create
 
+    @flaky('FLOC-3196')
     @require_cluster(1)
     def test_dataset_deletion(self, cluster):
         """

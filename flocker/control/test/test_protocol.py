@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.control._protocol``.
@@ -34,14 +34,15 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
-from ...testtools.amp import DelayedAMPClient
+from ...testtools.amp import DelayedAMPClient, connected_amp_protocol
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    AGENT_CONNECTED, CachingEncoder, _caching_encoder
+    AGENT_CONNECTED, CachingEncoder, _caching_encoder,
+    SetNodeEraCommand,
 )
 from .._clusterstate import ClusterStateService
 from .. import (
@@ -650,6 +651,22 @@ class ControlAMPTests(ControlTestCase):
             self.control_amp_service.cluster_state.as_deployment(),
         )
 
+    def test_set_node_era(self):
+        """
+        A ``SetNodeEraCommand`` results in the node's era being
+        updated.
+        """
+        node_uuid = uuid4()
+        era = uuid4()
+        d = self.client.callRemote(SetNodeEraCommand,
+                                   node_uuid=unicode(node_uuid),
+                                   era=unicode(era))
+        self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(node_uuid_to_era={node_uuid: era}),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
@@ -775,6 +792,67 @@ class ControlAMPServiceTests(ControlTestCase):
                 first=first_agent_desired,
                 second=second_agent_desired,
                 third=third_agent_desired,
+            ),
+        )
+
+    def test_second_configuration_change_suceeds_when_first_fails(self):
+        """
+        If the first update fails, we want to ensure that following updates
+        won't get stuck waiting, and will get updated.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        # Add a second agent, to ensure that the delayed logic interacts with
+        # the correct connection.
+        confounding_agent = FakeAgent()
+        confounding_client = AgentAMP(Clock(), confounding_agent)
+
+        # Setup of the the server that will fail to update
+        failing_server = LoopbackAMPClient(confounding_client.locator)
+
+        def raise_unexpected_exception(self,
+                                       commandType=None,
+                                       *a, **kw):
+            raise Exception("I'm an unexpected exception")
+
+        # We want the update to fail in one of the connections
+        self.patch(failing_server,
+                   "callRemote",
+                   raise_unexpected_exception
+                   )
+        # The connection will fail, but it shouldn't prevent following
+        # commnads (from ``delayed_server``) to be properly executed
+        service.connected(failing_server)
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        # Now we verify that the updates following the failure
+        # actually worked as we expect
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=modified_configuration,
+            ),
+            dict(
+                # The update will fail, so we don't expect the config to change
+                first=second_agent_desired,
+                second=third_agent_desired,
             ),
         )
 
@@ -966,7 +1044,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()`` takes an AMP instance.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
 
         def test_disconnected(self):
             """
@@ -974,7 +1052,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
 
         def test_reconnected(self):
@@ -983,9 +1061,9 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.disconnected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
 
         def test_cluster_updated(self):
             """
@@ -993,9 +1071,9 @@ def iconvergence_agent_tests_factory(fixture):
             instances.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.cluster_updated(
-                Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
+                Deployment(nodes=frozenset()), DeploymentState(nodes=[]))
 
         def test_interface(self):
             """

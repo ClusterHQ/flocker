@@ -758,7 +758,7 @@ class IClusterStateChange(Interface):
         this change.
 
         For example, if this update adds information to a particular node,
-        the returned ``IClusterStateChange`` will wipe out that
+        the returned ``IClusterStateWipe`` will wipe out that
         information indicating ignorance about that information. We need
         this ability in order to expire out-of-date state information.
 
@@ -796,6 +796,25 @@ class IClusterStateWipe(Interface):
         cover different information, so there is no need for the key to
         express that differentation.
         """
+
+
+@implementer(IClusterStateWipe)
+class NoWipe(object):
+    """
+    Wipe object that does nothing.
+    """
+    def key(self):
+        """
+        We always have the same key, so we end up with just one instance of
+        ``NoWipe`` remembered by ``ClusterStateService``.
+        """
+        return None
+
+    def update_cluster_state(self, cluster_state):
+        """
+        Do nothing.
+        """
+        return cluster_state
 
 
 class IClusterStateSource(Interface):
@@ -890,12 +909,13 @@ class NodeState(PRecord):
     def __new__(cls, **kwargs):
         # PRecord does some crazy stuff, thus _precord_buckets; see
         # PRecord.__new__.
-        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
-            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
-            warn("UUID is required, this is for backwards compat with existing"
-                 " tests only. If you see this in production code that's "
-                 "a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        if "_precord_buckets" not in kwargs:
+            if "uuid" not in kwargs:
+                # See https://clusterhq.atlassian.net/browse/FLOC-1795
+                warn("UUID is required, this is for backwards compat with "
+                     "existing tests. If you see this in production code "
+                     "that's a bug.", DeprecationWarning, stacklevel=2)
+                kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
         return PRecord.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
@@ -928,6 +948,36 @@ class NodeState(PRecord):
                       self._POTENTIALLY_IGNORANT_ATTRIBUTES
                       if getattr(self, attr) is not None]
         return _WipeNodeState(node_uuid=self.uuid, attributes=attributes)
+
+
+@implementer(IClusterStateChange)
+class UpdateNodeStateEra(PClass):
+    """
+    Update a node's era.
+
+    :ivar UUID uuid: The node's UUID.
+    :ivar UUID era: The node's era.
+    """
+    uuid = field(type=UUID, mandatory=True)
+    era = field(type=UUID, mandatory=True)
+
+    def update_cluster_state(self, cluster_state):
+        """
+        Record the node's era and discard the ``NodeState`` if it doesn't
+        match the era.
+        """
+        if cluster_state.node_uuid_to_era.get(self.uuid) != self.era:
+            # Discard the NodeState:
+            cluster_state = cluster_state.remove_node(self.uuid)
+        cluster_state = cluster_state.transform(
+            ["node_uuid_to_era", self.uuid], self.era)
+        return cluster_state
+
+    def get_information_wipe(self):
+        """
+        Since we just deleted some information, there's nothing to wipe.
+        """
+        return NoWipe()
 
 
 @implementer(IClusterStateWipe)
@@ -970,6 +1020,7 @@ class DeploymentState(PRecord):
 
     :ivar PSet nodes: A set containing ``NodeState`` instances describing the
         state of each cooperating node.
+    :ivar PMap node_uuid_to_era: Mapping between a node's UUID and its era.
     :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
         ``unicode``) to corresponding ``Dataset`` instances.  This mapping
         describes every ``Dataset`` which is known to exist as part of the
@@ -985,12 +1036,12 @@ class DeploymentState(PRecord):
         https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
     nodes = pset_field(NodeState)
-
-    get_node = _get_node(NodeState)
-
+    node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
     )
+
+    get_node = _get_node(NodeState)
 
     def update_node(self, node_state):
         """
@@ -1019,6 +1070,17 @@ class DeploymentState(PRecord):
         return self.set(
             "nodes", self.nodes.discard(original_node).add(
                 updated_node.persistent()))
+
+    def remove_node(self, node_uuid):
+        """
+        Remove the ``NodeState`` with the given UUID, if it exists.
+
+        :param UUID node_uuid: UUID of node to remove.
+
+        :return: Updated ``DeploymentState``.
+        """
+        return self.set(nodes={node for node in self.nodes
+                               if node.uuid != node_uuid})
 
     def all_datasets(self):
         """
@@ -1049,25 +1111,11 @@ class NonManifestDatasets(PRecord):
 
     def get_information_wipe(self):
         """
-        Result will wipe all information about non-manifest datasets.
+        There's no point in wiping this update. Even if no relevant agents are
+        connected the datasets probably still continue to exist unchanged,
+        since they're not node-specific.
         """
-        return _NonManifestDatasetsWipe()
-
-
-@implementer(IClusterStateWipe)
-class _NonManifestDatasetsWipe(object):
-    """
-    Wipe object that does nothing.
-
-    There's no point in wiping this information. Even if no relevant
-    agents are connected the datasets probably still continue to exist
-    unchanged, since they're not node-specific.
-    """
-    def key(self):
-        return None
-
-    def update_cluster_state(self, cluster_state):
-        return cluster_state
+        return NoWipe()
 
 
 # Classes that can be serialized to disk or sent over the network:
