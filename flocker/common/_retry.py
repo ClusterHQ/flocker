@@ -200,7 +200,6 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
 
     :return: An Effect that does what ``effect`` does, but retrying on exception.
     """
-
     end_time = time() + timeout
 
     def should_retry(e):
