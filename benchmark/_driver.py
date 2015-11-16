@@ -17,9 +17,9 @@ def benchmark(metric, operation, scenario, num_samples=3):
     """
     Perform sampling of the operation.
 
-    :param metric: A quantity to measure.
-    :param operation: An operation to perform.
-    :param scenario: A load scenario.
+    :param IMetric metric: A quantity to measure.
+    :param IOperation operation: An operation to perform.
+    :param IScenario scenario: A load scenario.
     :param int num_samples: Number of samples to take.
     """
     scenario_established = scenario.start()
@@ -77,11 +77,11 @@ def benchmark(metric, operation, scenario, num_samples=3):
 
 def driver(reactor, config, operation, metric, scenario, result, output):
     """
-    :param reactor:
-    :param config:
-    :param operation:
-    :param metric:
-    :param scenario:
+    :param reactor: Reactor to use.
+    :param config: Configuration read from options.
+    :param IOperation operation: An operation to perform.
+    :param IMetric metric: A quantity to measure.
+    :param IScenario scenario: A load scenario.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for

@@ -12,7 +12,7 @@ from twisted.trial.unittest import TestCase
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
 
 from benchmark.operations import NoOperation, ReadRequest
-from benchmark._operations import IProbe, IOperation
+from benchmark._interfaces import IProbe, IOperation
 
 
 def check_interfaces(factory):

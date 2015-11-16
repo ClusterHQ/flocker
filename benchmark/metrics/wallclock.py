@@ -4,8 +4,12 @@ Metrics for the control service benchmarks.
 """
 
 from pyrsistent import PClass, field
+from zope.interface import implementer
+
+from .._interfaces import IMetric
 
 
+@implementer(IMetric)
 class WallClock(PClass):
     """
     Measure the elapsed wallclock time during an operation.

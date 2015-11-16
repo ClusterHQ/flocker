@@ -11,7 +11,7 @@ from twisted.internet.defer import Deferred, succeed, fail
 from twisted.trial.unittest import TestCase
 
 from benchmark._driver import benchmark
-from benchmark._operations import IProbe, IOperation
+from benchmark._interfaces import IProbe, IOperation
 
 
 class FakeMetric:

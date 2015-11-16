@@ -3,9 +3,14 @@
 No load scenario for the control service benchmarks.
 """
 
+from zope.interface import implementer
+
 from twisted.internet.defer import Deferred, succeed
 
+from .._interfaces import IScenario
 
+
+@implementer(IScenario)
 class NoLoadScenario(object):
     """
     A scenario that places no additional load on the cluster.

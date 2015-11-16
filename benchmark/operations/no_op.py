@@ -3,7 +3,7 @@ from zope.interface import implementer
 
 from twisted.internet.defer import succeed
 
-from .._operations import IProbe, IOperation
+from .._interfaces import IProbe, IOperation
 
 
 @implementer(IProbe)
