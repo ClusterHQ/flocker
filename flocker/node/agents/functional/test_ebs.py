@@ -190,7 +190,6 @@ class EBSBlockDeviceAPIInterfaceTests(
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
-<<<<<<< HEAD
     def test_next_device_in_use_end(self):
         """
         ``_next_device`` returns ``/dev/null`` if all devices are in use.
@@ -358,7 +357,6 @@ class EBSProfiledBlockDeviceAPIInterfaceTests(
     Interface adherence tests for ``IProfiledBlockDeviceAPI``.
     """
     pass
->>>>>>> origin/master
 
 
 class VolumeStateTransitionTests(TestCase):
