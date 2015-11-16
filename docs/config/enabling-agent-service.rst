@@ -1,3 +1,5 @@
+.. _enabling-agent-service:
+
 ==================================
 Enabling the Flocker Agent Service
 ==================================
