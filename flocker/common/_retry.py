@@ -194,7 +194,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, backoff=True,
     :param bool backoff: Whether we should use exponential backoff
     :param callable time: A nullary callable that returns a UNIX timestamp.
 
-    :return: An Effect that does what ``effect`` does, but retrying.
+    :return: An Effect that does what ``effect`` does, but retrying on exception.
     """
 
     end_time = time() + timeout
