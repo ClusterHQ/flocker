@@ -43,6 +43,7 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
    * Add storage.
      It is important to note that the default storage of an AWS image can be too small to store popular Docker images, so we recommend choosing at least 16 GB for the root device to avoid potential disk space problems.
    * Tag instance.
+     Flocker does not require the instance to be tagged.
    * Configure security group.
       
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
