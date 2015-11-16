@@ -6,6 +6,7 @@ Helpers for retrying things.
 
 from __future__ import absolute_import
 
+from datetime import timedelta
 from functools import partial
 from inspect import getfile, getsourcelines
 from itertools import repeat
@@ -180,8 +181,11 @@ def poll_until(predicate, steps, sleep=None):
     raise LoopExceeded(predicate, result)
 
 
-def retry_effect_with_timeout(effect, timeout, retry_wait=1, backoff=True,
-                              time=time.time):
+# TODO: Would be nice if this interface were more similar to some of the other
+# retry functions in this module.  For example, accept an iterable of intervals
+# instead of timeout/retry_wait/backoff.
+def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
+                              backoff=True, time=time.time):
     """
     If ``effect`` fails, retry it until ``timeout`` expires.
 
@@ -190,7 +194,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, backoff=True,
 
     :param Effect effect: The Effect to retry.
     :param int timeout: Keep retrying until timeout.
-    :param int retry_wait: The wait time between retries
+    :param timedelta retry_wait: The wait time between retries
     :param bool backoff: Whether we should use exponential backoff
     :param callable time: A nullary callable that returns a UNIX timestamp.
 
@@ -203,8 +207,10 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, backoff=True,
         if time() > end_time:
             return Effect(Constant(False))
         else:
-            effect = Effect(Delay(should_retry.wait_secs)).on(
-                success=lambda x: Effect(Constant(True)))
+            retry_delay = should_retry.wait_secs.total_seconds()
+            effect = Effect(Delay(retry_delay)).on(
+                success=lambda x: Effect(Constant(True))
+            )
 
             if backoff:
                 should_retry.wait_secs *= 2

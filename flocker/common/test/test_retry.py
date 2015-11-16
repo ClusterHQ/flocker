@@ -4,6 +4,7 @@
 Tests for ``flocker.common._retry``.
 """
 
+from datetime import timedelta
 from itertools import repeat
 
 from eliot.testing import (
@@ -475,7 +476,10 @@ class RetryEffectTests(SynchronousTestCase):
             (Delay(5), lambda ignore: None),
         ]
 
-        retrier = retry_effect_with_timeout(Effect(Func(tester)), 1, 5, False)
+        retrier = retry_effect_with_timeout(
+            Effect(Func(tester)), timeout=1, retry_wait=timedelta(seconds=5),
+            backoff=False,
+        )
         result = perform_sequence(seq, retrier)
         self.assertEqual(result, 1 / 1)
 
