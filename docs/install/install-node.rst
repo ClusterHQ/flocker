@@ -117,6 +117,7 @@ Installing on Ubuntu 14.04
 Next Step
 =========
 
-You are now ready to :ref:`install the Flocker plugin for Docker<install-docker-plugin>`, which allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
+The installation of the Flocker clients, node services and the Flocker plugin for Docker are now complete.
+To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration`.
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
