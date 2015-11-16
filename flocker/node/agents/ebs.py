@@ -321,9 +321,9 @@ class AttachedUnexpectedDevice(Exception):
     def __init__(self, requested, discovered):
         """
         :param FilePath requested: The requested device name.
-        :param discovered: A ``FilePath`` giving the path of the
-            device which was discovered on the system or ``None`` if no new
-            device was discovered at all.
+        :param discovered: A ``FilePath`` giving the path of the device which
+            was discovered on the system or ``None`` if no new device was
+            discovered at all.
         """
         self.requested = requested
         self.discovered = discovered
