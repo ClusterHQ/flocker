@@ -20,7 +20,6 @@ from twisted.python.failure import Failure
 
 from effect import (
     Effect,
-    Error,
     Func,
     Constant,
     Delay,
