@@ -629,7 +629,6 @@ class FlockerClient(object):
         )
         d.addCallback(self._parse_configuration_container)
         return d
-        return succeed(None)
 
     def list_containers_configuration(self):
         d = self._request(b"GET", b"/configuration/containers", None, {OK})
