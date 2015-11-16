@@ -1,31 +1,33 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Scenarios for the control service benchmarks.
+No load scenario for the control service benchmarks.
 """
 
 from twisted.internet.defer import Deferred, succeed
 
 
-class RunningScenario:
+class NoLoadScenario(object):
+    """
+    A scenario that places no additional load on the cluster.
+    """
 
-    def __init__(self):
-        self.scenario_established = Deferred()
-        self.scenario_maintained = Deferred()
+    def __init__(self, clock, control_service):
+        self._maintained = Deferred()
 
-    def established(self):
+    def start(self):
         """
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
-        return self.scenario_established
+        return succeed(None)  # no setup needed
 
     def maintained(self):
         """
-        :return: A Deferred that fires with an errback id the desired
+        :return: A Deferred that fires with an errback if the desired
             scenario fails to hold between being established and being
             stopped.  This Deferred never fires with a callback.
         """
-        return self.scenario_maintained
+        return self._maintained
 
     def stop(self):
         """
@@ -35,15 +37,3 @@ class RunningScenario:
             stopped.
         """
         return succeed(None)
-
-
-class NoLoadScenario(object):
-
-    def __init__(self, clock, control_service):
-        self.clock = clock
-        self.control_service = control_service
-
-    def start(self):
-        running = RunningScenario()
-        running.established().callback(None)  # no setup needed
-        return running

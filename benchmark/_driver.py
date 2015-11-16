@@ -25,7 +25,7 @@ def benchmark(metric, operation, scenario, num_samples=3):
     :param scenario: A load scenario.
     :param int num_samples: Number of samples to take.
     """
-    running_scenario = scenario.start()
+    scenario_established = scenario.start()
 
     samples = []
 
@@ -57,8 +57,7 @@ def benchmark(metric, operation, scenario, num_samples=3):
         def stop_sampling_on_scenario_collapse(failure):
             task.stop()
             collecting.errback(failure)
-        running_scenario.maintained().addErrback(
-            stop_sampling_on_scenario_collapse)
+        scenario.maintained().addErrback(stop_sampling_on_scenario_collapse)
 
         # Leaving the errback unhandled makes tests fail
         task.whenDone().addCallbacks(
@@ -67,10 +66,10 @@ def benchmark(metric, operation, scenario, num_samples=3):
 
         return collecting
 
-    benchmarking = running_scenario.established().addCallback(collect_samples)
+    benchmarking = scenario_established.addCallback(collect_samples)
 
     def tear_down(result):
-        stopping = running_scenario.stop()
+        stopping = scenario.stop()
         stopping.addCallback(lambda ignored: result)
         return stopping
 
@@ -109,6 +108,17 @@ class FastConvergingFakeFlockerClient(
 
 
 def driver(reactor, config, operation, metric, scenario, result, output):
+    """
+    :param reactor:
+    :param config:
+    :param operation:
+    :param metric:
+    :param scenario:
+    :param result: A dictionary which will be updated with values to
+        create a JSON result.
+    :param output: A callable to receive the JSON structure, for
+        printing or storage.
+    """
 
     if config['control']:
         cert_directory = FilePath(config['certs'])
