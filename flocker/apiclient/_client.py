@@ -388,9 +388,8 @@ class FakeFlockerClient(object):
         return succeed(self._configured_containers.values())
 
     def delete_container(self, name):
-        deleted_container = self._configured_containers[name]
         self._configured_containers = self._configured_containers.remove(name)
-        return succeed(deleted_container)
+        return succeed(None)
 
     def this_node_uuid(self):
         return succeed(self._this_node_uuid)
@@ -668,7 +667,7 @@ class FlockerClient(object):
             ),
             None, {OK}
         )
-        request.addCallback(self._parse_configuration_container)
+        request.addCallback(lambda response: None)
         return request
 
     def this_node_uuid(self):

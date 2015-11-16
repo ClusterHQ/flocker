@@ -413,8 +413,7 @@ def make_clientv1_tests():
 
         def test_delete_container(self):
             """
-            ``delete_container`` returns a deferred that fires with the
-            ``Container`` that has been deleted.
+            ``delete_container`` returns a deferred that fires with ``None``.
             """
             expected_container, d = create_container_for_test(
                 self, self.client
@@ -424,10 +423,7 @@ def make_clientv1_tests():
                     expected_container.name
                 )
             )
-            d.addCallback(
-                self.assertEqual,
-                expected_container,
-            )
+            d.addCallback(self.assertIs, None)
             return d
 
         def test_delete_container_not_listed(self):
