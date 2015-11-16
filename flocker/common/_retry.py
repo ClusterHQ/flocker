@@ -192,7 +192,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, backoff=True,
     :param int timeout: Keep retrying until timeout.
     :param int retry_wait: The wait time between retries
     :param bool backoff: Whether we should use exponential backoff
-    :param callable time: A nullary callable that returns a Unix UTC timestamp.
+    :param callable time: A nullary callable that returns a UNIX timestamp.
 
     :return: An Effect that does what ``effect`` does, but retrying.
     """
