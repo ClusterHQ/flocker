@@ -11,6 +11,8 @@ from uuid import uuid4, UUID
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
+from subprocess import check_call, CalledProcessError
+from pipes import quote as shell_quote
 
 import yaml
 import json
@@ -44,6 +46,8 @@ from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.agents.ebs import aws_from_configuration
+
+from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
 try:
     from pymongo import MongoClient
@@ -320,6 +324,41 @@ class Node(PRecord):
     public_address = field(type=bytes)
     reported_hostname = field(type=bytes)
     uuid = field(type=unicode)
+
+    def run_as_root(self, *args):
+        """
+        Run a command on the node as root.
+
+        :param args: Command and arguments to run.
+        """
+        command = [b"ssh", b"root@{}".format(self.public_address)]
+        command += list(args)
+        Message.log(action_type="flocker:acceptance:run_on_node",
+                    address=self.public_address,
+                    command=command)
+        check_call(command)
+
+    def reboot(self):
+        """
+        Reboot the node.
+        """
+        try:
+            self.run_as_root(b"shutdown", b"-r", b"now")
+        except CalledProcessError:
+            # Reboot closes connection, so we get non-0 exit code.
+            pass
+
+    def run_script(self, python_script, *argv):
+        """
+        Run a Python script as root on the node.
+
+        :param python_script: Name of script in
+            ``flocker.acceptance.node_scripts`` to run.
+        :param argv: Additional arguments for the script.
+        """
+        script = NODE_SCRIPTS.child(python_script + ".py").getContent()
+        # Apparently it's too much to ask ssh to do shell quoting?
+        self.run_as_root(b"python", b"-c", shell_quote(script), *argv)
 
 
 class _NodeList(CheckedPVector):

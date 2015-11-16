@@ -5,7 +5,6 @@ Tests for the control service REST API.
 """
 
 from json import loads, dumps
-from subprocess import call
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
@@ -369,8 +368,12 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(lambda _: query())
 
         def got_initial_result(initial_result):
-            call([b"ssh", b"root@{}".format(node.public_address),
-                  b"shutdown", b"-r", b"now"])
+            self.addCleanup(node.run_script, "enable_service",
+                            "flocker-dataset-agent")
+            # Disable the service to force container agent to always get stale
+            # data from the container agnet:
+            node.run_script("disable_service", "flocker-dataset-agent")
+            node.reboot()
             changed = loop_until(
                 reactor, lambda: query().addCallback(
                     lambda result: result != initial_result))
