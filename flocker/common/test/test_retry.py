@@ -404,7 +404,7 @@ class RetryEffectTests(SynchronousTestCase):
     """
     def get_time(self, times=None):
         if times is None:
-            times = [1, 2, 3, 4, 5]
+            times = [1.0, 2.0, 3.0, 4.0, 5.0]
         return lambda: times.pop(0)
 
     def test_immediate_success(self):
