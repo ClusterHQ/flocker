@@ -203,7 +203,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
     end_time = time() + timeout
 
     def should_retry(e):
-        if time() > end_time:
+        if time() >= end_time:
             return Effect(Constant(False))
         else:
             retry_delay = should_retry.wait_secs.total_seconds()

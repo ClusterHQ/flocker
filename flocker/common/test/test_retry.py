@@ -36,6 +36,7 @@ from .._retry import (
     retry_failure,
     poll_until,
 )
+from ...testtools import CustomException
 
 
 class LoopUntilTests(SynchronousTestCase):
@@ -489,14 +490,27 @@ class RetryEffectTests(SynchronousTestCase):
         If the timeout expires, the retry effect fail with the exception from
         the final time the wrapped effect is performed.
         """
-        seq = [
+        expected_intents = [
             (Delay(1), lambda ignore: None),
             (Delay(2), lambda ignore: None),
         ]
 
-        retrier = retry_effect_with_timeout(
-            Effect(Error(Exception())),
-            timeout=1,
-            time=self.get_time([1, 10]))
+        exceptions = [
+            Exception("Wrong (1)"),
+            Exception("Wrong (2)"),
+            CustomException(),
+        ]
 
-        self.assertRaises(Exception, perform_sequence, seq, retrier)
+        def tester():
+            raise exceptions.pop(0)
+
+        retrier = retry_effect_with_timeout(
+            Effect(Func(tester)),
+            timeout=3,
+            time=self.get_time([0.0, 1.0, 2.0, 3.0, 4.0, 5.0]),
+        )
+
+        self.assertRaises(
+            CustomException,
+            perform_sequence, expected_intents, retrier
+        )
