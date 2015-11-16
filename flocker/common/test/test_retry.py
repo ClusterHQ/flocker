@@ -483,7 +483,6 @@ class RetryEffectTests(SynchronousTestCase):
         """
         If the timeout expires, the effect should fail with the same exception.
         """
-
         seq = [
             (Delay(1), lambda ignore: None),
             (Delay(2), lambda ignore: None),
