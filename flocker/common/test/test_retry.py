@@ -460,8 +460,8 @@ class RetryEffectTests(SynchronousTestCase):
 
     def test_no_exponential_backoff(self):
         """
-        If exp_backoff is disabled, always retry the effect with the
-        same delay.
+        If ``False`` is passed for the ``backoff`` parameter, the effect is
+        always retried with the same delay.
         """
         divisors = [0, 0, 0, 1]
 
