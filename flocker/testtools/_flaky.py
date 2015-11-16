@@ -4,7 +4,7 @@
 Logic for handling flaky tests.
 """
 
-from functools import wraps
+from functools import partial
 
 import testtools
 
@@ -39,15 +39,27 @@ class _RetryFlaky(object):
     """
     ``RunTest`` implementation that retries tests that fail.
     """
+    # XXX: Make this a pyrsistent object
 
     # XXX: This should probably become a part of testtools:
     # https://bugs.launchpad.net/testtools/+bug/1515933
 
-    def __init__(self, run_test):
-        self._run_test = run_test
+    # TODO: I think the "right" thing to do is to take a RunTest factory and
+    # construct RunTest once per test run, each time giving it a newly-created
+    # TestResult.
+    #
+    # When we're "done", we aggregate all of the results and output that to
+    # the result we were given.
+
+    def __init__(self, run_test_factory, case, *args, **kwargs):
+        self._run_test_factory = run_test_factory
+        self._case = case
+        self._args = args
+        self._kwargs = kwargs
 
     def run(self, result=None):
-        return self._run_test.run(result)
+        return self._run_test_factory(
+            self._case, *self._args, **self._kwargs).run(result)
 
 
 def retry_flaky(run_test_factory=None):
@@ -57,8 +69,4 @@ def retry_flaky(run_test_factory=None):
     if run_test_factory is None:
         run_test_factory = testtools.RunTest
 
-    # XXX: I feel as if there's a simpler, more standard way of doing this.
-    @wraps(run_test_factory)
-    def wrapped(*args, **kwargs):
-        return _RetryFlaky(run_test_factory(*args, **kwargs))
-    return wrapped
+    return partial(_RetryFlaky, run_test_factory)
