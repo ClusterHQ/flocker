@@ -185,15 +185,15 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=1, exp_backoff=True,
     """
     If ``effect`` fails, retry it until ``timeout`` expires.
 
-    To avoid excessive retrying, this function by default (it can be disabled)
-    uses the exponential backoff algorithm, waiting twice the time between
-    each retry.
+    To avoid excessive retrying, this function uses the exponential backoff
+    algorithm by default, waiting double the time between each retry.
 
     :param Effect effect: The Effect to retry.
     :param int timeout: Keep retrying until timeout.
     :param int retry_wait: The wait time between retries
-    :param bool exp_timeout: Whether we should use exponential backoff
+    :param bool exp_backoff: Whether we should use exponential backoff
     :param callable time: A nullary callable that returns a Unix UTC timestamp.
+
     :return: An Effect that does what ``effect`` does, but retrying.
     """
 
