@@ -475,7 +475,7 @@ def make_clientv1_tests():
 
 def create_container_for_test(case, client, name=None):
     """
-    :param TestCase case: The current running test.
+    :param TestCase case: The currently running test.
     :param IFlockerClient client: The client for creating containers.
     :param unicode name: The name to be assigned to the container or ``None``
         to assign a random name.
