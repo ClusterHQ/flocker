@@ -11,6 +11,7 @@ Once you have installed Flocker you will need to complete the following configur
 
    configuring-authentication
    generate-api-certificates
+   generate-api-plugin
    enabling-control-service
    configuring-nodes-storage
    enabling-agent-service
