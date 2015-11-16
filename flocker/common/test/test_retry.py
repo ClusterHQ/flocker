@@ -454,10 +454,11 @@ class RetryEffectTests(SynchronousTestCase):
             (Delay(4), lambda ignore: None),
         ]
 
-        retrier = retry_effect_with_timeout(Effect(Func(tester)), 10,
-                                            time=self.get_time())
+        retrier = retry_effect_with_timeout(
+            Effect(Func(tester)), timeout=10, time=self.get_time(),
+        )
         result = perform_sequence(seq, retrier)
-        self.assertEqual(result, 1 / 1)
+        self.assertEqual(result, 1)
 
     def test_no_exponential_backoff(self):
         """
