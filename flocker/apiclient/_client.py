@@ -100,9 +100,10 @@ class Container(PClass):
     """
     A container in the configuration.
 
-    @attr UUID node_uuid: The UUID of a node in the cluster where the container will run.
-    @attr unicode name: The unique name of the container.
-    @attr DockerImage image: The Docker image the container will run.
+    :attr UUID node_uuid: The UUID of a node in the cluster where the container
+        will run.
+    :attr unicode name: The unique name of the container.
+    :attr DockerImage image: The Docker image the container will run.
     """
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
