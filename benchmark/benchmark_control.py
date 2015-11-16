@@ -23,24 +23,24 @@ from benchmark import metrics, operations, scenarios
 to_file(sys.stderr)
 
 
-_scenarios = {
+_SCENARIOS = {
     'no-load': scenarios.NoLoadScenario,
 }
 
-default_scenario = 'no-load'
+_DEFAULT_SCENARIO = 'no-load'
 
-_operations = {
+_OPERATIONS = {
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,
 }
 
-default_operation = 'read-request'
+_DEFAULT_OPERATION = 'read-request'
 
-_metrics = {
+_METRICS = {
     'wallclock': metrics.WallClock,
 }
 
-default_metric = 'wallclock'
+_DEFAULT_METRIC = 'wallclock'
 
 
 class BenchmarkOptions(Options):
@@ -51,15 +51,15 @@ class BenchmarkOptions(Options):
          'IP address for a Flocker cluster control server.'],
         ['certs', None, 'certs',
          'Directory containing client certificates'],
-        ['scenario', None, default_scenario,
+        ['scenario', None, _DEFAULT_SCENARIO,
          'Environmental scenario under which to perform test. '
-         'Supported values: {}.'.format(', '.join(_scenarios))],
-        ['operation', None, default_operation,
+         'Supported values: {}.'.format(', '.join(_SCENARIOS))],
+        ['operation', None, _DEFAULT_OPERATION,
          'Operation to measure. '
-         'Supported values: {}.'.format(', '.join(_operations))],
-        ['metric', None, default_metric,
+         'Supported values: {}.'.format(', '.join(_OPERATIONS))],
+        ['metric', None, _DEFAULT_METRIC,
          'Quantity to benchmark. '
-         'Supported values: {}.'.format(', '.join(_metrics))],
+         'Supported values: {}.'.format(', '.join(_METRICS))],
     ]
 
 
@@ -72,9 +72,9 @@ except UsageError as e:
     sys.exit(1)
 
 
-operation = _operations[config['operation']]
-metric = _metrics[config['metric']]
-scenario = _scenarios[config['scenario']]
+operation = _OPERATIONS[config['operation']]
+metric = _METRICS[config['metric']]
+scenario = _SCENARIOS[config['scenario']]
 
 timestamp = datetime.now().isoformat()
 
