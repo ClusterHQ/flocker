@@ -482,7 +482,7 @@ class RetryEffectTests(SynchronousTestCase):
             backoff=False,
         )
         result = perform_sequence(seq, retrier)
-        self.assertEqual(result, 1 / 1)
+        self.assertEqual(result, 1)
 
     def test_timeout(self):
         """
