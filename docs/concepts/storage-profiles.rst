@@ -4,4 +4,4 @@
 Flocker Storage Profiles
 ========================
 
-.. include:: storage-profiles-content.rst
+.. include:: _storage-profiles-content.rst
