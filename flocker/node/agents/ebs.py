@@ -1022,7 +1022,7 @@ class EBSBlockDeviceAPI(object):
                     volume, attach_to,
                     self.connection.attach_volume,
                     self.connection.detach_volume,
-                    device, attach_attempt, volume,
+                    device, attach_attempt,
                     blockdevices,
                 ):
                     break
