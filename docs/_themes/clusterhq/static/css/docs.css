@@ -305,6 +305,11 @@ a.download:before {
 .page ul, ol {
     color: #646570;
     font-family: lato;
+    margin-bottom: 10px;
+}
+
+.toctree-l1 ul, .toctree-l1 ol {
+    margin-bottom: 0;
 }
 
 .page>.section {
