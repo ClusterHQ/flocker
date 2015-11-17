@@ -4,7 +4,7 @@ Start a service and enable across reboots.
 
 import os
 import sys
-from subprocess import check_call
+from subprocess import check_call, check_output
 
 service = sys.argv[1]
 
@@ -17,4 +17,5 @@ else:
     override = "/etc/init/%s.override" % (service,)
     if os.path.exists(override):
         os.remove(override)
-    check_call(["service", service, "start"])
+    if 'start/running' not in check_output(["service", service, "status"]):
+        check_call(["service", service, "start"])
