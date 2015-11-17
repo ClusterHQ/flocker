@@ -688,14 +688,14 @@ class AttachVolume(PRecord):
 
 
 @implementer(IStateChange)
-class AttachNeeded(PClass):
+class ActionNeeded(PClass):
     """
-    We need to attach an unattached volume to this node (the node of the
-    deployer it is run with) but lack the necessary information to do so.
+    We need to take some action on a dataset but lack the necessary
+    information to do so.
 
     Creating this is still useful insofar as it may let the convergence
     loop know that it should wake up and do discovery, which would allow
-    us to get an ``AttachVolume`` instance.
+    us to get the actual ``IStateChange`` calculated.
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to attach.
@@ -710,7 +710,8 @@ class AttachNeeded(PClass):
         """
         This should not ever be run; doing so suggests a bug somewhere.
         """
-        return fail(NotImplementedError())
+        return fail(NotImplementedError(
+            "This should never happen when calculating in anger."))
 
 
 @implementer(IStateChange)
@@ -1732,7 +1733,7 @@ class BlockDeviceDeployer(PRecord):
                     # about the volume. This suggests we're using
                     # out-of-date cached volume info. Indicate we want to
                     # take an action, even if we can't.
-                    yield AttachNeeded(dataset_id=dataset_id)
+                    yield ActionNeeded(dataset_id=dataset_id)
                     continue
 
                 # It exists and doesn't belong to anyone else.

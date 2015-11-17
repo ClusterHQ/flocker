@@ -48,7 +48,7 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice, AttachNeeded,
+    CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
     DiscoveredDataset, DatasetStates,
 
@@ -1694,7 +1694,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         volume information.
 
         In this case ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``AttachNeeded`` in order to wake up the convergence loop.
+        ``ActionNeeded`` in order to wake up the convergence loop.
         """
         deployer = create_blockdevicedeployer(
             self, hostname=self.NODE, node_uuid=self.NODE_UUID
@@ -1729,7 +1729,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             cluster_config, cluster_state, local_state)
         self.assertEqual(
             in_parallel(changes=[
-                AttachNeeded(
+                ActionNeeded(
                     dataset_id=UUID(dataset.dataset_id),
                 ),
             ]),
@@ -4387,27 +4387,27 @@ class AttachVolumeTests(
         )
 
 
-class AttachNeededInitTests(
+class ActionNeededInitTests(
     make_with_init_tests(
-        record_type=AttachNeeded,
+        record_type=ActionNeeded,
         kwargs=dict(dataset_id=uuid4()),
         expected_defaults=dict(),
     )
 ):
     """
-    Tests for ``AttachNeeded`` initialization.
+    Tests for ``ActionNeeded`` initialization.
     """
 
 
-class AttachNeededTests(
+class ActionNeededTests(
     make_istatechange_tests(
-        AttachNeeded,
+        ActionNeeded,
         dict(dataset_id=uuid4()),
         dict(dataset_id=uuid4()),
     )
 ):
     """
-    Tests for ``AttachNeeded``\ 's ``IStateChange`` implementation.
+    Tests for ``ActionNeeded``\ 's ``IStateChange`` implementation.
     """
 
 
