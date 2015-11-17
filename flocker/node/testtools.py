@@ -213,7 +213,11 @@ class ControllableDeployer(object):
             (cluster_state.get_node(uuid=self.node_uuid,
                                     hostname=self.hostname),
              desired_configuration, cluster_state))
-        return self.calculated_actions.pop(0)
+        calculated = self.calculated_actions.pop(0)
+        if isinstance(calculated, Exception):
+            raise calculated
+        else:
+            return calculated
 
 
 # A deployment with no information:

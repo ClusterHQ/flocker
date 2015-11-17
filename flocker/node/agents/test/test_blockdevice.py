@@ -48,7 +48,7 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice,
+    CreateFilesystem, DestroyVolume, MountBlockDevice, AttachNeeded,
 
     DiscoveredDataset, DatasetStates,
 
@@ -1679,6 +1679,58 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
                     dataset_id=UUID(dataset.dataset_id),
                     blockdevice_id=_create_blockdevice_id_for_test(
                         dataset.dataset_id)
+                ),
+            ]),
+            changes
+        )
+
+    def test_attach_existing_nonmanifest_unknown(self):
+        """
+        If a dataset exists but is not manifest anywhere in the cluster and
+        the configuration specifies it should be manifest on the
+        deployer's node, and the volume information is not known, this
+        means we're being asked to calculate changes purely to decide
+        whether to wake up or not. That is, we're using out-of-date cached
+        volume information.
+
+        In this case ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``AttachNeeded`` in order to wake up the convergence loop.
+        """
+        deployer = create_blockdevicedeployer(
+            self, hostname=self.NODE, node_uuid=self.NODE_UUID
+        )
+        # Give it a configuration that says a dataset should have a
+        # manifestation on the deployer's node.
+        node_config = to_node(self.ONE_DATASET_STATE)
+        cluster_config = Deployment(nodes={node_config})
+
+        # Give the node an empty state.
+        node_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            ["devices", self.DATASET_ID], discard
+        )
+
+        # Take the dataset in the configuration and make it part of the
+        # cluster's non-manifest datasets state.
+        manifestation = node_config.manifestations[unicode(self.DATASET_ID)]
+        dataset = manifestation.dataset
+        cluster_state = DeploymentState(
+            nodes={node_state},
+            nonmanifest_datasets={
+                unicode(dataset.dataset_id): dataset,
+            }
+        )
+
+        local_state = _create_block_device_deployer_local_state(
+            deployer, cluster_state,
+            volumes=[])  # Out of date info, lacking an expected volume
+        changes = deployer.calculate_changes(
+            cluster_config, cluster_state, local_state)
+        self.assertEqual(
+            in_parallel(changes=[
+                AttachNeeded(
+                    dataset_id=UUID(dataset.dataset_id),
                 ),
             ]),
             changes
@@ -4333,6 +4385,30 @@ class AttachVolumeTests(
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
         )
+
+
+class AttachNeededInitTests(
+    make_with_init_tests(
+        record_type=AttachNeeded,
+        kwargs=dict(dataset_id=uuid4()),
+        expected_defaults=dict(),
+    )
+):
+    """
+    Tests for ``AttachNeeded`` initialization.
+    """
+
+
+class AttachNeededTests(
+    make_istatechange_tests(
+        AttachNeeded,
+        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4()),
+    )
+):
+    """
+    Tests for ``AttachNeeded``\ 's ``IStateChange`` implementation.
+    """
 
 
 class AllocatedSizeTypeTests(SynchronousTestCase):

@@ -688,6 +688,32 @@ class AttachVolume(PRecord):
 
 
 @implementer(IStateChange)
+class AttachNeeded(PClass):
+    """
+    We need to attach an unattached volume to this node (the node of the
+    deployer it is run with) but lack the necessary information to do so.
+
+    Creating this is still useful insofar as it may let the convergence
+    loop know that it should wake up and do discovery, which would allow
+    us to get an ``AttachVolume`` instance.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the volume to attach.
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+
+    # Nominal interface compliance; we don't expect this to be ever run,
+    # it's just a marker object basically.
+    eliot_action = None
+
+    def run(self, deployer):
+        """
+        This should not ever be run; doing so suggests a bug somewhere.
+        """
+        return fail(NotImplementedError())
+
+
+@implementer(IStateChange)
 class DetachVolume(PRecord):
     """
     Detach a volume from the node it is currently attached to.
@@ -1701,6 +1727,14 @@ class BlockDeviceDeployer(PRecord):
             if manifestation.dataset_id in nonmanifest:
                 volume = _blockdevice_volume_from_datasetid(volumes,
                                                             dataset_id)
+                if volume is None:
+                    # We know something is non-manifest, but lack any info
+                    # about the volume. This suggests we're using
+                    # out-of-date cached volume info. Indicate we want to
+                    # take an action, even if we can't.
+                    yield AttachNeeded(dataset_id=dataset_id)
+                    continue
+
                 # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
                     dataset_id=dataset_id,
