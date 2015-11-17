@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Operations for the control service benchmarks.
+Interfaces for the control service benchmarks.
 """
 
 from zope.interface import Interface
@@ -11,30 +11,24 @@ class IScenario(Interface):
     A scenario in which an operation occurs.
     """
 
-    def __init__(self, clock, control_service):
-        """
-        Provide the scenario with a clock and control service.
-        """
-
-    def start(self):
+    def start():
         """
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
 
-    def maintained(self):
+    def maintained():
         """
         :return: A Deferred that fires with an errback if the desired
             scenario fails to hold between being established and being
             stopped.  This Deferred never fires with a callback.
         """
 
-    def stop(self):
+    def stop():
         """
         Stop the scenario from being maintained.
 
-        :return: A Deferred that fires when the desired scenario is
-            stopped.
+        :return: A Deferred that fires when the desired scenario is stopped.
         """
 
 
@@ -65,16 +59,10 @@ class IOperation(Interface):
     An operation that can be performed.
     """
 
-    def __init__(self, control_service):
-        """
-        Provide the operation with a control service.
-        """
-
     def get_probe():
         """
-        Get a probe for the operation. To ensure sequential operations
-        perform real work, the operation may return a different
-        probe each time.
+        Get a probe for the operation. To ensure sequential operations perform
+        real work, the operation may return a different probe each time.
         """
 
 
@@ -83,12 +71,7 @@ class IMetric(Interface):
     A metric to be measured.
     """
 
-    def __init__(self, clock, control_service):
-        """
-        Provide the metric with a clock and control service.
-        """
-
-    def measure(self, f, *a, **kw):
+    def measure(f, *a, **kw):
         """
         Measure the change in the metric while performing a function.
 
