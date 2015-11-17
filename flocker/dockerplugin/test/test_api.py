@@ -6,12 +6,15 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4, UUID
 
-from twisted.web.http import OK
+from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 from twisted.internet import reactor
+
+from eliot.testing import capture_logging
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
+from ...testtools import CustomException
 
 from ...node.testtools import require_docker_version
 
@@ -288,6 +291,22 @@ class APITestsMixin(APIAssertionsMixin):
                           {u"Err": "Volume not available.",
                            u"Mountpoint": u""}))
         return d
+
+    @capture_logging(lambda self, logger:
+                     self.assertEqual(
+                         len(logger.flushTracebacks(CustomException)), 1))
+    def test_good_error_reporting(self, logger):
+        """
+        If an unexpected error occurs Docker gets back a useful error message.
+        """
+        def error():
+            raise CustomException("I've made a terrible mistake")
+        self.patch(self.flocker_client, "list_datasets_configuration",
+                   error)
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Path",
+            {u"Name": u"whatever"}, INTERNAL_SERVER_ERROR,
+            {u"Err": "CustomException: I've made a terrible mistake"})
 
 
 def _build_app(test):
