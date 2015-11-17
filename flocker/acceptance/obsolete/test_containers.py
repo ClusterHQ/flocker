@@ -5,6 +5,7 @@ Tests for the control service REST API.
 """
 
 from json import loads, dumps
+from time import sleep
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
@@ -341,6 +342,10 @@ class ContainerAPITests(TestCase):
         """
         After a reboot the containers are only started once all datasets are
         available locally.
+
+        We disable the dataset agent during reboot in order to ensure as
+        much as possible that the container agent gets stale data from the
+        control service.
         """
         # Find a node which is not running the control service.
         # If the control node is rebooted, we won't get stale dataset state.
@@ -371,12 +376,25 @@ class ContainerAPITests(TestCase):
             self.addCleanup(node.run_script, "enable_service",
                             "flocker-dataset-agent")
             # Disable the service to force container agent to always get stale
-            # data from the container agnet:
+            # data from the container agent:
             node.run_script("disable_service", "flocker-dataset-agent")
             node.reboot()
-            changed = loop_until(
+            # Wait for reboot to be far enough along that everything
+            # should be shutdown:
+            sleep(20)
+            # Wait until server is back up:
+            changed = verify_socket(node.public_address, 22)
+
+            def up_again(_):
+                # Give it a few seconds to start up container agent
+                sleep(10)
+                # Now start up dataset again:
+                node.run_script("enable_service", "flocker-dataset-agent")
+            changed.addCallback(up_again)
+
+            changed.addCallback(lambda _: loop_until(
                 reactor, lambda: query().addCallback(
-                    lambda result: result != initial_result))
+                    lambda result: result != initial_result)))
             changed.addCallback(lambda _: query())
 
             def result_changed(new_result):
@@ -394,4 +412,4 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(got_initial_result)
         return creating_dataset
     # Unfortunately this test is very very slow:
-    test_reboot.timeout = 240
+    test_reboot.timeout = 360
