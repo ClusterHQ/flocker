@@ -191,11 +191,11 @@ class APITestsMixin(APIAssertionsMixin):
         def created(dataset):
             self.flocker_client.synchronize_state()
             result = self.assertResult(
-                          b"POST", b"/VolumeDriver.Mount",
-                          {u"Name": name}, OK,
-                          {u"Err": None,
-                           u"Mountpoint": u"/flocker/{}".format(
-                               dataset.dataset_id)})
+                b"POST", b"/VolumeDriver.Mount",
+                {u"Name": name}, OK,
+                {u"Err": None,
+                 u"Mountpoint": u"/flocker/{}".format(
+                     dataset.dataset_id)})
             result.addCallback(lambda _:
                                self.flocker_client.list_datasets_state())
             result.addCallback(lambda ds: self.assertEqual(
