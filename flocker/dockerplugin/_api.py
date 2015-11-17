@@ -17,12 +17,12 @@ from eliot import writeFailure
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import deferLater
-from twisted.internet.defer import gatherResults, maybeDeferred
+from twisted.internet.defer import maybeDeferred
 from twisted.web.http import INTERNAL_SERVER_ERROR
 
 from klein import Klein
 
-from ..restapi import structured, EndpointResponse
+from ..restapi import structured, EndpointResponse, BadRequest
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
@@ -67,11 +67,15 @@ def _endpoint(name, ignore_body=False):
             d = maybeDeferred(f, *args, **kwargs)
 
             def handle_error(failure):
-                writeFailure(failure)
-                return EndpointResponse(
-                    INTERNAL_SERVER_ERROR,
-                    {u"Err": u"{}: {}".format(failure.type.__name__,
-                                              failure.value)})
+                if failure.check(BadRequest):
+                    code = failure.value.code
+                    body = failure.value.result
+                else:
+                    writeFailure(failure)
+                    code = INTERNAL_SERVER_ERROR
+                    body = {u"Err": u"{}: {}".format(failure.type.__name__,
+                                                     failure.value)}
+                return EndpointResponse(code, body)
             d.addErrback(handle_error)
             return d
         return wrapped

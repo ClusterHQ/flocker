@@ -18,6 +18,7 @@ from ...testtools import CustomException
 
 from ...node.testtools import require_docker_version
 
+from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 
@@ -307,6 +308,21 @@ class APITestsMixin(APIAssertionsMixin):
             b"POST", b"/VolumeDriver.Path",
             {u"Name": u"whatever"}, INTERNAL_SERVER_ERROR,
             {u"Err": "CustomException: I've made a terrible mistake"})
+
+    @capture_logging(None)
+    def test_bad_request(self, logger):
+        """
+        If a ``BadRequest`` exception is raised it is converted to appropriate
+        JSON.
+        """
+        def error():
+            raise make_bad_request(code=423, Err=u"no good")
+        self.patch(self.flocker_client, "list_datasets_configuration",
+                   error)
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Path",
+            {u"Name": u"whatever"}, 423,
+            {u"Err": "no good"})
 
 
 def _build_app(test):
