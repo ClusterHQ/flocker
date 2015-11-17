@@ -17,8 +17,10 @@ from ...testtools import (
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket, check_http_server, DatasetBackend
+    get_docker_client, verify_socket, check_http_server, DatasetBackend,
+    create_dataset,
 )
+
 from ..scripts import SCRIPTS
 
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
@@ -309,6 +311,18 @@ class DockerPluginTests(AsyncTestCase):
         Docker can run a container with a volume provisioned by Flocker.
         """
         return self._test_create_container(cluster)
+
+    @require_cluster(1)
+    def test_run_container_with_preexisting_volume(self, cluster):
+        """
+        Docker can run a container with a volume provisioned by Flocker before
+        it is mentioned to the Docker plugin.
+        """
+        name = random_name(self)
+        d = create_dataset(self, cluster, metadata={u"name": name})
+        d.addCallback(lambda _: self._test_create_container(
+            cluster, volume_name=name))
+        return d
 
     def _test_move(self, cluster, origin_node, destination_node):
         """

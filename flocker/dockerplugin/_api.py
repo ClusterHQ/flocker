@@ -15,6 +15,7 @@ from bitmath import GiB
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import deferLater
+from twisted.internet.defer import gatherResults
 
 from klein import Klein
 
@@ -131,6 +132,28 @@ class VolumePlugin(object):
         """
         return {u"Err": None}
 
+    def _dataset_id_for_name(self, name):
+        """
+        Lookup a dataset's ID based on name in metadata.
+
+        If it does not exist use the hashing mechanism until that is
+        removed in FLOC-2963.
+
+        :param name: The name of the volume, stored as ``"name"`` field in
+            dataset metadata.
+
+        :return: ``Deferred`` firing with dataset ID as ``UUID``.
+        """
+        listing = self._flocker_client.list_datasets_configuration()
+
+        def got_configured(configured):
+            for dataset in configured:
+                if dataset.metadata.get(u"name") == name:
+                    return dataset.dataset_id
+            return UUID(dataset_id_from_name(name))
+        listing.addCallback(got_configured)
+        return listing
+
     @app.route("/VolumeDriver.Create", methods=["POST"])
     @_endpoint(u"Create")
     def volumedriver_create(self, Name, Opts=None):
@@ -191,12 +214,13 @@ class VolumePlugin(object):
         :return: ``Deferred`` that fires with the mountpoint ``FilePath``,
             or ``None`` if it is currently unknown.
         """
-        # If we ever get rid of dataset_id hashing hack we'll need to
-        # lookup the dataset by its metadata, not its id.
-        dataset_id = UUID(dataset_id_from_name(name))
-        d = self._flocker_client.list_datasets_state()
+        d = gatherResults(
+            [self._flocker_client.list_datasets_state(),
+             self._dataset_id_for_name(name)]
+        )
 
-        def got_state(datasets):
+        def got_state(results):
+            datasets, dataset_id = results
             datasets = [dataset for dataset in datasets
                         if dataset.dataset_id == dataset_id]
             if datasets and datasets[0].primary == self._node_id:
@@ -219,8 +243,10 @@ class VolumePlugin(object):
 
         :return: Result that includes the mountpoint.
         """
-        dataset_id = UUID(dataset_id_from_name(Name))
-        d = self._flocker_client.move_dataset(self._node_id, dataset_id)
+        d = self._dataset_id_for_name(Name)
+        d.addCallback(lambda dataset_id:
+                      self._flocker_client.move_dataset(self._node_id,
+                                                        dataset_id))
 
         def get_state(_=None):
             getting_path = self._get_path(Name)

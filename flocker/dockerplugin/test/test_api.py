@@ -176,6 +176,35 @@ class APITestsMixin(APIAssertionsMixin):
                             if d.dataset_id == dataset_id]))
         return d
 
+    def test_mount_already_exists(self):
+        """
+        ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
+        name to the current node and then waits for the dataset to
+        actually arrive when used by the volumes that already exist and
+        don't have a special dataset ID.
+        """
+        name = u"myvol"
+
+        d = self.flocker_client.create_dataset(
+            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+
+        def created(dataset):
+            self.flocker_client.synchronize_state()
+            result = self.assertResult(
+                          b"POST", b"/VolumeDriver.Mount",
+                          {u"Name": name}, OK,
+                          {u"Err": None,
+                           u"Mountpoint": u"/flocker/{}".format(
+                               dataset.dataset_id)})
+            result.addCallback(lambda _:
+                               self.flocker_client.list_datasets_state())
+            result.addCallback(lambda ds: self.assertEqual(
+                [self.NODE_A], [d.primary for d in ds
+                                if d.dataset_id == dataset.dataset_id]))
+            return result
+        d.addCallback(created)
+        return d
+
     def test_path(self):
         """
         ``/VolumeDriver.Path`` returns the mount path of the given volume if
@@ -197,6 +226,27 @@ class APITestsMixin(APIAssertionsMixin):
                           {u"Name": name}, OK,
                           {u"Err": None,
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
+        return d
+
+    def test_path_existing(self):
+        """
+        ``/VolumeDriver.Path`` returns the mount path of the given volume if
+        it is currently known, including for a dataset that was created
+        not by the plugin.
+        """
+        name = u"myvol"
+
+        d = self.flocker_client.create_dataset(
+            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+
+        def created(dataset):
+            self.flocker_client.synchronize_state()
+            return self.assertResult(
+                b"POST", b"/VolumeDriver.Path",
+                {u"Name": name}, OK,
+                {u"Err": None,
+                 u"Mountpoint": u"/flocker/{}".format(dataset.dataset_id)})
+        d.addCallback(created)
         return d
 
     def test_unknown_path(self):
