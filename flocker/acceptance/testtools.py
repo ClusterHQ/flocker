@@ -939,8 +939,8 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         cluster.
     :param UUID dataset_id: The v4 UUID of the dataset.
         Generated if not specified.
-    :param dict metadata: Additional metadata to be added to the create_dataset
-        request beyond the default "name": "my_volume" metadata.
+    :param dict metadata: Metadata to be added to the create_dataset
+        request.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
@@ -950,11 +950,9 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         dataset_id = uuid4()
     if metadata is None:
         metadata = {}
-    metadata_arg = {u"name": u"my_volume"}
-    metadata_arg.update(metadata)
     configuring_dataset = cluster.client.create_dataset(
         cluster.nodes[0].uuid, maximum_size=maximum_size,
-        dataset_id=dataset_id, metadata=metadata_arg
+        dataset_id=dataset_id, metadata=metadata,
     )
 
     # Wait for the dataset to be created
