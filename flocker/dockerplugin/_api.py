@@ -18,11 +18,13 @@ from eliot import writeFailure
 from twisted.python.filepath import FilePath
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
-from twisted.web.http import INTERNAL_SERVER_ERROR
+from twisted.web.http import INTERNAL_SERVER_ERROR, NOT_FOUND
 
 from klein import Klein
 
-from ..restapi import structured, EndpointResponse, BadRequest
+from ..restapi import (
+    structured, EndpointResponse, BadRequest, make_bad_request,
+)
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
@@ -80,6 +82,11 @@ def _endpoint(name, ignore_body=False):
             return d
         return wrapped
     return decorator
+
+
+NOT_FOUND_RESPONSE = make_bad_request(
+    code=NOT_FOUND,
+    Err=u"Could not find volume with given name.")
 
 
 class VolumePlugin(object):
@@ -158,7 +165,8 @@ class VolumePlugin(object):
         :param name: The name of the volume, stored as ``"name"`` field in
             dataset metadata.
 
-        :return: ``Deferred`` firing with dataset ID as ``UUID``.
+        :return: ``Deferred`` firing with dataset ID as ``UUID``, or
+            errbacks with ``_NotFound`` if no dataset was found.
         """
         listing = self._flocker_client.list_datasets_configuration()
 
@@ -166,7 +174,8 @@ class VolumePlugin(object):
             for dataset in configured:
                 if dataset.metadata.get(u"name") == name:
                     return dataset.dataset_id
-            return UUID(dataset_id_from_name(name))
+            raise NOT_FOUND_RESPONSE
+
         listing.addCallback(got_configured)
         return listing
 
@@ -228,23 +237,25 @@ class VolumePlugin(object):
         :param unicode name: The name of the volume.
 
         :return: ``Deferred`` that fires with the mountpoint ``FilePath``,
-            or ``None`` if it is currently unknown.
+            ``None`` if the dataset is not locally mounted, or errbacks
+            with ``_NotFound`` if it is does not exist at all.
         """
-        d = gatherResults(
-            [self._flocker_client.list_datasets_state(),
-             self._dataset_id_for_name(name)]
-        )
+        result = self._dataset_id_for_name(name)
 
-        def got_state(results):
-            datasets, dataset_id = results
-            datasets = [dataset for dataset in datasets
-                        if dataset.dataset_id == dataset_id]
-            if datasets and datasets[0].primary == self._node_id:
-                return datasets[0].path
-            else:
-                return None
-        d.addCallback(got_state)
-        return d
+        def got_dataset_id(dataset_id):
+            d = self._flocker_client.list_datasets_state()
+
+            def got_state(datasets):
+                datasets = [dataset for dataset in datasets
+                            if dataset.dataset_id == dataset_id]
+                if datasets and datasets[0].primary == self._node_id:
+                    return datasets[0].path
+                else:
+                    return None
+            d.addCallback(got_state)
+            return d
+        result.addCallback(got_dataset_id)
+        return result
 
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")

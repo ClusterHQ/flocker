@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4, UUID
 
-from twisted.web.http import OK, INTERNAL_SERVER_ERROR
+from twisted.web.http import OK, INTERNAL_SERVER_ERROR, NOT_FOUND
 from twisted.internet import reactor
 
 from eliot.testing import capture_logging
@@ -209,6 +209,17 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(created)
         return d
 
+    def test_unknown_mount(self):
+        """
+        ``/VolumeDriver.Mount`` returns an error when asked to mount a
+        non-existent volume.
+        """
+        name = u"myvol"
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Mount",
+            {u"Name": name}, NOT_FOUND,
+            {u"Err": u"Could not find volume with given name."})
+
     def test_path(self):
         """
         ``/VolumeDriver.Path`` returns the mount path of the given volume if
@@ -261,8 +272,8 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
         return self.assertResult(
             b"POST", b"/VolumeDriver.Path",
-            {u"Name": name}, OK,
-            {u"Err": u"Volume not available.", u"Mountpoint": u""})
+            {u"Name": name}, NOT_FOUND,
+            {u"Err": u"Could not find volume with given name."})
 
     def test_non_local_path(self):
         """
@@ -296,7 +307,7 @@ class APITestsMixin(APIAssertionsMixin):
     @capture_logging(lambda self, logger:
                      self.assertEqual(
                          len(logger.flushTracebacks(CustomException)), 1))
-    def test_good_error_reporting(self, logger):
+    def test_unexpected_error_reporting(self, logger):
         """
         If an unexpected error occurs Docker gets back a useful error message.
         """
