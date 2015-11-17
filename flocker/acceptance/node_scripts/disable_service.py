@@ -14,7 +14,7 @@ if os.path.exists("/etc/redhat-release"):
     check_call(["systemctl", "stop", service])
 else:
     # Ubuntu 14.04
-    override = "/etc/init/%.override" % (service,)
+    override = "/etc/init/%s.override" % (service,)
     with file(override, "w") as f:
         f.write("manual\n")
-    check_call(["service", service, "start"])
+    check_call(["service", service, "stop"])
