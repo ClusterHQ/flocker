@@ -10,7 +10,7 @@ import tarfile
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 
-from ...common.runner import run_ssh, download_file
+from ...common.runner import download_file
 from ...testtools import AsyncTestCase
 from ..testtools import require_cluster
 
@@ -29,10 +29,7 @@ class DiagnosticsTests(AsyncTestCase):
 
         def create_archive():
             remote_archive_path = []
-            return run_ssh(
-                reactor,
-                'root',
-                node_address,
+            return cluster.control_node.run_as_root(
                 ['flocker-diagnostics'],
                 handle_stdout=remote_archive_path.append
             ).addCallback(

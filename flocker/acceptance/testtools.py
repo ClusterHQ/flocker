@@ -11,8 +11,6 @@ from uuid import uuid4, UUID
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
-from subprocess import check_call, CalledProcessError
-from pipes import quote as shell_quote
 
 import yaml
 import json
@@ -26,6 +24,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
+from twisted.internet.error import ProcessTerminated
 
 from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
@@ -39,7 +38,7 @@ from ..control import (
 )
 
 from ..common import gather_deferreds, loop_until
-from ..common.runner import download_file
+from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
@@ -325,28 +324,30 @@ class Node(PRecord):
     reported_hostname = field(type=bytes)
     uuid = field(type=unicode)
 
-    def run_as_root(self, *args):
+    def run_as_root(self, args, handle_stdout=None, handle_stderr=None):
         """
         Run a command on the node as root.
 
         :param args: Command and arguments to run.
+        :param handle_stdout: Callable that will be called with lines parsed
+            from the command stdout. By default logs an Eliot message.
+        :param handle_stderr: Callable that will be called with lines parsed
+            from the command stderr. By default logs an Eliot message.
+
+        :return Deferred: Deferred that fires when the process is ended.
         """
-        command = [b"ssh", b"root@{}".format(self.public_address)]
-        command += list(args)
-        Message.log(action_type="flocker:acceptance:run_on_node",
-                    address=self.public_address,
-                    command=command)
-        check_call(command)
+        return run_ssh(reactor, "root", self.public_address, args,
+                       handle_stdout=handle_stdout,
+                       handle_stderr=handle_stderr)
 
     def reboot(self):
         """
         Reboot the node.
         """
-        try:
-            self.run_as_root(b"shutdown", b"-r", b"now")
-        except CalledProcessError:
-            # Reboot closes connection, so we get non-0 exit code.
-            pass
+        result = self.run_as_root([b"shutdown", b"-r", b"now"])
+        # Reboot kills the SSH connection:
+        result.addErrback(lambda f: f.trap(ProcessTerminated))
+        return result
 
     def run_script(self, python_script, *argv):
         """
@@ -357,8 +358,8 @@ class Node(PRecord):
         :param argv: Additional arguments for the script.
         """
         script = NODE_SCRIPTS.child(python_script + ".py").getContent()
-        # Apparently it's too much to ask ssh to do shell quoting?
-        self.run_as_root(b"python", b"-c", shell_quote(script), *argv)
+        return self.run_as_root([b"python", b"-c", script] +
+                                list(argv))
 
 
 class _NodeList(CheckedPVector):
