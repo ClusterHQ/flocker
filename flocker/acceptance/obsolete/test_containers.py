@@ -10,6 +10,7 @@ from time import sleep
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
+from twisted.internet.error import ProcessTerminated
 
 from ...common import loop_until
 from ...testtools import flaky, random_name
@@ -377,19 +378,39 @@ class ContainerAPITests(TestCase):
                             "flocker-dataset-agent")
             # Disable the service to force container agent to always get stale
             # data from the container agent:
-            node.run_script("disable_service", "flocker-dataset-agent")
-            node.reboot()
+            d = node.run_script("disable_service", "flocker-dataset-agent")
+            d.addCallback(lambda _: node.reboot())
             # Wait for reboot to be far enough along that everything
             # should be shutdown:
-            sleep(20)
+            d.addCallback(lambda _: sleep(20))
             # Wait until server is back up:
-            changed = verify_socket(node.public_address, 22)
+            changed = d.addCallback(lambda _:
+                                    verify_socket(node.public_address, 22))
 
+            # Wait until container agent is back up:
+            def container_agent_running():
+                # pidof will return the pid if flocker-container-agent is
+                # running else exit with status 1 which triggers the
+                # errback chain.
+                command = [b'pidof', b'-x', b'flocker-container-agent']
+                d = node.run_as_root(command)
+
+                def not_existing(failure):
+                    failure.trap(ProcessTerminated)
+                    return False
+                d.addCallbacks(lambda result: True, not_existing)
+                return d
+            changed.addCallback(
+                lambda _: loop_until(reactor, container_agent_running))
+
+            # Start up dataset agent so container agent can proceed:
             def up_again(_):
-                # Give it a few seconds to start up container agent
+                # Give it a few seconds for container agent to get stale data
+                # from control service:
                 sleep(10)
-                # Now start up dataset again:
-                node.run_script("enable_service", "flocker-dataset-agent")
+                # Now start up dataset agent again:
+                return node.run_script(
+                    "enable_service", "flocker-dataset-agent")
             changed.addCallback(up_again)
 
             changed.addCallback(lambda _: loop_until(
