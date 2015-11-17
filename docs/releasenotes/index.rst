@@ -14,6 +14,7 @@ Next Release
 ============
 
 * The Docker plugin is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Docker plugin.
 
 v1.7.2
 ======
