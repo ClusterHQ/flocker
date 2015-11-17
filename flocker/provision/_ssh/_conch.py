@@ -8,11 +8,11 @@ from characteristic import attributes
 from eliot import Message, MessageType, Field
 
 from effect import TypeDispatcher, ComposedDispatcher
-from effect.twisted import (
+from txeffect import (
     make_twisted_dispatcher,
+    perform,
+    deferred_performer
 )
-from effect.twisted import (
-    perform, deferred_performer)
 
 from twisted.conch.endpoints import (
     SSHCommandClientEndpoint,
