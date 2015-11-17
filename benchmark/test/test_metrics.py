@@ -3,14 +3,14 @@
 Measurement tests for the control service benchmarks.
 """
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.task import Clock
 from twisted.internet.defer import maybeDeferred
 
 from benchmark.metrics import WallClock
 
 
-class WallClockTests(TestCase):
+class WallClockTests(SynchronousTestCase):
 
     def test_wallclock(self):
         """
@@ -20,4 +20,4 @@ class WallClockTests(TestCase):
         clock = Clock()
         wallclock = WallClock(clock=clock)
         d = wallclock.measure(maybeDeferred, clock.advance, 1.23)
-        d.addCallback(self.assertEqual, 1.23)
+        self.assertEqual(self.successResultOf(d), 1.23)

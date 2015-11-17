@@ -7,7 +7,7 @@ from uuid import uuid4
 from zope.interface.verify import verifyObject
 
 from twisted.python.components import proxyForInterface
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
 
@@ -23,7 +23,7 @@ def check_interfaces(factory):
     ``get_probe`` method creates an IProbe.
     """
 
-    class OperationTests(TestCase):
+    class OperationTests(SynchronousTestCase):
 
         def test_interfaces(self):
             operation = factory(control_service=None)
@@ -68,9 +68,15 @@ class FastConvergingFakeFlockerClient(
         return result
 
 
-class ReadRequestTests(TestCase):
+class ReadRequestTests(SynchronousTestCase):
+    """
+    ReadRequest operation tests.
+    """
 
     def test_read_request(self):
+        """
+        ReadRequest probe returns the cluster state.
+        """
         control_service = FastConvergingFakeFlockerClient(FakeFlockerClient())
         primary = uuid4()
 
@@ -94,9 +100,9 @@ class ReadRequestTests(TestCase):
             return d
         d.addCallback(run_probe)
 
-        # Check the cluster state has one dataset with the correct primary
-        def handle_results(states):
-            self.assertEqual([state.primary for state in states], [primary])
-        d.addCallback(handle_results)
+        # Only want to check the primaries of the cluster state
+        def filter(states):
+            return [state.primary for state in states]
+        d.addCallback(filter)
 
-        return d
+        self.assertEqual(self.successResultOf(d), [primary])

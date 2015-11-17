@@ -94,7 +94,13 @@ class FakeCollapsingScenario:
         return succeed(None)
 
 
-class SampleTest(TestCase):
+class BenchmarkTest(TestCase):
+    """
+    Test benchmark function.
+    """
+    # Test using `TestCase` rather than `SynchronousTestCase` because
+    # the `benchmark` function uses `twisted.task.cooperate`, which uses
+    # the global reactor.
 
     def test_good_probes(self):
         """
