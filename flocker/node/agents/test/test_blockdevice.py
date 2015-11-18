@@ -23,10 +23,10 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PClass, PRecord, field, discard, pmap, pvector, pvector_field,
-    pmap_field,
+    PClass, PRecord, field, discard, pmap, pvector,
 )
 
+from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.runtime import platform
@@ -44,13 +44,17 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer,
+    BlockDeviceCalculater,
+
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
-    DiscoveredDataset, DatasetStates,
+    ICalculater,
+
+    DiscoveredDataset, DesiredDataset, DatasetStates,
 
     PROFILE_METADATA_KEY,
 
@@ -79,10 +83,10 @@ from ..loopback import (
 )
 
 
-from ... import run_state_change, in_parallel, ILocalState, NoOp
+from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
-    compute_cluster_state
+    ControllableAction,
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
@@ -301,7 +305,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
         """
         ``shared_state_changes`` returns a ``NodeState`` with
         the ``node_uuid`` and ``hostname`` from the
-        BlockDeviceDeployerLocalState`` and a
+        ``BlockDeviceDeployerLocalState`` and a
         ``NonManifestDatasets``.
         """
         local_state = BlockDeviceDeployerLocalState(
@@ -895,7 +899,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         assert_discovered_state(
             self, self.deployer,
-            expected_discovered_datasets=[],
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_ELSEWHERE,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
             expected_volumes=[attached_volume],
         )
 
@@ -980,44 +991,6 @@ class UnusableAPI(object):
     """
 
 
-def assert_calculated_changes(
-        case, node_state, node_config, nonmanifest_datasets, expected_changes,
-        additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=(),
-):
-    """
-    Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
-    circumstance.
-
-    :param discovered_datasets: Collection of ``DiscoveredDataset`` to
-        expose as local state.
-    :see: ``assert_calculated_changes_for_deployer``.
-    """
-    api = UnusableAPI()
-
-    deployer = BlockDeviceDeployer(
-        node_uuid=node_state.uuid,
-        hostname=node_state.hostname,
-        block_device_api=api,
-    )
-
-    cluster_state = compute_cluster_state(node_state, additional_node_states,
-                                          nonmanifest_datasets)
-
-    local_state = _create_block_device_deployer_local_state(
-        deployer, cluster_state,
-        volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE,
-        compute_instance_id=u"instance-".format(node_state.uuid))
-    local_state = local_state.set(
-        datasets={d.dataset_id: d for d in discovered_datasets})
-
-    return assert_calculated_changes_for_deployer(
-        case, deployer, node_state, node_config,
-        nonmanifest_datasets, additional_node_states, set(),
-        expected_changes, local_state, leases=leases,
-    )
-
-
 def _create_blockdevice_id_for_test(dataset_id):
     """
     Generates a blockdevice_id from a dataset_id for tests that do not use an
@@ -1038,10 +1011,13 @@ class ScenarioMixin(object):
     NODE = u"192.0.2.1"
     NODE_UUID = uuid4()
 
+    METADATA = {u"I'm so meta": u"even this acronym"}
+
     MANIFESTATION = Manifestation(
         dataset=Dataset(
             dataset_id=unicode(DATASET_ID),
             maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            metadata=METADATA,
         ),
         primary=True,
     )
@@ -1169,1095 +1145,1034 @@ class DiscoverVolumesMethod(Names):
     INFER_VOLUMES_FROM_STATE = NamedConstant()
 
 
-@implementer(ILocalState)
-class FakeBlockDeviceDeployerLocalState(PClass):
-    """
-    This class is a terrible idea and should be thrown out ASAP to be
-    replaced by the real thing.
-    """
-    node_state = field(type=NodeState, mandatory=True)
-    nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
-    volumes = pvector_field(BlockDeviceVolume)
-    datasets = pmap_field(UUID, DiscoveredDataset)
+@implementer(ICalculater)
+class RecordingCalculater(object):
+    def __init__(self, expected_changes):
+        self.expected_changes = expected_changes
 
-    def shared_state_changes(self):
-        return self.node_state, self.nonmanifest_datasets
+    def calculate_changes_for_datasets(
+        self, discovered_datasets, desired_datasets,
+    ):
+        self.desired_datasets = desired_datasets
+        return self.expected_changes
 
 
-class FakeBlockDeviceDeployerLocalStateTests(SynchronousTestCase):
+class CalculaterTests(SynchronousTestCase):
+    def test_not_implemented_yet(self):
+        self.fail("ICalculater implementations need to be verified.")
+
+
+def assert_desired_datasets(
+    case,
+    deployer,
+    desired_manifestations=(),
+    local_datasets=(),
+    local_applications=(),
+    additional_node_config=set(),
+    expected_datasets=(),
+    leases=Leases(),
+):
     """
-    Tests for ``BlockDeviceDeployerLocalState``.
+    Assert that ``calculate_changes`` calculates the given desired datasetsg
+    invoked with the given state and configuration.
+
+    :param TestCase test_case: The ``TestCase`` which is being run.
+    :param BlockDeviceDeployer deployer: The deployer that will be asked to
+        calculate the desired datasets.
+    :param desired_manifeations: Manifestations to include in the local nodes
+        configuration.
+    :type desired_manifestations: iterable of ``Manifestations``
+    :param local_datasets: Datasets to include in the local node's state.
+    :type local_datasets: iterable of ``DiscoveredDataset``s
+    :param local_applications: Location to include in the local node's state.
+    :type local_applications: iterable of ``Application``s
+    :param additonal_node_config: Additional nodes to include in the cluster
+        configration.
+    :type additional_node_config: ``set`` of ``Node``s
+    :param Leases leases: Leases to include in the cluster configration.
+    """
+    calculater = RecordingCalculater(NoOp())
+    deployer = deployer.set(calculater=calculater)
+    cluster_configuration = Deployment(
+        nodes={
+            Node(
+                uuid=deployer.node_uuid,
+                hostname=deployer.hostname,
+                manifestations={
+                    manifestation.dataset.dataset_id: manifestation
+                    for manifestation in desired_manifestations
+                },
+            ),
+        } | additional_node_config,
+        leases=leases,
+    )
+
+    local_state = BlockDeviceDeployerLocalState(
+        node_uuid=deployer.node_uuid,
+        hostname=deployer.hostname,
+        datasets={dataset.dataset_id: dataset
+                  for dataset in local_datasets},
+    )
+    node_state, nonmanifest_datasets = local_state.shared_state_changes()
+    cluster_state = DeploymentState(
+        nodes={node_state.set(applications=local_applications)},
+        nonmanifest_datasets=nonmanifest_datasets.datasets,
+    )
+
+    deployer.calculate_changes(
+        configuration=cluster_configuration,
+        cluster_state=cluster_state,
+        local_state=local_state,
+    )
+    case.assertEqual(
+        {dataset.dataset_id: dataset
+         for dataset in expected_datasets},
+        calculater.desired_datasets,
+    )
+
+
+class CalculateDesiredStateTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceDeployer._calculate_desired_state``.
     """
     def setUp(self):
-        self.node_uuid = uuid4()
-        self.hostname = u"192.0.2.1"
-
-    def test_provides_ilocalstate(self):
-        """
-        Verify that ``BlockDeviceDeployerLocalState`` instances provide the
-        ILocalState interface.
-        """
-        local_state = FakeBlockDeviceDeployerLocalState(
-            node_state=EMPTY_NODE_STATE,
-            nonmanifest_datasets=NonManifestDatasets(datasets={}),
-            volumes=[],
-        )
-        self.assertTrue(
-            verifyObject(ILocalState, local_state)
+        self.hostname = ScenarioMixin.NODE
+        self.node_uuid = ScenarioMixin.NODE_UUID
+        self.api = UnusableAPI()
+        self.deployer = BlockDeviceDeployer(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            block_device_api=self.api,
+            mountroot=mountroot_for_test(self),
         )
 
-    def test_shared_changes(self):
+    def test_no_manifestations(self):
         """
-        ``shared_state_changes`` returns a ``NodeState`` with
-        the ``node_uuid`` and ``hostname`` from the
-        BlockDeviceDeployerLocalState`` and a
-        ``NonManifestDatasets``.
+        If there are no Manifestations on this node, then
+        there are no desired datasets calculated.
         """
-        local_state = FakeBlockDeviceDeployerLocalState(
-            node_state=NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                manifestations={},
-                paths={},
-                devices={},
-                applications=None
-            ),
-            nonmanifest_datasets=NonManifestDatasets(datasets={}),
-            volumes=[],
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[],
+            expected_datasets=[],
         )
-        expected_changes = (
-            NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                manifestations={},
-                paths={},
-                devices={},
-                applications=None
-            ),
-            NonManifestDatasets(
-                datasets={},
+
+    def test_manifestation(self):
+        """
+        If there is a manifesation on this node, then the
+        corresponding dataset has a desired state of ``MOUNTED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[ScenarioMixin.MANIFESTATION],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    metadata=ScenarioMixin.METADATA,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)
+                    ),
+                ),
+            ],
+        )
+
+    def test_manifestation_default_size(self):
+        """
+        If there is a manifesation on this node, then the
+        corresponding dataset has a desired state of ``MOUNTED``.
+        """
+        expected_size = int(GiB(100).to_Byte().value)
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[
+                ScenarioMixin.MANIFESTATION.transform(
+                    ["dataset", "maximum_size"], lambda _: None
+                ),
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    metadata=ScenarioMixin.METADATA,
+                    maximum_size=expected_size,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)
+                    ),
+                ),
+            ],
+        )
+
+    def test_deleted_manifestation(self):
+        """
+        If there is a mounted dataset that is deleted on this
+        node, the corresponding dataset has a desired state of
+        ``DELETED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[
+                ScenarioMixin.MANIFESTATION.transform(
+                    ["dataset", "deleted"], True,
+                ),
+            ],
+            # XXX FLOC-1772 We only need to do this to handle
+            # deleting unmounted datasets
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.MOUNTED,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath('/mount/path'),
+                ),
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.DELETED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    metadata=ScenarioMixin.METADATA,
+                ),
+            ],
+        )
+
+    def test_deleted_attached_manifest_dataset(self):
+        """
+        If there is a non-manifest dataset that is deleted on this
+        node, the corresponding dataset has a desired state of
+        ``MOUNTED``.
+
+        This is only necessary until we can delete non-manifest datasets
+        (FLOC-1772).
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[
+                ScenarioMixin.MANIFESTATION.transform(
+                    ["dataset"], lambda d: d.set(deleted=True)
+                ),
+            ],
+            # XXX FLOC-1772 We only need to do this to handle
+            # deleting unmounted datasets
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.ATTACHED,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                ),
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    metadata=ScenarioMixin.METADATA,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)
+                    ),
+                ),
+            ],
+        )
+
+    def test_deleted_non_manifest_dataset(self):
+        """
+        If there is a manfestation on this node that is deleted,
+        the corresponding dataset has a desired state of ``MOUNTED``.
+
+        This is only necessary until we can delete non-manifest datasets
+        (FLOC-1772).
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[
+                ScenarioMixin.MANIFESTATION.transform(
+                    ["dataset"], lambda d: d.set(deleted=True)
+                ),
+            ],
+            # XXX FLOC-1772 We only need to do this to handle
+            # deleting unmounted datasets
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.NON_MANIFEST,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    metadata=ScenarioMixin.METADATA,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)
+                    ),
+                ),
+            ],
+        )
+
+    def test_leased_mounted_manifestaion(self):
+        """
+        If there is a lease for a mounted dataset present on node,
+        there is a corresponding dataset that has a desired state of
+        ``MOUNTED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[],
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.MOUNTED,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath('/mount/path'),
+                )
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    metadata={},
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)
+                    ),
+                ),
+            ],
+            leases=Leases().acquire(
+                now=datetime.now(tz=UTC),
+                dataset_id=ScenarioMixin.DATASET_ID,
+                node_id=self.deployer.node_uuid,
             )
         )
-        self.assertEqual(
-            local_state.shared_state_changes(),
-            expected_changes,
+
+    def test_leased_attached_manifestaion(self):
+        """
+        If there is a lease for an attached dataset present on node,
+        there is not a corresponding desired dataset.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[],
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.ATTACHED,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                )
+            ],
+            expected_datasets=[],
+            leases=Leases().acquire(
+                now=datetime.now(tz=UTC),
+                dataset_id=ScenarioMixin.DATASET_ID,
+                node_id=self.deployer.node_uuid,
+            )
+        )
+
+    def test_leased_non_manifest(self):
+        """
+        If there is a lease for a mounted dataset present on node,
+        there is a corresponding dataset that has a desired state of
+        ``MOUNTED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[],
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.NON_MANIFEST,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                )
+            ],
+            expected_datasets=[],
+            leases=Leases().acquire(
+                now=datetime.now(tz=UTC),
+                dataset_id=ScenarioMixin.DATASET_ID,
+                node_id=self.deployer.node_uuid,
+            )
+        )
+
+    def test_lease_elsewhere(self):
+        """
+        If there is a lease for a dataset on another node,
+        there isn't a corresponding dataset that has a desired state
+        of ``MOUNTED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.MOUNTED,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath('/mount/path'),
+                )
+            ],
+            expected_datasets=[],
+            leases=Leases().acquire(
+                now=datetime.now(tz=UTC),
+                dataset_id=ScenarioMixin.DATASET_ID,
+                node_id=uuid4(),
+            )
+        )
+
+    def test_application_mounted_manifestaion(self):
+        """
+        If there is an application with attached volume, there is a
+        corresponding dataset that has a desired state of
+        ``MOUNTED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[],
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.MOUNTED,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath('/mount/path'),
+                )
+            ],
+            local_applications=[
+                Application(
+                    name=u"myapplication",
+                    image=DockerImage.from_string(u"image"),
+                    volume=AttachedVolume(
+                        manifestation=ScenarioMixin.MANIFESTATION,
+                        mountpoint=FilePath(b"/data")
+                    ),
+                ),
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    metadata={},
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)),
+                ),
+            ],
+        )
+
+    def test_leased_manifestation(self):
+        """
+        If there is a manifesation on this node and lease for the
+        corresponding volume for this node, then the corresponding
+        dataset has a desired state of ``MOUNTED`` and the
+        associated size corresponds to the discovered dataset.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[ScenarioMixin.MANIFESTATION],
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.MOUNTED,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath('/mount/path'),
+                )
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)),
+                ),
+            ],
+            leases=Leases().acquire(
+                now=datetime.now(tz=UTC),
+                dataset_id=ScenarioMixin.DATASET_ID,
+                node_id=self.deployer.node_uuid,
+            )
+        )
+
+    def test_deleted_leased_manifestation(self):
+        """
+        If there is a manfestation on this node that is deleted and
+        there is a lease on the volume for this node, the
+        corresponding dataset has a desired state of ``DELETED``.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
+            desired_manifestations=[
+                ScenarioMixin.MANIFESTATION.transform(
+                    ["dataset"], lambda d: d.set(deleted=True)
+                ),
+            ],
+            local_datasets=[
+                DiscoveredDataset(
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
+                    state=DatasetStates.MOUNTED,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath('/mount/path'),
+                )
+            ],
+            expected_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=ScenarioMixin.DATASET_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    mount_point=self.deployer.mountroot.child(
+                        unicode(ScenarioMixin.DATASET_ID)),
+                ),
+            ],
+            leases=Leases().acquire(
+                now=datetime.now(tz=UTC),
+                dataset_id=ScenarioMixin.DATASET_ID,
+                node_id=self.deployer.node_uuid,
+            )
         )
 
 
-def _create_block_device_deployer_local_state(
-        block_device_deployer, cluster_state,
-        volumes=DiscoverVolumesMethod.GET_VOLUMES_FROM_API,
-        compute_instance_id=None):
+def assert_calculated_changes(
+    case,
+    discovered_datasets,
+    desired_datasets,
+    expected_changes,
+):
     """
-    Creates a BlockDeviceDeployerLocalState from the given cluster_state and
-    optional volumes.
+    Assert that ``BlockDeviceCalculater`` calculates certain changes
+    in a certain circumstance.
 
-    :param BlockDeviceDeployer block_device_deployer: The
-        ``BlockDeviceDeployer`` instance to get the local state for.
+    :param TestCase test_case: The ``TestCase`` which is being run.
+    :param discovered_datasets: The current state of datasets on the
+        node.
+    :type discovered_datasets: iterable of `DiscoveredDataset``s
+    :param desired_datasets: The desired state of datasets on the
+        node.
+    :type desired_datasets: iterable of ``DesiredDataset``s
+    :param IStateChange expected_changes: The next changes to
+        converge the state.
 
-    :param DeploymentState cluster_state: The current state of the cluster.
-
-    :param volumes: A sequence of ``BlockDeviceVolume`` instances representing
-        all volumes in the cluster, INFER_VOLUMES_FROM_STATE, or
-        GET_VOLUMES_FROM_API. GET_VOLUMES_FROM_API is the default, and gets
-        the volumes from the ``IBlockDeviceAPI`` that the block_device_deployer
-        is configured to use. INFER_VOLUMES_FROM_STATE assumes that the
-        cluster_state was not set up using the API, and thus inspects
-        cluster_state to determine which volumes exist in the cluster. Note
-        that the blockdevice_ids of the volumes that are constructed in this
-        manner are not compatible with the ``IBlockDeviceAPI``.
-
-    :param unicode compute_instance_id: The instance id for the current node.
-        This is only used in inferring volumes from the cluster_state. This
-        value will be in the attached_to field of the generated
-        ``BlockDeviceVolume`` instances.
+    :raise: A test failure exception if the manifestations are not what is
+        expected.
     """
-    node_state = cluster_state.get_node(
-        block_device_deployer.node_uuid,
-        hostname=block_device_deployer.hostname
+    calculater = BlockDeviceCalculater()
+    changes = calculater.calculate_changes_for_datasets(
+        discovered_datasets={dataset.dataset_id: dataset
+                             for dataset in discovered_datasets},
+        desired_datasets={dataset.dataset_id: dataset
+                          for dataset in desired_datasets},
     )
-    nonmanifest_datasets = cluster_state.nonmanifest_datasets
-    api = block_device_deployer.block_device_api
-    if volumes is DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE:
-        if compute_instance_id is None:
-            compute_instance_id = api.compute_instance_id()
-        volumes = _infer_volumes_for_test(
-            block_device_deployer.node_uuid, block_device_deployer.hostname,
-            compute_instance_id, cluster_state)
-    elif volumes is DiscoverVolumesMethod.GET_VOLUMES_FROM_API:
-        volumes = api.list_volumes()
-
-    return FakeBlockDeviceDeployerLocalState(
-        node_state=node_state,
-        nonmanifest_datasets=NonManifestDatasets(
-            datasets=nonmanifest_datasets
-        ),
-        volumes=volumes,
-    )
+    case.assertEqual(expected_changes, changes)
 
 
-class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
+class BlockDeviceCalculaterTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceCalculater``.
+    """
+
+    # XXX It would be nice if there were some way to assert that these tests
+    # are exhaustive.  It seems like this logic should be abstracted somehow.
+
+    def test_NON_EXISTENT_MOUNTED_creates_volume(self):
+        """
+        If a volume doesn't exist and the desired state is ``MOUNTED``, then
+        the expected change is to create the volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            expected_changes=in_parallel([
+                CreateBlockDeviceDataset(
+                    dataset=Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    ),
+                    mountpoint=FilePath("/mount/point"),
+                ),
+            ])
+        )
+
+    def test_ATTACHED_ELSEWHERE_MOUNTED_does_nothing(self):
+        """
+        If a volume is currently ``ATTACHED_ELSEWHERE`` and the
+        desired state is ``MOUNTED``, then the expected change is a
+        noop.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_ELSEWHERE,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            expected_changes=NoOp(),
+        )
+
+    def test_NON_MANIFEST_MOUNTED_attaches(self):
+        """
+        If a volume is currently ``NON_MANIFEST`` and the desired state is
+        ``MOUNTED``, then the expected change is to attach the volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=FilePath("/"),
+                ),
+            ],
+            expected_changes=in_parallel([
+
+                AttachVolume(
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                ),
+            ])
+        )
+
+    def test_ATTACHED_MOUNTED_mounts(self):
+        """
+        If a volume is currently ``ATTACHED`` and the desired state is
+        ``MOUNTED``, then the expected change is to mount the volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            expected_changes=in_parallel([
+                MountBlockDevice(
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    mountpoint=FilePath("/mount/point"),
+                ),
+            ])
+        )
+
+    def test_MOUNTED_MOUNTED_does_nothing(self):
+        """
+        If a volume is currently ``MOUNTED`` and the desired state is
+        ``MOUNTED``, then the expected change is to do nothing.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            expected_changes=NoOp(),
+        )
+
+    def test_NON_EXISTENT_NON_MANIFEST_does_nothing(self):
+        """
+        If a volume doesn't exist and the desired state is ``NON_MANIFEST``,
+        then the expected change is to do nothing.
+
+        Note: we don't have any way to pick which node should create a volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_changes=NoOp(),
+        )
+
+    def test_NON_MANIFEST_NON_MANIFEST_does_nothing(self):
+        """
+        If a volume is currently ``NON_MANIFEST`` and the desired state is
+        ``NON_MANIFEST``, then the expected change is to do nothing.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_changes=NoOp()
+        )
+
+    def test_ATTACHED_NON_MANIFEST_detaches(self):
+        """
+        If a volume is currently ``ATTACHED`` and the desired state is
+        ``NON_MANIFEST``, then the expected change is to detach the volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_changes=in_parallel([
+                DetachVolume(
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                ),
+            ])
+        )
+
+    def test_MOUNTED_NON_MANIFEST_unmounts(self):
+        """
+        If a volume is currently ``MOUNTED`` and the desired state is
+        ``NON_MANIFEST``, then the expected change is to unmount the volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_changes=in_parallel([
+                UnmountBlockDevice(
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                )
+            ]),
+        )
+
+    def test_NON_EXISTENT_DELETED_does_nothing(self):
+        """
+        If a volume doesn't exist and the desired state is ``DELETED``,
+        then the expected change is to do nothing.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_changes=NoOp(),
+        )
+
+    def test_ATTACHED_ELSEWHERE_DELETED_does_nothing(self):
+        """
+        If a volume is attached elsewhere and the desired state is
+        ``DELETED``, then the expected change is to do nothing.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                ),
+            ],
+            expected_changes=NoOp(),
+        )
+
+    def test_NON_MANIFEST_DELETED_does_nothing(self):
+        """
+        If a volume is currently ``NON_MANIFEST`` and the desired state is
+        ``DELETED``, then the expected change is to do nothing.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.DELETED,
+                    dataset_id=dataset_id,
+                ),
+            ],
+            expected_changes=NoOp(),
+        )
+
+    def test_ATTACHED_DELETED_detaches(self):
+        """
+        If a volume is currently ``ATTACHED`` and the desired state is
+        ``DELETED``, then the expected change is detach.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.DELETED,
+                    dataset_id=dataset_id,
+                ),
+            ],
+            expected_changes=in_parallel([
+                DetachVolume(
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                ),
+            ]),
+        )
+
+    def test_MOUNTED_DELETED_destroys(self):
+        """
+        If a volume is currently ``MOUNTED`` and the desired state is
+        ``DELETED``, then the expected change is to destroy the volume.
+        """
+        dataset_id = uuid4()
+        assert_calculated_changes(
+            self,
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    device_path=FilePath('/dev/xvdf'),
+                    mount_point=FilePath("/mount/point"),
+                ),
+            ],
+            desired_datasets=[
+                DesiredDataset(
+                    state=DatasetStates.DELETED,
+                    dataset_id=dataset_id,
+                ),
+            ],
+            expected_changes=in_parallel([
+                DestroyBlockDeviceDataset(
+                    dataset_id=dataset_id,
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+                )
+            ]),
+        )
+
+
+class BlockDeviceDeployerCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):
     """
-    Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
-    changes are necessary because the local state already matches the desired
-    configuration.
+    Tests for ``BlockDeviceDeployer.calculate_changes``.
     """
-    def test_no_changes(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` calculates no changes when
-        the local state is already converged with the desired configuration.
-        """
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state)
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            NoOp(),
+    def setUp(self):
+        self.expected_change = ControllableAction(
+            result=succeed(None),
+        )
+        self.deployer = BlockDeviceDeployer(
+            node_uuid=ScenarioMixin.NODE_UUID,
+            hostname=ScenarioMixin.NODE,
+            block_device_api=UnusableAPI(),
+            calculater=RecordingCalculater(self.expected_change),
+        )
+        self.local_state = BlockDeviceDeployerLocalState(
+            node_uuid=ScenarioMixin.NODE_UUID,
+            hostname=ScenarioMixin.NODE,
+            datasets={},
+            volumes={},
         )
 
-    def test_deleted_ignored(self):
+    def test_calculates_changes(self):
         """
-        Deleted datasets for which no corresponding volumes exist do not result
-        in any convergence operations.
+        ``BlockDeviceDeployer.calculate_changes`` returns the changes
+        calculated by calling the provided ``ICalculater``.
         """
-        local_state = self.ONE_DATASET_STATE.transform(
-            # Remove the dataset.  This reflects its deletedness.
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        ).transform(
-            # Remove its device too.
-            ["devices", self.DATASET_ID], discard
+        # We're ignorant about application state:
+        node_state = NodeState(
+            hostname=ScenarioMixin.NODE,
+            uuid=ScenarioMixin.NODE_UUID,
+            applications=[],
+        )
+        node_config = to_node(node_state)
+
+        return assert_calculated_changes_for_deployer(
+            self, self.deployer,
+            node_state=node_state,
+            node_config=node_config,
+            nonmanifest_datasets=[],
+            additional_node_states=set(),
+            additional_node_config=set(),
+            expected_changes=self.expected_change,
+            local_state=self.local_state,
         )
 
-        local_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset"],
-            lambda d: d.set(
-                # Mark it as deleted in the configuration.
-                deleted=True,
-                # Change a bunch of other things too.  They shouldn't matter.
-                maximum_size=d.maximum_size * 2,
-                metadata={u"foo": u"bar"},
-            )
-        )
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[]),
-        )
-
-
-class BlockDeviceDeployerIgnorantCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
-    changes can be calculated because application state is unknown.
-    """
     def test_unknown_applications(self):
         """
         If applications are unknown, no changes are calculated.
         """
         # We're ignorant about application state:
-        local_state = NodeState(
-            hostname=self.NODE, uuid=self.NODE_UUID, applications=None)
+        node_state = NodeState(
+            hostname=ScenarioMixin.NODE,
+            uuid=ScenarioMixin.NODE_UUID,
+            applications=None,
+        )
+        node_config = to_node(node_state)
 
-        # We want to create a dataset:
-        local_config = to_node(self.ONE_DATASET_STATE)
-
-        assert_calculated_changes(self, local_state, local_config, set(),
-                                  in_parallel(changes=[]))
+        return assert_calculated_changes_for_deployer(
+            self, self.deployer,
+            node_state=node_state,
+            node_config=node_config,
+            nonmanifest_datasets=[],
+            additional_node_states=set(),
+            additional_node_config=set(),
+            expected_changes=NoOp(),
+            local_state=self.local_state,
+        )
 
     def test_another_node_ignorant(self):
         """
         If a different node is ignorant about its state, it is still possible
         to calculate state for the current node.
         """
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True
-        )
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
-                                          blockdevice_id=self.BLOCKDEVICE_ID)
-            ]),
-            # Another node which is ignorant about its state:
-            set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
-        )
-
-
-class BlockDeviceDeployerDestructionCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to dataset destruction.
-    """
-    def test_deleted_dataset_volume_mounted(self):
-        """
-        If the configuration indicates a dataset with a primary manifestation
-        on the node has been deleted and the volume associated with that
-        dataset still exists, ``BlockDeviceDeployer.calculate_changes`` returns
-        a ``DestroyBlockDeviceDataset`` state change operation.
-        """
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True
-        )
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
-                                          blockdevice_id=self.BLOCKDEVICE_ID)
-            ]),
-            discovered_datasets=[
-                DiscoveredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=self.BLOCKDEVICE_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath(b"/dev/whatever"),
-                    mount_point=FilePath(b"/flocker/wherever"),
-                ),
-            ],
-        )
-
-    def test_deleted_dataset_belongs_to_other_node(self):
-        """
-        If a dataset with a primary manifestation on one node is marked as
-        deleted in the configuration, the ``BlockDeviceDeployer`` for a
-        different node does not return a ``DestroyBlockDeviceDataset`` from its
-        ``calculate_necessary_state_changes`` for that dataset.
-        """
-        other_node = u"192.0.2.2"
-        local_state = self.ONE_DATASET_STATE
-        cluster_state = DeploymentState(
-            nodes={local_state}
-        )
-
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True
-        )
-        cluster_configuration = Deployment(
-            nodes={local_config}
-        )
-
-        api = loopbackblockdeviceapi_for_test(self)
-        volume = api.create_volume(
-            dataset_id=self.DATASET_ID, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-        api.attach_volume(volume.blockdevice_id, self.NODE)
-
-        deployer = BlockDeviceDeployer(
-            # This deployer is responsible for *other_node*, not node.
-            hostname=other_node,
-            node_uuid=uuid4(),
-            block_device_api=api,
-        )
-
-        local_state = _create_block_device_deployer_local_state(
-            deployer, cluster_state)
-        changes = deployer.calculate_changes(
-            cluster_configuration, cluster_state, local_state)
-
-        self.assertEqual(
-            in_parallel(changes=[]),
-            changes
-        )
-
-    def test_no_delete_if_in_use(self):
-        """
-        If a dataset has been marked as deleted *and* it is in use by an
-        application, no changes are made.
-        """
-        # Application using a dataset:
-        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
-
-        # Dataset is deleted:
-        local_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True)
-        local_config = add_application_with_volume(local_config)
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[]),
-        )
-
-    def test_no_delete_if_leased(self):
-        """
-        If a dataset has been marked as deleted *and* it is leased, no changes
-        are made.
-        """
-        # We have a dataset with a lease:
-        local_state = self.ONE_DATASET_STATE
-        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
-                                  self.ONE_DATASET_STATE.uuid)
-
-        # Dataset is deleted:
-        local_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True)
-        local_config = add_application_with_volume(local_config)
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[]), leases=leases,
-        )
-
-    def test_deleted_dataset_volume_unmounted(self):
-        """
-        ``DestroyBlockDeviceDataset`` is a compound state change that first
-        attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are not
-        manifest.
-        """
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True
-        )
-        # Remove the manifestation and its mount path.
-        local_state = local_state.transform(
-            ['manifestations', unicode(self.DATASET_ID)],
-            discard
-        )
-        local_state = local_state.transform(
-            ['paths', unicode(self.DATASET_ID)],
-            discard
-        )
-        # Local state shows that there is a device for the (now) non-manifest
-        # dataset. i.e it is attached.
-        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
-        assert_calculated_changes(
-            case=self,
-            node_state=local_state,
-            node_config=local_config,
-            # The unmounted dataset has been added back to the non-manifest
-            # datasets by discover_state.
-            nonmanifest_datasets=[
-                self.MANIFESTATION.dataset
-            ],
-            expected_changes=in_parallel(
-                changes=[
-                    MountBlockDevice(
-                        mountpoint=FilePath('/flocker/').child(
-                            unicode(self.DATASET_ID)
-                        ),
-                        blockdevice_id=self.BLOCKDEVICE_ID,
-                        dataset_id=self.DATASET_ID
-                    )
-                ]
-            ),
-            discovered_datasets=[
-                DiscoveredDataset(
-                    state=DatasetStates.ATTACHED,
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=_create_blockdevice_id_for_test(
-                        self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath(b"/dev/whatever"),
-                ),
-            ],
-
-        )
-
-    def test_deleted_dataset_volume_no_filesystem(self):
-        """
-        ``DestroyBlockDeviceDataset`` is a compound state change that first
-        attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are not
-        manifest, instead creating filesystem.
-
-        This will be unnecessary once we do FLOC-1772, but until that is
-        fixed is necessary to ensure volumes without filesystems get
-        deleted.
-        """
-        local_state = self.ONE_DATASET_STATE
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True
-        )
-        # Remove the manifestation and its mount path.
-        local_state = local_state.transform(
-            ['manifestations', unicode(self.DATASET_ID)],
-            discard
-        )
-        local_state = local_state.transform(
-            ['paths', unicode(self.DATASET_ID)],
-            discard
-        )
-        device = FilePath(b"/dev/whatever")
-
-        # Local state shows that there is a device for the (now) non-manifest
-        # dataset. i.e it is attached.
-        self.assertEqual([self.DATASET_ID], local_state.devices.keys())
-        assert_calculated_changes(
-            case=self,
-            node_state=local_state,
-            node_config=local_config,
-            # The unmounted dataset has been added back to the non-manifest
-            # datasets by discover_state.
-            nonmanifest_datasets=[
-                self.MANIFESTATION.dataset
-            ],
-            expected_changes=in_parallel(
-                changes=[
-                    CreateFilesystem(
-                        device=device,
-                        filesystem=u"ext4",
-                    )
-                ]
-            ),
-            discovered_datasets=[
-                DiscoveredDataset(
-                    state=DatasetStates.ATTACHED_NO_FILESYSTEM,
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=_create_blockdevice_id_for_test(
-                        self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=device,
-                ),
-            ],
-
-        )
-
-
-class BlockDeviceDeployerAttachCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to attaching existing datasets.
-    """
-    def test_attach_existing_nonmanifest(self):
-        """
-        If a dataset exists but is not manifest anywhere in the cluster and the
-        configuration specifies it should be manifest on the deployer's node,
-        ``BlockDeviceDeployer.calculate_changes`` returns state changes to
-        attach that dataset to its node and then mount its filesystem.
-        """
-        deployer = create_blockdevicedeployer(
-            self, hostname=self.NODE, node_uuid=self.NODE_UUID
-        )
-        # Give it a configuration that says a dataset should have a
-        # manifestation on the deployer's node.
-        node_config = to_node(self.ONE_DATASET_STATE)
-        cluster_config = Deployment(nodes={node_config})
-
-        # Give the node an empty state.
-        node_state = self.ONE_DATASET_STATE.transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        ).transform(
-            ["devices", self.DATASET_ID], discard
-        )
-
-        # Take the dataset in the configuration and make it part of the
-        # cluster's non-manifest datasets state.
-        manifestation = node_config.manifestations[unicode(self.DATASET_ID)]
-        dataset = manifestation.dataset
-        cluster_state = DeploymentState(
-            nodes={node_state},
-            nonmanifest_datasets={
-                unicode(dataset.dataset_id): dataset,
-            }
-        )
-
-        local_state = _create_block_device_deployer_local_state(
-            deployer, cluster_state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
-        changes = deployer.calculate_changes(
-            cluster_config, cluster_state, local_state)
-        self.assertEqual(
-            in_parallel(changes=[
-                AttachVolume(
-                    dataset_id=UUID(dataset.dataset_id),
-                    blockdevice_id=_create_blockdevice_id_for_test(
-                        dataset.dataset_id)
-                ),
-            ]),
-            changes
-        )
-
-    def test_attach_existing_nonmanifest_unknown(self):
-        """
-        If a dataset exists but is not manifest anywhere in the cluster and
-        the configuration specifies it should be manifest on the
-        deployer's node, and the volume information is not known, this
-        means we're being asked to calculate changes purely to decide
-        whether to wake up or not. That is, we're using out-of-date cached
-        volume information.
-
-        In this case ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ActionNeeded`` in order to wake up the convergence loop.
-        """
-        deployer = create_blockdevicedeployer(
-            self, hostname=self.NODE, node_uuid=self.NODE_UUID
-        )
-        # Give it a configuration that says a dataset should have a
-        # manifestation on the deployer's node.
-        node_config = to_node(self.ONE_DATASET_STATE)
-        cluster_config = Deployment(nodes={node_config})
-
-        # Give the node an empty state.
-        node_state = self.ONE_DATASET_STATE.transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        ).transform(
-            ["devices", self.DATASET_ID], discard
-        )
-
-        # Take the dataset in the configuration and make it part of the
-        # cluster's non-manifest datasets state.
-        manifestation = node_config.manifestations[unicode(self.DATASET_ID)]
-        dataset = manifestation.dataset
-        cluster_state = DeploymentState(
-            nodes={node_state},
-            nonmanifest_datasets={
-                unicode(dataset.dataset_id): dataset,
-            }
-        )
-
-        local_state = _create_block_device_deployer_local_state(
-            deployer, cluster_state,
-            volumes=[])  # Out of date info, lacking an expected volume
-        changes = deployer.calculate_changes(
-            cluster_config, cluster_state, local_state)
-        self.assertEqual(
-            in_parallel(changes=[
-                ActionNeeded(
-                    dataset_id=UUID(dataset.dataset_id),
-                ),
-            ]),
-            changes
-        )
-
-
-class BlockDeviceDeployerMountCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to mounting of filesystems.
-    """
-    def test_mount_manifestation(self):
-        """
-        If the volume for a dataset is attached to the node but the filesystem
-        is not mounted and the configuration says the dataset is meant to be
-        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
-        a state change to mount the filesystem.
-        """
-        # Give it a state that says the volume is attached but nothing is
-        # mounted.
-        device = FilePath(b"/dev/sda")
-        node_state = self.ONE_DATASET_STATE.set(
-            manifestations={},
-            paths={},
-            devices={self.DATASET_ID: device},
-        )
-
-        # Give it a configuration that says there should be a manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE)
-
-        assert_calculated_changes(
-            self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
-            in_parallel(changes=[
-                MountBlockDevice(
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=self.BLOCKDEVICE_ID,
-                    mountpoint=FilePath(b"/flocker/").child(
-                        bytes(self.DATASET_ID)
-                    )
-                ),
-            ]),
-            discovered_datasets=[
-                DiscoveredDataset(
-                    state=DatasetStates.ATTACHED,
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=_create_blockdevice_id_for_test(
-                        self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=device,
-                ),
-            ],
-
-        )
-
-
-class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to creation of filesystems.
-    """
-    def test_create_filesystem(self):
-        """
-        If the volume for a dataset is attached to the node but the filesystem
-        does not exist and the configuration says the dataset is meant to be
-        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
-        a state change to create the filesystem.
-        """
-        # Give it a state that says the volume is attached but nothing is
-        # mounted.
-        device = FilePath(b"/dev/sda")
-        node_state = self.ONE_DATASET_STATE.set(
-            manifestations={},
-            paths={},
-            devices={self.DATASET_ID: device},
-        )
-
-        # Give it a configuration that says there should be a manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE)
-
-        assert_calculated_changes(
-            self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
-            in_parallel(changes=[
-                CreateFilesystem(device=device, filesystem=u"ext4")
-            ]),
-            discovered_datasets=[
-                DiscoveredDataset(
-                    state=DatasetStates.ATTACHED_NO_FILESYSTEM,
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=_create_blockdevice_id_for_test(
-                        self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=device,
-                ),
-            ],
-        )
-
-
-class BlockDeviceDeployerUnmountCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to unmounting of filesystems.
-    """
-    def test_unmount_manifestation(self):
-        """
-        If the filesystem for a dataset is mounted on the node and the
-        configuration says the dataset is not meant to be manifest on that
-        node, ``BlockDeviceDeployer.calculate_changes`` returns a state change
-        to unmount the filesystem.
-        """
-        # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, node_state, node_config, set(),
-            in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID,
-                                   blockdevice_id=self.BLOCKDEVICE_ID)
-            ])
-        )
-
-    def test_no_unmount_if_in_use(self):
-        """
-        If a dataset should be unmounted *and* it is in use by an application,
-        no changes are made.
-        """
-        # State has a dataset in use by application
-        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]),
-        )
-
-    def test_no_unmount_if_leased(self):
-        """
-        If a dataset should be unmounted *and* it is leased on this node, no
-        changes are made.
-        """
-        # State has a dataset which is leased
-        local_state = self.ONE_DATASET_STATE
-        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
-                                  self.ONE_DATASET_STATE.uuid)
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]), leases=leases,
-        )
-
-    def test_unmount_manifestation_when_leased_elsewhere(self):
-        """
-        If the filesystem for a dataset is mounted on the node and the
-        configuration says the dataset is not meant to be manifest on that
-        node, ``BlockDeviceDeployer.calculate_changes`` returns a state
-        change to unmount the filesystem even if there is a lease, as long
-        as the lease is for another node.
-        """
-        # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
-        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
-                                  uuid4())
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, node_state, node_config, set(),
-            in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID,
-                                   blockdevice_id=self.BLOCKDEVICE_ID)
-            ]), leases=leases,
-        )
-
-
-class BlockDeviceDeployerCreationCalculateChangesTests(
-        SynchronousTestCase,
-        ScenarioMixin
-):
-    """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to dataset creation.
-    """
-    def test_no_devices_no_local_datasets(self):
-        """
-        If no devices exist and no datasets are part of the configuration for
-        the deployer's node, no state changes are calculated.
-        """
-        dataset_id = unicode(uuid4())
-        manifestation = Manifestation(
-            dataset=Dataset(dataset_id=dataset_id), primary=True
-        )
-        node = u"192.0.2.1"
-        node_uuid = uuid4()
-        other_node = u"192.0.2.2"
-        other_node_uuid = uuid4()
-        configuration = Deployment(
-            nodes={
-                Node(
-                    hostname=other_node,
-                    uuid=other_node_uuid,
-                    manifestations={dataset_id: manifestation},
-                )
-            }
-        )
-        state = DeploymentState(nodes=[])
-        deployer = create_blockdevicedeployer(
-            self, hostname=node, node_uuid=node_uuid
-        )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
-        changes = deployer.calculate_changes(configuration, state, local_state)
-        self.assertEqual(in_parallel(changes=[]), changes)
-
-    def test_no_devices_one_dataset(self):
-        """
-        If no devices exist but a dataset is part of the configuration for the
-        deployer's node, a ``CreateBlockDeviceDataset`` change is calculated.
-        """
-        uuid = uuid4()
-        dataset_id = unicode(uuid4())
-        dataset = Dataset(
-            dataset_id=dataset_id,
-            maximum_size=int(GiB(1).to_Byte().value)
-        )
-        manifestation = Manifestation(
-            dataset=dataset, primary=True
-        )
-        node = u"192.0.2.1"
-        configuration = Deployment(
-            nodes={
-                Node(
-                    uuid=uuid,
-                    manifestations={dataset_id: manifestation},
-                )
-            }
-        )
-        state = DeploymentState(nodes=[NodeState(
-            uuid=uuid, hostname=node, applications=[], manifestations={},
-            devices={}, paths={})])
-        deployer = create_blockdevicedeployer(
-            self, hostname=node, node_uuid=uuid,
-        )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
-        changes = deployer.calculate_changes(configuration, state, local_state)
-        mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
-        self.assertEqual(
-            in_parallel(
-                changes=[
-                    CreateBlockDeviceDataset(
-                        dataset=dataset, mountpoint=mountpoint
-                    )
-                ]),
-            changes
-        )
-
-    def _calculate_changes(self, local_uuid, local_hostname, local_state,
-                           desired_configuration):
-        """
-        Create a ``BlockDeviceDeployer`` and call its
-        ``calculate_changes`` method with the given arguments and an empty
-        cluster state.
-
-        :param UUID local_uuid: The node identifier to give the to the
-            ``BlockDeviceDeployer``.
-        :param unicode local_hostname: The node IP to give to the
-            ``BlockDeviceDeployer``.
-        :param desired_configuration: As accepted by
-            ``IDeployer.calculate_changes``.
-
-        :return: The return value of ``BlockDeviceDeployer.calculate_changes``.
-        """
-        # It is expected that someone will have merged local state into cluster
-        # state.
-        current_cluster_state = DeploymentState(nodes={local_state})
-
-        deployer = create_blockdevicedeployer(
-            self, node_uuid=local_uuid, hostname=local_hostname,
-        )
-
-        local_state = _create_block_device_deployer_local_state(
-            deployer, current_cluster_state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
-        return deployer.calculate_changes(
-            desired_configuration, current_cluster_state, local_state)
-
-    def test_match_configuration_to_state_of_datasets(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` does not yield a
-        ``CreateBlockDeviceDataset`` change if a dataset with the same ID
-        exists with different metadata.
-        """
-        expected_hostname = u'192.0.2.123'
-        expected_dataset_id = unicode(uuid4())
-
-        local_state = NodeState(
-            hostname=expected_hostname,
-            uuid=uuid4(),
-            paths={
-                expected_dataset_id: FilePath(b"/flocker").child(
-                    expected_dataset_id.encode("ascii")),
-            },
-            devices={},
-            manifestations={
-                expected_dataset_id:
-                Manifestation(
-                    primary=True,
-                    dataset=Dataset(
-                        dataset_id=expected_dataset_id,
-                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
-                        # Dataset state will always have empty metadata and
-                        # deleted will always be False.
-                        metadata={},
-                        deleted=False,
-                    ),
-                ),
-            },
-        )
-
-        # Give the dataset some metadata in the configuration, thus diverging
-        # it from the representation in local_state.
-        desired_configuration = Deployment(nodes=[Node(
-            hostname=expected_hostname,
-            uuid=local_state.uuid,
-            manifestations=local_state.manifestations.transform(
-                (expected_dataset_id, "dataset", "metadata"),
-                {u"name": u"my_volume"}
-            ))])
-        actual_changes = self._calculate_changes(
-            local_state.uuid,
-            expected_hostname,
-            local_state,
-            desired_configuration
-        )
-
-        expected_changes = in_parallel(changes=[])
-
-        self.assertEqual(expected_changes, actual_changes)
-
-    def test_dataset_without_maximum_size(self):
-        """
-        When supplied with a configuration containing a dataset with a null
-        size, ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``CreateBlockDeviceDataset`` for a 100GiB dataset.
-        XXX: Make the default size configurable. FLOC-2679
-        """
-        node_id = uuid4()
-        node_address = u"192.0.2.1"
-        dataset_id = unicode(uuid4())
-
-        requested_dataset = Dataset(dataset_id=dataset_id, maximum_size=None)
-
-        configuration = Deployment(
-            nodes={
-                Node(
-                    uuid=node_id,
-                    manifestations={
-                        dataset_id: Manifestation(
-                            dataset=requested_dataset,
-                            primary=True
-                        )
-                    },
-                )
-            }
-        )
-        state = DeploymentState(
-            nodes=[
-                NodeState(
-                    uuid=node_id,
-                    hostname=node_address,
-                    applications=[],
-                    manifestations={},
-                    devices={},
-                    paths={},
-                )
-            ]
-        )
-        deployer = create_blockdevicedeployer(
-            self,
-            hostname=node_address,
-            node_uuid=node_id,
-        )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
-        changes = deployer.calculate_changes(
-            configuration, state, local_state)
-        mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
-        expected_size = int(GiB(100).to_Byte().value)
-        self.assertEqual(
-            in_parallel(
-                changes=[
-                    CreateBlockDeviceDataset(
-                        dataset=requested_dataset.set(
-                            'maximum_size', expected_size
-                        ),
-                        mountpoint=mountpoint
-                    )
-                ]),
-            changes
-        )
-
-    def test_dataset_default_maximum_size_stable(self):
-        """
-        When supplied with a configuration containing a dataset with a null
-        size and operating against state where a volume of the default size
-        exists for that dataset, ``BlockDeviceDeployer.calculate_changes``
-        returns no changes.
-        """
-        # The state has a manifestation with a concrete size (as it must have).
-        local_state = self.ONE_DATASET_STATE
-        # The configuration is the same except it lacks a size.
-        local_config = to_node(local_state).transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset",
-             "maximum_size"],
-            None,
-        )
-
-        assert_calculated_changes(
-            self, local_state, local_config, set(), in_parallel(changes=[]),
-        )
-
-    def test_dataset_exists_on_other_node(self):
-        """
-        ``calculate_changes`` does not attempt to create a new dataset if it is
-        already manifest on another node.
-        """
-        # Remote node still has an attached dataset
-        remote_state = self.ONE_DATASET_STATE
-
-        # But the dataset has been moved.
-        empty_state = delete_manifestation(remote_state, self.MANIFESTATION)
-        remote_config = to_node(empty_state)
-
-        # Local state has no manifestations
-        local_node_id = uuid4()
-        local_node_address = u"192.0.2.2"
-        local_state = empty_state.set(
-            "uuid", local_node_id, "hostname", local_node_address
-        )
-
-        # But the dataset is configured here.
-        local_config = to_node(remote_state).set(
-            "uuid", local_node_id, "hostname", local_node_address
-        )
-
-        configuration = Deployment(
-            nodes={local_config, remote_config}
-        )
-        state = DeploymentState(
-            nodes={local_state, remote_state},
-        )
-
-        deployer = create_blockdevicedeployer(
-            self,
-            hostname=local_node_address,
-            node_uuid=local_node_id,
-        )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
-        changes = deployer.calculate_changes(configuration, state, local_state)
-
-        self.assertEqual(in_parallel(changes=[]), changes)
-
-
-class BlockDeviceDeployerDetachCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
-):
-    def test_detach_manifestation(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` recognizes a volume that is
-        attached but not mounted which is not associated with a dataset
-        configured to have a manifestation on the deployer's node and returns a
-        state change to detach the volume.
-        """
-        # Give it a state that says it has no manifestations but it does have
-        # some attached volumes.
+        # We're ignorant about application state:
         node_state = NodeState(
-            uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
-            manifestations={},
-            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
-            paths={},
+            hostname=ScenarioMixin.NODE,
+            uuid=ScenarioMixin.NODE_UUID,
+            applications=[],
         )
-
-        # Give it a configuration that says no datasets should be manifest on
-        # the deployer's node.
         node_config = to_node(node_state)
 
-        assert_calculated_changes(
-            self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
-            in_parallel(changes=[
-                DetachVolume(dataset_id=self.DATASET_ID,
-                             blockdevice_id=self.BLOCKDEVICE_ID)
-            ])
+        return assert_calculated_changes_for_deployer(
+            self, self.deployer,
+            node_state=node_state,
+            node_config=node_config,
+            nonmanifest_datasets=[],
+            additional_node_states={
+                NodeState(hostname=u"1.2.3.4", uuid=uuid4(),
+                          applications=None),
+            },
+            additional_node_config=set(),
+            expected_changes=self.expected_change,
+            local_state=self.local_state,
         )
 
 

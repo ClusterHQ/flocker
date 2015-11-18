@@ -35,7 +35,7 @@ from twisted.python.constants import (
 
 from .. import (
     IDeployer, ILocalState, IStateChange, sequentially, in_parallel,
-    run_state_change
+    run_state_change, NoOp,
 )
 from .._deploy import NotInUseDatasets
 
@@ -63,6 +63,10 @@ class DatasetStates(Names):
     States that a ``Dataset`` can be in.
 
     """
+    # Doesn't exist yet.
+    NON_EXISTENT = NamedConstant()
+    # Exists, but attached elsewhere
+    ATTACHED_ELSEWHERE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -99,22 +103,32 @@ class DiscoveredDataset(PClass):
     device_path = field(FilePath)
     mount_point = field(FilePath)
 
+    ALLOWED_STATES = (
+        DatasetStates.ATTACHED_ELSEWHERE,
+        DatasetStates.NON_MANIFEST,
+        DatasetStates.ATTACHED_NO_FILESYSTEM,
+        DatasetStates.ATTACHED,
+        DatasetStates.MOUNTED,
+    )
+    EXPECTED_ATTRIBUTES = {
+        "device_path": {
+            DatasetStates.ATTACHED, DatasetStates.MOUNTED,
+            DatasetStates.ATTACHED_NO_FILESYSTEM,
+        },
+        "mount_point": {DatasetStates.MOUNTED},
+    }
+
     def __invariant__(self):
         """
         Check that the state is valid for a ``DiscoveredDataset`` and
         that all the attributes required for the state are specified.
         """
-        expected_attributes = [
-            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED,
-              DatasetStates.ATTACHED_NO_FILESYSTEM), "device_path"),
-            ((DatasetStates.MOUNTED,), "mount_point"),
-        ]
-        for states, attribute in expected_attributes:
+        for attribute, states in self.EXPECTED_ATTRIBUTES.items():
             if (self.state in states) != hasattr(self, attribute):
                 if self.state in states:
                     message = (
                         "`{attr}` must be specified in state `{state}`"
-                        .format(attribute=attribute, state=self.state.name)
+                        .format(attr=attribute, state=self.state.name)
                     )
                 else:
                     message = (
@@ -125,9 +139,88 @@ class DiscoveredDataset(PClass):
                         )
                     )
                 return (False, message)
-        if self.state in (DatasetStates.DELETED,):
-            return (False, "DesiredDataset can't be in state DELETED.")
+        if self.state not in self.ALLOWED_STATES:
+            return (False, "{class_} can only be in states {states}.".format(
+                class_=self.__class__,
+                states=','.join(map("`{0.name}`".format, self.ALLOWED_STATES)),
+            ))
         return (True, "")
+
+
+class DesiredDataset(PClass):
+    """
+    Dataset as requested by configuration (and applications).
+    """
+    state = field(
+        invariant=lambda state: (state in DatasetStates.iterconstants(),
+                                 "Not a valid state"),
+        mandatory=True,
+    )
+    dataset_id = field(type=UUID, mandatory=True)
+    maximum_size = field(type=int)
+    metadata = pmap_field(
+        key_type=unicode,
+        value_type=unicode,
+    )
+    mount_point = field(FilePath)
+    filesystem = field(unicode, initial=u"ext4", mandatory=True,
+                       invariant=lambda v: v == "ext4")
+
+    ALLOWED_STATES = (
+        DatasetStates.NON_MANIFEST,
+        DatasetStates.MOUNTED,
+        DatasetStates.DELETED,
+    )
+    EXPECTED_ATTRIBUTES = {
+        "maximum_size": {DatasetStates.NON_MANIFEST, DatasetStates.MOUNTED},
+        "mount_point": {DatasetStates.MOUNTED},
+    }
+
+    def __invariant__(self):
+        for attribute, states in self.EXPECTED_ATTRIBUTES.items():
+            if (self.state in states) != hasattr(self, attribute):
+                if self.state in states:
+                    message = (
+                        "`{attr}` must be specified in state `{state}`"
+                        .format(attr=attribute, state=self.state.name)
+                    )
+                else:
+                    message = (
+                        "`{attr}` can only be specified in states {states}"
+                        .format(
+                            attr=attribute,
+                            states=','.join(map("`{0.name}`".format, states)),
+                        )
+                    )
+                return (False, message)
+        if self.state not in self.ALLOWED_STATES:
+            return (False, "{class_} can only be in states {states}.".format(
+                class_=self.__class__,
+                states=','.join(map("`{0.name}`".format, self.ALLOWED_STATES)),
+            ))
+        return (True, "")
+
+
+class ICalculater(Interface):
+    """
+    An object that can calculate the changes required to bring dataset state
+    and desired dataset configuration into alignment.
+    """
+    def calculate_changes_for_datasets(
+        discovered_datasets, desired_datasets,
+    ):
+        """
+        Calculate the state changes necessary to make the local state match the
+        desired cluster configuration.
+
+        :param discovered_datasets: The datasets that have been discovered.
+        :type discovered_datasets: mapping of `dataset_id`` to
+            ``DiscoveredDataset``.
+        :param desired_datasets: The datasets that are desired on this node.
+        :type desired_datasets: mapping of `dataset_id`` to ``DesiredDataset``.
+
+        :return: An ``IStateChange`` provider.
+        """
 
 
 class VolumeException(Exception):
@@ -437,6 +530,13 @@ class DestroyBlockDeviceDataset(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=desired_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
     # This can be replaced with a regular attribute when the `_logger` argument
     # is no longer required by Eliot.
     @property
@@ -471,6 +571,13 @@ class CreateFilesystem(PRecord):
     """
     device = field(type=FilePath, mandatory=True)
     filesystem = field(type=unicode, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            device=discovered_dataset.device_path,
+            filesystem=desired_dataset.filesystem,
+        )
 
     @property
     def eliot_action(self):
@@ -565,6 +672,14 @@ class MountBlockDevice(PRecord):
     blockdevice_id = field(type=unicode, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=desired_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+            mountpoint=desired_dataset.mount_point,
+        )
+
     @property
     def eliot_action(self):
         return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
@@ -628,6 +743,13 @@ class UnmountBlockDevice(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
     @property
     def eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
@@ -665,6 +787,13 @@ class AttachVolume(PRecord):
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
 
     @property
     def eliot_action(self):
@@ -727,6 +856,13 @@ class DetachVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
     @property
     def eliot_action(self):
         return DETACH_VOLUME(_logger, dataset_id=self.dataset_id,
@@ -749,6 +885,12 @@ class DestroyVolume(PRecord):
         ``IBlockDeviceAPI``-managed volume to be destroyed.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
 
     @property
     def eliot_action(self):
@@ -800,6 +942,16 @@ class CreateBlockDeviceDataset(PRecord):
     """
     dataset = field(mandatory=True, type=Dataset)
     mountpoint = field(mandatory=True, type=FilePath)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset=Dataset(
+                dataset_id=desired_dataset.dataset_id,
+                maximum_size=desired_dataset.maximum_size,
+            ),
+            mountpoint=desired_dataset.mount_point,
+        )
 
     @property
     def eliot_action(self):
@@ -1308,6 +1460,98 @@ class BlockDeviceDeployerLocalState(PClass):
         )
 
 
+# Mapping from desired and discovered dataset state to
+# IStateChange factory. (The factory is expected to take
+# ``desired_dataset`` and ``discovered_dataset``.
+Desired = Discovered = DatasetStates
+DO_NOTHING = lambda **kwargs: NoOp()
+DATASET_TRANSITIONS = {
+    Desired.MOUNTED: {
+        Discovered.NON_EXISTENT:
+            CreateBlockDeviceDataset.from_state_and_config,
+        # Other node will need to deatch first
+        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        Discovered.ATTACHED_NO_FILESYSTEM:
+            CreateFilesystem.from_state_and_config,
+        Discovered.NON_MANIFEST: AttachVolume.from_state_and_config,
+        DatasetStates.ATTACHED: MountBlockDevice.from_state_and_config,
+    },
+    Desired.NON_MANIFEST: {
+        # Can't create non-manifest datasets yet.
+        Discovered.NON_EXISTENT: DO_NOTHING,
+        # Other node will deatch
+        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        Discovered.ATTACHED_NO_FILESYSTEM:
+            DetachVolume.from_state_and_config,
+        Discovered.ATTACHED: DetachVolume.from_state_and_config,
+        Discovered.MOUNTED: UnmountBlockDevice.from_state_and_config,
+    },
+    Desired.DELETED: {
+        Discovered.NON_EXISTENT: DO_NOTHING,
+        # Other node will destroy
+        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        # Can't pick node that will do destruction yet.
+        Discovered.NON_MANIFEST: DO_NOTHING,
+        # This state won't occur until FLOC-1772
+        Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume.from_state_and_config,
+        # This state won't occur until FLOC-1772
+        Discovered.ATTACHED: DetachVolume.from_state_and_config,
+        Discovered.MOUNTED: DestroyBlockDeviceDataset.from_state_and_config,
+    },
+}
+del Desired, Discovered, DO_NOTHING
+
+
+@implementer(ICalculater)
+class BlockDeviceCalculater(PClass):
+    """
+    An ``ICalculater`` that calculates actions that use a
+    ``BlockDeviceDeployer``.
+    """
+    def _calculate_dataset_change(self, discovered_dataset, desired_dataset):
+        """
+        Calculate the state changes necessary to make ``discovered_dataset``
+        state match ``desired_dataset`` configuration.
+
+        :param discovered_dataset: The current state of the dataset.
+        :type discovered_dataset: ``DiscoveredDataset`` or ``None``
+        :param desired_dataset: The desired state of the dataset.
+        :type desired_dataset: ``DesiredDataset`` or ``None``
+        """
+        # If the configuration doesn't know about a dataset,
+        # we detach it.
+        desired_state = (desired_dataset.state
+                         if desired_dataset is not None
+                         else DatasetStates.NON_MANIFEST)
+        # If we haven't discovered a dataset, then it is doesn't
+        # exist.
+        discovered_state = (discovered_dataset.state
+                            if discovered_dataset is not None
+                            else DatasetStates.NON_EXISTENT)
+        if desired_state != discovered_state:
+            return DATASET_TRANSITIONS[desired_state][discovered_state](
+                discovered_dataset=discovered_dataset,
+                desired_dataset=desired_dataset,
+            )
+        else:
+            return NoOp()
+
+    def calculate_changes_for_datasets(
+        self, discovered_datasets, desired_datasets
+    ):
+        actions = []
+        # If a dataset isn't in the configuration, we don't act on it.
+        for dataset_id in set(discovered_datasets) | set(desired_datasets):
+            desired_dataset = desired_datasets.get(dataset_id)
+            discovered_dataset = discovered_datasets.get(dataset_id)
+            actions.append(self._calculate_dataset_change(
+                discovered_dataset=discovered_dataset,
+                desired_dataset=desired_dataset,
+            ))
+
+        return in_parallel(changes=actions)
+
+
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
     """
@@ -1325,6 +1569,8 @@ class BlockDeviceDeployer(PRecord):
     :ivar _async_block_device_api: An object to override the value of the
         ``async_block_device_api`` property.  Used by tests.  Should be
         ``None`` in real-world use.
+    :ivar ICalculater calculater: The object to use to calculate dataset
+        changes.
     """
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
@@ -1333,6 +1579,12 @@ class BlockDeviceDeployer(PRecord):
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
+    calculater = field(
+        # XXX We should abstact this invariant out.
+        invariant=lambda i: (ICalculater.providedBy(i),
+                             "Must provide ICalculater"),
+        mandatory=True,
+        initial=BlockDeviceCalculater())
 
     @property
     def profiled_blockdevice_api(self):
@@ -1470,6 +1722,13 @@ class BlockDeviceDeployer(PRecord):
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
                     )
+                else:
+                    datasets[dataset_id] = DiscoveredDataset(
+                        state=DatasetStates.ATTACHED_ELSEWHERE,
+                        dataset_id=dataset_id,
+                        maximum_size=volume.size,
+                        blockdevice_id=volume.blockdevice_id,
+                    )
 
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
@@ -1480,17 +1739,6 @@ class BlockDeviceDeployer(PRecord):
         )
 
         return succeed(local_state)
-
-    def _mountpath_for_manifestation(self, manifestation):
-        """
-        Calculate a ``Manifestation`` mount point.
-
-        :param Manifestation manifestation: The manifestation of a dataset that
-            will be mounted.
-
-        :returns: A ``FilePath`` of the mount point.
-        """
-        return self._mountpath_for_dataset_id(manifestation.dataset_id)
 
     def _mountpath_for_dataset_id(self, dataset_id):
         """
@@ -1503,9 +1751,79 @@ class BlockDeviceDeployer(PRecord):
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
 
-    def calculate_changes(self, configuration, cluster_state, local_state):
+    def _calculate_desired_state(
+        self, configuration, local_applications, local_datasets
+    ):
+        not_in_use = NotInUseDatasets(
+            node_uuid=self.node_uuid,
+            applications=local_applications,
+            leases=configuration.leases,
+        )
+
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
+
+        desired_datasets = {}
+        for manifestation in this_node_config.manifestations.values():
+            dataset_id = UUID(manifestation.dataset.dataset_id)
+            # XXX: Make this configurable. FLOC-2679
+            maximum_size = manifestation.dataset.maximum_size
+            if maximum_size is None:
+                maximum_size = DEFAULT_DATASET_SIZE
+
+            if (
+                manifestation.dataset.deleted is True
+                # XXX FLOC-1772
+                and dataset_id in local_datasets
+                and local_datasets[dataset_id].state == DatasetStates.MOUNTED
+            ):
+                desired_datasets[dataset_id] = DesiredDataset(
+                    state=DatasetStates.DELETED,
+                    dataset_id=dataset_id,
+                    metadata=manifestation.dataset.metadata,
+                )
+            else:
+                desired_datasets[dataset_id] = DesiredDataset(
+                    state=DatasetStates.MOUNTED,
+                    dataset_id=dataset_id,
+                    metadata=manifestation.dataset.metadata,
+                    maximum_size=maximum_size,
+                    mount_point=self._mountpath_for_dataset_id(
+                        unicode(dataset_id)
+                    ),
+                )
+
+        # If we don't have a given dataset, we default it to `NON_MANIFEST` in
+        # BlockDeviceCalculater.calculate_changes_for_datasets, so we don't try
+        # to find them here. We don't have explicit configuration for
+        # non-manifest datasets anyway. Datasets that should be
+        # `ATTACHED_ELSEWHERE` need the same behavior as `NON_MANIFEST`, so we
+        # don't check them either.
+
+        not_in_use_datasets = not_in_use(local_datasets.values())
+        for dataset_id, dataset in local_datasets.items():
+            if dataset in not_in_use_datasets:
+                continue
+            if dataset.state != DatasetStates.MOUNTED:
+                # A lease doesn't force a mount.
+                continue
+            # This may override something from above, if there is a
+            # lease or application using a dataset.
+            desired_datasets[dataset_id] = DesiredDataset(
+                dataset_id=dataset_id,
+                state=DatasetStates.MOUNTED,
+                maximum_size=dataset.maximum_size,
+                # XXX We don't populate metadata here, but it isn't necessary
+                # until we want to update it.
+                metadata={},
+                mount_point=self._mountpath_for_dataset_id(
+                    unicode(dataset_id)
+                ),
+            )
+
+        return desired_datasets
+
+    def calculate_changes(self, configuration, cluster_state, local_state):
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 
@@ -1513,264 +1831,18 @@ class BlockDeviceDeployer(PRecord):
         # deletion or handoffs. Eventually this will rely on leases instead.
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
-            return in_parallel(changes=[])
+            return NoOp()
 
-        not_in_use = NotInUseDatasets(local_node_state, configuration.leases)
-
-        configured_manifestations = this_node_config.manifestations
-
-        configured_dataset_ids = set(
-            manifestation.dataset.dataset_id
-            for manifestation in configured_manifestations.values()
-            # Don't create deleted datasets
-            if not manifestation.dataset.deleted
+        desired_datasets = self._calculate_desired_state(
+            configuration=configuration,
+            local_applications=local_node_state.applications,
+            local_datasets=local_state.datasets,
         )
 
-        local_dataset_ids = set(local_node_state.manifestations.keys())
-
-        manifestations_to_create = set()
-        all_dataset_ids = list(
-            dataset.dataset_id
-            for dataset, node
-            in cluster_state.all_datasets()
+        return self.calculater.calculate_changes_for_datasets(
+            discovered_datasets=local_state.datasets,
+            desired_datasets=desired_datasets,
         )
-        for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
-            if dataset_id in all_dataset_ids:
-                continue
-            else:
-                manifestation = configured_manifestations[dataset_id]
-                # XXX: Make this configurable. FLOC-2679
-                if manifestation.dataset.maximum_size is None:
-                    manifestation = manifestation.transform(
-                        ['dataset', 'maximum_size'],
-                        DEFAULT_DATASET_SIZE
-                    )
-                manifestations_to_create.add(manifestation)
-
-        attaches = list(self._calculate_attaches(
-            local_node_state.devices,
-            configured_manifestations,
-            cluster_state.nonmanifest_datasets,
-            local_state.volumes
-        ))
-        mounts = list(self._calculate_mounts(
-            local_node_state.devices, local_node_state.paths,
-            configured_manifestations, local_state.volumes,
-            local_state.datasets,
-        ))
-        unmounts = list(self._calculate_unmounts(
-            local_node_state.paths, configured_manifestations,
-            local_state.volumes
-        ))
-        filesystem_creates = list(self._calculate_filesystem_creates(
-            configured_manifestations,
-            local_state.datasets,
-        ))
-
-        # XXX prevent the configuration of unsized datasets on blockdevice
-        # backends; cannot create block devices of unspecified size. FLOC-1579
-        creates = list(
-            CreateBlockDeviceDataset(
-                dataset=manifestation.dataset,
-                mountpoint=self._mountpath_for_manifestation(manifestation)
-            )
-            for manifestation
-            in manifestations_to_create
-        )
-
-        detaches = list(self._calculate_detaches(
-            local_node_state.devices, local_node_state.paths,
-            configured_manifestations, local_state.volumes,
-        ))
-        deletes = self._calculate_deletes(
-            local_node_state, configured_manifestations, local_state.volumes)
-
-        # FLOC-1484 Support resize for block storage backends. See also
-        # FLOC-1875.
-
-        return in_parallel(changes=(
-            not_in_use(unmounts) + detaches +
-            attaches + mounts +
-            creates + not_in_use(deletes) + filesystem_creates
-        ))
-
-    def _calculate_mounts(self, devices, paths, configured, volumes,
-                          discovered_datasets):
-        """
-        :param PMap devices: The datasets with volumes attached to this node
-            and the device files at which they are available.  This is the same
-            as ``NodeState.devices``.
-        :param PMap paths: The paths at which datasets' filesystems are mounted
-            on this node.  This is the same as ``NodeState.paths``.
-        :param PMap configured: The manifestations which are configured on this
-            node.  This is the same as ``NodeState.manifestations``.
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
-        :param discovered_datasets: Map from ``UUID`` to ``DiscoveredDataset``.
-
-        :return: A generator of ``MountBlockDevice`` instances, one for each
-            dataset which exists, is attached to this node, does not have its
-            filesystem mounted, and is configured to have a manifestation on
-            this node.
-        """
-        for configured_dataset_id in configured:
-            if configured_dataset_id in paths:
-                # It's mounted already.
-                continue
-            dataset_id = UUID(configured_dataset_id)
-            if dataset_id not in discovered_datasets:
-                # If it's not discovered very definitely not attached
-                continue
-            if discovered_datasets[dataset_id].state == DatasetStates.ATTACHED:
-                # Attached and filesystem exists
-                path = self._mountpath_for_dataset_id(configured_dataset_id)
-                volume = _blockdevice_volume_from_datasetid(volumes,
-                                                            dataset_id)
-                yield MountBlockDevice(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
-                    mountpoint=path,
-                )
-
-    def _calculate_filesystem_creates(self, configured, discovered_datasets):
-        """
-        :param PMap configured: The manifestations which are configured on this
-            node.  This is the same as ``NodeState.manifestations``.
-        :param discovered_datasets: Map from ``UUID`` to ``DiscoveredDataset``.
-
-        :return: A generator of ``CreateFilesystem`` instances, one for each
-            dataset which exists, is attached to this node, does not have a
-            filesystem, and is configured to have a manifestation on
-            this node.
-        """
-        for configured_dataset_id in configured:
-            dataset_id = UUID(configured_dataset_id)
-            if dataset_id not in discovered_datasets:
-                continue
-            discovered = discovered_datasets[dataset_id]
-            if discovered.state == DatasetStates.ATTACHED_NO_FILESYSTEM:
-                yield CreateFilesystem(
-                    device=discovered.device_path,
-                    filesystem=u"ext4",
-                )
-
-    def _calculate_unmounts(self, paths, configured, volumes):
-        """
-        :param PMap paths: The paths at which datasets' filesystems are mounted
-            on this node.  This is the same as ``NodeState.paths``.
-        :param PMap configured: The manifestations which are configured on this
-            node.  This is the same as ``NodeState.manifestations``.
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
-
-        :return: A generator of ``UnmountBlockDevice`` instances, one for each
-            dataset which exists, is attached to this node, has its filesystem
-            mount, and is configured to not have a manifestation on this node.
-        """
-        for mounted_dataset_id in paths:
-            if mounted_dataset_id not in configured:
-                dataset_id = UUID(mounted_dataset_id)
-                volume = _blockdevice_volume_from_datasetid(volumes,
-                                                            dataset_id)
-                yield UnmountBlockDevice(dataset_id=dataset_id,
-                                         blockdevice_id=volume.blockdevice_id)
-
-    def _calculate_detaches(self, devices, paths, configured, volumes):
-        """
-        :param PMap devices: The datasets with volumes attached to this node
-            and the device files at which they are available.  This is the same
-            as ``NodeState.devices``.
-        :param PMap paths: The paths at which datasets' filesystems are mounted
-            on this node.  This is the same as ``NodeState.paths``.
-        :param PMap configured: The manifestations which are configured on this
-            node.  This is the same as ``NodeState.manifestations``.
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
-
-        :return: A generator of ``DetachVolume`` instances, one for each
-            dataset which exists, is attached to this node, is not mounted, and
-            is configured to not have a manifestation on this node.
-        """
-        for attached_dataset_id in devices:
-            if unicode(attached_dataset_id) in configured:
-                # It is supposed to be here.
-                continue
-            if unicode(attached_dataset_id) in paths:
-                # It is mounted and needs to unmounted before it can be
-                # detached.
-                continue
-            volume = _blockdevice_volume_from_datasetid(volumes,
-                                                        attached_dataset_id)
-            yield DetachVolume(dataset_id=attached_dataset_id,
-                               blockdevice_id=volume.blockdevice_id)
-
-    def _calculate_attaches(self, devices, configured, nonmanifest, volumes):
-        """
-        :param PMap devices: The datasets with volumes attached to this node
-            and the device files at which they are available.  This is the same
-            as ``NodeState.devices``.
-        :param PMap configured: The manifestations which are configured on this
-            node.  This is the same as ``NodeState.manifestations``.
-        :param PMap nonmanifest: The datasets which exist in the cluster but
-            are not attached to any node.
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
-
-        :return: A generator of ``AttachVolume`` instances, one for each
-                 dataset which exists, is unattached, and is configured to be
-                 attached to this node.
-        """
-        for manifestation in configured.values():
-            dataset_id = UUID(manifestation.dataset_id)
-            if dataset_id in devices:
-                # It's already attached here.
-                continue
-            if manifestation.dataset_id in nonmanifest:
-                volume = _blockdevice_volume_from_datasetid(volumes,
-                                                            dataset_id)
-                if volume is None:
-                    # We know something is non-manifest, but lack any info
-                    # about the volume. This suggests we're using
-                    # out-of-date cached volume info. Indicate we want to
-                    # take an action, even if we can't.
-                    yield ActionNeeded(dataset_id=dataset_id)
-                    continue
-
-                # It exists and doesn't belong to anyone else.
-                yield AttachVolume(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
-                )
-
-    def _calculate_deletes(self, local_node_state, configured_manifestations,
-                           volumes):
-        """
-        :param NodeState: The local state discovered immediately prior to
-            calculation.
-
-        :param dict configured_manifestations: The manifestations configured
-            for this node (like ``Node.manifestations``).
-
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
-
-        :return: A generator of ``DestroyBlockDeviceDataset`` instances for
-            each volume that may need to be destroyed based on the given
-            configuration.
-        """
-        delete_dataset_ids = set(
-            manifestation.dataset.dataset_id
-            for manifestation in configured_manifestations.values()
-            if manifestation.dataset.deleted
-        )
-        for dataset_id_unicode in delete_dataset_ids:
-            dataset_id = UUID(dataset_id_unicode)
-            volume = _blockdevice_volume_from_datasetid(volumes, dataset_id)
-            if (volume is not None and
-                    dataset_id_unicode in local_node_state.manifestations):
-                yield DestroyBlockDeviceDataset(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id)
 
 
 class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
