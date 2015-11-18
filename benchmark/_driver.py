@@ -8,9 +8,29 @@ from eliot.twisted import DeferredContext
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
-from twisted.internet.defer import maybeDeferred, Deferred, succeed
+from twisted.internet.defer import (
+    Deferred, gatherResults, logError, maybeDeferred, succeed,
+)
 
 from flocker.apiclient import FlockerClient
+
+
+def bypass(result, func, *args, **kw):
+    """
+    Perform the function, but fire with the result from the previous Deferred.
+
+    :param result: Value with which to fire returned Deferred.
+    :param func: Function to call. This function has its return value ignored,
+        except that if it returns a Deferred, wait for the Deferred to fire
+        and ignore that result.
+    :param args: Postional arguments to function ``func``.
+    :param kw: Keyword arguments to function ``func``.
+    :return: a Deferred that fires with ``result``.
+    """
+    d = maybeDeferred(func, *args, **kw)
+    d.addErrback(logError)
+    d.addBoth(lambda ignored: result)
+    return d
 
 
 def benchmark(metric, operation, scenario, num_samples=3):
@@ -31,21 +51,19 @@ def benchmark(metric, operation, scenario, num_samples=3):
 
     samples = []
 
-    def sample(i):
+    def sample(operation, metric, i):
         with start_action(action_type=u'flocker:benchmark:sample', sample=i):
             sampling = DeferredContext(maybeDeferred(operation.get_probe))
 
             def run_probe(probe):
                 probing = metric.measure(probe.run)
                 probing.addCallbacks(
-                    lambda interval: samples.append(
-                        dict(success=True, value=interval)
-                    ),
-                    lambda reason: samples.append(
-                        dict(success=False, reason=reason.getTraceback()),
-                    ),
+                    lambda interval: dict(success=True, value=interval),
+                    lambda reason: dict(
+                        success=False, reason=reason.getTraceback()),
                 )
-                probing.addCallback(lambda ignored: probe.cleanup())
+                probing.addCallback(bypass, probe.cleanup)
+
                 return probing
             sampling.addCallback(run_probe)
             sampling.addActionFinish()
@@ -53,7 +71,9 @@ def benchmark(metric, operation, scenario, num_samples=3):
 
     def collect_samples(ignored):
         collecting = Deferred()
-        task = cooperate(sample(i) for i in range(num_samples))
+        task = cooperate(
+            sample(operation, metric, i).addCallback(samples.append)
+            for i in range(num_samples))
 
         # If the scenario collapses, stop sampling
         def stop_sampling_on_scenario_collapse(failure):
@@ -70,12 +90,7 @@ def benchmark(metric, operation, scenario, num_samples=3):
 
     benchmarking = scenario_established.addCallback(collect_samples)
 
-    def tear_down(result):
-        stopping = scenario.stop()
-        stopping.addCallback(lambda ignored: result)
-        return stopping
-
-    benchmarking.addBoth(tear_down)
+    benchmarking.addBoth(bypass, scenario.stop)
 
     return benchmarking
 
