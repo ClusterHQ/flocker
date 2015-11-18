@@ -715,7 +715,7 @@ def _attach_volume_and_wait_for_device(
         to attach.
     :param unicode attach_to: The EC2 instance id to which to attach it.
     :param attach_volume: A function like ``EC2Connection.attach_volume``.
-    :param attach_volume: A function like ``EC2Connection.detach_volume``.
+    :param detach_volume: A function like ``EC2Connection.detach_volume``.
     :param unicode device: The OS device path to which to attach the device.
     :param int attach_attempt: The number of this attempt to attach the volume
         (counting from 1).  This is used to decide whether it's worth
