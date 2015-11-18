@@ -75,9 +75,9 @@ except UsageError as e:
     sys.exit(1)
 
 
+scenario = _SCENARIOS[config['scenario']]
 operation = _OPERATIONS[config['operation']]
 metric = _METRICS[config['metric']]
-scenario = _SCENARIOS[config['scenario']]
 
 timestamp = datetime.now().isoformat()
 
@@ -90,14 +90,14 @@ result = dict(
         nodename=node(),
         platform=platform(),
     ),
-    metric=config['metric'],
-    operation=config['operation'],
     scenario=config['scenario'],
+    operation=config['operation'],
+    metric=config['metric'],
 )
 
 react(
     driver, (
-        config, operation, metric, scenario, result,
+        config, scenario, operation, metric, result,
         partial(json.dump, fp=sys.stdout, indent=2)
     )
 )

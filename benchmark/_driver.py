@@ -8,9 +8,7 @@ from eliot.twisted import DeferredContext
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
-from twisted.internet.defer import (
-    Deferred, gatherResults, logError, maybeDeferred, succeed,
-)
+from twisted.internet.defer import Deferred, logError, maybeDeferred, succeed
 
 from flocker.apiclient import FlockerClient
 
@@ -64,13 +62,13 @@ def sample(operation, metric, name):
         return sampling.result
 
 
-def benchmark(metric, operation, scenario, num_samples=3):
+def benchmark(scenario, operation, metric, num_samples=3):
     """
     Perform benchmarking of the operation within a scenario.
 
-    :param IMetric metric: A quantity to measure.
-    :param IOperation operation: An operation to perform.
     :param IScenario scenario: A load scenario.
+    :param IOperation operation: An operation to perform.
+    :param IMetric metric: A quantity to measure.
     :param int num_samples: Number of samples to take.
     :return: Deferred firing with a list of samples. Each sample is a
         dictionary containing a ``success`` boolean. If ``success is True``,
@@ -108,13 +106,13 @@ def benchmark(metric, operation, scenario, num_samples=3):
     return benchmarking
 
 
-def driver(reactor, config, operation, metric, scenario, result, output):
+def driver(reactor, config, scenario, operation, metric, result, output):
     """
     :param reactor: Reactor to use.
     :param config: Configuration read from options.
+    :param IScenario scenario: A load scenario.
     :param IOperation operation: An operation to perform.
     :param IMetric metric: A quantity to measure.
-    :param IScenario scenario: A load scenario.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
@@ -149,9 +147,9 @@ def driver(reactor, config, operation, metric, scenario, result, output):
 
     def run_benchmark(ignored):
         return benchmark(
-            metric(clock=reactor, control_service=control_service),
+            scenario(reactor, control_service),
             operation(control_service=control_service),
-            scenario(reactor, control_service)
+            metric(clock=reactor, control_service=control_service),
         )
 
     d.addCallback(run_benchmark)

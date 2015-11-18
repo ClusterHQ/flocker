@@ -139,9 +139,9 @@ class BenchmarkTest(TestCase):
         Sampling returns results when probes succeed.
         """
         samples_ready = benchmark(
-            FakeMetric(count(5)),
-            FakeOperation(repeat(True)),
             FakeScenario(),
+            FakeOperation(repeat(True)),
+            FakeMetric(count(5)),
             3)
 
         def check(samples):
@@ -155,9 +155,9 @@ class BenchmarkTest(TestCase):
         Sampling returns reasons when probes fail.
         """
         samples_ready = benchmark(
-            FakeMetric(count(5)),
-            FakeOperation(repeat(False)),
             FakeScenario(),
+            FakeOperation(repeat(False)),
+            FakeMetric(count(5)),
             3)
 
         def check(samples):
@@ -176,8 +176,8 @@ class BenchmarkTest(TestCase):
         If the scenario collapses, a failure is returned.
         """
         samples_ready = benchmark(
-            FakeMetric(count(5)),
-            FakeOperation(repeat(True)),
             FakeCollapsingScenario(),
+            FakeOperation(repeat(True)),
+            FakeMetric(count(5)),
             3)
         self.assertFailure(samples_ready, RuntimeError)
