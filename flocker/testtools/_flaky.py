@@ -71,6 +71,16 @@ class _FlakyAnnotation(PClass):
                                "Can't pass more than we run")
 
 
+def retry_flaky(run_test_factory=None):
+    """
+    Wrap a ``RunTest`` object so that flaky tests are retried.
+    """
+    if run_test_factory is None:
+        run_test_factory = testtools.RunTest
+
+    return partial(_RetryFlaky, run_test_factory)
+
+
 class _RetryFlaky(testtools.RunTest):
     """
     ``RunTest`` implementation that retries tests that fail.
@@ -199,13 +209,3 @@ def _reset_case(case):
     # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
     case._TestCase__setup_called = False
     case._TestCase__teardown_called = False
-
-
-def retry_flaky(run_test_factory=None):
-    """
-    Wrap a ``RunTest`` object so that flaky tests are retried.
-    """
-    if run_test_factory is None:
-        run_test_factory = testtools.RunTest
-
-    return partial(_RetryFlaky, run_test_factory)
