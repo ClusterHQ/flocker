@@ -7,13 +7,6 @@ from twisted.web.client import ResponseFailed
 from .._interfaces import IProbe, IOperation
 
 
-def _report_error(failure):
-    failure.trap(ResponseFailed)
-    for reason in failure.value.reasons:
-        reason.printTraceback()
-    return reason
-
-
 @implementer(IProbe)
 class ReadRequestProbe(PClass):
     """
@@ -24,7 +17,6 @@ class ReadRequestProbe(PClass):
 
     def run(self):
         d = self.control_service.list_datasets_state()
-        d.addErrback(_report_error)
         return d
 
     def cleanup(self):
