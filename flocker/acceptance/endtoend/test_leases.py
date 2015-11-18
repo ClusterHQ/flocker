@@ -11,12 +11,13 @@ from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
 from ...testtools import (
-    AsyncTestCase, async_runner, random_name, extract_external_port,
+    AsyncTestCase, async_runner, random_name,
     REALISTIC_BLOCKDEVICE_SIZE,
 )
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     get_docker_client, post_http_server, assert_http_server,
+    extract_external_port,
 )
 from ..scripts import SCRIPTS
 
