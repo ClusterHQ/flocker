@@ -8,9 +8,9 @@ from itertools import count, repeat
 from zope.interface import implementer
 
 from twisted.internet.defer import Deferred, succeed, fail
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 
-from benchmark._driver import benchmark
+from benchmark._driver import benchmark, sample
 from benchmark._interfaces import IProbe, IOperation
 
 
@@ -92,6 +92,38 @@ class FakeCollapsingScenario:
 
     def stop(self):
         return succeed(None)
+
+
+class SampleTest(SynchronousTestCase):
+    """
+    Test sample function.
+    """
+
+    def test_good_probe(self):
+        """
+        Sampling returns value when probe succeeds.
+        """
+        sampled = sample(FakeOperation(repeat(True)), FakeMetric(repeat(5)), 1)
+
+        self.assertEqual(
+            self.successResultOf(sampled), {'success': True, 'value': 5})
+
+    def test_bad_probe(self):
+        """
+        Sampling returns reason when probe fails.
+        """
+        sampled = sample(
+            FakeOperation(repeat(False)), FakeMetric(repeat(5)), 1)
+
+        def filter(sample):
+            if 'reason' in sample:
+                sample['reason'] = type(sample['reason'])
+            return sample
+        sampled.addCallback(filter)
+
+        self.assertEqual(
+            self.successResultOf(sampled), {'success': False, 'reason': str}
+        )
 
 
 class BenchmarkTest(TestCase):

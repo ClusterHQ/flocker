@@ -33,9 +33,40 @@ def bypass(result, func, *args, **kw):
     return d
 
 
-def benchmark(metric, operation, scenario, num_samples=3):
+def sample(operation, metric, name):
     """
     Perform sampling of the operation.
+
+    :param IOperation operation: An operation to perform.
+    :param IMetric metric: A quantity to measure.
+    :param int name: Identifier for individual sample.
+    :return: Deferred firing with a sample. A sample is a dictionary
+        containing a ``success`` boolean.  If ``success is True``, the
+        dictionary also contains a ``value`` for the sample measurement.
+        If ``success is False``, the dictionary also contains a
+        ``reason`` for failure.
+    """
+    with start_action(action_type=u'flocker:benchmark:sample', sample=name):
+        sampling = DeferredContext(maybeDeferred(operation.get_probe))
+
+        def run_probe(probe):
+            probing = metric.measure(probe.run)
+            probing.addCallbacks(
+                lambda interval: dict(success=True, value=interval),
+                lambda reason: dict(
+                    success=False, reason=reason.getTraceback()),
+            )
+            probing.addCallback(bypass, probe.cleanup)
+
+            return probing
+        sampling.addCallback(run_probe)
+        sampling.addActionFinish()
+        return sampling.result
+
+
+def benchmark(metric, operation, scenario, num_samples=3):
+    """
+    Perform benchmarking of the operation within a scenario.
 
     :param IMetric metric: A quantity to measure.
     :param IOperation operation: An operation to perform.
@@ -50,24 +81,6 @@ def benchmark(metric, operation, scenario, num_samples=3):
     scenario_established = scenario.start()
 
     samples = []
-
-    def sample(operation, metric, i):
-        with start_action(action_type=u'flocker:benchmark:sample', sample=i):
-            sampling = DeferredContext(maybeDeferred(operation.get_probe))
-
-            def run_probe(probe):
-                probing = metric.measure(probe.run)
-                probing.addCallbacks(
-                    lambda interval: dict(success=True, value=interval),
-                    lambda reason: dict(
-                        success=False, reason=reason.getTraceback()),
-                )
-                probing.addCallback(bypass, probe.cleanup)
-
-                return probing
-            sampling.addCallback(run_probe)
-            sampling.addActionFinish()
-            return sampling.result
 
     def collect_samples(ignored):
         collecting = Deferred()
