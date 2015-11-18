@@ -161,12 +161,13 @@ class FlakyTests(testtools.TestCase):
             errors=HasLength(1),
         ))
         [(found_test, exception)] = result.errors
+        flaky_data = _get_flaky_annotation(test).to_dict()
+        flaky_data.update({'runs': 3, 'passes': 1})
         self.assertThat(
             exception, MatchesAll(
                 Contains('ValueError'),
                 Contains('RuntimeError'),
-                Contains('flaky: {{{%s}}}' % pformat(
-                    _get_flaky_annotation(test).to_dict()))
+                Contains(pformat(flaky_data)),
             )
         )
 

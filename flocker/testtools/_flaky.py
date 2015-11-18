@@ -160,9 +160,12 @@ class _RetryFlaky(testtools.RunTest):
                 successes += 1
             results.append(details)
 
+        flaky_data = flaky.to_dict()
+        flaky_data.update({'runs': len(results), 'passes': successes})
         flaky_details = {
-            'flaky': text_content(pformat(flaky.to_dict())),
+            'flaky': text_content(pformat(flaky_data)),
         }
+
         details = _combine_details([flaky_details] + results)
         result.startTest(case)
         if successes >= flaky.min_passes:
