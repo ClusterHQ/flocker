@@ -4,12 +4,7 @@ After=docker.service
 Wants=docker.service
 
 [Service]
-# See https://clusterhq.atlassian.net/browse/FLOC-3154
-ExecStart=/usr/bin/sh -c '\
-    echo "Sleeping 120s to ensure previous dataset state is expired."; \
-    sleep 120; \
-    exec /usr/sbin/flocker-container-agent --journald \
-'
+ExecStart=/usr/sbin/flocker-container-agent --journald
 Restart=always
 
 [Install]
