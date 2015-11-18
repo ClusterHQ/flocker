@@ -11,11 +11,11 @@ from hypothesis import given
 from hypothesis.strategies import integers
 import testtools
 
-from .. import AsyncTestCase, TestCase
+from .. import AsyncTestCase
 from .._flaky import retry_flaky, flaky
 
 
-class FlakyTests(TestCase):
+class FlakyTests(testtools.TestCase):
     """
     Tests for ``@flaky`` decorator.
     """
