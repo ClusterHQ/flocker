@@ -154,17 +154,21 @@ class APITestsMixin(APIAssertionsMixin):
         Patch self.flocker_client.list_datasets_state to advance
         ``self.reactor`` by `` _POLL_INTERVAL`` every time
         ``list_datasets_state`` is called. This is added at the end of the run
-        list so that ``volumedriver_mount`` has called ``deferLater`` before we
-        advance the Clock.
+        queue so that ``volumedriver_mount`` has called ``deferLater`` before
+        we advance the Clock.
+
+        :returns: A ``CallCounter`` that is incremented every time
+            list_datasets_state is incremented.
         """
         call_counter = CallCounter()
 
-        def end_of_run_list():
-            return deferLater(reactor, 0.0, lambda : None)
+        def end_of_run_queue():
+            return deferLater(reactor, 0.0, lambda: None)
 
         real_list_datasets_state = self.flocker_client.list_datasets_state
+
         def list_state_hack():
-            end_of_run_list().addCallback(
+            end_of_run_queue().addCallback(
                 lambda _: self.reactor.advance(VolumePlugin._POLL_INTERVAL))
             call_counter.call_count += 1
             return real_list_datasets_state()
