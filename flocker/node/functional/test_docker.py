@@ -79,8 +79,7 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
     def setUp(self):
         pass
 
-    # XXX: First time we've needed multiple JIRA keys. Is this the right API?
-    @flaky(['FLOC-2628', 'FLOC-2874'])
+    @flaky([u'FLOC-2628', u'FLOC-2874'])
     def test_added_is_listed(self):
         return super(IDockerClientNamespacedTests, self).test_added_is_listed()
 
@@ -532,7 +531,7 @@ class GenericDockerClientTests(TestCase):
     # XXX: This is subclassed, and the subclass decorated with a different
     # JIRA key. When @flaky actually does something, we should have tests that
     # cover that case.
-    @flaky('FLOC-3077')
+    @flaky(u'FLOC-3077')
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.
@@ -1082,7 +1081,7 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(self.assertEqual, "1")
         return d
 
-    @flaky('FLOC-2840')
+    @flaky(u'FLOC-2840')
     def test_restart_policy_always(self):
         """
         An container with a restart policy of always is restarted
@@ -1326,7 +1325,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         d.addCallback(self.assertEqual, set())
         return d
 
-    @flaky('FLOC-1657')
+    @flaky(u'FLOC-1657')
     def test_pull_image_if_necessary(self):
         return super(
             NamespacedDockerClientTests, self).test_pull_image_if_necessary()

@@ -171,7 +171,7 @@ class CinderBlockDeviceAPIInterfaceTests(
                 flocker_volume.blockdevice_id).display_name,
             u"flocker-{}".format(dataset_id))
 
-    @flaky('FLOC-3347')
+    @flaky(u'FLOC-3347')
     def test_get_device_path_device(self):
         return super(
             CinderBlockDeviceAPIInterfaceTests,

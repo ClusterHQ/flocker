@@ -34,7 +34,7 @@ class FlakyTests(testtools.TestCase):
         """
         values = []
 
-        @flaky('FLOC-XXXX')
+        @flaky(u'FLOC-XXXX')
         def f(x):
             values.append(x)
             return x
@@ -52,7 +52,7 @@ class FlakyTests(testtools.TestCase):
         # TestCase features, thus increasing complexity.
         class SomeTest(AsyncTestCase):
 
-            @flaky('FLOC-XXXX')
+            @flaky(u'FLOC-XXXX')
             def test_something(self):
                 pass
 
@@ -68,7 +68,7 @@ class FlakyTests(testtools.TestCase):
 
         class SomeTest(AsyncTestCase):
 
-            @flaky('FLOC-XXXX')
+            @flaky(u'FLOC-XXXX')
             def test_something(self):
                 next(executions)()
 
@@ -95,7 +95,7 @@ class FlakyTests(testtools.TestCase):
 
         class SomeTest(AsyncTestCase):
 
-            @flaky('FLOC-XXXX', max_runs=3, min_passes=1)
+            @flaky(u'FLOC-XXXX', max_runs=3, min_passes=1)
             def test_something(self):
                 next(executions)()
 
@@ -117,7 +117,7 @@ class FlakyTests(testtools.TestCase):
         class SomeTest(testtools.TestCase):
             run_tests_with = retry_flaky()
 
-            @flaky('FLOC-XXXX', max_runs=3, min_passes=2)
+            @flaky(u'FLOC-XXXX', max_runs=3, min_passes=2)
             def test_something(self):
                 next(executions)()
 
