@@ -7,8 +7,8 @@ Tests for ``flocker.testtools._flaky``.
 from itertools import repeat
 import unittest
 
-from hypothesis import given
-from hypothesis.strategies import integers
+from hypothesis import assume, given
+from hypothesis.strategies import integers, lists, text
 import testtools
 from testtools.matchers import (
     Contains,
@@ -19,7 +19,7 @@ from testtools.matchers import (
 )
 
 from .. import AsyncTestCase
-from .._flaky import retry_flaky, flaky
+from .._flaky import retry_flaky, flaky, _FLAKY_ATTRIBUTE
 
 
 class FlakyTests(testtools.TestCase):
@@ -42,6 +42,36 @@ class FlakyTests(testtools.TestCase):
         y = f(x)
         self.expectThat(y, Equals(x))
         self.assertThat(values, Equals([x]))
+
+    @given(text(average_size=5), integers(min_value=1), integers(min_value=1))
+    def test_annotation_dictionary(self, jira_key, max_runs, min_passes):
+        assume(max_runs >= min_passes)
+
+        @flaky(jira_key, max_runs, min_passes)
+        def f(x):
+            pass
+
+        self.assertThat(getattr(f, _FLAKY_ATTRIBUTE).to_dict(), Equals({
+            'min_passes': min_passes,
+            'max_runs': max_runs,
+            'jira_keys': set([jira_key]),
+        }))
+
+    @given(lists(text(average_size=5), min_size=1, average_size=2),
+           integers(min_value=1), integers(min_value=1))
+    def test_annotation_dictionary_multiple_keys(self, jira_keys, max_runs,
+                                                 min_passes):
+        assume(max_runs >= min_passes)
+
+        @flaky(jira_keys, max_runs, min_passes)
+        def f(x):
+            pass
+
+        self.assertThat(getattr(f, _FLAKY_ATTRIBUTE).to_dict(), Equals({
+            'min_passes': min_passes,
+            'max_runs': max_runs,
+            'jira_keys': set(jira_keys),
+        }))
 
     def test_successful_flaky_test(self):
         """

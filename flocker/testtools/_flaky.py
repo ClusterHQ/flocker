@@ -6,7 +6,7 @@ Logic for handling flaky tests.
 
 from functools import partial
 
-from pyrsistent import PClass, field, pmap
+from pyrsistent import PClass, field, pmap, pset, pset_field
 import testtools
 from testtools.testcase import gather_details
 
@@ -16,7 +16,6 @@ _FLAKY_ATTRIBUTE = '_flaky'
 
 # TODO:
 # - make sure that JIRA data is included in flaky annotations
-#   - do "either text or sequence" UI for jira_keys
 # - handle tests with many different kinds of results
 
 
@@ -30,7 +29,7 @@ def flaky(jira_keys, max_runs=5, min_passes=2):
 
     :param unicode jira_keys: The JIRA key of the bug for this flaky test,
         e.g. 'FLOC-2345'. Can also be a sequence of keys if the test is flaky
-        fr multiple reasons.
+        for multiple reasons.
     :param int max_runs: The maximum number of times to run the test.
     :param int min_passes: The minimum number of passes required to treat this
         test as successful.
@@ -43,7 +42,11 @@ def flaky(jira_keys, max_runs=5, min_passes=2):
     # - allow specifying which exceptions are expected
     # - provide interesting & parseable logs for flaky tests
 
-    annotation = _FlakyAnnotation(max_runs=max_runs, min_passes=min_passes)
+    if isinstance(jira_keys, basestring):
+        jira_keys = [jira_keys]
+
+    annotation = _FlakyAnnotation(
+        jira_keys=pset(jira_keys), max_runs=max_runs, min_passes=min_passes)
 
     def wrapper(test_method):
         setattr(test_method, _FLAKY_ATTRIBUTE, annotation)
@@ -71,9 +74,18 @@ class _FlakyAnnotation(PClass):
                      invariant=lambda x: (x > 0, "must run at least once"))
     min_passes = field(int, mandatory=True,
                        invariant=lambda x: (x > 0, "must pass at least once"))
+    jira_keys = pset_field(unicode, optional=False)
 
-    __invariant__ = lambda x: (x.max_runs >= x.min_passes,
-                               "Can't pass more than we run")
+    __invariant__ = lambda x: (
+        x.max_runs >= x.min_passes and len(x.jira_keys) > 0,
+        "Can't pass more than we run and must provide a jira key")
+
+    def to_dict(self):
+        return {
+            'max_runs': self.max_runs,
+            'min_passes': self.min_passes,
+            'jira_keys': set(self.jira_keys),
+        }
 
 
 def retry_flaky(run_test_factory=None):
