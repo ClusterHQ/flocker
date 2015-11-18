@@ -11,7 +11,7 @@ from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
 from ...testtools import (
-    AsyncTestCase, async_runner, random_name, find_free_port,
+    AsyncTestCase, async_runner, random_name, extract_external_port,
     REALISTIC_BLOCKDEVICE_SIZE,
 )
 from ..testtools import (
@@ -59,7 +59,6 @@ class LeaseAPITests(AsyncTestCase):
             completed.
         """
         container_http_port = 8080
-        host_http_port = find_free_port()[1]
         dataset_id = uuid4()
         datasets = []
         leases = []
@@ -116,7 +115,7 @@ class LeaseAPITests(AsyncTestCase):
             docker_arguments = {
                 "host_config": client.create_host_config(
                     binds=["{}:/data".format(dataset.path.path)],
-                    port_bindings={container_http_port: host_http_port}),
+                    port_bindings={container_http_port: 0}),
                 "ports": [container_http_port],
                 "volumes": [u"/data"]}
             container = client.create_container(
@@ -136,6 +135,11 @@ class LeaseAPITests(AsyncTestCase):
             Make a POST request to the container, writing some data to the
             volume.
             """
+            [container_id] = containers
+            host_http_port = extract_external_port(
+                client, container_id, container_http_port,
+            )
+
             data = random_name(self).encode("utf-8")
             d = post_http_server(
                 self, cluster.nodes[0].public_address, host_http_port,

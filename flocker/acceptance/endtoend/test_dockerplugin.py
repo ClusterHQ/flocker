@@ -19,40 +19,12 @@ from ...testtools import (
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket, check_http_server, DatasetBackend
+    get_docker_client, verify_socket, check_http_server, DatasetBackend,
+    extract_external_port,
 )
 from ..scripts import SCRIPTS
 
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
-
-
-def extract_external_port(
-    client, container_identifier, internal_port
-):
-    """
-    Inspect a running container for the external port number on which a
-    particular internal port is exposed.
-
-    :param docker.Client client: The Docker client to use to perform the
-        inspect.
-    :param unicode container_identifier: The unique identifier of the container
-        to inspect.
-    :param int internal_port: An internal, exposed port on the container.
-
-    :return: The external port number on which ``internal_port`` from the
-        container is exposed.
-    :rtype: int
-    """
-    container_details = client.inspect_container(container_identifier)
-    # If the container isn't running, this section is not present.
-    network_settings = container_details[u"NetworkSettings"]
-    ports = network_settings[u"Ports"]
-    details = ports[u"{}/tcp".format(internal_port)]
-    host_port = int(details[0][u"HostPort"])
-    Message.new(
-        message_type=u"acceptance:extract_external_port", host_port=host_port
-    ).write()
-    return host_port
 
 
 class DockerPluginTests(AsyncTestCase):
