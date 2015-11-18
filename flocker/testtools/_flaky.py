@@ -14,6 +14,14 @@ from testtools.testcase import gather_details
 _FLAKY_ATTRIBUTE = '_flaky'
 
 
+# TODO:
+# - actually run a flaky test manually to see what everything looks like
+# - make sure that JIRA data is included in flaky annotations
+#   - do "either text or sequence" UI for jira_keys
+# - attach details to success
+# - handle tests with many different kinds of results
+
+
 def flaky(jira_keys, max_runs=5, min_passes=2):
     """
     Mark a test as flaky.
