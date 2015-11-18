@@ -11,9 +11,10 @@ from twisted.internet.defer import Deferred, succeed, fail
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from benchmark._driver import benchmark, sample
-from benchmark._interfaces import IProbe, IOperation
+from benchmark._interfaces import IScenario, IProbe, IOperation, IMetric
 
 
+@implementer(IMetric)
 class FakeMetric:
 
     def __init__(self, measurements):
@@ -64,31 +65,17 @@ class FakeOperation:
         return FakeProbe(next(self.succeeds))
 
 
+@implementer(IScenario)
 class FakeScenario:
 
-    def __init__(self):
-        self.scenario_maintained = Deferred()
+    def __init__(self, maintained=Deferred()):
+        self._maintained = maintained
 
     def start(self):
         return succeed(None)
 
     def maintained(self):
-        return self.scenario_maintained
-
-    def stop(self):
-        return succeed(None)
-
-
-class FakeCollapsingScenario:
-
-    def __init__(self):
-        self.scenario_maintained = fail(RuntimeError('collapse'))
-
-    def start(self):
-        return succeed(None)
-
-    def maintained(self):
-        return self.scenario_maintained
+        return self._maintained
 
     def stop(self):
         return succeed(None)
@@ -176,7 +163,7 @@ class BenchmarkTest(TestCase):
         If the scenario collapses, a failure is returned.
         """
         samples_ready = benchmark(
-            FakeCollapsingScenario(),
+            FakeScenario(fail(RuntimeError('collapse'))),
             FakeOperation(repeat(True)),
             FakeMetric(count(5)),
             3)
