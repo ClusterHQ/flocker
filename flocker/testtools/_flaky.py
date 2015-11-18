@@ -75,16 +75,6 @@ class _RetryFlaky(testtools.RunTest):
         run_test = self._run_test_factory(case, *self._args, **self._kwargs)
         return run_test._run_prepared_result(result)
 
-    def _reset_case(self, case):
-        """
-        Reset ``case`` so it can be run again.
-        """
-        # Don't want details from last run.
-        case.getDetails().clear()
-        # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
-        case._TestCase__setup_called = False
-        case._TestCase__teardown_called = False
-
     def _run_prepared_result(self, result):
         """
         Run the test with a result that conforms to testtools' extended
@@ -124,7 +114,7 @@ class _RetryFlaky(testtools.RunTest):
             results.append(tmp_result)
             if tmp_result.wasSuccessful():
                 successes += 1
-            self._reset_case(case)
+            _reset_case(case)
 
         if successes >= min_passes:
             result.startTest(case)
@@ -134,6 +124,19 @@ class _RetryFlaky(testtools.RunTest):
 
         # XXX: Obviously we want to report failures!
         return result
+
+
+def _reset_case(case):
+    """
+    Reset ``case`` so it can be run again.
+    """
+    # XXX: Alternative approach is to use clone_test_with_new_id, rather than
+    # resetting the same test case.
+    # Don't want details from last run.
+    case.getDetails().clear()
+    # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
+    case._TestCase__setup_called = False
+    case._TestCase__teardown_called = False
 
 
 def _get_flaky_attrs(case):
