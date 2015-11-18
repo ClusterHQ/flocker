@@ -52,7 +52,7 @@ def flaky(jira_keys, max_runs=5, min_passes=2):
     return wrapper
 
 
-def _get_flaky_attrs(case):
+def _get_flaky_annotation(case):
     """
     Get the flaky decoration detail from ``case``.
 
@@ -107,7 +107,7 @@ class _RetryFlaky(testtools.RunTest):
         This overrides a method in base ``RunTest`` which is intended to be
         overwritten.
         """
-        flaky = _get_flaky_attrs(self._case)
+        flaky = _get_flaky_annotation(self._case)
         if flaky is not None:
             return self._run_flaky_test(
                 self._case, result, flaky.min_passes, flaky.max_runs)
