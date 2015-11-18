@@ -5,6 +5,7 @@ Tests for ``flocker.testtools._flaky``.
 """
 
 from itertools import repeat
+from pprint import pformat
 import unittest
 
 from hypothesis import assume, given
@@ -19,7 +20,8 @@ from testtools.matchers import (
 )
 
 from .. import AsyncTestCase
-from .._flaky import retry_flaky, flaky, _FLAKY_ATTRIBUTE
+from .._flaky import (
+    retry_flaky, flaky, _FLAKY_ATTRIBUTE, _get_flaky_annotation)
 
 
 class FlakyTests(testtools.TestCase):
@@ -163,6 +165,8 @@ class FlakyTests(testtools.TestCase):
             exception, MatchesAll(
                 Contains('ValueError'),
                 Contains('RuntimeError'),
+                Contains('flaky: {{{%s}}}' % pformat(
+                    _get_flaky_annotation(test).to_dict()))
             )
         )
 

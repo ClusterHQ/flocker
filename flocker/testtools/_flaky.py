@@ -5,9 +5,11 @@ Logic for handling flaky tests.
 """
 
 from functools import partial
+from pprint import pformat
 
 from pyrsistent import PClass, field, pmap, pset, pset_field
 import testtools
+from testtools.content import text_content
 from testtools.testcase import gather_details
 
 
@@ -15,7 +17,6 @@ _FLAKY_ATTRIBUTE = '_flaky'
 
 
 # TODO:
-# - make sure that JIRA data is included in flaky annotations
 # - handle tests with many different kinds of results
 
 
@@ -121,8 +122,7 @@ class _RetryFlaky(testtools.RunTest):
         """
         flaky = _get_flaky_annotation(self._case)
         if flaky is not None:
-            return self._run_flaky_test(
-                self._case, result, flaky.min_passes, flaky.max_runs)
+            return self._run_flaky_test(self._case, result, flaky)
 
         # No flaky attributes? Then run as normal.
         return self._run_test(self._case, result)
@@ -139,31 +139,33 @@ class _RetryFlaky(testtools.RunTest):
         run_test = self._run_test_factory(case, *self._args, **self._kwargs)
         return run_test._run_prepared_result(result)
 
-    def _run_flaky_test(self, case, result, min_passes, max_runs):
+    def _run_flaky_test(self, case, result, flaky):
         """
         Run a test that has been decorated with the `@flaky` decorator.
 
         :param TestCase case: A ``testtools.TestCase`` to run.
         :param TestResult result: A ``TestResult`` object that conforms to the
             testtools extended result interface.
-        :param int min_passes: The minimum number of successes required to
-            consider the test successful.
-        :param int max_runs: The maximum number of times to run the test.
+        :param _FlakyAnnotation flaky: A description of the conditions of
+            flakiness.
 
         :return: A ``TestResult`` with the result of running the flaky test.
         """
         successes = 0
         results = []
 
-        while successes < min_passes and len(results) < max_runs:
+        while successes < flaky.min_passes and len(results) < flaky.max_runs:
             was_successful, details = self._attempt_test(case)
             if was_successful:
                 successes += 1
             results.append(details)
 
-        details = _combine_details(results)
+        flaky_details = {
+            'flaky': text_content(pformat(flaky.to_dict())),
+        }
+        details = _combine_details([flaky_details] + results)
         result.startTest(case)
-        if successes >= min_passes:
+        if successes >= flaky.min_passes:
             result.addSuccess(case, details=details)
         else:
             # XXX: How are we going to report on tests that sometimes fail,
