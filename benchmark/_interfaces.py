@@ -19,6 +19,12 @@ class IScenario(Interface):
 
     def maintained():
         """
+        A test scenario may be difficult to maintain. For example, it may
+        require maintaining a load against a remote resource.  If the scenario
+        cannot be maintained, then the benchmarks may be invalid.  This
+        function returns a Deferred which fires with an errBack if the scenario
+        cannot be maintained.
+
         :return: A Deferred that fires with an errback if the desired
             scenario fails to hold between being established and being
             stopped.  This Deferred never fires with a callback.
