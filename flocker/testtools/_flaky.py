@@ -14,7 +14,7 @@ from testtools.testcase import gather_details
 _FLAKY_ATTRIBUTE = '_flaky'
 
 
-def flaky(jira_key, max_runs=5, min_passes=2):
+def flaky(jira_keys, max_runs=5, min_passes=2):
     """
     Mark a test as flaky.
 
@@ -22,8 +22,9 @@ def flaky(jira_key, max_runs=5, min_passes=2):
     test as flaky means both failures and successes are expected, and that
     neither will fail the test run.
 
-    :param unicode jira_key: The JIRA key of the bug for this flaky test,
-        e.g. 'FLOC-2345'
+    :param unicode jira_keys: The JIRA key of the bug for this flaky test,
+        e.g. 'FLOC-2345'. Can also be a sequence of keys if the test is flaky
+        fr multiple reasons.
     :param int max_runs: The maximum number of times to run the test.
     :param int min_passes: The minimum number of passes required to treat this
         test as successful.
