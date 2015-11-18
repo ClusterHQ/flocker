@@ -7,13 +7,11 @@ Tests for the Volumes Plugin API provided by the plugin.
 from uuid import uuid4, UUID
 
 from twisted.web.http import OK
-from twisted.internet import reactor
+from twisted.internet.task import Clock
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
-
-from ...node.testtools import require_docker_version
 
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
@@ -29,6 +27,7 @@ class APITestsMixin(APIAssertionsMixin):
         """
         Create initial objects for the ``VolumePlugin``.
         """
+        self.reactor = Clock()
         self.flocker_client = FakeFlockerClient()
 
     def test_pluginactivate(self):
@@ -56,10 +55,6 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
-    @require_docker_version(
-        '1.9.0',
-        'This test uses the v2 plugin API, which requires Docker >=1.9.0'
-    )
     def test_create_with_opts(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
@@ -160,9 +155,9 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
 
-        # After two polling intervals the dataset arrives as state:
-        reactor.callLater(VolumePlugin._POLL_INTERVAL,
-                          self.flocker_client.synchronize_state)
+        # Synchronize immediately on the first move_call to the flocker client.
+        self.flocker_client.next_move_call.addCallback(
+            lambda _: self.flocker_client.synchronize_state())
 
         d.addCallback(lambda _:
                       self.assertResult(
@@ -242,6 +237,6 @@ class APITestsMixin(APIAssertionsMixin):
 
 def _build_app(test):
     test.initialize()
-    return VolumePlugin(reactor, test.flocker_client, test.NODE_A).app
+    return VolumePlugin(test.reactor, test.flocker_client, test.NODE_A).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     APITestsMixin, "API", _build_app)
