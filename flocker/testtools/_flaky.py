@@ -6,10 +6,12 @@ Logic for handling flaky tests.
 
 from functools import partial
 
-import flaky as _flaky
-from pyrsistent import pmap
+from pyrsistent import PClass, field, pmap
 import testtools
 from testtools.testcase import gather_details
+
+
+_FLAKY_ATTRIBUTE = '_flaky'
 
 
 def flaky(jira_key, max_runs=5, min_passes=2):
@@ -36,10 +38,37 @@ def flaky(jira_key, max_runs=5, min_passes=2):
     #   - parametrize on retry options
     # - provide interesting & parseable logs for flaky tests
 
+    annotation = _FlakyAnnotation(max_runs=max_runs, min_passes=min_passes)
+
     def wrapper(test_method):
-        return _flaky.flaky(max_runs=max_runs, min_passes=min_passes)(
-            test_method)
+        setattr(test_method, _FLAKY_ATTRIBUTE, annotation)
+        return test_method
+
     return wrapper
+
+
+def _get_flaky_attrs(case):
+    """
+    Get the flaky decoration detail from ``case``.
+
+    :param TestCase case: A test case that might have been decorated with
+        @flaky.
+    :return: ``None`` if not flaky, or a ``pmap`` of the flaky test details.
+    """
+    # XXX: Is there a public way of doing this?
+    method = case._get_test_method()
+    return getattr(method, _FLAKY_ATTRIBUTE, None)
+
+
+class _FlakyAnnotation(PClass):
+
+    max_runs = field(int, mandatory=True,
+                     invariant=lambda x: (x > 0, "must run at least once"))
+    min_passes = field(int, mandatory=True,
+                       invariant=lambda x: (x > 0, "must pass at least once"))
+
+    __invariant__ = lambda x: (x.max_runs >= x.min_passes,
+                               "Can't pass more than we run")
 
 
 class _RetryFlaky(testtools.RunTest):
@@ -75,7 +104,7 @@ class _RetryFlaky(testtools.RunTest):
         flaky = _get_flaky_attrs(self._case)
         if flaky is not None:
             return self._run_flaky_test(
-                self._case, result, flaky['min_passes'], flaky['max_runs'])
+                self._case, result, flaky.min_passes, flaky.max_runs)
 
         # No flaky attributes? Then run as normal.
         return self._run_test(self._case, result)
@@ -170,30 +199,6 @@ def _reset_case(case):
     # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
     case._TestCase__setup_called = False
     case._TestCase__teardown_called = False
-
-
-def _get_flaky_attrs(case):
-    """
-    Get the flaky decoration detail from ``case``.
-
-    :param TestCase case: A test case that might have been decorated with
-        @flaky.
-    :return: ``None`` if not flaky, or a ``pmap`` of the flaky test details.
-    """
-    # XXX: Is there a public way of doing this?
-    method = case._get_test_method()
-    max_runs = getattr(method, '_flaky_max_runs', None)
-    min_passes = getattr(method, '_flaky_min_passes', None)
-    if max_runs is None or min_passes is None:
-        # XXX: This is a crappy way of deciding whether a method was decorated
-        # or not, because it's ambiguous. Really, @flaky should set a single,
-        # compound value on the method.
-        return None
-    # XXX: Should probably be a PClass.
-    return pmap({
-        'max_runs': max_runs,
-        'min_passes': min_passes,
-    })
 
 
 def retry_flaky(run_test_factory=None):

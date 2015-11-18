@@ -13,7 +13,6 @@ ecdsa==0.13
 executor==4.4
 Fabric==1.10.2
 flake8==2.4.1
-flaky==2.4.1
 gitdb==0.6.4
 GitPython==1.0.1
 humanfriendly==1.33
