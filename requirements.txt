@@ -8,7 +8,7 @@ characteristic==14.3.0
 cryptography==0.9.1
 debtcollector==0.5.0
 docker-py==1.5.0
-effect==0.1a13
+effect==0.10
 eliot==0.9.0
 eliot-tree==15.3.0
 enum34==1.0.4
@@ -58,3 +58,5 @@ Werkzeug==0.10.4
 wheel==0.24.0
 wrapt==1.10.4
 zope.interface==4.1.2
+txeffect==0.9
+attrs==15.1.0
