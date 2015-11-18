@@ -16,6 +16,7 @@ from eliot.testing import (
 
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis.extra.datetime import datetimes
 
 from twisted.internet import reactor
 from twisted.internet.task import Clock
@@ -488,15 +489,14 @@ DATASETS = st.builds(
     maximum_size=st.integers(),
 )
 
-DATETIMES = st.integers(max_value=10000000).map(
-    lambda t: datetime.fromtimestamp(t, tz=UTC)
-)
+# `datetime`s accurate to seconds
+DATETIMES_TO_SECONDS = datetimes().map(lambda d: d.replace(microsecond=0))
 
 LEASES = st.builds(
     Lease, dataset_id=st.uuids(), node_id=st.uuids(),
     expiration=st.one_of(
         st.none(),
-        DATETIMES
+        DATETIMES_TO_SECONDS
     )
 )
 
