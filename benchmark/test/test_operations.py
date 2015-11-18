@@ -42,6 +42,10 @@ for factory in (NoOperation, ReadRequest):
 class FastConvergingFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
+    """
+    Wrapper for a FakeFlockerClient that converges instantly.
+    """
+
     def create_dataset(self, *a, **kw):
         result = self.original.create_dataset(*a, **kw)
         self.original.synchronize_state()
