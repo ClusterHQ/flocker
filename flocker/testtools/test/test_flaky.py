@@ -59,10 +59,9 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
-    def test_always_failing_flaky_test(self):
+    def test_always_erroring_flaky_test(self):
         """
-        As of FLOC-3414, the @flaky decorator doesn't actually treat failed
-        tests in special in any way - it just acts as a structured comment.
+        A flaky test always errors out is recorded as erroring.
         """
 
         executions = repeat(lambda: throw(ValueError('failure')))
