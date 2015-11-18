@@ -14,6 +14,8 @@ from testtools.deferredruntest import (
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
+from ._flaky import retry_flaky
+
 
 class TestCase(unittest.SynchronousTestCase):
     """
@@ -30,10 +32,11 @@ def async_runner(timeout):
     """
     # XXX: Looks like the acceptance tests (which were the first tests that we
     # tried to migrate) aren't cleaning up after themselves even in the
-    # successful case. Use the RunTest that loops the reactor a couple of
-    # times after the test is done.
-    return AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-        timeout=timeout.total_seconds())
+    # successful case. Use AsynchronousDeferredRunTestForBrokenTwisted, which
+    # loops the reactor a couple of times after the test is done.
+    return retry_flaky(
+        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
+            timeout=timeout.total_seconds()))
 
 
 # By default, asynchronous tests are timed out after 2 minutes.

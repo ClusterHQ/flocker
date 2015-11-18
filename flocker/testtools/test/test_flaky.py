@@ -113,7 +113,6 @@ class FlakyTests(TestCase):
             'unexpectedSuccesses': 0,
             'testsRun': 1,
         }, get_results(test))
-    test_intermittent_flaky_test.todo = "Acceptance test for flaky retries"
 
 
 class RetryFlakyTests(TestCase):
