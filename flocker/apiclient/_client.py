@@ -20,7 +20,7 @@ from pyrsistent import PClass, field, pmap_field, pmap
 from eliot import ActionType, Field
 from eliot.twisted import DeferredContext
 
-from twisted.internet.defer import Deferred, succeed, fail
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
 from twisted.internet.utils import getProcessOutput
@@ -250,9 +250,6 @@ class FakeFlockerClient(object):
         self._nodes = nodes
         self._this_node_uuid = this_node_uuid
         self.synchronize_state()
-        # A deferred that fires on the next call to move_dataset. Fires with
-        # the new configuration of the dataset that was moved.
-        self.next_move_call = Deferred()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=pmap()):
@@ -277,8 +274,6 @@ class FakeFlockerClient(object):
     def move_dataset(self, primary, dataset_id):
         self._configured_datasets = self._configured_datasets.transform(
             [dataset_id, "primary"], primary)
-        self.next_move_call.callback(self._configured_datasets[dataset_id])
-        self.next_move_call = Deferred()
         return succeed(self._configured_datasets[dataset_id])
 
     def list_datasets_configuration(self):

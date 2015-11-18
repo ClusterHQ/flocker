@@ -6,8 +6,11 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4, UUID
 
-from twisted.web.http import OK
-from twisted.internet.task import Clock
+from twisted.web.http import OK, SERVICE_UNAVAILABLE
+from twisted.internet import reactor
+from twisted.internet.task import Clock, deferLater
+
+from characteristic import attributes, Attribute
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
@@ -15,6 +18,10 @@ from ...control._config import dataset_id_from_name
 
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
+
+@attributes([Attribute("call_count", default_value=0, instance_of=int)])
+class CallCounter(object):
+    pass
 
 class APITestsMixin(APIAssertionsMixin):
     """
@@ -142,6 +149,33 @@ class APITestsMixin(APIAssertionsMixin):
 
         return self.create(name)
 
+    def _patch_list_datasets_state_for_mount_test(self):
+        """
+        Patch self.flocker_client.list_datasets_state to advance
+        ``self.reactor`` by `` _POLL_INTERVAL`` every time
+        ``list_datasets_state`` is called. This is added at the end of the run
+        list so that ``volumedriver_mount`` has called ``deferLater`` before we
+        advance the Clock.
+        """
+        call_counter = CallCounter()
+
+        def end_of_run_list():
+            return deferLater(reactor, 0.0, lambda : None)
+
+        real_list_datasets_state = self.flocker_client.list_datasets_state
+        def list_state_hack():
+            end_of_run_list().addCallback(
+                lambda _: self.reactor.advance(VolumePlugin._POLL_INTERVAL))
+            call_counter.call_count += 1
+            return real_list_datasets_state()
+
+        def restore_list_datasets_state():
+            self.flocker_client.list_datasets_state = real_list_datasets_state
+        self.addCleanup(restore_list_datasets_state)
+        self.flocker_client.list_datasets_state = list_state_hack
+
+        return call_counter
+
     def test_mount(self):
         """
         ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
@@ -155,9 +189,10 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
 
-        # Synchronize immediately on the first move_call to the flocker client.
-        self.flocker_client.next_move_call.addCallback(
-            lambda _: self.flocker_client.synchronize_state())
+        # Pretend that it takes 5 seconds for the dataset to get established on
+        # Node A.
+        self.reactor.callLater(5.0, self.flocker_client.synchronize_state)
+        list_datasets_state = self._patch_list_datasets_state_for_mount_test()
 
         d.addCallback(lambda _:
                       self.assertResult(
@@ -166,9 +201,41 @@ class APITestsMixin(APIAssertionsMixin):
                           {u"Err": None,
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         d.addCallback(lambda _: self.flocker_client.list_datasets_state())
-        d.addCallback(lambda ds: self.assertEqual(
-            [self.NODE_A], [d.primary for d in ds
-                            if d.dataset_id == dataset_id]))
+
+        def final_assertions(datasets):
+            self.assertEqual([self.NODE_A],
+                             [d.primary for d in datasets
+                              if d.dataset_id == dataset_id])
+            # There should be less than 20 calls to list_datasets_state over
+            # the course of 5 seconds.
+            self.assertLess(list_datasets_state.call_count, 20)
+        d.addCallback(final_assertions)
+        return d
+
+    def test_mount_timeout(self):
+        """
+        ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
+        name to the current node and then waits for the dataset to
+        actually arrive. If it does not arrive within 120 seconds, then it
+        returns an error up to docker.
+        """
+        name = u"myvol"
+        dataset_id = UUID(dataset_id_from_name(name))
+        # Create dataset on a different node:
+        d = self.flocker_client.create_dataset(
+            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
+            dataset_id=dataset_id)
+
+        # Do not call self.flocker_client.synchronize_state ever, in an attempt
+        # to force the timeout of VolumeDriver.Mount.
+        self._patch_list_datasets_state_for_mount_test()
+
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Mount",
+                          {u"Name": name}, SERVICE_UNAVAILABLE,
+                          {u"Err": u"Timed out waiting for dataset to mount.",
+                           u"Mountpoint": None}))
         return d
 
     def test_path(self):
