@@ -51,6 +51,9 @@ def _endpoint(name, ignore_body=False):
     Decorator factory for API endpoints, adding appropriate JSON in/out
     encoding.
 
+    This also converts errors and ``BadRequest`` exceptions to JSON that
+    can be read by Docker and therefore shown to the user.
+
     :param unicode name: The name of the endpoint in the schema.
     :param ignore_body: If true, ignore the contents of the body for all
         HTTP methods, including ``POST``. By default the body is only
