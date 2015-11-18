@@ -233,32 +233,27 @@ class VolumePlugin(object):
         creating.addCallback(lambda _: {u"Err": None})
         return creating
 
-    def _get_path(self, name):
+    def _get_path_from_dataset_id(self, dataset_id):
         """
-        Return a volume's path if available.
+        Return a dataset's path if available.
 
-        :param unicode name: The name of the volume.
+        :param UUID dataset_id: The dataset to lookup.
 
         :return: ``Deferred`` that fires with the mountpoint ``FilePath``,
             ``None`` if the dataset is not locally mounted, or errbacks
             with ``_NotFound`` if it is does not exist at all.
         """
-        result = self._dataset_id_for_name(name)
+        d = self._flocker_client.list_datasets_state()
 
-        def got_dataset_id(dataset_id):
-            d = self._flocker_client.list_datasets_state()
-
-            def got_state(datasets):
-                datasets = [dataset for dataset in datasets
-                            if dataset.dataset_id == dataset_id]
-                if datasets and datasets[0].primary == self._node_id:
-                    return datasets[0].path
-                else:
-                    return None
-            d.addCallback(got_state)
-            return d
-        result.addCallback(got_dataset_id)
-        return result
+        def got_state(datasets):
+            datasets = [dataset for dataset in datasets
+                        if dataset.dataset_id == dataset_id]
+            if datasets and datasets[0].primary == self._node_id:
+                return datasets[0].path
+            else:
+                return None
+        d.addCallback(got_state)
+        return d
 
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")
@@ -277,14 +272,16 @@ class VolumePlugin(object):
         d.addCallback(lambda dataset_id:
                       self._flocker_client.move_dataset(self._node_id,
                                                         dataset_id))
+        d.addCallback(lambda dataset: dataset.dataset_id)
 
-        def get_state(_=None):
-            getting_path = self._get_path(Name)
+        def get_state(dataset_id):
+            getting_path = self._get_path_from_dataset_id(dataset_id)
 
             def got_path(path):
                 if path is None:
                     return deferLater(
-                        self._reactor, self._POLL_INTERVAL, get_state)
+                        self._reactor, self._POLL_INTERVAL, get_state,
+                        dataset_id)
                 else:
                     return {u"Err": None,
                             u"Mountpoint": path.path}
@@ -307,7 +304,8 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        d = self._get_path(Name)
+        d = self._dataset_id_for_name(Name)
+        d.addCallback(self._get_path_from_dataset_id)
 
         def got_path(path):
             if path is None:
