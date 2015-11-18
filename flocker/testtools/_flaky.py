@@ -35,8 +35,6 @@ def flaky(jira_keys, max_runs=5, min_passes=2):
 
     # TODO (see FLOC-3281):
     # - allow specifying which exceptions are expected
-    # - retry on expected exceptions
-    #   - parametrize on retry options
     # - provide interesting & parseable logs for flaky tests
 
     annotation = _FlakyAnnotation(max_runs=max_runs, min_passes=min_passes)
@@ -86,17 +84,8 @@ class _RetryFlaky(testtools.RunTest):
     """
     ``RunTest`` implementation that retries tests that fail.
     """
-    # XXX: Make this a pyrsistent object
-
     # XXX: This should probably become a part of testtools:
     # https://bugs.launchpad.net/testtools/+bug/1515933
-
-    # TODO: I think the "right" thing to do is to take a RunTest factory and
-    # construct RunTest once per test run, each time giving it a newly-created
-    # TestResult.
-    #
-    # When we're "done", we aggregate all of the results and output that to
-    # the result we were given.
 
     def __init__(self, run_test_factory, case, *args, **kwargs):
         self._run_test_factory = run_test_factory
@@ -148,7 +137,6 @@ class _RetryFlaky(testtools.RunTest):
         successes = 0
         results = []
 
-        # XXX: I am too stupid to figure out whether these should be <=
         while successes < min_passes and len(results) < max_runs:
             was_successful, details = self._attempt_test(case)
             if was_successful:
@@ -160,12 +148,9 @@ class _RetryFlaky(testtools.RunTest):
             # XXX: Should attach a whole bunch of information here as details.
             result.addSuccess(case)
         else:
-            # XXX: Need to actually provide data about the errors.
             # XXX: How are we going to report on tests that sometimes fail,
             # sometimes error. Probably "if all failures, failure; otherwise,
             # error"
-            # XXX: Consider extracting this aggregation into a separate
-            # function.
             result.addError(case, details=_combine_details(results))
         result.stopTest(case)
         return result
