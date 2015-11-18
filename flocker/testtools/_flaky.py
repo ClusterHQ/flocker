@@ -7,10 +7,11 @@ Logic for handling flaky tests.
 from functools import partial
 
 import flaky as _flaky
+from pyrsistent import pmap
 import testtools
 
 
-def flaky(jira_key, max_runs=None, min_passes=None):
+def flaky(jira_key, max_runs=5, min_passes=2):
     """
     Mark a test as flaky.
 
@@ -40,7 +41,7 @@ def flaky(jira_key, max_runs=None, min_passes=None):
     return wrapper
 
 
-class _RetryFlaky(object):
+class _RetryFlaky(testtools.RunTest):
     """
     ``RunTest`` implementation that retries tests that fail.
     """
@@ -62,9 +63,101 @@ class _RetryFlaky(object):
         self._args = args
         self._kwargs = kwargs
 
-    def run(self, result=None):
-        return self._run_test_factory(
-            self._case, *self._args, **self._kwargs).run(result)
+    def _run_test(self, case, result):
+        """
+        Create an instance of the ``RunTest`` we are wrapping.
+
+        :param testtools.TestCase case: The test to run.
+        :param testtools.TestResult result: The test result to report to.
+            Must conform to testtools extended test result interface.
+        :return: The modified ``result``.
+        """
+        run_test = self._run_test_factory(case, *self._args, **self._kwargs)
+        return run_test._run_prepared_result(result)
+
+    def _reset_case(self, case):
+        """
+        Reset ``case`` so it can be run again.
+        """
+        # Don't want details from last run.
+        case.getDetails().clear()
+        # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
+        case._TestCase__setup_called = False
+        case._TestCase__teardown_called = False
+
+    def _run_prepared_result(self, result):
+        """
+        Run the test with a result that conforms to testtools' extended
+        ``TestResult`` interface.
+
+        This overrides a method in base ``RunTest`` which is intended to be
+        overwritten.
+        """
+        flaky = _get_flaky_attrs(self._case)
+        if flaky is not None:
+            return self._run_flaky_test(
+                self._case, result, flaky['min_passes'], flaky['max_runs'])
+
+        # No flaky attributes? Then run as normal.
+        return self._run_test(self._case, result)
+
+    def _run_flaky_test(self, case, result, min_passes, max_runs):
+        """
+        Run a test that has been decorated with the `@flaky` decorator.
+
+        :param TestCase case: A ``testtools.TestCase`` to run.
+        :param TestResult result: A ``TestResult`` object that conforms to the
+            testtools extended result interface.
+        :param int min_passes: The minimum number of successes required to
+            consider the test successful.
+        :param int max_runs: The maximum number of times to run the test.
+
+        :return: A ``TestResult`` with the result of running the flaky test.
+        """
+        successes = 0
+        results = []
+
+        # XXX: I am too stupid to figure out whether these should be <=
+        while successes < min_passes and len(results) < max_runs:
+            tmp_result = testtools.TestResult()
+            self._run_test(case, tmp_result)
+            results.append(tmp_result)
+            if tmp_result.wasSuccessful():
+                successes += 1
+            self._reset_case(case)
+
+        if successes >= min_passes:
+            result.startTest(case)
+            # XXX: Should attach a whole bunch of information here as details.
+            result.addSuccess(case)
+            result.stopTest(case)
+
+        # XXX: Obviously we want to report failures!
+        return result
+
+
+def _get_flaky_attrs(case):
+    """
+    Get the flaky decoration detail from ``case``.
+
+    :param TestCase case: A test case that might have been decorated with
+        @flaky.
+    :return: ``None`` if not flaky, or a ``pmap`` of the flaky test details.
+    """
+    # XXX: Is there a public way of doing this?
+    method = case._get_test_method()
+    max_runs = getattr(method, '_flaky_max_runs', None)
+    min_passes = getattr(method, '_flaky_min_passes', None)
+    if max_runs is None or min_passes is None:
+        # XXX: This is a crappy way of deciding whether a method was decorated
+        # or not, because it's ambiguous. Really, @flaky should set a single,
+        # compound value on the method.
+        return None
+    # XXX: Should probably be a PClass.
+    return pmap({
+        'max_runs': max_runs,
+        'min_passes': min_passes,
+    })
 
 
 def retry_flaky(run_test_factory=None):
