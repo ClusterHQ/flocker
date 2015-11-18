@@ -10,6 +10,11 @@ import unittest
 from hypothesis import given
 from hypothesis.strategies import integers
 import testtools
+from testtools.matchers import (
+    Equals,
+    HasLength,
+    MatchesStructure,
+)
 
 from .. import AsyncTestCase
 from .._flaky import retry_flaky, flaky
@@ -33,8 +38,8 @@ class FlakyTests(testtools.TestCase):
             return x
 
         y = f(x)
-        self.assertEqual(y, x)
-        self.assertEqual([x], values)
+        self.expectThat(y, Equals(x))
+        self.assertThat(values, Equals([x]))
 
     def test_successful_flaky_test(self):
         """
@@ -50,14 +55,7 @@ class FlakyTests(testtools.TestCase):
                 pass
 
         test = SomeTest('test_something')
-        self.assertEqual({
-            'errors': 0,
-            'failures': 0,
-            'skipped': 0,
-            'expectedFailures': 0,
-            'unexpectedSuccesses': 0,
-            'testsRun': 1,
-        }, get_results(test))
+        self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
     def test_always_failing_flaky_test(self):
         """
@@ -74,14 +72,12 @@ class FlakyTests(testtools.TestCase):
                 next(executions)()
 
         test = SomeTest('test_something')
-        self.assertEqual({
-            'errors': 1,
-            'failures': 0,
-            'skipped': 0,
-            'expectedFailures': 0,
-            'unexpectedSuccesses': 0,
-            'testsRun': 1,
-        }, get_results(test))
+        self.assertThat(
+            run_test(test), has_results(
+                errors=HasLength(1),
+                tests_run=Equals(1),
+            )
+        )
 
     def test_intermittent_flaky_test(self):
         """
@@ -103,14 +99,7 @@ class FlakyTests(testtools.TestCase):
                 next(executions)()
 
         test = SomeTest('test_something')
-        self.assertEqual({
-            'errors': 0,
-            'failures': 0,
-            'skipped': 0,
-            'expectedFailures': 0,
-            'unexpectedSuccesses': 0,
-            'testsRun': 1,
-        }, get_results(test))
+        self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
     def test_intermittent_flaky_test_that_errors(self):
         """
@@ -132,14 +121,12 @@ class FlakyTests(testtools.TestCase):
                 next(executions)()
 
         test = SomeTest('test_something')
-        self.assertEqual({
-            'errors': 1,
-            'failures': 0,
-            'skipped': 0,
-            'expectedFailures': 0,
-            'unexpectedSuccesses': 0,
-            'testsRun': 1,
-        }, get_results(test))
+        result = unittest.TestResult()
+        test.run(result)
+        self.assertThat(result, has_results(
+            errors=HasLength(1),
+            tests_run=Equals(1),
+        ))
 
 
 def throw(exception):
@@ -149,24 +136,41 @@ def throw(exception):
     raise exception
 
 
-def _get_result_stats(result):
+def has_results(errors=None, failures=None, skipped=None,
+                expected_failures=None, unexpected_successes=None,
+                tests_run=None):
     """
-    Return a summary of test results.
+    Return a matcher on test results.
+
+    By default, will match a result that has no tests run.
     """
-    return {
-        'errors': len(result.errors),
-        'failures': len(result.failures),
-        'skipped': len(result.skipped),
-        'expectedFailures': len(result.expectedFailures),
-        'unexpectedSuccesses': len(result.unexpectedSuccesses),
-        'testsRun': result.testsRun,
-    }
+    if errors is None:
+        errors = Equals([])
+    if failures is None:
+        failures = Equals([])
+    if skipped is None:
+        skipped = Equals([])
+    if expected_failures is None:
+        expected_failures = Equals([])
+    if unexpected_successes is None:
+        unexpected_successes = Equals([])
+    if tests_run is None:
+        tests_run = Equals(0)
+    return MatchesStructure(
+        errors=errors,
+        failures=failures,
+        skipped=skipped,
+        expectedFailures=expected_failures,
+        unexpectedSuccesses=unexpected_successes,
+        testsRun=tests_run,
+    )
 
 
-def get_results(test):
+def run_test(case):
     """
-    Run a test and return a summary of its results.
+    Run a test and return its results.
     """
+    # XXX: How many times have I written something like this?
     result = unittest.TestResult()
-    test.run(result)
-    return _get_result_stats(result)
+    case.run(result)
+    return result

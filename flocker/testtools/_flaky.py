@@ -123,7 +123,10 @@ class _RetryFlaky(testtools.RunTest):
         else:
             # XXX: Need to actually provide data about the errors.
             # XXX: How are we going to report on tests that sometimes fail,
-            # sometimes error.
+            # sometimes error. Probably "if all failures, failure; otherwise,
+            # error"
+            # XXX: Consider extracting this aggregation into a separate
+            # function.
             result.addError(case, details={})
         result.stopTest(case)
 
