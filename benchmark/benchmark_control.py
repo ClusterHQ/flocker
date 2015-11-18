@@ -23,6 +23,9 @@ from benchmark import metrics, operations, scenarios
 to_file(sys.stderr)
 
 
+# If modifying scenarios, operations, or metrics, please update
+# docs/gettinginvolved/benchmarking.rst
+
 _SCENARIOS = {
     'no-load': scenarios.NoLoadScenario,
 }
