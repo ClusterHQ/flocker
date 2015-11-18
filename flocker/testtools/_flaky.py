@@ -63,18 +63,6 @@ class _RetryFlaky(testtools.RunTest):
         self._args = args
         self._kwargs = kwargs
 
-    def _run_test(self, case, result):
-        """
-        Create an instance of the ``RunTest`` we are wrapping.
-
-        :param testtools.TestCase case: The test to run.
-        :param testtools.TestResult result: The test result to report to.
-            Must conform to testtools extended test result interface.
-        :return: The modified ``result``.
-        """
-        run_test = self._run_test_factory(case, *self._args, **self._kwargs)
-        return run_test._run_prepared_result(result)
-
     def _run_prepared_result(self, result):
         """
         Run the test with a result that conforms to testtools' extended
@@ -90,6 +78,18 @@ class _RetryFlaky(testtools.RunTest):
 
         # No flaky attributes? Then run as normal.
         return self._run_test(self._case, result)
+
+    def _run_test(self, case, result):
+        """
+        Run ``case`` with the ``RunTest`` we are wrapping.
+
+        :param testtools.TestCase case: The test to run.
+        :param testtools.TestResult result: The test result to report to.
+            Must conform to testtools extended test result interface.
+        :return: The modified ``result``.
+        """
+        run_test = self._run_test_factory(case, *self._args, **self._kwargs)
+        return run_test._run_prepared_result(result)
 
     def _run_flaky_test(self, case, result, min_passes, max_runs):
         """
