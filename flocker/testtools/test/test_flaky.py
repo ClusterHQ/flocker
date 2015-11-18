@@ -11,8 +11,10 @@ from hypothesis import given
 from hypothesis.strategies import integers
 import testtools
 from testtools.matchers import (
+    Contains,
     Equals,
     HasLength,
+    MatchesAll,
     MatchesStructure,
 )
 
@@ -123,10 +125,17 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         result = unittest.TestResult()
         test.run(result)
-        self.assertThat(result, has_results(
-            errors=HasLength(1),
+        self.expectThat(result, has_results(
             tests_run=Equals(1),
+            errors=HasLength(1),
         ))
+        [(found_test, exception)] = result.errors
+        self.assertThat(
+            exception, MatchesAll(
+                Contains('ValueError'),
+                Contains('RuntimeError'),
+            )
+        )
 
 
 def throw(exception):

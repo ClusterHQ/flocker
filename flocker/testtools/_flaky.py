@@ -9,6 +9,7 @@ from functools import partial
 import flaky as _flaky
 from pyrsistent import pmap
 import testtools
+from testtools.testcase import gather_details
 
 
 def flaky(jira_key, max_runs=5, min_passes=2):
@@ -109,12 +110,10 @@ class _RetryFlaky(testtools.RunTest):
 
         # XXX: I am too stupid to figure out whether these should be <=
         while successes < min_passes and len(results) < max_runs:
-            tmp_result = testtools.TestResult()
-            self._run_test(case, tmp_result)
-            results.append(tmp_result)
-            if tmp_result.wasSuccessful():
+            was_successful, details = self._attempt_test(case)
+            if was_successful:
                 successes += 1
-            _reset_case(case)
+            results.append(details)
 
         result.startTest(case)
         if successes >= min_passes:
@@ -127,11 +126,37 @@ class _RetryFlaky(testtools.RunTest):
             # error"
             # XXX: Consider extracting this aggregation into a separate
             # function.
-            result.addError(case, details={})
+            result.addError(case, details=_combine_details(results))
         result.stopTest(case)
-
-        # XXX: Obviously we want to report failures!
         return result
+
+    def _attempt_test(self, case):
+        """
+        Run 'case' with a temporary result.
+
+        :param testtools.TestCase case: The test to run.
+
+        :return: a tuple of ``(success, details)``, where ``success`` is
+            a boolean indicating whether the test was successful or not
+            and ``details`` is a dictionary of testtools details.
+        """
+        tmp_result = testtools.TestResult()
+        self._run_test(case, tmp_result)
+        details = pmap(case.getDetails())
+        _reset_case(case)
+        return tmp_result.wasSuccessful(), details
+
+
+def _combine_details(detailses):
+    """
+    Take a sequence of details dictionaries and combine them into one.
+    """
+    # XXX: Only necessary becaause testtools's `gather_details` is perversely
+    # mutatey.
+    result = {}
+    for details in detailses:
+        gather_details(details, result)
+    return pmap(result)
 
 
 def _reset_case(case):
