@@ -16,10 +16,6 @@ from testtools.testcase import gather_details
 _FLAKY_ATTRIBUTE = '_flaky'
 
 
-# TODO:
-# - handle tests with many different kinds of results
-
-
 def flaky(jira_keys, max_runs=5, min_passes=2):
     """
     Mark a test as flaky.
@@ -172,8 +168,7 @@ class _RetryFlaky(testtools.RunTest):
             result.addSuccess(case, details=details)
         else:
             # XXX: How are we going to report on tests that sometimes fail,
-            # sometimes error. Probably "if all failures, failure; otherwise,
-            # error"
+            # sometimes error, sometimes skip? Currently we just error.
             result.addError(case, details=details)
         result.stopTest(case)
         return result
