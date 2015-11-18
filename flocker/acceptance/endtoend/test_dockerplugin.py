@@ -9,11 +9,13 @@ from twisted.trial.unittest import SkipTest
 
 from distutils.version import LooseVersion
 
+from eliot import Message
+
 from ...common import loop_until
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    AsyncTestCase, random_name, find_free_port, flaky,
+    AsyncTestCase, random_name, flaky,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -22,6 +24,35 @@ from ..testtools import (
 from ..scripts import SCRIPTS
 
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
+
+
+def extract_external_port(
+    client, container_identifier, internal_port
+):
+    """
+    Inspect a running container for the external port number on which a
+    particular internal port is exposed.
+
+    :param docker.Client client: The Docker client to use to perform the
+        inspect.
+    :param unicode container_identifier: The unique identifier of the container
+        to inspect.
+    :param int internal_port: An internal, exposed port on the container.
+
+    :return: The external port number on which ``internal_port`` from the
+        container is exposed.
+    :rtype: int
+    """
+    container_details = client.inspect_container(container_identifier)
+    # If the container isn't running, this section is not present.
+    network_settings = container_details[u"NetworkSettings"]
+    ports = network_settings[u"Ports"]
+    details = ports[u"{}/tcp".format(internal_port)]
+    host_port = int(details[0][u"HostPort"])
+    Message.new(
+        message_type=u"acceptance:extract_external_port", host_port=host_port
+    ).write()
+    return host_port
 
 
 class DockerPluginTests(AsyncTestCase):
@@ -101,8 +132,11 @@ class DockerPluginTests(AsyncTestCase):
         if client is None:
             client = get_docker_client(cluster, address)
 
-        # Remove all existing containers on the node, in case they're left
-        # over from previous test:
+        # Remove all existing containers on the node, in case they're left over
+        # from previous test.  General cleanup provided by require_cluster
+        # doesn't take care of this because these tests bypass the Flocker
+        # container API and the general cleanup only cleans up Flocker
+        # containers.
         for container in client.containers():
             client.remove_container(container["Id"], force=True)
 
@@ -158,21 +192,23 @@ class DockerPluginTests(AsyncTestCase):
         node = cluster.nodes[0]
         client = get_docker_client(cluster, node.public_address)
         http_port = 8080
-        host_port = find_free_port()[1]
 
         if volume_name is None:
             volume_name = random_name(self)
-        self.run_python_container(
+        container_identifier = self.run_python_container(
             cluster, node.public_address,
             {"host_config": client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: host_port},
+                port_bindings={http_port: 0},
                 restart_policy={"Name": "always"}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
             [u"/data"], client=client)
+        host_port = extract_external_port(
+            client, container_identifier, http_port
+        )
 
         d = post_http_server(self, node.public_address, host_port,
                              {"data": data})
@@ -247,23 +283,29 @@ class DockerPluginTests(AsyncTestCase):
         # create a simple data HTTP python container, with the restart policy
         data = random_name(self).encode("utf-8")
         node = cluster.nodes[0]
+        Message.new(
+            message_type=u"acceptance:test_volume_persists_restart",
+            node=node.public_address,
+        ).write()
         client = get_docker_client(cluster, node.public_address)
 
         http_port = 8080
-        host_port = find_free_port()[1]
 
         volume_name = random_name(self)
-        self.run_python_container(
+        container_identifier = self.run_python_container(
             cluster, node.public_address,
             {"host_config": client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: host_port},
+                port_bindings={http_port: 0},
                 restart_policy={"Name": "always"}),
              "ports": [http_port]},
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
             [u"/data"], client=client)
+        host_port = extract_external_port(
+            client, container_identifier, http_port
+        )
 
         # write some data to it via POST
         d = post_http_server(self, node.public_address, host_port,
@@ -325,12 +367,11 @@ class DockerPluginTests(AsyncTestCase):
         client = get_docker_client(cluster, origin_node.public_address)
         data = "hello world"
         http_port = 8080
-        host_port = find_free_port()[1]
         volume_name = random_name(self)
         container_args = {
             "host_config": client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
-                port_bindings={http_port: host_port}),
+                port_bindings={http_port: 0}),
             "ports": [http_port]}
 
         cid = self.run_python_container(
@@ -339,6 +380,7 @@ class DockerPluginTests(AsyncTestCase):
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
             [u"/data"], cleanup=False, client=client)
+        host_port = extract_external_port(client, cid, http_port)
 
         # Post to container on origin node:
         d = post_http_server(self, origin_node.public_address, host_port,
@@ -346,16 +388,22 @@ class DockerPluginTests(AsyncTestCase):
 
         def posted(_):
             # Shutdown original container:
-            client = get_docker_client(cluster, origin_node.public_address)
             client.remove_container(cid, force=True)
             # Start container on destination node with same volume:
-            self.run_python_container(
+            new_cid = self.run_python_container(
                 cluster, destination_node.public_address, container_args,
-                SCRIPTS.child(b"datahttp.py"), [u"/data"])
+                SCRIPTS.child(b"datahttp.py"), [u"/data"],
+            )
+            host_port = extract_external_port(client, new_cid, http_port)
+            return host_port
+
         d.addCallback(posted)
-        d.addCallback(lambda _: assert_http_server(
-            self, destination_node.public_address, host_port,
-            expected_response=data))
+        d.addCallback(
+            lambda host_port: assert_http_server(
+                self, destination_node.public_address, host_port,
+                expected_response=data,
+            )
+        )
         return d
 
     @flaky('FLOC-2977')
