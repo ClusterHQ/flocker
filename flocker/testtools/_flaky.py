@@ -116,11 +116,16 @@ class _RetryFlaky(testtools.RunTest):
                 successes += 1
             _reset_case(case)
 
+        result.startTest(case)
         if successes >= min_passes:
-            result.startTest(case)
             # XXX: Should attach a whole bunch of information here as details.
             result.addSuccess(case)
-            result.stopTest(case)
+        else:
+            # XXX: Need to actually provide data about the errors.
+            # XXX: How are we going to report on tests that sometimes fail,
+            # sometimes error.
+            result.addError(case, details={})
+        result.stopTest(case)
 
         # XXX: Obviously we want to report failures!
         return result

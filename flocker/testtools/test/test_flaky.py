@@ -112,6 +112,35 @@ class FlakyTests(TestCase):
             'testsRun': 1,
         }, get_results(test))
 
+    def test_intermittent_flaky_test_that_errors(self):
+        """
+        Tests marked with 'flaky' are retried if they fail, and marked as
+        erroring / failing if they don't reach the minimum number of successes.
+        """
+
+        executions = iter([
+            lambda: throw(ValueError('failure')),
+            lambda: None,
+            lambda: throw(RuntimeError('failure #2')),
+        ])
+
+        class SomeTest(testtools.TestCase):
+            run_tests_with = retry_flaky()
+
+            @flaky('FLOC-XXXX', max_runs=3, min_passes=2)
+            def test_something(self):
+                next(executions)()
+
+        test = SomeTest('test_something')
+        self.assertEqual({
+            'errors': 1,
+            'failures': 0,
+            'skipped': 0,
+            'expectedFailures': 0,
+            'unexpectedSuccesses': 0,
+            'testsRun': 1,
+        }, get_results(test))
+
 
 def throw(exception):
     """
