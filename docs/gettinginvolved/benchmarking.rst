@@ -4,12 +4,11 @@ Benchmarking
 ============
 
 Flocker includes a tool for benchmarking operations.
-It needs the appropriate ssh-key added to a running ssh-agent.
 It is called like this:
 
 .. prompt:: bash $
 
-   python benchmark/benchmark_control.py <options>
+   benchmark/benchmark <options>
 
 
 The :program:`benchmark/benchmark_control.py` script has several options:
@@ -61,4 +60,4 @@ To see the supported values for each option, run:
 
 .. prompt:: bash $
 
-   python benchmark/benchmark_control.py --help
+   benchmark/benchmark --help
