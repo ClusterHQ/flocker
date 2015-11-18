@@ -11,9 +11,9 @@ It is called like this:
    benchmark/benchmark <options>
 
 
-The :program:`benchmark/benchmark_control.py` script has several options:
+The :program:`benchmark` script has several options:
 
-.. program:: benchmark/benchmark_control.py
+.. program:: benchmark
 
 .. option:: --control <control-service-ipaddr>
 
@@ -47,7 +47,7 @@ The :program:`benchmark/benchmark_control.py` script has several options:
          Read from the control service.
          This is the default.
 
-.. option:: --metric <measurement>
+.. option:: --metric <metric>
 
    Specifies the quantity to measure while the operation is performed.
    Supported values include:
