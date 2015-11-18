@@ -24,7 +24,7 @@ class NoLoadScenario(object):
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
-        return succeed(None)  # no setup needed
+        return succeed(self)  # no setup needed
 
     def maintained(self):
         """
@@ -41,4 +41,4 @@ class NoLoadScenario(object):
         :return: A Deferred that fires when the desired scenario is
             stopped.
         """
-        return succeed(None)
+        return succeed(self)
