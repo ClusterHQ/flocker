@@ -15,10 +15,8 @@ _FLAKY_ATTRIBUTE = '_flaky'
 
 
 # TODO:
-# - actually run a flaky test manually to see what everything looks like
 # - make sure that JIRA data is included in flaky annotations
 #   - do "either text or sequence" UI for jira_keys
-# - attach details to success
 # - handle tests with many different kinds of results
 
 
@@ -151,15 +149,15 @@ class _RetryFlaky(testtools.RunTest):
                 successes += 1
             results.append(details)
 
+        details = _combine_details(results)
         result.startTest(case)
         if successes >= min_passes:
-            # XXX: Should attach a whole bunch of information here as details.
-            result.addSuccess(case)
+            result.addSuccess(case, details=details)
         else:
             # XXX: How are we going to report on tests that sometimes fail,
             # sometimes error. Probably "if all failures, failure; otherwise,
             # error"
-            result.addError(case, details=_combine_details(results))
+            result.addError(case, details=details)
         result.stopTest(case)
         return result
 
