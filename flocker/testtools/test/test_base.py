@@ -8,7 +8,7 @@ import shutil
 import string
 
 from hypothesis import assume, given
-from hypothesis.strategies import binary, integers, lists, text
+from hypothesis.strategies import integers, lists, text
 from testtools import PlaceHolder, TestCase
 from testtools.matchers import (
     AllMatch,
@@ -42,7 +42,7 @@ class AsyncTestCaseTests(TestCase):
     Tests for `AsyncTestCase`.
     """
 
-    @given(binary(average_size=30))
+    @given(text(average_size=30))
     def test_trial_skip_exception(self, reason):
         """
         If tests raise the ``SkipTest`` exported by Trial, then that's

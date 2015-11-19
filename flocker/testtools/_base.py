@@ -9,6 +9,7 @@ import sys
 import tempfile
 
 import testtools
+from testtools.content import text_content
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
 
@@ -52,7 +53,7 @@ DEFAULT_ASYNC_TIMEOUT = timedelta(minutes=2)
 
 
 def _test_skipped(case, result, exception):
-    result.addSkip(case, str(exception))
+    result.addSkip(case, details={'reason': text_content(unicode(exception))})
 
 
 class AsyncTestCase(testtools.TestCase):
