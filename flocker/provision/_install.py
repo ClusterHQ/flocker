@@ -68,7 +68,7 @@ def yum_install(args, package_manager="yum"):
     )
 
 
-def apt_get_install(*args):
+def apt_get_install(args):
     return run_network_interacting_from_args(
         ["apt-get", "-y", "install", ] + args
     )
