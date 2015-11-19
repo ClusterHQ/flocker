@@ -240,14 +240,14 @@ class _RetryFlaky(testtools.RunTest):
         tmp_result = testtools.TestResult()
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
+        details = pmap(case.getDetails())
         if result_type == _ResultType.skip:
             # XXX: Work around a testtools bug where it reports stack traces
             # for skips that aren't passed through its supported
             # SkipException.
             [reason] = list(tmp_result.skip_reasons.keys())
-            details = pmap({'reason': text_content(reason)})
-        else:
-            details = pmap(case.getDetails())
+            details = details.discard('traceback').set(
+                'reason', text_content(reason))
         _reset_case(case)
         return (tmp_result.wasSuccessful(), result_type, details)
 
