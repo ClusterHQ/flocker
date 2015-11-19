@@ -3,7 +3,9 @@ import subprocess
 from twisted.internet.threads import deferToThread
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
-from benchmark.metrics.cputime import _CPUParser, get_node_cpu_times
+from benchmark.metrics.cputime import (
+    _CPUParser, get_node_cpu_times, _compute_change
+)
 
 
 class CPUParseTests(SynchronousTestCase):
@@ -79,8 +81,38 @@ class GetNodeCPUTimeTests(TestCase):
 
 class ComputeChangesTests(SynchronousTestCase):
 
-    # XXX
-    pass
+    def test_compute_change(self):
+        """
+        Process measurements are handled correctly.
+        """
+        labels = ['node1', 'node2']
+        before = [{'foo': 3, 'bar': 5}, {'foo': 10, 'bar': 2}]
+        after = [{'foo': 4, 'bar': 5}, {'foo': 12, 'bar': 5}]
+        result = _compute_change(labels, before, after)
+        self.assertEqual(result, {
+            'node1': {'foo': 1, 'bar': 0},
+            'node2': {'foo': 2, 'bar': 3},
+            })
+
+    def test_compute_change_new_proc(self):
+        """
+        Process that only appears in ``after`` is ignored.
+        """
+        labels = ['node1']
+        before = [{'foo': 500}]
+        after = [{'foo': 555, 'bar': 5}]
+        result = _compute_change(labels, before, after)
+        self.assertEqual(result, {'node1': {'foo': 55}})
+
+    def test_compute_change_lost_proc(self):
+        """
+        Process that only appears in ``before`` is ignored.
+        """
+        labels = ['node1']
+        before = [{'foo': 555, 'bar': 5}]
+        after = [{'foo': 600}]
+        result = _compute_change(labels, before, after)
+        self.assertEqual(result, {'node1': {'foo': 45}})
 
 
 class CPUTimeTests(TestCase):
