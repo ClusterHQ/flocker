@@ -12,6 +12,7 @@ from pyrsistent import PClass, field, pmap, pset, pset_field
 import testtools
 from testtools.content import text_content
 from testtools.testcase import gather_details
+from twisted.python.constants import Names, NamedConstant
 
 
 _FLAKY_ATTRIBUTE = '_flaky'
@@ -187,32 +188,41 @@ class _RetryFlaky(testtools.RunTest):
         max_fails = flaky.max_runs - flaky.min_passes
         while (successes < flaky.min_passes and
                len(results) - successes <= max_fails):
-            was_successful, details = self._attempt_test(case)
+            was_successful, result_type, details = self._attempt_test(case)
             if was_successful:
                 successes += 1
-            results.append(details)
+            results.append((result_type, details))
+        successful = successes >= flaky.min_passes
 
         flaky_data = flaky.to_dict()
         flaky_data.update({'runs': len(results), 'passes': successes})
         flaky_details = {
             'flaky': text_content(pformat(flaky_data)),
         }
+        combined_details = _combine_details(
+            [flaky_details] + list(r[1] for r in results))
 
-        details = _combine_details([flaky_details] + results)
         result.startTest(case)
-        if successes >= flaky.min_passes:
-            self._output.write(
-                '@flaky(%s): passed %d out of %d runs '
-                '(min passes: %d; max runs: %d)'
-                % (case.id(), successes, len(results), flaky.min_passes,
-                   flaky.max_runs)
-            )
+        if successful:
+            skip_reported = False
+            for result_type, details in results:
+                if result_type == _ResultType.skip:
+                    result.addSkip(case, details=details)
+                    skip_reported = True
 
-            result.addSuccess(case, details=details)
+            if not skip_reported:
+                self._output.write(
+                    '@flaky(%s): passed %d out of %d runs '
+                    '(min passes: %d; max runs: %d)'
+                    % (case.id(), successes, len(results), flaky.min_passes,
+                       flaky.max_runs)
+                )
+
+                result.addSuccess(case, details=combined_details)
         else:
             # XXX: How are we going to report on tests that sometimes fail,
             # sometimes error, sometimes skip? Currently we just error.
-            result.addError(case, details=details)
+            result.addError(case, details=combined_details)
         result.stopTest(case)
         return result
 
@@ -222,15 +232,63 @@ class _RetryFlaky(testtools.RunTest):
 
         :param testtools.TestCase case: The test to run.
 
-        :return: a tuple of ``(success, details)``, where ``success`` is
-            a boolean indicating whether the test was successful or not
-            and ``details`` is a dictionary of testtools details.
+        :return: a tuple of ``(successful, result, details)``, where
+            ``successful`` is a boolean indicating whether the test was
+            succcessful, ``result`` is a _ResultType indicating what the test
+            result was and ``details`` is a dictionary of testtools details.
         """
         tmp_result = testtools.TestResult()
         self._run_test(case, tmp_result)
-        details = pmap(case.getDetails())
+        result_type = _get_result_type(tmp_result)
+        if result_type == _ResultType.skip:
+            # XXX: Work around a testtools bug where it reports stack traces
+            # for skips that aren't passed through its supported
+            # SkipException.
+            [reason] = list(tmp_result.skip_reasons.keys())
+            details = pmap({'reason': text_content(reason)})
+        else:
+            details = pmap(case.getDetails())
         _reset_case(case)
-        return tmp_result.wasSuccessful(), details
+        return (tmp_result.wasSuccessful(), result_type, details)
+
+
+class _ResultType(Names):
+    """
+    Different kinds of test results.
+    """
+
+    success = NamedConstant()
+    error = NamedConstant()
+    failure = NamedConstant()
+    skip = NamedConstant()
+    unexpected_success = NamedConstant()
+    expected_failure = NamedConstant()
+
+
+def _get_result_type(result):
+    """
+    Get the _ResultType for ``result``.
+
+    :param testtools.TestResult result: A TestResult that has had exactly
+        one test run on it.
+    :return: A _ResultType for that result.
+    """
+    if result.testsRun != 1:
+        raise ValueError('%r has run %d tests, 1 expected' % (
+            result, result.testsRun))
+
+    if len(result.errors) > 0:
+        return _ResultType.error
+    elif len(result.failures) > 0:
+        return _ResultType.failure
+    elif len(result.expectedFailures) > 0:
+        return _ResultType.expected_failure
+    elif len(result.unexpectedSuccesses) > 0:
+        return _ResultType.unexpected_success
+    elif len(result.skip_reasons) > 0:
+        return _ResultType.skip
+    else:
+        return _ResultType.success
 
 
 def _combine_details(detailses):

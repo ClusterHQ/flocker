@@ -5,15 +5,23 @@ Tests for ``flocker.testtools._flaky``.
 """
 
 from datetime import timedelta
+from functools import partial
 from itertools import repeat
 from pprint import pformat
 from StringIO import StringIO
 import unittest
 
 from hypothesis import given
-from hypothesis.strategies import integers, lists, permutations, text
+from hypothesis.strategies import (
+    integers,
+    lists,
+    permutations,
+    streaming,
+    text,
+)
 import testtools
 from testtools.matchers import (
+    AfterPreprocessing,
     Contains,
     Equals,
     HasLength,
@@ -248,6 +256,36 @@ class FlakyTests(testtools.TestCase):
         result = unittest.TestResult()
         test.run(result)
         self.assertThat(result, has_results(tests_run=Equals(1)))
+
+    @given(jira_keys, num_runs, num_runs,
+           streaming(text(average_size=10)).map(iter))
+    def test_flaky_skipped_test(self, jira_keys, max_runs, min_passes,
+                                reasons):
+        """
+        If a test is skipped and also marked @flaky, we report it as skipped.
+        """
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
+        observed_reasons = []
+
+        class SkippingTest(AsyncTestCase):
+            run_tests_with = retry_flaky(output=StringIO())
+
+            @flaky(jira_keys, max_runs, min_passes)
+            def test_skip(self):
+                observed_reasons.append(reasons.next())
+                raise unittest.SkipTest(observed_reasons[-1])
+
+        test = SkippingTest('test_skip')
+        result = unittest.TestResult()
+        test.run(result)
+        self.assertThat(
+            result,
+            has_results(
+                tests_run=Equals(1),
+                skipped=AfterPreprocessing(
+                    lambda xs: list(unicode(x[1]) for x in xs),
+                    Equals(observed_reasons)),
+            ))
 
 
 def throw(exception):
