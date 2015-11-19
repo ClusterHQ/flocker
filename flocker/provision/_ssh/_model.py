@@ -1,7 +1,14 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+from datetime import timedelta
 from collections import MutableSequence
 from pipes import quote as shell_quote
 from pyrsistent import PRecord, field
 from effect import Effect, sync_performer
+
+from ...common import retry_effect_with_timeout
+
+_TIMEOUT = timedelta(minutes=5)
 
 
 def identity(arg):
@@ -234,3 +241,17 @@ def sudo_from_args(command, log_command_filter=identity):
     """
     return Effect(
         Sudo.from_args(command, log_command_filter=log_command_filter))
+
+
+def run_network_interacting_from_args(*a, **kw):
+    return retry_effect_with_timeout(
+        run_from_args(*a, **kw),
+        timeout=_TIMEOUT.total_seconds(),
+    )
+
+
+def sudo_network_interacting_from_args(*a, **kw):
+    return retry_effect_with_timeout(
+        sudo_from_args(*a, **kw),
+        timeout=_TIMEOUT.total_seconds(),
+    )
