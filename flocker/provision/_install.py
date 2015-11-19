@@ -69,10 +69,8 @@ def _from_args(sudo):
         return run_network_interacting_from_args
 
 
-def yum_install(args, package_manager="yum"):
-    return run_network_interacting_from_args(
-        [package_manager, "install", "-y"] + args
-    )
+def yum_install(args, package_manager="yum", sudo=False):
+    return _from_args(sudo)([package_manager, "install", "-y"] + args)
 
 
 def apt_get_install(args, sudo=False):
