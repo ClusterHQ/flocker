@@ -5,6 +5,7 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
+from types import NoneType
 from subprocess import check_output
 import threading
 import time
@@ -13,6 +14,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
+from characteristic import with_cmp
 from pyrsistent import PClass, PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
@@ -236,6 +238,12 @@ class VolumeStateTable(PRecord):
 VOLUME_STATE_TABLE = VolumeStateTable()
 
 
+class AttachFailed(Exception):
+    """
+    AWS EBS refused to allow a volume to be attached to an instance.
+    """
+
+
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
@@ -309,6 +317,7 @@ def _enable_boto_logging():
 _enable_boto_logging()
 
 
+@with_cmp(["requested", "discovered"])
 class AttachedUnexpectedDevice(Exception):
     """
     A volume was attached to a device other than the one we expected.
@@ -321,15 +330,33 @@ class AttachedUnexpectedDevice(Exception):
     def __init__(self, requested, discovered):
         """
         :param FilePath requested: The requested device name.
-        :param FilePath discovered: The device which was discovered on the
-            system.
+        :param discovered: A ``FilePath`` giving the path of the device which
+            was discovered on the system or ``None`` if no new device was
+            discovered at all.
         """
+        # It would be cool to replace this logic with pyrsistent typed fields
+        # but Exception and PClass have incompatible layouts (you can't have an
+        # exception that's a PClass).
+        if not isinstance(requested, FilePath):
+            raise TypeError(
+                "requested must be FilePath, not {}".format(type(requested))
+            )
+        if not isinstance(discovered, (FilePath, NoneType)):
+            raise TypeError(
+                "discovered must be None or FilePath, not {}".format(
+                    type(discovered)
+                )
+            )
+
         self.requested = requested
         self.discovered = discovered
 
     def __str__(self):
+        discovered = self.discovered
+        if discovered is not None:
+            discovered = discovered.path
         return self._template.format(
-            self.requested.path, self.discovered.path,
+            self.requested.path, discovered,
         )
 
     __repr__ = __str__
@@ -683,6 +710,78 @@ def _is_cluster_volume(cluster_id, ebs_volume):
     return False
 
 
+def _attach_volume_and_wait_for_device(
+    volume, attach_to, attach_volume, detach_volume, device, blockdevices,
+):
+    """
+    Attempt to attach an EBS volume to an EC2 instance and wait for the
+    corresponding OS device to become available.
+
+    :param BlockDeviceVolume volume: The Flocker representation of the volume
+        to attach.
+    :param unicode attach_to: The EC2 instance id to which to attach it.
+    :param attach_volume: A function like ``EC2Connection.attach_volume``.
+    :param detach_volume: A function like ``EC2Connection.detach_volume``.
+    :param unicode device: The OS device path to which to attach the device.
+    :param list blockdevices: The OS device paths (as ``FilePath``) which are
+        already present on the system before this operation is attempted
+        (primarily useful to make testing easier).
+
+    :raise: Anything ``attach_volume`` can raise.  Or
+        ``AttachedUnexpectedDevice`` if the volume appears to become attached
+        to the wrong OS device file.
+
+    :return: ``True`` if the volume is attached and accessible via the expected
+        OS device file.  ``False`` if the attempt times out without succeeding.
+    """
+    try:
+        attach_volume(volume.blockdevice_id, attach_to, device)
+    except EC2ResponseError as e:
+        # If attach failed that is often because of eventual
+        # consistency in AWS, so let's ignore this one if it
+        # fails:
+        if e.code == u'InvalidParameterValue':
+            return False
+        raise
+    else:
+        # Wait for new device to manifest in the OS. Since there
+        # is currently no standardized protocol across Linux guests
+        # in EC2 for mapping `device` to the name device driver
+        # picked (http://docs.aws.amazon.com/AWSEC2/latest/
+        # UserGuide/device_naming.html), wait for new block device
+        # to be available to the OS, and interpret it as ours.
+        # Wait under lock scope to reduce false positives.
+        device_path = _wait_for_new_device(
+            blockdevices, volume.size
+        )
+        # We do, however, expect the attached device name to follow
+        # a certain simple pattern.  Verify that now and signal an
+        # error immediately if the assumption is violated.  If we
+        # let it go by, a later call to ``get_device_path`` will
+        # quietly produce the wrong results.
+        #
+        # To make this explicit, we *expect* that the device will
+        # *always* be what we *expect* the device to be (sorry).
+        # This check is only here in case we're wrong to make the
+        # system fail in a less damaging way.
+        if _expected_device(device) != device_path:
+            # We also don't want anything to re-discover the volume
+            # in an attached state since that might also result in
+            # use of ``get_device_path`` (producing an incorrect
+            # result).  This is a best-effort.  It's possible the
+            # agent will crash after attaching the volume and
+            # before detaching it here, leaving the system in a bad
+            # state.  This is one reason we need a better solution
+            # in the long term.
+            detach_volume(volume.blockdevice_id)
+            raise AttachedUnexpectedDevice(FilePath(device), device_path)
+        return True
+
+
+def _get_blockdevices():
+    return FilePath(b"/sys/block").children()
+
+
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
@@ -903,6 +1002,7 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
+        :raises AttachFailed: If the volume could not be attached.
         :raises AttachedUnexpectedDevice: If the attach operation fails to
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
@@ -914,76 +1014,34 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
+        attached = False
         ignore_devices = pset([])
-        attach_attempts = 0
-        while True:
+        for attach_attempt in range(3):
             with self.lock:
-                # begin lock scope
-
-                blockdevices = FilePath(b"/sys/block").children()
                 volumes = self.connection.get_all_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
-
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
                     # (https://clusterhq.atlassian.net/browse/FLOC-1887).
                     # No point in attempting an ``attach_volume``, return.
                     return
-
-                try:
-                    self.connection.attach_volume(blockdevice_id,
-                                                  attach_to,
-                                                  device)
-                except EC2ResponseError as e:
-                    # If attach failed that is often because of eventual
-                    # consistency in AWS, so let's ignore this one if it
-                    # fails:
-                    if e.code == u'InvalidParameterValue':
-                        attach_attempts += 1
-                        if attach_attempts == MAX_ATTACH_RETRIES:
-                            raise
-                        ignore_devices = ignore_devices.add(device)
-                    else:
-                        raise
-                else:
-                    # Wait for new device to manifest in the OS. Since there
-                    # is currently no standardized protocol across Linux guests
-                    # in EC2 for mapping `device` to the name device driver
-                    # picked (http://docs.aws.amazon.com/AWSEC2/latest/
-                    # UserGuide/device_naming.html), wait for new block device
-                    # to be available to the OS, and interpret it as ours.
-                    # Wait under lock scope to reduce false positives.
-                    device_path = _wait_for_new_device(
-                        blockdevices, volume.size
+                blockdevices = _get_blockdevices()
+                attached = _attach_volume_and_wait_for_device(
+                    volume, attach_to,
+                    self.connection.attach_volume,
+                    self.connection.detach_volume,
+                    device, blockdevices,
+                )
+                if attached:
+                    _wait_for_volume_state_change(
+                        VolumeOperations.ATTACH, ebs_volume,
                     )
-                    # We do, however, expect the attached device name to follow
-                    # a certain simple pattern.  Verify that now and signal an
-                    # error immediately if the assumption is violated.  If we
-                    # let it go by, a later call to ``get_device_path`` will
-                    # quietly produce the wrong results.
-                    #
-                    # To make this explicit, we *expect* that the device will
-                    # *always* be what we *expect* the device to be (sorry).
-                    # This check is only here in case we're wrong to make the
-                    # system fail in a less damaging way.
-                    if _expected_device(device) != device_path:
-                        # We also don't want anything to re-discover the volume
-                        # in an attached state since that might also result in
-                        # use of ``get_device_path`` (producing an incorrect
-                        # result).  This is a best-effort.  It's possible the
-                        # agent will crash after attaching the volume and
-                        # before detaching it here, leaving the system in a bad
-                        # state.  This is one reason we need a better solution
-                        # in the long term.
-                        self.detach_volume(blockdevice_id)
-                        raise AttachedUnexpectedDevice(device, device_path)
-                    break
-                # end lock scope
+                    attached_volume = volume.set('attached_to', attach_to)
+                    return attached_volume
+                else:
+                    ignore_devices = ignore_devices.add(device)
 
-        _wait_for_volume_state_change(VolumeOperations.ATTACH, ebs_volume)
-
-        attached_volume = volume.set('attached_to', attach_to)
-        return attached_volume
+        raise AttachFailed(volume.blockdevice_id, attach_to, device)
 
     def detach_volume(self, blockdevice_id):
         """
