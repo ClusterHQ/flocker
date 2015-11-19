@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from ._model import (
     run_network_interacting_from_args, sudo_network_interacting_from_args,
