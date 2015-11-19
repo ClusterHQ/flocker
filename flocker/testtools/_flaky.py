@@ -16,7 +16,7 @@ from testtools.testcase import gather_details
 _FLAKY_ATTRIBUTE = '_flaky'
 
 
-def flaky(jira_keys, max_runs=5, min_passes=2):
+def flaky(jira_keys, max_runs=3, min_passes=1):
     """
     Mark a test as flaky.
 
@@ -39,7 +39,7 @@ def flaky(jira_keys, max_runs=5, min_passes=2):
     # - allow specifying which exceptions are expected
     # - provide interesting & parseable logs for flaky tests
 
-    if isinstance(jira_keys, basestring):
+    if isinstance(jira_keys, unicode):
         jira_keys = [jira_keys]
 
     annotation = _FlakyAnnotation(
@@ -60,7 +60,8 @@ def _get_flaky_annotation(case):
         @flaky.
     :return: ``None`` if not flaky, or a ``pmap`` of the flaky test details.
     """
-    # XXX: Is there a public way of doing this?
+    # XXX: Alas, there's no public way of doing this:
+    # https://bugs.launchpad.net/testtools/+bug/1517867
     method = case._get_test_method()
     return getattr(method, _FLAKY_ATTRIBUTE, None)
 
@@ -74,8 +75,9 @@ class _FlakyAnnotation(PClass):
     jira_keys = pset_field(unicode, optional=False)
 
     __invariant__ = lambda x: (
-        x.max_runs >= x.min_passes and len(x.jira_keys) > 0,
-        "Can't pass more than we run and must provide a jira key")
+        (x.max_runs >= x.min_passes, "Can't pass more than we run"),
+        (len(x.jira_keys) > 0, "Must provide a jira key"),
+    )
 
     def to_dict(self):
         return {
@@ -150,7 +152,11 @@ class _RetryFlaky(testtools.RunTest):
         successes = 0
         results = []
 
-        while successes < flaky.min_passes and len(results) < flaky.max_runs:
+        # Optimization to stop running early if there's no way that we can
+        # reach the minimum number of successes.
+        max_fails = flaky.max_runs - flaky.min_passes
+        while (successes < flaky.min_passes and
+               len(results) - successes <= max_fails):
             was_successful, details = self._attempt_test(case)
             if was_successful:
                 successes += 1

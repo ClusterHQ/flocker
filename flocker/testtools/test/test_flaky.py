@@ -9,7 +9,7 @@ from pprint import pformat
 import unittest
 
 from hypothesis import assume, given
-from hypothesis.strategies import integers, lists, text
+from hypothesis.strategies import integers, lists, permutations, text
 import testtools
 from testtools.matchers import (
     Contains,
@@ -105,25 +105,35 @@ class FlakyTests(testtools.TestCase):
                 next(executions)()
 
         test = SomeTest('test_something')
-        self.assertThat(
-            run_test(test), has_results(
+        result = run_test(test)
+        self.expectThat(
+            result, has_results(
                 errors=HasLength(1),
                 tests_run=Equals(1),
             )
         )
+        [(found_test, exception)] = result.errors
+        flaky_data = _get_flaky_annotation(test).to_dict()
+        flaky_data.update({'runs': 4, 'passes': 0})
+        self.assertThat(
+            exception, MatchesAll(
+                Contains('ValueError'),
+                Contains(pformat(flaky_data)),
+            )
+        )
 
-    def test_intermittent_flaky_test(self):
+    @given(permutations([
+        lambda: throw(ValueError('failure')),
+        lambda: None,
+        lambda: throw(RuntimeError('failure #2')),
+    ]))
+    def test_intermittent_flaky_test(self, test_methods):
         """
         A @flaky test that fails sometimes and succeeds other times counts as a
         pass, as long as it passes more than the given min_passes threshold.
         """
-        # XXX: Do we have a 'shuffled' strategy?
         # XXX: We could create an "exceptions" strategy.
-        executions = iter([
-            lambda: throw(ValueError('failure')),
-            lambda: None,
-            lambda: throw(RuntimeError('failure #2')),
-        ])
+        executions = iter(test_methods)
 
         class SomeTest(AsyncTestCase):
 
@@ -134,17 +144,18 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
-    def test_intermittent_flaky_test_that_errors(self):
+    @given(permutations([
+        lambda: throw(ValueError('failure')),
+        lambda: None,
+        lambda: throw(RuntimeError('failure #2')),
+    ]))
+    def test_intermittent_flaky_test_that_errors(self, test_methods):
         """
         Tests marked with 'flaky' are retried if they fail, and marked as
         erroring / failing if they don't reach the minimum number of successes.
         """
 
-        executions = iter([
-            lambda: throw(ValueError('failure')),
-            lambda: None,
-            lambda: throw(RuntimeError('failure #2')),
-        ])
+        executions = iter(test_methods)
 
         class SomeTest(testtools.TestCase):
             run_tests_with = retry_flaky()
@@ -156,20 +167,10 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         result = unittest.TestResult()
         test.run(result)
-        self.expectThat(result, has_results(
+        self.assertThat(result, has_results(
             tests_run=Equals(1),
             errors=HasLength(1),
         ))
-        [(found_test, exception)] = result.errors
-        flaky_data = _get_flaky_annotation(test).to_dict()
-        flaky_data.update({'runs': 3, 'passes': 1})
-        self.assertThat(
-            exception, MatchesAll(
-                Contains('ValueError'),
-                Contains('RuntimeError'),
-                Contains(pformat(flaky_data)),
-            )
-        )
 
 
 def throw(exception):
