@@ -896,7 +896,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         assert_discovered_state(
             self, self.deployer,
-            expected_discovered_datasets=[],
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_ELSEWHERE,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
             expected_volumes=[attached_volume],
         )
 

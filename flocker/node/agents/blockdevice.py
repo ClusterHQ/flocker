@@ -63,6 +63,8 @@ class DatasetStates(Names):
     States that a ``Dataset`` can be in.
 
     """
+    # Exists, but attached elsewhere
+    ATTACHED_ELSEWHERE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -1425,6 +1427,13 @@ class BlockDeviceDeployer(PRecord):
                     # blockdevice doesn't exist yet.
                     datasets[dataset_id] = DiscoveredDataset(
                         state=DatasetStates.NON_MANIFEST,
+                        dataset_id=dataset_id,
+                        maximum_size=volume.size,
+                        blockdevice_id=volume.blockdevice_id,
+                    )
+                else:
+                    datasets[dataset_id] = DiscoveredDataset(
+                        state=DatasetStates.ATTACHED_ELSEWHERE,
                         dataset_id=dataset_id,
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
