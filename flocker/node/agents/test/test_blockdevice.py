@@ -1706,8 +1706,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         whether to wake up or not. That is, we're using out-of-date cached
         volume information.
 
-        In this case ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ActionNeeded`` in order to wake up the convergence loop.
+        In this case ``BlockDeviceDeployer.calculate_changes`` returns some
+        change that isn't ``NoOp`` in order to wake up the convergence loop.
         """
         deployer = create_blockdevicedeployer(
             self, hostname=self.NODE, node_uuid=self.NODE_UUID
@@ -1740,12 +1740,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             volumes=[])  # Out of date info, lacking an expected volume
         changes = deployer.calculate_changes(
             cluster_config, cluster_state, local_state)
-        self.assertEqual(
-            in_parallel(changes=[
-                ActionNeeded(
-                    dataset_id=UUID(dataset.dataset_id),
-                ),
-            ]),
+        self.assertNotEqual(
+            NoOp(),
             changes
         )
 
