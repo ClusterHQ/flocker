@@ -8,7 +8,7 @@ from string import lowercase
 from uuid import uuid4
 
 from hypothesis import given
-from hypothesis.strategies import sampled_from, builds
+from hypothesis.strategies import lists, sampled_from, builds
 
 from bitmath import GiB
 
@@ -27,8 +27,8 @@ from ....testtools import CustomException
 
 # A Hypothesis strategy for generating /dev/sd?
 device_path = builds(
-    lambda suffix: b"/dev/sd" + suffix,
-    suffix=sampled_from(lowercase),
+    lambda suffix: b"/dev/sd" + b"".join(suffix),
+    suffix=lists(elements=sampled_from(lowercase), min_size=1, max_size=2),
 )
 
 
