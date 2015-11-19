@@ -1,5 +1,6 @@
 .. _release-process:
 
+===============
 Release Process
 ===============
 
@@ -8,7 +9,7 @@ Release Process
    Make sure to follow the `latest documentation <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html>`_ when doing a release.
 
 Outcomes
---------
+========
 
 By the end of the release process we will have:
 
@@ -28,63 +29,57 @@ For a maintenance or documentation release, we will have:
 
 
 Prerequisites
--------------
+=============
 
 Software
-~~~~~~~~
+--------
 
-All Platforms
-*************
+**All Platforms**
 
-`Docker <https://docs.docker.com/installation/>`_
+* `Docker <https://docs.docker.com/installation/>`_
+* `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
-`virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
+**OS X**
 
-OS X
-*****
-
-`Homebrew <http://brew.sh>`_
+* `Homebrew <http://brew.sh>`_
 
 .. prompt:: bash $
 
    brew tap stepanstipl/noop
    brew install createrepo dpkg libffi openssl
 
-Ubuntu
-******
+**Ubuntu**
 
 .. prompt:: bash $
 
    sudo apt-get update
    sudo apt-get install -y dpkg-dev createrepo
 
-Fedora
-******
+**Fedora**
 
 .. prompt:: bash $
 
    sudo yum install -y dpkg-dev createrepo
 
-
 Access
-~~~~~~
+------
 
-- Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
+* Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
-- SSH access to ClusterHQ's GitHub repositories.
+* SSH access to ClusterHQ's GitHub repositories.
 
-- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
+* The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
-- The ability to force builds on ClusterHQ's BuildBot.
+* The ability to force builds on ClusterHQ's BuildBot.
   This requires an administrator password which can be found in ClusterHQ's LastPass.
 
-- Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
+* Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
 
 .. _preparing-for-a-release:
 
 Preparing For a Release
------------------------
+=======================
 
 #. Confirm that the release and the proposed version number have been approved.
 
@@ -165,7 +160,7 @@ Preparing For a Release
 .. _pre-tag-review:
 
 Pre-tag Review Process
-----------------------
+======================
 
 A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
@@ -197,7 +192,7 @@ So it is important to check that the code in the release branch is working befor
 .. _release:
 
 Release
--------
+=======
 
 .. note::
 
@@ -217,8 +212,9 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: We force a build on the tag as well as the branch because the packages built before pushing the tag won't have the right version.
-             Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
+   .. note:: 
+   
+      Although there would not have been any changes since the branch was built during the :ref:`preparing-for-a-release` process, we need to build on the tag as the packages that were built before pushing the tag won't have the right version.
 
    Wait for the build to complete successfully.
 
@@ -298,7 +294,7 @@ Release
 
 
 Improving the Release Process
------------------------------
+=============================
 
 The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
 If there is no existing issue for the planned improvements then a new one should be made.
