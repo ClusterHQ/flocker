@@ -528,9 +528,6 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    # XXX: This is subclassed, and the subclass decorated with a different
-    # JIRA key. When @flaky actually does something, we should have tests that
-    # cover that case.
     @flaky(u'FLOC-3077')
     def test_pull_image_if_necessary(self):
         """

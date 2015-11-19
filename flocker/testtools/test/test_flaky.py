@@ -190,7 +190,6 @@ class FlakyTests(testtools.TestCase):
         Tests marked with 'flaky' are retried if they fail, and marked as
         erroring / failing if they don't reach the minimum number of successes.
         """
-
         executions = iter(test_methods)
 
         class SomeTest(testtools.TestCase):
@@ -207,6 +206,36 @@ class FlakyTests(testtools.TestCase):
             tests_run=Equals(1),
             errors=HasLength(1),
         ))
+
+    @given(permutations([
+        lambda: throw(ValueError('failure')),
+        lambda: None,
+        lambda: throw(RuntimeError('failure #2')),
+    ]))
+    def test_intermittent_flaky_subclass(self, test_methods):
+        """
+        We sometimes subclass test classes in order to test different
+        implementations of the same interface. A test within such a subclass
+        can be marked as flaky, causing it to retry.
+        """
+        executions = iter(test_methods)
+
+        class SomeTest(testtools.TestCase):
+            run_tests_with = retry_flaky()
+
+            def test_something(self):
+                next(executions)()
+
+        class SubclassTest(SomeTest):
+
+            @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=1)
+            def test_something(self):
+                super(SubclassTest, self).test_something()
+
+        test = SubclassTest('test_something')
+        result = unittest.TestResult()
+        test.run(result)
+        self.assertThat(result, has_results(tests_run=Equals(1)))
 
 
 def throw(exception):
