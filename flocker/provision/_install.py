@@ -22,8 +22,9 @@ from twisted.internet.error import ProcessTerminated
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
-    run, run_from_args, Run,
-    sudo_from_args, Sudo,
+    Run, Sudo,
+    run_network_interacting_from_args, sudo_network_interacting_from_args,
+    run, run_from_args, sudo_from_args,
     put,
     run_remotely,
 )
@@ -34,7 +35,6 @@ from flocker.cli import configure_ssh
 from flocker.common.version import (
     get_installable_version, get_package_key_suffix, is_release,
 )
-from flocker.common import retry_effect_with_timeout
 
 # A systemctl sub-command to start or restart a service.  We use restart here
 # so that if it is already running it gets restart (possibly necessary to
@@ -60,6 +60,23 @@ def is_centos(distribution):
         ``False`` otherwise.
     """
     return distribution.startswith("centos-")
+
+
+def yum_install(args, package_manager="yum"):
+    return run_network_interacting_from_args(
+        [package_manager, "install", "-y"] + args
+    )
+
+
+def apt_get_install(*args):
+    return run_network_interacting_from_args(
+        ["apt-get", "-y", "install", ] + args
+    )
+
+
+def apt_get_update():
+    # TODO Can this just be a value?
+    return run_network_interacting_from_args(["apt-get", "update"])
 
 
 def is_ubuntu(distribution):
@@ -188,7 +205,7 @@ def ensure_minimal_setup(package_manager):
         # ("sorry, you must have a tty to run sudo"). Disable that to
         # allow automated tests to run.
         return sequence([
-            run_from_args([
+            run_network_interacting_from_args([
                 'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
             ]),
             run_from_args([
@@ -200,8 +217,10 @@ def ensure_minimal_setup(package_manager):
         ])
     elif package_manager == 'apt':
         return sequence([
-            run_from_args(['su', 'root', '-c', ['apt-get', 'update']]),
-            run_from_args([
+            run_network_interacting_from_args([
+                'su', 'root', '-c', ['apt-get', 'update']
+            ]),
+            run_network_interacting_from_args([
                 'su', 'root', '-c', ['apt-get', '-y', 'install', 'sudo']
             ]),
         ])
@@ -275,6 +294,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     commands = [
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
+        # XXX This needs retry
         run(
             command="yum list installed {} || yum install -y {}".format(
                 quote(repo_package_name),
@@ -314,8 +334,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
 
     # Install package and all dependencies:
 
-    commands.append(run_from_args(
-        ["yum", "install"] + repo_options + ["-y", package_name]))
+    commands.append(yum_install(repo_options + [package_name]))
 
     return sequence(commands)
 
@@ -349,12 +368,11 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # ensure that we start from a good base system with the required
         # capabilities, particularly that the add-apt-repository command
         # is available, and HTTPS URLs are supported.
-        run_from_args(["apt-get", "update"]),
-        run_from_args([
-            "apt-get", "-y", "install", "apt-transport-https",
-            "software-properties-common"]),
+        apt_get_update(),
+        apt_get_install(["apt-transport-https", "software-properties-common"]),
 
         # Add ClusterHQ repo for installation of Flocker packages.
+        # XXX This needs retry
         run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
@@ -363,7 +381,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     if base_url is not None:
         # Add BuildBot repo for running tests
-        commands.append(run_from_args([
+        commands.append(run_network_interacting_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
         # During a release, the ClusterHQ repo may contain packages with
         # a higher version number than the Buildbot repo for a branch.
@@ -381,7 +399,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
-    commands.append(run_from_args(["apt-get", "update"]))
+    commands.append(apt_get_update())
 
     os_version = package_source.os_version()
 
@@ -404,8 +422,8 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
 
     # Install package and all dependencies
-    commands.append(run_from_args([
-        'apt-get', '-y', '--force-yes', 'install', package_name]))
+    # XXX Dunno why we --force-yes here
+    commands.append(apt_get_install(["--force-yes", package_name]))
 
     return sequence(commands)
 
@@ -493,13 +511,13 @@ def task_cli_pip_prereqs(package_manager):
     :return: an Effect to install the pre-requisites.
     """
     if package_manager in ('dnf', 'yum'):
-        return sudo_from_args(
+        return sudo_network_interacting_from_args(
             [package_manager, '-y', 'install'] + PIP_CLI_PREREQ_YUM
         )
     elif package_manager == 'apt':
         return sequence([
-            sudo_from_args(['apt-get', 'update']),
-            sudo_from_args(['apt-get', '-y', 'install'] + PIP_CLI_PREREQ_APT),
+            apt_get_update(),
+            apt_get_install(PIP_CLI_PREREQ_APT),
         ])
     else:
         raise UnsupportedDistribution()
@@ -622,8 +640,7 @@ def task_upgrade_kernel(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            run_from_args([
-                "yum", "install", "-y", "kernel-devel", "kernel"]),
+            yum_install(["kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
     elif distribution == 'ubuntu-14.04':
@@ -1039,37 +1056,33 @@ def task_install_zfs(distribution, variants=set()):
     if distribution == 'ubuntu-14.04':
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
-            run_from_args([
+            run_network_interacting_from_args([
                 "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
         ]
         commands += [
             # Update to read package info from new repos
-            run_from_args([
-                "apt-get", "update"]),
+            apt_get_update(),
             # Package spl-dkms sometimes does not have libc6-dev as a
             # dependency, add it before ZFS installation requires it.
             # See https://github.com/zfsonlinux/zfs/issues/3298
-            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
-            run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
+            apt_get_install(["libc6-dev"]),
+            apt_get_install(["zfsutils"]),
             ]
 
     elif is_centos(distribution):
         commands += [
-            run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
+            yum_install([ZFS_REPO[distribution]]),
         ]
         if distribution == 'centos-7':
-            commands.append(
-                run_from_args(["yum", "install", "-y", "epel-release"]))
+            commands.append(yum_install(["epel-release"]))
 
         if Variants.ZFS_TESTING in variants:
             commands += [
-                run_from_args(['yum', 'install', '-y', 'yum-utils']),
+                yum_install(['yum-utils']),
                 run_from_args([
                     'yum-config-manager', '--enable', 'zfs-testing'])
             ]
-        commands += [
-            run_from_args(['yum', 'install', '-y', 'zfs']),
-        ]
+        commands.append(yum_install(["zfs"]))
     else:
         raise DistributionNotSupported(distribution)
 
