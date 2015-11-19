@@ -9,19 +9,79 @@ from uuid import uuid4, UUID
 from twisted.web.http import OK
 from twisted.internet import reactor
 from twisted.internet.task import Clock, deferLater
+from twisted.python.components import proxyForInterface
+from twisted.internet.interfaces import IReactorTime
 
-from characteristic import attributes, Attribute
+from pyrsistent import pmap
+
+from characteristic import attributes
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
+from ...node.agents.test.test_blockdevice import CountingProxy
 
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 
-@attributes([Attribute("call_count", default_value=0, instance_of=int)])
-class CallCounter(object):
-    pass
+class SimpleCountingProxy(object):
+    """
+    Transparent proxy that counts the number of calls to methods of the
+    wrapped object.
+
+    :ivar _wrapped: Wrapped object.
+    :ivar call_count: Mapping of method name to number of calls.
+    """
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
+        self.call_count = pmap()
+
+    def num_calls(self, name):
+        """
+        Return the number of times the given method was called with given
+        arguments.
+
+        :param name: Method name.
+
+        :return: Number of calls.
+        """
+        return self.call_count.get(name, 0)
+
+    def __getattr__(self, name):
+        method = getattr(self._wrapped, name)
+
+        def counting_proxy(*args, **kwargs):
+            current_count = self.call_count.get(name, 0)
+            self.call_count = self.call_count.set(name, current_count + 1)
+            return method(*args, **kwargs)
+        return counting_proxy
+
+
+@attributes(["clock", "reactor"])
+class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
+    """
+    This is an automatic clock, which advances itself anytime callLater is
+    called.
+
+    :ivar Clock clock: The underlying clock that gets all calls proxied to it.
+        This clock is advanced with every call to callLater.
+    :ivar IReactorTime reactor: This ``IReactorTime`` provider is used to
+        provide an alternate context to advance the clock from. It is not
+        realistic to advance the clock from the context that calls
+        ``callLater``.
+    """
+    def __init__(self):
+        pass
+
+    def callLater(self, when, what, *a, **kw):
+        d = self.clock.callLater(when, what, *a, **kw)
+        # It is not realistic to call self.clock.advance(when) in the current
+        # context. In practice callLater _always_ schedules work on a different
+        # context. Use a different ``IReactorTime`` provider to schedule the
+        # advancement of this clock at a different time.
+        self.reactor.callLater(0.0, self.clock.advance, when)
+        return d
+
 
 class APITestsMixin(APIAssertionsMixin):
     """
@@ -34,8 +94,9 @@ class APITestsMixin(APIAssertionsMixin):
         """
         Create initial objects for the ``VolumePlugin``.
         """
-        self.reactor = Clock()
-        self.flocker_client = FakeFlockerClient()
+        self._clock = Clock()
+        self.reactor = AutomaticClock(clock=self._clock, reactor=reactor)
+        self.flocker_client = SimpleCountingProxy(FakeFlockerClient())
 
     def test_pluginactivate(self):
         """
@@ -149,37 +210,6 @@ class APITestsMixin(APIAssertionsMixin):
 
         return self.create(name)
 
-    def _patch_list_datasets_state_for_mount_test(self):
-        """
-        Patch self.flocker_client.list_datasets_state to advance
-        ``self.reactor`` by `` _POLL_INTERVAL`` every time
-        ``list_datasets_state`` is called. This is added at the end of the run
-        queue so that ``volumedriver_mount`` has called ``deferLater`` before
-        we advance the Clock.
-
-        :returns: A ``CallCounter`` that is incremented every time
-            list_datasets_state is incremented.
-        """
-        call_counter = CallCounter()
-
-        def end_of_run_queue():
-            return deferLater(reactor, 0.0, lambda: None)
-
-        real_list_datasets_state = self.flocker_client.list_datasets_state
-
-        def list_state_hack():
-            end_of_run_queue().addCallback(
-                lambda _: self.reactor.advance(VolumePlugin._POLL_INTERVAL))
-            call_counter.call_count += 1
-            return real_list_datasets_state()
-
-        def restore_list_datasets_state():
-            self.flocker_client.list_datasets_state = real_list_datasets_state
-        self.addCleanup(restore_list_datasets_state)
-        self.flocker_client.list_datasets_state = list_state_hack
-
-        return call_counter
-
     def test_mount(self):
         """
         ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
@@ -194,9 +224,10 @@ class APITestsMixin(APIAssertionsMixin):
             dataset_id=dataset_id)
 
         # Pretend that it takes 5 seconds for the dataset to get established on
-        # Node A.
-        self.reactor.callLater(5.0, self.flocker_client.synchronize_state)
-        list_datasets_state = self._patch_list_datasets_state_for_mount_test()
+        # Node A. Attaching this to the _clock so that this does _not_ advance
+        # time, but merely waits for other callLater calls to self.reactor to
+        # advance the clock.
+        self._clock.callLater(5.0, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
                       self.assertResult(
@@ -212,7 +243,8 @@ class APITestsMixin(APIAssertionsMixin):
                               if d.dataset_id == dataset_id])
             # There should be less than 20 calls to list_datasets_state over
             # the course of 5 seconds.
-            self.assertLess(list_datasets_state.call_count, 20)
+            self.assertLess(
+                self.flocker_client.num_calls('list_datasets_state'), 20)
         d.addCallback(final_assertions)
         return d
 
@@ -230,9 +262,11 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
 
-        # Do not call self.flocker_client.synchronize_state ever, in an attempt
-        # to force the timeout of VolumeDriver.Mount.
-        self._patch_list_datasets_state_for_mount_test()
+        # Pretend that it takes 500 seconds for the dataset to get established
+        # on Node A. This should be longer than our timeout.  Attaching this to
+        # the _clock so that this does _not_ advance time, but merely waits for
+        # other callLater calls to self.reactor to advance the clock.
+        self._clock.callLater(500.0, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
                       self.assertResult(
