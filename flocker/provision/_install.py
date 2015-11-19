@@ -62,21 +62,27 @@ def is_centos(distribution):
     return distribution.startswith("centos-")
 
 
+def _from_args(sudo):
+    if sudo:
+        return sudo_network_interacting_from_args
+    else:
+        return run_network_interacting_from_args
+
+
 def yum_install(args, package_manager="yum"):
     return run_network_interacting_from_args(
         [package_manager, "install", "-y"] + args
     )
 
 
-def apt_get_install(args):
-    return run_network_interacting_from_args(
+def apt_get_install(args, sudo=False):
+    return _from_args(sudo)(
         ["apt-get", "-y", "install", ] + args
     )
 
 
-def apt_get_update():
-    # TODO Can this just be a value?
-    return run_network_interacting_from_args(["apt-get", "update"])
+def apt_get_update(sudo=False):
+    return _from_args(sudo)(["apt-get", "update"])
 
 
 def is_ubuntu(distribution):
@@ -511,13 +517,13 @@ def task_cli_pip_prereqs(package_manager):
     :return: an Effect to install the pre-requisites.
     """
     if package_manager in ('dnf', 'yum'):
-        return sudo_network_interacting_from_args(
-            [package_manager, '-y', 'install'] + PIP_CLI_PREREQ_YUM
+        return yum_install(
+            PIP_CLI_PREREQ_YUM, package_manager=package_manager, sudo=True,
         )
     elif package_manager == 'apt':
         return sequence([
-            apt_get_update(),
-            apt_get_install(PIP_CLI_PREREQ_APT),
+            apt_get_update(sudo=True),
+            apt_get_install(PIP_CLI_PREREQ_APT, sudo=True),
         ])
     else:
         raise UnsupportedDistribution()
