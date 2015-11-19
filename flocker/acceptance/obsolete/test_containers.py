@@ -5,13 +5,15 @@ Tests for the control service REST API.
 """
 
 from json import loads, dumps
+from time import sleep
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
+from twisted.internet.error import ProcessTerminated
 
 from ...common import loop_until
-from ...testtools import random_name
+from ...testtools import flaky, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -118,6 +120,7 @@ class ContainerAPITests(TestCase):
         )
         return d
 
+    @flaky('FLOC-2488')
     @require_moving_backend
     @require_cluster(2)
     def test_move_container_with_dataset(self, cluster):
@@ -334,3 +337,100 @@ class ContainerAPITests(TestCase):
             # Connect to the machine where the container is NOT running:
             lambda _: assert_http_server(self, origin.public_address, port))
         return running
+
+    @require_cluster(2)
+    def test_reboot(self, cluster):
+        """
+        After a reboot the containers are only started once all datasets are
+        available locally.
+
+        We disable the dataset agent during reboot in order to ensure as
+        much as possible that the container agent gets stale data from the
+        control service.
+        """
+        # Find a node which is not running the control service.
+        # If the control node is rebooted, we won't get stale dataset state.
+        node = [node for node in cluster.nodes if
+                node.public_address != cluster.control_node.public_address][0]
+
+        def query():
+            d = query_http_server(node.public_address, 8080)
+            d.addCallback(loads)
+            return d
+
+        creating_dataset = create_dataset(self, cluster, node=node)
+
+        def created_dataset(dataset):
+            return create_python_container(
+                self, cluster, {
+                    u"ports": [{u"internal": 8080, u"external": 8080}],
+                    u"node_uuid": node.uuid,
+                    u"volumes": [{u"dataset_id": unicode(dataset.dataset_id),
+                                  u"mountpoint": u"/data"}],
+                }, SCRIPTS.child(b"remember_boot_id.py"),
+                additional_arguments=[u"/data"])
+        creating_dataset.addCallback(created_dataset)
+
+        creating_dataset.addCallback(lambda _: query())
+
+        def got_initial_result(initial_result):
+            self.addCleanup(node.run_script, "enable_service",
+                            "flocker-dataset-agent")
+            # Disable the service to force container agent to always get stale
+            # data from the container agent:
+            d = node.run_script("disable_service", "flocker-dataset-agent")
+            d.addCallback(lambda _: node.reboot())
+            # Wait for reboot to be far enough along that everything
+            # should be shutdown:
+            d.addCallback(lambda _: sleep(20))
+            # Wait until server is back up:
+            changed = d.addCallback(lambda _:
+                                    verify_socket(node.public_address, 22))
+
+            # Wait until container agent is back up:
+            def container_agent_running():
+                # pidof will return the pid if flocker-container-agent is
+                # running else exit with status 1 which triggers the
+                # errback chain.
+                command = [b'pidof', b'-x', b'flocker-container-agent']
+                d = node.run_as_root(command)
+
+                def not_existing(failure):
+                    failure.trap(ProcessTerminated)
+                    return False
+                d.addCallbacks(lambda result: True, not_existing)
+                return d
+            changed.addCallback(
+                lambda _: loop_until(reactor, container_agent_running))
+
+            # Start up dataset agent so container agent can proceed:
+            def up_again(_):
+                # Give it a few seconds for container agent to get stale data
+                # from control service:
+                sleep(10)
+                # Now start up dataset agent again:
+                return node.run_script(
+                    "enable_service", "flocker-dataset-agent")
+            changed.addCallback(up_again)
+
+            changed.addCallback(lambda _: loop_until(
+                reactor, lambda: query().addCallback(
+                    lambda result: result != initial_result)))
+            changed.addCallback(lambda _: query())
+
+            def result_changed(new_result):
+                self.assertEqual(
+                    dict(current_same=(new_result["current"] ==
+                                       initial_result["current"]),
+                         written_same=(new_result["written"] ==
+                                       initial_result["written"])),
+                    dict(current_same=False,  # post-reboot expect new boot_id
+                         written_same=True,  # written data survived reboot
+                         ))
+            changed.addCallback(result_changed)
+            return changed
+
+        creating_dataset.addCallback(got_initial_result)
+        return creating_dataset
+    # Unfortunately this test is very very slow:
+    test_reboot.timeout = 360

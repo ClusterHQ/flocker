@@ -2,7 +2,7 @@
 Tests for ``flocker.provision._ssh._conch``.
 """
 
-from effect.twisted import perform
+from txeffect import perform
 
 from eliot.testing import capture_logging, assertHasMessage
 

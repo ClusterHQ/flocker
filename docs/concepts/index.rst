@@ -11,8 +11,3 @@ Flocker Concepts
    security
    architecture
    storage-profiles
-
-.. toctree::
-   :hidden:
-
-   storage-profiles-content

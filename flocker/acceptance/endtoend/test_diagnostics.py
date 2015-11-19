@@ -9,13 +9,13 @@ import tarfile
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
 
 from ...common.runner import run_ssh, download_file
+from ...testtools import AsyncTestCase
 from ..testtools import require_cluster
 
 
-class DiagnosticsTests(TestCase):
+class DiagnosticsTests(AsyncTestCase):
     """
     Tests for ``flocker-diagnostics``.
     """

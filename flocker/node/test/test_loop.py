@@ -8,7 +8,9 @@ from itertools import repeat
 from uuid import uuid4
 from datetime import timedelta
 
-from eliot.testing import validate_logging, assertHasAction, assertHasMessage
+from eliot.testing import (
+    validate_logging, assertHasAction, assertHasMessage, capture_logging,
+)
 from machinist import LOG_FSM_TRANSITION
 
 from pyrsistent import pset
@@ -785,14 +787,14 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                  post=0),  # slept full poll interval, new iteration
         )
 
-    def test_convergence_iteration_status_update_wakeup(self):
+    def assert_woken_up(self, loop):
         """
-        When a convergence loop in the sleeping state receives a status update
-        the next iteration of the event loop uses it. The event loop is
-        woken up if the update results in newly calculated required
-        actions.
+        When a new configuraton and cluster state are fed to a sleeping
+        convergence loop which would cause newly calculated actions, the
+        loop wakes up and does another iteration.
+
+        :param loop: A ``ConvergenceLoop`` in SLEEPING state.
         """
-        loop = self.convergence_iteration()
         node_state = NodeState(hostname=u'192.0.3.5')
         changed_configuration = Deployment(
             nodes=frozenset([to_node(node_state)]))
@@ -812,6 +814,34 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                  # We used new config/cluster state in latest iteration:
                  calculate_inputs=(
                      self.local_state, changed_configuration, changed_state)))
+
+    def test_convergence_iteration_status_update_wakeup(self):
+        """
+        When a convergence loop in the sleeping state receives a status update
+        the next iteration of the event loop uses it. The event loop is
+        woken up if the update results in newly calculated required
+        actions.
+        """
+        loop = self.convergence_iteration()
+        self.assert_woken_up(loop)
+
+    @capture_logging(lambda self, logger:
+                     self.assertEqual(
+                         len(logger.flushTracebacks(CustomException)), 1))
+    def test_convergence_iteration_status_update_wakeup_error(self, logger):
+        """
+        When a convergence loop in the sleeping state receives a status update
+        the next iteration of the event loop uses it. The event loop is
+        woken up if the update results in an exception, on the theory that
+        given lack of accurate information we should err on the side of
+        being more responsive.
+        """
+        loop = self.convergence_iteration()
+
+        # Fail to calculate next time around, when we're deciding whether
+        # to wake up:
+        self.deployer.calculated_actions[0] = CustomException()
+        self.assert_woken_up(loop)
 
     def test_convergence_done_delays_new_iteration_ack(self):
         """
@@ -1104,6 +1134,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         self.service = AgentLoopService(
             reactor=self.reactor, deployer=self.deployer, host=u"example.com",
             port=1234, context_factory=ClientContextFactory(), era=uuid4())
+        self.node_state = NodeState(uuid=self.deployer.node_uuid,
+                                    hostname=self.deployer.hostname)
 
     def test_start_service(self):
         """
@@ -1202,11 +1234,29 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         service = self.service
         service.cluster_status = fsm = StubFSM()
-        config = object()
-        state = object()
+        config = Deployment()
+        state = DeploymentState(
+            nodes=[self.node_state],
+            node_uuid_to_era={self.deployer.node_uuid: self.service.era})
         service.cluster_updated(config, state)
         self.assertEqual(fsm.inputted, [_StatusUpdate(configuration=config,
                                                       state=state)])
+
+    def test_cluster_updated_wrong_era(self):
+        """
+        The ``NodeState`` for the local node is removed from the update if the
+        era doesn't match this node's actual era.
+        """
+        service = self.service
+        service.cluster_status = fsm = StubFSM()
+        config = Deployment()
+        state = DeploymentState(
+            nodes=[self.node_state],
+            node_uuid_to_era={self.deployer.node_uuid: uuid4()})
+        service.cluster_updated(config, state)
+        self.assertEqual(fsm.inputted,
+                         [_StatusUpdate(configuration=config,
+                                        state=state.set(nodes=[]))])
 
 
 def _build_service(test):
