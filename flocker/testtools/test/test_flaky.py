@@ -220,9 +220,7 @@ class FlakyTests(testtools.TestCase):
                 next(executions)()
 
         test = SomeTest('test_something')
-        result = unittest.TestResult()
-        test.run(result)
-        self.assertThat(result, has_results(
+        self.assertThat(run_test(test), has_results(
             tests_run=Equals(1),
             errors=HasLength(1),
         ))
@@ -253,9 +251,7 @@ class FlakyTests(testtools.TestCase):
                 super(SubclassTest, self).test_something()
 
         test = SubclassTest('test_something')
-        result = unittest.TestResult()
-        test.run(result)
-        self.assertThat(result, has_results(tests_run=Equals(1)))
+        self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
     @given(jira_keys, num_runs, num_runs,
            streaming(text(average_size=10)).map(iter))
