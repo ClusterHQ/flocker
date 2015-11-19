@@ -101,8 +101,8 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
         )
         self.compute_id = u"opaque compute backend id"
 
-    @given(device=device_path, attach_attempt=integers(min_value=1))
-    def test_unexpected_attach_exception(self, device, attach_attempt):
+    @given(device=device_path)
+    def test_unexpected_attach_exception(self, device):
         """
         If the ``attach_volume`` function raises an unexpected exception, it is
         passed through.
@@ -118,15 +118,11 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
             attach_volume=attach_volume,
             detach_volume=lambda *a, **kw: None,
             device=device,
-            attach_attempt=attach_attempt,
             blockdevices=[],
         )
 
-    @given(
-        device=device_path,
-        attach_attempt=integers(min_value=1)
-    )
-    def test_unexpected_device_discovered(self, device, attach_attempt):
+    @given(device=device_path)
+    def test_unexpected_device_discovered(self, device):
         """
         After attaching the volume, if a new device path is discovered that's
         not related to the path given by the ``device`` parameter in the
@@ -166,7 +162,6 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
             attach_volume=lambda *a, **kw: None,
             detach_volume=lambda *a, **kw: None,
             device=device,
-            attach_attempt=attach_attempt,
             blockdevices=blockdevices,
         )
         self.assertEqual(
