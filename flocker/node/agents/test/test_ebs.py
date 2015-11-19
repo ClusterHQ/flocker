@@ -13,7 +13,7 @@ from hypothesis.strategies import lists, sampled_from, builds
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
@@ -150,8 +150,25 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
                 blockdevices.remove(wrong_device)
                 break
         else:
-            self.fail(
-                "Could not find a suitable device to use as a dummy bad result"
+            # Ideally we'd have more control over the implementation so we
+            # wouldn't have to give up when running on a system lacking just
+            # the right devices to let us exercise the code we want to
+            # exercise.  Getting to that point involves fixing all of the
+            # things in ebs.py like _get_blockdevices and _get_device_size that
+            # pass around raw strings or FilePath instances representing
+            # devices and then go off and interact directly with the underlying
+            # system.
+            #
+            # We need control over (at least) what devices the code-under-test
+            # can discover and what size it thinks they are.  Until then we
+            # just have to give up.  If you can't get this test to run without
+            # skipping, try adding another block device to your system (eg plug
+            # in a usb device).
+            #
+            # With apologies,
+            #  -jean-paul
+            raise SkipTest(
+                "Could not find a suitable device to use as a dummy bad result."
             )
 
         exception = self.assertRaises(
