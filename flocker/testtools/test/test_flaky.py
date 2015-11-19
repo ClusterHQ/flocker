@@ -91,16 +91,20 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
-    def test_always_erroring_flaky_test(self):
+    @given(lists(text(average_size=5), min_size=1, average_size=2),
+           integers(min_value=1, max_value=5),
+           integers(min_value=1, max_value=5))
+    def test_always_erroring_flaky_test(self, jira_keys, max_runs, min_passes):
         """
         A flaky test always errors out is recorded as erroring.
         """
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
 
         executions = repeat(lambda: throw(ValueError('failure')))
 
         class SomeTest(AsyncTestCase):
 
-            @flaky(u'FLOC-XXXX')
+            @flaky(jira_keys, max_runs=max_runs, min_passes=min_passes)
             def test_something(self):
                 next(executions)()
 
@@ -114,7 +118,7 @@ class FlakyTests(testtools.TestCase):
         )
         [(found_test, exception)] = result.errors
         flaky_data = _get_flaky_annotation(test).to_dict()
-        flaky_data.update({'runs': 4, 'passes': 0})
+        flaky_data.update({'runs': max_runs - min_passes + 1, 'passes': 0})
         self.assertThat(
             exception, MatchesAll(
                 Contains('ValueError'),
