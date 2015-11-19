@@ -422,7 +422,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
 
     # Install package and all dependencies
-    # XXX Dunno why we --force-yes here
+    # We use --force-yes here because our packages aren't signed.
     commands.append(apt_get_install(["--force-yes", package_name]))
 
     return sequence(commands)
