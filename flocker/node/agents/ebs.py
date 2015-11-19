@@ -334,6 +334,9 @@ class AttachedUnexpectedDevice(Exception):
             was discovered on the system or ``None`` if no new device was
             discovered at all.
         """
+        # It would be cool to replace this logic with pyrsistent typed fields
+        # but Exception and PClass have incompatible layouts (you can't have an
+        # exception that's a PClass).
         if not isinstance(requested, FilePath):
             raise TypeError(
                 "requested must be FilePath, not {}".format(type(requested))
