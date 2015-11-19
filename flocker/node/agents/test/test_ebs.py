@@ -8,7 +8,7 @@ from string import lowercase
 from uuid import uuid4
 
 from hypothesis import given
-from hypothesis.strategies import integers, sampled_from, builds
+from hypothesis.strategies import sampled_from, builds
 
 from bitmath import GiB
 
