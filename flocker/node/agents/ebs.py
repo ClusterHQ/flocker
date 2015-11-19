@@ -723,9 +723,9 @@ def _attach_volume_and_wait_for_device(
     :param attach_volume: A function like ``EC2Connection.attach_volume``.
     :param detach_volume: A function like ``EC2Connection.detach_volume``.
     :param unicode device: The OS device path to which to attach the device.
-    :param list blockdevices: The OS device paths which are already present on
-        the system before this operation is attempted (primarily useful to make
-        testing easier).
+    :param list blockdevices: The OS device paths (as ``FilePath``) which are
+        already present on the system before this operation is attempted
+        (primarily useful to make testing easier).
 
     :raise: Anything ``attach_volume`` can raise.  Or
         ``AttachedUnexpectedDevice`` if the volume appears to become attached
