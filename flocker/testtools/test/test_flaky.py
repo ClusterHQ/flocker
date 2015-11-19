@@ -8,7 +8,7 @@ from itertools import repeat
 from pprint import pformat
 import unittest
 
-from hypothesis import assume, given
+from hypothesis import given
 from hypothesis.strategies import integers, lists, permutations, text
 import testtools
 from testtools.matchers import (
@@ -21,7 +21,18 @@ from testtools.matchers import (
 
 from .. import AsyncTestCase
 from .._flaky import (
-    retry_flaky, flaky, _FLAKY_ATTRIBUTE, _get_flaky_annotation)
+    _FLAKY_ATTRIBUTE,
+    _get_flaky_annotation,
+    flaky,
+    retry_flaky,
+)
+
+
+# A JIRA key is just some text.
+jira_keys = text(average_size=5)
+
+# Don't really want to run anything more than 5 times.
+num_runs = integers(min_value=1, max_value=5)
 
 
 class FlakyTests(testtools.TestCase):
@@ -45,9 +56,9 @@ class FlakyTests(testtools.TestCase):
         self.expectThat(y, Equals(x))
         self.assertThat(values, Equals([x]))
 
-    @given(text(average_size=5), integers(min_value=1), integers(min_value=1))
+    @given(jira_keys, num_runs, num_runs)
     def test_annotation_dictionary(self, jira_key, max_runs, min_passes):
-        assume(max_runs >= min_passes)
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
 
         @flaky(jira_key, max_runs, min_passes)
         def f(x):
@@ -59,11 +70,10 @@ class FlakyTests(testtools.TestCase):
             'jira_keys': set([jira_key]),
         }))
 
-    @given(lists(text(average_size=5), min_size=1, average_size=2),
-           integers(min_value=1), integers(min_value=1))
+    @given(lists(jira_keys, min_size=1, average_size=2), num_runs, num_runs)
     def test_annotation_dictionary_multiple_keys(self, jira_keys, max_runs,
                                                  min_passes):
-        assume(max_runs >= min_passes)
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
 
         @flaky(jira_keys, max_runs, min_passes)
         def f(x):
@@ -91,9 +101,7 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
-    @given(lists(text(average_size=5), min_size=1, average_size=2),
-           integers(min_value=1, max_value=5),
-           integers(min_value=1, max_value=5))
+    @given(jira_keys, num_runs, num_runs)
     def test_always_erroring_flaky_test(self, jira_keys, max_runs, min_passes):
         """
         A flaky test always errors out is recorded as erroring.
@@ -141,7 +149,7 @@ class FlakyTests(testtools.TestCase):
 
         class SomeTest(AsyncTestCase):
 
-            @flaky(u'FLOC-XXXX', max_runs=3, min_passes=1)
+            @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=1)
             def test_something(self):
                 next(executions)()
 
@@ -164,7 +172,7 @@ class FlakyTests(testtools.TestCase):
         class SomeTest(testtools.TestCase):
             run_tests_with = retry_flaky()
 
-            @flaky(u'FLOC-XXXX', max_runs=3, min_passes=2)
+            @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=2)
             def test_something(self):
                 next(executions)()
 
