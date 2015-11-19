@@ -760,11 +760,14 @@ class _AgentLocator(CommandLocator):
         """
         CommandLocator.__init__(self)
         self.agent = agent
+        self.timeout_reset = None
 
     def locateResponder(self, name):
         """
         Do normal responder lookup and also record this activity.
         """
+        if self.timeout_reset is not None:
+            self.timeout_reset()
         return CommandLocator.locateResponder(self, name)
 
     @NoOp.responder

@@ -511,30 +511,25 @@ class ControlAMPTests(ControlTestCase):
         The AMP connection remains open when communication is received at
         any time up to the timeout limit.
         """
-        self.fail("not implemented yet")
-        # make a connection
-        # advance the clock a bit
-        # make some noop pings happen
-        # advance the clock more
-        # verify connection remains open
+        self.protocol.makeConnection(StringTransportWithAbort())
+        advance_some(self.reactor)
+        self.client.callRemote(NoOp)
+        self.assertFalse(self.protocol.transport.aborted)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        self.client.callRemote(NoOp)
+        self.assertFalse(self.protocol.transport.aborted)
 
     def test_connection_closed_on_no_activity(self):
         """
         If no communication has been received for long enough that we expire
         cluster state, the silent connection is forcefully closed.
         """
-        # make a connection
-        # advance the clock a bit
-        # send a ping
-        # advance the clock beyond the calculated timeout
-        # verify connection has been aborted
         self.protocol.makeConnection(StringTransportWithAbort())
         advance_some(self.reactor)
         self.client.callRemote(NoOp)
+        self.assertFalse(self.protocol.transport.aborted)
         advance_rest(self.reactor)
-        #self.protocol.connectionLost(Failure(ConnectionLost()))
-        #import pdb;pdb.set_trace()
-        self.fail("not implemented yet")
+        self.assertTrue(self.protocol.transport.aborted)
 
     def test_connection_made(self):
         """
