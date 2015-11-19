@@ -1084,6 +1084,25 @@ def add_application_with_volume(node_state):
                                   mountpoint=FilePath(b"/data")))})
 
 
+def create_test_blockdevice_volume_for_dataset_id(dataset_id,
+                                                  attached_to=None):
+    """
+    Create a fake ``BlockDeviceVolume`` for the given ``dataset_id``,
+    attached to the given node.
+
+    :param dataset_id: A unicode or uuid dataset_id to generate the
+        blockdevice_id for.
+    :param unicode attached_to: The compute_instance_id this volume should be
+        attached to.
+    """
+
+    return BlockDeviceVolume(
+        blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
+        size=REALISTIC_BLOCKDEVICE_SIZE,
+        attached_to=attached_to,
+        dataset_id=UUID(dataset_id))
+
+
 def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
                             cluster_state):
     """
@@ -1117,13 +1136,6 @@ def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
         cluster_state that is only suitable for use in tests that do not use
         the ``IBlockDeviceAPI`` to set up the cluster_state.
     """
-    def create_test_blockdevice_volume_for_dataset_id(dataset_id,
-                                                      attached_to=None):
-        return BlockDeviceVolume(
-            blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            attached_to=attached_to,
-            dataset_id=UUID(dataset_id))
     node_state = cluster_state.get_node(node_uuid,
                                         hostname=node_hostname)
     local_volumes = [
@@ -2014,6 +2026,50 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                         dataset=dataset,
                     )
                 ]),
+            changes
+        )
+
+    def test_dataset_elsewhere(self):
+        """
+        If block device elsewhere but is part of the configuration for the
+        deployer's node, no state changes are calculated.
+        """
+        uuid = uuid4()
+        dataset_id = unicode(uuid4())
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
+        manifestation = Manifestation(
+            dataset=dataset, primary=True
+        )
+        node = u"192.0.2.1"
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=uuid,
+                    manifestations={dataset_id: manifestation},
+                )
+            }
+        )
+        state = DeploymentState(nodes=[NodeState(
+            uuid=uuid, hostname=node, applications=[], manifestations={},
+            devices={}, paths={})])
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=uuid,
+        )
+        local_state = _create_block_device_deployer_local_state(
+            deployer, state,
+            volumes=[
+                create_test_blockdevice_volume_for_dataset_id(
+                    dataset_id=dataset_id,
+                    attached_to=u"remote_node",
+                ),
+            ],
+        )
+        changes = deployer.calculate_changes(configuration, state, local_state)
+        self.assertEqual(
+            in_parallel(changes=[]),
             changes
         )
 
