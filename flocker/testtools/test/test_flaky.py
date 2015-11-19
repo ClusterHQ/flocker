@@ -37,7 +37,8 @@ jira_keys = text(average_size=5)
 num_runs = integers(min_value=1, max_value=5)
 
 # Used to run tests without emitting to stdout.
-silent_async_runner = async_runner(timedelta(seconds=1), flaky_output=StringIO())
+silent_async_runner = async_runner(
+    timedelta(seconds=1), flaky_output=StringIO())
 
 
 class FlakyTests(testtools.TestCase):
