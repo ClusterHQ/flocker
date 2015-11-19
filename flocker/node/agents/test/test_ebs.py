@@ -168,7 +168,7 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
             # With apologies,
             #  -jean-paul
             raise SkipTest(
-                "Could not find a suitable device to use as a dummy bad result."
+                "Could not find a suitable device to use as a bad device."
             )
 
         exception = self.assertRaises(
