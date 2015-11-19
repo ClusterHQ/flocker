@@ -162,8 +162,10 @@ Preparing For a Release
 Pre-tag Review Process
 ======================
 
-A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
-So it is important to check that the code in the release branch is working before it is tagged.
+A tag must not be deleted once it has been pushed to GitHub.
+This is a policy and not a technical limitation, as removing tags can cause problems for anyone who has updated a cloned copy of the repo.
+
+It is important to check that the code in the release branch is working before it is tagged.
 
 .. note::
 
