@@ -212,8 +212,12 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: We force a build on the tag as well as the branch because the packages built before pushing the tag won't have the right version.
-             Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
+   .. note:: 
+   
+      Although there would not have been any changes since the branch was built during the :ref:`preparing-for-a-release` process, we need to build on the tag as well as the branch.
+      This ensures that the packages that were built before pushing the tag won't have the right version.
+
+      Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
 
