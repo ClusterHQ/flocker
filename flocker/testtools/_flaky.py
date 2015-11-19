@@ -24,6 +24,10 @@ def flaky(jira_keys, max_runs=3, min_passes=1):
     test as flaky means both failures and successes are expected, and that
     neither will fail the test run.
 
+    If a test has already been marked as flaky, applying ``@flaky`` a second
+    time will add JIRA key information, and set the ``max_runs`` and
+    ``min_passes`` to the larger of the provided values.
+
     :param unicode jira_keys: The JIRA key of the bug for this flaky test,
         e.g. 'FLOC-2345'. Can also be a sequence of keys if the test is flaky
         for multiple reasons.
@@ -46,7 +50,12 @@ def flaky(jira_keys, max_runs=3, min_passes=1):
         jira_keys=pset(jira_keys), max_runs=max_runs, min_passes=min_passes)
 
     def wrapper(test_method):
-        setattr(test_method, _FLAKY_ATTRIBUTE, annotation)
+        existing_flaky = getattr(test_method, _FLAKY_ATTRIBUTE, None)
+        if existing_flaky is None:
+            note = annotation
+        else:
+            note = _combine_flaky_annotation(annotation, existing_flaky)
+        setattr(test_method, _FLAKY_ATTRIBUTE, note)
         return test_method
 
     return wrapper
@@ -85,6 +94,17 @@ class _FlakyAnnotation(PClass):
             'min_passes': self.min_passes,
             'jira_keys': set(self.jira_keys),
         }
+
+
+def _combine_flaky_annotation(flaky1, flaky2):
+    """
+    Combine two flaky annotations.
+    """
+    return _FlakyAnnotation(
+        jira_keys=flaky1.jira_keys | flaky2.jira_keys,
+        max_runs=max(flaky1.max_runs, flaky2.max_runs),
+        min_passes=max(flaky1.min_passes, flaky2.min_passes),
+    )
 
 
 def retry_flaky(run_test_factory=None):

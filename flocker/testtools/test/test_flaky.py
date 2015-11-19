@@ -56,6 +56,12 @@ class FlakyTests(testtools.TestCase):
         self.expectThat(y, Equals(x))
         self.assertThat(values, Equals([x]))
 
+    def _get_annotation_dict(self, f):
+        """
+        Get the flaky annotation dictionary for flaky function ``f``.
+        """
+        return getattr(f, _FLAKY_ATTRIBUTE).to_dict()
+
     @given(jira_keys, num_runs, num_runs)
     def test_annotation_dictionary(self, jira_key, max_runs, min_passes):
         [min_passes, max_runs] = sorted([min_passes, max_runs])
@@ -64,7 +70,7 @@ class FlakyTests(testtools.TestCase):
         def f(x):
             pass
 
-        self.assertThat(getattr(f, _FLAKY_ATTRIBUTE).to_dict(), Equals({
+        self.assertThat(self._get_annotation_dict(f), Equals({
             'min_passes': min_passes,
             'max_runs': max_runs,
             'jira_keys': set([jira_key]),
@@ -79,10 +85,28 @@ class FlakyTests(testtools.TestCase):
         def f(x):
             pass
 
-        self.assertThat(getattr(f, _FLAKY_ATTRIBUTE).to_dict(), Equals({
+        self.assertThat(self._get_annotation_dict(f), Equals({
             'min_passes': min_passes,
             'max_runs': max_runs,
             'jira_keys': set(jira_keys),
+        }))
+
+    @given(lists(jira_keys, min_size=1, average_size=2), num_runs, num_runs,
+           lists(jira_keys, min_size=1, average_size=2), num_runs, num_runs)
+    def test_multiple_decorators(self, jira_keys1, max_runs1, min_passes1,
+                                 jira_keys2, max_runs2, min_passes2):
+        [min_passes1, max_runs1] = sorted([min_passes1, max_runs1])
+        [min_passes2, max_runs2] = sorted([min_passes2, max_runs2])
+
+        @flaky(jira_keys1, max_runs1, min_passes1)
+        @flaky(jira_keys2, max_runs2, min_passes2)
+        def f(x):
+            pass
+
+        self.assertThat(self._get_annotation_dict(f), Equals({
+            'min_passes': max(min_passes1, min_passes2),
+            'max_runs': max(max_runs1, max_runs2),
+            'jira_keys': set(jira_keys1) | set(jira_keys2),
         }))
 
     def test_successful_flaky_test(self):
