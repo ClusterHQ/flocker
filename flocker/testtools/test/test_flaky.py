@@ -5,7 +5,6 @@ Tests for ``flocker.testtools._flaky``.
 """
 
 from datetime import timedelta
-from functools import partial
 from itertools import repeat
 from pprint import pformat
 from StringIO import StringIO
@@ -21,12 +20,10 @@ from hypothesis.strategies import (
 )
 import testtools
 from testtools.matchers import (
-    AfterPreprocessing,
     Contains,
     Equals,
     HasLength,
     MatchesAll,
-    MatchesStructure,
 )
 
 from .. import AsyncTestCase, async_runner
@@ -35,6 +32,12 @@ from .._flaky import (
     _get_flaky_annotation,
     flaky,
     retry_flaky,
+)
+from .._testhelpers import (
+    has_results,
+    only_skips,
+    run_test,
+    throw,
 )
 
 
@@ -272,60 +275,25 @@ class FlakyTests(testtools.TestCase):
                 raise unittest.SkipTest(observed_reasons[-1])
 
         test = SkippingTest('test_skip')
-        result = unittest.TestResult()
-        test.run(result)
-        self.assertThat(
-            result,
-            has_results(
-                tests_run=Equals(1),
-                skipped=AfterPreprocessing(
-                    lambda xs: list(unicode(x[1]) for x in xs),
-                    Equals(observed_reasons)),
-            ))
+        self.assertThat(run_test(test), only_skips(1, observed_reasons))
 
+    @given(jira_keys, num_runs, num_runs,
+           streaming(text(average_size=10)).map(iter))
+    def test_flaky_testtools_skipped_test(self, jira_keys, max_runs,
+                                          min_passes, reasons):
+        """
+        If a test is skipped and also marked @flaky, we report it as skipped.
+        """
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
+        observed_reasons = []
 
-def throw(exception):
-    """
-    Raise 'exception'.
-    """
-    raise exception
+        class SkippingTest(AsyncTestCase):
+            run_tests_with = retry_flaky(output=StringIO())
 
+            @flaky(jira_keys, max_runs, min_passes)
+            def test_skip(self):
+                observed_reasons.append(reasons.next())
+                self.skip(observed_reasons[-1])
 
-def has_results(errors=None, failures=None, skipped=None,
-                expected_failures=None, unexpected_successes=None,
-                tests_run=None):
-    """
-    Return a matcher on test results.
-
-    By default, will match a result that has no tests run.
-    """
-    if errors is None:
-        errors = Equals([])
-    if failures is None:
-        failures = Equals([])
-    if skipped is None:
-        skipped = Equals([])
-    if expected_failures is None:
-        expected_failures = Equals([])
-    if unexpected_successes is None:
-        unexpected_successes = Equals([])
-    if tests_run is None:
-        tests_run = Equals(0)
-    return MatchesStructure(
-        errors=errors,
-        failures=failures,
-        skipped=skipped,
-        expectedFailures=expected_failures,
-        unexpectedSuccesses=unexpected_successes,
-        testsRun=tests_run,
-    )
-
-
-def run_test(case):
-    """
-    Run a test and return its results.
-    """
-    # XXX: How many times have I written something like this?
-    result = unittest.TestResult()
-    case.run(result)
-    return result
+        test = SkippingTest('test_skip')
+        self.assertThat(run_test(test), only_skips(1, observed_reasons))
