@@ -51,7 +51,6 @@ from flocker.testtools.cluster_utils import (
 )
 
 from flocker.common.runner import run, run_ssh
-from flocker.provision._effect import SequenceFailed
 
 
 def extend_environ(**kwargs):
@@ -300,7 +299,7 @@ class ManagedRunner(object):
                 self.dataset_backend_configuration,
                 _save_backend_configuration(self.dataset_backend,
                                             self.dataset_backend_configuration),
-                                            provider="managed"
+                provider="managed"
                 )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -363,8 +362,9 @@ def _save_backend_configuration(dataset_backend_name,
     """
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
-    dataset_path.setContent(yaml.safe_dump(
-            {dataset_backend_name.name: dataset_backend_configuration}))
+    dataset_path.setContent(
+        yaml.safe_dump(
+        {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
 
 
