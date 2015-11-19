@@ -65,6 +65,7 @@ class AsyncTestCase(testtools.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
+        # XXX: Work around testing-cabal/unittest-ext#60
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def mktemp(self):
