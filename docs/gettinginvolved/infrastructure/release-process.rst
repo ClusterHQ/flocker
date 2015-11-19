@@ -214,8 +214,7 @@ Release
 
    .. note:: 
    
-      Although there would not have been any changes since the branch was built during the :ref:`preparing-for-a-release` process, we need to build on the tag as well as the branch.
-      This ensures that the packages that were built before pushing the tag won't have the right version.
+      Although there would not have been any changes since the branch was built during the :ref:`preparing-for-a-release` process, we need to build on the tag to ensure that the packages that were built before pushing the tag won't have the right version.
 
       Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
 
