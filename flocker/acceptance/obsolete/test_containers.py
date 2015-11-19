@@ -9,11 +9,10 @@ from time import sleep
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
-from twisted.trial.unittest import TestCase
 from twisted.internet.error import ProcessTerminated
 
 from ...common import loop_until
-from ...testtools import flaky, random_name
+from ...testtools import AsyncTestCase, flaky, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -22,7 +21,7 @@ from ..testtools import (
 from ..scripts import SCRIPTS
 
 
-class ContainerAPITests(TestCase):
+class ContainerAPITests(AsyncTestCase):
     """
     Tests for the container API.
     """
