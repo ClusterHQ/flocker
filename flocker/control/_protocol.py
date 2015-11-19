@@ -31,7 +31,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
     ``SerializableArgument``, allowing for cached serialization.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import BytesIO
 from itertools import count
 from contextlib import contextmanager
@@ -287,11 +287,24 @@ class NodeStateCommand(Command):
 
 
 class Timeout(object):
+    """
+    Call the specified action after the specified delay in seconds.
+    """
     def __init__(self, reactor, timeout, action):
+        """
+        :param IReactorTime reactor: A reactor to use to control when
+            the action is called.
+        :param int timeout: Interval in seconds to trigger the action.
+        :param callable action: The function to execute upon reaching the
+            timeout.
+        """
         self._delay_call = reactor.callLater(timeout, action)
         self._timeout = timeout
 
     def reset(self):
+        """
+        Reset the delayed call to this ``Timeout``'s ``action``.
+        """
         self._delay_call.reset(self._timeout)
 
 
@@ -319,6 +332,7 @@ class ControlServiceLocator(CommandLocator):
         # it.
         self._source = ChangeSource()
 
+        self.timeout_reset = None
         self._reactor = reactor
         self.control_amp_service = control_amp_service
 
@@ -326,7 +340,8 @@ class ControlServiceLocator(CommandLocator):
         """
         Do normal responder lookup and also record this activity.
         """
-        import pdb;pdb.set_trace()
+        if self.timeout_reset is not None:
+            self.timeout_reset()
         self._source.set_last_activity(self._reactor.seconds())
         return CommandLocator.locateResponder(self, name)
 
@@ -364,27 +379,23 @@ class ControlServiceLocator(CommandLocator):
         # with more interesting information.
         return {}
 
-p = YourProtocol() --> p.__init__()
-p.makeConnection(transport) -> p.connectionMade()
-
-action = action = lambda: protocol.transport.abortConnection()
 
 class FlockerServiceAMP(AMP):
     """
     Base AMP protocol that provides a method to forcefully close the
     transport connection.
     """
-    def __init__(self, *args, **kwargs):
-        #self.last
+    def __init__(self, reactor, *args, **kwargs):
+        self._timeout = Timeout(
+            reactor, 2 * PING_INTERVAL.seconds, self.close_connection)
         AMP.__init__(self, *args, **kwargs)
-        self._timeout = Timeout(reactor, 2 * PING_TIMEOUT, self.close_connection)
-
-    def locateResponder(self, ...):
-        self._timeout.reset()
-        return AMP.locateResponder(...)
+        locator = kwargs.pop('locator', None)
+        if locator:
+            locator.timeout_reset = self._timeout.reset
 
     def close_connection(self):
-        self.transport.abortConnection()
+        if self.transport is not None:
+            self.transport.abortConnection()
 
 
 class ControlAMP(FlockerServiceAMP):
@@ -401,7 +412,8 @@ class ControlAMP(FlockerServiceAMP):
             connections to the control service.
         """
         locator = ControlServiceLocator(reactor, control_amp_service)
-        FlockerServiceAMP.__init__(self, locator=locator)
+        FlockerServiceAMP.__init__(self, reactor, locator=locator)
+
         self.control_amp_service = control_amp_service
         self._pinger = Pinger(reactor)
 
@@ -753,10 +765,10 @@ class _AgentLocator(CommandLocator):
         """
         Do normal responder lookup and also record this activity.
         """
-        import pdb;pdb.set_trace()
         return CommandLocator.locateResponder(self, name)
 
-    @NoOp(self):
+    @NoOp.responder
+    def noop(self):
         """
         Perform no operation.
         """
@@ -792,7 +804,7 @@ class AgentAMP(FlockerServiceAMP):
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         locator = _AgentLocator(agent)
-        FlockerServiceAMP.__init__(self, locator=locator)
+        FlockerServiceAMP.__init__(self, reactor, locator=locator)
         self.agent = agent
         self._pinger = Pinger(reactor)
 
