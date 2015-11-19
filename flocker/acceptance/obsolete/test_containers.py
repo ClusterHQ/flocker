@@ -311,6 +311,7 @@ class ContainerAPITests(TestCase):
                 self, origin.public_address, origin_port))
         return running
 
+    @flaky([u"FLOC-3485"])
     @require_cluster(2)
     def test_traffic_routed(self, cluster):
         """
