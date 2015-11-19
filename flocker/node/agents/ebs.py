@@ -238,6 +238,12 @@ class VolumeStateTable(PRecord):
 VOLUME_STATE_TABLE = VolumeStateTable()
 
 
+class AttachFailed(Exception):
+    """
+    AWS EBS refused to allow a volume to be attached to an instance.
+    """
+
+
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
@@ -704,7 +710,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 def _attach_volume_and_wait_for_device(
     volume, attach_to,
     attach_volume, detach_volume,
-    device, attach_attempt,
+    device,
     blockdevices,
 ):
     """
@@ -717,9 +723,6 @@ def _attach_volume_and_wait_for_device(
     :param attach_volume: A function like ``EC2Connection.attach_volume``.
     :param detach_volume: A function like ``EC2Connection.detach_volume``.
     :param unicode device: The OS device path to which to attach the device.
-    :param int attach_attempt: The number of this attempt to attach the volume
-        (counting from 1).  This is used to decide whether it's worth
-        continuing to retry or not.
     :param list blockdevices: The OS device paths which are already present on
         the system before this operation is attempted (primarily useful to make
         testing easier).
@@ -738,11 +741,8 @@ def _attach_volume_and_wait_for_device(
         # consistency in AWS, so let's ignore this one if it
         # fails:
         if e.code == u'InvalidParameterValue':
-            if attach_attempt == MAX_ATTACH_RETRIES:
-                raise
             return False
-        else:
-            raise
+        raise
     else:
         # Wait for new device to manifest in the OS. Since there
         # is currently no standardized protocol across Linux guests
@@ -1002,6 +1002,7 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
+        :raises AttachFailed: If the volume could not be attached.
         :raises AttachedUnexpectedDevice: If the attach operation fails to
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
@@ -1013,9 +1014,9 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
+        attached = False
         ignore_devices = pset([])
-        attach_attempt = 1
-        while True:
+        for attach_attempt in range(3):
             with self.lock:
                 volumes = self.connection.get_all_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
@@ -1025,22 +1026,22 @@ class EBSBlockDeviceAPI(object):
                     # No point in attempting an ``attach_volume``, return.
                     return
                 blockdevices = _get_blockdevices()
-                if _attach_volume_and_wait_for_device(
+                attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,
                     self.connection.attach_volume,
                     self.connection.detach_volume,
-                    device, attach_attempt,
-                    blockdevices,
-                ):
-                    break
+                    device, blockdevices,
+                )
+                if attached:
+                    _wait_for_volume_state_change(
+                        VolumeOperations.ATTACH, ebs_volume,
+                    )
+                    attached_volume = volume.set('attached_to', attach_to)
+                    return attached_volume
                 else:
-                    attach_attempt += 1
                     ignore_devices = ignore_devices.add(device)
 
-        _wait_for_volume_state_change(VolumeOperations.ATTACH, ebs_volume)
-
-        attached_volume = volume.set('attached_to', attach_to)
-        return attached_volume
+        raise AttachFailed(volume.blockdevice_id, attach_to, device)
 
     def detach_volume(self, blockdevice_id):
         """
