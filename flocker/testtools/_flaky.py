@@ -244,7 +244,7 @@ class _RetryFlaky(testtools.RunTest):
         if result_type == _ResultType.skip:
             # XXX: Work around a testtools bug where it reports stack traces
             # for skips that aren't passed through its supported
-            # SkipException.
+            # SkipException: https://bugs.launchpad.net/testtools/+bug/1518100
             [reason] = list(tmp_result.skip_reasons.keys())
             details = details.discard('traceback').set(
                 'reason', text_content(reason))
