@@ -77,6 +77,43 @@ class DatasetStates(Names):
     DELETED = NamedConstant()
 
 
+def make_state_invariant(allowed_states, expected_attributes):
+    """
+    Create an invariant that ensure the given object has a ``state`` attribute
+    in the given states, and that all the other specified attributes are
+    present if and only if the object is in one of the corresponding states.
+
+    :param set allowed_states: Set of allowed states.
+    :param dict expected_attributes: Dictionary mapping attribute names to
+        the set of states that attribute should be present in.
+    """
+    def state_invariant(self):
+        for attribute, states in self.EXPECTED_ATTRIBUTES.items():
+            if (self.state in states) != hasattr(self, attribute):
+                if self.state in states:
+                    message = (
+                        "`{attr}` must be specified in state `{state}`"
+                        .format(attr=attribute, state=self.state.name)
+                    )
+                else:
+                    message = (
+                        "`{attr}` can only be specified in states {states}"
+                        .format(
+                            attr=attribute,
+                            states=','.join(map("`{0.name}`".format, states)),
+                        )
+                    )
+                return (False, message)
+        if self.state not in self.ALLOWED_STATES:
+            return (False, "{class_} can only be in states {states}.".format(
+                class_=self.__class__,
+                states=','.join(map("`{0.name}`".format, self.ALLOWED_STATES)),
+            ))
+        return (True, "")
+
+    return state_invariant
+
+
 class DiscoveredDataset(PClass):
     """
     Dataset as discovered by deployer.
@@ -101,35 +138,25 @@ class DiscoveredDataset(PClass):
     device_path = field(FilePath)
     mount_point = field(FilePath)
 
-    def __invariant__(self):
-        """
-        Check that the state is valid for a ``DiscoveredDataset`` and
-        that all the attributes required for the state are specified.
-        """
-        expected_attributes = [
-            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED,
-              DatasetStates.ATTACHED_NO_FILESYSTEM), "device_path"),
-            ((DatasetStates.MOUNTED,), "mount_point"),
-        ]
-        for states, attribute in expected_attributes:
-            if (self.state in states) != hasattr(self, attribute):
-                if self.state in states:
-                    message = (
-                        "`{attr}` must be specified in state `{state}`"
-                        .format(attribute=attribute, state=self.state.name)
-                    )
-                else:
-                    message = (
-                        "`{attr}` can only be specified in states {states}"
-                        .format(
-                            attr=attribute,
-                            states=','.join(map("`{0.name}`".format, states)),
-                        )
-                    )
-                return (False, message)
-        if self.state in (DatasetStates.DELETED,):
-            return (False, "DesiredDataset can't be in state DELETED.")
-        return (True, "")
+    ALLOWED_STATES = {
+        DatasetStates.ATTACHED_ELSEWHERE,
+        DatasetStates.NON_MANIFEST,
+        DatasetStates.ATTACHED_NO_FILESYSTEM,
+        DatasetStates.ATTACHED,
+        DatasetStates.MOUNTED,
+    }
+    EXPECTED_ATTRIBUTES = {
+        "device_path": {
+            DatasetStates.ATTACHED, DatasetStates.MOUNTED,
+            DatasetStates.ATTACHED_NO_FILESYSTEM,
+        },
+        "mount_point": {DatasetStates.MOUNTED},
+    }
+
+    __invariant__ = make_state_invariant(
+        allowed_states=ALLOWED_STATES,
+        expected_attributes=EXPECTED_ATTRIBUTES,
+    )
 
 
 class VolumeException(Exception):
