@@ -711,10 +711,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 
 def _attach_volume_and_wait_for_device(
-    volume, attach_to,
-    attach_volume, detach_volume,
-    device,
-    blockdevices,
+    volume, attach_to, attach_volume, detach_volume, device, blockdevices,
 ):
     """
     Attempt to attach an EBS volume to an EC2 instance and wait for the
