@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4, UUID
 
-from twisted.web.http import OK, SERVICE_UNAVAILABLE
+from twisted.web.http import OK
 from twisted.internet import reactor
 from twisted.internet.task import Clock, deferLater
 
@@ -237,7 +237,7 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(lambda _:
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Mount",
-                          {u"Name": name}, SERVICE_UNAVAILABLE,
+                          {u"Name": name}, OK,
                           {u"Err": u"Timed out waiting for dataset to mount.",
                            u"Mountpoint": None}))
         return d
