@@ -3,7 +3,6 @@
 CPU time metric for the control service benchmarks.
 """
 
-from characteristic import Attribute, attributes
 from pyrsistent import PClass, field, pset
 from zope.interface import implementer
 
@@ -14,7 +13,7 @@ from flocker.common.runner import run_ssh
 
 from .._interfaces import IMetric
 
-_FLOCKER_PROCESSES = _JOURNAL_UNITS = pset({
+_FLOCKER_PROCESSES = pset({
     u'flocker-control',
     u'flocker-dataset-agent',
     u'flocker-container-agent',
@@ -93,9 +92,9 @@ def get_node_cpu_times(runner, processes):
     return d
 
 
-def _get_cluster_cpu_times(clock, nodes, processes):
+def _get_cluster_cpu_times(clock, nodes, runner, processes):
     return gather_deferreds(list(
-        get_node_cpu_times(SSHRunner(clock, node), processes)
+        get_node_cpu_times(runner(clock, node), processes)
         for node in nodes
     ))
 
@@ -116,6 +115,8 @@ class CPUTime(PClass):
     """
     clock = field(mandatory=True)
     control_service = field(mandatory=True)
+    runner = field(initial=SSHRunner)
+    processes = field(initial=_FLOCKER_PROCESSES)
 
     def measure(self, f, *a, **kw):
         nodes = []
@@ -128,7 +129,7 @@ class CPUTime(PClass):
         # Obtain elapsed CPU time before test
         d.addCallback(
             lambda _ignored: _get_cluster_cpu_times(
-                self.clock, nodes, _FLOCKER_PROCESSES)
+                self.clock, nodes, self.runner, self.processes)
         ).addCallback(before_cpu.extend)
 
         # Perform the test function
@@ -137,7 +138,7 @@ class CPUTime(PClass):
         # Obtain elapsed CPU time after test
         d.addCallback(
             lambda _ignored: _get_cluster_cpu_times(
-                self.clock, nodes, _FLOCKER_PROCESSES)
+                self.clock, nodes, self.runner, self.processes)
         ).addCallback(after_cpu.extend)
 
         # Create the result from before and after times
