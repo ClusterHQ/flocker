@@ -5,6 +5,7 @@ Base classes for unit tests.
 """
 
 from datetime import timedelta
+import sys
 import tempfile
 
 import testtools
@@ -23,20 +24,27 @@ class TestCase(unittest.SynchronousTestCase):
     """
 
 
-def async_runner(timeout):
+def async_runner(timeout, flaky_output=None):
     """
     Make a ``RunTest`` instance for asynchronous tests.
 
     :param timedelta timeout: The maximum length of time that a test is allowed
         to take.
+    :param file flaky_output: A file-like object to which we'll send output
+        about flaky tests. This is a temporary measure until we fix FLOC-3469,
+        at which point we will just use standard logging.
     """
+    if flaky_output is None:
+        flaky_output = sys.stdout
     # XXX: Looks like the acceptance tests (which were the first tests that we
     # tried to migrate) aren't cleaning up after themselves even in the
     # successful case. Use AsynchronousDeferredRunTestForBrokenTwisted, which
     # loops the reactor a couple of times after the test is done.
     return retry_flaky(
         AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-            timeout=timeout.total_seconds()))
+            timeout=timeout.total_seconds()),
+        output=flaky_output,
+    )
 
 
 # By default, asynchronous tests are timed out after 2 minutes.

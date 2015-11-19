@@ -4,8 +4,10 @@
 Tests for ``flocker.testtools._flaky``.
 """
 
+from datetime import timedelta
 from itertools import repeat
 from pprint import pformat
+from StringIO import StringIO
 import unittest
 
 from hypothesis import given
@@ -19,7 +21,7 @@ from testtools.matchers import (
     MatchesStructure,
 )
 
-from .. import AsyncTestCase
+from .. import AsyncTestCase, async_runner
 from .._flaky import (
     _FLAKY_ATTRIBUTE,
     _get_flaky_annotation,
@@ -33,6 +35,9 @@ jira_keys = text(average_size=5)
 
 # Don't really want to run anything more than 5 times.
 num_runs = integers(min_value=1, max_value=5)
+
+# Used to run tests without emitting to stdout.
+silent_async_runner = async_runner(timedelta(seconds=1), flaky_output=StringIO())
 
 
 class FlakyTests(testtools.TestCase):
@@ -118,6 +123,8 @@ class FlakyTests(testtools.TestCase):
         # TestCase features, thus increasing complexity.
         class SomeTest(AsyncTestCase):
 
+            run_tests_with = silent_async_runner
+
             @flaky(u'FLOC-XXXX')
             def test_something(self):
                 pass
@@ -135,6 +142,8 @@ class FlakyTests(testtools.TestCase):
         executions = repeat(lambda: throw(ValueError('failure')))
 
         class SomeTest(AsyncTestCase):
+
+            run_tests_with = silent_async_runner
 
             @flaky(jira_keys, max_runs=max_runs, min_passes=min_passes)
             def test_something(self):
@@ -173,6 +182,8 @@ class FlakyTests(testtools.TestCase):
 
         class SomeTest(AsyncTestCase):
 
+            run_tests_with = silent_async_runner
+
             @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=1)
             def test_something(self):
                 next(executions)()
@@ -193,7 +204,7 @@ class FlakyTests(testtools.TestCase):
         executions = iter(test_methods)
 
         class SomeTest(testtools.TestCase):
-            run_tests_with = retry_flaky()
+            run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=2)
             def test_something(self):
@@ -221,7 +232,7 @@ class FlakyTests(testtools.TestCase):
         executions = iter(test_methods)
 
         class SomeTest(testtools.TestCase):
-            run_tests_with = retry_flaky()
+            run_tests_with = retry_flaky(output=StringIO())
 
             def test_something(self):
                 next(executions)()
