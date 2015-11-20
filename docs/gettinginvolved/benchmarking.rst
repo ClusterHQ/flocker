@@ -52,6 +52,9 @@ The :program:`benchmark` script has several options:
    Specifies the quantity to measure while the operation is performed.
    Supported values include:
 
+      ``cputime``
+         CPU time elapsed.
+
       ``wallclock``
          Actual clock time elapsed.
          This is the default.
