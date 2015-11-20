@@ -7,7 +7,7 @@ Debugging
 .. _flocker-logging:
 
 Logging
--------
+=======
 
 Flocker processes use the `Eliot`_ framework for logging.
 Eliot structures logs as a tree of actions, which means given an error you can see what Flocker actions caused the errors by finding the other messages in the tree.
@@ -20,7 +20,7 @@ Logs from the Docker containers can be viewed using `the Docker CLI <https://doc
 Ubuntu
 ^^^^^^
 
-XXX This should be documented, see :issue:`1877`.
+Logs from the Flocker processes running on the nodes can be found in the :file:`var/log/flocker` directory.
 
 CentOS 7
 ^^^^^^^^
@@ -86,7 +86,7 @@ We can then find the full set of actions leading up to this decision, as well as
 .. _flocker-bug-reporting:
 
 Bug Reporting
--------------
+=============
 
 When reporting issues with Flocker please include:
 
@@ -166,7 +166,7 @@ Alternatively, the information can be gathered manually using the following comm
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 
 Profiling
----------
+=========
 
 .. warning::
 
@@ -207,5 +207,5 @@ For example:
 
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
-.. _`Eliot`: https://eliot.readthedocs.org
+.. _`Eliot`: https://eliot.readthedocs.org≈
 .. _`eliot-tree`: https://github.com/jonathanj/eliottree
