@@ -6,6 +6,7 @@ An HTTP API implementing the Docker Volumes Plugin API.
 See https://github.com/docker/docker/tree/master/docs/extend for details.
 """
 
+from itertools import repeat
 from functools import wraps
 from uuid import UUID
 
@@ -14,7 +15,6 @@ import yaml
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
-from twisted.internet.task import deferLater
 from twisted.internet.defer import CancelledError
 
 from klein import Klein
@@ -23,6 +23,7 @@ from ..restapi import structured
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
+from ..common import loop_until, timeout
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -224,37 +225,19 @@ class VolumePlugin(object):
         dataset_id = UUID(dataset_id_from_name(Name))
         d = self._flocker_client.move_dataset(self._node_id, dataset_id)
 
-        def get_state(_=None):
-            getting_path = self._get_path(Name)
+        d.addCallback(lambda _: loop_until(self._reactor,
+                                           lambda: self._get_path(Name),
+                                           repeat(self._POLL_INTERVAL)))
+        d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
 
-            def got_path(path):
-                if path is None:
-                    return deferLater(
-                        self._reactor, self._POLL_INTERVAL, get_state)
-                else:
-                    return {u"Err": None,
-                            u"Mountpoint": path.path}
-            getting_path.addCallback(got_path)
-            return getting_path
-        d.addCallback(get_state)
-
-        def timeout():
-            d.cancel()
-
-        delayed_timeout = self._reactor.callLater(self._MOUNT_TIMEOUT, timeout)
-
-        def abort_timeout(passthrough):
-            if delayed_timeout.active():
-                delayed_timeout.cancel()
-            return passthrough
-        d.addBoth(abort_timeout)
-
+        timeout(self._reactor, d, self._MOUNT_TIMEOUT)
         def handleCancel(failure):
             failure.trap(CancelledError)
             return {u"Err": u"Timed out waiting for dataset to mount.",
                     u"Mountpoint": u""}
 
         d.addErrback(handleCancel)
+
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])

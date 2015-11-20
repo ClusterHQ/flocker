@@ -55,7 +55,6 @@ class SimpleCountingProxy(object):
             return method(*args, **kwargs)
         return counting_proxy
 
-
 @attributes(["clock", "reactor"])
 class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
     """
@@ -69,24 +68,24 @@ class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
         realistic to advance the clock from the context that calls
         ``callLater``, so we require a different context to advance this clock
         from.
-    :ivar bool _scheduled: boolean indicating if the clock is currently
-        scheduled to advance.
+    :ivar bool _advanced_scheduled: boolean indicating if the clock is
+        currently scheduled to advance. Protects against scheduling _advance()
+        twice.
     """
     def __init__(self):
-        self._scheduled = False
-        pass
+        self._advance_scheduled = False
 
     def _advance(self):
         """
         Advance the underlying clock once up to the nearest pending delayed
         call. Then schedule the clock for another update.
         """
-        self._scheduled = False
         delayed_calls = self.clock.getDelayedCalls()
         if delayed_calls:
             next_time = min(t.getTime() for t in delayed_calls)
             diff = next_time - self.clock.seconds()
             self.clock.advance(diff)
+        self._advance_scheduled = False
         self._schedule()
 
     def _schedule(self):
@@ -94,8 +93,8 @@ class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
         Schedule this clock to be advanced in a different context (provided by
         self.reactor). Only schedule if there are pending ``DelayedCalls``.
         """
-        if not self._scheduled and self.clock.getDelayedCalls():
-            self._scheduled = True
+        if not self._advance_scheduled and self.clock.getDelayedCalls():
+            self._advance_scheduled = True
             self.reactor.callLater(0.0, self._advance)
 
     def callLater(self, when, what, *a, **kw):
@@ -111,6 +110,9 @@ class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
         self._schedule()
         return d
 
+    def callLaterWithoutAdvancing(self, when, what, *a, **kw):
+        return self.clock.callLater(when, what, *a, **kw)
+
 
 class APITestsMixin(APIAssertionsMixin):
     """
@@ -123,8 +125,8 @@ class APITestsMixin(APIAssertionsMixin):
         """
         Create initial objects for the ``VolumePlugin``.
         """
-        self._clock = Clock()
-        self.reactor = AutomaticClock(clock=self._clock, reactor=reactor)
+        self.volume_plugin_reactor = AutomaticClock(
+            clock=Clock(), reactor=reactor)
         self.flocker_client = SimpleCountingProxy(FakeFlockerClient())
 
     def test_pluginactivate(self):
@@ -256,7 +258,8 @@ class APITestsMixin(APIAssertionsMixin):
         # Node A. Attaching this to the _clock so that this does _not_ advance
         # time, but merely waits for other callLater calls to self.reactor to
         # advance the clock.
-        self._clock.callLater(5.0, self.flocker_client.synchronize_state)
+        self.volume_plugin_reactor.callLaterWithoutAdvancing(
+            5.0, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
                       self.assertResult(
@@ -295,7 +298,8 @@ class APITestsMixin(APIAssertionsMixin):
         # on Node A. This should be longer than our timeout.  Attaching this to
         # the _clock so that this does _not_ advance time, but merely waits for
         # other callLater calls to self.reactor to advance the clock.
-        self._clock.callLater(500.0, self.flocker_client.synchronize_state)
+        self.volume_plugin_reactor.callLaterWithoutAdvancing(
+            500.0, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
                       self.assertResult(
@@ -371,6 +375,7 @@ class APITestsMixin(APIAssertionsMixin):
 
 def _build_app(test):
     test.initialize()
-    return VolumePlugin(test.reactor, test.flocker_client, test.NODE_A).app
+    return VolumePlugin(
+        test.volume_plugin_reactor, test.flocker_client, test.NODE_A).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     APITestsMixin, "API", _build_app)

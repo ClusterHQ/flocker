@@ -18,6 +18,7 @@ from eliot.twisted import DeferredContext
 from twisted.python.reflect import safe_repr
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
+from twisted.internet.task import deferLater
 
 from effect import Effect, Constant, Delay
 from effect.retry import retry
@@ -110,6 +111,18 @@ def loop_until(reactor, predicate, steps=None):
         return result
     d.addCallback(loop)
     return d.addActionFinish()
+
+def timeout(reactor, d, timeout):
+    def _timeout():
+        d.cancel()
+
+    delayed_timeout = reactor.callLater(timeout, _timeout)
+
+    def abort_timeout(passthrough):
+        if delayed_timeout.active():
+            delayed_timeout.cancel()
+        return passthrough
+    d.addBoth(abort_timeout)
 
 
 def retry_failure(reactor, function, expected=None, steps=None):
