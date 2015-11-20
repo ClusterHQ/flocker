@@ -7,14 +7,9 @@ Tests for the Volumes Plugin API provided by the plugin.
 from uuid import uuid4, UUID
 
 from twisted.web.http import OK
-from twisted.internet import reactor
 from twisted.internet.task import Clock
-from twisted.python.components import proxyForInterface
-from twisted.internet.interfaces import IReactorTime
 
 from pyrsistent import pmap
-
-from characteristic import attributes
 
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
@@ -55,64 +50,6 @@ class SimpleCountingProxy(object):
             return method(*args, **kwargs)
         return counting_proxy
 
-@attributes(["clock", "reactor"])
-class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
-    """
-    This is an automatic clock, which schedules itself to advance whenever
-    there is a pending call.
-
-    :ivar Clock clock: The underlying clock that gets all calls proxied to it.
-        This clock is advanced with every call to callLater.
-    :ivar IReactorTime reactor: This ``IReactorTime`` provider is used to
-        provide an alternate context to advance the clock from. It is not
-        realistic to advance the clock from the context that calls
-        ``callLater``, so we require a different context to advance this clock
-        from.
-    :ivar bool _advanced_scheduled: boolean indicating if the clock is
-        currently scheduled to advance. Protects against scheduling _advance()
-        twice.
-    """
-    def __init__(self):
-        self._advance_scheduled = False
-
-    def _advance(self):
-        """
-        Advance the underlying clock once up to the nearest pending delayed
-        call. Then schedule the clock for another update.
-        """
-        delayed_calls = self.clock.getDelayedCalls()
-        if delayed_calls:
-            next_time = min(t.getTime() for t in delayed_calls)
-            diff = next_time - self.clock.seconds()
-            self.clock.advance(diff)
-        self._advance_scheduled = False
-        self._schedule()
-
-    def _schedule(self):
-        """
-        Schedule this clock to be advanced in a different context (provided by
-        self.reactor). Only schedule if there are pending ``DelayedCalls``.
-        """
-        if not self._advance_scheduled and self.clock.getDelayedCalls():
-            self._advance_scheduled = True
-            self.reactor.callLater(0.0, self._advance)
-
-    def callLater(self, when, what, *a, **kw):
-        """
-        Queue up the later call on the underlying ``Clock``, and then schedule
-        this clock for advancement.
-        """
-        d = self.clock.callLater(when, what, *a, **kw)
-        # It is not realistic to call self.clock.advance(when) in the current
-        # context. In practice callLater _always_ schedules work on a different
-        # context. Use a different ``IReactorTime`` provider to schedule the
-        # advancement of this clock at a different time.
-        self._schedule()
-        return d
-
-    def callLaterWithoutAdvancing(self, when, what, *a, **kw):
-        return self.clock.callLater(when, what, *a, **kw)
-
 
 class APITestsMixin(APIAssertionsMixin):
     """
@@ -125,8 +62,7 @@ class APITestsMixin(APIAssertionsMixin):
         """
         Create initial objects for the ``VolumePlugin``.
         """
-        self.volume_plugin_reactor = AutomaticClock(
-            clock=Clock(), reactor=reactor)
+        self.volume_plugin_reactor = Clock()
         self.flocker_client = SimpleCountingProxy(FakeFlockerClient())
 
     def test_pluginactivate(self):
@@ -241,6 +177,25 @@ class APITestsMixin(APIAssertionsMixin):
 
         return self.create(name)
 
+    def _flush_volume_plugin_reactor_on_endpoint_render(self):
+        """
+        This method patches ``self.app`` so that after any endpoint is
+        rendered, the reactor used by the volume plugin is advanced repeatedly
+        until there are no more ``delayedCalls`` pending on the reactor.
+        """
+        real_execute_endpoint = self.app.execute_endpoint
+
+        def patched_execute_endpoint(*args, **kwargs):
+            val = real_execute_endpoint(*args, **kwargs)
+            while self.volume_plugin_reactor.getDelayedCalls():
+                pending_calls = self.volume_plugin_reactor.getDelayedCalls()
+                next_expiration = min(t.getTime() for t in pending_calls)
+                now = self.volume_plugin_reactor.seconds()
+                self.volume_plugin_reactor.advance(
+                    max(0.0, next_expiration - now))
+            return val
+        self.patch(self.app, 'execute_endpoint', patched_execute_endpoint)
+
     def test_mount(self):
         """
         ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
@@ -254,11 +209,11 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
 
+        self._flush_volume_plugin_reactor_on_endpoint_render()
+
         # Pretend that it takes 5 seconds for the dataset to get established on
-        # Node A. Attaching this to the _clock so that this does _not_ advance
-        # time, but merely waits for other callLater calls to self.reactor to
-        # advance the clock.
-        self.volume_plugin_reactor.callLaterWithoutAdvancing(
+        # Node A.
+        self.volume_plugin_reactor.callLater(
             5.0, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
@@ -278,6 +233,7 @@ class APITestsMixin(APIAssertionsMixin):
             self.assertLess(
                 self.flocker_client.num_calls('list_datasets_state'), 20)
         d.addCallback(final_assertions)
+
         return d
 
     def test_mount_timeout(self):
@@ -294,11 +250,11 @@ class APITestsMixin(APIAssertionsMixin):
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
             dataset_id=dataset_id)
 
+        self._flush_volume_plugin_reactor_on_endpoint_render()
+
         # Pretend that it takes 500 seconds for the dataset to get established
-        # on Node A. This should be longer than our timeout.  Attaching this to
-        # the _clock so that this does _not_ advance time, but merely waits for
-        # other callLater calls to self.reactor to advance the clock.
-        self.volume_plugin_reactor.callLaterWithoutAdvancing(
+        # on Node A. This should be longer than the timeout.
+        self.volume_plugin_reactor.callLater(
             500.0, self.flocker_client.synchronize_state)
 
         d.addCallback(lambda _:
