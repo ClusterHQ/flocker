@@ -8,7 +8,7 @@ from uuid import uuid4, UUID
 
 from twisted.web.http import OK
 from twisted.internet import reactor
-from twisted.internet.task import Clock, deferLater
+from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
 from twisted.internet.interfaces import IReactorTime
 
@@ -19,7 +19,6 @@ from characteristic import attributes
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
-from ...node.agents.test.test_blockdevice import CountingProxy
 
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
