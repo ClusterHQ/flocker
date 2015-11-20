@@ -30,6 +30,8 @@ from ._ssh import (
 )
 from ._effect import sequence
 
+from ..common import retry_effect_with_timeout
+
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
 from flocker.common.version import (
