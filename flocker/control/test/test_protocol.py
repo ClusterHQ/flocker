@@ -42,7 +42,7 @@ from .._protocol import (
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
     AGENT_CONNECTED, CachingEncoder, _caching_encoder,
-    SetNodeEraCommand,
+    SetNodeEraCommand, timeout_for_protocol,
 )
 from .._clusterstate import ClusterStateService
 from .. import (
@@ -610,6 +610,7 @@ class ControlAMPTests(ControlTestCase):
         timestamp is refreshed to prevent previously applied state from
         expiring.
         """
+        self.protocol.makeConnection(StringTransportWithAbort())
         cluster_state = self.control_amp_service.cluster_state
 
         # Deliver some initial state (T1) which can be expected to be
@@ -1197,7 +1198,10 @@ class AgentLocatorTests(SynchronousTestCase):
         """
         fake_agent = FakeAgent()
         self.patch(fake_agent, 'logger', logger)
-        locator = _AgentLocator(agent=fake_agent)
+        reactor = Clock()
+        protocol = AgentAMP(reactor, fake_agent)
+        locator = _AgentLocator(
+            agent=fake_agent, timeout=timeout_for_protocol(reactor, protocol))
         self.assertIs(logger, locator.logger)
 
 
@@ -1214,9 +1218,12 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         """
         fake_control_amp_service = build_control_amp_service(self)
         self.patch(fake_control_amp_service, 'logger', logger)
+        reactor = Clock()
+        protocol = ControlAMP(reactor, fake_control_amp_service)
         locator = ControlServiceLocator(
-            reactor=Clock(),
-            control_amp_service=fake_control_amp_service
+            reactor=reactor,
+            control_amp_service=fake_control_amp_service,
+            timeout=timeout_for_protocol(reactor, protocol)
         )
         self.assertIs(logger, locator.logger)
 
@@ -1290,7 +1297,7 @@ class PingTestsMixin(object):
         pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
         for i in range(expected_pings):
             reactor.advance(PING_INTERVAL.total_seconds())
-            peer.callRemote(NoOp())  # Keep the other side alive past its timeout
+            peer.callRemote(NoOp)  # Keep the other side alive past its timeout
             pump.flush()
         self.assertEqual(locator.noops, expected_pings)
 
