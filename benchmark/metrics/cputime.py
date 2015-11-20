@@ -35,12 +35,18 @@ _GET_CPUTIME_COMMAND = [
 ]
 
 
-class _CPUParser(LineOnlyReceiver):
+class CPUParser(LineOnlyReceiver):
+    """
+    Handler for the output lines returned from the cpu time command.
+    """
 
     def __init__(self):
         self.result = {}
 
     def lineReceived(self, line):
+        """
+        Handle a single line output from the cpu time command.
+        """
         # Lines are like:
         #
         # flocker-control 1-00:03:41
@@ -66,12 +72,26 @@ class _CPUParser(LineOnlyReceiver):
 
 
 class SSHRunner:
+    """
+    Run a command using ssh.
+
+    :ivar reactor: Twisted Reactor.
+    :ivar user: Remote user name.
+    """
 
     def __init__(self, reactor, user=b'root'):
         self.reactor = reactor
         self.user = user
 
     def run(self, node, command_args, handle_stdout):
+        """
+        Run a command using SSH.
+
+        :param Node node: Node to run command on.
+        :param [str] command_args: List of command line arguments.
+        :param callable handle_stdout: Function to handle each line of output.
+        :return: Deferred, firing when complete.
+        """
         d = run_ssh(
             self.reactor,
             self.user,
@@ -84,10 +104,16 @@ class SSHRunner:
 
 def get_node_cpu_times(runner, node, processes):
     """
-    :return: A dictionary mapping process names to elapsed cpu time.  If
-        an error occurs, returns None (after logging error).
+    Get the CPU times for processes running on a node.
+
+    :param runner: A method of running a command on a node.
+    :param node: A node to run the command on.
+    :param processes: An iterator of process names to monitor.
+    :return: Deferred firing with a dictionary mapping process names to
+        elapsed cpu time.  If an error occurs, returns None (after
+        logging error).
     """
-    parser = _CPUParser()
+    parser = CPUParser()
     d = runner.run(
         node,
         _GET_CPUTIME_COMMAND + [b",".join(processes)],
@@ -98,14 +124,34 @@ def get_node_cpu_times(runner, node, processes):
     return d
 
 
-def _get_cluster_cpu_times(clock, nodes, runner, processes):
+def get_cluster_cpu_times(clock, runner, nodes, processes):
+    """
+    Get the CPU times for processes running on a cluster.
+
+    :param clock: Twisted Reactor.
+    :param runner: A method of running a command on a node.
+    :param node: Node to run the command on.
+    :param processes: An iterator of process names to monitor.
+    :return: Deferred firing with a dictionary mapping process names to
+        elapsed cpu time.  If an error occurs, returns None (after
+        logging error).
+    """
     return gather_deferreds(list(
         get_node_cpu_times(runner, node, processes)
         for node in nodes
     ))
 
 
-def _compute_change(labels, before, after):
+def compute_change(labels, before, after):
+    """
+    Compute the difference between times retrieved ast different times.
+
+    :param [str] labels: Label for each result.
+    :param before: Times collected per process name for time 0.
+    :param after: Times collected per process name for time 1.
+    :return: Dictionary mapping labels to dictionaries mapping process
+        names to elapsed CPU time between measurements.
+    """
     result = {}
     for (label, before, after) in zip(labels, before, after):
         if before is None or after is None:
@@ -145,8 +191,8 @@ class CPUTime(object):
 
         # Obtain elapsed CPU time before test
         d.addCallback(
-            lambda _ignored: _get_cluster_cpu_times(
-                self.clock, nodes, self.runner, self.processes)
+            lambda _ignored: get_cluster_cpu_times(
+                self.clock, self.runner, nodes, self.processes)
         ).addCallback(before_cpu.extend)
 
         # Perform the test function
@@ -154,13 +200,13 @@ class CPUTime(object):
 
         # Obtain elapsed CPU time after test
         d.addCallback(
-            lambda _ignored: _get_cluster_cpu_times(
-                self.clock, nodes, self.runner, self.processes)
+            lambda _ignored: get_cluster_cpu_times(
+                self.clock, self.runner, nodes, self.processes)
         ).addCallback(after_cpu.extend)
 
         # Create the result from before and after times
         d.addCallback(
-            lambda _ignored: _compute_change(
+            lambda _ignored: compute_change(
                 (node.public_address.exploded for node in nodes),
                 before_cpu, after_cpu
             )
