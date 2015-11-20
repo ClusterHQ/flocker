@@ -66,25 +66,25 @@ class _CPUParser(LineOnlyReceiver):
 
 class SSHRunner:
 
-    def __init__(self, reactor, node, user=b'root'):
+    def __init__(self, reactor, user=b'root'):
         self.reactor = reactor
-        self.node = node
         self.user = user
 
-    def run(self, command_args, handle_stdout):
+    def run(self, node, command_args, handle_stdout):
         d = run_ssh(
             self.reactor,
             self.user,
-            self.node.public_address.exploded,
+            node.public_address.exploded,
             command_args,
             handle_stdout=handle_stdout,
         )
         return d
 
 
-def get_node_cpu_times(runner, processes):
+def get_node_cpu_times(runner, node, processes):
     parser = _CPUParser()
     d = runner.run(
+        node,
         _GET_CPUTIME_COMMAND + [b",".join(processes)],
         handle_stdout=parser.lineReceived,
     )
@@ -94,7 +94,7 @@ def get_node_cpu_times(runner, processes):
 
 def _get_cluster_cpu_times(clock, nodes, runner, processes):
     return gather_deferreds(list(
-        get_node_cpu_times(runner(clock, node), processes)
+        get_node_cpu_times(runner, node, processes)
         for node in nodes
     ))
 
@@ -109,14 +109,22 @@ def _compute_change(labels, before, after):
 
 
 @implementer(IMetric)
-class CPUTime(PClass):
+class CPUTime(object):
     """
     Measure the elapsed CPU time during an operation.
     """
-    clock = field(mandatory=True)
-    control_service = field(mandatory=True)
-    runner = field(initial=SSHRunner)
-    processes = field(initial=_FLOCKER_PROCESSES)
+
+    def __init__(
+        self, clock, control_service, runner=None,
+        processes=_FLOCKER_PROCESSES
+    ):
+        self.clock = clock
+        self.control_service = control_service
+        if runner is None:
+            self.runner = SSHRunner(clock)
+        else:
+            self.runner = runner
+        self.processes = processes
 
     def measure(self, f, *a, **kw):
         nodes = []

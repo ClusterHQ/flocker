@@ -1,11 +1,17 @@
 import subprocess
+from uuid import uuid4
 
+from ipaddr import IPAddress
+
+from twisted.internet.task import Clock
 from twisted.internet.threads import deferToThread
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from benchmark.metrics.cputime import (
-    _CPUParser, get_node_cpu_times, _compute_change
+    CPUTime, _CPUParser, get_node_cpu_times, _compute_change
 )
+
+from flocker.apiclient import FakeFlockerClient, Node
 
 
 class CPUParseTests(SynchronousTestCase):
@@ -62,7 +68,8 @@ class _LocalRunner:
         for line in output.split('\n'):
             handle_stdout(line)
 
-    def run(self, command_args, handle_stdout):
+    def run(self, node, command_args, handle_stdout):
+        # Ignore the `node` parameter, we just run locally.
         return deferToThread(self._run, command_args, handle_stdout)
 
 
@@ -117,5 +124,10 @@ class ComputeChangesTests(SynchronousTestCase):
 
 class CPUTimeTests(TestCase):
 
-    # XXX
-    pass
+    def test_cpu_time(self):
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        metric = CPUTime(
+            Clock(), FakeFlockerClient([node1, node2]),
+            _LocalRunner(), processes=['init'])
+        d = metric.measure()
