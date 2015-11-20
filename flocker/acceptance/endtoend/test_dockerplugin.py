@@ -182,7 +182,7 @@ class DockerPluginTests(AsyncTestCase):
             self, node.public_address, host_port, expected_response=data))
         return d
 
-    @flaky('FLOC-3346')
+    @flaky(u'FLOC-3346')
     @require_cluster(1)
     def test_create_container_with_v2_plugin_api(self, cluster):
         """
@@ -372,7 +372,7 @@ class DockerPluginTests(AsyncTestCase):
             expected_response=data))
         return d
 
-    @flaky('FLOC-2977')
+    @flaky(u'FLOC-2977')
     @require_cluster(1)
     def test_move_volume_single_node(self, cluster):
         """
@@ -382,7 +382,7 @@ class DockerPluginTests(AsyncTestCase):
         """
         return self._test_move(cluster, cluster.nodes[0], cluster.nodes[0])
 
-    @flaky('FLOC-3346')
+    @flaky(u'FLOC-3346')
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """

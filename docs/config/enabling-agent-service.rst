@@ -9,6 +9,10 @@ The Flocker agents, the ``flocker-dataset-agent`` and the ``flocker-container-ag
 :ref:`docker-plugin` (``flocker-docker-plugin``) is also installed on each node in the cluster.
 The instructions below include enabling and testing the plugin, which allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
+.. note::
+   Flocker's container management features depend on Docker.
+   You will need to make sure `Docker (at least 1.8) is installed`_ and running before you enable ``flocker-container-agent``.
+
 CentOS 7
 ========
 
@@ -62,3 +66,5 @@ Next Steps
 
 The configuration of your Flocker cluster is now complete.
 To learn about controlling and administering Flocker, please move on to :ref:`controlling-flocker`.
+
+.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/

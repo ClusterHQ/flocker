@@ -63,6 +63,8 @@ class DatasetStates(Names):
     States that a ``Dataset`` can be in.
 
     """
+    # Exists, but attached elsewhere
+    ATTACHED_ELSEWHERE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -261,20 +263,9 @@ PROFILE_NAME = Field.forTypes(
 
 CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:create",
-    [DATASET, MOUNTPOINT],
+    [DATASET],
     [],
     u"A block-device-backed dataset is being created.",
-)
-
-# Really this is the successful completion of CREATE_BLOCK_DEVICE_DATASET.  It
-# might be nice if these fields could just be added to the running action
-# instead of being logged as a separate message (but still in the correct
-# context).  Or maybe this is fine as-is.
-BLOCK_DEVICE_DATASET_CREATED = MessageType(
-    u"agent:blockdevice:created",
-    [BLOCK_DEVICE_PATH, BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
-     BLOCK_DEVICE_COMPUTE_INSTANCE_ID],
-    u"A block-device-backed dataset has been created.",
 )
 
 DESTROY_BLOCK_DEVICE_DATASET = ActionType(
@@ -669,7 +660,7 @@ class AttachVolume(PRecord):
     @property
     def eliot_action(self):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
-                             blockdevice_id=self.blockdevice_id)
+                             block_device_id=self.blockdevice_id)
 
     def run(self, deployer):
         """
@@ -784,11 +775,6 @@ def allocated_size(allocation_unit, requested_size):
         return requested_size
 
 
-# Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes. Also consider splitting the
-# CreateVolume portion of the IStateChange into 2 IStateChanges, one for
-# creating a volume with a profile, and one for creating a volume without a
-# profile. FLOC-1771
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
     """
@@ -796,23 +782,25 @@ class CreateBlockDeviceDataset(PRecord):
     initialized filesystem.
 
     :ivar Dataset dataset: The dataset for which to create a block device.
-    :ivar FilePath mountpoint: The path at which to mount the created device.
     """
     dataset = field(mandatory=True, type=Dataset)
-    mountpoint = field(mandatory=True, type=FilePath)
 
     @property
     def eliot_action(self):
         return CREATE_BLOCK_DEVICE_DATASET(
             _logger,
-            dataset=self.dataset, mountpoint=self.mountpoint
+            dataset=self.dataset,
         )
 
     def _create_volume(self, deployer):
         """
         Create the volume using the backend API. This method will create the
         volume with a profile if the metadata on the volume suggests that we
-        should
+        should.
+
+        We should consider splitting this into two separate IStateChanges,
+        one for creating a volume with a profile, and one for creating a
+        volume without a profile.
 
         :param deployer: The deployer to use to create the volume.
 
@@ -854,34 +842,7 @@ class CreateBlockDeviceDataset(PRecord):
         except:
             return fail()
 
-        volume = self._create_volume(deployer)
-
-        # This duplicates AttachVolume now.
-        volume = api.attach_volume(
-            volume.blockdevice_id,
-            attach_to=api.compute_instance_id(),
-        )
-        device = api.get_device_path(volume.blockdevice_id)
-
-        create = CreateFilesystem(device=device, filesystem=u"ext4")
-        d = run_state_change(create, deployer)
-
-        mount = MountBlockDevice(dataset_id=volume.dataset_id,
-                                 blockdevice_id=volume.blockdevice_id,
-                                 mountpoint=self.mountpoint)
-        d.addCallback(lambda _: run_state_change(mount, deployer))
-
-        def passthrough(result):
-            BLOCK_DEVICE_DATASET_CREATED(
-                block_device_path=device,
-                block_device_id=volume.blockdevice_id,
-                dataset_id=volume.dataset_id,
-                block_device_size=volume.size,
-                block_device_compute_instance_id=volume.attached_to,
-            ).write(_logger)
-            return result
-        d.addCallback(passthrough)
-        return d
+        return self._create_volume(deployer)
 
 
 class IBlockDeviceAsyncAPI(Interface):
@@ -1470,6 +1431,13 @@ class BlockDeviceDeployer(PRecord):
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
                     )
+                else:
+                    datasets[dataset_id] = DiscoveredDataset(
+                        state=DatasetStates.ATTACHED_ELSEWHERE,
+                        dataset_id=dataset_id,
+                        maximum_size=volume.size,
+                        blockdevice_id=volume.blockdevice_id,
+                    )
 
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
@@ -1514,8 +1482,11 @@ class BlockDeviceDeployer(PRecord):
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
             return in_parallel(changes=[])
-
-        not_in_use = NotInUseDatasets(local_node_state, configuration.leases)
+        not_in_use = NotInUseDatasets(
+            node_uuid=self.node_uuid,
+            local_applications=local_node_state.applications,
+            leases=configuration.leases,
+        )
 
         configured_manifestations = this_node_config.manifestations
 
@@ -1572,7 +1543,6 @@ class BlockDeviceDeployer(PRecord):
         creates = list(
             CreateBlockDeviceDataset(
                 dataset=manifestation.dataset,
-                mountpoint=self._mountpath_for_manifestation(manifestation)
             )
             for manifestation
             in manifestations_to_create

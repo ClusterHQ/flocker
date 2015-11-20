@@ -10,6 +10,8 @@ Getting Involved
    contributing
    plugins/index
    acceptance-testing
+   functional-testing
+   benchmarking
    client-testing
    infrastructure/index
    appendix
