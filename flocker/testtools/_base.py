@@ -83,6 +83,23 @@ class AsyncTestCase(testtools.TestCase):
         # to async.
         return make_temporary_directory(self).child('temp').path
 
+    def run(self, *args, **kwargs):
+        """
+        Run ``AsyncTestCase``
+        """
+        self._reset()
+        super(AsyncTestCase, self).run(*args, **kwargs)
+
+    def _reset(self):
+        """
+        Reset test case so it can be run again.
+        """
+        # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
+        # Don't want details from last run.
+        self.getDetails().clear()
+        self._TestCase__setup_called = False
+        self._TestCase__teardown_called = False
+
 
 def _path_for_test_id(test_id, max_segment_length=32):
     """
