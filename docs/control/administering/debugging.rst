@@ -20,7 +20,7 @@ Logs from the Docker containers can be viewed using `the Docker CLI <https://doc
 Ubuntu
 ^^^^^^
 
-Logs from the Flocker processes running on the nodes can be found in the :file:`var/log/flocker` directory.
+Logs from the Flocker processes running on the nodes can be found in the :file:`/var/log/flocker` directory.
 
 CentOS 7
 ^^^^^^^^
