@@ -120,7 +120,7 @@ class ContainerAPITests(TestCase):
         )
         return d
 
-    @flaky('FLOC-2488')
+    @flaky(u'FLOC-2488')
     @require_moving_backend
     @require_cluster(2)
     def test_move_container_with_dataset(self, cluster):
