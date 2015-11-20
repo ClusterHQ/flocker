@@ -60,34 +60,50 @@ class SimpleCountingProxy(object):
 @attributes(["clock", "reactor"])
 class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
     """
-    This is an automatic clock, which advances itself anytime callLater is
-    called.
+    This is an automatic clock, which schedules itself to advance whenever
+    there is a pending call.
 
     :ivar Clock clock: The underlying clock that gets all calls proxied to it.
         This clock is advanced with every call to callLater.
     :ivar IReactorTime reactor: This ``IReactorTime`` provider is used to
         provide an alternate context to advance the clock from. It is not
         realistic to advance the clock from the context that calls
-        ``callLater``.
+        ``callLater``, so we require a different context to advance this clock
+        from.
+    :ivar bool _scheduled: boolean indicating if the clock is currently
+        scheduled to advance.
     """
     def __init__(self):
         self._scheduled = False
         pass
 
     def _advance(self):
+        """
+        Advance the underlying clock once up to the nearest pending delayed
+        call. Then schedule the clock for another update.
+        """
         self._scheduled = False
-        if self.clock.getDelayedCalls():
-            next_time = min(t.getTime() for t in self.clock.getDelayedCalls())
+        delayed_calls = self.clock.getDelayedCalls()
+        if delayed_calls:
+            next_time = min(t.getTime() for t in delayed_calls)
             diff = next_time - self.clock.seconds()
             self.clock.advance(diff)
         self._schedule()
 
     def _schedule(self):
+        """
+        Schedule this clock to be advanced in a different context (provided by
+        self.reactor). Only schedule if there are pending ``DelayedCalls``.
+        """
         if not self._scheduled and self.clock.getDelayedCalls():
             self._scheduled = True
             self.reactor.callLater(0.0, self._advance)
 
     def callLater(self, when, what, *a, **kw):
+        """
+        Queue up the later call on the underlying ``Clock``, and then schedule
+        this clock for advancement.
+        """
         d = self.clock.callLater(when, what, *a, **kw)
         # It is not realistic to call self.clock.advance(when) in the current
         # context. In practice callLater _always_ schedules work on a different
