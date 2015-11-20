@@ -17,6 +17,10 @@ Eliot also includes a tool called ``eliot-prettyprint`` which renders messages i
 
 Logs from the Docker containers can be viewed using `the Docker CLI <https://docs.docker.com/reference/commandline/cli/#logs>`_.
 
+To view the Flocker logs, (as described below for :ref:`ubuntu-logs` or :ref:`centos-logs`), you will need to be logged in as root.
+
+.. _ubuntu-logs:
+
 Ubuntu
 ^^^^^^
 
@@ -28,6 +32,8 @@ For example, to find all logged errors for ``flocker-dataset-agent``, run:
 .. prompt:: bash [root@ubuntu]#
 
    cat /var/log/flocker/flocker-dataset-agent.log
+
+.. _centos-logs:
 
 CentOS 7
 ^^^^^^^^
