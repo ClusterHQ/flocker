@@ -2027,8 +2027,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
     def test_dataset_elsewhere(self):
         """
-        If block device elsewhere but is part of the configuration for the
-        deployer's node, no state changes are calculated.
+        If block device is attached elsewhere but is part of the configuration
+        for the deployer's node, no state changes are calculated.
         """
         uuid = uuid4()
         dataset_id = unicode(uuid4())
