@@ -1290,6 +1290,7 @@ class PingTestsMixin(object):
         pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
         for i in range(expected_pings):
             reactor.advance(PING_INTERVAL.total_seconds())
+            peer.callRemote(NoOp())  # Keep the other side alive past its timeout
             pump.flush()
         self.assertEqual(locator.noops, expected_pings)
 

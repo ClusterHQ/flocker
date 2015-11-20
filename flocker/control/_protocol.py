@@ -340,8 +340,7 @@ class ControlServiceLocator(CommandLocator):
         """
         Do normal responder lookup and also record this activity.
         """
-        if self.timeout_reset is not None:
-            self.timeout_reset()
+        self.timeout_reset()
         self._source.set_last_activity(self._reactor.seconds())
         return CommandLocator.locateResponder(self, name)
 
@@ -380,25 +379,12 @@ class ControlServiceLocator(CommandLocator):
         return {}
 
 
-class FlockerServiceAMP(AMP):
-    """
-    Base AMP protocol that provides a method to forcefully close the
-    transport connection.
-    """
-    def __init__(self, reactor, *args, **kwargs):
-        self._timeout = Timeout(
-            reactor, 2 * PING_INTERVAL.seconds, self.close_connection)
-        AMP.__init__(self, *args, **kwargs)
-        locator = kwargs.pop('locator', None)
-        if locator:
-            locator.timeout_reset = self._timeout.reset
-
-    def close_connection(self):
-        if self.transport is not None:
-            self.transport.abortConnection()
+def timeout_for_protocol(reactor, protocol):
+    return Timeout(reactor, 2 * PING_INTERVAL.seconds,
+                   lambda: protocol.transport.abortConnection())
 
 
-class ControlAMP(FlockerServiceAMP):
+class ControlAMP(AMP):
     """
     AMP protocol for control service server.
 
@@ -411,19 +397,20 @@ class ControlAMP(FlockerServiceAMP):
         :param ControlAMPService control_amp_service: The service managing AMP
             connections to the control service.
         """
-        locator = ControlServiceLocator(reactor, control_amp_service)
-        FlockerServiceAMP.__init__(self, reactor, locator=locator)
+        locator = ControlServiceLocator(reactor, control_amp_service,
+                                        timeout_for_protocol(reactor, self))
+        AMP.__init__(self, reactor, locator=locator)
 
         self.control_amp_service = control_amp_service
         self._pinger = Pinger(reactor)
 
     def connectionMade(self):
-        FlockerServiceAMP.connectionMade(self)
+        AMP.connectionMade(self)
         self.control_amp_service.connected(self)
         self._pinger.start(self, PING_INTERVAL)
 
     def connectionLost(self, reason):
-        FlockerServiceAMP.connectionLost(self, reason)
+        AMP.connectionLost(self, reason)
         self.control_amp_service.disconnected(self)
         self._pinger.stop()
 
