@@ -271,20 +271,29 @@ def _get_result_type(result):
 
     :param testtools.TestResult result: A TestResult that has had exactly
         one test run on it.
+    :raise ValueError: If ``result`` has run more than one test, or has more
+        than one kind of result.
     :return: A _ResultType for that result.
     """
     if result.testsRun != 1:
         raise ValueError('%r has run %d tests, 1 expected' % (
             result, result.testsRun))
 
+    total = sum(map(len, [
+        result.errors, result.failures, result.unexpectedSuccesses,
+        result.expectedFailures, result.skip_reasons]))
+    if total > 1:
+        raise ValueError(
+            '%r has more than one kind of result: %r found' % (result, total))
+
     if len(result.errors) > 0:
         return _ResultType.error
     elif len(result.failures) > 0:
         return _ResultType.failure
-    elif len(result.expectedFailures) > 0:
-        return _ResultType.expected_failure
     elif len(result.unexpectedSuccesses) > 0:
         return _ResultType.unexpected_success
+    elif len(result.expectedFailures) > 0:
+        return _ResultType.expected_failure
     elif len(result.skip_reasons) > 0:
         return _ResultType.skip
     else:
