@@ -71,7 +71,21 @@ class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
         ``callLater``.
     """
     def __init__(self):
+        self._scheduled = False
         pass
+
+    def _advance(self):
+        self._scheduled = False
+        if self.clock.getDelayedCalls():
+            next_time = min(t.getTime() for t in self.clock.getDelayedCalls())
+            diff = next_time - self.clock.seconds()
+            self.clock.advance(diff)
+        self._schedule()
+
+    def _schedule(self):
+        if not self._scheduled and self.clock.getDelayedCalls():
+            self._scheduled = True
+            self.reactor.callLater(0.0, self._advance)
 
     def callLater(self, when, what, *a, **kw):
         d = self.clock.callLater(when, what, *a, **kw)
@@ -79,7 +93,7 @@ class AutomaticClock(proxyForInterface(IReactorTime, "clock")):
         # context. In practice callLater _always_ schedules work on a different
         # context. Use a different ``IReactorTime`` provider to schedule the
         # advancement of this clock at a different time.
-        self.reactor.callLater(0.0, self.clock.advance, when)
+        self._schedule()
         return d
 
 
@@ -273,7 +287,7 @@ class APITestsMixin(APIAssertionsMixin):
                           b"POST", b"/VolumeDriver.Mount",
                           {u"Name": name}, OK,
                           {u"Err": u"Timed out waiting for dataset to mount.",
-                           u"Mountpoint": None}))
+                           u"Mountpoint": u""}))
         return d
 
     def test_path(self):

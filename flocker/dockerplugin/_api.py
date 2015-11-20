@@ -15,6 +15,7 @@ from bitmath import GiB
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import deferLater
+from twisted.internet.defer import CancelledError
 
 from klein import Klein
 
@@ -74,7 +75,8 @@ class VolumePlugin(object):
     can't be sure they won't change things in minor ways. We do validate
     outputs to ensure we output the documented requirements.
     """
-    _POLL_INTERVAL = 0.05
+    _POLL_INTERVAL = 1.0
+    _MOUNT_TIMEOUT = 120.0
 
     app = Klein()
 
@@ -235,6 +237,24 @@ class VolumePlugin(object):
             getting_path.addCallback(got_path)
             return getting_path
         d.addCallback(get_state)
+
+        def timeout():
+            d.cancel()
+
+        delayed_timeout = self._reactor.callLater(self._MOUNT_TIMEOUT, timeout)
+
+        def abort_timeout(passthrough):
+            if delayed_timeout.active():
+                delayed_timeout.cancel()
+            return passthrough
+        d.addBoth(abort_timeout)
+
+        def handleCancel(failure):
+            failure.trap(CancelledError)
+            return {u"Err": u"Timed out waiting for dataset to mount.",
+                    u"Mountpoint": u""}
+
+        d.addErrback(handleCancel)
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])
