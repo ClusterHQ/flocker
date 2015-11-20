@@ -880,8 +880,9 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
     def test_only_remote_device(self):
         """
-        ``BlockDeviceDeployer.discover_state`` does not report remotely
-        attached volumes as datasets.
+        If a volume is attached to a remote node, the dataset returned by
+        ``BlockDeviceDeployer.discover_state`` is marked as
+        ``ATTACHED_ELSEWHERE``.
         """
         dataset_id = uuid4()
         volume = self.api.create_volume(
