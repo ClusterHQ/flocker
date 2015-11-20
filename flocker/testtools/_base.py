@@ -87,7 +87,8 @@ class AsyncTestCase(testtools.TestCase):
         """
         Run ``AsyncTestCase``
         """
-        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
+        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879.
+        # Constructed tests are called more than once when run with `trial -u`.
         _reset_case(self)
         super(AsyncTestCase, self).run(*args, **kwargs)
 
