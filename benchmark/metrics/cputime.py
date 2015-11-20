@@ -18,6 +18,7 @@ _FLOCKER_PROCESSES = {
     u'flocker-control',
     u'flocker-dataset-agent',
     u'flocker-container-agent',
+    u'flocker-docker-plugin',
 }
 
 
