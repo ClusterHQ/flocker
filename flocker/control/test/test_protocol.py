@@ -517,7 +517,7 @@ class ControlAMPTests(ControlTestCase):
         self.assertFalse(self.protocol.transport.aborted)
         self.reactor.advance(PING_INTERVAL.seconds * 1.9)
         self.client.callRemote(NoOp)
-        self.assertFalse(self.protocol.transport.aborted)
+        self.assertEqual(self.protocol.transport.aborted, False)
 
     def test_connection_closed_on_no_activity(self):
         """
@@ -529,7 +529,7 @@ class ControlAMPTests(ControlTestCase):
         self.client.callRemote(NoOp)
         self.assertFalse(self.protocol.transport.aborted)
         advance_rest(self.reactor)
-        self.assertTrue(self.protocol.transport.aborted)
+        self.assertEqual(self.protocol.transport.aborted, True)
 
     def test_connection_made(self):
         """
@@ -980,12 +980,23 @@ class AgentClientTests(SynchronousTestCase):
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = AgentAMP(Clock(), self.agent)
         self.reactor = Clock()
+        self.client = AgentAMP(self.reactor, self.agent)
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
         self.server = LoopbackAMPClient(self.client.locator)
+
+    def test_connection_stays_open_on_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        self.client.makeConnection(StringTransportWithAbort())
+        advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        self.assertEqual(self.client.transport.aborted, False)
 
     def test_connection_closed_on_no_activity(self):
         """
@@ -995,11 +1006,8 @@ class AgentClientTests(SynchronousTestCase):
         self.client.makeConnection(StringTransportWithAbort())
         advance_some(self.reactor)
         self.server.callRemote(NoOp)
-        advance_rest(self.reactor)
-        #self.protocol.connectionLost(Failure(ConnectionLost()))
-        #import pdb;pdb.set_trace()
-        self.fail("not implemented yet")
-        #self.client.connectionLost(Failure(ConnectionLost()))
+        self.reactor.advance(PING_INTERVAL.seconds * 2)
+        self.assertEqual(self.client.transport.aborted, True)
 
     def test_initially_not_connected(self):
         """
