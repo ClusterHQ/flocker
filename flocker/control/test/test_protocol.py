@@ -42,7 +42,7 @@ from .._protocol import (
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
     AGENT_CONNECTED, CachingEncoder, _caching_encoder,
-    SetNodeEraCommand,
+    SetNodeEraCommand, timeout_for_protocol,
 )
 from .._clusterstate import ClusterStateService
 from .. import (
@@ -80,7 +80,7 @@ class LoopbackAMPClient(object):
             will handle commands sent using ``callRemote``.
         """
         self._locator = command_locator
-        self.transport = StringTransport()
+        self.transport = StringTransportWithAbort()
 
     def callRemote(self, command, **kwargs):
         """
@@ -481,6 +481,19 @@ class ControlTestCase(SynchronousTestCase):
         )
 
 
+class StringTransportWithAbort(StringTransport):
+    """
+    A ``StringTransport`` that implements ``abortConnection``.
+    """
+    def __init__(self, *args, **kwargs):
+        self.aborted = False
+        StringTransport.__init__(self, *args, **kwargs)
+
+    def abortConnection(self):
+        self.aborted = True
+        self.connected = False
+
+
 class ControlAMPTests(ControlTestCase):
     """
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
@@ -493,6 +506,37 @@ class ControlAMPTests(ControlTestCase):
         self.protocol = ControlAMP(self.reactor, self.control_amp_service)
         self.client = LoopbackAMPClient(self.protocol.locator)
 
+    def test_connection_stays_open_on_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        self.protocol.makeConnection(StringTransportWithAbort())
+        initially_aborted = self.protocol.transport.aborted
+        advance_some(self.reactor)
+        self.client.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        # This NoOp will reset the timeout.
+        self.client.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        later_aborted = self.protocol.transport.aborted
+        self.assertEqual(
+            dict(initially=initially_aborted, later=later_aborted),
+            dict(initially=False, later=False)
+        )
+
+    def test_connection_closed_on_no_activity(self):
+        """
+        If no communication has been received for long enough that we expire
+        cluster state, the silent connection is forcefully closed.
+        """
+        self.protocol.makeConnection(StringTransportWithAbort())
+        advance_some(self.reactor)
+        self.client.callRemote(NoOp)
+        self.assertFalse(self.protocol.transport.aborted)
+        self.reactor.advance(PING_INTERVAL.seconds * 2)
+        self.assertEqual(self.protocol.transport.aborted, True)
+
     def test_connection_made(self):
         """
         When a connection is made the ``ControlAMP`` is added to the services
@@ -501,7 +545,7 @@ class ControlAMPTests(ControlTestCase):
         marker = object()
         self.control_amp_service.connections.add(marker)
         current = self.control_amp_service.connections.copy()
-        self.protocol.makeConnection(StringTransport())
+        self.protocol.makeConnection(StringTransportWithAbort())
         self.assertEqual((current, self.control_amp_service.connections),
                          ({marker}, {marker, self.protocol}))
 
@@ -515,7 +559,7 @@ class ControlAMPTests(ControlTestCase):
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
 
-        self.protocol.makeConnection(StringTransport())
+        self.protocol.makeConnection(StringTransportWithAbort())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertEqual(
             sent[0],
@@ -534,7 +578,7 @@ class ControlAMPTests(ControlTestCase):
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
-        self.protocol.makeConnection(StringTransport())
+        self.protocol.makeConnection(StringTransportWithAbort())
         self.protocol.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.control_amp_service.connections, {marker})
 
@@ -570,6 +614,7 @@ class ControlAMPTests(ControlTestCase):
         timestamp is refreshed to prevent previously applied state from
         expiring.
         """
+        self.protocol.makeConnection(StringTransportWithAbort())
         cluster_state = self.control_amp_service.cluster_state
 
         # Deliver some initial state (T1) which can be expected to be
@@ -706,7 +751,7 @@ class ControlAMPServiceTests(ControlTestCase):
         connections = [ControlAMP(Clock(), service) for i in range(3)]
         initial_disconnecting = []
         for c in connections:
-            c.makeConnection(StringTransport())
+            c.makeConnection(StringTransportWithAbort())
             initial_disconnecting.append(c.transport.disconnecting)
         service.stopService()
         self.assertEqual(
@@ -942,17 +987,45 @@ class AgentClientTests(SynchronousTestCase):
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = AgentAMP(Clock(), self.agent)
+        self.reactor = Clock()
+        self.client = AgentAMP(self.reactor, self.agent)
+        self.client.makeConnection(StringTransportWithAbort())
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
         self.server = LoopbackAMPClient(self.client.locator)
+
+    def test_connection_stays_open_on_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        # This NoOp will reset the timeout.
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        self.assertEqual(self.client.transport.aborted, False)
+
+    def test_connection_closed_on_no_activity(self):
+        """
+        If no communication has been received for long enough that we expire
+        cluster state, the silent connection is forcefully closed.
+        """
+        advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 2)
+        self.assertEqual(self.client.transport.aborted, True)
 
     def test_initially_not_connected(self):
         """
         The agent does not get told a connection was made or lost before it's
         actually happened.
         """
+        self.agent = FakeAgent()
+        self.reactor = Clock()
+        self.client = AgentAMP(self.reactor, self.agent)
         self.assertEqual(self.agent, FakeAgent(is_connected=False,
                                                is_disconnected=False))
 
@@ -960,7 +1033,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         Connection made events are passed on to the agent.
         """
-        self.client.makeConnection(StringTransport())
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
@@ -968,7 +1040,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         Connection lost events are passed on to the agent.
         """
-        self.client.makeConnection(StringTransport())
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
@@ -977,7 +1048,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         AMP protocol can transmit configurations with 800 applications.
         """
-        self.client.makeConnection(StringTransport())
         actual = DeploymentState(nodes=[])
         configuration = huge_deployment()
         d = self.server.callRemote(
@@ -994,7 +1064,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         AMP protocol can transmit states with 800 applications.
         """
-        self.client.makeConnection(StringTransport())
         state = huge_state()
         d = self.server.callRemote(
             ClusterStatusCommand,
@@ -1010,7 +1079,6 @@ class AgentClientTests(SynchronousTestCase):
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
-        self.client.makeConnection(StringTransport())
         actual = DeploymentState(nodes=[])
         d = self.server.callRemote(
             ClusterStatusCommand,
@@ -1131,7 +1199,10 @@ class AgentLocatorTests(SynchronousTestCase):
         """
         fake_agent = FakeAgent()
         self.patch(fake_agent, 'logger', logger)
-        locator = _AgentLocator(agent=fake_agent)
+        reactor = Clock()
+        protocol = AgentAMP(reactor, fake_agent)
+        locator = _AgentLocator(
+            agent=fake_agent, timeout=timeout_for_protocol(reactor, protocol))
         self.assertIs(logger, locator.logger)
 
 
@@ -1148,9 +1219,12 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         """
         fake_control_amp_service = build_control_amp_service(self)
         self.patch(fake_control_amp_service, 'logger', logger)
+        reactor = Clock()
+        protocol = ControlAMP(reactor, fake_control_amp_service)
         locator = ControlServiceLocator(
-            reactor=Clock(),
-            control_amp_service=fake_control_amp_service
+            reactor=reactor,
+            control_amp_service=fake_control_amp_service,
+            timeout=timeout_for_protocol(reactor, protocol)
         )
         self.assertIs(logger, locator.logger)
 
@@ -1224,6 +1298,7 @@ class PingTestsMixin(object):
         pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
         for i in range(expected_pings):
             reactor.advance(PING_INTERVAL.total_seconds())
+            peer.callRemote(NoOp)  # Keep the other side alive past its timeout
             pump.flush()
         self.assertEqual(locator.noops, expected_pings)
 
@@ -1234,7 +1309,7 @@ class PingTestsMixin(object):
         """
         reactor = Clock()
         protocol = self.build_protocol(reactor)
-        transport = StringTransport()
+        transport = StringTransportWithAbort()
         protocol.makeConnection(transport)
         transport.clear()
         protocol.connectionLost(Failure(ConnectionDone("test, simulated")))

@@ -286,6 +286,28 @@ class NodeStateCommand(Command):
     response = []
 
 
+class Timeout(object):
+    """
+    Call the specified action after the specified delay in seconds.
+    """
+    def __init__(self, reactor, timeout, action):
+        """
+        :param IReactorTime reactor: A reactor to use to control when
+            the action is called.
+        :param int timeout: Interval in seconds to trigger the action.
+        :param callable action: The function to execute upon reaching the
+            timeout.
+        """
+        self._delay_call = reactor.callLater(timeout, action)
+        self._timeout = timeout
+
+    def reset(self):
+        """
+        Reset the delayed call to this ``Timeout``'s ``action``.
+        """
+        self._delay_call.reset(self._timeout)
+
+
 class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
@@ -294,12 +316,14 @@ class ControlServiceLocator(CommandLocator):
         the AMP connection for which this locator is being used.
     :ivar _reactor: See ``reactor`` parameter of ``__init__``
     """
-    def __init__(self, reactor, control_amp_service):
+    def __init__(self, reactor, control_amp_service, timeout):
         """
         :param IReactorTime reactor: A reactor to use to tell the time for
             activity/inactivity reporting.
         :param ControlAMPService control_amp_service: The service managing AMP
             connections to the control service.
+        :param Timeout timeout: A ``Timeout`` object to reset when a message
+            is received.
         """
         CommandLocator.__init__(self)
 
@@ -309,14 +333,17 @@ class ControlServiceLocator(CommandLocator):
         # after the connection is lost we can't receive any more changes from
         # it.
         self._source = ChangeSource()
+        self._timeout = timeout
 
         self._reactor = reactor
         self.control_amp_service = control_amp_service
 
     def locateResponder(self, name):
         """
-        Do normal responder lookup and also record this activity.
+        Do normal responder lookup, reset the connection timeout and record
+        this activity.
         """
+        self._timeout.reset()
         self._source.set_last_activity(self._reactor.seconds())
         return CommandLocator.locateResponder(self, name)
 
@@ -355,6 +382,20 @@ class ControlServiceLocator(CommandLocator):
         return {}
 
 
+def timeout_for_protocol(reactor, protocol):
+    """
+    Create a timeout for inactive AMP connections that will abort the
+    connection when the timeout is reached.
+
+    :param IReactorTime reactor: A reactor to use to control when
+        the action is called.
+    :param AMP protocol: The protocol on which inactive connections will
+        be aborted.
+    """
+    return Timeout(reactor, 2 * PING_INTERVAL.seconds,
+                   lambda: protocol.transport.abortConnection())
+
+
 class ControlAMP(AMP):
     """
     AMP protocol for control service server.
@@ -368,8 +409,10 @@ class ControlAMP(AMP):
         :param ControlAMPService control_amp_service: The service managing AMP
             connections to the control service.
         """
-        locator = ControlServiceLocator(reactor, control_amp_service)
+        locator = ControlServiceLocator(reactor, control_amp_service,
+                                        timeout_for_protocol(reactor, self))
         AMP.__init__(self, locator=locator)
+
         self.control_amp_service = control_amp_service
         self._pinger = Pinger(reactor)
 
@@ -710,12 +753,22 @@ class _AgentLocator(CommandLocator):
     """
     Command locator for convergence agent.
     """
-    def __init__(self, agent):
+    def __init__(self, agent, timeout):
         """
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
+        :param Timeout timeout: A ``Timeout`` object to reset when a message
+            is received.
         """
         CommandLocator.__init__(self)
         self.agent = agent
+        self._timeout = timeout
+
+    def locateResponder(self, name):
+        """
+        Do normal responder lookup and reset the connection timeout.
+        """
+        self._timeout.reset()
+        return CommandLocator.locateResponder(self, name)
 
     @NoOp.responder
     def noop(self):
@@ -753,7 +806,7 @@ class AgentAMP(AMP):
             operations.root@52.28.55.192
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
-        locator = _AgentLocator(agent)
+        locator = _AgentLocator(agent, timeout_for_protocol(reactor, self))
         AMP.__init__(self, locator=locator)
         self.agent = agent
         self._pinger = Pinger(reactor)
