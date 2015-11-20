@@ -36,6 +36,20 @@ These two IP addresses are used throughout the :ref:`MongoDB tutorial<tutorial-m
    This will also require you to start the node services manually.
    For more information, see :ref:`authentication`.
 
+Installing Vagrant and VirtualBox
+=================================
+
+Follow the instructions specific to your platform that are provided in the `Vagrant`_ and `VirtualBox`_ documentation.
+
+Alternatively, on OS X you can use ``brew-cask`` to install the packages using the `Homebrew`_ package manager.
+For example:
+
+.. prompt:: bash alice@mercury:~/$
+
+   brew install caskroom/cask/brew-cask
+   brew cask install virtualbox
+   brew cask install vagrant
+
 .. _creating-vagrant-VMs:
 
 Creating Vagrant Virtual Machines for Flocker
@@ -188,3 +202,4 @@ The two virtual machines will have names like ``flocker-tutorial_node1_141045091
 .. _`Vagrant`: https://docs.vagrantup.com/v2/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568
+.. _Homebrew: http://brew.sh
