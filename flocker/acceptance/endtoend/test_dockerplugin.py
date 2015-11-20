@@ -21,7 +21,9 @@ from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
     get_docker_client, verify_socket, check_http_server, DatasetBackend,
     extract_external_port,
+    create_dataset,
 )
+
 from ..scripts import SCRIPTS
 
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
@@ -188,7 +190,7 @@ class DockerPluginTests(AsyncTestCase):
             self, node.public_address, host_port, expected_response=data))
         return d
 
-    @flaky('FLOC-3346')
+    @flaky(u'FLOC-3346')
     @require_cluster(1)
     def test_create_container_with_v2_plugin_api(self, cluster):
         """
@@ -324,6 +326,18 @@ class DockerPluginTests(AsyncTestCase):
         """
         return self._test_create_container(cluster)
 
+    @require_cluster(1)
+    def test_run_container_with_preexisting_volume(self, cluster):
+        """
+        Docker can run a container with a volume provisioned by Flocker before
+        it is mentioned to the Docker plugin.
+        """
+        name = random_name(self)
+        d = create_dataset(self, cluster, metadata={u"name": name})
+        d.addCallback(lambda _: self._test_create_container(
+            cluster, volume_name=name))
+        return d
+
     def _test_move(self, cluster, origin_node, destination_node):
         """
         Assert that Docker can run a container with a volume provisioned by
@@ -378,7 +392,7 @@ class DockerPluginTests(AsyncTestCase):
         )
         return d
 
-    @flaky('FLOC-2977')
+    @flaky(u'FLOC-2977')
     @require_cluster(1)
     def test_move_volume_single_node(self, cluster):
         """
@@ -388,7 +402,7 @@ class DockerPluginTests(AsyncTestCase):
         """
         return self._test_move(cluster, cluster.nodes[0], cluster.nodes[0])
 
-    @flaky('FLOC-3346')
+    @flaky(u'FLOC-3346')
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """

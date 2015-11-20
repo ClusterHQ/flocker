@@ -8,10 +8,10 @@ from ._infrastructure import (
     structured, EndpointResponse, user_documentation, private_api,
     )
 
-from ._error import makeBadRequest as make_bad_request
+from ._error import makeBadRequest as make_bad_request, BadRequest
 
 
 __all__ = [
     "structured", "EndpointResponse", "user_documentation",
-    "make_bad_request", "private_api",
+    "make_bad_request", "private_api", "BadRequest",
 ]
