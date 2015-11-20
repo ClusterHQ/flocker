@@ -512,14 +512,18 @@ class ControlAMPTests(ControlTestCase):
         any time up to the timeout limit.
         """
         self.protocol.makeConnection(StringTransportWithAbort())
+        initially_aborted = self.protocol.transport.aborted
         advance_some(self.reactor)
         self.client.callRemote(NoOp)
-        self.assertFalse(self.protocol.transport.aborted)
         self.reactor.advance(PING_INTERVAL.seconds * 1.9)
         # This NoOp will reset the timeout.
         self.client.callRemote(NoOp)
         self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        self.assertEqual(self.protocol.transport.aborted, False)
+        later_aborted = self.protocol.transport.aborted
+        self.assertEqual(
+            dict(initially=initially_aborted, later=later_aborted),
+            dict(initially=False, later=False)
+        )
 
     def test_connection_closed_on_no_activity(self):
         """
@@ -530,7 +534,7 @@ class ControlAMPTests(ControlTestCase):
         advance_some(self.reactor)
         self.client.callRemote(NoOp)
         self.assertFalse(self.protocol.transport.aborted)
-        advance_rest(self.reactor)
+        self.reactor.advance(PING_INTERVAL.seconds * 2)
         self.assertEqual(self.protocol.transport.aborted, True)
 
     def test_connection_made(self):
@@ -985,6 +989,7 @@ class AgentClientTests(SynchronousTestCase):
         self.agent = FakeAgent()
         self.reactor = Clock()
         self.client = AgentAMP(self.reactor, self.agent)
+        self.client.makeConnection(StringTransportWithAbort())
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
@@ -995,7 +1000,6 @@ class AgentClientTests(SynchronousTestCase):
         The AMP connection remains open when communication is received at
         any time up to the timeout limit.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         advance_some(self.reactor)
         self.server.callRemote(NoOp)
         self.reactor.advance(PING_INTERVAL.seconds * 1.9)
@@ -1009,7 +1013,6 @@ class AgentClientTests(SynchronousTestCase):
         If no communication has been received for long enough that we expire
         cluster state, the silent connection is forcefully closed.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         advance_some(self.reactor)
         self.server.callRemote(NoOp)
         self.reactor.advance(PING_INTERVAL.seconds * 2)
@@ -1020,6 +1023,9 @@ class AgentClientTests(SynchronousTestCase):
         The agent does not get told a connection was made or lost before it's
         actually happened.
         """
+        self.agent = FakeAgent()
+        self.reactor = Clock()
+        self.client = AgentAMP(self.reactor, self.agent)
         self.assertEqual(self.agent, FakeAgent(is_connected=False,
                                                is_disconnected=False))
 
@@ -1027,7 +1033,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         Connection made events are passed on to the agent.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
@@ -1035,7 +1040,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         Connection lost events are passed on to the agent.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
@@ -1044,7 +1048,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         AMP protocol can transmit configurations with 800 applications.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         actual = DeploymentState(nodes=[])
         configuration = huge_deployment()
         d = self.server.callRemote(
@@ -1061,7 +1064,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         AMP protocol can transmit states with 800 applications.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         state = huge_state()
         d = self.server.callRemote(
             ClusterStatusCommand,
@@ -1077,7 +1079,6 @@ class AgentClientTests(SynchronousTestCase):
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
-        self.client.makeConnection(StringTransportWithAbort())
         actual = DeploymentState(nodes=[])
         d = self.server.callRemote(
             ClusterStatusCommand,
