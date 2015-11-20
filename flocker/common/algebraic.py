@@ -7,10 +7,10 @@ Invariants for algebraic data types.
 
 from pyrsistent import PClass, field
 
-__all__ = ["StateInvariant"]
+__all__ = ["TaggedUnionInvariant"]
 
 
-class StateInvariant(PClass):
+class TaggedUnionInvariant(PClass):
     """
     An invariant that ensure the given object has a ``state`` attribute
     in the given states, and that all the other specified attributes are

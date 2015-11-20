@@ -16,7 +16,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.constants import Names, NamedConstant
 
 
-from ..algebraic import StateInvariant
+from ..algebraic import TaggedUnionInvariant
 
 
 class States(Names):
@@ -31,7 +31,7 @@ class AlgebraicType(PClass):
     one = field(bool)
     two = field(bool)
 
-    __invariant__ = StateInvariant(
+    __invariant__ = TaggedUnionInvariant(
         allowed_states={
             States.ALLOWED,
             States.WITH_ATTRIBUTE,
@@ -50,7 +50,7 @@ ARGS_STRATEGEY = st.fixed_dictionaries({
 })
 
 
-class MakeStateInvariantTests(SynchronousTestCase):
+class MakeTaggedUnionInvariantTests(SynchronousTestCase):
 
     @given(
         args=ARGS_STRATEGEY,

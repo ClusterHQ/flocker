@@ -42,7 +42,7 @@ from .._deploy import NotInUseDatasets
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...control._model import pvector_field
 from ...common import auto_threaded
-from ...common.algebraic import StateInvariant
+from ...common.algebraic import TaggedUnionInvariant
 
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -102,7 +102,7 @@ class DiscoveredDataset(PClass):
     device_path = field(FilePath)
     mount_point = field(FilePath)
 
-    __invariant__ = StateInvariant(
+    __invariant__ = TaggedUnionInvariant(
         allowed_states={
             DatasetStates.ATTACHED_ELSEWHERE,
             DatasetStates.NON_MANIFEST,
