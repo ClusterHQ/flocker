@@ -3,21 +3,22 @@
 CPU time metric for the control service benchmarks.
 """
 
-from pyrsistent import PClass, field, pset
 from zope.interface import implementer
 
 from twisted.protocols.basic import LineOnlyReceiver
 
+import eliot
+
 from flocker.common import gather_deferreds
 from flocker.common.runner import run_ssh
 
-from .._interfaces import IMetric
+from benchmark._interfaces import IMetric
 
-_FLOCKER_PROCESSES = pset({
+_FLOCKER_PROCESSES = {
     u'flocker-control',
     u'flocker-dataset-agent',
     u'flocker-container-agent',
-})
+}
 
 
 _GET_CPUTIME_COMMAND = [
@@ -82,6 +83,10 @@ class SSHRunner:
 
 
 def get_node_cpu_times(runner, node, processes):
+    """
+    :return: A dictionary mapping process names to elapsed cpu time.  If
+        an error occurs, returns None (after logging error).
+    """
     parser = _CPUParser()
     d = runner.run(
         node,
@@ -89,6 +94,7 @@ def get_node_cpu_times(runner, node, processes):
         handle_stdout=parser.lineReceived,
     )
     d.addCallback(lambda ignored: parser.result)
+    d.addErrback(eliot.writeFailure)
     return d
 
 
@@ -102,8 +108,11 @@ def _get_cluster_cpu_times(clock, nodes, runner, processes):
 def _compute_change(labels, before, after):
     result = {}
     for (label, before, after) in zip(labels, before, after):
-        matched_keys = set(before) & set(after)
-        value = {key: after[key] - before[key] for key in matched_keys}
+        if before is None or after is None:
+            value = None
+        else:
+            matched_keys = set(before) & set(after)
+            value = {key: after[key] - before[key] for key in matched_keys}
         result[label] = value
     return result
 

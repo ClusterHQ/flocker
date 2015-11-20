@@ -8,10 +8,10 @@ from twisted.internet.threads import deferToThread
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from benchmark.metrics.cputime import (
-    CPUTime, _CPUParser, get_node_cpu_times, _compute_change
+    CPUTime, _CPUParser, get_node_cpu_times, _compute_change, SSHRunner,
 )
 
-from flocker.apiclient import FakeFlockerClient, Node
+from flocker.apiclient._client import FakeFlockerClient, Node
 
 
 class CPUParseTests(SynchronousTestCase):
@@ -76,10 +76,31 @@ class _LocalRunner:
 class GetNodeCPUTimeTests(TestCase):
 
     def test_get_node_cpu_times(self):
-        d = get_node_cpu_times(_LocalRunner(), ['init'])
+        d = get_node_cpu_times(
+            _LocalRunner(),
+            Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+            ['init'],
+        )
 
         def check(result):
             self.assertEqual(result.keys(), ['init'])
+
+        d.addCallback(check)
+
+        return d
+
+    def test_no_such_process(self):
+        """
+        Errors result in output of None
+        """
+        d = get_node_cpu_times(
+            _LocalRunner(),
+            Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+            ['n0n-exist'],
+        )
+
+        def check(result):
+            self.assertIs(result, None)
 
         d.addCallback(check)
 
@@ -121,6 +142,26 @@ class ComputeChangesTests(SynchronousTestCase):
         result = _compute_change(labels, before, after)
         self.assertEqual(result, {'node1': {'foo': 45}})
 
+    def test_compute_change_error_before(self):
+        """
+        Error in before results in None result.
+        """
+        labels = ['node1']
+        before = [None]
+        after = [{'foo': 555, 'bar': 5}]
+        result = _compute_change(labels, before, after)
+        self.assertEqual(result, {'node1': None})
+
+    def test_compute_change_error_after(self):
+        """
+        Error in after results in None result.
+        """
+        labels = ['node1']
+        before = [{'foo': 555, 'bar': 5}]
+        after = [None]
+        result = _compute_change(labels, before, after)
+        self.assertEqual(result, {'node1': None})
+
 
 class CPUTimeTests(TestCase):
 
@@ -130,4 +171,20 @@ class CPUTimeTests(TestCase):
         metric = CPUTime(
             Clock(), FakeFlockerClient([node1, node2]),
             _LocalRunner(), processes=['init'])
-        d = metric.measure()
+        d = metric.measure(lambda: 1)
+
+        # Although it is unlikely, it's possible that we could get a CPU
+        # time != 0, so filter values out.
+        def filter(node_cpu_times):
+            for process_times in node_cpu_times.values():
+                if process_times:
+                    for process in process_times:
+                        process_times[process] = 0
+            return node_cpu_times
+        d.addCallback(filter)
+
+        def check(result):
+            self.assertEqual(
+                result, {'10.0.0.1': {'init': 0}, '10.0.0.2': {'init': 0}})
+        d.addCallback(check)
+        return d
