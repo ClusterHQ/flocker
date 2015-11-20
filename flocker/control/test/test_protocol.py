@@ -516,7 +516,9 @@ class ControlAMPTests(ControlTestCase):
         self.client.callRemote(NoOp)
         self.assertFalse(self.protocol.transport.aborted)
         self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        # This NoOp will reset the timeout.
         self.client.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
         self.assertEqual(self.protocol.transport.aborted, False)
 
     def test_connection_closed_on_no_activity(self):
@@ -994,6 +996,9 @@ class AgentClientTests(SynchronousTestCase):
         """
         self.client.makeConnection(StringTransportWithAbort())
         advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        # This NoOp will reset the timeout.
         self.server.callRemote(NoOp)
         self.reactor.advance(PING_INTERVAL.seconds * 1.9)
         self.assertEqual(self.client.transport.aborted, False)
