@@ -231,11 +231,11 @@ class VolumePlugin(object):
         d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
 
         timeout(self._reactor, d, self._MOUNT_TIMEOUT)
+
         def handleCancel(failure):
             failure.trap(CancelledError)
             return {u"Err": u"Timed out waiting for dataset to mount.",
                     u"Mountpoint": u""}
-
         d.addErrback(handleCancel)
 
         return d

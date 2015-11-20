@@ -18,7 +18,6 @@ from eliot.twisted import DeferredContext
 from twisted.python.reflect import safe_repr
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
-from twisted.internet.task import deferLater
 
 from effect import Effect, Constant, Delay
 from effect.retry import retry

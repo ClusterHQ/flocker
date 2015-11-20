@@ -259,7 +259,6 @@ class TimeoutTests(SynchronousTestCase):
         self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
 
 
-
 class RetryFailureTests(SynchronousTestCase):
     """
     Tests for :py:func:`retry_failure`.
