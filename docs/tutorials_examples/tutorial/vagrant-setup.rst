@@ -44,7 +44,7 @@ Follow the instructions specific to your platform that are provided in the `Vagr
 Alternatively, on OS X you can use ``brew-cask`` to install the packages using the `Homebrew`_ package manager.
 For example:
 
-.. prompt:: bash $
+.. prompt:: bash alice@mercury:~/$
 
    brew install caskroom/cask/brew-cask
    brew cask install virtualbox
