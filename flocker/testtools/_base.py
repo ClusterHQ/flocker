@@ -16,7 +16,7 @@ from testtools.deferredruntest import (
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
-from ._flaky import retry_flaky
+from ._flaky import retry_flaky, _reset_case
 
 
 class TestCase(unittest.SynchronousTestCase):
@@ -87,18 +87,9 @@ class AsyncTestCase(testtools.TestCase):
         """
         Run ``AsyncTestCase``
         """
-        self._reset()
+        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
+        _reset_case(self)
         super(AsyncTestCase, self).run(*args, **kwargs)
-
-    def _reset(self):
-        """
-        Reset test case so it can be run again.
-        """
-        # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
-        # Don't want details from last run.
-        self.getDetails().clear()
-        self._TestCase__setup_called = False
-        self._TestCase__teardown_called = False
 
 
 def _path_for_test_id(test_id, max_segment_length=32):
