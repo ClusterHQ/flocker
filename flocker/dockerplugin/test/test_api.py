@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4, UUID
 
-from twisted.web.http import OK, INTERNAL_SERVER_ERROR, NOT_FOUND
+from twisted.web.http import OK
 from twisted.internet import reactor
 
 from eliot.testing import capture_logging
@@ -217,7 +217,7 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
         return self.assertResult(
             b"POST", b"/VolumeDriver.Mount",
-            {u"Name": name}, NOT_FOUND,
+            {u"Name": name}, OK,
             {u"Err": u"Could not find volume with given name."})
 
     def test_path(self):
@@ -272,7 +272,7 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
         return self.assertResult(
             b"POST", b"/VolumeDriver.Path",
-            {u"Name": name}, NOT_FOUND,
+            {u"Name": name}, OK,
             {u"Err": u"Could not find volume with given name."})
 
     def test_non_local_path(self):
@@ -317,7 +317,7 @@ class APITestsMixin(APIAssertionsMixin):
                    error)
         return self.assertResult(
             b"POST", b"/VolumeDriver.Path",
-            {u"Name": u"whatever"}, INTERNAL_SERVER_ERROR,
+            {u"Name": u"whatever"}, OK,
             {u"Err": "CustomException: I've made a terrible mistake"})
 
     @capture_logging(None)
