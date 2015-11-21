@@ -32,17 +32,17 @@ from twisted.python.procutils import which
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
-    Lease, LeaseAlreadyHeld, Node,
+    Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port
+from ...testtools import find_free_port, random_name
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
 from ...control import (
     NodeState, NonManifestDatasets, Dataset as ModelDataset, ChangeSource,
-    UpdateNodeStateEra,
+    DockerImage, UpdateNodeStateEra,
 )
 from ...restapi._logging import JSON_REQUEST
 from ...restapi import _infrastructure as rest_api
@@ -367,6 +367,88 @@ def make_clientv1_tests():
             )
             return d
 
+        def assert_create_container(self, client):
+            expected_container, d = create_container_for_test(
+                self, self.client,
+            )
+            d.addCallback(
+                self.assertEqual,
+                expected_container,
+            )
+            d.addCallback(
+                lambda ignored: client.list_containers_configuration()
+            )
+            d.addCallback(
+                lambda containers: self.assertIn(
+                    expected_container,
+                    containers
+                )
+            )
+            return d
+
+        def test_create_container(self):
+            """
+            ``create_container`` returns a ``Deferred`` firing with the
+            configured ``Container``.
+            """
+            return self.assert_create_container(self.client)
+
+        def test_create_conflicting_container_name(self):
+            """
+            Creating two containers with same ``name`` results in an
+            ``ContainerAlreadyExists``.
+            """
+            expected_container, d = create_container_for_test(
+                self, self.client,
+            )
+
+            def got_result(container):
+                expected_container, d = create_container_for_test(
+                    self, self.client,
+                    name=container.name
+                )
+                return self.assertFailure(d, ContainerAlreadyExists)
+            d.addCallback(got_result)
+            return d
+
+        def test_delete_container(self):
+            """
+            ``delete_container`` returns a deferred that fires with ``None``.
+            """
+            expected_container, d = create_container_for_test(
+                self, self.client
+            )
+            d.addCallback(
+                lambda ignored: self.client.delete_container(
+                    expected_container.name
+                )
+            )
+            d.addCallback(self.assertIs, None)
+            return d
+
+        def test_delete_container_not_listed(self):
+            """
+            ``list_containers_configuration`` does not list deleted containers.
+            """
+            expected_container, d = create_container_for_test(
+                self, self.client
+            )
+            d.addCallback(
+                lambda ignored: self.client.delete_container(
+                    expected_container.name
+                )
+            )
+            d.addCallback(
+                lambda ignored: self.client.list_containers_configuration()
+            )
+            d.addCallback(
+                lambda containers: self.assertNotIn(
+                    expected_container,
+                    containers,
+                )
+            )
+            return d
+
         def test_list_nodes(self):
             """
             ``list_nodes`` returns a ``Deferred`` firing with a ``list`` of
@@ -389,6 +471,34 @@ def make_clientv1_tests():
             return d
 
     return InterfaceTests
+
+
+def create_container_for_test(case, client, name=None):
+    """
+    Use the API client to create a new container for the running test.
+
+    :param TestCase case: The currently running test.
+    :param IFlockerClient client: The client for creating containers.
+    :param unicode name: The name to be assigned to the container or ``None``
+        to assign a random name.
+
+    :return: A two-tuple.  The first element is a ``Container`` describing the
+        container which an API call was issued to create.  The second element
+        is a ``Deferred`` that fires with the result of the API call.
+    """
+    if name is None:
+        name = random_name(case=case)
+    expected_container = Container(
+        node_uuid=uuid4(),
+        name=name,
+        image=DockerImage.from_string(u'nginx'),
+    )
+    d = client.create_container(
+        node_uuid=expected_container.node_uuid,
+        name=expected_container.name,
+        image=expected_container.image,
+    )
+    return expected_container, d
 
 
 class FakeFlockerClientTests(make_clientv1_tests()):

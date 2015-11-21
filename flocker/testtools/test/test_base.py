@@ -10,7 +10,7 @@ import unittest
 
 from hypothesis import assume, given
 from hypothesis.strategies import integers, lists, text
-from testtools import PlaceHolder, TestCase
+from testtools import PlaceHolder, TestCase, TestResult
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -35,6 +35,7 @@ from .._base import (
     _path_for_test_id,
 )
 from .._testhelpers import (
+    has_results,
     only_skips,
     run_test,
 )
@@ -94,6 +95,30 @@ class AsyncTestCaseTests(TestCase):
         [path] = created_files
         self.addCleanup(os.unlink, path)
         self.assertThat(path, FileContains('hello'))
+
+    def test_run_twice(self):
+        """
+        Tests can be run twice without errors.
+
+        This is being fixed upstream at
+        https://github.com/testing-cabal/testtools/pull/165/, and this test
+        coverage is inadequate for a thorough fix. However, this will be
+        enough to let us use ``trial -u`` (see FLOC-3462).
+        """
+
+        class SomeTest(AsyncTestCase):
+            def test_something(self):
+                pass
+
+        test = SomeTest('test_something')
+        result = TestResult()
+        test.run(result)
+        test.run(result)
+        self.assertThat(
+            result, has_results(
+                tests_run=Equals(2),
+            )
+        )
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
