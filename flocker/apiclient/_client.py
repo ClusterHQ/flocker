@@ -251,7 +251,7 @@ class IFlockerAPIV1Client(Interface):
         :param UUID node_uuid: The ``UUID`` of the node where the container
             will be started.
         :param unicode name: The name to assign to the container.
-        :param DockerImage image: The ``Docker`` image which the container will
+        :param DockerImage image: The Docker image which the container will
             run.
 
         :return: ``Deferred`` firing with the configured ``Container`` or
