@@ -228,6 +228,8 @@ def run_from_args(command, log_command_filter=identity):
         Run.from_args(command, log_command_filter=log_command_filter))
 
 
+# TODO: Create an effect that can compose with any other effect to apply sudo,
+# then replace use of this function with `sudo(run_from_args(...))`.
 def sudo_from_args(command, log_command_filter=identity):
     """
     Run a command on a remote host with sudo. This quotes the provided
@@ -244,13 +246,24 @@ def sudo_from_args(command, log_command_filter=identity):
 
 
 def run_network_interacting_from_args(*a, **kw):
+    """
+    Run a command that interacts with an unreliable network.
+
+    :see: ``run_from_args``
+    """
     return retry_effect_with_timeout(
         run_from_args(*a, **kw),
         timeout=_TIMEOUT.total_seconds(),
     )
 
 
+# TODO: See sudo_from_args.  We should be able to get rid of this function too.
 def sudo_network_interacting_from_args(*a, **kw):
+    """
+    Run a command that interacts with an unreliable network using ``sudo``.
+
+    :see: ``sudo_from_args``
+    """
     return retry_effect_with_timeout(
         sudo_from_args(*a, **kw),
         timeout=_TIMEOUT.total_seconds(),

@@ -65,6 +65,16 @@ def is_centos(distribution):
 
 
 def _from_args(sudo):
+    """
+    Select a function for running a command, either using ``sudo(8)`` or not.
+
+    :param bool sudo: Whether or not the returned function should apply sudo to
+        the command.
+
+    :return: If ``sudo`` is ``True``, return a function that runs a command
+        using sudo.  If ``sudo`` is ``False``, return a function that runs a
+        command as-is, without sudo.
+    """
     if sudo:
         return sudo_network_interacting_from_args
     else:
@@ -72,16 +82,25 @@ def _from_args(sudo):
 
 
 def yum_install(args, package_manager="yum", sudo=False):
+    """
+    Install a package with ``yum`` or a ``yum``-like package manager.
+    """
     return _from_args(sudo)([package_manager, "install", "-y"] + args)
 
 
 def apt_get_install(args, sudo=False):
+    """
+    Install a package with ``apt-get``.
+    """
     return _from_args(sudo)(
         ["apt-get", "-y", "install", ] + args
     )
 
 
 def apt_get_update(sudo=False):
+    """
+    Update apt's package metadata cache.
+    """
     return _from_args(sudo)(["apt-get", "update"])
 
 
