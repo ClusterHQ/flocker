@@ -27,8 +27,6 @@ from twisted.internet.utils import getProcessOutput
 
 from treq import json_content, content
 
-# XXX These dependencies all make splitting the client out into a separate
-# package harder.
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError, DockerImage
 from ..common import retry_failure
