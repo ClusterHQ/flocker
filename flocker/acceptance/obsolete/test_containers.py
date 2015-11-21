@@ -342,7 +342,7 @@ class ContainerAPITests(AsyncTestCase):
         return running
 
     # Unfortunately this test is very very slow.
-    @run_test_with(async_runner, timeout=timedelta(minutes=6))
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(2)
     def test_reboot(self, cluster):
         """
