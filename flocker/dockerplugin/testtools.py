@@ -28,5 +28,7 @@ def parse_num(expression):
         return int(MiB(num).to_Byte().value)
     elif unit == 'kb' or unit == 'k' or unit == 'kib':
         return int(KiB(num).to_Byte().value)
+    # this may parse a number 15giib to 15bytes becase
+    # of user error, should we handle this better?
     else:
         return int(num)

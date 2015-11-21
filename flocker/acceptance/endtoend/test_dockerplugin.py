@@ -167,17 +167,17 @@ class DockerPluginTests(AsyncTestCase):
         # Because flocker/control/schema/types.yml#L250 > 64MiB
         # "k" and "t" are too big and too small for test
         # but we to keep some randomness to this test.
-        # also, if a user types in 50mib, flocker defaults to
+        size_expressions = list(chain.from_iterable((x, x+"b", x+"ib")
+                                for x in ["g"]))
+        # Note: if a user types in 50mib, flocker defaults to
         # at least 1G because this is AWS minimums etc, so this test
         # cannot test all expressions but we test g, gib, gb.
-        # openstack cinder must have between 75-100GB :(
+        # Note: openstack cinder must have between 75-100GB :(
         # http://www.rackspace.com/knowledge_center/product-faq
         # /cloud-block-storage
         # https://github.com/ClusterHQ/flocker/blob/
         # 780b22a443d1f2c10211b12e08d08ab1585099dc/flocker/
         # node/agents/cinder.py#L471 passes it through
-        size_expressions = list(chain.from_iterable((x, x+"b", x+"ib")
-                                for x in ["g"]))
         size = str(randint(75, 95)) + str(
             size_expressions[randint(0, len(size_expressions) - 1)])
         self._create_volume(client, volume_name,
