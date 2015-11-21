@@ -11,10 +11,14 @@ from twisted.internet.task import Clock
 
 from pyrsistent import pmap
 
+from eliot.testing import capture_logging
+
 from .._api import VolumePlugin, DEFAULT_SIZE
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
+from ...testtools import CustomException
 
+from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 
@@ -265,6 +269,46 @@ class APITestsMixin(APIAssertionsMixin):
                            u"Mountpoint": u""}))
         return d
 
+    def test_mount_already_exists(self):
+        """
+        ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
+        name to the current node and then waits for the dataset to
+        actually arrive when used by the volumes that already exist and
+        don't have a special dataset ID.
+        """
+        name = u"myvol"
+
+        d = self.flocker_client.create_dataset(
+            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+
+        def created(dataset):
+            self.flocker_client.synchronize_state()
+            result = self.assertResult(
+                b"POST", b"/VolumeDriver.Mount",
+                {u"Name": name}, OK,
+                {u"Err": None,
+                 u"Mountpoint": u"/flocker/{}".format(
+                     dataset.dataset_id)})
+            result.addCallback(lambda _:
+                               self.flocker_client.list_datasets_state())
+            result.addCallback(lambda ds: self.assertEqual(
+                [self.NODE_A], [d.primary for d in ds
+                                if d.dataset_id == dataset.dataset_id]))
+            return result
+        d.addCallback(created)
+        return d
+
+    def test_unknown_mount(self):
+        """
+        ``/VolumeDriver.Mount`` returns an error when asked to mount a
+        non-existent volume.
+        """
+        name = u"myvol"
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Mount",
+            {u"Name": name}, OK,
+            {u"Err": u"Could not find volume with given name."})
+
     def test_path(self):
         """
         ``/VolumeDriver.Path`` returns the mount path of the given volume if
@@ -288,6 +332,27 @@ class APITestsMixin(APIAssertionsMixin):
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         return d
 
+    def test_path_existing(self):
+        """
+        ``/VolumeDriver.Path`` returns the mount path of the given volume if
+        it is currently known, including for a dataset that was created
+        not by the plugin.
+        """
+        name = u"myvol"
+
+        d = self.flocker_client.create_dataset(
+            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+
+        def created(dataset):
+            self.flocker_client.synchronize_state()
+            return self.assertResult(
+                b"POST", b"/VolumeDriver.Path",
+                {u"Name": name}, OK,
+                {u"Err": None,
+                 u"Mountpoint": u"/flocker/{}".format(dataset.dataset_id)})
+        d.addCallback(created)
+        return d
+
     def test_unknown_path(self):
         """
         ``/VolumeDriver.Path`` returns an error when asked for the mount path
@@ -297,7 +362,7 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(
             b"POST", b"/VolumeDriver.Path",
             {u"Name": name}, OK,
-            {u"Err": u"Volume not available.", u"Mountpoint": u""})
+            {u"Err": u"Could not find volume with given name."})
 
     def test_non_local_path(self):
         """
@@ -327,6 +392,37 @@ class APITestsMixin(APIAssertionsMixin):
                           {u"Err": "Volume not available.",
                            u"Mountpoint": u""}))
         return d
+
+    @capture_logging(lambda self, logger:
+                     self.assertEqual(
+                         len(logger.flushTracebacks(CustomException)), 1))
+    def test_unexpected_error_reporting(self, logger):
+        """
+        If an unexpected error occurs Docker gets back a useful error message.
+        """
+        def error():
+            raise CustomException("I've made a terrible mistake")
+        self.patch(self.flocker_client, "list_datasets_configuration",
+                   error)
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Path",
+            {u"Name": u"whatever"}, OK,
+            {u"Err": "CustomException: I've made a terrible mistake"})
+
+    @capture_logging(None)
+    def test_bad_request(self, logger):
+        """
+        If a ``BadRequest`` exception is raised it is converted to appropriate
+        JSON.
+        """
+        def error():
+            raise make_bad_request(code=423, Err=u"no good")
+        self.patch(self.flocker_client, "list_datasets_configuration",
+                   error)
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Path",
+            {u"Name": u"whatever"}, 423,
+            {u"Err": "no good"})
 
 
 def _build_app(test):

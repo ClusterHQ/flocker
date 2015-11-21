@@ -24,6 +24,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
+from twisted.internet.error import ProcessTerminated
 
 from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
@@ -37,13 +38,15 @@ from ..control import (
 )
 
 from ..common import gather_deferreds, loop_until
-from ..common.runner import download_file
+from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.agents.ebs import aws_from_configuration
+
+from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
 try:
     from pymongo import MongoClient
@@ -320,6 +323,43 @@ class Node(PRecord):
     public_address = field(type=bytes)
     reported_hostname = field(type=bytes)
     uuid = field(type=unicode)
+
+    def run_as_root(self, args, handle_stdout=None, handle_stderr=None):
+        """
+        Run a command on the node as root.
+
+        :param args: Command and arguments to run.
+        :param handle_stdout: Callable that will be called with lines parsed
+            from the command stdout. By default logs an Eliot message.
+        :param handle_stderr: Callable that will be called with lines parsed
+            from the command stderr. By default logs an Eliot message.
+
+        :return Deferred: Deferred that fires when the process is ended.
+        """
+        return run_ssh(reactor, "root", self.public_address, args,
+                       handle_stdout=handle_stdout,
+                       handle_stderr=handle_stderr)
+
+    def reboot(self):
+        """
+        Reboot the node.
+        """
+        result = self.run_as_root([b"shutdown", b"-r", b"now"])
+        # Reboot kills the SSH connection:
+        result.addErrback(lambda f: f.trap(ProcessTerminated))
+        return result
+
+    def run_script(self, python_script, *argv):
+        """
+        Run a Python script as root on the node.
+
+        :param python_script: Name of script in
+            ``flocker.acceptance.node_scripts`` to run.
+        :param argv: Additional arguments for the script.
+        """
+        script = NODE_SCRIPTS.child(python_script + ".py").getContent()
+        return self.run_as_root([b"python", b"-c", script] +
+                                list(argv))
 
 
 class _NodeList(CheckedPVector):
@@ -929,7 +969,7 @@ def create_python_container(test_case, cluster, parameters, script,
 
 
 def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
-                   metadata=None):
+                   metadata=None, node=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -939,8 +979,9 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         cluster.
     :param UUID dataset_id: The v4 UUID of the dataset.
         Generated if not specified.
-    :param dict metadata: Additional metadata to be added to the create_dataset
-        request beyond the default "name": "my_volume" metadata.
+    :param dict metadata: Metadata to be added to the create_dataset
+        request.
+    :param node: Node to create dataset on. By default first one in cluster.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
@@ -950,11 +991,11 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         dataset_id = uuid4()
     if metadata is None:
         metadata = {}
-    metadata_arg = {u"name": u"my_volume"}
-    metadata_arg.update(metadata)
+    if node is None:
+        node = cluster.nodes[0]
     configuring_dataset = cluster.client.create_dataset(
-        cluster.nodes[0].uuid, maximum_size=maximum_size,
-        dataset_id=dataset_id, metadata=metadata_arg
+        node.uuid, maximum_size=maximum_size,
+        dataset_id=dataset_id, metadata=metadata,
     )
 
     # Wait for the dataset to be created

@@ -16,6 +16,7 @@ from eliot.testing import (
 
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis.extra.datetime import datetimes
 
 from twisted.internet import reactor
 from twisted.internet.task import Clock
@@ -482,19 +483,20 @@ class MigrateConfigurationTests(SynchronousTestCase):
         self.assertEqual(result, StubMigration.upgrade_from_v2(v2_config))
 
 
-UUIDS = st.sampled_from([uuid4() for i in range(1000)])
-
-DATASETS = st.builds(Dataset, dataset_id=UUIDS, maximum_size=st.integers())
-
-DATETIMES = st.integers(max_value=10000000).map(
-    lambda t: datetime.fromtimestamp(t, tz=UTC)
+DATASETS = st.builds(
+    Dataset,
+    dataset_id=st.uuids(),
+    maximum_size=st.integers(),
 )
 
+# `datetime`s accurate to seconds
+DATETIMES_TO_SECONDS = datetimes().map(lambda d: d.replace(microsecond=0))
+
 LEASES = st.builds(
-    Lease, dataset_id=UUIDS, node_id=UUIDS,
+    Lease, dataset_id=st.uuids(), node_id=st.uuids(),
     expiration=st.one_of(
         st.none(),
-        DATETIMES
+        DATETIMES_TO_SECONDS
     )
 )
 
@@ -557,7 +559,7 @@ def _build_node(applications):
         .map(lambda ms: ms.union(app_manifestations))
         .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
     return st.builds(
-        Node, uuid=UUIDS,
+        Node, uuid=st.uuids(),
         applications=st.just(applications),
         manifestations=manifestations)
 

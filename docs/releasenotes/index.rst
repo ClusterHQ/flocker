@@ -10,11 +10,20 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* The Docker plugin is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Docker plugin.
+* Added a new REST API for looking up node identity by era; eras are reset after every reboot.
+  This allows interacting with Flocker in a robust way across reboots without getting stale data.
+  As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
+
 v1.7.2
 ======
 
 * Moved the installation instructions for the Flocker plugin for Docker, to prevent issues when installing and configuring the plugin.
-* Added documentation for :ref:`Dell SC Series <dell-dataset-backend>`, :ref:`Huawei <huawei-backend>` and :ref:`NexentaEdge <nexenta-backend>` drivers 
+* Added documentation for :ref:`Dell SC Series <dell-dataset-backend>`, :ref:`Huawei <huawei-backend>` and :ref:`NexentaEdge <nexenta-backend>` drivers.
 
 v1.7.1
 ======

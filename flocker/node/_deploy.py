@@ -502,14 +502,15 @@ class NotInUseDatasets(object):
     point we can rip out the logic related to Application objects. See
     https://clusterhq.atlassian.net/browse/FLOC-2732.
     """
-    def __init__(self, node_state, leases):
+    def __init__(self, node_uuid, local_applications, leases):
         """
-        :param NodeState node_state: Known local state.
+        :param UUID node_uuid: Node to check for datasets in use.
+        :param applications: Applications running on the node.
         :param Leases leases: The current leases on datasets.
         """
-        self._node_id = node_state.uuid
+        self._node_id = node_uuid
         self._in_use_datasets = {app.volume.manifestation.dataset_id
-                                 for app in node_state.applications
+                                 for app in local_applications
                                  if app.volume is not None}
         self._leases = leases
 
@@ -624,7 +625,10 @@ class P2PManifestationDeployer(object):
         phases = []
 
         not_in_use_datasets = NotInUseDatasets(
-            local_state, configuration.leases)
+            node_uuid=self.node_uuid,
+            local_applications=local_state.applications,
+            leases=configuration.leases,
+        )
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.

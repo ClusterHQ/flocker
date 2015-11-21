@@ -5,14 +5,18 @@ Base classes for unit tests.
 """
 
 from datetime import timedelta
+import sys
 import tempfile
 
 import testtools
+from testtools.content import text_content
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted)
 
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
+
+from ._flaky import retry_flaky
 
 
 class TestCase(unittest.SynchronousTestCase):
@@ -21,19 +25,27 @@ class TestCase(unittest.SynchronousTestCase):
     """
 
 
-def async_runner(timeout):
+def async_runner(timeout, flaky_output=None):
     """
     Make a ``RunTest`` instance for asynchronous tests.
 
     :param timedelta timeout: The maximum length of time that a test is allowed
         to take.
+    :param file flaky_output: A file-like object to which we'll send output
+        about flaky tests. This is a temporary measure until we fix FLOC-3469,
+        at which point we will just use standard logging.
     """
+    if flaky_output is None:
+        flaky_output = sys.stdout
     # XXX: Looks like the acceptance tests (which were the first tests that we
     # tried to migrate) aren't cleaning up after themselves even in the
-    # successful case. Use the RunTest that loops the reactor a couple of
-    # times after the test is done.
-    return AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-        timeout=timeout.total_seconds())
+    # successful case. Use AsynchronousDeferredRunTestForBrokenTwisted, which
+    # loops the reactor a couple of times after the test is done.
+    return retry_flaky(
+        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
+            timeout=timeout.total_seconds()),
+        output=flaky_output,
+    )
 
 
 # By default, asynchronous tests are timed out after 2 minutes.
@@ -41,7 +53,7 @@ DEFAULT_ASYNC_TIMEOUT = timedelta(minutes=2)
 
 
 def _test_skipped(case, result, exception):
-    result.addSkip(case, str(exception))
+    result.addSkip(case, details={'reason': text_content(unicode(exception))})
 
 
 class AsyncTestCase(testtools.TestCase):
@@ -53,6 +65,7 @@ class AsyncTestCase(testtools.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
+        # XXX: Work around testing-cabal/unittest-ext#60
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def mktemp(self):
