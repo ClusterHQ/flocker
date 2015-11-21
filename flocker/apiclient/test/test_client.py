@@ -475,10 +475,16 @@ def make_clientv1_tests():
 
 def create_container_for_test(case, client, name=None):
     """
+    Use the API client to create a new container for the running test.
+
     :param TestCase case: The currently running test.
     :param IFlockerClient client: The client for creating containers.
     :param unicode name: The name to be assigned to the container or ``None``
         to assign a random name.
+
+    :return: A two-tuple.  The first element is a ``Container`` describing the
+        container which an API call was issued to create.  The second element
+        is a ``Deferred`` that fires with the result of the API call.
     """
     if name is None:
         name = random_name(case=case)
