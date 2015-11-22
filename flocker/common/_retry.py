@@ -264,7 +264,8 @@ def compose_retry(should_retries):
             result = should_retry(exc_type, value, traceback)
             if result is not None:
                 return result
-        # If nothing raised an exception or generated a sleep interval, generate one.
+        # If nothing raised an exception or generated a sleep interval,
+        # generate one.
         return timedelta(seconds=0.1)
     return composed
 

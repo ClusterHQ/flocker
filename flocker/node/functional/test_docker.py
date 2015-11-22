@@ -19,7 +19,6 @@ from docker import Client
 # the use of the 1.15 API until we upgrade docker in flocker-dev
 Client = partial(Client, version="1.15")
 
-from twisted.web.http import INTERNAL_SERVER_ERROR
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
