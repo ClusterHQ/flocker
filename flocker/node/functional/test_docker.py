@@ -19,6 +19,7 @@ from docker import Client
 # the use of the 1.15 API until we upgrade docker in flocker-dev
 Client = partial(Client, version="1.15")
 
+from twisted.web.http import INTERNAL_SERVER_ERROR
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
@@ -31,7 +32,7 @@ from treq import request, content
 from pyrsistent import PClass, pvector, field
 
 from ...common import (
-    loop_until, retry_failure, compose_retry, retry_on_exception,
+    loop_until, retry_failure, compose_retry, retry_if,
     retry_some_times, wrap_methods_with_failure_retry,
 )
 from ...testtools import (
@@ -58,7 +59,12 @@ def retrying_docker():
     return wrap_methods_with_failure_retry(
         Client(),
         compose_retry([
-            retry_on_exception({APIError}), retry_some_times(),
+            retry_if(
+                lambda exc: (
+                    isinstance(exc, APIError) and
+                    exc.respones.status_code == INTERNAL_SERVER_ERROR
+                )
+            ), retry_some_times(),
         ]),
     )
 
