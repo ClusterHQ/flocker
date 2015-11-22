@@ -4,7 +4,10 @@
 Helpers for retrying things.
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division
+
+from sys import exc_info
+from time import sleep
 
 from datetime import timedelta
 from functools import partial
@@ -12,12 +15,15 @@ from inspect import getfile, getsourcelines
 from itertools import repeat
 import time
 
-from eliot import ActionType, MessageType, Field
+from eliot import (
+    ActionType, MessageType, Message, Field, start_action, write_traceback,
+)
 from eliot.twisted import DeferredContext
 
 from twisted.python.reflect import safe_repr
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
+from twisted.python.reflect import fullyQualifiedName
 
 from effect import Effect, Constant, Delay
 from effect.retry import retry
@@ -220,3 +226,123 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
     should_retry.wait_secs = retry_wait
 
     return retry(effect, should_retry)
+
+
+_TRY_UNTIL_SUCCESS = u"flocker:failure-retry"
+_TRY_RETRYING = _TRY_UNTIL_SUCCESS + u":retrying"
+_TRY_FAILURE = _TRY_UNTIL_SUCCESS + u":failure"
+_TRY_SUCCESS = _TRY_UNTIL_SUCCESS + u":success"
+
+
+def retry_some_times():
+    delay = 0.1
+    timeout = 120.0
+    times = int(timeout // delay)
+    steps = iter(repeat(delay, times))
+
+    def should_retry(exc_type, value, traceback):
+        for step in steps:
+            # Log any failure we're retrying
+            write_traceback()
+            return step
+        # Out of steps, fail the retry loop overall.
+        raise exc_type, value, traceback
+    return should_retry
+
+
+def retry_on_exception(exception_types):
+    def should_retry(exc_type, value, traceback):
+        if exc_type in exception_types:
+            return None
+        raise exc_type, value, traceback
+    return should_retry
+
+
+def compose_retry(should_retries):
+    def composed(exc_type, value, traceback):
+        for should_retry in should_retries:
+            result = should_retry(exc_type, value, traceback)
+            if result is not None:
+                return result
+        # If nothing raised an exception or generated a sleep interval, generate one.
+        return timedelta(seconds=0.1)
+    return composed
+
+
+def wrap_methods_with_failure_retry(obj, should_retry=None):
+    """
+    Return a wrapper around ``obj`` which automatically re-runs method calls
+    which would otherwise have failed.
+
+    :param should_retry: A one-argument callable which accepts a three-tuple of
+        exception state and returns a ``timedelta`` or raises an exception.  If
+        the call should be retried, the ``timedelta`` gives a time to delay
+        before the retry.  If an exception is raised, no further retries are
+        attempted and the exception is propagated from the method call.
+
+    :return: An object like ``obj`` but the methods of which will be retried
+        when they raise an exception.
+    """
+    if should_retry is None:
+        should_retry = retry_some_times()
+
+    return _DecoratedInstance(obj, _with_retry, should_retry=should_retry)
+
+
+def _poll_until_success_returning_result(should_retry, function, args, kwargs):
+    """
+    Call a function until it does not raise an exception or a timeout is hit,
+    whichever comes first.
+
+    :return: The value returned by ``function`` on the first call where it
+        returns a value instead of raising an exception.
+    """
+    saved_result = []
+
+    def pollable():
+        Message.new(
+            message_type=_TRY_RETRYING,
+        ).write()
+        try:
+            result = function(*args, **kwargs)
+        except Exception as e:
+            delay = should_retry(*exc_info())
+            Message.new(
+                message_type=_TRY_FAILURE,
+                exception=str(e),
+            ).write()
+            sleep(delay.total_seconds())
+            return False
+        else:
+            Message.new(
+                message_type=_TRY_SUCCESS,
+                result=result,
+            ).write()
+            saved_result.append(result)
+            return True
+
+    poll_until(pollable, repeat(0.0))
+
+    return saved_result[0]
+
+
+def _with_retry(method, should_retry):
+    def method_with_retry(*a, **kw):
+        name = fullyQualifiedName(method)
+        action_type = _TRY_UNTIL_SUCCESS
+        with start_action(action_type=action_type, function=name):
+            return _poll_until_success_returning_result(
+                should_retry, method, a, kw
+            )
+    return method_with_retry
+
+
+class _DecoratedInstance(object):
+    def __init__(self, wrapped, decorator, **kw):
+        self._wrapped = wrapped
+        self._decorator = decorator
+        self._kw = kw
+
+    def __getattr__(self, name):
+        method = getattr(self._wrapped, name)
+        return self._decorator(method, **self._kw)
