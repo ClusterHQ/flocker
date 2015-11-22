@@ -30,7 +30,11 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from ..common import poll_until
+from ..common import (
+    poll_until, compose_retry, retry_if,
+    retry_some_times, wrap_methods_with_failure_retry,
+)
+
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
@@ -281,11 +285,6 @@ def make_response(code, message):
     return response
 
 
-from ..common import (
-    compose_retry, retry_if,
-    retry_some_times, wrap_methods_with_failure_retry,
-)
-
 @implementer(IDockerClient)
 class FakeDockerClient(object):
     """
@@ -404,7 +403,8 @@ def dockerpy_client(**kwargs):
                     isinstance(exc, APIError) and
                     exc.response.status_code == INTERNAL_SERVER_ERROR
                 )
-            ), retry_some_times(),
+            ),
+            retry_some_times(),
         ]),
     )
 
