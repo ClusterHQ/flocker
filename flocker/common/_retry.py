@@ -321,7 +321,7 @@ def _poll_until_success_returning_result(should_retry, function, args, kwargs):
             saved_result.append(result)
             return True
 
-    poll_until(pollable, repeat(0.0))
+    poll_until(pollable, repeat(timedelta(seconds=0.0)))
 
     return saved_result[0]
 

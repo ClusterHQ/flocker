@@ -31,10 +31,7 @@ from treq import request, content
 
 from pyrsistent import PClass, pvector, field
 
-from ...common import (
-    loop_until, retry_failure, compose_retry, retry_if,
-    retry_some_times, wrap_methods_with_failure_retry,
-)
+from ...common import loop_until, retry_failure
 from ...testtools import (
     find_free_port, flaky, DockerImageBuilder, assertContainsAll,
     random_name,
@@ -44,7 +41,7 @@ from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse, make_response,
-    LOG_CACHED_IMAGE,
+    LOG_CACHED_IMAGE, dockerpy_client,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
@@ -53,20 +50,6 @@ from ..testtools import (
     if_docker_configured, wait_for_unit_state, require_docker_version,
     add_with_port_collision_retry,
 )
-
-
-def retrying_docker():
-    return wrap_methods_with_failure_retry(
-        Client(),
-        compose_retry([
-            retry_if(
-                lambda exc: (
-                    isinstance(exc, APIError) and
-                    exc.respones.status_code == INTERNAL_SERVER_ERROR
-                )
-            ), retry_some_times(),
-        ]),
-    )
 
 
 def namespace_for_test(test_case):
@@ -551,7 +534,7 @@ class GenericDockerClientTests(TestCase):
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        client = retrying_docker()
+        client = dockerpy_client()
 
         path = FilePath(self.mktemp())
         path.makedirs()

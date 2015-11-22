@@ -281,6 +281,11 @@ def make_response(code, message):
     return response
 
 
+from ..common import (
+    compose_retry, retry_if,
+    retry_some_times, wrap_methods_with_failure_retry,
+)
+
 @implementer(IDockerClient)
 class FakeDockerClient(object):
     """
@@ -390,6 +395,20 @@ class TimeoutClient(Client):
 
 
 @implementer(IDockerClient)
+def dockerpy_client(**kwargs):
+    return wrap_methods_with_failure_retry(
+        TimeoutClient(**kwargs),
+        compose_retry([
+            retry_if(
+                lambda exc: (
+                    isinstance(exc, APIError) and
+                    exc.response.status_code == INTERNAL_SERVER_ERROR
+                )
+            ), retry_some_times(),
+        ]),
+    )
+
+
 class DockerClient(object):
     """
     Talk to the real Docker server directly.
@@ -409,8 +428,9 @@ class DockerClient(object):
             self, namespace=BASE_NAMESPACE, base_url=None,
             long_timeout=600):
         self.namespace = namespace
-        self._client = TimeoutClient(
-            version="1.15", base_url=base_url, long_timeout=long_timeout)
+        self._client = dockerpy_client(
+            version="1.15", base_url=base_url, long_timeout=long_timeout,
+        )
         self._image_cache = LRUCache(100)
 
     def _to_container_name(self, unit_name):
