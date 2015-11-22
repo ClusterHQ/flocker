@@ -250,9 +250,9 @@ def retry_some_times():
     return should_retry
 
 
-def retry_on_exception(exception_types):
+def retry_if(matches):
     def should_retry(exc_type, value, traceback):
-        if exc_type in exception_types:
+        if matches(value):
             return None
         raise exc_type, value, traceback
     return should_retry
