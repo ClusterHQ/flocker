@@ -30,10 +30,14 @@ from treq import request, content
 
 from pyrsistent import PClass, pvector, field
 
-from ...common import loop_until, retry_failure
+from ...common import (
+    loop_until, retry_failure, compose_retry, retry_on_exception,
+    retry_some_times, wrap_methods_with_failure_retry,
+)
 from ...testtools import (
     find_free_port, flaky, DockerImageBuilder, assertContainsAll,
-    random_name)
+    random_name,
+)
 
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
@@ -48,6 +52,15 @@ from ..testtools import (
     if_docker_configured, wait_for_unit_state, require_docker_version,
     add_with_port_collision_retry,
 )
+
+
+def retrying_docker():
+    return wrap_methods_with_failure_retry(
+        Client(),
+        compose_retry([
+            retry_on_exception({APIError}), retry_some_times(),
+        ]),
+    )
 
 
 def namespace_for_test(test_case):
@@ -528,12 +541,11 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    @flaky(u'FLOC-3077')
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        client = Client()
+        client = retrying_docker()
 
         path = FilePath(self.mktemp())
         path.makedirs()
