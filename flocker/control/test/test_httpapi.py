@@ -2403,7 +2403,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             lambda response:
             self.assertEqual(
                 response.headers.getRawHeaders("Etag"),
-                [b'"%s"' % (self.persistence_service.configuration_hash(),)]))
+                [self.persistence_service.configuration_hash()]))
         return d
 
     def _dataset_test(self, deployment, expected):

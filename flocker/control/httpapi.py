@@ -165,7 +165,7 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of dataset
             that is configured to exist anywhere on the cluster.
         """
-        etag = b'"%s"' % (self.persistence_service.configuration_hash(),)
+        etag = self.persistence_service.configuration_hash()
         return EndpointResponse(
             OK, list(datasets_from_deployment(self.persistence_service.get())),
             headers={b"etag": etag})
