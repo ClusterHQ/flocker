@@ -100,7 +100,7 @@
 
 {# Read the commit and github credentials                                    #}
 {# Update github with the build status                                       #}
-  if (status == "pending" ) {
+  if ("{{status}}" == "pending" ) {
     shell("echo \$REMOTE_GIT_COMMIT")
   } else {
     conditionalSteps {
