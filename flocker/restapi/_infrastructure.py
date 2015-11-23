@@ -5,10 +5,6 @@ This module implements tools for exposing Python methods as API endpoints.
 
 from __future__ import absolute_import
 
-__all__ = [
-    "EndpointResponse", "structured", "user_documentation",
-    ]
-
 from functools import wraps
 
 from json import loads, dumps
@@ -24,6 +20,10 @@ from eliot.twisted import DeferredContext
 from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
+
+__all__ = [
+    "EndpointResponse", "structured", "user_documentation",
+    ]
 
 _ASCENDING = b"ascending"
 _DESCENDING = b"descending"
