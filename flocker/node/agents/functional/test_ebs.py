@@ -24,7 +24,7 @@ from ..ebs import (
     _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    EBSMandatoryProfileAttributes
+    EBSMandatoryProfileAttributes,
 )
 from ....testtools import flaky
 
@@ -188,6 +188,19 @@ class EBSBlockDeviceAPIInterfaceTests(
         result = self.api._next_device(self.api.compute_instance_id(), [],
                                        {u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
+
+    def test_next_device_in_use_end(self):
+        """
+        ``_next_device`` returns ``None`` if all devices are in use.
+        """
+        devices_in_use = {
+            u'/dev/sd{}'.format(d)
+            for d in u'fghijklmnop'
+        }
+        result = self.api._next_device(
+            self.api.compute_instance_id(), [], devices_in_use
+        )
+        self.assertIs(result, None)
 
     def test_create_volume_gold_profile(self):
         """

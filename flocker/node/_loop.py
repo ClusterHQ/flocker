@@ -23,7 +23,9 @@ from random import uniform
 
 from zope.interface import implementer
 
-from eliot import ActionType, Field, writeFailure, MessageType
+from eliot import (
+    ActionType, Field, writeFailure, MessageType, write_traceback,
+)
 from eliot.twisted import DeferredContext
 
 from characteristic import attributes
@@ -391,8 +393,16 @@ class ConvergenceLoop(object):
         # still indicates some action should be taken that means we should
         # wake up:
         discovered = self._last_discovered_local_state
-        if self.deployer.calculate_changes(
-                self.configuration, self.cluster_state, discovered) != NoOp():
+        try:
+            changes = self.deployer.calculate_changes(
+                self.configuration, self.cluster_state, discovered)
+        except:
+            # Something went wrong in calculation due to a bug in the
+            # code. We should wake up just in case in order to be more
+            # responsive.
+            write_traceback()
+            changes = None
+        if changes != NoOp():
             self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
 
     def _send_state_to_control_service(self, state_changes):
@@ -657,5 +667,12 @@ class AgentLoopService(MultiService, object):
             ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
 
     def cluster_updated(self, configuration, cluster_state):
+        # Filter out state for this node if the era doesn't match. Since
+        # the era doesn't match ours that means it's old pre-reboot state
+        # that hasn't expired yet and is likely wrong, so we don't want to
+        # act based on any information in it.
+        node_uuid = self.deployer.node_uuid
+        if self.era != cluster_state.node_uuid_to_era.get(node_uuid):
+            cluster_state = cluster_state.remove_node(node_uuid)
         self.cluster_status.receive(_StatusUpdate(configuration=configuration,
                                                   state=cluster_state))

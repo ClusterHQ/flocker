@@ -15,4 +15,3 @@ To get the full Flocker functionality, the following installation steps will tak
 
    install-client
    install-node
-   docker-plugin

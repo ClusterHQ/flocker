@@ -968,9 +968,7 @@ class UpdateNodeStateEra(PClass):
         """
         if cluster_state.node_uuid_to_era.get(self.uuid) != self.era:
             # Discard the NodeState:
-            cluster_state = cluster_state.set(
-                nodes={n for n in cluster_state.nodes
-                       if n.uuid != self.uuid})
+            cluster_state = cluster_state.remove_node(self.uuid)
         cluster_state = cluster_state.transform(
             ["node_uuid_to_era", self.uuid], self.era)
         return cluster_state
@@ -1072,6 +1070,17 @@ class DeploymentState(PRecord):
         return self.set(
             "nodes", self.nodes.discard(original_node).add(
                 updated_node.persistent()))
+
+    def remove_node(self, node_uuid):
+        """
+        Remove the ``NodeState`` with the given UUID, if it exists.
+
+        :param UUID node_uuid: UUID of node to remove.
+
+        :return: Updated ``DeploymentState``.
+        """
+        return self.set(nodes={node for node in self.nodes
+                               if node.uuid != node_uuid})
 
     def all_datasets(self):
         """

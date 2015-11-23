@@ -26,7 +26,7 @@ from twisted.conch.ssh.keys import Key
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
-from effect.twisted import perform
+from txeffect import perform
 
 from admin.vagrant import vagrant_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS

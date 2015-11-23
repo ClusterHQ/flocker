@@ -1288,6 +1288,24 @@ class DeploymentStateTests(SynchronousTestCase):
         )
         self.assertEqual([], list(deployment.all_datasets()))
 
+    def test_remove_existing_node(self):
+        """
+        If a ``NodeState`` exists, ``remove_node`` removes it.
+        """
+        node = NodeState(hostname=u"1.2.2.4", uuid=uuid4())
+        another_node = NodeState(hostname=u"1.2.2.5", uuid=uuid4())
+        original = DeploymentState(nodes=[node, another_node])
+        self.assertEqual(DeploymentState(nodes=[node]),
+                         original.remove_node(another_node.uuid))
+
+    def test_remove_non_existing_node(self):
+        """
+        If a ``NodeState`` does exists, ``remove_node`` does nothing.
+        """
+        original = DeploymentState(
+            nodes=[NodeState(hostname=u"1.2.2.4", uuid=uuid4())])
+        self.assertEqual(original, original.remove_node(uuid4()))
+
 
 class SameNodeTests(SynchronousTestCase):
     """
