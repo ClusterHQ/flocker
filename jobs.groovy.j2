@@ -90,6 +90,38 @@
 {# JINJA2 MACROS DEFINED BELOW                                               #}
 {# --------------------------------------------------------------------------#}
 
+
+{% macro updateGitHubStatus(status)                                         -%}
+  shell("""
+    PARENTS=(\$(git log --pretty=%P -1))
+    REMOTE_GIT_COMMIT="\${PARENTS[\${\#PARENTS[@]} - 1]}"
+    echo \$REMOTE_GIT_COMMIT > gitcommit
+  """)
+
+  # Read the commit and github credentials
+  # Update github with the build status
+  if (status == "pending" ) {
+    shell("echo \$REMOTE_GIT_COMMIT")
+  } else {
+    conditionalSteps {
+      condition {
+        status('FAILURE')
+      }
+      steps {
+        shell("echo 'Job failed'")
+      }
+    }
+    conditionalSteps {
+      condition {
+        status('SUCCESS')
+      }
+      steps {
+        shell("echo 'Job succeeded'")
+      }
+    }
+  }
+{%- endmacro                                                                -%}
+
 {% macro folder(folder, display_name)                                       -%}
 {# creates a folder structure to group jobs, these are the Jenkins folder views
    in the Jenkins UI.
@@ -493,6 +525,8 @@ branches.each {
           }
     }
       steps {
+{# Set the commit status on github to pending                                #}
+          updateGitHubStatus('pending')
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -644,6 +678,10 @@ branches.each {
             failUnstable(true)
             failNoReports(false)
           }
+
+{# Update the commit status on github to the job result                    #}
+          updateGitHubStatus('success')
+
       }
   }
 }
