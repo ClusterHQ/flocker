@@ -116,15 +116,13 @@ def timeout(reactor, deferred, timeout_sec):
     """Adds a timeout to an existing deferred. If the timeout expires before
     the deferred expires, then the deferred is cancelled.
 
-    :param reactor: The reactor implementation to schedule the timeout.
-    :type reactor: ``IReactorTime``.
+    :param IReactorTime reactor: The reactor implementation to schedule the
+        timeout.
 
-    :param deferred: The deferred to cancel at a later point in time.
-    :type deferred: ``Deferred``.
+    :param Deferred deferred: The deferred to cancel at a later point in time.
 
-    :param timeout_sec: The number of seconds to wait before the deferred
-                        should time out.
-    :type timeout_sec: ``float``.
+    :param float timeout_sec: The number of seconds to wait before the deferred
+        should time out.
     """
     def _timeout():
         deferred.cancel()

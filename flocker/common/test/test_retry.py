@@ -210,9 +210,8 @@ class TimeoutTests(SynchronousTestCase):
 
     def test_times_out(self):
         """
-        Verify that a deferred that never fires is timed out at the correct
-        time using the timeout function, and concludes with a CancelledError
-        failure.
+        A deferred that never fires is timed out at the correct time using the
+        timeout function, and concludes with a CancelledError failure.
         """
         self._execute_timeout()
         self._clock.advance(self._timeout - 0.1)
@@ -223,8 +222,8 @@ class TimeoutTests(SynchronousTestCase):
 
     def test_doesnt_time_out(self):
         """
-        Verify that a deferred that fires before the timeout is not cancelled
-        by the timeout.
+        A deferred that fires before the timeout is not cancelled by the
+        timeout.
         """
         self._execute_timeout()
         self._clock.advance(self._timeout - 0.1)
@@ -238,8 +237,8 @@ class TimeoutTests(SynchronousTestCase):
 
     def test_timeout_cleaned_up_on_success(self):
         """
-        Assert that if the deferred is successfully completed before the
-        timeout that the timeout is not still pending on the reactor.
+        If the deferred is successfully completed before the timeout, the
+        timeout is not still pending on the reactor.
         """
         self._execute_timeout()
         self._clock.advance(self._timeout - 0.1)
@@ -249,8 +248,8 @@ class TimeoutTests(SynchronousTestCase):
 
     def test_timeout_cleaned_up_on_failure(self):
         """
-        Assert that if the deferred is failed before the timeout that the
-        timeout is not still pending on the reactor.
+        If the deferred is failed before the timeout, the timeout is not still
+        pending on the reactor.
         """
         self._execute_timeout()
         self._clock.advance(self._timeout - 0.1)
