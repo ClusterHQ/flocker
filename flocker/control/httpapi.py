@@ -96,18 +96,6 @@ NODE_BY_ERA_NOT_FOUND = make_bad_request(
 _UNDEFINED_MAXIMUM_SIZE = object()
 
 
-def if_configuration_matches(f):
-    """
-    Decorator that checks for If-Match header, compares it to
-    configuration hash and returns 412 if it doesn't match.
-    """
-    @wraps(f)
-    def matcher(self, request, **routeArguments):
-        # Extract If-Matches, compare to self.persistence_service.configuration_hash()
-        # respond with 412 when necessary.
-    return matcher
-
-
 class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
@@ -182,7 +170,6 @@ class ConfigurationAPIUserV1(object):
             OK, list(datasets_from_deployment(self.persistence_service.get())),
             headers={b"etag": etag})
 
-    @if_configuration_matches
     @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
         u"""
@@ -278,7 +265,6 @@ class ConfigurationAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-    @if_configuration_matches
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
         u"""
@@ -332,7 +318,6 @@ class ConfigurationAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-    @if_configuration_matches
     @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
         u"""
