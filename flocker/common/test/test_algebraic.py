@@ -30,6 +30,7 @@ class AlgebraicType(PClass):
     state = field(mandatory=True)
     one = field(bool)
     two = field(bool)
+    extra = field(bool, mandatory=True)
 
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
@@ -43,6 +44,7 @@ class AlgebraicType(PClass):
 ALGEBRAIC_TYPE_STRATEGY = tagged_union_strategy(AlgebraicType, {
     'one': st.booleans(),
     'two': st.booleans(),
+    'extra': st.booleans(),
 })
 
 ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY = ALGEBRAIC_TYPE_STRATEGY.map(
@@ -128,8 +130,9 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
             set(States.iterconstants())
             - AlgebraicType.__invariant__._allowed_tags
         ),
+        extra_value=st.booleans(),
     )
-    def test_invalid_states(self, state):
+    def test_invalid_states(self, state, extra_value):
         """
         When constructed with a state that isn't allowed,
         `InvariantException` is raised.
@@ -137,7 +140,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         :param state: A state which isn't a valid state for
             ``AlgebraicType``.
         """
-        args = {'state': state}
+        args = {'state': state, 'extra': extra_value}
 
         exc = self.assertRaises(InvariantException, AlgebraicType, **args)
 
