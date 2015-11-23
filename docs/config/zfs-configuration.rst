@@ -62,7 +62,7 @@ Enable Root Login Between Nodes for ZFS Data Transfer
 
 To support moving data with the ZFS backend, every node must be able to log in to all other nodes using SSH as the root user.
 
-In order to do this, append the contents of the :file:`/root/.ssh/id_rsa.pub` file each node to the :file:`/root/.ssh/authorized_keys` file on each node. 
+In order to do this, append the contents of the :file:`/root/.ssh/id_rsa.pub` file on each node to the :file:`/root/.ssh/authorized_keys` file on each node. 
 This will need to be completed for all nodes, creating the :file:`authorized.keys` file if necessary.
 
 If you add or remove nodes from the cluster, you will need to ensure that  these files are kept in sync.
