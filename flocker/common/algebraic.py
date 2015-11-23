@@ -48,12 +48,20 @@ class TaggedUnionInvariant(PClass):
             ))
         for attribute in self.attributes_for_tag[tag]:
             if not hasattr(value, attribute):
-                return (False, "`{attr}` must be specified in {tag_name} `{tag}`"
-                        .format(attr=attribute, tag_name=self.tag_attribute, tag=tag.name))
+                return (
+                    False,
+                    "`{attr}` must be specified in {tag_name} `{tag}`"
+                    .format(attr=attribute,
+                            tag_name=self.tag_attribute,
+                            tag=tag.name))
         for attribute in self._all_attributes - self.attributes_for_tag[tag]:
             if hasattr(value, attribute):
-                return (False, "`{attr}` can't be specified in {tag_name} `{tag}`"
-                        .format(attr=attribute, tag_name=self.tag_attribute, tag=tag.name))
+                return (
+                    False,
+                    "`{attr}` can't be specified in {tag_name} `{tag}`"
+                    .format(attr=attribute,
+                            tag_name=self.tag_attribute,
+                            tag=tag.name))
         return (True, "")
 
 
