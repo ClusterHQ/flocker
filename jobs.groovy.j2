@@ -108,7 +108,7 @@ echo \$REMOTE_GIT_COMMIT > gitcommit
   } else {
     conditionalSteps {
       condition {
-        status('FAILURE')
+        status('FAILURE', 'FAILURE')
       }
       steps {
         shell("echo 'Job failed'")
@@ -116,7 +116,7 @@ echo \$REMOTE_GIT_COMMIT > gitcommit
     }
     conditionalSteps {
       condition {
-        status('SUCCESS')
+        status('SUCCESS', 'SUCCESS')
       }
       steps {
         shell("echo 'Job succeeded'")
