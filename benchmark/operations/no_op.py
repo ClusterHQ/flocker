@@ -25,6 +25,7 @@ class NoOperation(PClass):
     An nop operation.
     """
 
+    clock = field(mandatory=True)
     control_service = field(mandatory=True)
 
     def get_probe(self):
