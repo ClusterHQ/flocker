@@ -393,7 +393,6 @@ class TimeoutClient(Client):
         return kwargs
 
 
-@implementer(IDockerClient)
 def dockerpy_client(**kwargs):
     return wrap_methods_with_failure_retry(
         TimeoutClient(**kwargs),
@@ -409,6 +408,7 @@ def dockerpy_client(**kwargs):
     )
 
 
+@implementer(IDockerClient)
 class DockerClient(object):
     """
     Talk to the real Docker server directly.
