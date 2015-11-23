@@ -656,6 +656,28 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
             self.failures += 1
             raise CustomException(self.failures)
 
+    def test_data_descriptor(self):
+        """
+        Non-method attribute read access passes through to the wrapped object
+        and the result is the same as if no wrapping had taken place.
+        """
+        class Original(object):
+            class_attribute = object()
+
+            def __init__(self):
+                self.instance_attribute = object()
+
+        original = Original()
+        wrapper = wrap_methods_with_failure_retry(original)
+        self.assertThat(
+            wrapper.class_attribute,
+            Equals(original.class_attribute),
+        )
+        self.assertThat(
+            wrapper.instance_attribute,
+            Equals(original.instance_attribute),
+        )
+
     def test_passthrough(self):
         """
         Methods called on the wrapper have the same arguments passed through to

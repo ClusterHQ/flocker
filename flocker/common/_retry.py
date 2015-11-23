@@ -394,5 +394,7 @@ class _DecoratedInstance(object):
         self._kw = kw
 
     def __getattr__(self, name):
-        method = getattr(self._wrapped, name)
-        return self._decorator(method, **self._kw)
+        attribute = getattr(self._wrapped, name)
+        if callable(attribute):
+            return self._decorator(attribute, **self._kw)
+        return attribute
