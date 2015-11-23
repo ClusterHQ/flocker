@@ -770,4 +770,3 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
             sum(time),
             Equals(sum(filter(None, intervals), timedelta(0)).total_seconds()),
         )
-

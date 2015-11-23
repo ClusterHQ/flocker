@@ -393,6 +393,14 @@ class TimeoutClient(Client):
         return kwargs
 
 
+def _is_known_retryable(error_text):
+    return any(
+        known in error_text
+        for known
+        in [u"Unknown device", u"No such device"]
+    )
+
+
 def dockerpy_client(**kwargs):
     return wrap_methods_with_failure_retry(
         TimeoutClient(**kwargs),
@@ -400,7 +408,8 @@ def dockerpy_client(**kwargs):
             retry_if(
                 lambda exc: (
                     isinstance(exc, APIError) and
-                    exc.response.status_code == INTERNAL_SERVER_ERROR
+                    exc.response.status_code == INTERNAL_SERVER_ERROR and
+                    _is_known_retryable(exc.response.text)
                 )
             ),
             retry_some_times(),
