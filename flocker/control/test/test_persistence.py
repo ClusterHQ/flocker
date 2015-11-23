@@ -415,6 +415,68 @@ class ConfigurationPersistenceServiceTests(TestCase):
         old_saving.addCallback(saved_old)
         return old_saving
 
+    def get_hash(self, service):
+        """
+        Get the configuration, doing some sanity checks along the way.
+
+        :param service: A ``ConfigurationPersistenceService``.
+        :return: Result of ``service.configuration_hash()``.
+        """
+        # Repeatable:
+        result1 = service.configuration_hash()
+        result2 = service.configuration_hash()
+        self.assertEqual(result1, result2)
+        # Bytes:
+        self.assertIsInstance(result1, bytes)
+        return result1
+
+    def test_hash_on_startup(self):
+        """
+        An empty configuration can be hashed.
+        """
+        path = FilePath(self.mktemp())
+        service = ConfigurationPersistenceService(reactor, path)
+        service.startService()
+        self.addCleanup(service.stopService)
+
+        # Hash can be retrieved and passes sanity check:
+        self.get_hash(service)
+
+    def test_hash_on_save(self):
+        """
+        The configuration hash changes when a new version is saved.
+        """
+        path = FilePath(self.mktemp())
+        service = ConfigurationPersistenceService(reactor, path)
+        service.startService()
+        self.addCleanup(service.stopService)
+        original = self.get_hash(service)
+        d = service.save(TEST_DEPLOYMENT)
+
+        def saved(_):
+            updated = self.get_hash(service)
+            self.assertNotEqual(updated, original)
+        d.addCallback(saved)
+        return d
+
+    def test_hash_persists_across_restarts(self):
+        """
+        A configuration that was saved can be loaded from a new service.
+        """
+        path = FilePath(self.mktemp())
+        service = ConfigurationPersistenceService(reactor, path)
+        service.startService()
+        self.addCleanup(service.stopService)
+        d = service.save(TEST_DEPLOYMENT)
+
+        def saved(_):
+            original = self.get_hash(service)
+            service.stopService()
+            service.startService()
+            self.assertEqual(self.get_hash(service), original)
+        d.addCallback(saved)
+        return d
+
 
 class StubMigration(object):
     """
