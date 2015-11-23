@@ -103,19 +103,12 @@ class DiscoveredDataset(PClass):
     mount_point = field(FilePath)
 
     __invariant__ = TaggedUnionInvariant(
-        allowed_states={
-            DatasetStates.ATTACHED_ELSEWHERE,
-            DatasetStates.NON_MANIFEST,
-            DatasetStates.ATTACHED_NO_FILESYSTEM,
-            DatasetStates.ATTACHED,
-            DatasetStates.MOUNTED,
-        },
-        expected_attributes={
-            "device_path": {
-                DatasetStates.ATTACHED, DatasetStates.MOUNTED,
-                DatasetStates.ATTACHED_NO_FILESYSTEM,
-            },
-            "mount_point": {DatasetStates.MOUNTED},
+        attributes={
+            DatasetStates.ATTACHED_ELSEWHERE: set(),
+            DatasetStates.NON_MANIFEST: set(),
+            DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
+            DatasetStates.ATTACHED: {'device_path'},
+            DatasetStates.MOUNTED: {'device_path', 'mount_point'},
         },
     )
 

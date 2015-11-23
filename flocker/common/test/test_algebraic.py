@@ -32,14 +32,10 @@ class AlgebraicType(PClass):
     two = field(bool)
 
     __invariant__ = TaggedUnionInvariant(
-        allowed_states={
-            States.ALLOWED,
-            States.WITH_ATTRIBUTE,
-            States.WITH_TWO_ATTRIBUTES,
-        },
-        expected_attributes={
-            'one': {States.WITH_ATTRIBUTE, States.WITH_TWO_ATTRIBUTES},
-            'two': {States.WITH_TWO_ATTRIBUTES},
+        attributes={
+            States.ALLOWED: set(),
+            States.WITH_ATTRIBUTE: {'one'},
+            States.WITH_TWO_ATTRIBUTES: {'one', 'two'},
         },
     )
 
@@ -82,7 +78,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         """
         state = args['state']
         extra_attributes = (
-            set(AlgebraicType.__invariant__.expected_attributes.keys())
+            AlgebraicType.__invariant__._all_attributes
             - AlgebraicType.__invariant__._get_attrs(state)
         )
         assume(extra_attributes)
@@ -93,7 +89,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
 
         exc = self.assertRaises(InvariantException, AlgebraicType, **args)
         self.assertIn(
-            'can only be specified in state',
+            "can't be specified in state",
             exc.invariant_errors[0],
         )
 

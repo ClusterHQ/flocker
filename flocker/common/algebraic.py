@@ -23,41 +23,39 @@ class TaggedUnionInvariant(PClass):
         the set of states that attribute should be present in.
     """
 
-    allowed_states = field(set, mandatory=True)
-    expected_attributes = field(dict, mandatory=True)
+    attributes = field(dict, mandatory=True)
 
     def _get_attrs(self, tag):
+        return self.attributes[tag]
+
+    @property
+    def allowed_states(self):
+        return set(self.attributes.keys())
+
+    @property
+    def _all_attributes(self):
         return {
             attribute
-            for attribute, tags in self.expected_attributes.items()
-            if tag in tags
+            for state, attributes in self.attributes.items()
+            for attribute in attributes
         }
 
-    def _get_states(self, attr):
-        return self.expected_attributes[attr]
-
     def __call__(self, value):
-        for attribute, states in self.expected_attributes.items():
-            if (value.state in states) != hasattr(value, attribute):
-                if value.state in states:
-                    message = (
-                        "`{attr}` must be specified in state `{state}`"
-                        .format(attr=attribute, state=value.state.name)
-                    )
-                else:
-                    message = (
-                        "`{attr}` can only be specified in states {states}"
-                        .format(
-                            attr=attribute,
-                            states=', '.join(map("`{0.name}`".format, states)),
-                        )
-                    )
-                return (False, message)
         if value.state not in self.allowed_states:
             return (False, "can only be in states {states}.".format(
                 states=', '.join(map("`{0.name}`".format,
                                      self.allowed_states)),
             ))
+        print value
+        print self._get_attrs(value.state)
+        for attribute in self._get_attrs(value.state):
+            if not hasattr(value, attribute):
+                return (False, "`{attr}` must be specified in state `{state}`"
+                        .format(attr=attribute, state=value.state.name))
+        for attribute in self._all_attributes - self._get_attrs(value.state):
+            if hasattr(value, attribute):
+                return (False, "`{attr}` can't be specified in state `{state}`"
+                        .format(attr=attribute, state=value.state.name))
         return (True, "")
 
 
