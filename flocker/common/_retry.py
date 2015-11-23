@@ -254,9 +254,17 @@ def retry_some_times():
     return should_retry
 
 
-def retry_if(matches):
+def retry_if(predicate):
+    """
+    Create a predicate compatible with ``wrap_methods_with_failure_retry``
+    which will retry if the raised exception satisfies the given predicate.
+
+    :param predicate: A one-argument callable which will be called with the
+        raised exception instance only.  It should return ``True`` if a retry
+        should be attempted, ``False`` otherwise.
+    """
     def should_retry(exc_type, value, traceback):
-        if matches(value):
+        if predicate(value):
             return None
         raise exc_type, value, traceback
     return should_retry
