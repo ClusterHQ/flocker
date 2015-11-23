@@ -7,6 +7,8 @@ Invariants for algebraic data types.
 
 from pyrsistent import PClass, field
 
+from hypothesis.strategies import sampled_from, fixed_dictionaries, just
+
 __all__ = ["TaggedUnionInvariant"]
 
 
@@ -23,6 +25,16 @@ class TaggedUnionInvariant(PClass):
 
     allowed_states = field(set, mandatory=True)
     expected_attributes = field(dict, mandatory=True)
+
+    def _get_attrs(self, tag):
+        return {
+            attribute
+            for attribute, tags in self.expected_attributes.items()
+            if tag in tags
+        }
+
+    def _get_states(self, attr):
+        return self.expected_attributes[attr]
 
     def __call__(self, value):
         for attribute, states in self.expected_attributes.items():
@@ -47,3 +59,20 @@ class TaggedUnionInvariant(PClass):
                                      self.allowed_states)),
             ))
         return (True, "")
+
+
+def tagged_union_strategy(type, attr_strategies):
+    invariant = type.__invariant__
+
+    def build(tag):
+        args = {
+            'state': just(tag),
+        }
+        args.update({
+            attribute: strategy
+            for attribute, strategy in attr_strategies.items()
+            if attribute in invariant._get_attrs(tag)
+        })
+        return fixed_dictionaries(args).map(lambda kwargs: type(**kwargs))
+
+    return sampled_from(type.__invariant__.allowed_states).flatmap(build)
