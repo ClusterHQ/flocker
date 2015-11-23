@@ -92,26 +92,26 @@
 
 
 {% macro updateGitHubStatus(status)                                         -%}
-  shell("""
-REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
-echo \$REMOTE_GIT_COMMIT > gitcommit
-  """)
-
 {# Read the commit and github credentials                                    #}
 {# Update github with the build status                                       #}
-  if ("{{status}}" == "pending" ) {
+{% if status == "pending"                                                    %}
     shell("""
-      REMOTE_GIT_COMMIT=\$(cat gitcommit)
-      echo \$REMOTE_GIT_COMMIT
+REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
+echo \$REMOTE_GIT_COMMIT
+echo 'Job started'
     """)
-
-  } else {
+{% endif %}
+{% if status == "complete" %}
     conditionalSteps {
       condition {
         status('FAILURE', 'FAILURE')
       }
       steps {
-        shell("echo 'Job failed'")
+        shell("""
+REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
+echo \$REMOTE_GIT_COMMIT
+echo 'Job failed'
+        """)
       }
     }
     conditionalSteps {
@@ -119,10 +119,14 @@ echo \$REMOTE_GIT_COMMIT > gitcommit
         status('SUCCESS', 'SUCCESS')
       }
       steps {
-        shell("echo 'Job succeeded'")
+        shell("""
+REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
+echo \$REMOTE_GIT_COMMIT
+echo 'Job succeeded'
+        """)
       }
     }
-  }
+{% endif %}
 {%- endmacro                                                                -%}
 
 {% macro folder(folder, display_name)                                       -%}
