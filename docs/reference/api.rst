@@ -26,6 +26,36 @@ For more information, see the :ref:`API authentication guide <generate-api>`.
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
+
+Using the API
+=============
+
+Conditional requests
+--------------------
+When using the API to create, delete or otherwise modify datasets you may wish to do so only if certain conditions apply.
+For example, the Docker plugin relies on a metadata field called ``name`` to locate which dataset to use.
+The ``name`` needs to be unique across all datasets.
+To ensure uniqueness when creating a dataset called "my-db" we could do the following:
+
+1. List the datasets in the configuration.
+2. If "my-db" does not appear as the name of a dataset, create a new dataset.
+
+Unfortunately this suffers from a race condition: someone else may create a dataset with name "my-db" in between steps 1 and 2.
+
+The solution is a compare-and-set mechanism, allowing you to say "only do this change if the configuration hasn't changed since the last time I used it."
+The :http:get`/v1/configuration/datasets` end point returns an HTTP header ``ETag`` whose contents identify a particular version of the configuration::
+
+  ETag: "abcdef1234"
+
+Operations that modify the configuration can then include a ``If-Match`` header with that tag as its contents::
+
+  If-Match: "abcdef1234"
+
+* If the configuration hasn't changed in the interim then the operation will succeed.
+* If the configuration has changed then the operation will fail with a 412 (Precondition Failed) response code.
+  In this case you would retrieve the configuration again and decide whether to retry or if the operation is no longer relevant.
+
+
 REST API Endpoints
 ==================
 
