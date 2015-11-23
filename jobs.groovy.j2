@@ -526,7 +526,7 @@ branches.each {
     }
       steps {
 {# Set the commit status on github to pending                                #}
-          updateGitHubStatus('pending')
+          {{ updateGitHubStatus('pending') }}
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -680,7 +680,7 @@ branches.each {
           }
 
 {# Update the commit status on github to the job result                    #}
-          updateGitHubStatus('success')
+          {{ updateGitHubStatus('success') }}
 
       }
   }
