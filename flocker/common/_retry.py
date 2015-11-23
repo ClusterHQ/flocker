@@ -234,6 +234,23 @@ _TRY_FAILURE = _TRY_UNTIL_SUCCESS + u":failure"
 _TRY_SUCCESS = _TRY_UNTIL_SUCCESS + u":success"
 
 
+def retry_on_intervals(intervals):
+    """
+    Create a predicate compatible with ``wrap_methods_with_failure_retry``
+    which will retry with exactly the given delays in between.
+    """
+    intervals = iter(intervals)
+
+    def should_retry(exc_type, value, traceback):
+        for interval in intervals:
+            # Log any failure we're retrying
+            write_traceback()
+            return interval
+        # Out of steps, fail the retry loop overall.
+        raise exc_type, value, traceback
+    return should_retry
+
+
 def retry_some_times():
     """
     Create a predicate compatible with ``wrap_methods_with_failure_retry``
@@ -242,16 +259,9 @@ def retry_some_times():
     delay = 0.1
     timeout = 120.0
     times = int(timeout // delay)
-    steps = iter(repeat(timedelta(seconds=delay), times))
+    steps = repeat(timedelta(seconds=delay), times)
 
-    def should_retry(exc_type, value, traceback):
-        for step in steps:
-            # Log any failure we're retrying
-            write_traceback()
-            return step
-        # Out of steps, fail the retry loop overall.
-        raise exc_type, value, traceback
-    return should_retry
+    return retry_on_intervals(steps)
 
 
 def retry_if(predicate):
@@ -293,7 +303,7 @@ def compose_retry(should_retries):
     return composed
 
 
-def wrap_methods_with_failure_retry(obj, should_retry=None):
+def wrap_methods_with_failure_retry(obj, should_retry=None, sleep=sleep):
     """
     Return a wrapper around ``obj`` which automatically re-runs method calls
     which would otherwise have failed.
@@ -310,13 +320,28 @@ def wrap_methods_with_failure_retry(obj, should_retry=None):
     if should_retry is None:
         should_retry = retry_some_times()
 
-    return _DecoratedInstance(obj, _with_retry, should_retry=should_retry)
+    return _DecoratedInstance(
+        obj, _with_retry, should_retry=should_retry, sleep=sleep,
+    )
 
 
-def _poll_until_success_returning_result(should_retry, function, args, kwargs):
+def _poll_until_success_returning_result(
+    should_retry, sleep, function, args, kwargs
+):
     """
-    Call a function until it does not raise an exception or a timeout is hit,
-    whichever comes first.
+    Call a function until it does not raise an exception or ``should_retry``
+    says it shouldn't be tried anymore, whichever comes first.
+
+    :param should_retry: A three-argument callable which determines whether
+        further retries are attempted.  If ``None`` or a ``timedelta`` is
+        returned, another retry is attempted (immediately or after sleeping for
+        the indicated interval, respectively).  If an exception is raised,
+        further tries are not attempted and the exception is allowed to
+        propagate.
+    :param sleep: A function like ``time.sleep`` to use for the delays.
+    :param function: The function to try calling.
+    :param args: Position arguments to pass to the function.
+    :param kwargs: Keyword arguments to pass to the function.
 
     :return: The value returned by ``function`` on the first call where it
         returns a value instead of raising an exception.
@@ -335,7 +360,8 @@ def _poll_until_success_returning_result(should_retry, function, args, kwargs):
                 message_type=_TRY_FAILURE,
                 exception=str(e),
             ).write()
-            sleep(delay.total_seconds())
+            if delay is not None:
+                sleep(delay.total_seconds())
             return False
         else:
             Message.new(
@@ -345,18 +371,18 @@ def _poll_until_success_returning_result(should_retry, function, args, kwargs):
             saved_result.append(result)
             return True
 
-    poll_until(pollable, repeat(timedelta(seconds=0.0)))
+    poll_until(pollable, repeat(0.0), sleep=sleep)
 
     return saved_result[0]
 
 
-def _with_retry(method, should_retry):
+def _with_retry(method, should_retry, sleep):
     def method_with_retry(*a, **kw):
         name = fullyQualifiedName(method)
         action_type = _TRY_UNTIL_SUCCESS
         with start_action(action_type=action_type, function=name):
             return _poll_until_success_returning_result(
-                should_retry, method, a, kw
+                should_retry, sleep, method, a, kw
             )
     return method_with_retry
 

@@ -9,7 +9,7 @@ from datetime import timedelta
 from itertools import repeat
 
 import testtools
-from testtools.matchers import Equals, raises
+from testtools.matchers import MatchesPredicate, Equals, raises
 
 from eliot.testing import (
     capture_logging,
@@ -519,6 +519,9 @@ class RetryEffectTests(SynchronousTestCase):
         )
 
 
+EXPECTED_RETRY_SOME_TIMES_RETRIES = 1199
+
+
 class RetrySomeTimesTests(testtools.TestCase):
     """
     Tests for ``retry_some_times``.
@@ -536,8 +539,13 @@ class RetrySomeTimesTests(testtools.TestCase):
 
         should_try = retry_some_times()
         self.assertThat(
-            list(should_try(*details) for n in range(1199)),
-            Equals([timedelta(seconds=0.1)] * 1199),
+            list(
+                should_try(*details)
+                for n in range(EXPECTED_RETRY_SOME_TIMES_RETRIES)
+            ),
+            Equals(
+                [timedelta(seconds=0.1)] * EXPECTED_RETRY_SOME_TIMES_RETRIES
+            ),
         )
         self.assertThat(lambda: should_try(*details), raises(CustomException))
 
@@ -632,5 +640,132 @@ class ComposeRetryTests(testtools.TestCase):
         self.assertThat(
             should_retry(CustomException, CustomException(), None),
             Equals(None),
+        )
+
+
+class WrapMethodsWithFailureRetryTests(testtools.TestCase):
+    """
+    Tests for ``wrap_methods_with_failure_retry``.
+    """
+    class AlwaysFail(object):
+        failures = 0
+
+        def some_method(self):
+            self.failures += 1
+            raise CustomException(self.failures)
+
+    def test_passthrough(self):
+        """
+        Methods called on the wrapper have the same arguments passed through to
+        the wrapped method and the result of the wrapped method returned if no
+        exception is raised.
+        """
+        class Original(object):
+            def some_method(self, a, b):
+                return (b, a)
+
+        a = object()
+        b = object()
+
+        wrapper = wrap_methods_with_failure_retry(Original())
+        self.assertThat(
+            wrapper.some_method(a, b=b),
+            Equals((b, a)),
+        )
+
+    def test_default_retry(self):
+        """
+        If no value is given for the ``should_retry`` parameter, if the wrapped
+        method raises an exception it is called again after a short delay.
+        This is repeated using the elements of ``retry_some_times`` as the
+        sleep times and stops when there are no more elements.
+        """
+        time = []
+        sleep = time.append
+
+        original = self.AlwaysFail()
+        wrapper = wrap_methods_with_failure_retry(original, sleep=sleep)
+        # XXX testtools ``raises`` helper generates a crummy message when this
+        # assertion fails
+        self.assertThat(
+            wrapper.some_method,
+            raises(CustomException),
+        )
+        self.assertThat(
+            original.failures,
+            # The number of times we demonstrated (above) that retry_some_times
+            # retries - plus one more for the initial call.
+            Equals(EXPECTED_RETRY_SOME_TIMES_RETRIES + 1),
+        )
+        self.assertThat(
+            sum(time),
+            # Floating point maths.  Allow for some slop.
+            MatchesPredicate(
+                lambda t: 119.8 <= t <= 120.0,
+                "Time value %r too far from expected value 119.9",
+            ),
+        )
+
+    def test_custom_should_retry(self):
+        """
+        If a predicate is passed for ``should_retry``, it used to determine
+        whether a retry should be attempted any time an exception is raised.
+        """
+        original = self.AlwaysFail()
+        wrapped = wrap_methods_with_failure_retry(
+            original,
+            retry_if(
+                lambda exception: (
+                    isinstance(exception, CustomException) and
+                    exception.args[0] < 10
+                ),
+            ),
+            sleep=lambda interval: None,
+        )
+
+        self.assertThat(
+            wrapped.some_method,
+            raises(CustomException),
+        )
+        self.assertThat(
+            original.failures,
+            Equals(10),
+        )
+
+    def test_custom_should_retry_sleep_interval(self):
+        """
+        If a predicate is passed for ``should_retry``, its return value is used
+        as a sleep interval between retries.
+        """
+        time = []
+        sleep = time.append
+
+        intervals = [
+            timedelta(seconds=1), None,
+            timedelta(seconds=3), None,
+            timedelta(seconds=5), None,
+        ]
+        original = self.AlwaysFail()
+        wrapped = wrap_methods_with_failure_retry(
+            original,
+            retry_on_intervals(intervals),
+            sleep=sleep,
+        )
+
+        self.assertThat(
+            wrapped.some_method,
+            raises(CustomException),
+        )
+        # XXX Generates a confusing error message when fails, says "expected !=
+        # actual" when the argument order is "actual, expected"!
+        self.assertThat(
+            original.failures,
+            # One retry after each sleep interval - plus the initial try before
+            # any sleeps.
+            Equals(len(intervals) + 1),
+        )
+        self.assertThat(
+            sum(time),
+            Equals(sum(filter(None, intervals), timedelta(0)).total_seconds()),
         )
 
