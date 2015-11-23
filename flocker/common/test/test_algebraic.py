@@ -32,6 +32,7 @@ class AlgebraicType(PClass):
     two = field(bool)
 
     __invariant__ = TaggedUnionInvariant(
+        tag_attribute='state',
         attributes={
             States.ALLOWED: set(),
             States.WITH_ATTRIBUTE: {'one'},
@@ -123,7 +124,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
     @given(
         state=st.sampled_from(
             set(States.iterconstants())
-            - AlgebraicType.__invariant__.allowed_states
+            - AlgebraicType.__invariant__.allowed_tags
         ),
     )
     def test_invalid_states(self, state):

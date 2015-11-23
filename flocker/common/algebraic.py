@@ -19,43 +19,44 @@ class TaggedUnionInvariant(PClass):
     present if and only if the object is in one of the corresponding states.
 
     :param set allowed_states: Set of allowed states.
-    :param dict expected_attributes: Dictionary mapping attribute names to
-        the set of states that attribute should be present in.
+    :param dict attributes: Dictionary mapping states to the set of
+        attributes allowed in that state.
     """
 
+    tag_attribute = field(str, mandatory=True)
     attributes = field(dict, mandatory=True)
 
     def _get_attrs(self, tag):
         return self.attributes[tag]
 
     @property
-    def allowed_states(self):
+    def allowed_tags(self):
         return set(self.attributes.keys())
 
     @property
     def _all_attributes(self):
         return {
             attribute
-            for state, attributes in self.attributes.items()
+            for tag, attributes in self.attributes.items()
             for attribute in attributes
         }
 
     def __call__(self, value):
-        if value.state not in self.allowed_states:
-            return (False, "can only be in states {states}.".format(
-                states=', '.join(map("`{0.name}`".format,
-                                     self.allowed_states)),
+        tag = getattr(value, self.tag_attribute)
+        if tag not in self.allowed_tags:
+            return (False, "can only be in {tag_name}s {tags}.".format(
+                tag_name=self.tag_attribute,
+                tags=', '.join(map("`{0.name}`".format,
+                                   self.allowed_tags)),
             ))
-        print value
-        print self._get_attrs(value.state)
-        for attribute in self._get_attrs(value.state):
+        for attribute in self._get_attrs(tag):
             if not hasattr(value, attribute):
-                return (False, "`{attr}` must be specified in state `{state}`"
-                        .format(attr=attribute, state=value.state.name))
-        for attribute in self._all_attributes - self._get_attrs(value.state):
+                return (False, "`{attr}` must be specified in {tag_name} `{tag}`"
+                        .format(attr=attribute, tag_name=self.tag_attribute, tag=tag.name))
+        for attribute in self._all_attributes - self._get_attrs(tag):
             if hasattr(value, attribute):
-                return (False, "`{attr}` can't be specified in state `{state}`"
-                        .format(attr=attribute, state=value.state.name))
+                return (False, "`{attr}` can't be specified in {tag_name} `{tag}`"
+                        .format(attr=attribute, tag_name=self.tag_attribute, tag=tag.name))
         return (True, "")
 
 
@@ -64,7 +65,7 @@ def tagged_union_strategy(type, attr_strategies):
 
     def build(tag):
         args = {
-            'state': just(tag),
+            invariant.tag_attribute: just(tag),
         }
         args.update({
             attribute: strategy
@@ -73,4 +74,4 @@ def tagged_union_strategy(type, attr_strategies):
         })
         return fixed_dictionaries(args).map(lambda kwargs: type(**kwargs))
 
-    return sampled_from(type.__invariant__.allowed_states).flatmap(build)
+    return sampled_from(type.__invariant__.allowed_tags).flatmap(build)

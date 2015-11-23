@@ -103,6 +103,7 @@ class DiscoveredDataset(PClass):
     mount_point = field(FilePath)
 
     __invariant__ = TaggedUnionInvariant(
+        tag_attribute='state',
         attributes={
             DatasetStates.ATTACHED_ELSEWHERE: set(),
             DatasetStates.NON_MANIFEST: set(),
