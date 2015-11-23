@@ -575,3 +575,62 @@ class RetryIfTests(testtools.TestCase):
             ),
             raises(CustomException),
         )
+
+
+class ComposeRetryTests(testtools.TestCase):
+    """
+    Tests for ``compose_retry``.
+    """
+    def test_raise_first_exception(self):
+        """
+        If one of the predicates passed to ``compose_retry`` raises an
+        exception, ``compose_retry`` raises that exception.
+        """
+        class AnotherException(Exception):
+            pass
+
+        def throw(exception):
+            raise exception
+
+        should_retry = compose_retry([
+            retry_if(lambda exception: isinstance(
+                exception, AnotherException
+            )),
+            lambda type, value, traceback: throw(CustomException()),
+            retry_if(lambda exception: True),
+        ])
+
+        self.assertThat(
+            lambda: should_retry(AnotherException, AnotherException(), None),
+            raises(CustomException),
+        )
+
+    def test_returns_first_value(self):
+        """
+        If one of the predicates passed to ``compose_retry`` returns a
+        non-``None`` value, ``compose_retry`` returns that value.
+        """
+        should_retry = compose_retry([
+            retry_if(lambda exception: True),
+            lambda type, value, traceback: timedelta(seconds=3.0),
+            retry_if(lambda exception: False),
+        ])
+
+        self.assertThat(
+            should_retry(CustomException, CustomException(), None),
+            Equals(timedelta(seconds=3.0)),
+        )
+
+    def test_default_none_result(self):
+        """
+        If all of the predicates passed to ``compose_retry`` return ``None``,
+        ``compose_retry`` returns ``None``.
+        """
+        should_retry = compose_retry([
+            retry_if(lambda exception: True),
+        ])
+        self.assertThat(
+            should_retry(CustomException, CustomException(), None),
+            Equals(None),
+        )
+

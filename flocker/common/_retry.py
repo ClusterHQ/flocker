@@ -271,14 +271,25 @@ def retry_if(predicate):
 
 
 def compose_retry(should_retries):
+    """
+    Combine several retry predicates by applying them in series.
+
+    The predicates are tested in the order given.  If a predicate raises an
+    exception, processing stops and no retry is attempted.  If a predicate
+    returns ``None``, processing continues to the next predicate.  If it
+    returns a ``timedelta``, processing stops and a retry is attempted after a
+    delay of that length.
+
+    :param list should_retries: The retry predicates to apply.
+
+    :return: A single retry predicate which is composed of ``should_retries``.
+    """
     def composed(exc_type, value, traceback):
         for should_retry in should_retries:
             result = should_retry(exc_type, value, traceback)
             if result is not None:
                 return result
-        # If nothing raised an exception or generated a sleep interval,
-        # generate one.
-        return timedelta(seconds=0.1)
+        return None
     return composed
 
 
