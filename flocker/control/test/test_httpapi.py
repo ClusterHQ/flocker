@@ -2393,6 +2393,19 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             b"GET", b"/configuration/datasets", None, OK, []
         )
 
+    def test_etag(self):
+        """
+        The response includes an ``Etag`` header with the configuration hash.
+        """
+        d = self.assertResponseCode(
+            b"GET", b"/configuration/datasets", None, OK)
+        d.addCallback(
+            lambda response:
+            self.assertEqual(
+                response.headers.getRawHeaders("Etag"),
+                [b'"%s"' % (self.persistence_service.configuration_hash(),)]))
+        return d
+
     def _dataset_test(self, deployment, expected):
         """
         Verify that when the control service has ``deployment``
