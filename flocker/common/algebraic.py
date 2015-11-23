@@ -66,6 +66,14 @@ class TaggedUnionInvariant(PClass):
 
 
 def tagged_union_strategy(type, attr_strategies):
+    """
+    Create a strategy for building a type with a ``TaggedUnionInvariant``.
+
+    :param type: Type to generate a strategy for.
+    :param attr_strategies: Mapping of attributes to stratgeies to
+        dgenerate corresponding attributes.
+    :type attr_strategies: ``dict`` mapping ``str`` to ``SearchStrategy`s.
+    """
     invariant = type.__invariant__
 
     def build(tag):
