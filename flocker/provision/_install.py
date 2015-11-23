@@ -36,12 +36,6 @@ from flocker.common.version import (
 )
 from flocker.common import retry_effect_with_timeout
 
-# A systemctl sub-command to start or restart a service.  We use restart here
-# so that if it is already running it gets restart (possibly necessary to
-# respect updated configuration) and because restart will also start it if it
-# is not running.
-START = "restart"
-
 ZFS_REPO = {
     'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                 "epel/zfs-release.el7.noarch.rpm",
@@ -834,7 +828,7 @@ def task_enable_flocker_control(distribution, action="start"):
     if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', action.upper(), 'flocker-control']),
+            run_from_args(['systemctl', action.lower(), 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
@@ -1047,13 +1041,13 @@ def task_enable_flocker_agent(distribution, action="start"):
                            'enable',
                            'flocker-dataset-agent']),
             run_from_args(['systemctl',
-                           action.upper(),
+                           action.lower(),
                            'flocker-dataset-agent']),
             run_from_args(['systemctl',
                            'enable',
                            'flocker-container-agent']),
             run_from_args(['systemctl',
-                           action.upper(),
+                           action.lower(),
                            'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
