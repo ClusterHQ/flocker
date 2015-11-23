@@ -27,7 +27,7 @@ from ._ssh import (
     put,
     run_remotely,
 )
-from ._effect import sequence, Sequence
+from ._effect import sequence
 
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
@@ -48,6 +48,14 @@ ZFS_REPO = {
 }
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
+
+
+class UnknownAction(Exception):
+    """
+    The action received is not a valid action
+    """
+    def __init__(self, action):
+        Exception.__init__(self, action)
 
 
 def is_centos(distribution):
@@ -803,18 +811,32 @@ def open_ufw(service):
 
 def task_enable_flocker_control(distribution, action="start"):
     """
-    Enable flocker-control service.
+    Enable flocker-control service. We need to be able to indicate whether
+    we want to start the service, when we are deploying a new cluster,
+    or if we want to restart it, when we are using an existent cluster in
+    managed mode.
+
+    :param bytes distribution: name of the distribution where the flocker
+        controls currently runs. The supported distros are:
+            - ubuntu-14.04
+            - centos-<centos version>
+    :param bytes action: action to perform with the flocker control service.
+        Currently, we support:
+            -start
+            -stop
+
+    :raises ``DistributionNotSupported`` if the ``distribution`` is not
+            currently supported
+            ``UnknownAction`` if the action passed is not a valid one
     """
+    validate_start_action(action)
+
     if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', START, 'flocker-control']),
+            run_from_args(['systemctl', action.upper(), 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
-        # Since the flocker-control service is currently installed
-        # alongside the flocker-dataset-agent service, the default control
-        # service configuration does not automatically start the
-        # service.  Here, we provide an override file to start it.
         return sequence([
             put(
                 path='/etc/init/flocker-control.override',
@@ -825,16 +847,23 @@ def task_enable_flocker_control(distribution, action="start"):
             ),
             run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
             run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-            #run_from_args(['service', 'flocker-control', 'start']).on(error=managed_errors_handler),
-            run_from_args(['service', 'flocker-control', action]),
+            run_from_args(['service', 'flocker-control', action.lower()]),
         ])
 
     else:
         raise DistributionNotSupported(distribution=distribution)
 
-# def managed_errors_handler(argument):
-#     print "Error starting flocker control. Ignoring it."
-#     sleep(10)
+
+def validate_start_action(action):
+    """
+    validates if the action given is a valid one  - currently only
+    start and restart are supported
+    """
+    valid_actions = ["start", "restart"]
+    for valid_action in valid_actions:
+        if action.lower() == valid_action:
+            return
+    raise UnknownAction(action)
 
 
 def task_enable_docker_plugin(distribution):
@@ -1004,20 +1033,37 @@ def task_enable_flocker_agent(distribution, action="start"):
     Enable the flocker agents.
 
     :param bytes distribution: The distribution name.
+    :param bytes action: action to perform with the flocker action. Currently
+                        we only support "start" and "restart"
+    :raises ``DistributionNotSupported`` if the ``distribution`` is not
+                currently supported.
+            ``UnknownAction`` if the action passed is not a valid one
     """
+    validate_start_action(action)
+
     if is_centos(distribution):
         return sequence([
-            run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
-            run_from_args(['systemctl', START, 'flocker-dataset-agent']),
-            run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
-            run_from_args(['systemctl', START, 'flocker-container-agent']),
+            run_from_args(['systemctl',
+                           'enable',
+                           'flocker-dataset-agent']),
+            run_from_args(['systemctl',
+                           action.upper(),
+                           'flocker-dataset-agent']),
+            run_from_args(['systemctl',
+                           'enable',
+                           'flocker-container-agent']),
+            run_from_args(['systemctl',
+                           action.upper(),
+                           'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            # run_from_args(['service', 'flocker-dataset-agent', 'start']).on(error=managed_errors_handler),
-            # run_from_args(['service', 'flocker-container-agent', 'start']).on(error=managed_errors_handler),
-            run_from_args(['service', 'flocker-dataset-agent', action]),
-            run_from_args(['service', 'flocker-container-agent', action]),
+            run_from_args(['service',
+                           'flocker-dataset-agent',
+                           action.lower()]),
+            run_from_args(['service',
+                           'flocker-container-agent',
+                           action.lower()]),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1408,10 +1454,12 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
 
     :param dict dataset_backend_configuration: Configuration parameters to
         supply to the dataset backend.
+
+    :param bytes provider: provider of the nodes  - aws. rackspace or managed.
     """
-    setup_action="start"
-    if(provider == "managed"):
-        setup_action="restart"
+    setup_action = 'start'
+    if provider == "managed":
+        setup_action = 'restart'
 
     return sequence([
         run_remotely(
@@ -1422,7 +1470,8 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
                     cluster.certificates.cluster.certificate,
                     cluster.certificates.control.certificate,
                     cluster.certificates.control.key),
-                task_enable_flocker_control(cluster.control_node.distribution, setup_action),
+                task_enable_flocker_control(cluster.control_node.distribution,
+                                            setup_action),
                 if_firewall_available(
                     cluster.control_node.distribution,
                     task_open_control_firewall(

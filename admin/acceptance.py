@@ -362,9 +362,8 @@ def _save_backend_configuration(dataset_backend_name,
     """
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
-    dataset_path.setContent(
-        yaml.safe_dump(
-        {dataset_backend_name.name: dataset_backend_configuration}))
+    dataset_path.setContent(yaml.safe_dump(
+            {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
 
 
@@ -1050,10 +1049,6 @@ def main(reactor, args, base_path, top_level):
     cluster = None
     try:
         yield runner.ensure_keys(reactor)
-        # try:
-        #     cluster = yield runner.start_cluster(reactor)
-        # except SequenceFailed as e:
-        #     pass
         cluster = yield runner.start_cluster(reactor)
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
