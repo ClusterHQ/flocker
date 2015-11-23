@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
 from os import environ
+from itertools import repeat
 
 from ipaddr import IPv4Address, IPv6Address, IPAddress
 
@@ -24,6 +25,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
 from twisted.internet.utils import getProcessOutput
+from twisted.internet import reactor
 
 from treq import json_content, content
 
@@ -140,12 +142,36 @@ class ContainerAlreadyExists(Exception):
     """
 
 
+class ConfigurationChanged(Exception):
+    """
+    An action that required a specific version of the configuration failed
+    because the configuration has changed on the server.
+    """
+
+
+class DatasetsConfiguration(PClass):
+    """
+    Currently configured datasets.
+
+    :ivar etag: The current version of the configuration, suitable for
+        passing as conditional to operations like creation.
+    :ivar datasets: The current ``Dataset`` on the server; maps ``UUID``
+        to ``Dataset``.
+    """
+    etag = field(mandatory=True)
+    datasets = pmap_field(UUID, Dataset)
+
+
 class IFlockerAPIV1Client(Interface):
     """
     The Flocker REST API v1 client.
+
+    Operations that take a ``configuration_etag`` parameter will fail with
+    a ``ConfigurationChanged`` if the configuration has changed since the
+    matching ``list_datasets_configuration`` call.
     """
     def create_dataset(primary, maximum_size=None, dataset_id=None,
-                       metadata=pmap()):
+                       metadata=pmap(), configuration_etag=None):
         """
         Create a new dataset in the configuration.
 
@@ -155,28 +181,34 @@ class IFlockerAPIV1Client(Interface):
         :param dataset_id: If given, the UUID to use for the dataset.
         :param metadata: A mapping between unicode keys and values, to be
             stored as dataset metadata.
+        :param configuration_etag: If not ``None``, should be
+            ``DatasetsConfiguration.etag``.
 
         :return: ``Deferred`` that fires after the configuration has been
             updated with resulting ``Dataset``, or errbacking with
             ``DatasetAlreadyExists``.
         """
 
-    def move_dataset(primary, dataset_id):
+    def move_dataset(primary, dataset_id, configuration_etag=None):
         """
         Move the dataset to a new location.
 
         :param UUID primary: The node where the dataset should manifest.
         :param dataset_id: Which dataset to move.
+        :param configuration_etag: If not ``None``, should be
+            ``DatasetsConfiguration.etag``.
 
         :return: ``Deferred`` that fires after the configuration has been
             updated with the resulting ``Dataset``.
         """
 
-    def delete_dataset(dataset_id):
+    def delete_dataset(dataset_id, configuration_etag=None):
         """
         Delete a dataset.
 
         :param dataset_id: The UUID of the dataset to be deleted.
+        :param configuration_etag: If not ``None``, should be
+            ``DatasetsConfiguration.etag``.
 
         :return: ``Deferred`` that fires with the ``Dataset`` that has just
         been deleted, after the configuration has been updated.
@@ -187,7 +219,7 @@ class IFlockerAPIV1Client(Interface):
         Return the configured datasets, excluding any datasets that
         have been deleted.
 
-        :return: ``Deferred`` firing with iterable of ``Dataset``.
+        :return: ``Deferred`` firing with a ``DatasetsConfiguration``.
         """
 
     def list_datasets_state():
@@ -686,3 +718,44 @@ class FlockerClient(object):
         request = getting_era.addCallback(got_era)
         request.addCallback(lambda result: UUID(result["uuid"]))
         return request
+
+
+def conditional_create(client, condition, *args, **kwargs):
+    """
+    Create a dataset only if a certain condition is true for the
+    configuration.
+
+    This is useful for ensuring e.g. uniqueness of metadata across
+    datasets. Conditional creation will be used to ensure that if the
+    configuration changes the create won't happen; in this case the whole
+    check-and-create will be retried, up to 20 times.
+
+    All parameters are the same as
+    ``IFlockerAPIV1Client.create_dataset_configuration`` except the
+    following:
+
+    :param client: ``IFlockerAPIV1Client`` provider.
+    :param condition: Callable which will be called with the current set
+        of ``Dataset`` on the server. If this raises an exception then the
+        create will be aborted.
+    """
+    def create():
+        d = client.list_datasets_configuration()
+
+        def got_config(config):
+            condition(config.datasets)
+            return client.create_dataset_configuration(
+                *args, configuration_etag=config.etag, **kwargs)
+        d.addCallback(got_config)
+        return d
+
+    return retry_failure(reactor, create, ConfigurationChanged, repeat(0.001))
+
+
+# EXAMPLE USAGE - create dataset with unique name:
+#def create_with_unique_name(client, name, primary):
+#    def is_unique(datasets):
+#        if name in [d.metadata.get("name") for d in datasets]:
+#            raise NameAlreadyInUse(name)
+#    return conditional_create(client, is_unique, primary=primary,
+#                              metadata={"name": name})
