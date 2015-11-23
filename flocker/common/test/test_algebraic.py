@@ -33,7 +33,7 @@ class AlgebraicType(PClass):
 
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
-        attributes={
+        attributes_for_tag={
             States.ALLOWED: set(),
             States.WITH_ATTRIBUTE: {'one'},
             States.WITH_TWO_ATTRIBUTES: {'one', 'two'},
@@ -78,9 +78,10 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         :param extra_value: A value to provide to the exta attribute
         """
         state = args['state']
+        invariant = AlgebraicType.__invariant__
         extra_attributes = (
-            AlgebraicType.__invariant__._all_attributes
-            - AlgebraicType.__invariant__._get_attrs(state)
+            invariant._all_attributes
+            - invariant.attributes_for_tag[state]
         )
         assume(extra_attributes)
         extra_attribute = choice(sorted(extra_attributes))
@@ -107,8 +108,9 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         :param choice: A choice function
         """
         state = args['state']
+        invariant = AlgebraicType.__invariant__
         # The required attributes of the current state.
-        required_attributes = AlgebraicType.__invariant__._get_attrs(state)
+        required_attributes = invariant.attributes_for_tag[state]
         assume(required_attributes)
         removed_attribute = choice(sorted(required_attributes))
 
@@ -124,7 +126,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
     @given(
         state=st.sampled_from(
             set(States.iterconstants())
-            - AlgebraicType.__invariant__.allowed_tags
+            - AlgebraicType.__invariant__._allowed_tags
         ),
     )
     def test_invalid_states(self, state):
