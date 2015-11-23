@@ -310,12 +310,13 @@ class ManagedRunner(object):
         """
         return succeed(None)
 
-# NOTE: what happens with MANAGED provider??
-# Where do we parse that info? Does it get here?
+
 def _provider_for_cluster_id(dataset_backend):
     """
     Get the ``Providers`` value that probably corresponds to a value from
     ``DatasetBackend``.
+    Note that this function will ignore the case of a managed provider,
+    as this information cannot be known just knowing the backend.
     """
     if dataset_backend is DatasetBackend.aws:
         return Providers.AWS
