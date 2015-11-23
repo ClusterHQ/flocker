@@ -204,6 +204,15 @@ class TimeoutTests(SynchronousTestCase):
         self._timeout = 1.0
         self._clock = Clock()
 
+    def _trapError(self, error_type):
+        """Assert a deferred has a result of a specific error and trap it."""
+        self._deferred.result.trap(error_type)
+
+        def errback(e):
+            e.trap(error_type)
+            return None
+        self._deferred.addErrback(error_type)
+
     def _execute_timeout(self):
         """Execute the timeout."""
         timeout(self._clock, self._deferred, self._timeout)
@@ -218,7 +227,7 @@ class TimeoutTests(SynchronousTestCase):
         self.assertFalse(self._deferred.called)
         self._clock.advance(0.1)
         self.assertTrue(self._deferred.called)
-        self._deferred.result.trap(CancelledError)
+        self._trapError(CancelledError)
 
     def test_doesnt_time_out(self):
         """
@@ -256,6 +265,7 @@ class TimeoutTests(SynchronousTestCase):
         self._deferred.errback(Exception('ErrorXYZ'))
         self.assertEqual(self._clock.getDelayedCalls(), [])
         self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
+        self._trapError(Exception)
 
 
 class RetryFailureTests(SynchronousTestCase):
