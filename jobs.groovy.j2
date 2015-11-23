@@ -657,6 +657,8 @@ branches.each {
 {%    endfor                                                                 %}
 {%  endfor                                                                   %}
 {% endfor                                                                    %}
+{# Update the commit status on github to the job result                    #}
+        {{ updateGitHubStatus('complete') }}
 {# do an aggregation of all the test results                                 #}
       }
       publishers {
@@ -681,10 +683,6 @@ branches.each {
             failUnstable(true)
             failNoReports(false)
           }
-
-{# Update the commit status on github to the job result                    #}
-{#          {{ updateGitHubStatus('success') }}                            #}
-
       }
   }
 }
