@@ -63,7 +63,7 @@ You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will 
 Enable Root Login Between Nodes for ZFS Data Transfer
 =====================================================
 
-To support moving data with the ZFS backend, every node must be able to log in to all other nodes using SSH as the ``root`` user.
+To support moving data with the ZFS backend, every node must be able to log in to all other nodes using SSH as the `root` user.
 
 In order to do this, append the contents of the :file:`/root/.ssh/id_rsa.pub` file each node to the :file:`/root/.ssh/authorized_keys` file on each node. 
 This will need to be completed for all nodes, creating the :file:`authorized.keys` file if necessary.
@@ -72,7 +72,7 @@ If you add or remove nodes from the cluster, you will need to ensure that  these
 
 You will also need to ensure that your firewall allows the IP address of every node in the cluster to access TCP port 22 on each node.
 
-To test that the SSH authentication as ``root`` is working between nodes, log into a node as root, and run: 
+To test that the SSH authentication as `root` is working between nodes, log into a node as root, and run: 
 
 .. prompt:: bash [root@node]#
   
