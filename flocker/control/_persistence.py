@@ -347,6 +347,13 @@ class ConfigurationPersistenceService(MultiService):
                 self._config_path.setContent(updated_json)
                 v1_config_path.moveTo(v1_archived_path)
 
+    def configuration_hash(self):
+        """
+        :return bytes: A hash of the configuration.
+        """
+        # XXX probably sha256 of the serialized configuration, updated on
+        # each save and on startup.
+
     def load_configuration(self):
         """
         Load the persisted configuration, upgrading the configuration format

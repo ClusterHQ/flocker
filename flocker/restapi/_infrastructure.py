@@ -36,7 +36,7 @@ class EndpointResponse(object):
     An endpoint can return an L{EndpointResponse} instance to return a custom
     response code to the client along with a successful response body.
     """
-    def __init__(self, code, result):
+    def __init__(self, code, result, headers={}):
         """
         @param code: The HTTP response code to set in the response.
         @type code: L{int}
@@ -156,6 +156,7 @@ def _serialize(outputValidator):
             if isinstance(result, EndpointResponse):
                 code = result.code
                 result = result.result
+                # XXX extract headers from EndpointResponse
             outputValidator.validate(result)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
