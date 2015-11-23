@@ -394,7 +394,7 @@ class DeployerTests(TestCase):
         d.addCallback(inspect_application)
         return d
 
-    @flaky('FLOC-3330')
+    @flaky(u'FLOC-3330')
     @if_docker_configured
     def test_cpu_shares(self):
         """

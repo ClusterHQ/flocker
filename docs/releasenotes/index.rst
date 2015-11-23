@@ -13,6 +13,8 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
+* The Docker plugin is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Docker plugin.
 * Added a new REST API for looking up node identity by era; eras are reset after every reboot.
   This allows interacting with Flocker in a robust way across reboots without getting stale data.
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.

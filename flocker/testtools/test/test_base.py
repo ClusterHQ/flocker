@@ -6,10 +6,11 @@ import errno
 import os
 import shutil
 import string
+import unittest
 
 from hypothesis import assume, given
-from hypothesis.strategies import binary, integers, lists, text
-from testtools import PlaceHolder, TestCase
+from hypothesis.strategies import integers, lists, text
+from testtools import PlaceHolder, TestCase, TestResult
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -26,14 +27,17 @@ from testtools.matchers import (
     PathExists,
     StartsWith,
 )
-from testtools.testresult.doubles import Python27TestResult
 from twisted.python.filepath import FilePath
-from twisted.trial import unittest
 
 from .._base import (
     AsyncTestCase,
     make_temporary_directory,
     _path_for_test_id,
+)
+from .._testhelpers import (
+    has_results,
+    only_skips,
+    run_test,
 )
 
 
@@ -42,7 +46,7 @@ class AsyncTestCaseTests(TestCase):
     Tests for `AsyncTestCase`.
     """
 
-    @given(binary(average_size=30))
+    @given(text(average_size=30))
     def test_trial_skip_exception(self, reason):
         """
         If tests raise the ``SkipTest`` exported by Trial, then that's
@@ -54,16 +58,8 @@ class AsyncTestCaseTests(TestCase):
                 raise unittest.SkipTest(reason)
 
         test = SkippingTest('test_skip')
-        # We need a test result double that we can useful results from, and
-        # the Python 2.7 TestResult is the lowest common denominator.
-        logs = []
-        result = Python27TestResult(logs)
-        test.run(result)
-        self.assertEqual([
-            ('startTest', test),
-            ('addSkip', test, reason),
-            ('stopTest', test),
-        ], logs)
+        result = run_test(test)
+        self.assertThat(result, only_skips(1, [reason]))
 
     def test_mktemp_doesnt_exist(self):
         """
@@ -95,10 +91,34 @@ class AsyncTestCaseTests(TestCase):
                 created_files.append(path)
                 open(path, 'w').write('hello')
 
-        SomeTest('test_create_file').run(Python27TestResult())
+        run_test(SomeTest('test_create_file'))
         [path] = created_files
         self.addCleanup(os.unlink, path)
         self.assertThat(path, FileContains('hello'))
+
+    def test_run_twice(self):
+        """
+        Tests can be run twice without errors.
+
+        This is being fixed upstream at
+        https://github.com/testing-cabal/testtools/pull/165/, and this test
+        coverage is inadequate for a thorough fix. However, this will be
+        enough to let us use ``trial -u`` (see FLOC-3462).
+        """
+
+        class SomeTest(AsyncTestCase):
+            def test_something(self):
+                pass
+
+        test = SomeTest('test_something')
+        result = TestResult()
+        test.run(result)
+        test.run(result)
+        self.assertThat(
+            result, has_results(
+                tests_run=Equals(2),
+            )
+        )
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'

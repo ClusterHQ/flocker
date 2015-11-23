@@ -6,14 +6,16 @@ Tests for the control service REST API.
 
 from json import loads, dumps
 from time import sleep
+from datetime import timedelta
+
+from testtools import run_test_with
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
-from twisted.trial.unittest import TestCase
 from twisted.internet.error import ProcessTerminated
 
 from ...common import loop_until
-from ...testtools import flaky, random_name
+from ...testtools import AsyncTestCase, async_runner, flaky, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -22,7 +24,7 @@ from ..testtools import (
 from ..scripts import SCRIPTS
 
 
-class ContainerAPITests(TestCase):
+class ContainerAPITests(AsyncTestCase):
     """
     Tests for the container API.
     """
@@ -120,7 +122,7 @@ class ContainerAPITests(TestCase):
         )
         return d
 
-    @flaky('FLOC-2488')
+    @flaky(u'FLOC-2488')
     @require_moving_backend
     @require_cluster(2)
     def test_move_container_with_dataset(self, cluster):
@@ -311,6 +313,7 @@ class ContainerAPITests(TestCase):
                 self, origin.public_address, origin_port))
         return running
 
+    @flaky([u"FLOC-3485"])
     @require_cluster(2)
     def test_traffic_routed(self, cluster):
         """
@@ -338,6 +341,8 @@ class ContainerAPITests(TestCase):
             lambda _: assert_http_server(self, origin.public_address, port))
         return running
 
+    # Unfortunately this test is very very slow.
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(2)
     def test_reboot(self, cluster):
         """
@@ -432,5 +437,3 @@ class ContainerAPITests(TestCase):
 
         creating_dataset.addCallback(got_initial_result)
         return creating_dataset
-    # Unfortunately this test is very very slow:
-    test_reboot.timeout = 360
