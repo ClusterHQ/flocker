@@ -14,13 +14,15 @@ __all__ = ["TaggedUnionInvariant"]
 
 class TaggedUnionInvariant(PClass):
     """
-    An invariant that ensure the given object has a ``state`` attribute
-    in the given states, and that all the other specified attributes are
-    present if and only if the object is in one of the corresponding states.
+    An invariant that ensure the given object has an allowd tag
+    attribute, and that all the other specified attributes are
+    present if and only if the object has the appropriate tag.
 
-    :param set allowed_states: Set of allowed states.
-    :param dict attributes_for_tag: Dictionary mapping states to the
-        set of attributes allowed in that state.
+    Note: Attributes that aren't specified by any tag are ignored.
+
+    :param str tag_attribute: The attribute that contains the tag.
+    :param dict attributes_for_tag: Dictionary mapping tags to the
+        set of attributes allowed by that tag.
     """
 
     tag_attribute = field(str, mandatory=True)
@@ -28,10 +30,16 @@ class TaggedUnionInvariant(PClass):
 
     @property
     def _allowed_tags(self):
+        """
+        The set of all allowed tags.
+        """
         return set(self.attributes_for_tag.keys())
 
     @property
     def _all_attributes(self):
+        """
+        The set of all attributes controlled by the invariant.
+        """
         return {
             attribute
             for tag, attributes in self.attributes_for_tag.items()
