@@ -36,6 +36,12 @@ from flocker.common.version import (
 )
 from flocker.common import retry_effect_with_timeout
 
+# A systemctl sub-command to start or restart a service.  We use restart here
+# so that if it is already running it gets restart (possibly necessary to
+# respect updated configuration) and because restart will also start it if it
+# is not running.
+START = "restart"
+
 ZFS_REPO = {
     'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                 "epel/zfs-release.el7.noarch.rpm",
