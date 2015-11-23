@@ -131,6 +131,13 @@ class ResultHandlingApplication(object):
         return self._constructSuccess(EndpointResponse(
             self.EXPLICIT_RESPONSE_CODE, self.EXPLICIT_RESPONSE_RESULT))
 
+    @app.route(b"/foo/explicitresponseheaders")
+    @structured({}, {})
+    def explicitresponseheaders(self):
+        return self._constructSuccess(EndpointResponse(
+            self.EXPLICIT_RESPONSE_CODE, self.EXPLICIT_RESPONSE_RESULT,
+            headers={"x-key": "value"}))
+
     @app.route(b"/baz/<routingValue>")
     @structured({}, {})
     def baz(self, **kwargs):
@@ -258,6 +265,24 @@ class StructuredResultHandlingMixin(object):
             Headers({b"content-type": [b"application/json"]}),
             application.EXPLICIT_RESPONSE_RESULT)
         return expected.verify(asResponse(request))
+
+    @validateLogging(
+        assertJSONLogged, b"GET", b"/foo/explicitresponseheaders", {},
+        ResultHandlingApplication.EXPLICIT_RESPONSE_RESULT,
+        ResultHandlingApplication.EXPLICIT_RESPONSE_CODE)
+    def test_explicitResponseObjectWithHeaders(self, logger):
+        """
+        If the return value of the decorated function is an instance of
+        L{EndpointResponse} with headers specified then the response
+        generated includes those headers.
+        """
+        application = self.application(logger, {})
+        request = dummyRequest(
+            b"GET", b"/foo/explicitresponseheaders", Headers(), b"")
+        self.render(application.app.resource(), request)
+
+        response = asResponse(request)
+        self.assertEqual(response.headers.getRawHeaders("x-key"), ["value"])
 
     @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
     def test_badRequestRaised(self, logger):
