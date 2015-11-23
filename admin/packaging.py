@@ -1,5 +1,5 @@
 # -*- test-case-name: admin.test.test_packaging -*-
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Helper utilities for Flocker packaging.
