@@ -235,6 +235,10 @@ _TRY_SUCCESS = _TRY_UNTIL_SUCCESS + u":success"
 
 
 def retry_some_times():
+    """
+    Create a predicate compatible with ``wrap_methods_with_failure_retry``
+    which will retry a fixed number of times with a brief delay in between.
+    """
     delay = 0.1
     timeout = 120.0
     times = int(timeout // delay)
