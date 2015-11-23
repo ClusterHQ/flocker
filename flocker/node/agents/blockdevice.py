@@ -104,7 +104,7 @@ class DiscoveredDataset(PClass):
 
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
-        attributes={
+        attributes_for_tag={
             DatasetStates.ATTACHED_ELSEWHERE: set(),
             DatasetStates.NON_MANIFEST: set(),
             DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
