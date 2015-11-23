@@ -52,7 +52,10 @@ ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY = ALGEBRAIC_TYPE_STRATEGY.map(
     lambda v: v.serialize())
 
 
-class MakeTaggedUnionInvariantTests(SynchronousTestCase):
+class TaggedUnionInvariantTests(SynchronousTestCase):
+    """
+    Tests for ``TaggedUnionInvariant``.
+    """
 
     @given(
         args=ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY,
