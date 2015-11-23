@@ -93,9 +93,9 @@
 
 {% macro updateGitHubStatus(status)                                         -%}
   shell("""
-    PARENTS=(\$(git log --pretty=%P -1))
-    REMOTE_GIT_COMMIT={{'\${PARENTS[\${#PARENTS[@]} - 1]}'}}
-    echo \$REMOTE_GIT_COMMIT > gitcommit
+PARENTS=(\$(git log --pretty=%P -1))
+REMOTE_GIT_COMMIT={{'\${PARENTS[\${#PARENTS[@]} - 1]}'}}
+echo \$REMOTE_GIT_COMMIT > gitcommit
   """)
 
 {# Read the commit and github credentials                                    #}
