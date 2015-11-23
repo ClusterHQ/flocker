@@ -29,6 +29,7 @@ class ReadRequest(PClass):
     An operation to perform a read request on the control service.
     """
 
+    # `clock` unused, but required for __init__ signature
     clock = field(mandatory=True)
     control_service = field(mandatory=True)
 

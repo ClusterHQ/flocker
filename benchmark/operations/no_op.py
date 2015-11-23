@@ -25,6 +25,7 @@ class NoOperation(PClass):
     An nop operation.
     """
 
+    # attributes unused, but required for __init__ signature
     clock = field(mandatory=True)
     control_service = field(mandatory=True)
 

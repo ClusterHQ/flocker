@@ -36,6 +36,7 @@ class Wait(PClass):
     """
 
     clock = field(mandatory=True)
+    # `control_service` attribute unused, but required for __init__ signature
     control_service = field(mandatory=True)
     wait_seconds = field(initial=10)
 
