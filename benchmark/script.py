@@ -35,6 +35,7 @@ _DEFAULT_SCENARIO = 'no-load'
 _OPERATIONS = {
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,
+    'wait-10': operations.Wait,
 }
 
 _DEFAULT_OPERATION = 'read-request'
