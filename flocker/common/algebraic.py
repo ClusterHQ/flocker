@@ -3,6 +3,40 @@
 
 """
 Invariants for algebraic data types.
+
+This currently provides an invariant for defining a tagged union. For
+example, a volume can either be detached, attached (with an
+associated block device) or mounted (with an associated block device
+and mount point). The invariant ensures that all and only the
+appropriate attributes are set in each state.
+
+.. code::
+
+    class VolumeStates(Names):
+       # Not attached
+       DEATTACHED = NamedConstant()
+       # Attached to this node but no filesystem
+       ATTACHED_NO_FILESYSTEM = NamedConstant()
+       # Attached to this node, has filesystem
+       ATTACHED = NamedConstant()
+       # Mounted on this node
+       MOUNTED = NamedConstant()
+
+   class Dataset(PClass):
+       state = field(mandatory=True)
+       dataset_id = field(type=UUID, mandatory=True)
+       device_path = field(FilePath)
+       mount_point = field(FilePath)
+
+       __invariant__ = TaggedUnionInvariant(
+           tag_attribute='state',
+           attributes_for_tag={
+               DatasetStates.DETACHED: set(),
+               DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
+               DatasetStates.ATTACHED: {'device_path'},
+               DatasetStates.MOUNTED: {'device_path', 'mount_point'},
+           },
+       )
 """
 
 from pyrsistent import PClass, field
