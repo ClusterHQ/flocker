@@ -540,3 +540,38 @@ class RetrySomeTimesTests(testtools.TestCase):
             Equals([timedelta(seconds=0.1)] * 1199),
         )
         self.assertThat(lambda: should_try(*details), raises(CustomException))
+
+
+class RetryIfTests(testtools.TestCase):
+    """
+    Tests for ``retry_if``.
+    """
+    def test_matches(self):
+        """
+        If the matching function returns ``True``, the retry predicate returned
+        by ``retry_if`` returns ``None``.
+        """
+        should_retry = retry_if(
+            lambda exception: isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            Equals(None),
+        )
+
+    def test_does_not_match(self):
+        """
+        If the matching function returns ``False``, the retry predicate
+        returned by ``retry_if`` re-raises the exception.
+        """
+        should_retry = retry_if(
+            lambda exception: not isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            lambda: should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            raises(CustomException),
+        )
