@@ -38,6 +38,8 @@ from .._retry import (
     retry_effect_with_timeout,
     retry_failure,
     poll_until,
+    retry_on_intervals, retry_some_times, retry_if, compose_retry,
+    wrap_methods_with_failure_retry,
 )
 from ...testtools import CustomException
 
