@@ -4,8 +4,12 @@
 Tests for ``flocker.common._retry``.
 """
 
+from sys import exc_info
 from datetime import timedelta
 from itertools import repeat
+
+import testtools
+from testtools.matchers import Equals, raises
 
 from eliot.testing import (
     capture_logging,
@@ -513,3 +517,26 @@ class RetryEffectTests(SynchronousTestCase):
             CustomException,
             perform_sequence, expected_intents, retrier
         )
+
+
+class RetrySomeTimesTests(testtools.TestCase):
+    """
+    Tests for ``retry_some_times``.
+    """
+    def test_retry_some_times(self):
+        """
+        The function returned by ``retry_some_times`` returns a ``timedelta``
+        of ``0.1`` seconds as long as the sum of the results is no more than
+        ``120.0`` and then raises the exception passed to it on the next call.
+        """
+        try:
+            raise CustomException()
+        except:
+            details = exc_info()
+
+        should_try = retry_some_times()
+        self.assertThat(
+            list(should_try(*details) for n in range(1199)),
+            Equals([timedelta(seconds=0.1)] * 1199),
+        )
+        self.assertThat(lambda: should_try(*details), raises(CustomException))

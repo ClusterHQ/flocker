@@ -238,7 +238,7 @@ def retry_some_times():
     delay = 0.1
     timeout = 120.0
     times = int(timeout // delay)
-    steps = iter(repeat(delay, times))
+    steps = iter(repeat(timedelta(seconds=delay), times))
 
     def should_retry(exc_type, value, traceback):
         for step in steps:
