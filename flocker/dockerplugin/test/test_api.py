@@ -9,10 +9,10 @@ from uuid import uuid4, UUID
 from twisted.web.http import OK
 from twisted.internet.task import Clock
 
-from pyrsistent import pmap
-
 from hypothesis import given
 from hypothesis.strategies import sampled_from, builds, lists
+
+from pyrsistent import pmap
 
 from eliot.testing import capture_logging
 
@@ -20,6 +20,7 @@ from .._api import VolumePlugin, DEFAULT_SIZE, parse_num
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
 from ...testtools import CustomException
+from ...node.testtools import require_docker_version
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
@@ -32,6 +33,36 @@ volume_size = builds(
     expression=lists(elements=sampled_from(["gib", "G", "Gb",
                                             "gb", "Gib", "g"])),
 )
+
+
+class SimpleCountingProxy(object):
+    """
+    Transparent proxy that counts the number of calls to methods of the
+    wrapped object.
+    :ivar _wrapped: Wrapped object.
+    :ivar call_count: Mapping of method name to number of calls.
+    """
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
+        self.call_count = pmap()
+
+    def num_calls(self, name):
+        """
+        Return the number of times the given method was called with given
+        arguments.
+        :param name: Method name.
+        :return: Number of calls.
+        """
+        return self.call_count.get(name, 0)
+
+    def __getattr__(self, name):
+        method = getattr(self._wrapped, name)
+
+        def counting_proxy(*args, **kwargs):
+            current_count = self.call_count.get(name, 0)
+            self.call_count = self.call_count.set(name, current_count + 1)
+            return method(*args, **kwargs)
+        return counting_proxy
 
 
 class APITestsMixin(APIAssertionsMixin):
@@ -129,9 +160,7 @@ class APITestsMixin(APIAssertionsMixin):
         """
         Call the ``/VolumeDriver.Create`` API to create a volume with the
         given name.
-
         :param unicode name: The name of the volume to create.
-
         :return: ``Deferred`` that fires when the volume that was created.
         """
         return self.assertResult(b"POST", b"/VolumeDriver.Create",
@@ -380,7 +409,6 @@ class APITestsMixin(APIAssertionsMixin):
         """
         ``/VolumeDriver.Path`` returns an error when asked for the mount path
         of a volume that is not mounted locally.
-
         This can happen as a result of ``docker inspect`` on a container
         that has been created but is still waiting for its volume to
         arrive from another node. It seems like Docker may also call this
