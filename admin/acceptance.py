@@ -298,9 +298,9 @@ class ManagedRunner(object):
                 self.dataset_backend,
                 self.dataset_backend_configuration,
                 _save_backend_configuration(self.dataset_backend,
-                                            self.dataset_backend_configuration),
+                    self.dataset_backend_configuration),
                 provider="managed"
-                )
+            )
         configuring = upgrading.addCallback(configure)
         return configuring
 
@@ -316,7 +316,7 @@ def _provider_for_cluster_id(dataset_backend):
     Get the ``Providers`` value that probably corresponds to a value from
     ``DatasetBackend``.
     Note that this function will ignore the case of a managed provider,
-    as this information cannot be known just knowing the backend.
+    as this information cannot be known by just knowing the backend.
     """
     if dataset_backend is DatasetBackend.aws:
         return Providers.AWS

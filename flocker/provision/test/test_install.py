@@ -105,7 +105,7 @@ class EnableFlockerAgentTests(SynchronousTestCase):
         """
         ``task_enable_flocker_agent`` for the 'centos-7' distribution
         returns a sequence of 'service restart' commands for each agent
-        when the action passed down is "restart" (used for managed provider)..
+        when the action passed down is "restart" (used for managed provider).
         """
         distribution = u"centos-7"
         commands = task_enable_flocker_agent(
@@ -155,7 +155,7 @@ class EnableFlockerAgentTests(SynchronousTestCase):
     def test_sequence_invalid_action(self):
         """
         ``task_enable_flocker_agent`` for a valid distribution
-        but a non valid action raises a ``UnknownAction``.
+        but an invalid action raises a ``UnknownAction``.
         """
         distribution = u"ubuntu-14.04"
         self.assertRaises(UnknownAction,

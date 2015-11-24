@@ -898,14 +898,12 @@ def task_enable_flocker_control(distribution, action="start"):
 
 def validate_start_action(action):
     """
-    validates if the action given is a valid one  - currently only
+    Validates if the action given is a valid one  - currently only
     start and restart are supported
     """
     valid_actions = ["start", "restart"]
-    for valid_action in valid_actions:
-        if action.lower() == valid_action:
-            return
-    raise UnknownAction(action)
+    if action.lower() not in valid_actions:
+        raise UnknownAction(action)
 
 
 def task_enable_docker_plugin(distribution):
