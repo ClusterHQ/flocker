@@ -956,7 +956,8 @@ def capture_journal(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
-    formatter = journald_json_formatter(output_file)
+    tc = TracebackCounter(output_file)
+    formatter = tc.journald_json_formatter
     ran = run_ssh(
         reactor=reactor,
         host=host,
@@ -978,39 +979,48 @@ def capture_journal(reactor, host, output_file):
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
     ran.addCallback(lambda ignored: formatter(b""))
+    return tc.tracebacks
 
 
-def journald_json_formatter(output_file):
-    """
-    Create an output handler which turns journald's export format back into
-    Eliot JSON with extra fields to identify the log origin.
-    """
-    accumulated = {}
+class TracebackCounter(object):
 
-    # XXX Factoring the parsing code separately from the IO would make this
-    # whole thing nicer.
-    def handle_output_line(line):
-        if line:
-            key, value = line.split(b"=", 1)
-            accumulated[key] = value
-        else:
-            if accumulated:
-                raw_message = accumulated.get(b"MESSAGE", b"{}")
-                try:
-                    message = json.loads(raw_message)
-                except ValueError:
-                    # Docker log messages are not JSON
-                    message = dict(message=raw_message)
+    def __init__(self, output_file):
+        self._output_file = output_file
+        self.tracebacks = 0
 
-                message[u"_HOSTNAME"] = accumulated.get(
-                    b"_HOSTNAME", b"<no hostname>"
-                )
-                message[u"_SYSTEMD_UNIT"] = accumulated.get(
-                    b"_SYSTEMD_UNIT", b"<no unit>"
-                )
-                output_file.write(json.dumps(message) + b"\n")
-                accumulated.clear()
-    return handle_output_line
+    def journald_json_formatter(self, output_file):
+        """
+        Create an output handler which turns journald's export format back into
+        Eliot JSON with extra fields to identify the log origin.
+        """
+        accumulated = {}
+
+        # XXX Factoring the parsing code separately from the IO would make this
+        # whole thing nicer.
+        def handle_output_line(line):
+            if 'Traceback' in line:
+                self.tracebacks += 1
+            if line:
+                key, value = line.split(b"=", 1)
+                accumulated[key] = value
+            else:
+                if accumulated:
+                    raw_message = accumulated.get(b"MESSAGE", b"{}")
+                    try:
+                        message = json.loads(raw_message)
+                    except ValueError:
+                        # Docker log messages are not JSON
+                        message = dict(message=raw_message)
+
+                    message[u"_HOSTNAME"] = accumulated.get(
+                        b"_HOSTNAME", b"<no hostname>"
+                    )
+                    message[u"_SYSTEMD_UNIT"] = accumulated.get(
+                        b"_SYSTEMD_UNIT", b"<no unit>"
+                    )
+                    self.output_file.write(json.dumps(message) + b"\n")
+                    accumulated.clear()
+        return handle_output_line
 
 
 @inlineCallbacks
@@ -1044,6 +1054,7 @@ def main(reactor, args, base_path, top_level):
         'before', 'shutdown', log_writer.stopService)
 
     cluster = None
+    result = 0
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
@@ -1051,7 +1062,12 @@ def main(reactor, args, base_path, top_level):
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
-                capture_journal(reactor, node.address, remote_logs_file)
+                tracebacks = capture_journal(reactor,
+                                             node.address,
+                                             remote_logs_file)
+                if tracebacks > 0:
+                    result = 1
+
 
         if not options["no-pull"]:
             yield perform(
@@ -1065,10 +1081,11 @@ def main(reactor, args, base_path, top_level):
                 ]),
             )
 
-        result = yield run_tests(
+        test_result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
             trial_args=options['trial-args'])
+        result = result or test_result
     except:
         result = 1
         raise
