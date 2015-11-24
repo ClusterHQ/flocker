@@ -41,8 +41,8 @@ from .._protocol import (
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    AGENT_CONNECTED, CachingEncoder, _caching_encoder,
-    SetNodeEraCommand, timeout_for_protocol,
+    AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
+    timeout_for_protocol,
 )
 from .._clusterstate import ClusterStateService
 from .. import (
@@ -415,13 +415,16 @@ class SerializationTests(SynchronousTestCase):
 
     def test_caches(self):
         """
-        Encoding results are cached when in the context of the caching
-        encoder's ``cache()`` call.
+        Encoding results are cached.
         """
         argument = SerializableArgument(Deployment)
-        with _caching_encoder.cache():
-            self.assertIs(argument.toString(TEST_DEPLOYMENT),
-                          argument.toString(TEST_DEPLOYMENT))
+        # This is a fragile assertion since it assumes a particular
+        # implementation of strings in Python... Some implementations may
+        # choose to reuse string objects separately from our use of a
+        # cache. On CPython 2.7 it fails when caching is disabled, at
+        # least.
+        self.assertIs(argument.toString(TEST_DEPLOYMENT),
+                      argument.toString(TEST_DEPLOYMENT))
 
 
 def build_control_amp_service(test, reactor=None):
@@ -1336,62 +1339,33 @@ class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
         return AgentAMP(reactor, FakeAgent())
 
 
-class CachingEncoderTests(SynchronousTestCase):
+class CachingWireEncodeTests(SynchronousTestCase):
     """
-    Tests for ``CachingEncoder``.
+    Tests for ``caching_wire_encode``.
     """
     def test_encodes(self):
         """
         ``CachingEncoder.encode`` returns result of ``wire_encode`` for given
         object.
         """
-        cache = CachingEncoder()
         self.assertEqual(
-            [loads(cache.encode(TEST_DEPLOYMENT)),
-             loads(cache.encode(NODE_STATE))],
+            [loads(caching_wire_encode(TEST_DEPLOYMENT)),
+             loads(caching_wire_encode(NODE_STATE))],
             [loads(wire_encode(TEST_DEPLOYMENT)),
              loads(wire_encode(NODE_STATE))])
-
-    def test_no_caching(self):
-        """
-        ``CachingEncoder.encode`` does not cache results by default.
-        """
-        cache = CachingEncoder()
-        result1 = cache.encode(TEST_DEPLOYMENT)
-        result2 = cache.encode(NODE_STATE)
-
-        self.assertEqual(
-            [cache.encode(TEST_DEPLOYMENT) is not result1,
-             cache.encode(NODE_STATE) is not result2],
-            [True, True])
 
     def test_caches(self):
         """
         ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
         particular object if used in context of ``cache()``.
         """
-        cache = CachingEncoder()
-        with cache.cache():
-            # Warm up cache:
-            result1 = cache.encode(TEST_DEPLOYMENT)
-            result2 = cache.encode(NODE_STATE)
+        # Warm up cache:
+        result1 = caching_wire_encode(TEST_DEPLOYMENT)
+        result2 = caching_wire_encode(NODE_STATE)
 
-            self.assertEqual(
-                [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
-                 loads(result2) == loads(wire_encode(NODE_STATE)),
-                 cache.encode(TEST_DEPLOYMENT) is result1,
-                 cache.encode(NODE_STATE) is result2],
-                [True, True, True, True])
-
-    def test_after_caching(self):
-        """
-        Once ``cache`` context is exited the caching no longer applies.
-        """
-        cache = CachingEncoder()
-        with cache.cache():
-            result1 = cache.encode(TEST_DEPLOYMENT)
-            result2 = cache.encode(NODE_STATE)
         self.assertEqual(
-            [cache.encode(TEST_DEPLOYMENT) is not result1,
-             cache.encode(NODE_STATE) is not result2],
-            [True, True])
+            [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
+             loads(result2) == loads(wire_encode(NODE_STATE)),
+             caching_wire_encode(TEST_DEPLOYMENT) is result1,
+             caching_wire_encode(NODE_STATE) is result2],
+            [True, True, True, True])

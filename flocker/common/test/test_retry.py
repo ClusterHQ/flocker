@@ -17,8 +17,9 @@ from eliot.testing import (
     assertContainsFields,
 )
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.defer import CancelledError
 from twisted.internet.task import Clock
 from twisted.python.failure import Failure
 
@@ -38,6 +39,7 @@ from .._retry import (
     retry_effect_with_timeout,
     retry_failure,
     poll_until,
+    timeout,
     retry_on_intervals, retry_some_times, retry_if, compose_retry,
     wrap_methods_with_failure_retry,
 )
@@ -195,6 +197,81 @@ class LoopUntilTests(SynchronousTestCase):
         self.assertEqual(
             str(self.failureResultOf(d).value),
             str(LoopExceeded(predicate, False)))
+
+
+class TimeoutTests(SynchronousTestCase):
+    """
+    Tests for :py:func:`timeout`.
+    """
+
+    def setUp(self):
+        """Initialize testing helper variables."""
+        self._deferred = Deferred()
+        self._timeout = 1.0
+        self._clock = Clock()
+
+    def _trapError(self, error_type):
+        """Assert a deferred has a result of a specific error and trap it."""
+        self._deferred.result.trap(error_type)
+
+        def errback(e):
+            e.trap(error_type)
+            return None
+        self._deferred.addErrback(error_type)
+
+    def _execute_timeout(self):
+        """Execute the timeout."""
+        timeout(self._clock, self._deferred, self._timeout)
+
+    def test_times_out(self):
+        """
+        A deferred that never fires is timed out at the correct time using the
+        timeout function, and concludes with a CancelledError failure.
+        """
+        self._execute_timeout()
+        self._clock.advance(self._timeout - 0.1)
+        self.assertFalse(self._deferred.called)
+        self._clock.advance(0.1)
+        self.assertTrue(self._deferred.called)
+        self._trapError(CancelledError)
+
+    def test_doesnt_time_out(self):
+        """
+        A deferred that fires before the timeout is not cancelled by the
+        timeout.
+        """
+        self._execute_timeout()
+        self._clock.advance(self._timeout - 0.1)
+        self.assertFalse(self._deferred.called)
+        self._deferred.callback('Success')
+        self.assertTrue(self._deferred.called)
+        self.assertEqual(self._deferred.result, 'Success')
+        self._clock.advance(0.1)
+        self.assertTrue(self._deferred.called)
+        self.assertEqual(self._deferred.result, 'Success')
+
+    def test_timeout_cleaned_up_on_success(self):
+        """
+        If the deferred is successfully completed before the timeout, the
+        timeout is not still pending on the reactor.
+        """
+        self._execute_timeout()
+        self._clock.advance(self._timeout - 0.1)
+        self._deferred.callback('Success')
+        self.assertEqual(self._clock.getDelayedCalls(), [])
+        self.assertEqual(self._deferred.result, 'Success')
+
+    def test_timeout_cleaned_up_on_failure(self):
+        """
+        If the deferred is failed before the timeout, the timeout is not still
+        pending on the reactor.
+        """
+        self._execute_timeout()
+        self._clock.advance(self._timeout - 0.1)
+        self._deferred.errback(Exception('ErrorXYZ'))
+        self.assertEqual(self._clock.getDelayedCalls(), [])
+        self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
+        self._trapError(Exception)
 
 
 class RetryFailureTests(SynchronousTestCase):
