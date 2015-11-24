@@ -423,6 +423,9 @@ def dockerpy_client(**kwargs):
     ``docker.Client`` does not impose timeouts on.  It will also retry
     operations that fail in ways that retrying is known to help fix.
     """
+    if "version" not in kwargs:
+        kwargs = kwargs.copy()
+        kwargs["version"] = "1.15"
     return wrap_methods_with_failure_retry(
         TimeoutClient(**kwargs),
         compose_retry([
