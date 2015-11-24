@@ -10,6 +10,8 @@ from itertools import chain
 from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
 
+from bitmath import GiB
+
 from distutils.version import LooseVersion
 
 from ...common import loop_until
@@ -23,8 +25,6 @@ from ..testtools import (
     get_docker_client, verify_socket, check_http_server, DatasetBackend,
     create_dataset,
 )
-
-from ...dockerplugin._api import parse_num
 
 from ..scripts import SCRIPTS
 

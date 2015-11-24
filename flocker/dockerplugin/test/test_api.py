@@ -5,10 +5,12 @@ Tests for the Volumes Plugin API provided by the plugin.
 """
 
 from uuid import uuid4, UUID
-from random import randint
 
 from twisted.web.http import OK
 from twisted.internet import reactor
+
+from hypothesis import given
+from hypothesis.strategies import sampled_from, builds, lists
 
 from eliot.testing import capture_logging
 
@@ -21,6 +23,15 @@ from ...node.testtools import require_docker_version
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
+
+
+# A Hypothesis strategy for generating size of volume
+volume_size = builds(
+    lambda size, expression: b"".join(size) + b"".join(expression),
+    size=lists(elements=sampled_from(range(1, 101))),
+    expression=lists(elements=sampled_from(["gib", "G", "Gb",
+                                            "gb", "Gib", "g"])),
+)
 
 
 class APITestsMixin(APIAssertionsMixin):
@@ -65,15 +76,14 @@ class APITestsMixin(APIAssertionsMixin):
         '1.9.0',
         'This test uses the v2 plugin API, which requires Docker >=1.9.0'
     )
-    def test_create_with_profile(self):
+    @given(profile=sampled_from(["gold", "silver", "bronze"]))
+    def test_create_with_profile(self, profile):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
         of "profile=[gold,silver,bronze] in the request body JSON create a
         volume with a given name with [gold,silver,bronze] profile.
         """
-        default_profiles = ["gold", "silver", "bronze"]
         name = u"testvolume"
-        profile = default_profiles[randint(0, 2)]
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"profile": profile}},
                               OK, {u"Err": None})
@@ -92,26 +102,26 @@ class APITestsMixin(APIAssertionsMixin):
         '1.9.0',
         'This test uses the v2 plugin API, which requires Docker >=1.9.0'
     )
-    def test_create_with_size(self):
+    @given(size=volume_size)
+    def test_create_with_size(self, size):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
         of "size=<somesize> in the request body JSON create a Volumes
         with a given name and random size between 1-100G
         """
         name = u"testvolume"
-        # Cant be below 64 MiB flocker/control/schema/types.yml#L250
-        random_size = str(randint(1, 100))+"G"
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
-                              {u"Name": name, 'Opts': {u"size": random_size}},
+                              {u"Name": name, 'Opts': {u"size": size}},
                               OK, {u"Err": None})
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
+        real_size = parse_num(size)
         d.addCallback(self.assertItemsEqual, [
             Dataset(dataset_id=UUID(dataset_id_from_name(name)),
                     primary=self.NODE_A,
-                    maximum_size=parse_num(random_size),
+                    maximum_size=real_size,
                     metadata={u"name": name, u"maximum_size":
-                              unicode(parse_num(random_size))})])
+                              unicode(real_size)})])
         return d
 
     def create(self, name):

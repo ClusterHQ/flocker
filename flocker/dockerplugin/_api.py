@@ -28,7 +28,6 @@ from ..restapi import (
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
-from .testtools import parse_num
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
 SCHEMAS = {
@@ -44,6 +43,7 @@ SCHEMAS = {
 # https://clusterhq.atlassian.net/browse/FLOC-2889 and that is large
 # enough to hit Rackspace minimums. This is, obviously, not ideal.
 DEFAULT_SIZE = int(GiB(75).to_Byte().value)
+
 
 # A tool to help parse size expressions for size opt
 def parse_num(expression):
@@ -261,7 +261,7 @@ class VolumePlugin(object):
         size_from_opts = opts.get(u"size")
         if size_from_opts:
             size = parse_num(size_from_opts)
-            metadata[u"maximum_size"] = unicode(SIZE)
+            metadata[u"maximum_size"] = unicode(size)
         else:
             size = DEFAULT_SIZE
 
