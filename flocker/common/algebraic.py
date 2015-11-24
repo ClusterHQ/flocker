@@ -76,7 +76,7 @@ class TaggedUnionInvariant(PClass):
         """
         return {
             attribute
-            for tag, attributes in self.attributes_for_tag.items()
+            for attributes in self.attributes_for_tag.values()
             for attribute in attributes
         }
 
