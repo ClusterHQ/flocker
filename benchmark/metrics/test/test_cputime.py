@@ -105,7 +105,7 @@ class GetNodeCPUTimeTests(TestCase):
 
     def test_no_such_process(self):
         """
-        Errors result in output of ``None``.
+        If processes do not exist, empty directory is returned.
         """
         d = get_node_cpu_times(
             _LocalRunner(),
@@ -113,10 +113,7 @@ class GetNodeCPUTimeTests(TestCase):
             ['n0n-exist'],
         )
 
-        def check(result):
-            self.assertIs(result, None)
-
-        d.addCallback(check)
+        d.addCallback(self.assertEqual, {})
 
         return d
 

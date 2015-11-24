@@ -7,8 +7,6 @@ from zope.interface import implementer
 
 from twisted.protocols.basic import LineOnlyReceiver
 
-import eliot
-
 from flocker.common import gather_deferreds
 from flocker.common.runner import run_ssh
 
@@ -53,11 +51,17 @@ class CPUParser(LineOnlyReceiver):
         # flocker-control 1-00:03:41
         # flocker-dataset 00:18:14
         # flocker-contain 01:47:02
+        # ps <defunct>    00:00:02
         if not line.strip():
             # ignore blank lines
             return
         try:
-            name, formatted_cputime = line.split()
+            # Process names may contain spaces, and may end with <defunct>, so
+            # split off leftmost and rightmost words.  We specify that process
+            # names must not contains spaces, so that this works.
+            words = line.split()
+            name = words[0]
+            formatted_cputime = words[-1]
             parts = formatted_cputime.split(b'-', 1)
             # The last item is always HH:MM:SS. Split it and convert to
             # integers.
@@ -109,19 +113,29 @@ def get_node_cpu_times(runner, node, processes):
 
     :param runner: A method of running a command on a node.
     :param node: A node to run the command on.
-    :param processes: An iterator of process names to monitor.
+    :param processes: An iterator of process names to monitor. The process
+        names must not contain spaces.
     :return: Deferred firing with a dictionary mapping process names to
-        elapsed cpu time.  If an error occurs, returns None (after
-        logging error).
+        elapsed cpu time.  Process names may be truncated in the dictionary.
+        If an error occurs, returns None (after logging error).
     """
+    # If no named processes are running, `ps` will return an error.  To
+    # distinguish this case from real errors, ensure that at least one process
+    # is present by adding `ps` as a monitored process.  Remove it later.
     parser = CPUParser()
     d = runner.run(
         node,
-        _GET_CPUTIME_COMMAND + [b",".join(processes)],
+        _GET_CPUTIME_COMMAND + [b','.join(processes) + b',ps'],
         handle_stdout=parser.lineReceived,
     )
-    d.addCallback(lambda ignored: parser.result)
-    d.addErrback(eliot.writeFailure)
+
+    def get_parser_result(ignored):
+        result = parser.result
+        # Remove unwanted ps values.
+        del result['ps']
+        return result
+    d.addCallback(get_parser_result)
+
     return d
 
 
@@ -132,10 +146,11 @@ def get_cluster_cpu_times(clock, runner, nodes, processes):
     :param clock: Twisted Reactor.
     :param runner: A method of running a command on a node.
     :param node: Node to run the command on.
-    :param processes: An iterator of process names to monitor.
+    :param processes: An iterator of process names to monitor. The process
+        names must not contain spaces.
     :return: Deferred firing with a dictionary mapping process names to
-        elapsed cpu time.  If an error occurs, returns None (after
-        logging error).
+        elapsed cpu time.  Process names may be truncated in the dictionary.
+        If an error occurs, returns None (after logging error).
     """
     return gather_deferreds(list(
         get_node_cpu_times(runner, node, processes)
