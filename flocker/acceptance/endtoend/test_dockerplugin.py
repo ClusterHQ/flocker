@@ -196,24 +196,20 @@ class DockerPluginTests(AsyncTestCase):
             SCRIPTS.child(b"lsblkhttp.py"),
             [u""], client=client)
 
-        d = assert_http_server(self,
-                               node.public_address,
-                               host_port, b"/is_http")
+        d = assert_http_server(
+            self, node.public_address, host_port,
+            expected_response=str(size_bytes))
 
         def _get_datasets(unused_arg):
             return cluster.client.list_datasets_configuration()
         d.addCallback(_get_datasets)
 
-        def _verify_created_volume_is_size(datasets):
+        def _verify_volume_metadata_size(datasets):
             dataset = next(d for d in datasets
                            if d.metadata.get(u'name') == volume_name)
             self.assertEqual(int(dataset.metadata.get(u'maximum_size')),
                              size_bytes)
-        d.addCallback(_verify_created_volume_is_size)
-
-        d.addCallback(lambda _: assert_http_server(
-            self, node.public_address, host_port,
-            expected_response=str(size_bytes))
+        d.addCallback(_verify_volume_metadata_size)
 
         return d
 
