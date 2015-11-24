@@ -18,10 +18,10 @@ class Handler(BaseHTTPRequestHandler):
                     mounts[parts[2]] = parts[0]
             device_path = mounts["/sizedvoldata"]
 
-            command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-                       b"--output", b"SIZE", device_path.encode("ascii")]
+            command = ["/bin/lsblk", "--noheadings", "--bytes",
+                       "--output", "SIZE", device_path]
             command_output = check_output(command).split(b'\n')[0]
-            device_size = str(int(command_output.strip().decode("ascii")))
+            device_size = str(int(command_output.strip()))
         except Exception as e:
             s.send_response(500)
             s.wfile.write(str(e.__class__) + ": " + str(e))
