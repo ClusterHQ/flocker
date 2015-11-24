@@ -10,9 +10,9 @@ from twisted.web.http import OK
 from twisted.internet.task import Clock
 
 from hypothesis import given
-from hypothesis.strategies import sampled_from, builds, lists
+from hypothesis.strategies import sampled_from, builds
 
-from pyrsistent import pmap, pvector
+from pyrsistent import pmap
 
 from eliot.testing import capture_logging
 
@@ -33,8 +33,9 @@ volume_size = builds(
 volume_expression = builds(
     lambda expression: b"".join(expression),
     expression=sampled_from(["gib", "G", "Gb",
-                             "gb", "Gib", "g"]), 
+                             "gb", "Gib", "g"]),
 )
+
 
 class SimpleCountingProxy(object):
     """
@@ -116,9 +117,9 @@ class APITestsMixin(APIAssertionsMixin):
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"profile": profile}},
                               OK, {u"Err": None})
+        dataset_id = UUID(dataset_id_from_name(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
-        dataset_id=UUID(dataset_id_from_name(name))
         d.addCallback(self.assertItemsEqual, [
             Dataset(dataset_id=dataset_id,
                     primary=self.NODE_A,
@@ -140,13 +141,12 @@ class APITestsMixin(APIAssertionsMixin):
         """
         name = random_name(self)
         size_opt = size+expression
-        print size_opt
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"size": size_opt}},
                               OK, {u"Err": None})
 
         real_size = parse_num(size_opt)
-        dataset_id=UUID(dataset_id_from_name(name))
+        dataset_id = UUID(dataset_id_from_name(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(self.assertItemsEqual, [
