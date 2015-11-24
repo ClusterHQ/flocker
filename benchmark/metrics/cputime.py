@@ -145,7 +145,7 @@ def get_cluster_cpu_times(clock, runner, nodes, processes):
 
 def compute_change(labels, before, after):
     """
-    Compute the difference between times retrieved ast different times.
+     Compute the difference between CPU times from consecutive measurements.
 
     :param [str] labels: Label for each result.
     :param before: Times collected per process name for time 0.
