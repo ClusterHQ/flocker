@@ -258,15 +258,16 @@ class VolumePlugin(object):
         if profile:
             metadata[PROFILE_METADATA_KEY] = profile
 
-        SIZE = DEFAULT_SIZE
         size_from_opts = opts.get(u"size")
         if size_from_opts:
-            SIZE = parse_num(size_from_opts)
+            size = parse_num(size_from_opts)
             metadata[u"maximum_size"] = unicode(SIZE)
+        else:
+            size = DEFAULT_SIZE
 
         creating = listing.addCallback(
             lambda _: self._flocker_client.create_dataset(
-                self._node_id, SIZE, metadata=metadata,
+                self._node_id, size, metadata=metadata,
                 dataset_id=UUID(dataset_id_from_name(Name))))
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
