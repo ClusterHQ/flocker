@@ -394,6 +394,15 @@ class TimeoutClient(Client):
 
 
 def _is_known_retryable(error_text):
+    """
+    Determine if the text of a Docker 500 error represents a case which
+    warrants an automatic retry.
+
+    :param unicode error_text: The Docker error message.
+
+    :return bool: ``True`` if the message reflects a case to retry, ``False``
+        otherwise.
+    """
     return any(
         known in error_text
         for known
@@ -407,6 +416,13 @@ def _is_known_retryable(error_text):
 
 
 def dockerpy_client(**kwargs):
+    """
+    Create a ``docker.Client`` configured to be more reliable than the default.
+
+    The client will impose additional timeouts on certain operations that
+    ``docker.Client`` does not impose timeouts on.  It will also retry
+    operations that fail in ways that retrying is known to help fix.
+    """
     return wrap_methods_with_failure_retry(
         TimeoutClient(**kwargs),
         compose_retry([
