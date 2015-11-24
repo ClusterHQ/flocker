@@ -12,13 +12,12 @@ from twisted.internet import reactor
 
 from eliot.testing import capture_logging
 
-from .._api import VolumePlugin, DEFAULT_SIZE
+from .._api import VolumePlugin, DEFAULT_SIZE, parse_num
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
 from ...testtools import CustomException
 
 from ...node.testtools import require_docker_version
-from ..testtools import parse_num
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin

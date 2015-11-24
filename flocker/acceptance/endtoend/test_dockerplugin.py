@@ -24,7 +24,7 @@ from ..testtools import (
     create_dataset,
 )
 
-from ...dockerplugin.testtools import parse_num
+from ...dockerplugin._api import parse_num
 
 from ..scripts import SCRIPTS
 
