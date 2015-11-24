@@ -123,7 +123,7 @@ class DockerPluginTests(AsyncTestCase):
             self.addCleanup(client.remove_container, cid, force=True)
         return cid
 
-    def _create_volume(self, client, name, driver_opts, cleanup=True):
+    def _create_volume(self, client, name, driver_opts):
         """
         Create a volume with the given name and driver options on the passed in
         docker client.
@@ -148,8 +148,7 @@ class DockerPluginTests(AsyncTestCase):
             'DriverOpts': driver_opts,
         }
         result = client._result(client._post_json(url, data=data), True)
-        if cleanup:
-            self.addCleanup(client.remove_volume, name)
+        self.addCleanup(client.remove_volume, name)
         return result
 
     def _test_sized_vol_container(self, cluster, node):
