@@ -177,7 +177,9 @@ class DockerPluginTests(AsyncTestCase):
         # https://github.com/ClusterHQ/flocker/blob/
         # 780b22a443d1f2c10211b12e08d08ab1585099dc/flocker/
         # node/agents/cinder.py#L471 passes it through
-        size = str(randint(75, 95)) + str(
+        rand_size = randint(75, 95)
+        size_bytes = int(GiB(rand_size).to_Byte().value)
+        size = str(rand_size) + str(
             size_expressions[randint(0, len(size_expressions) - 1)])
         self._create_volume(client, volume_name,
                             driver_opts={'size': size})
@@ -206,12 +208,12 @@ class DockerPluginTests(AsyncTestCase):
             dataset = next(d for d in datasets
                            if d.metadata.get(u'name') == volume_name)
             self.assertEqual(int(dataset.metadata.get(u'maximum_size')),
-                             parse_num(size))
+                             size_bytes)
         d.addCallback(_verify_created_volume_is_size)
 
         d.addCallback(lambda _: assert_http_server(
             self, node.public_address, host_port,
-            expected_response=str(parse_num(size))))
+            expected_response=str(size_bytes))
 
         return d
 
