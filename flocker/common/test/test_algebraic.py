@@ -9,7 +9,7 @@ from pyrsistent import (
     PClass, field, pset,
     InvariantException,
 )
-from hypothesis import given, strategies as st, assume
+from hypothesis import given, strategies as st, assume, example
 
 from twisted.trial.unittest import SynchronousTestCase
 
@@ -59,6 +59,10 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
     @given(
         args=ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY,
     )
+    @example(args={'state': States.ALLOWED, 'extra': False})
+    @example(args={'state': States.WITH_ATTRIBUTE, 'extra': True, 'one': True})
+    @example(args={'state': States.WITH_TWO_ATTRIBUTES,
+                   'extra': True, 'one': True, 'two': False})
     def test_valid_strategy(self, args):
         """
         When a valid dictionary of attributes is provided, an
@@ -70,6 +74,18 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         args=ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY,
         choice=st.choices(),
         extra_value=st.booleans()
+    )
+    @example(
+        args={'state': States.ALLOWED, 'extra': False},
+        # The argument to add.
+        choice=lambda _: 'one',
+        extra_value=True,
+    )
+    @example(
+        args={'state': States.WITH_ATTRIBUTE, 'extra': False, 'one': True},
+        # The argument to add.
+        choice=lambda _: 'two',
+        extra_value=True,
     )
     def test_extra_attributes(self, args, choice, extra_value):
         """
@@ -101,6 +117,23 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         args=ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY,
         choice=st.choices(),
     )
+    @example(
+        args={'state': States.WITH_ATTRIBUTE, 'extra': False, 'one': True},
+        # The argument to remove
+        choice=lambda _: 'one',
+    )
+    @example(
+        args={'state': States.WITH_TWO_ATTRIBUTES,
+              'extra': False, 'one': True, 'two': False},
+        # The argument to remove
+        choice=lambda _: 'one',
+    )
+    @example(
+        args={'state': States.WITH_TWO_ATTRIBUTES,
+              'extra': False, 'one': True, 'two': False},
+        # The argument to remove
+        choice=lambda _: 'two',
+    )
     def test_missing_attributes(self, args, choice):
         """
         When an attribute required in a given state isn't provided,
@@ -131,6 +164,10 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
             - AlgebraicType.__invariant__._allowed_tags
         ),
         extra_value=st.booleans(),
+    )
+    @example(
+        state=States.DISALLOWED,
+        extra_value=False,
     )
     def test_invalid_states(self, state, extra_value):
         """
