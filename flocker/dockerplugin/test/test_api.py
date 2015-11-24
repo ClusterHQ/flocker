@@ -20,7 +20,6 @@ from .._api import VolumePlugin, DEFAULT_SIZE, parse_num
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
 from ...testtools import CustomException
-from ...node.testtools import require_docker_version
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
@@ -28,12 +27,14 @@ from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 # A Hypothesis strategy for generating size of volume
 volume_size = builds(
-    lambda size, expression: b"".join(size) + b"".join(expression),
-    size=lists(elements=sampled_from(range(1, 101))),
-    expression=lists(elements=sampled_from(["gib", "G", "Gb",
-                                            "gb", "Gib", "g"])),
+    lambda size: b"".join(str(size)),
+    size=sampled_from(range(1, 101)),
 )
-
+volume_expression = builds(
+    lambda expression: b"".join(expression),
+    expression=sampled_from(["gib", "G", "Gb",
+                             "gb", "Gib", "g"]),
+)
 
 class SimpleCountingProxy(object):
     """
@@ -104,10 +105,6 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
-    @require_docker_version(
-        '1.9.0',
-        'This test uses the v2 plugin API, which requires Docker >=1.9.0'
-    )
     @given(profile=sampled_from(["gold", "silver", "bronze"]))
     def test_create_with_profile(self, profile):
         """
@@ -130,24 +127,21 @@ class APITestsMixin(APIAssertionsMixin):
                               unicode(profile)})])
         return d
 
-    @require_docker_version(
-        '1.9.0',
-        'This test uses the v2 plugin API, which requires Docker >=1.9.0'
-    )
-    @given(size=volume_size)
-    def test_create_with_size(self, size):
+    @given(size=volume_size, expression=volume_expression)
+    def test_create_with_size(self, size, expression):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
         of "size=<somesize> in the request body JSON create a Volumes
         with a given name and random size between 1-100G
         """
         name = u"testvolume"
+        size_opt = size+expression
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
-                              {u"Name": name, 'Opts': {u"size": size}},
+                              {u"Name": name, 'Opts': {u"size": size_opt}},
                               OK, {u"Err": None})
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
-        real_size = parse_num(size)
+        real_size = parse_num(size_opt)
         d.addCallback(self.assertItemsEqual, [
             Dataset(dataset_id=UUID(dataset_id_from_name(name)),
                     primary=self.NODE_A,
