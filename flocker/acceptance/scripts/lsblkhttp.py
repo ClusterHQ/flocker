@@ -11,19 +11,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(s):
         s.end_headers()
         try:
-            mounts = {}
-            for line in check_output(['mount', '-l']).split('\n'):
-                parts = line.split(' ')
-                if len(parts) > 2:
-                    mounts[parts[2]] = parts[0]
-            device_path = mounts["/sizedvoldata"]
+            # format output is </dev/id>[/mount/point]
+            # so we filter the mountpoint
+            device_path = check_output(['findmnt', '-n',
+                                        '-m', '/sizedvoldata',
+                                        '-o', 'SOURCE']).split('[')[0]
 
             command = ["/bin/lsblk", "--noheadings", "--bytes",
                        "--output", "SIZE", device_path]
             # lskblk is filtered to just return the size of the
             # underlying device in filtered columns, we grab the
             # specific one which contains the size in bytes.
-            command_output = check_output(command).split(b'\n')[0]
+            command_output = check_output(command).split('\n')[0]
             device_size = str(int(command_output.strip()))
         except Exception as e:
             s.send_response(500)
