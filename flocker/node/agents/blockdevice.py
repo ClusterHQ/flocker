@@ -63,6 +63,8 @@ class DatasetStates(Names):
     States that a ``Dataset`` can be in.
 
     """
+    # Exists, but attached elsewhere
+    ATTACHED_ELSEWHERE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -1429,6 +1431,13 @@ class BlockDeviceDeployer(PRecord):
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
                     )
+                else:
+                    datasets[dataset_id] = DiscoveredDataset(
+                        state=DatasetStates.ATTACHED_ELSEWHERE,
+                        dataset_id=dataset_id,
+                        maximum_size=volume.size,
+                        blockdevice_id=volume.blockdevice_id,
+                    )
 
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
@@ -1473,8 +1482,11 @@ class BlockDeviceDeployer(PRecord):
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
             return in_parallel(changes=[])
-
-        not_in_use = NotInUseDatasets(local_node_state, configuration.leases)
+        not_in_use = NotInUseDatasets(
+            node_uuid=self.node_uuid,
+            local_applications=local_node_state.applications,
+            leases=configuration.leases,
+        )
 
         configured_manifestations = this_node_config.manifestations
 

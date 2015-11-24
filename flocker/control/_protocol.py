@@ -27,14 +27,13 @@ Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
 
-:var _caching_encoder: ``CachingEncoder`` used by
-    ``SerializableArgument``, allowing for cached serialization.
+:var _wire_encode_cache: ``LRUCache`` mapping serializable objects to
+    their ``wire_encode`` output.
 """
 
 from datetime import timedelta
 from io import BytesIO
 from itertools import count
-from contextlib import contextmanager
 from twisted.internet.defer import maybeDeferred
 from uuid import UUID
 
@@ -44,6 +43,8 @@ from eliot import (
 from eliot.twisted import DeferredContext
 
 from pyrsistent import PClass, field
+
+from repoze.lru import LRUCache
 
 from characteristic import with_cmp
 
@@ -123,46 +124,27 @@ class Big(Argument):
         self.another_argument.fromBox(name, strings, objects, proto)
 
 
-class CachingEncoder(object):
+# The configuration and state can get pretty big, so don't want too many:
+_wire_encode_cache = LRUCache(50)
+
+
+def caching_wire_encode(obj):
     """
-    Cache results of ``wire_encode`` and re-use them, relying on the fact
-    we're encoding immutable objects.
+    Encode an object to bytes using ``wire_encode`` and cache the result,
+    or return cached result if available.
 
-    Not thread-safe, so should only be used by a single thread (the
-    Twisted reactor thread, presumably).
+    This relies on cached objects being immutable, or at least not being
+    modified. Given our usage patterns that is currently the case and
+    should continue to be, but worth keeping in mind.
 
-    :attr _cache: Either ``None`` indicating no caching or a dicitonary
-        with objects mapped to cached wire encoded values.
+    :param obj: Object to encode.
+    :return: Resulting ``bytes``.
     """
-    def __init__(self):
-        self._cache = None
-
-    def encode(self, obj):
-        """
-        Encode an object to bytes using ``wire_encode``, or return cached
-        result if available and running in context of ``cache()`` context
-        manager.
-
-        :param obj: Object to encode.
-        :return: Resulting ``bytes``.
-        """
-        if self._cache is None:
-            return wire_encode(obj)
-
-        if obj not in self._cache:
-            self._cache[obj] = wire_encode(obj)
-        return self._cache[obj]
-
-    @contextmanager
-    def cache(self):
-        """
-        While in context of this context manager results will be cached.
-        """
-        self._cache = {}
-        yield
-        self._cache = None
-
-_caching_encoder = CachingEncoder()
+    result = _wire_encode_cache.get(obj)
+    if result is None:
+        result = wire_encode(obj)
+        _wire_encode_cache.put(obj, result)
+    return result
 
 
 class SerializableArgument(Argument):
@@ -192,7 +174,7 @@ class SerializableArgument(Argument):
             raise TypeError(
                 "{} is none of {}".format(obj, self._expected_classes)
             )
-        return _caching_encoder.encode(obj)
+        return caching_wire_encode(obj)
 
 
 class _EliotActionArgument(Unicode):
@@ -286,6 +268,28 @@ class NodeStateCommand(Command):
     response = []
 
 
+class Timeout(object):
+    """
+    Call the specified action after the specified delay in seconds.
+    """
+    def __init__(self, reactor, timeout, action):
+        """
+        :param IReactorTime reactor: A reactor to use to control when
+            the action is called.
+        :param int timeout: Interval in seconds to trigger the action.
+        :param callable action: The function to execute upon reaching the
+            timeout.
+        """
+        self._delay_call = reactor.callLater(timeout, action)
+        self._timeout = timeout
+
+    def reset(self):
+        """
+        Reset the delayed call to this ``Timeout``'s ``action``.
+        """
+        self._delay_call.reset(self._timeout)
+
+
 class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
@@ -294,12 +298,14 @@ class ControlServiceLocator(CommandLocator):
         the AMP connection for which this locator is being used.
     :ivar _reactor: See ``reactor`` parameter of ``__init__``
     """
-    def __init__(self, reactor, control_amp_service):
+    def __init__(self, reactor, control_amp_service, timeout):
         """
         :param IReactorTime reactor: A reactor to use to tell the time for
             activity/inactivity reporting.
         :param ControlAMPService control_amp_service: The service managing AMP
             connections to the control service.
+        :param Timeout timeout: A ``Timeout`` object to reset when a message
+            is received.
         """
         CommandLocator.__init__(self)
 
@@ -309,14 +315,17 @@ class ControlServiceLocator(CommandLocator):
         # after the connection is lost we can't receive any more changes from
         # it.
         self._source = ChangeSource()
+        self._timeout = timeout
 
         self._reactor = reactor
         self.control_amp_service = control_amp_service
 
     def locateResponder(self, name):
         """
-        Do normal responder lookup and also record this activity.
+        Do normal responder lookup, reset the connection timeout and record
+        this activity.
         """
+        self._timeout.reset()
         self._source.set_last_activity(self._reactor.seconds())
         return CommandLocator.locateResponder(self, name)
 
@@ -355,6 +364,20 @@ class ControlServiceLocator(CommandLocator):
         return {}
 
 
+def timeout_for_protocol(reactor, protocol):
+    """
+    Create a timeout for inactive AMP connections that will abort the
+    connection when the timeout is reached.
+
+    :param IReactorTime reactor: A reactor to use to control when
+        the action is called.
+    :param AMP protocol: The protocol on which inactive connections will
+        be aborted.
+    """
+    return Timeout(reactor, 2 * PING_INTERVAL.seconds,
+                   lambda: protocol.transport.abortConnection())
+
+
 class ControlAMP(AMP):
     """
     AMP protocol for control service server.
@@ -368,8 +391,10 @@ class ControlAMP(AMP):
         :param ControlAMPService control_amp_service: The service managing AMP
             connections to the control service.
         """
-        locator = ControlServiceLocator(reactor, control_amp_service)
+        locator = ControlServiceLocator(reactor, control_amp_service,
+                                        timeout_for_protocol(reactor, self))
         AMP.__init__(self, locator=locator)
+
         self.control_amp_service = control_amp_service
         self._pinger = Pinger(reactor)
 
@@ -384,13 +409,13 @@ class ControlAMP(AMP):
         self._pinger.stop()
 
 
-# These two logging fields use wire_encode as the serializer so that they can
-# share the encoding cache with the network code related to this logging.  This
-# reduces the overhead of logging these (potentially quite large) data
-# structures.
-DEPLOYMENT_CONFIG = Field(u"configuration", _caching_encoder.encode,
+# These two logging fields use caching_wire_encode as the serializer so
+# that they can share the encoding cache with the network code related to
+# this logging.  This reduces the overhead of logging these (potentially
+# quite large) data structures.
+DEPLOYMENT_CONFIG = Field(u"configuration", caching_wire_encode,
                           u"The cluster configuration")
-CLUSTER_STATE = Field(u"state", _caching_encoder.encode, u"The cluster state")
+CLUSTER_STATE = Field(u"state", caching_wire_encode, u"The cluster state")
 
 LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
@@ -558,39 +583,34 @@ class ControlAMPService(Service):
                     # schedule one.
                     delayed_update.append(connection)
 
-        # Do all of the update work inside this caching context.  This makes
-        # multiple encodings of the same piece of state much less expensive by
-        # saving the first result and re-using it.  The cache is only
-        # maintained for the duration of the block.
-        with _caching_encoder.cache():
-            # Make sure to run the logging action inside the caching block.
-            # This lets encoding for logging share the cache with encoding for
-            # network traffic.
-            with LOG_SEND_CLUSTER_STATE() as action:
-                if can_update:
-                    # If there are any protocols that can be updated right now,
-                    # we also want to see what updates they receive.  Since
-                    # logging shares the caching context, it shouldn't be any
-                    # more expensive to serialize this information into the log
-                    # now.  We specifically avoid logging this information if
-                    # no protocols are being updated because the serializing is
-                    # more expensive in that case and at the same time that
-                    # information isn't actually useful.
-                    action.add_success_fields(
-                        configuration=configuration, state=state
-                    )
-                else:
-                    # Eliot wants those fields though.
-                    action.add_success_fields(configuration=None, state=None)
+        # Make sure to run the logging action inside the caching block.
+        # This lets encoding for logging share the cache with encoding for
+        # network traffic.
+        with LOG_SEND_CLUSTER_STATE() as action:
+            if can_update:
+                # If there are any protocols that can be updated right now,
+                # we also want to see what updates they receive.  Since
+                # logging shares the caching context, it shouldn't be any
+                # more expensive to serialize this information into the log
+                # now.  We specifically avoid logging this information if
+                # no protocols are being updated because the serializing is
+                # more expensive in that case and at the same time that
+                # information isn't actually useful.
+                action.add_success_fields(
+                    configuration=configuration, state=state
+                )
+            else:
+                # Eliot wants those fields though.
+                action.add_success_fields(configuration=None, state=None)
 
-                for connection in can_update:
-                    self._update_connection(connection, configuration, state)
+            for connection in can_update:
+                self._update_connection(connection, configuration, state)
 
-                for connection in elided_update:
-                    AGENT_UPDATE_ELIDED(agent=connection).write()
+            for connection in elided_update:
+                AGENT_UPDATE_ELIDED(agent=connection).write()
 
-                for connection in delayed_update:
-                    self._delayed_update_connection(connection)
+            for connection in delayed_update:
+                self._delayed_update_connection(connection)
 
     def _update_connection(self, connection, configuration, state):
         """
@@ -710,12 +730,22 @@ class _AgentLocator(CommandLocator):
     """
     Command locator for convergence agent.
     """
-    def __init__(self, agent):
+    def __init__(self, agent, timeout):
         """
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
+        :param Timeout timeout: A ``Timeout`` object to reset when a message
+            is received.
         """
         CommandLocator.__init__(self)
         self.agent = agent
+        self._timeout = timeout
+
+    def locateResponder(self, name):
+        """
+        Do normal responder lookup and reset the connection timeout.
+        """
+        self._timeout.reset()
+        return CommandLocator.locateResponder(self, name)
 
     @NoOp.responder
     def noop(self):
@@ -753,7 +783,7 @@ class AgentAMP(AMP):
             operations.root@52.28.55.192
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
-        locator = _AgentLocator(agent)
+        locator = _AgentLocator(agent, timeout_for_protocol(reactor, self))
         AMP.__init__(self, locator=locator)
         self.agent = agent
         self._pinger = Pinger(reactor)

@@ -7,7 +7,7 @@ Debugging
 .. _flocker-logging:
 
 Logging
--------
+=======
 
 Flocker processes use the `Eliot`_ framework for logging.
 Eliot structures logs as a tree of actions, which means given an error you can see what Flocker actions caused the errors by finding the other messages in the tree.
@@ -17,34 +17,48 @@ Eliot also includes a tool called ``eliot-prettyprint`` which renders messages i
 
 Logs from the Docker containers can be viewed using `the Docker CLI <https://docs.docker.com/reference/commandline/cli/#logs>`_.
 
+To view the Flocker logs, (as described below for :ref:`ubuntu-logs` or :ref:`centos-logs`), you will need to be logged in as root.
+
+.. _ubuntu-logs:
+
 Ubuntu
 ^^^^^^
 
-XXX This should be documented, see :issue:`1877`.
+Logs from the Flocker processes running on the nodes can be found in the :file:`/var/log/flocker` directory.
+They have unit names that begin with a ``flocker-`` prefix.
+
+For example, to find all logged errors for ``flocker-dataset-agent``, run:
+
+.. prompt:: bash [root@ubuntu]#
+
+   cat /var/log/flocker/flocker-dataset-agent.log
+
+.. _centos-logs:
 
 CentOS 7
 ^^^^^^^^
 
 Logs from the Flocker processes running on the nodes are written to `systemd's journal`_.
-They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flocker-dataset-agent``.
+They have unit names that begin with a ``flocker-`` prefix.
+For example, ``flocker-dataset-agent``.
 
 It is possible to see the available unit names, and then view the logs with ``journalctl``:
 
-.. prompt:: bash [root@node1]# auto
+.. prompt:: bash [root@centos]# auto
 
-   [root@node1]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
+   [root@centos]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
    flocker-dataset-agent
    flocker-container-agent
    flocker-control
-   [root@node1]# journalctl -u flocker-dataset-agent
+   [root@centos]# journalctl -u flocker-dataset-agent
 
 When outputting logs to ``eliot-prettyprint`` or ``eliot-tree`` you will want to call ``journalctl`` with additional options ``--all --output cat`` to ensure the output can be read correctly by these tools.
 
 Using ``journalctl`` we can find all logged errors:
 
-.. prompt:: bash [root@node1]# auto
+.. prompt:: bash [root@centos]# auto
 
-   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent --priority=err | eliot-prettyprint
+   [root@centos]# journalctl --all --output cat -u flocker-dataset-agent --priority=err | eliot-prettyprint
    ce64eb77-bb7f-4e69-83f8-07d7cdaffaca -> /2
    2015-09-23 21:26:37.972945Z
       action_type: flocker:dataset:resize
@@ -55,9 +69,9 @@ Using ``journalctl`` we can find all logged errors:
 The first part of the first line of each message, in this case ``ce64eb77-bb7f-4e69-83f8-07d7cdaffaca``, is an identifier shared by all actions in the particular tree (or "task") that led up to this error.
 We can use it to find all messages related to this particular error in an effort to figure out what caused it; we'll output to ``eliot-tree`` so we can see the structure of messages:
 
-.. prompt:: bash [root@node1]# auto
+.. prompt:: bash [root@centos]# auto
 
-   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=ce64eb77-bb7f-4e69-83f8-07d7cdaffaca | eliot-tree
+   [root@centos]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=ce64eb77-bb7f-4e69-83f8-07d7cdaffaca | eliot-tree
 
 We can also find all messages of a particular type.
 Some useful messages types for agents include:
@@ -68,9 +82,9 @@ Some useful messages types for agents include:
 
 In the following example we find what actions the dataset agent decided it needed to run most recently:
 
-.. prompt:: bash [root@node1]# auto
+.. prompt:: bash [root@centos]# auto
 
-   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TYPE=flocker:agent:converge:actions | tail -1 | eliot-prettyprint
+   [root@centos]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TYPE=flocker:agent:converge:actions | tail -1 | eliot-prettyprint
    32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 -> /2/4
    2015-09-02 13:42:28.943926Z
      message_type: flocker:agent:converge:actions
@@ -78,15 +92,15 @@ In the following example we find what actions the dataset agent decided it neede
 
 We can then find the full set of actions leading up to this decision, as well as the results of the block device creation, by searching for the task UUID:
 
-.. prompt:: bash [root@node1]# auto
+.. prompt:: bash [root@centos]# auto
 
-   [root@node1]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 | eliot-tree
+   [root@centos]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 | eliot-tree
 
  
 .. _flocker-bug-reporting:
 
 Bug Reporting
--------------
+=============
 
 When reporting issues with Flocker please include:
 
@@ -166,7 +180,7 @@ Alternatively, the information can be gathered manually using the following comm
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 
 Profiling
----------
+=========
 
 .. warning::
 

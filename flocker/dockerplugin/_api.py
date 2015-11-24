@@ -6,6 +6,7 @@ An HTTP API implementing the Docker Volumes Plugin API.
 See https://github.com/docker/docker/tree/master/docs/extend for details.
 """
 
+from itertools import repeat
 from functools import wraps
 from uuid import UUID
 
@@ -13,15 +14,22 @@ import yaml
 
 from bitmath import GiB
 
+from eliot import writeFailure
+
 from twisted.python.filepath import FilePath
-from twisted.internet.task import deferLater
+from twisted.internet.defer import CancelledError
+from twisted.internet.defer import maybeDeferred
+from twisted.web.http import OK
 
 from klein import Klein
 
-from ..restapi import structured
+from ..restapi import (
+    structured, EndpointResponse, BadRequest, make_bad_request,
+)
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
+from ..common import loop_until, timeout
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -45,6 +53,9 @@ def _endpoint(name, ignore_body=False):
     Decorator factory for API endpoints, adding appropriate JSON in/out
     encoding.
 
+    This also converts errors and ``BadRequest`` exceptions to JSON that
+    can be read by Docker and therefore shown to the user.
+
     :param unicode name: The name of the endpoint in the schema.
     :param ignore_body: If true, ignore the contents of the body for all
         HTTP methods, including ``POST``. By default the body is only
@@ -60,9 +71,33 @@ def _endpoint(name, ignore_body=False):
             schema_store=SCHEMAS,
             ignore_body=ignore_body)
         def wrapped(*args, **kwargs):
-            return f(*args, **kwargs)
+            d = maybeDeferred(f, *args, **kwargs)
+
+            def handle_error(failure):
+                if failure.check(BadRequest):
+                    code = failure.value.code
+                    body = failure.value.result
+                else:
+                    writeFailure(failure)
+                    # Ought to INTERNAL_SERVER_ERROR but Docker doesn't
+                    # seem to test that code path at all, whereas it does
+                    # have tests for this:
+                    code = OK
+                    body = {u"Err": u"{}: {}".format(failure.type.__name__,
+                                                     failure.value)}
+                return EndpointResponse(code, body)
+            d.addErrback(handle_error)
+            return d
         return wrapped
     return decorator
+
+
+NOT_FOUND_RESPONSE = make_bad_request(
+    # Ought to be NOT_FOUND but Docker doesn't
+    # seem to test that code path at all, whereas it does
+    # have tests for this:
+    code=OK,
+    Err=u"Could not find volume with given name.")
 
 
 class VolumePlugin(object):
@@ -74,7 +109,8 @@ class VolumePlugin(object):
     can't be sure they won't change things in minor ways. We do validate
     outputs to ensure we output the documented requirements.
     """
-    _POLL_INTERVAL = 0.05
+    _POLL_INTERVAL = 1.0
+    _MOUNT_TIMEOUT = 120.0
 
     app = Klein()
 
@@ -131,6 +167,30 @@ class VolumePlugin(object):
         """
         return {u"Err": None}
 
+    def _dataset_id_for_name(self, name):
+        """
+        Lookup a dataset's ID based on name in metadata.
+
+        If it does not exist use the hashing mechanism until that is
+        removed in FLOC-2963.
+
+        :param name: The name of the volume, stored as ``"name"`` field in
+            dataset metadata.
+
+        :return: ``Deferred`` firing with dataset ID as ``UUID``, or
+            errbacks with ``_NotFound`` if no dataset was found.
+        """
+        listing = self._flocker_client.list_datasets_configuration()
+
+        def got_configured(configured):
+            for dataset in configured:
+                if dataset.metadata.get(u"name") == name:
+                    return dataset.dataset_id
+            raise NOT_FOUND_RESPONSE
+
+        listing.addCallback(got_configured)
+        return listing
+
     @app.route("/VolumeDriver.Create", methods=["POST"])
     @_endpoint(u"Create")
     def volumedriver_create(self, Name, Opts=None):
@@ -182,18 +242,16 @@ class VolumePlugin(object):
         creating.addCallback(lambda _: {u"Err": None})
         return creating
 
-    def _get_path(self, name):
+    def _get_path_from_dataset_id(self, dataset_id):
         """
-        Return a volume's path if available.
+        Return a dataset's path if available.
 
-        :param unicode name: The name of the volume.
+        :param UUID dataset_id: The dataset to lookup.
 
         :return: ``Deferred`` that fires with the mountpoint ``FilePath``,
-            or ``None`` if it is currently unknown.
+            ``None`` if the dataset is not locally mounted, or errbacks
+            with ``_NotFound`` if it is does not exist at all.
         """
-        # If we ever get rid of dataset_id hashing hack we'll need to
-        # lookup the dataset by its metadata, not its id.
-        dataset_id = UUID(dataset_id_from_name(name))
         d = self._flocker_client.list_datasets_state()
 
         def got_state(datasets):
@@ -219,22 +277,26 @@ class VolumePlugin(object):
 
         :return: Result that includes the mountpoint.
         """
-        dataset_id = UUID(dataset_id_from_name(Name))
-        d = self._flocker_client.move_dataset(self._node_id, dataset_id)
+        d = self._dataset_id_for_name(Name)
+        d.addCallback(lambda dataset_id:
+                      self._flocker_client.move_dataset(self._node_id,
+                                                        dataset_id))
+        d.addCallback(lambda dataset: dataset.dataset_id)
 
-        def get_state(_=None):
-            getting_path = self._get_path(Name)
+        d.addCallback(lambda dataset_id: loop_until(
+            self._reactor,
+            lambda: self._get_path_from_dataset_id(dataset_id),
+            repeat(self._POLL_INTERVAL)))
+        d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
 
-            def got_path(path):
-                if path is None:
-                    return deferLater(
-                        self._reactor, self._POLL_INTERVAL, get_state)
-                else:
-                    return {u"Err": None,
-                            u"Mountpoint": path.path}
-            getting_path.addCallback(got_path)
-            return getting_path
-        d.addCallback(get_state)
+        timeout(self._reactor, d, self._MOUNT_TIMEOUT)
+
+        def handleCancel(failure):
+            failure.trap(CancelledError)
+            return {u"Err": u"Timed out waiting for dataset to mount.",
+                    u"Mountpoint": u""}
+        d.addErrback(handleCancel)
+
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])
@@ -251,7 +313,8 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        d = self._get_path(Name)
+        d = self._dataset_id_for_name(Name)
+        d.addCallback(self._get_path_from_dataset_id)
 
         def got_path(path):
             if path is None:
