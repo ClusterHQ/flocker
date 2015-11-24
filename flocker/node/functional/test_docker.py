@@ -8,16 +8,11 @@ from __future__ import absolute_import
 
 import time
 import socket
-from functools import partial
 
 from eliot.testing import capture_logging, assertHasMessage
 
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
-from docker import Client
-# Docker-py uses 1.16 API by default, which isn't supported by docker, so force
-# the use of the 1.15 API until we upgrade docker in flocker-dev
-Client = partial(Client, version="1.15")
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -30,7 +25,7 @@ from treq import request, content
 
 from pyrsistent import PClass, pvector, field
 
-from ...common import loop_until, retry_failure
+from ...common import loop_until
 from ...testtools import (
     find_free_port, flaky, DockerImageBuilder, assertContainsAll,
     random_name,
@@ -208,7 +203,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, image_name=image_name)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(
                 image_name,
@@ -280,7 +275,7 @@ class GenericDockerClientTests(TestCase):
         registry_listening = self.run_registry()
 
         def tag_and_push_image(registry):
-            client = Client()
+            client = dockerpy_client()
             image_name = ANY_IMAGE
             # The image will normally have been pre-pulled on build slaves, but
             # may not already be available when running tests locally.
@@ -366,7 +361,7 @@ class GenericDockerClientTests(TestCase):
 
         def stopped_container_exists((name, image_name)):
             # Remove the image:
-            docker_client = Client()
+            docker_client = dockerpy_client()
             docker_client.remove_image(image_name, force=True)
 
             # Should be able to still list the container:
@@ -517,8 +512,9 @@ class GenericDockerClientTests(TestCase):
 
         def started(_):
             output = ""
+            client = dockerpy_client()
             while True:
-                output += Client().logs(self.namespacing_prefix + unit_name)
+                output += client.logs(self.namespacing_prefix + unit_name)
                 if "WOOT" in output:
                     break
             assertContainsAll(
@@ -598,7 +594,7 @@ class GenericDockerClientTests(TestCase):
             repository=registry.repository + '/' + registry_name,
             tag='latest',
         )
-        client = Client()
+        client = dockerpy_client()
 
         # Tag an image with a repository name matching the given registry.
         client.tag(
@@ -641,13 +637,7 @@ class GenericDockerClientTests(TestCase):
         )
 
         def extract_listening_port(client):
-            # FLOC-3077: Docker will sometimes raise a 500 when we inspect a
-            # container, due to race conditions with certain volume
-            # operations. Since there's no real user impact for flocker (the
-            # convergence loop will just retry anyway), retry here to avoid
-            # spurious test failures.
-            listing = retry_failure(
-                reactor, client.list, [APIError], steps=[0.1] * 5)
+            listing = client.list()
             listing.addCallback(
                 lambda applications: list(
                     next(iter(application.ports)).external_port
@@ -680,7 +670,7 @@ class GenericDockerClientTests(TestCase):
             to use, the latter represents the registry we should have tried to
             pull it from.
         """
-        client = Client()
+        client = dockerpy_client()
 
         # Run a local registry
         running = self.run_registry()
@@ -773,7 +763,7 @@ class GenericDockerClientTests(TestCase):
         timing_out = self._pull_timeout()
 
         def pull_successfully((registry_image, registry)):
-            client = Client()
+            client = dockerpy_client()
             # Resume the registry
             client.unpause(self.namespacing_prefix + registry.name)
 
@@ -795,7 +785,7 @@ class GenericDockerClientTests(TestCase):
         Containers are created with a namespace prefixed to their container
         name.
         """
-        docker = Client()
+        docker = dockerpy_client()
         name = random_name(self)
         client = self.make_client()
         self.addCleanup(client.remove, name)
@@ -972,7 +962,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, mem_limit=MEMORY_100MB)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(data[u"Config"][u"Memory"],
                              MEMORY_100MB)
@@ -992,7 +982,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, cpu_shares=512)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(data[u"Config"][u"CpuShares"], 512)
         d.addCallback(started)
@@ -1009,7 +999,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(data[u"Config"][u"Memory"], 0)
             self.assertEqual(data[u"Config"][u"CpuShares"], 0)
@@ -1183,7 +1173,7 @@ class DockerClientTests(TestCase):
         """
         The default namespace is `u"flocker--"`.
         """
-        docker = Client()
+        docker = dockerpy_client()
         name = random_name(self)
         client = DockerClient()
         self.addCleanup(client.remove, name)
