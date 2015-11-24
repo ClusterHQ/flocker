@@ -6,7 +6,7 @@ Tests for ``flocker.common.algebraic``
 """
 
 from pyrsistent import (
-    PClass, field,
+    PClass, field, pset,
     InvariantException,
 )
 from hypothesis import given, strategies as st, assume
@@ -127,7 +127,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
 
     @given(
         state=st.sampled_from(
-            set(States.iterconstants())
+            pset(States.iterconstants())
             - AlgebraicType.__invariant__._allowed_tags
         ),
         extra_value=st.booleans(),

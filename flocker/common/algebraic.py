@@ -39,20 +39,30 @@ appropriate attributes are set in each state.
        )
 """
 
-from pyrsistent import PClass, field
+from pyrsistent import PClass, field, pmap_field, CheckedPSet, pset
 
 from hypothesis.strategies import sampled_from, fixed_dictionaries, just
+
+from twisted.python.constants import NamedConstant
 
 __all__ = ["TaggedUnionInvariant"]
 
 
+class _AttributeSet(CheckedPSet):
+    """
+    Set of attribute names.
+    """
+    __type__ = str
+
+
 class TaggedUnionInvariant(PClass):
     """
-    An invariant that ensure the given object has an allowd tag
-    attribute, and that all the other specified attributes are
-    present if and only if the object has the appropriate tag.
+    An invariant that ensure the given object has an allowd tag attribute, and
+    that all the other specified attributes are present if and only if the
+    object has the appropriate tag. The tags must be
+    :py:class:`NamedConstant`s.
 
-    Note: Attributes that aren't specified by any tag are ignored.
+    .. note:: Attributes that aren't specified by any tag are ignored.
 
     :param str tag_attribute: The attribute that contains the tag.
     :param dict attributes_for_tag: Dictionary mapping tags to the
@@ -60,25 +70,29 @@ class TaggedUnionInvariant(PClass):
     """
 
     tag_attribute = field(str, mandatory=True)
-    attributes_for_tag = field(dict, mandatory=True)
+    attributes_for_tag = pmap_field(
+        key_type=NamedConstant,
+        value_type=_AttributeSet,
+        optional=True,
+    )
 
     @property
     def _allowed_tags(self):
         """
         The set of all allowed tags.
         """
-        return set(self.attributes_for_tag.keys())
+        return pset(self.attributes_for_tag.keys())
 
     @property
     def _all_attributes(self):
         """
         The set of all attributes controlled by the invariant.
         """
-        return {
+        return pset({
             attribute
             for attributes in self.attributes_for_tag.values()
             for attribute in attributes
-        }
+        })
 
     def __call__(self, value):
         """
