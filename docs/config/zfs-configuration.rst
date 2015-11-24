@@ -78,7 +78,7 @@ To test that the SSH authentication as root is working between nodes, log into a
 Repeat this command to test the authentication for the other nodes in your cluster.
 
 .. warning::
-   If you fail to set this up, the ZFS backend may appear to work until you try and move a volume from one host to another, at which point this operation would fail.
+   If you fail to set this up, the ZFS backend may appear to work until you try and move a volume from one host to another, at which point this operation will fail.
 
 ZFS Backend Configuration
 =========================
