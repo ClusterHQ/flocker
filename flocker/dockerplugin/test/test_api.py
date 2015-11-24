@@ -12,14 +12,14 @@ from twisted.internet.task import Clock
 from hypothesis import given
 from hypothesis.strategies import sampled_from, builds, lists
 
-from pyrsistent import pmap
+from pyrsistent import pmap, pvector
 
 from eliot.testing import capture_logging
 
 from .._api import VolumePlugin, DEFAULT_SIZE, parse_num
 from ...apiclient import FakeFlockerClient, Dataset
 from ...control._config import dataset_id_from_name
-from ...testtools import CustomException
+from ...testtools import CustomException, random_name
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
@@ -28,12 +28,12 @@ from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 # A Hypothesis strategy for generating size of volume
 volume_size = builds(
     lambda size: b"".join(str(size)),
-    size=sampled_from(range(1, 101)),
+    size=sampled_from(range(1, 2)),
 )
 volume_expression = builds(
     lambda expression: b"".join(expression),
     expression=sampled_from(["gib", "G", "Gb",
-                             "gb", "Gib", "g"]),
+                             "gb", "Gib", "g"]), 
 )
 
 class SimpleCountingProxy(object):
@@ -112,42 +112,52 @@ class APITestsMixin(APIAssertionsMixin):
         of "profile=[gold,silver,bronze] in the request body JSON create a
         volume with a given name with [gold,silver,bronze] profile.
         """
-        name = u"testvolume"
+        name = random_name(self)
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"profile": profile}},
                               OK, {u"Err": None})
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
+        dataset_id=UUID(dataset_id_from_name(name))
         d.addCallback(self.assertItemsEqual, [
-            Dataset(dataset_id=UUID(dataset_id_from_name(name)),
+            Dataset(dataset_id=dataset_id,
                     primary=self.NODE_A,
                     maximum_size=DEFAULT_SIZE,
                     metadata={u"name": name,
                               u"clusterhq:flocker:profile":
                               unicode(profile)})])
+        # evidently with hypothesis you cant trust setUp or tearDown
+        d.addCallback(
+            lambda _: self.flocker_client.delete_dataset(dataset_id))
         return d
 
-    @given(size=volume_size, expression=volume_expression)
+    @given(volume_size, volume_expression)
     def test_create_with_size(self, size, expression):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
         of "size=<somesize> in the request body JSON create a Volumes
         with a given name and random size between 1-100G
         """
-        name = u"testvolume"
+        name = random_name(self)
         size_opt = size+expression
+        print size_opt
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"size": size_opt}},
                               OK, {u"Err": None})
+
+        real_size = parse_num(size_opt)
+        dataset_id=UUID(dataset_id_from_name(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
-        real_size = parse_num(size_opt)
         d.addCallback(self.assertItemsEqual, [
-            Dataset(dataset_id=UUID(dataset_id_from_name(name)),
+            Dataset(dataset_id=dataset_id,
                     primary=self.NODE_A,
                     maximum_size=real_size,
                     metadata={u"name": name, u"maximum_size":
                               unicode(real_size)})])
+        # evidently with hypothesis you cant trust setUp or tearDown
+        d.addCallback(
+            lambda _: self.flocker_client.delete_dataset(dataset_id))
         return d
 
     def create(self, name):
