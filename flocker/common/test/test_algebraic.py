@@ -47,7 +47,7 @@ ALGEBRAIC_TYPE_STRATEGY = tagged_union_strategy(AlgebraicType, {
     'extra': st.booleans(),
 })
 
-ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY = ALGEBRAIC_TYPE_STRATEGY.map(
+ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY = ALGEBRAIC_TYPE_STRATEGY.map(
     lambda v: v.serialize())
 
 
@@ -57,7 +57,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
     """
 
     @given(
-        args=ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY,
+        args=ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY,
     )
     def test_valid_strategy(self, args):
         """
@@ -67,7 +67,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         self.assertIsInstance(AlgebraicType(**args), AlgebraicType)
 
     @given(
-        args=ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY,
+        args=ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY,
         choice=st.choices(),
         extra_value=st.booleans()
     )
@@ -98,7 +98,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         )
 
     @given(
-        args=ALGEBRAIC_TYPE_ARGUMENTS_STRATGEY,
+        args=ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY,
         choice=st.choices(),
     )
     def test_missing_attributes(self, args, choice):
