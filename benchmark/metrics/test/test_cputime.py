@@ -205,7 +205,7 @@ class CPUTimeTests(TestCase):
         metric = CPUTime(
             Clock(), FakeFlockerClient([node1, node2]),
             _LocalRunner(), processes=['init'])
-        d = metric.measure(lambda: 1)
+        d = metric.measure(lambda: None)  # measure a fast no-op command
 
         # Although it is unlikely, it's possible that we could get a CPU
         # time != 0, so filter values out.
