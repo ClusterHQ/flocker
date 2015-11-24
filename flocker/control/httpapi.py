@@ -155,6 +155,9 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         u"""
         Get the cluster's dataset configuration.
+
+        Includes ``Etag`` header for use with operations that support
+        ``If-Matches``.
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
