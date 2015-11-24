@@ -81,6 +81,15 @@ class TaggedUnionInvariant(PClass):
         }
 
     def __call__(self, value):
+        """
+        Check that the invariant holds for the given value.
+
+        :param value: Value to check invariant for.
+
+        :returns: Pair of whether the invariant holds, and a message describing
+            why it doesn't.
+        :rtype: `tuple` of `bool` and `str`
+        """
         tag = getattr(value, self.tag_attribute)
         if tag not in self._allowed_tags:
             return (False, "can only be in {tag_name}s {tags}.".format(
