@@ -187,6 +187,9 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         u"""
         Create a new dataset.
+
+        Supports ``If-Matches`` header for matching previously retrieved
+        dataset configuration.
         """,
         header=u"Create new dataset",
         examples=[
@@ -284,6 +287,9 @@ class ConfigurationAPIUserV1(object):
         u"""
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
+
+        Supports ``If-Matches`` header for matching previously retrieved
+        dataset configuration.
         """,
         header=u"Delete an existing dataset",
         examples=[
@@ -340,8 +346,11 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
-        * In the future update metadata.
+        * In the future this may be used to update metadata, but that is not
+          currently supported.
 
+        Supports ``If-Matches`` header for matching previously retrieved
+        dataset configuration.
         """,
         header=u"Update an existing dataset",
         examples=[
