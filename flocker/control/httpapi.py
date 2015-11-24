@@ -96,6 +96,16 @@ NODE_BY_ERA_NOT_FOUND = make_bad_request(
 _UNDEFINED_MAXIMUM_SIZE = object()
 
 
+def get_configuration_etag(api):
+    """
+    Return etag value for the configuration.
+
+    :param ConfigurationAPIUserV1 api: API instance.
+    :return: Etag as ``bytes``.
+    """
+    return api.persistence_service.configuration_hash()
+
+
 class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
@@ -165,7 +175,10 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of dataset
             that is configured to exist anywhere on the cluster.
         """
-        etag = self.persistence_service.configuration_hash()
+        # Perhaps exposing etag should be done in @structured
+        # implementation, if we end up doing it in more than one
+        # place. For now this is simpler:
+        etag = get_configuration_etag(self)
         return EndpointResponse(
             OK, list(datasets_from_deployment(self.persistence_service.get())),
             headers={b"etag": etag})
@@ -193,7 +206,8 @@ class ConfigurationAPIUserV1(object):
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
-        schema_store=SCHEMAS
+        schema_store=SCHEMAS,
+        get_etag=get_configuration_etag,
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
                                      maximum_size=None, metadata=None):
@@ -283,7 +297,8 @@ class ConfigurationAPIUserV1(object):
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
-        schema_store=SCHEMAS
+        schema_store=SCHEMAS,
+        get_etag=get_configuration_etag,
     )
     def delete_dataset(self, dataset_id):
         """
@@ -342,7 +357,8 @@ class ConfigurationAPIUserV1(object):
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
-        schema_store=SCHEMAS
+        schema_store=SCHEMAS,
+        get_etag=get_configuration_etag,
     )
     def update_dataset(self, dataset_id, primary=None):
         """
