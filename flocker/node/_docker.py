@@ -397,7 +397,12 @@ def _is_known_retryable(error_text):
     return any(
         known in error_text
         for known
-        in [u"Unknown device", u"No such device"]
+        in [
+            # ???
+            u"Unknown device",
+            # https://github.com/docker/docker/issues/17653
+            u"no such device",
+        ]
     )
 
 
