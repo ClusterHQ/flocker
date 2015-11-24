@@ -20,6 +20,9 @@ class Handler(BaseHTTPRequestHandler):
 
             command = ["/bin/lsblk", "--noheadings", "--bytes",
                        "--output", "SIZE", device_path]
+            # lskblk is filtered to just return the size of the
+            # underlying device in filtered columns, we grab the
+            # specific one which contains the size in bytes.
             command_output = check_output(command).split(b'\n')[0]
             device_size = str(int(command_output.strip()))
         except Exception as e:
