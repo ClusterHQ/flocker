@@ -22,19 +22,21 @@ from twisted.internet.error import ProcessTerminated
 from ._libcloud import INode
 from ._common import PackageSource, Variants
 from ._ssh import (
-    run, run_from_args, Run,
-    sudo_from_args, Sudo,
+    Run, Sudo,
+    run_network_interacting_from_args, sudo_network_interacting_from_args,
+    run, run_from_args, sudo_from_args,
     put,
     run_remotely,
 )
 from ._effect import sequence
+
+from ..common import retry_effect_with_timeout
 
 from flocker import __version__ as version
 from flocker.cli import configure_ssh
 from flocker.common.version import (
     get_installable_version, get_package_key_suffix, is_release,
 )
-from flocker.common import retry_effect_with_timeout
 
 # A systemctl sub-command to start or restart a service.  We use restart here
 # so that if it is already running it gets restart (possibly necessary to
@@ -50,6 +52,14 @@ ZFS_REPO = {
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
 
+class UnknownAction(Exception):
+    """
+    The action received is not a valid action
+    """
+    def __init__(self, action):
+        Exception.__init__(self, action)
+
+
 def is_centos(distribution):
     """
     Determine whether the named distribution is a version of CentOS.
@@ -60,6 +70,46 @@ def is_centos(distribution):
         ``False`` otherwise.
     """
     return distribution.startswith("centos-")
+
+
+def _from_args(sudo):
+    """
+    Select a function for running a command, either using ``sudo(8)`` or not.
+
+    :param bool sudo: Whether or not the returned function should apply sudo to
+        the command.
+
+    :return: If ``sudo`` is ``True``, return a function that runs a command
+        using sudo.  If ``sudo`` is ``False``, return a function that runs a
+        command as-is, without sudo.
+    """
+    if sudo:
+        return sudo_network_interacting_from_args
+    else:
+        return run_network_interacting_from_args
+
+
+def yum_install(args, package_manager="yum", sudo=False):
+    """
+    Install a package with ``yum`` or a ``yum``-like package manager.
+    """
+    return _from_args(sudo)([package_manager, "install", "-y"] + args)
+
+
+def apt_get_install(args, sudo=False):
+    """
+    Install a package with ``apt-get``.
+    """
+    return _from_args(sudo)(
+        ["apt-get", "-y", "install", ] + args
+    )
+
+
+def apt_get_update(sudo=False):
+    """
+    Update apt's package metadata cache.
+    """
+    return _from_args(sudo)(["apt-get", "update"])
 
 
 def is_ubuntu(distribution):
@@ -188,7 +238,7 @@ def ensure_minimal_setup(package_manager):
         # ("sorry, you must have a tty to run sudo"). Disable that to
         # allow automated tests to run.
         return sequence([
-            run_from_args([
+            run_network_interacting_from_args([
                 'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
             ]),
             run_from_args([
@@ -200,8 +250,10 @@ def ensure_minimal_setup(package_manager):
         ])
     elif package_manager == 'apt':
         return sequence([
-            run_from_args(['su', 'root', '-c', ['apt-get', 'update']]),
-            run_from_args([
+            run_network_interacting_from_args([
+                'su', 'root', '-c', ['apt-get', 'update']
+            ]),
+            run_network_interacting_from_args([
                 'su', 'root', '-c', ['apt-get', '-y', 'install', 'sudo']
             ]),
         ])
@@ -275,6 +327,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     commands = [
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
+        # XXX This needs retry
         run(
             command="yum list installed {} || yum install -y {}".format(
                 quote(repo_package_name),
@@ -314,8 +367,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
 
     # Install package and all dependencies:
 
-    commands.append(run_from_args(
-        ["yum", "install"] + repo_options + ["-y", package_name]))
+    commands.append(yum_install(repo_options + [package_name]))
 
     return sequence(commands)
 
@@ -349,12 +401,11 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # ensure that we start from a good base system with the required
         # capabilities, particularly that the add-apt-repository command
         # is available, and HTTPS URLs are supported.
-        run_from_args(["apt-get", "update"]),
-        run_from_args([
-            "apt-get", "-y", "install", "apt-transport-https",
-            "software-properties-common"]),
+        apt_get_update(),
+        apt_get_install(["apt-transport-https", "software-properties-common"]),
 
         # Add ClusterHQ repo for installation of Flocker packages.
+        # XXX This needs retry
         run(command='add-apt-repository -y "deb {} /"'.format(
             get_repository_url(
                 distribution=distribution,
@@ -363,7 +414,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     if base_url is not None:
         # Add BuildBot repo for running tests
-        commands.append(run_from_args([
+        commands.append(run_network_interacting_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
         # During a release, the ClusterHQ repo may contain packages with
         # a higher version number than the Buildbot repo for a branch.
@@ -381,7 +432,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
-    commands.append(run_from_args(["apt-get", "update"]))
+    commands.append(apt_get_update())
 
     os_version = package_source.os_version()
 
@@ -404,8 +455,8 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
 
     # Install package and all dependencies
-    commands.append(run_from_args([
-        'apt-get', '-y', '--force-yes', 'install', package_name]))
+    # We use --force-yes here because our packages aren't signed.
+    commands.append(apt_get_install(["--force-yes", package_name]))
 
     return sequence(commands)
 
@@ -493,13 +544,13 @@ def task_cli_pip_prereqs(package_manager):
     :return: an Effect to install the pre-requisites.
     """
     if package_manager in ('dnf', 'yum'):
-        return sudo_from_args(
-            [package_manager, '-y', 'install'] + PIP_CLI_PREREQ_YUM
+        return yum_install(
+            PIP_CLI_PREREQ_YUM, package_manager=package_manager, sudo=True,
         )
     elif package_manager == 'apt':
         return sequence([
-            sudo_from_args(['apt-get', 'update']),
-            sudo_from_args(['apt-get', '-y', 'install'] + PIP_CLI_PREREQ_APT),
+            apt_get_update(sudo=True),
+            apt_get_install(PIP_CLI_PREREQ_APT, sudo=True),
         ])
     else:
         raise UnsupportedDistribution()
@@ -622,8 +673,7 @@ def task_upgrade_kernel(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            run_from_args([
-                "yum", "install", "-y", "kernel-devel", "kernel"]),
+            yum_install(["kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
     elif distribution == 'ubuntu-14.04':
@@ -801,20 +851,34 @@ def open_ufw(service):
         ])
 
 
-def task_enable_flocker_control(distribution):
+def task_enable_flocker_control(distribution, action="start"):
     """
-    Enable flocker-control service.
+    Enable flocker-control service. We need to be able to indicate whether
+    we want to start the service, when we are deploying a new cluster,
+    or if we want to restart it, when we are using an existent cluster in
+    managed mode.
+
+    :param bytes distribution: name of the distribution where the flocker
+        controls currently runs. The supported distros are:
+            - ubuntu-14.04
+            - centos-<centos version>
+    :param bytes action: action to perform with the flocker control service.
+        Currently, we support:
+            -start
+            -stop
+
+    :raises ``DistributionNotSupported`` if the ``distribution`` is not
+            currently supported
+            ``UnknownAction`` if the action passed is not a valid one
     """
+    validate_start_action(action)
+
     if is_centos(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', START, 'flocker-control']),
+            run_from_args(['systemctl', action.lower(), 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
-        # Since the flocker-control service is currently installed
-        # alongside the flocker-dataset-agent service, the default control
-        # service configuration does not automatically start the
-        # service.  Here, we provide an override file to start it.
         return sequence([
             put(
                 path='/etc/init/flocker-control.override',
@@ -825,10 +889,21 @@ def task_enable_flocker_control(distribution):
             ),
             run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
             run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-            run_from_args(['service', 'flocker-control', 'start']),
+            run_from_args(['service', 'flocker-control', action.lower()]),
         ])
+
     else:
         raise DistributionNotSupported(distribution=distribution)
+
+
+def validate_start_action(action):
+    """
+    Validates if the action given is a valid one  - currently only
+    start and restart are supported
+    """
+    valid_actions = ["start", "restart"]
+    if action.lower() not in valid_actions:
+        raise UnknownAction(action)
 
 
 def task_enable_docker_plugin(distribution):
@@ -993,23 +1068,42 @@ def task_configure_flocker_agent(control_node, dataset_backend,
     return sequence([put_config_file])
 
 
-def task_enable_flocker_agent(distribution):
+def task_enable_flocker_agent(distribution, action="start"):
     """
     Enable the flocker agents.
 
     :param bytes distribution: The distribution name.
+    :param bytes action: action to perform with the flocker action. Currently
+                        we only support "start" and "restart"
+    :raises ``DistributionNotSupported`` if the ``distribution`` is not
+                currently supported.
+            ``UnknownAction`` if the action passed is not a valid one
     """
+    validate_start_action(action)
+
     if is_centos(distribution):
         return sequence([
-            run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
-            run_from_args(['systemctl', START, 'flocker-dataset-agent']),
-            run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
-            run_from_args(['systemctl', START, 'flocker-container-agent']),
+            run_from_args(['systemctl',
+                           'enable',
+                           'flocker-dataset-agent']),
+            run_from_args(['systemctl',
+                           action.lower(),
+                           'flocker-dataset-agent']),
+            run_from_args(['systemctl',
+                           'enable',
+                           'flocker-container-agent']),
+            run_from_args(['systemctl',
+                           action.lower(),
+                           'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            run_from_args(['service', 'flocker-dataset-agent', 'start']),
-            run_from_args(['service', 'flocker-container-agent', 'start']),
+            run_from_args(['service',
+                           'flocker-dataset-agent',
+                           action.lower()]),
+            run_from_args(['service',
+                           'flocker-container-agent',
+                           action.lower()]),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1039,37 +1133,33 @@ def task_install_zfs(distribution, variants=set()):
     if distribution == 'ubuntu-14.04':
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
-            run_from_args([
+            run_network_interacting_from_args([
                 "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
         ]
         commands += [
             # Update to read package info from new repos
-            run_from_args([
-                "apt-get", "update"]),
+            apt_get_update(),
             # Package spl-dkms sometimes does not have libc6-dev as a
             # dependency, add it before ZFS installation requires it.
             # See https://github.com/zfsonlinux/zfs/issues/3298
-            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
-            run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
+            apt_get_install(["libc6-dev"]),
+            apt_get_install(["zfsutils"]),
             ]
 
     elif is_centos(distribution):
         commands += [
-            run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
+            yum_install([ZFS_REPO[distribution]]),
         ]
         if distribution == 'centos-7':
-            commands.append(
-                run_from_args(["yum", "install", "-y", "epel-release"]))
+            commands.append(yum_install(["epel-release"]))
 
         if Variants.ZFS_TESTING in variants:
             commands += [
-                run_from_args(['yum', 'install', '-y', 'yum-utils']),
+                yum_install(['yum-utils']),
                 run_from_args([
                     'yum-config-manager', '--enable', 'zfs-testing'])
             ]
-        commands += [
-            run_from_args(['yum', 'install', '-y', 'zfs']),
-        ]
+        commands.append(yum_install(["zfs"]))
     else:
         raise DistributionNotSupported(distribution)
 
@@ -1216,12 +1306,16 @@ def task_install_docker(distribution):
     else:
         update = b""
 
-    return run(command=(
-        b"[[ -e /usr/bin/docker ]] || { " + update +
-        b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
-        b"sh /tmp/install-docker.sh"
-        b"; }"
-    ))
+    return retry_effect_with_timeout(
+        run(command=(
+            b"[[ -e /usr/bin/docker ]] || { " + update +
+            b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
+            b"sh /tmp/install-docker.sh"
+            b"; }"
+        )),
+        # Arbitrarily selected value
+        timeout=5.0 * 60.0,
+    )
 
 
 def task_install_flocker(
@@ -1391,7 +1485,7 @@ def install_flocker(nodes, package_source):
     )
 
 
-def configure_cluster(cluster, dataset_backend_configuration):
+def configure_cluster(cluster, dataset_backend_configuration, provider):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
@@ -1400,7 +1494,13 @@ def configure_cluster(cluster, dataset_backend_configuration):
 
     :param dict dataset_backend_configuration: Configuration parameters to
         supply to the dataset backend.
+
+    :param bytes provider: provider of the nodes  - aws. rackspace or managed.
     """
+    setup_action = 'start'
+    if provider == "managed":
+        setup_action = 'restart'
+
     return sequence([
         run_remotely(
             username='root',
@@ -1410,7 +1510,8 @@ def configure_cluster(cluster, dataset_backend_configuration):
                     cluster.certificates.cluster.certificate,
                     cluster.certificates.control.certificate,
                     cluster.certificates.control.key),
-                task_enable_flocker_control(cluster.control_node.distribution),
+                task_enable_flocker_control(cluster.control_node.distribution,
+                                            setup_action),
                 if_firewall_available(
                     cluster.control_node.distribution,
                     task_open_control_firewall(
@@ -1447,6 +1548,7 @@ def configure_cluster(cluster, dataset_backend_configuration):
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
+                            action=setup_action,
                         ),
                     ]),
                 ),

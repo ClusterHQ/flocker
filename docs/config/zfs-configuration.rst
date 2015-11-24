@@ -55,10 +55,30 @@ The following commands will create a 10 gigabyte ZFS pool backed by a file:
 
 .. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
 
-To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
-So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
-
 You must also set up SSH keys at :file:`/etc/flocker/id_rsa_flocker` which will allow each Flocker dataset agent node to authenticate to all other Flocker dataset agent nodes as root.
+
+Enable Root Login Between Nodes for ZFS Data Transfer
+=====================================================
+
+To support moving data with the ZFS backend, every node must be able to log in to all other nodes using SSH as the root user.
+
+In order to do this, append the contents of the :file:`/root/.ssh/id_rsa.pub` file on each node to the :file:`/root/.ssh/authorized_keys` file on each node. 
+This will need to be completed for all nodes, creating the :file:`authorized.keys` file if necessary.
+
+If you add or remove nodes from the cluster, you will need to ensure that these files are kept in sync.
+
+You will also need to ensure that your firewall allows the IP address of every node in the cluster to access TCP port 22 on each node.
+
+To test that the SSH authentication as root is working between nodes, log into a node as root, and run: 
+
+.. prompt:: bash [root@node]#
+  
+   ssh root@<other-node>
+
+Repeat this command to test the authentication for the other nodes in your cluster.
+
+.. warning::
+   If you fail to set this up, the ZFS backend may appear to work until you try and move a volume from one host to another, at which point this operation will fail.
 
 ZFS Backend Configuration
 =========================

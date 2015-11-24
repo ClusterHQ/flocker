@@ -148,7 +148,7 @@ def driver(reactor, config, scenario, operation, metric, result, output):
     def run_benchmark(ignored):
         return benchmark(
             scenario(reactor, control_service),
-            operation(control_service=control_service),
+            operation(clock=reactor, control_service=control_service),
             metric(clock=reactor, control_service=control_service),
         )
 

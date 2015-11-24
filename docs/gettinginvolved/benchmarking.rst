@@ -47,6 +47,9 @@ The :program:`benchmark` script has several options:
          Read from the control service.
          This is the default.
 
+      ``wait-10``
+         Wait 10 seconds between measurements.
+
 .. option:: --metric <metric>
 
    Specifies the quantity to measure while the operation is performed.

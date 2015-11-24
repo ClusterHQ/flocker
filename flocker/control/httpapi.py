@@ -44,11 +44,8 @@ from ._config import (
 from ._persistence import update_leases
 from ._model import LeaseError
 
-from .. import __version__
-
-
-# Default port for REST API:
-REST_API_PORT = 4523
+from .. import __version__, REST_API_PORT as _port
+REST_API_PORT = _port  # Some modules expect this constant to be here
 
 
 SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
