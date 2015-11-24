@@ -4,8 +4,12 @@
 Tests for ``flocker.common._retry``.
 """
 
+from sys import exc_info
 from datetime import timedelta
 from itertools import repeat
+
+import testtools
+from testtools.matchers import MatchesPredicate, Equals, raises
 
 from eliot.testing import (
     capture_logging,
@@ -36,6 +40,8 @@ from .._retry import (
     retry_failure,
     poll_until,
     timeout,
+    retry_on_intervals, retry_some_times, retry_if, compose_retry,
+    wrap_methods_with_failure_retry,
 )
 from ...testtools import CustomException
 
@@ -589,4 +595,277 @@ class RetryEffectTests(SynchronousTestCase):
         self.assertRaises(
             CustomException,
             perform_sequence, expected_intents, retrier
+        )
+
+
+EXPECTED_RETRY_SOME_TIMES_RETRIES = 1199
+
+
+class RetrySomeTimesTests(testtools.TestCase):
+    """
+    Tests for ``retry_some_times``.
+    """
+    def test_retry_some_times(self):
+        """
+        The function returned by ``retry_some_times`` returns a ``timedelta``
+        of ``0.1`` seconds as long as the sum of the results is no more than
+        ``120.0`` and then raises the exception passed to it on the next call.
+        """
+        try:
+            raise CustomException()
+        except:
+            details = exc_info()
+
+        should_try = retry_some_times()
+        self.assertThat(
+            list(
+                should_try(*details)
+                for n in range(EXPECTED_RETRY_SOME_TIMES_RETRIES)
+            ),
+            Equals(
+                [timedelta(seconds=0.1)] * EXPECTED_RETRY_SOME_TIMES_RETRIES
+            ),
+        )
+        self.assertThat(lambda: should_try(*details), raises(CustomException))
+
+
+class RetryIfTests(testtools.TestCase):
+    """
+    Tests for ``retry_if``.
+    """
+    def test_matches(self):
+        """
+        If the matching function returns ``True``, the retry predicate returned
+        by ``retry_if`` returns ``None``.
+        """
+        should_retry = retry_if(
+            lambda exception: isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            Equals(None),
+        )
+
+    def test_does_not_match(self):
+        """
+        If the matching function returns ``False``, the retry predicate
+        returned by ``retry_if`` re-raises the exception.
+        """
+        should_retry = retry_if(
+            lambda exception: not isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            lambda: should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            raises(CustomException),
+        )
+
+
+class ComposeRetryTests(testtools.TestCase):
+    """
+    Tests for ``compose_retry``.
+    """
+    def test_raise_first_exception(self):
+        """
+        If one of the predicates passed to ``compose_retry`` raises an
+        exception, ``compose_retry`` raises that exception.
+        """
+        class AnotherException(Exception):
+            pass
+
+        def throw(exception):
+            raise exception
+
+        should_retry = compose_retry([
+            retry_if(lambda exception: isinstance(
+                exception, AnotherException
+            )),
+            lambda type, value, traceback: throw(CustomException()),
+            retry_if(lambda exception: True),
+        ])
+
+        self.assertThat(
+            lambda: should_retry(AnotherException, AnotherException(), None),
+            raises(CustomException),
+        )
+
+    def test_returns_first_value(self):
+        """
+        If one of the predicates passed to ``compose_retry`` returns a
+        non-``None`` value, ``compose_retry`` returns that value.
+        """
+        should_retry = compose_retry([
+            retry_if(lambda exception: True),
+            lambda type, value, traceback: timedelta(seconds=3.0),
+            retry_if(lambda exception: False),
+        ])
+
+        self.assertThat(
+            should_retry(CustomException, CustomException(), None),
+            Equals(timedelta(seconds=3.0)),
+        )
+
+    def test_default_none_result(self):
+        """
+        If all of the predicates passed to ``compose_retry`` return ``None``,
+        ``compose_retry`` returns ``None``.
+        """
+        should_retry = compose_retry([
+            retry_if(lambda exception: True),
+        ])
+        self.assertThat(
+            should_retry(CustomException, CustomException(), None),
+            Equals(None),
+        )
+
+
+class WrapMethodsWithFailureRetryTests(testtools.TestCase):
+    """
+    Tests for ``wrap_methods_with_failure_retry``.
+    """
+    class AlwaysFail(object):
+        failures = 0
+
+        def some_method(self):
+            self.failures += 1
+            raise CustomException(self.failures)
+
+    def test_data_descriptor(self):
+        """
+        Non-method attribute read access passes through to the wrapped object
+        and the result is the same as if no wrapping had taken place.
+        """
+        class Original(object):
+            class_attribute = object()
+
+            def __init__(self):
+                self.instance_attribute = object()
+
+        original = Original()
+        wrapper = wrap_methods_with_failure_retry(original)
+        self.assertThat(
+            wrapper.class_attribute,
+            Equals(original.class_attribute),
+        )
+        self.assertThat(
+            wrapper.instance_attribute,
+            Equals(original.instance_attribute),
+        )
+
+    def test_passthrough(self):
+        """
+        Methods called on the wrapper have the same arguments passed through to
+        the wrapped method and the result of the wrapped method returned if no
+        exception is raised.
+        """
+        class Original(object):
+            def some_method(self, a, b):
+                return (b, a)
+
+        a = object()
+        b = object()
+
+        wrapper = wrap_methods_with_failure_retry(Original())
+        self.assertThat(
+            wrapper.some_method(a, b=b),
+            Equals((b, a)),
+        )
+
+    def test_default_retry(self):
+        """
+        If no value is given for the ``should_retry`` parameter, if the wrapped
+        method raises an exception it is called again after a short delay.
+        This is repeated using the elements of ``retry_some_times`` as the
+        sleep times and stops when there are no more elements.
+        """
+        time = []
+        sleep = time.append
+
+        original = self.AlwaysFail()
+        wrapper = wrap_methods_with_failure_retry(original, sleep=sleep)
+        # XXX testtools ``raises`` helper generates a crummy message when this
+        # assertion fails
+        self.assertThat(
+            wrapper.some_method,
+            raises(CustomException),
+        )
+        self.assertThat(
+            original.failures,
+            # The number of times we demonstrated (above) that retry_some_times
+            # retries - plus one more for the initial call.
+            Equals(EXPECTED_RETRY_SOME_TIMES_RETRIES + 1),
+        )
+        self.assertThat(
+            sum(time),
+            # Floating point maths.  Allow for some slop.
+            MatchesPredicate(
+                lambda t: 119.8 <= t <= 120.0,
+                "Time value %r too far from expected value 119.9",
+            ),
+        )
+
+    def test_custom_should_retry(self):
+        """
+        If a predicate is passed for ``should_retry``, it used to determine
+        whether a retry should be attempted any time an exception is raised.
+        """
+        original = self.AlwaysFail()
+        wrapped = wrap_methods_with_failure_retry(
+            original,
+            retry_if(
+                lambda exception: (
+                    isinstance(exception, CustomException) and
+                    exception.args[0] < 10
+                ),
+            ),
+            sleep=lambda interval: None,
+        )
+
+        self.assertThat(
+            wrapped.some_method,
+            raises(CustomException),
+        )
+        self.assertThat(
+            original.failures,
+            Equals(10),
+        )
+
+    def test_custom_should_retry_sleep_interval(self):
+        """
+        If a predicate is passed for ``should_retry``, its return value is used
+        as a sleep interval between retries.
+        """
+        time = []
+        sleep = time.append
+
+        intervals = [
+            timedelta(seconds=1), None,
+            timedelta(seconds=3), None,
+            timedelta(seconds=5), None,
+        ]
+        original = self.AlwaysFail()
+        wrapped = wrap_methods_with_failure_retry(
+            original,
+            retry_on_intervals(intervals),
+            sleep=sleep,
+        )
+
+        self.assertThat(
+            wrapped.some_method,
+            raises(CustomException),
+        )
+        # XXX Generates a confusing error message when fails, says "expected !=
+        # actual" when the argument order is "actual, expected"!
+        self.assertThat(
+            original.failures,
+            # One retry after each sleep interval - plus the initial try before
+            # any sleeps.
+            Equals(len(intervals) + 1),
+        )
+        self.assertThat(
+            sum(time),
+            Equals(sum(filter(None, intervals), timedelta(0)).total_seconds()),
         )

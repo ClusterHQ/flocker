@@ -10,6 +10,9 @@ __all__ = [
     'get_all_ips', 'ipaddress_from_string',
     'loop_until', 'timeout', 'retry_failure', 'poll_until',
     'retry_effect_with_timeout',
+
+    'compose_retry', 'retry_if', 'retry_some_times',
+    'wrap_methods_with_failure_retry',
 ]
 
 from ._ipc import INode, FakeNode, ProcessNode
@@ -19,4 +22,6 @@ from ._interface import interface_decorator
 from ._net import get_all_ips, ipaddress_from_string
 from ._retry import (
     loop_until, timeout, poll_until, retry_failure, retry_effect_with_timeout,
+    compose_retry, retry_if, retry_some_times,
+    wrap_methods_with_failure_retry,
 )
