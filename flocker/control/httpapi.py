@@ -156,8 +156,8 @@ class ConfigurationAPIUserV1(object):
         u"""
         Get the cluster's dataset configuration.
 
-        Includes ``Etag`` header for use with operations that support
-        ``If-Matches``.
+        Includes an ``Etag`` header in the response for use with operations
+        that support ``If-Matches``.
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
@@ -191,8 +191,8 @@ class ConfigurationAPIUserV1(object):
         u"""
         Create a new dataset.
 
-        Supports ``If-Matches`` header for matching previously retrieved
-        dataset configuration.
+        Supports ``If-Matches`` header in the request to ensure creation
+        only happens if the configuration hasn't changed.
         """,
         header=u"Create new dataset",
         examples=[
@@ -291,8 +291,8 @@ class ConfigurationAPIUserV1(object):
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
 
-        Supports ``If-Matches`` header for matching previously retrieved
-        dataset configuration.
+        Supports ``If-Matches`` header in the request to ensure deletion
+        only happens if the configuration hasn't changed.
         """,
         header=u"Delete an existing dataset",
         examples=[
@@ -352,8 +352,8 @@ class ConfigurationAPIUserV1(object):
         * In the future this may be used to update metadata, but that is not
           currently supported.
 
-        Supports ``If-Matches`` header for matching previously retrieved
-        dataset configuration.
+        Supports ``If-Matches`` header in the request to ensure the update
+        only happens if the configuration hasn't changed.
         """,
         header=u"Update an existing dataset",
         examples=[
