@@ -22,7 +22,7 @@ _FLOCKER_PROCESSES = {
 
 _GET_CPUTIME_COMMAND = [
     # Use system ps to collect the information
-    b'ps',
+    b'psdd',
     # Output the command name (truncated) and the cputime of the process.
     # `=` provides a header.  Making all the headers blank prevents the header
     # line from being written.

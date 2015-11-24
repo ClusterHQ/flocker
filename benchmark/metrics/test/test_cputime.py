@@ -1,4 +1,6 @@
+import platform
 import subprocess
+from unittest import skipIf
 from uuid import uuid4
 
 from ipaddr import IPAddress
@@ -14,6 +16,9 @@ from benchmark._interfaces import IMetric
 from benchmark.metrics.cputime import (
     CPUTime, CPUParser, get_node_cpu_times, compute_change,
 )
+
+
+on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
 
 
 class CPUParseTests(SynchronousTestCase):
@@ -86,6 +91,7 @@ class GetNodeCPUTimeTests(TestCase):
     Test ``get_node_cpu_times`` command.
     """
 
+    @on_linux
     def test_get_node_cpu_times(self):
         """
         Success results in output of dictionary containing process names.
@@ -103,6 +109,7 @@ class GetNodeCPUTimeTests(TestCase):
 
         return d
 
+    @on_linux
     def test_no_such_process(self):
         """
         If processes do not exist, empty directory is returned.
@@ -188,6 +195,7 @@ class CPUTimeTests(TestCase):
         """
         verifyClass(IMetric, CPUTime)
 
+    @on_linux
     def test_cpu_time(self):
         """
         Fake Flocker cluster gives expected results.
