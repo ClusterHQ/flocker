@@ -104,7 +104,7 @@ set +x
 
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
 BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
-PAYLOAD="{\"state\": \"pending\", \"target_url\": \"\$BUILD_URL\", \"description\": \"Multijob build\", \"context\": \"Jenkins\" }" 
+PAYLOAD="{\\"state\\": \\"pending\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"Multijob build\\", \\"context\\": \\"Jenkins\\" }" 
 curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
