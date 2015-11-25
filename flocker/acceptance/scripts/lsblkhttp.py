@@ -10,6 +10,8 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(s):
+        s.send_response(200)
+        s.end_headers()
         if len(argv) > 1:
             try:
                 # format output is </dev/id>[/mount/point]
@@ -26,16 +28,10 @@ class Handler(BaseHTTPRequestHandler):
                 command_output = check_output(command).split('\n')[0]
                 device_size = str(int(command_output.strip()))
             except Exception as e:
-                s.send_response(500)
-                s.end_headers()
                 s.wfile.write(str(e.__class__) + ": " + str(e))
             else:
-                s.send_response(200)
-                s.end_headers()
                 s.wfile.write(device_size)
         else:
-            s.send_response(200)
-            s.end_headers()
             s.wfile.write(b"ok")
         s.wfile.close()
 
