@@ -10,7 +10,9 @@ from twisted.web.http import OK
 from twisted.internet.task import Clock
 
 from hypothesis import given
-from hypothesis.strategies import sampled_from, builds
+from hypothesis.strategies import (
+    sampled_from, builds, integers
+)
 
 from pyrsistent import pmap
 
@@ -26,14 +28,13 @@ from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 
 # A Hypothesis strategy for generating size of volume
-volume_size = builds(
-    lambda size: b"".join(str(size)),
-    size=sampled_from(range(1, 2)),
-)
+# A Hypothesis strategy for generating size expression of volume
 volume_expression = builds(
     lambda expression: b"".join(expression),
-    expression=sampled_from(["gib", "G", "Gb",
-                             "gb", "Gib", "g"]),
+    expression=sampled_from(["gib", "G", "Gb", "gb", "Gib", "g",
+                             "mib", "M", "Mb", "mb", "Mib", "m",
+                             "kib", "K", "Kb", "kb", "Kib", "k",
+                             "tib", "T", "Tb", "tb", "Tib", "t"]),
 )
 
 
@@ -132,7 +133,7 @@ class APITestsMixin(APIAssertionsMixin):
             lambda _: self.flocker_client.delete_dataset(dataset_id))
         return d
 
-    @given(volume_size, volume_expression)
+    @given(integers(min_value=1, max_value=75), volume_expression)
     def test_create_with_size(self, size, expression):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
@@ -140,7 +141,7 @@ class APITestsMixin(APIAssertionsMixin):
         with a given name and random size between 1-100G
         """
         name = random_name(self)
-        size_opt = size+expression
+        size_opt = "".join(str(size))+expression
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"size": size_opt}},
                               OK, {u"Err": None})
