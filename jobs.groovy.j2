@@ -91,12 +91,12 @@
 {# --------------------------------------------------------------------------#}
 
 
-{% macro updateGitHubStatus(status)                                         -%}
+{% macro updateGitHubStatus(status, branch)                                 -%}
 {# Read the commit and github credentials                                    #}
 {# Update github with the build status                                       #}
 {% if status == "pending"                                                    %}
     shell("""
-REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 origin/{{branch}}`
 echo \$REMOTE_GIT_COMMIT
 echo 'Job started'
     """)
@@ -108,7 +108,7 @@ echo 'Job started'
       }
       steps {
         shell("""
-REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 origin/{{branch}}`
 echo \$REMOTE_GIT_COMMIT
 echo 'Job failed'
         """)
@@ -120,7 +120,7 @@ echo 'Job failed'
       }
       steps {
         shell("""
-REMOTE_GIT_COMMIT=`git rev-list --no-merges --max-count=1 HEAD`
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 origin/{{branch}}`
 echo \$REMOTE_GIT_COMMIT
 echo 'Job succeeded'
         """)
@@ -533,7 +533,7 @@ branches.each {
     }
       steps {
 {# Set the commit status on github to pending                                #}
-          {{ updateGitHubStatus('pending') }}
+          {{ updateGitHubStatus('pending', "${branchName}") }}
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -662,7 +662,7 @@ branches.each {
 {%  endfor                                                                   %}
 {% endfor                                                                    %}
 {# Update the commit status on github to the job result                    #}
-        {{ updateGitHubStatus('complete') }}
+        {{ updateGitHubStatus('complete', "${branchName}") }}
 {# do an aggregation of all the test results                                 #}
       }
       publishers {
