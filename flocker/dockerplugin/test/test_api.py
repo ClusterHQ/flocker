@@ -32,9 +32,7 @@ from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 volume_expression = builds(
     lambda expression: b"".join(expression),
     expression=sampled_from(["gib", "G", "Gb", "gb", "Gib", "g",
-                             "mib", "M", "Mb", "mb", "Mib", "m",
-                             "kib", "K", "Kb", "kb", "Kib", "k",
-                             "tib", "T", "Tb", "tb", "Tib", "t"]),
+                             "mib", "M", "Mb", "mb", "Mib", "m"]),
 )
 
 
@@ -133,14 +131,17 @@ class APITestsMixin(APIAssertionsMixin):
             lambda _: self.flocker_client.delete_dataset(dataset_id))
         return d
 
-    @given(integers(min_value=1, max_value=75), volume_expression)
-    def test_create_with_size(self, size, expression):
+    # @given(integers(min_value=1, max_value=75), volume_expression)
+    # def test_create_with_size(self, size, expression):
+    def test_create_with_size(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
         of "size=<somesize> in the request body JSON create a Volumes
         with a given name and random size between 1-100G
         """
         name = random_name(self)
+        size = integers(min_value=1, max_value=75).example()
+        expression = volume_expression.example()
         size_opt = "".join(str(size))+expression
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"size": size_opt}},

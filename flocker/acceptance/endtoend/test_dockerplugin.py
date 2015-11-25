@@ -4,11 +4,10 @@
 Tests for the Flocker Docker plugin.
 """
 
-from random import randint
-from itertools import chain
-
 from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
+
+from hypothesis.strategies import integers
 
 from bitmath import GiB
 
@@ -16,6 +15,8 @@ from distutils.version import LooseVersion
 
 from ...common import loop_until
 from ...common.runner import run_ssh
+
+from ...dockerplugin.test.test_api import volume_expression
 
 from ...testtools import (
     AsyncTestCase, random_name, find_free_port, flaky,
@@ -151,6 +152,9 @@ class DockerPluginTests(AsyncTestCase):
         self.addCleanup(client.remove_volume, name)
         return result
 
+    # @given(size=integers(min_value=75, max_value=100),
+    #        expression=volume_expression)
+    # def _test_sized_vol_container(self, cluster, node, size, expression):
     def _test_sized_vol_container(self, cluster, node):
         """
         Create a volume with a size, then create a
@@ -163,26 +167,12 @@ class DockerPluginTests(AsyncTestCase):
         """
         client = get_docker_client(cluster, node.public_address)
         volume_name = random_name(self)
-        # Because flocker/control/schema/types.yml#L250 > 64MiB
-        # "k" and "t" are too big and too small for test
-        # but we to keep some randomness to this test.
-        size_expressions = list(chain.from_iterable((x, x+"b", x+"ib")
-                                for x in ["g"]))
-        # Note: if a user types in 50mib, flocker defaults to
-        # at least 1G because this is AWS minimums etc, so this test
-        # cannot test all expressions but we test g, gib, gb.
-        # Note: openstack cinder must have between 75-100GB :(
-        # http://www.rackspace.com/knowledge_center/product-faq
-        # /cloud-block-storage
-        # https://github.com/ClusterHQ/flocker/blob/
-        # 780b22a443d1f2c10211b12e08d08ab1585099dc/flocker/
-        # node/agents/cinder.py#L471 passes it through
-        rand_size = randint(75, 95)
-        size_bytes = int(GiB(rand_size).to_Byte().value)
-        size = str(rand_size) + str(
-            size_expressions[randint(0, len(size_expressions) - 1)])
+        size = integers(min_value=75, max_value=100).example()
+        expression = volume_expression.example()
+        size_opt = "".join(str(size))+expression
+        size_bytes = int(GiB(size).to_Byte().value)
         self._create_volume(client, volume_name,
-                            driver_opts={'size': size})
+                            driver_opts={'size': size_opt})
         http_port = 8080
         host_port = find_free_port()[1]
         self.run_python_container(
