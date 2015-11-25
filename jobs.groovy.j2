@@ -108,6 +108,8 @@ echo 'Job started'
 {% if status == "complete" %}
     configure {
     it / 'builders' << 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder'(plugin: 'conditional-buildstep@1.3.3') {
+      condition(class: "org.jenkins_ci.plugins.run_condition.core.StatusCondition")(plugin: "run-condition@1.0") {
+      }
       }
     }
 {% endif %}
