@@ -102,8 +102,8 @@ echo 'Job started'
     """)
 {% endif %}
 {% if status == "complete" %}
-    configure { node ->
-      node / 'builders' / 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder' {
+    configure { project ->
+      project / 'builders' << 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder' {
         spec ''
       }
     }
