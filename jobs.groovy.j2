@@ -108,7 +108,7 @@ curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
-  --data "{'state': 'pending', 'target_url': '\$BUILD_URL', 'description': 'Multijob build', 'context': 'Jenkins' }" \\
+  --data "{\"state\"': \"pending\", \"target_url\": \"\$BUILD_URL\", \"description\": \"Multijob build\", \"context\": \"Jenkins\" }" \\
   https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with pending status."
         """)
@@ -144,7 +144,7 @@ curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
-  --data "{'state': 'success', 'target_url': '\$BUILD_URL', 'description': 'Multijob build', 'context': 'Jenkins' }" \\
+  --data "{\"state\"': \"success\", \"target_url\": \"\$BUILD_URL\", \"description\": \"Multijob build\", \"context\": \"Jenkins\" }" \\
   https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with success status."
           """)
@@ -179,7 +179,7 @@ curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
-  --data "{'state': 'failure', 'target_url': '\$BUILD_URL', 'description': 'Multijob build', 'context': 'Jenkins' }" \\
+  --data "{\"state\"': \"failure\", \"target_url\": \"\$BUILD_URL\", \"description\": \"Multijob build\", \"context\": \"Jenkins\" }" \\
   https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with failure status."
           """)
