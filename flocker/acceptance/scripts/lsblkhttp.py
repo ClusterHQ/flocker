@@ -16,9 +16,12 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 # format output is </dev/id>[/mount/point]
                 # so we filter the mountpoint
+                # returned device is '/dev/xvdb\\n'
                 device_path = check_output(['findmnt', '-n',
                                             '-m', '%s' % argv[1],
-                                            '-o', 'SOURCE']).split('[')[0]
+                                            '-o',
+                                            'SOURCE']).split(
+                                                '[')[0].rstrip('\\n')
 
                 command = ["/bin/lsblk", "--noheadings", "--bytes",
                            "--output", "SIZE", device_path]
