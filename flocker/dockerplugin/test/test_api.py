@@ -27,12 +27,12 @@ from ...restapi import make_bad_request
 from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
 
 
-# A Hypothesis strategy for generating size of volume
 # A Hypothesis strategy for generating size expression of volume
+# dont bother with kib, its too small, flocker complains.
+# alternativley we could assert for failure.
 volume_expression = builds(
     lambda expression: b"".join(expression),
-    expression=sampled_from(["gib", "G", "Gb", "gb", "Gib", "g",
-                             "mib", "M", "Mb", "mb", "Mib", "m"]),
+    expression=sampled_from(["gib", "G", "Gb", "gb", "Gib", "g"]),
 )
 
 
