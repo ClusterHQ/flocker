@@ -596,6 +596,9 @@ branches.each {
           absolute(45)
           }
     }
+
+ {# the multijob runs on the jenkins-master only                             #}
+    label("master")
 {# Set the commit status on github to pending                                #}
       {{ updateGitHubStatus('pending', "${branchName}", "${dashProject}", "${dashBranchName}") }}
       steps {
