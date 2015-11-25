@@ -100,7 +100,7 @@
         command("""
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
 echo \$REMOTE_GIT_COMMIT
-echo 'Job started'
+echo "Job started"
         """)
       }
     }
@@ -125,7 +125,7 @@ echo 'Job started'
         buildStep(class: "hudson.tasks.Shell") {
           command("""
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
-echo 'Job succeeded. Updating commit \$REMOTE_GIT_COMMIT with success status.'
+echo "Job succeeded. Updating commit \$REMOTE_GIT_COMMIT with success status."
           """)
         }
         runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
@@ -149,7 +149,7 @@ echo 'Job succeeded. Updating commit \$REMOTE_GIT_COMMIT with success status.'
         buildStep(class: "hudson.tasks.Shell") {
           command("""
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
-echo 'Job failed. Updating commit \$REMOTE_GIT_COMMIT with failure status.'
+echo "Job failed. Updating commit \$REMOTE_GIT_COMMIT with failure status."
           """)
         }
         runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
