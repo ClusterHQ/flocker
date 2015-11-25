@@ -44,7 +44,13 @@ def list_hardware(classes=()):
         command.append('-class')
         command.append(hardware_class)
     with open(os.devnull, 'w') as devnull:
-        return check_output(command, stderr=devnull)
+        result = check_output(command, stderr=devnull)
+        if classes:
+            # If classes are named, the result is a sequence of JSON objects,
+            # which need to be wrapped in a JSON array.  Also has a trailing
+            # comma which is invalid JSON.
+            result = '[{}]\n'.format(result.rstrip().rstrip(','))
+        return result
 
 
 class FlockerDebugArchive(object):
